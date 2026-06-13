@@ -1,0 +1,157 @@
+*******************************************************************
+* This document is part of the distribution of "Just What I Need" *
+* (JWIN) v1.52F for the Psion Series 3a, 3c, 3mx and Siena.       *
+*******************************************************************
+
+About User-Loadable Modules
+***************************
+The principal of user-loadable modules is very simple. You can write
+your own small (or large!) OPL program, and then integrate it into JWIN.
+
+JWIN allows you to integrate up to 5 modules which can appear on the
+menu and respond to standard hotkeys, but using simply "Load new" on
+the "Modules" menu, you can run any number of modules at different times.
+
+The modules Themselves
+**********************
+The modules are OPL programs. Simple as that! There are, however, some
+basic rules and style guidelines which you should follow when writing
+them, so that they work effectively and as desired from within JWIN.
+
+This is a 'skeleton' outline, with a few REM comments, of a 'plugin'
+file for JWIN.
+
+REM First procedure of the file MUST be Jwinhook:
+
+PROC Jwinhook:
+
+REM These GLOBAL variables are common to ALL modules written for JWIN.
+REM Only the data they hold should vary between modules
+
+GLOBAL Modname$(20),Modver$(10),Moddate$(10),Modauth$(30),Modver&
+
+REM Now initialise those variables (see below)...
+Setvers:
+
+REM My own convention and recommendation is to pass control to a new
+REM procedure for the main workings of the module. I use Jwinhook:
+REM simply to initialise GLOBAL's, etc. After Modmain: is over,
+REM use RETURN and control will pass back to the label Control::
+
+Modmain:
+
+Control::
+
+REM The call STOP will not only stop the module, but also JWIN too. So,
+REM use RETURN to pass control back to JWIN.
+
+RETURN
+ENDP
+
+PROC Modmain:
+
+REM ....................................
+REM ..........MAIN CODE IN HERE.........
+REM ....................................
+
+dINIT "Skeleton plugin for JWIN"
+dTEXT "","If you're reading this, then the",$102
+dTEXT "","module has worked just fine!",$102
+DIALOG
+ENDP
+
+REM Setvers: MUST exist as it allows JWIN to check and get module details
+
+PROC Setvers:
+REM Setup name of module, 20 letters max.
+Modname$="Module Name"
+
+REM The version string follows the MS Windows pattern of:
+REM
+REM Version<DOT>Major Revision Minor Revision<DOT>Build Number
+REM 1 digit     1 digit        1 digit            4 digits
+REM
+REM For example:
+REM 1           0              1                  0102 
+
+Modver$="1.01.0102"
+ 
+REM Equivalent version number, but as Long Integer.
+Modver&=1.010102
+
+REM Date module was last modified, DD/MM/YYYY
+Moddate$="15/11/1997"
+
+REM Name of the author of the module!
+Modauth$="Your Name"
+ENDP
+
+Hard and fast Rules
+*******************
+To ensure your module works correctly, these rules MUST be followed:
+
+1) The first procedure of your module MUST be called Jwinhook:
+2) You MUST declare at least 5 GLOBAL variables:
+
+   Modname$(20),Modver$(10),Moddate$(10),Modauth$(30),Modver&
+
+   within that first Jwinhook: procedure.
+3) You MUST declare and procedure called Setvers: in your module.
+   This procedure should enter the relevant version, name, date
+   and author details into the corresponding GLOBAL variables
+   (see example code above).
+4) That's it, the rest of what you code is up to you!
+
+Style Points
+************
+There are no hard and fast style rules, after all, the code is your own.
+The only points which I fine make life easier are:
+
+a) Keep compulsory and non-compulsory procedures as separate as possible,
+i.e. Don't use Setvers for anything other than shown in the example code
+above, and once you have declared the GLOBAL variables, call a new procedure
+from within Jwinhook: to do the main 'work' of the module.
+
+b) The modules supplied with JWIN v1.52F (StopWatches and Quick Calc) both
+have a .OVL extension. This is my own style, but if you can follow this
+with your own modules, they will fit in 'better' with JWIN.
+
+What can I do with existing programs?
+*************************************
+If you have some existing OPL programs, then it won't take much to convert
+them to work as a module from within JWIN. All you need to do is add the
+Jwinhook: and Setvers: procedures, and their associated variables, etc. and
+you're away!
+
+What do you do with modules after making them?
+**********************************************
+Well, if you just want to keep it for your own personal use, place the .OVL
+file in \APP\JWIN\ and then you will be able to load it easily from within
+JWIN. For more details, read the supplied JWIN.HLP file, as that provides in
+depth information about how you can use the "Load new" command (Psion-Shift-L)
+to load and setup the module to your liking.
+
+However, I also want to compile a web page of modules people have written. If
+you want to have your module placed on my web site for others to use, then
+please let me know!
+
+You will, of course, get full credit for writing and sending me anything. I'm
+eager for whatever you have created and find of use for yourself, to be published
+on my site. If you want to try this, please e-mail me on:
+
+nicko@nildram.co.uk (preferred) or Pkspencer@compuserve.com
+
+The page where the modules will be housed, will be on my web site at
+
+http://www.spencer.nildram.co.uk/
+
+Any other questions?
+********************
+This document and the normal help file supplied with JWIN all the information
+you need to create workable, useful .OVL files for use with JWIN v1.50 and above.
+If you have any more questions, please contact me via e-mail (see above), and
+I will do my best to provide any support you need to develop your modules!
+
+Happy developing!
+
+This document is Copyright (c) Phil Spencer 1998, All Rights Reserved.

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Native host build of the emulator core + harness. No emscripten required.
+
+set -e
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CORE="$REPO_ROOT/core"
+HARNESS="$REPO_ROOT/harness"
+OBJ_DIR="$HARNESS/obj"
+OUT="$HARNESS/run"
+
+mkdir -p "$OBJ_DIR"
+
+CXX="${CXX:-g++}"
+CC="${CC:-gcc}"
+
+# -DPSION_PROFILE_CYCLES compiles in the SA-1100 executed-cycle counter so the
+# harness can report raw interpreter throughput (SA1100_THROUGHPUT line). The
+# WASM build deliberately omits it, so the shipping emulator pays nothing.
+# -flto: link-time optimisation lets the hot interpreter paths (cpu.tick →
+# readVirtual/writeVirtual, etc.) inline across translation units. Measured
+# +13% Series 7 / +3% netBook native throughput; same code, so the boot suite
+# validates correctness.
+CXXFLAGS=(-O3 -flto -std=c++17 -Wno-deprecated-declarations -Wno-multichar -DPSION_PROFILE_CYCLES)
+CFLAGS=(-O3 -flto)
+
+echo "=== Compiling core C++ sources ==="
+SOURCES=(arm710 emubase etna eiger eiger_classifier vcfcard windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
+         sa1100 sa1100_cpu \
+         audio_codec \
+         sibo_audio \
+         v30 v30_ops_mov v30_ops_arith v30_ops_ctrl v30_ops_misc \
+         psion_asic1 psion_asic2 psion_asic3 psion_ssd psion_condor psion_honda series3 series3c series3c_serial_bridge \
+         hd6303 hd44780 psion_datapak organiser2 \
+         device_registry)
+# psion_asic9 is landing on a parallel branch; compile it in if present.
+if [ -f "$CORE/psion_asic9.cpp" ]; then
+    SOURCES+=(psion_asic9)
+fi
+for src in "${SOURCES[@]}"; do
+    echo "  $src.cpp"
+    "$CXX" "${CXXFLAGS[@]}" -c -o "$OBJ_DIR/$src.o" "$CORE/$src.cpp"
+done
+
+# L9: core/decoder.c and core/decoder-arm.c are mGBA-derived ARM
+# disassembly tables. Nothing in the emulator core or harness references
+# `ARMDecodeARM`, `ARMDisassemble`, or `_armTable`; they were compiled in
+# as dead weight. The .c files remain in the tree (low-risk: just not
+# part of the build) so anyone who needs them for a future debugger
+# integration can re-enable trivially.
+
+echo "=== Linking harness ==="
+"$CXX" "${CXXFLAGS[@]}" "$HARNESS/run.cpp" "$OBJ_DIR"/*.o -o "$OUT"
+
+echo "=== Linking audio-harness ==="
+"$CXX" "${CXXFLAGS[@]}" "$HARNESS/audio-harness.cpp" "$OBJ_DIR"/*.o \
+    -o "$HARNESS/audio-harness"
+
+for tgt in series5-audio-test clps7111-record-test windermere-audio-test netbook-audio-harness series7-audio-harness sibo-audio-harness pacman-profile; do
+    if [ -f "$HARNESS/$tgt.cpp" ]; then
+        echo "=== Linking $tgt ==="
+        "$CXX" "${CXXFLAGS[@]}" "$HARNESS/$tgt.cpp" "$OBJ_DIR"/*.o \
+            -o "$HARNESS/$tgt"
+    fi
+done
+
+# SSD frame-protocol smoke test. Tiny binary; always built so CI can
+# exercise it via `tests/ssd_smoke` after the harness link succeeds.
+TESTS_DIR="$REPO_ROOT/tests"
+if [ -f "$TESTS_DIR/unit/ssd_smoke.cpp" ]; then
+    echo "=== Linking ssd_smoke ==="
+    "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/ssd_smoke.cpp" \
+        "$OBJ_DIR/psion_ssd.o" -o "$TESTS_DIR/unit/ssd_smoke"
+fi
+
+# VCFCard write-path test — guards the "Disk corrupt on copy/format" fix
+# (no spurious post-WRITE-command IREQ; correct per-sector completion IRQ;
+# written bytes land at the right LBA) for both faithfulMode states.
+if [ -f "$TESTS_DIR/unit/cf_write_test.cpp" ]; then
+    echo "=== Linking cf_write_test ==="
+    "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/cf_write_test.cpp" \
+        "$OBJ_DIR/vcfcard.o" "$OBJ_DIR/arm710.o" "$OBJ_DIR/emubase.o" \
+        -o "$TESTS_DIR/unit/cf_write_test"
+fi
+
+echo ""
+echo "Built:"
+echo "  $OUT"
+echo "  $HARNESS/audio-harness"

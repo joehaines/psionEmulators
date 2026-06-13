@@ -1,0 +1,33 @@
+==========
+psion/comms #1447, from hzk, 873 chars, Sep 2 14:51 95
+Comment to 1446.
+----------
+A useful way to check for the correct installation of the serial link 
+is shown below.  I use it in my terminal program "PocPac", and also 
+find it useful to check for the presence of any directory on my 3a.
+
+There is a bug in some of the earlier 3a's, which prevented serial 
+comms from working after you tried to open TTY:A without the RS232 
+lead connected.  Luckily there is a patch for this, but it's 
+worthwhile for programmers to incorporate some code like this to 
+prevent a lot of grief to those unaware of it.
+        
+                
+IF ckpth%:("LOC::C:\")
+        ALERT("Serial Lead Not Plugged In !!","Abort")
+        STOP
+ENDIF
+
+PROC ckpth%:(cpth$)
+        LOCAL h%,p$(128)
+        p$=cpth$+"*.*"
+        IF IOOPEN(h%,p$,$30)
+                RETURN -1
+        ELSE
+                IOCLOSE(h%) :RETURN 0
+        ENDIF
+ENDP
+
+Roger
+
+

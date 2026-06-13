@@ -1,0 +1,319 @@
+ChangeLog
+
+PRE-RELEASE
+
+0.1     And numerous others; early versions outside the desktop.
+
+Development moved to the Psion when the Psion SDK arrived and Edouard Poor's
+Acorn port was released (around January 1993).
+
+PSION
+
+1.0     A basic release tuned for space and using the Psion console driver.
+1.1     Development version.
+1.2a    Public release on Psion.  Simple bug fixes and tuning.
+1.2b    Released to registered users.  Basic proportional font support.
+1.2c    Development version allowing user defined fonts.
+
+PSION & ACORN
+
+Development moved back to the Acorn after the 'final' touches were added to
+the Psion version, and it became seriously annoying that the Psion port was
+more usable than any of the (then) current Acorn interpreters.
+
+1.3a    Added command line editing, history, and Acorn specific features.
+1.3b    Added double-click restore for Acorn.
+        Removed RISC_OSLib to yield a smaller binary.
+1.3c    Random bug fixes to Acorn version.
+1.4a    Reconstruct 1.3c from 1.3a after disaster struck.
+        Change Wimp library on the Acorn from PGMod to DeskLib.
+        Add changes that DeskLib allowed but PGMod didn't.
+        Add Menu and Dialog support in the Psion version using HWIF.
+        Allow use of the TINY font from the S3 spreadsheet.
+1.4b    Allow reverse video under menu control.
+        Fix bugs in getline, which showed up when running Curses (Robin).
+1.4c    Development versions adding support for X-windows.
+        Add seperate font for user input under Acorn (and X).
+1.4d    Add configuration options for icon display on Acorn.
+        Display prompt and get key on termination, rather than stopping.
+        Enable accelerators justification under X (use actions).
+1.4e    Add Exit option (uX) on Psion as well as Quit (uQ).
+1.4f    Fix bug with tab during display in Acorn version (Paul H).
+1.4g    Fix caret handling bug when reopening window in Acorn version.
+
+(January 94) Started cleaning up the source code, moving towards a source
+code release for X windows and to simplify the addition of support for the
+Series 3a.
+
+1.5a    Start adding module specific header files.
+        Restructure many modules, especially object and property.
+        Switch from jump table to switch dispatch to allow full
+        argument checking.
+        Removed support for version 1 and 2 games, since they seem to be
+        vanishingly rare.
+1.5b    All protypes now in appropriate header files.
+        Replace speedups in paging and pc modules, removed during earlier
+        simplifications, with simpler methods.
+        Make selected functions inline for performance.
+        Optimise header version retrieval.
+
+(March 94) Revised Psion SDK finally arrived, and started adding 3a
+support.  Code cleanup becomes a lower priority, but continues.
+
+1.5c    Startup outside compatibility mode when appropriate.
+        Simple zooming discarding display contents.
+1.5d    Make console size static and add reflow code on zoom.
+        Add permanent text queue for reflow.
+        Add enhanced sprites.
+
+(April 94) Resizing now working properly, start tuning for beta-release.
+
+1.6a    Increase gap in text queue to prevent race condition.
+        Fix acclerator handling with shift.
+1.6b    BETA PSION RELEASE
+        Move to dialog to select font family, sizes and justification.
+        Display long input lines flush right if necessary.
+        Reduce stack size to 2K.
+        Move many strings into resource fork to reduce working set.
+1.6c    Move to standard key bindings on the Psion (uQ for Prefs) (Roger).
+        Settings persistent between sessions (Robin).
+        Use the default drive for saved positions (Roger).
+        Add registration system.
+1.6d    Made OS veneer complete to speed up compilation.
+        Fix glitch in zoom routines when wrapping in queue.
+        Keep infocom window sizes across zooming.
+        Add support code for status windows and busy messages.
+        Allow single step load and restore from saved games.
+        *** PSION RELEASE TO NET ***
+        Bring Acorn version back in sync.
+        Use messages file to control initial menu options.
+        Fixed serious problems where the caret got 'lost' permanently.
+        Added kerning support under RISCOS3.
+1.6e    Fix abysmally slow redraw after Graham's help system.
+        Add border inside window with messages file entry (Graham).
+        Revamp the Acorn redraw for performance and to reduce flicker.
+        Fixed init so that preloading happens (useful on the A4).
+1.6f    Added frame toggle (Robin).
+        Reimplement frame toggle to handle dispatchers.
+1.6g    Fix glitch in save/restore code when open fails (caused looping).
+        Simplify message file access routines.
+        Add filename normalisation for manual save/restore on Psion (Robin).
+        Allow registration file to be on any internal disk (Roger).
+        Patch DeskLib:Icon_GetText to fix save filename corruption.
+1.6h    Revise status line handling (after Zip) to eliminate flicker.
+        Rewrote documentation after checking memory consumption.
+        Simplified instruction dispatch again.
+        Remove off by one errors which caused ragged block edges.
+        Force window resize on mode change to match recached fonts.
+        Prevent closed window appearing when resizing.
+1.6i    Fix bug in parser which showed in Lurking Horror (Ian).
+        Fix name in status menu to be game not file.
+1.6j    Use gap redraw method on Psion status area.
+        Simplify character classification method in lexer (remove table).
+        Move menu entries into resource section and compress resources.
+        Fixed VisiClues on the Psion.
+        Simplify text encoder in same way as parser.
+1.6k    Move dialogs on Psion to HWIM/OLIB using a DYL; pushes data and
+        code out of main memory except on demand and allows the data to
+        be compressed.
+        Force redraw when resizing window, since proportional text was
+        vanishing when quotes were plotted (Bureacracy).
+        Fix glitch with OO version of registration code.
+        Double swap buffer size on Psion (back to 4 from 2).
+        Place Acorn save files without extensions in internal Save
+        directory.
+1.6l    Modify sources to allow production of Psion release for Lacegem.
+1.6m    Split DYL into components to reduce size of Lacegem binaries.
+1.6n    Make font selection match Zip mechanism, with full bitfield
+        attributes except fixed_font (Graham).
+        Corresponding changes to the Acorn messages file.
+        Fixed the (incorrect) white patches in the status line under version
+        5 games (Graham).
+1.6o    Fix the verify bug (Colin).
+1.6p    Fix the Ja/Nein dialog bug with German models (Toerless).
+        Bring X11 support code back in sync with other platforms.
+1.6q    Clean up status line handling and num_local_params.
+        Simplify object mechanisms to use long_word rather than pointers.
+        Switch to round robin pager; LRU mechanism was degrading to this
+        since the inlined fetch didn't update the time stamp.
+        Split pager into quick version for UNIX/Acorn (all resident) and
+        small version for Psion (minimum resident, rest swapping).
+        Eliminate direct pointers in input routines and for internal io.
+        Remove remaining direct pointers and load in blocks; should allow
+        moving the writable area (except header) into external segment.
+        Build pager which uses external segments; Trinity now runs on the
+        Psion.
+        Modify pager to guarantee header loaded and then simplify the
+        header code; should improve performance.
+        Fix clipping of location during zoom to ignore align flag; removes
+        remaining glitch when zooming during VisiClues.
+1.6r    Reduce memory load (at least early in games) by storing only
+        dirty blocks in segment.  Saving enough to offset increased cache
+        size needed for paging of write blocks.
+1.6s    Implement compression in the Psion paging module.  Games now all
+        run in a data segment of less than 32K.  Performance hit seems to
+        be minor.
+        Reduce size of save file by simple compression and modified stack
+        writing; save files seem to have been reduced by one order of
+        magnitude.
+        Cleaned up header inclusions, migrated some constants out of infocom
+        header file into specific modules.
+        Made wio module naming more systematic.
+1.7a    Moving towards a beta-release under X11.
+        Made `nag' screens more frequent on unregistered Psion.
+        Added acceleration mechanism to the parser.
+        More now allows type ahead with non whitespace characters.
+1.7b    Simplify conditional compilation mechanism and build perl
+        script to automate X11 release generation.
+        Split and tune size for cache with Psion compressed pager.
+        Fix bug with scripting on Acorn and X11.
+1.7c    *** Release on 3 platforms. ***
+1.7d    Rename encrypt to ncrypt to remove name clash with X11R4 under
+        RISCiX.
+        Add work around for problem with ColourTrans 1.57 in 8 bit
+        modes (RISCOS 3.11 and later.) (Colin).
+        (Turns out 17/18 are obsolete; see RO3.5 PRMs.  Mutter:-)
+        Extend keyboard buffer on Psion (Michael).
+1.7e    Fix glitch with buffering which was causing Delete from the
+        System Screen to be ignored (Michael).
+1.7f    Fix bug with new colour scheme in Inverse (Colin).
+1.7g    Use diamond to toggle between two fonts on the 3A (Michael).
+1.7h    Fix parser on Psion (due to TopSpeed bug?) (Michael).
+1.7i    Accelerate redraw on Acorn by cacheing font paint strings.
+1.7j    Experiment with speeding up paging.
+1.7k    Fix bug with environment variables when not set up.
+        Generate 1.05 release for Lacegem to match InfoStat with trees.
+1.7l    Experiment with full delta encoded pager.  Abandoned.
+        Work round the inverse bug with MoonMist: ignore codes 6..9
+        on version 3 games and earlier.
+1.7m    Suppress superflous blank lines (more than a screenful) in
+        the Psion version  (Robin).
+        Make dirty flag for redraw check for changes rather than writes
+        (may fix flicker on quote redraw).
+1.7n    Reverse count direction on newlines so active at start of program
+        (avoiding initialisation) (Robin).  Likely to interact
+        oddly with resizing and restarting.
+        Optimised calculation in more routine a little.
+        Reverted the logic on the dirty flag to the simple version.
+        Redraw line in small bitmap and copy to screen; allows optimisation
+        of the redraw method on Psion to eliminate gap redraw.  Noticeably
+        faster.
+1.7o    Try alternate mechanism for more suppression (Robin).
+1.7p    Random code rewrites to reduce size:
+        Optimise the code which allocates the next swapblock.
+        Optimise internal checks for version 5 in dispatcher.
+        Regularise the version checks in the dispatched and
+        share illegal opcode branches.
+        Tune the code in the AUTH and PREF overlays for size.
+        Inline the simpler arithmetic operations using macros.
+        Simplify the use of longs in the property code.
+        Eliminate superflous rd_byte calls in property code.
+1.8a    Rewrite from HWIF to HWIM using idle objects.  Eliminates
+        backup bitmap on window and requires making the code event
+        driven.
+        Migrate OOP dialogs back from overlays into the main body,
+        since we can now do OOP without separate DYLs.  Simplifies
+        the communication between the main code and the methods.
+1.8b    Use AM_START to suspend main thread and prevent busy
+        waiting for keyboard.
+        Rewrite address handling code to allow support for V6-8 addresses.
+        Fix `invisible' pieces in Jigsaw.
+        *** Limited BETA release for Acorn (CT and GN) ***
+        Fix redraw speed by adding emphasise handler for window.
+        Remove cursor hide/restore round dialogs since emphasise code does it.
+        *** Limited BETA for Psion (RJW and ML) ***
+        Fix code to clear slack below active window area
+1.8c    Separate page record and data in swapblock code in delta pager.
+        Make pager use proper LRU strategy.
+        Combine dirty/clean pages in cache with LRU weighting to favour
+        dirty pages.
+        Add tuner dialog tweaking swapper size and bitmap.
+        Try combining delta into page blocks to prevent heap growth.
+        *** Another BETA for RJW ***
+        Abandon delta within pages because of race condition at boundary.
+        Experiment with X11 under delta pager for profiling.
+        Profiling under Watcom identifies pg_fetch hotspot.
+        Combine LRU stamp, page and data in swapper to optimise that routine.
+        Add undo support based on Z-machine specs: some extended opcodes
+        are still inaccurate.
+        Make undo optional based on Psion dialog (uses large external segment.)
+        *** Final? BETA for RJW and ML ***
+        Tune stack module to inline common operations and allow undo on stack.
+        Move Windows version from delta pager to a flat pager using a huge
+        pointer.
+        Localise huge pointer to pager module.
+        Make tuning option accessible only to registered users.
+        Make sizes Small/Regular/Large rather than numeric.
+        Add warning that changes need a restart (Robin).
+        Move zeroing of confirm dialogs into common code.
+        Add memory estimate to tuning dialog (Michael).
+1.8d    Adjust font handling to fix piece redraw bug on zooming.
+        Work round race conditions on zooming; can happen during an active
+        zoom since HWIM version has separate event thread.
+        Use italic rather than underline for emphasised text.
+        Fix initial font bug with version 3 games (checking Moonmist).
+        Fix redraw glitch changing font from preferences menu.
+        *** Release to registered users ***
+1.8e    Fix set_cursor_posn (goto_xy) problem affecting Theatre ... the
+        op should have been ignored on the lower window and wasn't on V5+.
+        Fix font handling under Unix (off by one meant inverse fixed width
+        font screwed up if it wasn't simply the "fixed" font.)
+        *** Generate 1.10 release for Lacegem (InfoStat searches) ***
+        *** First release of Windoze beta ***
+1.8f    Add colour handling for the Windoze version.
+        Add a dirty bit to control whether to confirm on exit.
+        Widen text channel to allow colour information through on reflow.
+        Bring X11 and Psion up to date (but ignoring colour).
+        Windoze version: add icon, border, auto-restore, separate
+        save_as, stripes in fixed font regions, suppress iconise reflow,
+        make cursor thinner, extend pager for undo, use MAXMIN message.
+        Bring font switch in V3 status line up to date with wide channel.
+        *** Second Windoze beta release ***
+1.8g    Enabled EARLY support (Version 1 and 2)
+        Windoze: Fix dirty bit handling, Save/Restore accelerators (GrahamB).
+        X11: Make use of colour if at least four planes on display.
+        *** Generate 1.11 release for Lacegem ***
+        *** Provisional Net release (X11/Psion/Windoze) ***
+(May 1996) Back from US trip
+1.8h    Fixed bug introduced with V8 by EARLY support (print functions
+        not initialised for >V5).
+        Added INI file handling for Windoze versions.
+        Added registration code handling (not input yet).
+        *** Generate 1.12 provisional release for Lacegem ***
+        Record window size in the INI file.  Clip to sensible values.
+        Fix clipping problem on resize (allowed tiny windows).
+        Add registration code input; codes compatible with 3a version.
+        *** Generate 1.12 final release for Lacegem ***
+1.8i    Add help file and installation script for Windoze.
+        *** Test release of Windoze version (Robin,Paul,Colin) ***
+        Brought documentation up to date
+        Rebuilt Acorn version.
+1.8j    Fixed the 'invisible caret' problem with Bureacracy under Windoze.
+        Optimised the windows redraw: inline is_a_space, add held fields
+        for slack plane (optimises find_eol) and use global HDC for character
+        width calculation, used bytes for attributes instead of bitfields;
+        all improve 'instant resize' speed.
+        Free global HDC on closedown.
+        Extend lifetime of line bitmap to speed up large redraws.
+1.8k    Adapt Psion driver to use the held fields.
+        Port across platforms for release.
+        *** Quick final test release (Robin) ***
+        Negative initial font size in Windoze to prevent 'snap' from
+        font option dialogs.
+1.8l    Stop clearing status line mode bit to 1 for Z4 and later.
+        (Inform library tests the bit, although for Z6 it is the
+        `can picture' bit.)
+        Forcibly clear the `timed input' bit introduced in 0.2 of the
+        Z-machine spec.
+        Recode the ret_value routine to correct/clarify jump-if-false logic.
+        Modify behaviour of print_table opcode to leave cursor at
+        bottom right. Replace save/restore_attributes with saving
+        of the align flag only.  (Fixes status and quotes for Sherlock).
+        Optimised status-line code for space.
+        Tune the ret_value code for space.
+        Move the support module from the libary (now depends on console type.)
+        Make oop_wio use ws version to test for S3 mode (_UseFullScreen does
+        not exist under HWIM).  Horrid hack?
+        Use alternate menu for S3 instead of hacking 3A menu.  (Could not
+        remove the Diamond menu.)
+

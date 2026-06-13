@@ -1,0 +1,138 @@
+#define FILES_OPH
+
+#ifndef CHLIST_OPH
+#include <sdk\chlist>
+#endif
+
+#ifndef EDWIN_OPH
+#include <sdk\edwin>
+#endif
+
+#ifndef VARES_OPH
+#include <sdk\vares>
+#endif
+
+#ifndef TIME_OPH
+#include <sdk\time>
+#endif
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#ifndef H_FILE_OPH
+#include <sdk\h_file>
+#endif
+
+/* Property of vadev */
+
+STRUCT PRS_VADEV
+	buf#(20)
+ENDS
+
+STRUCT PR_VADEV
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vastr#(SIZEOF(PRS_VASTR))
+	vadev#(SIZEOF(PRS_VADEV))
+ENDS
+
+/* Constants for packsel */
+
+#define PR_CHLIST_PACKSEL_DODINFO 0x8000
+
+/* Property of packsel */
+
+STRUCT PRS_PACKSEL
+	filsel%
+	err%
+ENDS
+
+STRUCT PR_PACKSEL
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	chlist#(SIZEOF(PRS_CHLIST))
+	packsel#(SIZEOF(PRS_PACKSEL))
+ENDS
+
+/* Constants for fnedit */
+
+#define IN_FNEDIT_STANDARD H_FILE_STANDARD_INIT
+#define IN_FNEDIT_ALLOW_DIRS H_FILE_ALLOW_DIRS
+#define IN_FNEDIT_JUST_DIRS H_FILE_JUST_DIRS
+#define IN_FNEDIT_FORCE_NXIST H_FILE_FORCE_NXIST
+#define IN_FNEDIT_NO_AUTOQUERY H_FILE_NO_AUTOQUERY
+#define IN_FNEDIT_ACCEPT_NULL H_FILE_ACCEPT_NULL
+#define IN_FNEDIT_SET_DEFEXT H_FILE_SET_DEFEXT
+#define IN_FNEDIT_CAN_WILDCARD H_FILE_CAN_WILDCARD
+
+/* Types for fnedit */
+
+STRUCT IN_FNEDIT
+	flags#
+	fname#(1)
+ENDS
+
+/* Property of fnedit */
+
+STRUCT PRS_FNEDIT
+	pop%
+	pack%
+	flags%
+	defext%
+	extbuf#(6)
+	buf#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_FNEDIT
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	edwin#(SIZEOF(PRS_EDWIN))
+	fnedit#(SIZEOF(PRS_FNEDIT))
+ENDS
+
+/* Constants for fnselwn */
+
+#define IN_FNSELWN_STANDARD H_FILE_STANDARD_INIT
+#define IN_FNSELWN_SHOW_DIRS H_FILE_ALLOW_DIRS
+#define IN_FNSELWN_HIDE_FILES H_FILE_JUST_DIRS
+#define IN_FNSELWN_RESTRICT_LIST H_FILE_RESTRICT_LIST
+#define IN_FNSELWN_CAN_TAG H_FILE_CAN_TAG
+#define IN_FNSELWN_ACCEPT_NULL H_FILE_ACCEPT_NULL
+#define IN_FNSELWN_SET_DEFEXT H_FILE_SET_DEFEXT
+#define IN_FNSELWN_CAN_WILDCARD H_FILE_CAN_WILDCARD
+#define PR_FNSELWN_TAGSHERE 0x100
+#define PR_FNSELWN_AT_ROOT 0x200
+#define PR_FNSELWN_WILDCARDED 0x400
+#define PR_FNSELWN_PRESERVE_TAGS 0x800
+#define PR_FNSELWN_ON_DIR 0x1000
+#define PR_FNSELWN_CHANGED_DIR 0x8000
+
+/* Types for fnselwn */
+
+STRUCT IN_FNSELWN
+	flags#
+	fname#(1)
+ENDS
+
+/* Property of fnselwn */
+
+STRUCT PRS_FNSELWN
+	tags%
+	pack%
+	flags%
+	defext%
+	extbuf#(6)
+	crk#(SIZEOF(P_FPARSE))
+	buf#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_FNSELWN
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	chlist#(SIZEOF(PRS_CHLIST))
+	fnselwn#(SIZEOF(PRS_FNSELWN))
+ENDS

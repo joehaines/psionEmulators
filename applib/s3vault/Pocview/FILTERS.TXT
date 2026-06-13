@@ -1,0 +1,263 @@
+Filters
+-------
+
+  The native image format on S3a computers is the PIC format.
+  To access other formats filters are required.
+
+  All filter modules are stored in directory \APP\COMMON\PLUGS\
+
+  The Find File function depends on the filters installed in this directory
+  and will only show files that can be converted.
+
+  The file extension is the criterion for applying a filter:
+
+    PCX files must have the extension .PCX
+    PIC files must have the extension .PIC
+    GIF files must have the extension .GIF
+    BMP files must have the extension .BMP
+                                          and so on
+
+
+  At present the only supported formats are PIC,PCX,GIF,BMP (read and write).
+
+  All filters support 3 dither options during import:
+  
+  - 2x2-dithering uses PicPocs 5 colour model.
+    The result looks usually a bit posterised.
+    Grey values are mapped to
+         - solid black
+         - grey/black pattern
+         - solid grey
+         - grey/white pattern
+         - white
+    If an image is placed on a black-only image the grey values
+    are mapped to
+         - solid black
+         - black/white pattern
+         - white
+
+  - diffusion-dithering (Floyd/Steinberg)
+    Grey and black dots are spaced to simulate grey values.
+    If an image is placed on a black-only image only black dots are used.
+
+  - no dithering
+    The fastest import method. 
+    Good for drawings. With halftone images this option should be used when
+    the image was already dithered.
+
+    Grey values are mapped to
+         - solid black
+         - solid grey
+         - white
+    If an image is placed on a black-only image the grey values
+    are mapped to
+         - solid black
+         - white
+
+  If an image contains only <= 3 (2) colours, the filter will automatically
+  switch off dithering, as all grey values can be mapped to solid colours.
+  
+
+-------------- PCX
+
+  The PCX filter can read the following formats
+  
+  - bitmapped images (b/w and 4-plane):
+
+  - grey scale and indexed colour (8 and 4 bit).
+    These files include a palette.
+
+  - RGB colours (24-bit colour)
+
+  The PCX filter always outputs as a bitmap with 2 or 3 colours.
+
+-------------- GIF
+
+  The GIF filter reads the following formats:
+
+  - bitmapped images (b/w):
+
+  - indexed colour (up to 256).
+
+   The GIF filter supports the following options:
+
+   - local colour table/global colour table
+   - interleave option
+     Diffusion dither is not available with interleave.
+     The filter will switch back to 2x2 dither.
+   - GIFLITE compressed images
+     (GIFLITE is a shareware GIF to GIF compression program
+      that achieves further compression of GIF images
+      using a lossy compression technique)
+
+  The GIF filter outputs as indexed colour with 2 or 3 colours:
+
+-------------- BMP
+
+  The BMP filter reads the following formats
+    (compressed files are not supported)
+  
+  - 1 bit per pixel
+    These files include a palette with 2 colours.
+
+  - 4 or 8 bits per pixel
+    These files include a palette with up to 16 or 256 colours.
+
+  - 24 bits per pixel
+    These files do not include a palette.
+    
+  Files from the following platforms are supported:
+
+   - in Windows
+   - OS2/1.x,
+   - OS2/2.x format
+
+  Compressed files are not supported (uncommon).
+
+  The BMP filter always outputs black/grey/white images with 4 bits per
+  pixel with a palette of 3 colours.
+  Black/white images are exported with 1 bit per pixel with a palette
+  of 2 colours.
+  Output is always in Windows format.
+
+
+--------------  Filter interface specification -------------------------------------------
+
+  The following chapter describes how to use the filters from OPL applications.
+  This allows you to load and save BMP, GIF, PCX images from you own applications.
+
+  ----------------------------------------------------------------------------------------
+  | License information:                                                                 |
+  |                                                                                      |
+  | You are allowed to use these filters free of charge in you own private applications. |
+  | You are not allowed to use these filters in commercial applications or to            |
+  | redistribute as part of your own application. In case of doubt contact us to obtain  |
+  | copyright information.                                                               |
+  ----------------------------------------------------------------------------------------
+  
+
+IMPORT
+======
+
+  There are 2 import modes:
+  - Open mode:  The imported image determines the number of planes
+  - Place mode: The application determines the number of planes
+
+ret% = loadbit%:(file$,selec%,mode%,acntrl%,ahandle%)
+
+file$	= 	filename of file to import
+		(full path name with extension)
+
+selec%	= 	plane selector (planes wanted)
+			place mode:	1   black only
+					2   grey only
+					3   both
+			open mode:	3
+				
+mode%	= 1	place mode (create drawable that can be placed on target drawable)
+	  0	open mode (create stand alone drawable)
+
+	  16    diffusion dither (Floyd-Steinberg)
+	  32    no dither
+	  0     2x2 dither
+
+	  256	importing process unvisible (for slide shows / background operation)
+	  0	importing process visible (for normal import)
+
+	  You can combine these values.
+
+
+acntrl%	= 	address of control area of the following consecutive fields
+
+		planes%  = # planes (in/out)
+			place mode: (in) number of planes in target drawable
+			open mode:  (out) number of planes in resulting drawable
+			
+		redfac% = reduction factor (in/out)
+			0 = automatic (selected factor is written back)
+			1,2,4,8	reduction by 1,2,4,8
+					
+		clpx% = x-coordinate clipping ( use 0 for no clipping)
+		clpy% = z-coordinate clipping ( use 0 for no clipping)
+		clpw% = with clipping	(use $7fff for no clipping)
+		clph% = height clipping (use $7fff for no clipping)
+		    Use a negative value for clph% to allow for automatic
+		    clipping if an image is too large. The actual clip value
+		    will be written back to clph%. By comparing the new value
+		    with the original value, you can determine if automatic clipping occured.
+
+ahandle%   =	address for resulting drawable handle (out)
+
+return values:
+		0	normal termintation
+		<0	abnormal termination
+			- 119  resulting drawable too small (height or width = 0)
+			- 43   resulting drawable too large (> 256000 pixels)
+			- 256  nothing to import (e.g. grey selected, but b&w image)
+			- 114  user abort
+			- 69   invalid file format
+		all other codes as in OPL manual
+
+Exceptions:	none
+
+Example (using the BMP filter):
+
+GLOBAL planes%,redfac%,clpx%,clpy%,clpw%,clph%
+GLOBAL handle%
+
+planes% = 2  rem we don't really need this in open mode
+             rem in place mode this would determine the number 
+             rem of planes of the resulting drawable.
+redfac% = 1  rem no reduction
+clpx% = 0    rem clip area (0,0) ... (640,400)
+clpy% = 0
+clpw% = 640
+clph% = 400
+
+ret% = loadbit%:("M:\pic\mypic.bmp",3,16,addr(planes%),addr(handle%))
+rem             load both planes, open mode, diffusion dither
+if ret% = 0
+    guse handle% (this is our new bitmap)
+endif
+
+
+EXPORT
+======
+
+savebit%:(newfile$,planes%)
+
+	newfile$	file name (full path with extension)
+	planes%		number of planes in current drawable (1 or 2)
+
+	The routine exports the current drawable (gUse).
+	Width and height are determined from the drawable.
+
+return values:  0
+
+Exceptions:	Errors as listed in OPL manual
+
+
+
+Example (using the PCX filter)
+
+    guse new%
+    savebit%:("m:\pic\new.pcx",2)
+
+    exports drawable "new%". This drawable must have two planes.
+
+--------- Contact
+
+Berthold Daum
+lichtbild pty ltd
+21 Margate St
+LPO Box 6011
+Cromer, Vic 3193
+Australia
+FAX: +61-3-9584 9638
+CompuServe: 100026,3365
+INTERNET: lichtbild@compuserve.com
+WorldWideWeb: http://ourworld.compuserve.com/hompages/lichtbild
+
+
+End of Document
+

@@ -1,0 +1,943 @@
+                                                              
+                     Psion 3a OPL Preprocessor
+                                 
+                             OPP V1.7
+                                 
+                            User Guide
+                                 
+                   Copyright Andy Clarkson 1995
+
+CONTENTS
+
+1. INTRODUCTION
+	An introduction to OPP, describing what it does.
+
+2. INSTALLATION
+	Instructions on installing OPP.
+
+3. USING OPP
+	This section describes how to use OPP.
+
+4. SHAREWARE REGISTRATION
+	How to register OPP.
+
+5. KEY FEATURES
+	A bulleted list of all OPP's features.
+
+6. MACROS
+	How to create and use OPP preprocessor macros using #define.
+
+7. CONDITIONS
+	How to control which sections of OPP code are translated using #if,
+	#ifdef, #ifndef, #elif, #else and #endif.
+
+8. INCLUDE FILES
+	How to use include files with OPP (#include)
+
+9. PRAGMAS
+	OPP special controls, such as: checking for procedures called but not
+	defined and anti-Revtran measures.
+
+10. LANGUAGE EXTENSIONS
+	OPL language extensions supported by OPP such as: multi-dimensional
+	arrays, C style structures and operators.
+
+11. HISTORY
+	Summary of changes made to OPP since version 1.0.
+
+
+1. INTRODUCTION
+
+OPP is an OPL pre-processor for the Psion OPL language. If you are
+familiar with the operation of a C pre-processor then the function of
+OPP will be immediately clear. S3ATRAN provides similar facilities
+when translating OPL code on a PC. OPP provides the same facilities
+as S3ATRAN plus a large number of additional features. These
+additional features provide extensions to the OPL language, such as
+support for multi-dimensional arrays and C style structures. Also,
+whereas S3ATRAN only runs on a PC, there are both PC and Psion
+versions of OPP.
+
+When using a pre-processor additional pre-processor commands are
+added in-line to the source file. These commands are read and
+executed by the pre-processor which strips the lines out prior to the
+actual compilation or translation of the source file. OPP looks for
+lines within the OPL source file which begin with a # character.
+These lines contain commands which are read and acted upon by the pre-
+processor. Any # lines are removed prior to dispatching the lines to
+the OPL translator. The standard OPL code is also scanned by the pre-
+processor which may substitute symbolic names for text defined using
+the # commands. The output from OPP is pure OPL source code. This
+resultant pre-processed OPL code is passed on to the OPL translator
+which does the actual job of creating an OPO or OPA file.
+
+The operation of the pre-processor can be seen with an example. In
+the Program editor the following code is written:
+
+        #define ARRAY_SIZE     10
+        #define FN(x)          (3*x**2+2*x+1)
+        /* Here is the main procedure */
+        PROC main:
+                local x%, y%(ARRAY_SIZE)
+                #ifdef DEBUG      /* print debug info if required */
+                        print "In main"
+                #endif
+                while x%<ARRAY_SIZE
+                        x%=x%+1
+                        y%(x%)=FN(x%)
+                endwh
+                foo:
+        ENDP
+        #include "foo.oph"
+        
+The OPL pre-processor reads in the above code and outputs the
+following code to the OPL translator:
+
+        PROC main:
+                local x%, y%(10)
+                while x%<10
+                        x%=x%+1
+                        y%(x%)=(3*x%**2+2*x%+1)
+                endwh
+                foo:
+        ENDP
+        (the rest of the foo.oph file appears here...)
+        
+The OPL translator then reads in the above code and outputs the
+appropriate OPO or OPA file.
+
+As can be seen from the above example the main purpose of a pre-
+processor is to enable source code to be written which is easier to
+read and maintain.
+
+2. INSTALLATION
+
+This section describes how to install the Psion and MSDOS versions of
+OPP.
+
+Psion OPP
+---------
+The Psion version of OPP has been tested on the Psion Series 3a, it
+should also work on other Psion computers such as the Series 3c, Siena,
+Series 3, Workabout and HC. If you try it on one of these then let
+me know that it works OK.
+
+To install OPP onto a Psion copy the files OPP.ALS and OPH.ALS to the
+directory \APP on any drive. Also copy the file SYS$PRGP.IMG to the
+directory \IMG on any drive, e.g.:
+
+        M:\IMG\SYS$PRGP.IMG           (required)
+        M:\APP\OPP.ALS                (required)
+        M:\APP\OPH.ALS                (optional)
+        
+There are a number of other useful files that may also optionally be
+installed. These are the system include files supplied in the INCLUDE
+directory. These files have an extension OPH and should be installed
+into the directory \OPP\INCLUDE on any drive. Refer to the section on
+include files for further details.
+
+Install OPP.ALS and OPH.ALS using the Apps->Install menu option on
+the main Psion System Screen. This will add the OPP and OPH Program
+editor icons to the system screen. These icons are similar to the
+standard OPL Program icon but have a trailing letter P and H instead
+of L on the icon. The OPP and OPH editors are aliases of the OPL
+Program editor. When writing OPP code which includes preprocessor
+directives use the OPP or OPH editor rather than the standard OPL
+editor. They operate in exactly the same way as the OPL Program
+application, with two main exceptions...
+
+Firstly the files which are displayed beneath the icon have a
+different extension. To distinguish between OPL source files
+containing preprocessor directives from plain OPL files the following
+directory and file extensions are recommended:
+
+        Normal OPL files               \OPL\             .OPL
+        OPL containing OPP directives  \OPP\             .OPP
+        OPP include files              \OPP\             .OPH
+        OPP system include files       \OPP\INCLUDE\     .OPH
+        
+Files with an OPP extension in the OPP directory will appear beneath
+the OPP editor. Files with an OPH extension in the OPP directory will
+be listed beneath the OPH editor.
+
+The second main difference between the OPP and OPH editors and the
+OPL editor is that they run the OPL preprocessor rather than the OPL
+translator when translating, running and debugging OPP code.
+
+Once OPP has been installed, exactly the same OPL programming
+environment is available, i.e. OPP source code may be written,
+translated and run via an editor. When the translate menu option is
+selected from the OPP editor instead of activating the OPL translator
+directly this activates the OPL preprocessor. The preprocessor in
+turn starts up the OPL translator under its control. The preprocessor
+reads OPP code directly from the editor a line at a time, pre-
+processes each line and passes it to the OPL translator.
+
+Note that the OPL outliner is not available within the OPP and OPH
+editors due to the way Psion alias files work. It will probably not
+be possible to provide this facility since the required changes would
+need to be made to the software built into the ROM of the Psion.
+
+OPP requires a minimum of 26K of disk space for installation, much
+more if the include files are also installed. When translating an OPP
+file additional run-time memory is required by the preprocessor. The
+amount of run-time memory used by the preprocessor is proportional to
+the number of macros and structures defined.
+
+MSDOS OPP
+---------
+The MSDOS version of OPP may be installed on a PC and used to create
+OPO/OPA files entirely on the PC. The OPO/OPA files may then be used
+via the PC based Psion emulator or transferred to a Psion.
+
+MSDOS OPL translators and the Psion emulator
+--------------------------------------------
+To use the MSDOS version of OPP you will need to obtain an MSDOS
+based Psion OPL translator. The translator required depends upon the
+target Psion computer:
+
+	Psion computer                      Translator
+	
+	Psion 3a                            S3ATRAN
+	Psion 3                             S3TRAN
+	Workabout                           WATRAN
+	HC                                  HCTRAN
+
+At present there is no Psion Series 5 (EPOC32) equivalent of S3ATRAN.
+This means that you cannot fully translate OPP code on a PC into OPO
+code for use on the Series 5 or GeoFox One. However you can preprocess
+OPP code to standard OPL on a PC and then translate the resultant OPL code
+on a Psion or via the EPOC32 emulator (assumming you have the emulator
+by subscribing to Psion's EPOCWorld).
+
+If are using Psion's ODE development tool then it includes all the
+above translators, otherwise you will need to obtain the appropriate
+translator. The Series 3a translator, S3ATRAN, is freely available
+from CompuServe, CIX or the Psion archives on the Internet:
+
+ ftp://sunsite.doc.ic.ac.uk/packages/psion/icdoc/development/s3atra.zip
+ ftp://ftp.frontiernet.net/pub/psion/devel/s3atran.zip
+ ftp://ftp.nwt.com/S3a/Developer/OPL/S3ATRAN.ZIP
+
+The Series 3a emulator which emulates a Psion 3a on a PC is also
+freely available from:
+
+ ftp://sunsite.doc.ic.ac.uk/packages/psion/icdoc/development/s3aem1.zip
+ ftp://ftp.frontiernet.net/pub/psion/devel/emulator.zip
+ ftp://ftp.nwt.com/S3a/Developer/Emulator/S3AEMUL.ZIP
+ http://www.psion.com/testzone/index.html
+
+Using OPP with ODE
+------------------
+OPP may be used with Psion's ODE development environment. ODE
+essentially provides an editor front-end to the back end OPL
+translator (S3ATRAN,...).
+
+To use OPP with ODE the OPP.EXE file should be copied into the ODE
+directory (normally C:\ODE). Then you need to tell ODE about OPP.
+This is done by editing the file ODE.INI, which will be found in the
+windows directory (e.g. C:\WINDOWS). Edit this file and find the line
+at the top which starts...
+
+       [Machines]
+ 
+...change this section to add an appropriate line for using OPP on the
+given machine, e.g.
+
+       [Machines]
+       Comp0=Workabout
+       Comp1=HC
+       Comp2=Series3
+       Comp3=Series3A
+       Comp4=Series3A-OPP
+       
+Next find the current section for the target machine, e.g.
+
+       [Series3A]
+       Tran=S3ATRAN
+       OplRun=rom::sys$prgo.img
+       OplLint=-tmcwa
+       TranDef=_SERIES3A
+       
+...copy this section to a new section with the same name as in the
+[Machines] section, change the "Tran" item to refer to OPP and add
+" -dODE" to the TranDef item, e.g.
+
+       [Series3A-OPP]
+       Tran=OPP
+       OplRun=rom::sys$prgo.img
+       OplLint=-tmcwa
+       TranDef=_SERIES3A -dODE
+       
+OPP relies upon the translator to do the back-end translation of OPL
+code and therefore OPP needs to be able to find S3ATRAN, S3TRAN,
+WATRAN or HCTRAN. OPP will look for the translator in a directory
+which is listed in the MSDOS PATH environment variable. When using
+ODE, the translators will be located in the ODE directory and
+therefore this directory should be added to the PATH. The best place
+to set this is in the AUTOEXEC.BAT file, e.g.
+
+        set PATH=C:\ODE;%PATH%
+        
+When ODE is next started you can set the "Target" item on the project
+window to the appropriate value, e.g. "Series3A-OPP", to translate a
+project using OPP with the appropriate translator.
+
+Note: By default OPP works with the Series 3a OPL translator,
+S3ATRAN, if you are using OPP with an alternative machine then refer
+to section 9.13 for details on how to ensure the correct translator
+is used.
+
+Because OPP provides language extensions to standard OPL it is not
+possible to use the OPL lint utility which checks for errors in OPL
+code. For this reason, when using ODE, turn OPL lint checking off.
+This can be done by unchecking the items for lint under the menu
+options "Options->Build" and "Options->Run" in ODE.
+
+When using OPP with ODE it is best to stick with the conventional
+file extensions used with OPL code, i.e. OPL rather than OPP.
+The supplied include files may also optionally be installed. These
+files have an extension OPH and should be installed into the
+directory C:\OPP\INCLUDE. The include files may be installed into an
+alternative directory if required. In this case select the "Options-
+>Translate" menu in ODE and set the include path to the alternative
+location. Refer to the section on include files for further details
+on what the include files provide.
+
+Using OPP from an MSDOS prompt
+------------------------------
+OPP.EXE should be installed onto the PC into a directory which is
+specified in the PATH environment variable (type "path" at an MSDOS
+prompt to check what the path is set to). If you are using OPP with
+ODE then adding the ODE directory to the PATH is the best solution,
+otherwise a convenient location is the Windows directory, usually
+C:\WINDOWS. The appropriate OPL translator (S3ATRAN, S3TRAN, WATRAN
+or HCTRAN) utility should also be accessible in the PATH.
+
+Note: By default OPP works with the Series 3a OPL translator,
+S3ATRAN, if you are using OPP with an alternative machine then refer
+to section 9.13 for details on how to ensure the correct translator
+is used.
+
+The supplied include files may also optionally be installed. These
+files have an extension OPH and should be installed into the
+directory C:\OPP\INCLUDE. If the include files are installed into
+another directory then the "-i" command line option should be used to
+specify this directory when using OPP. Refer to the section on
+include files for further details on what the include files provide.
+
+3. USING OPP
+
+Psion OPP
+---------
+Once OPP has been installed the menu options "Translate", "S3
+Translate" and "Run" may be used from the OPP program editor to
+translate and run OPP programs in exactly the same way as with the
+normal Program editor.
+
+When translating an OPP program the OPP screen will appear. This
+screen will show the progress of the translation along with any error
+and warning messages. (The #pragma directive discussed in a later
+section may be used to control the display of additional information
+during translation).
+
+If during translation the screen is switched to another Psion
+application then the shift-system key combination may be used to
+cycle through the active applications in order to get back to the OPP
+screen.
+
+The escape key may be used to abort the translation at any point when
+the OPP screen is visible.
+
+If any pre-processor errors are found during the pre-processing of
+the OPP code then control will return to the OPP editor. An error
+message will be displayed in the lower right corner and the cursor
+will be repositioned on the line where the error was detected.
+
+If an OPL translator error is discovered during translation this will
+be displayed on the OPP screen along with the associated pre-
+processed OPL line. A ^ character will indicate the position on the
+line where the error was detected. To continue press any key. The
+cursor in the OPP editor will then be repositioned on the line where
+the error was found.
+
+Note that with OPL errors the position of the cursor along the line
+may not necessarily indicate the exact character where the error was
+found. This is due to the fact that the cursor is placed on the
+relevant character in relation to the pre-processed line. If there
+are any macros before this point on the line the position may be
+incorrect.
+
+Running an application from the OPP editor will also activate the OPL
+pre-processor. This in turn will then run the requested program. If a
+run-time error is encountered then control will return to the OPP
+editor. At this point, if the program being run was translated from
+the source in the program editor, then OPP will be restarted. This is
+in order to determine exactly where the error occurred within the
+source file. During this "error decoding" phase the pre-processor
+will scan the source code for the line where the error was
+encountered. This line will be displayed on the OPP screen and the
+cursor repositioned in the OPP editor. The escape key may be used
+during the error decoding phase to abort the process.
+
+MSDOS OPP
+---------
+Type OPP at an MSDOS prompt to display usage information for OPP. The
+command line syntax and output from OPP is identical to the Psion
+translators (S3ATRAN,.).
+
+Differences between the MSDOS and Psion versions of OPP
+There are some differences between the MSDOS and Psion versions of
+OPP. These differences are as follows:
+
+   -  There is a limit to the amount of code which the MSDOS based
+      OPL translators (S3ATRAN,.) can handle. This limit also applies when
+      using the MSDOS version of OPP. The Psion version of OPP does not
+      have a limit and can translate any amount of code.
+
+   -  The MSDOS version of OPP can handle any number of OPP macros or
+      structure definitions. The Psion version is limited to 64K of memory
+      storage which will impose an upper limit on the number of #defines
+      and structures which can be declared.
+      
+   -  Some of the pre-defined macros which are present in the Psion
+      3a version are not applicable in the MSDOS version:
+      
+           OsVersion
+           RomVersion
+           PsuType
+           LcdType
+           
+   -  When using the MSDOS version of OPP with ODE some of the
+      #pragma options are not available. Any option which causes OPP to stop
+      and wait for a key press is disabled when using OPP with ODE since
+      OPP is run behind the scenes with no user input possible (see section
+      9 for the list of #pragma's).
+
+   -  The MSDOS version of OPP uses different software for the evaluation
+      of expressions at translate time (as opposed to runtime).
+      Expressions are evaluated at translate time when the OPPEVAL() macro
+      is used (see later) and also in the #if directive. The MSDOS version
+      of OPP does not support all the functions available in the Psion 3a
+      version at translate time (note that you can still use these
+      functions at run-time, i.e. in normal code), in particular the
+      following are not supported in OPPEVAL() and #if:
+      
+           YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, WEEK,
+           DATETOSECS(), DAYS(), DOW(),
+           PI, RND,
+           MAX(), MIN(), MEAN(), STD(), VAR(), SUM(),
+           UADD(), USUB()
+
+4. SHAREWARE REGISTRATION
+
+OPP is shareware, which means that if you continue to use it you
+should register with the author. To encourage registration the Psion
+version of the pre-processor will pause for 30 seconds at the end of
+every translation until it is registered. The MSDOS version will not
+pause, but will display a warning message. To register OPP send a 10
+UK pounds cheque to:
+
+        Mr. A. Clarkson,
+        23 Worcester Avenue,
+        Hardwick,
+        Cambridgeshire.
+        CB3 7XG.
+        U.K.
+        
+State the version of the program, which is 1.7F, and where you
+obtained the copy. This will enable me to check that you are using
+the latest version.
+
+When you register you will receive instructions on how to remove the
+time delay or warning message at the end of a translation. If you
+have an email address quote this in order to receive the instructions
+via email more quickly.
+
+For users outside the UK the following methods of payment will be
+accepted:
+
+   -  10 UK pounds money order or cheque.
+
+   -  10 UK pounds in cash.
+
+   -  The equivalent of 12 UK pounds in local currency. (At the time
+      of writing this is about 20 US dollars).
+
+   -  A non-UK pounds cheque to the equivalent of 14 UK pounds. (At
+      the time of writing this is about 22 US dollars).
+
+The additional charge for the last two payment methods is to cover
+currency exchange charges.
+
+Members of CompuServe may register OPP electronically using the
+CompuServe SWREG facility. When logged on to CompuServe type GO SWREG
+and select the option to register shareware. When requested for the
+shareware ID use the value 6311 for OPP. The charge is $20 which will
+be added to your normal CompuServe account. When I receive
+notification from CompuServe of the registration I will email the
+registration details directly to you.
+
+Payment using a credit card can also be accepted via the RegNet
+service. RegNet can be reached by the following means:
+
+	email:			orders@swregnet.com
+	World Wide Web:		http://www.swregnet.com 
+	USA phone number:	1 800 WWW2REG (1 800 999-2734)
+	International number:	(805) 288-1827.
+
+OPP may be freely distributed and uploaded to BBS's provided all
+files in the package are included.
+
+For any further information I can be contacted via email:
+
+	andyc@compuserve.com
+
+For users with access to the WWW my home page contains the latest
+information about OPP, including an on-line version of this manual:
+
+	http://ourworld.compuserve.com/homepages/andyc
+
+Note that this software is provided as is, without any warranty of
+any kind. The author shall not be liable for any loss of data or
+damage arising from the use of this software.
+
+5. KEY FEATURES
+
+OPP has the following key features:
+
+   -  Available in two versions:
+           Version which runs on a Psion
+           Version which runs under MSDOS
+           
+   -  The MSDOS version of OPP may be run from an MSDOS prompt or
+      used with Psion's ODE environment.
+
+   -  #define directive for simple macros, e.g.
+           #define MAX_ARRAY        10
+           
+   -  #define directive for macro functions, e.g.
+           #define FN(x)            3*x**2+2*x+1
+           
+   -  #undef to undefine macros
+   
+   -  Various built-in macros such as:
+           __LINE__, __FILE__, __DATE___, __TIME__, __PROC__, etc.
+           
+   -  ANSI # string producer supported in macro functions (although
+      the ! character is used rather than #).
+      
+   -  ANSI ## token pasting supported in macro functions (although
+      the !! characters are used rather than ##).
+      
+   -  Conditional translation directives: #if, #ifdef, #ifndef,
+      #else, #elif, #endif.
+      
+   -  Include files, both system and standard, e.g.
+           #include <os\calls>
+           #include "myprocs.oph"
+           
+   -  Supplied with lots of system include files (OS calls, etc.).
+   -  Line continuation character, e.g.
+           menu        "menu",            \
+                        "item1",%i        \
+                        "item2",%j
+                        
+   -  Multi-dimensional array support (standard OPL is limited to 1
+      dimensional arrays, OPP allows N-dimensional arrays).
+      
+   -  C style structures and pointers to structures, e.g.
+           STRUCT my_struct
+                name$(10)
+                value%
+                next%
+           ENDS
+           PROC test
+                local <my_struct*>p%
+                p%=alloc(SIZEOF(my_struct))
+                p%->name$        = "test"
+                p%->value%       = 1
+                p%->next%        = 0
+           ENDP
+           
+   -  A number of additional C style operators are supported, e.g.
+           i%++
+           i%--
+           i%+=2
+           i%-=2
+           i%*=2
+           i%/=2
+           
+   -  C style comments, e.g.
+           /* This is a comment */
+           global a% /* embedded comment */, b%
+           /* A multi-
+           line comment */
+           
+   -  Hooks for an OPL run-time debugger which is available
+      separately (see #pragma debug).
+      
+   -  Facility for creating library OPL source files containing
+      useful procedures which are only included in the resultant OPO module
+      if they are called.
+      
+   -  Can check for calls to undefined procedures or procedures which
+      are never explicitly called.
+      
+   -  Integrates with the Psion Program editor application and the
+      OPL translator.
+
+   -  Some support for writing EPOC16 and EPOC32 portable code
+      (a generic pointer type is supported for 16/32bit addressing)
+      
+   -  Facility to abort translation at any point.
+
+6. MACROS
+
+Macros are a convenient way of representing a sequence of commonly
+used characters with a symbolic name. Suppose for example there is a
+fixed size OPL array which has a size of 10. The size of the array
+may be referenced in a number of places throughout the OPL code and
+it is therefore useful to define a symbol or macro for the value 10.
+The symbolic name is then used throughout the code. This makes it
+more obvious what the value 10 represents in each particular case.
+Also, if ever the size of the array needs to be changed this only has
+to be done in one place rather than throughout the source code.
+
+6.1 Defining simple macros
+--------------------------
+The #define pre-processor directive is used to create a simple macro
+definition. For example the following line is added to the OPP source
+file:
+
+        #define MAX_ARRAY      10
+        
+From this point onwards any occurrence of MAX_ARRAY in the OPP code
+will be replaced by 10 when the pre-processor is run.
+
+The # character must be the first none-space character on the line;
+it may be proceeded by any number of space or tab characters. In
+general there may be any number of space or tab characters throughout
+the line provided that there is at least one between the define and
+the macro name, and the macro name and its value.
+
+Macros may be defined from other macros, e.g.
+
+        #define WIDTH          5
+        #define HEIGHT         10
+        #define SIZE           (WIDTH*HEIGHT)
+        
+In the above case when expanding the macro SIZE the value (5*10)
+would be substituted. The order is not important since macros are
+expanded when they are referenced rather than when they are defined,
+i.e. in theory the above could be written:
+
+        #define SIZE          (WIDTH*HEIGHT)
+        #define WIDTH         5
+        #define HEIGHT        10
+        
+Note that macros which include operators are not automatically
+evaluated by OPP. Thus the macro SIZE is sent to the OPL translator
+as (5*10) not as 50. This can cause problems with the OPL translator.
+For example the following will not work:
+
+        local array%(SIZE)
+        
+The problem is that the OPL translator also does not evaluate any
+expressions when the code is being translated and hence expects an
+integer for the array size, not an expression. You can work around
+this problem using a built in OPP function macro (see next section).
+
+Following the ANSI standard, if a recursive macro is encountered it
+is not further expanded, e.g.
+
+        #define ONE            (TWO-1)
+        #define TWO            (ONE+1)
+        
+This could lead to a recursive expansion, e.g. when expanding TWO it
+would lead to:
+
+        TWO
+        (ONE+1)
+        ((TWO-1)+1)
+        (((ONE+1)-1)+1)
+        etc.
+        
+The ANSI standard states that the expansion will terminate at the
+value ((TWO-1)+1).
+
+Although at first site the above recursive macro definition would
+appear to be pointless, it does have its uses, as demonstrated below:
+
+        #define OPEN        PRINT "DEBUG MESSAGE:opening file" :OPEN
+        
+In the above case the following OPP code...
+
+        OPEN "file.opd",a,a$,b$
+        
+...would expand to...
+
+        PRINT "DEBUG MESSAGE: opening file" :OPEN "file.opd",a,a$,b$
+        
+Note that the OPEN macro above could also be written more clearly as:
+
+        #define OPEN                                               \
+                        PRINT "DEBUG MESSAGE:opening file"        :\
+                        OPEN
+                        
+A line continuation character is used in the above macro definition.
+If the "\" character is the very last character on a line OPP drops
+the "\" character and concatenates the line with the following line
+to produce one long line. Multiple spaces or tabs at the beginning of
+the line following the "\" are replaced with a single space or tab
+character. The total length of a line consisting of concatenated
+lines must not exceed 255 characters. The ":" character is required
+by the OPL translator in the above example to separate multiple
+statements on one line.
+
+The line continuation character may be used in long or multi-
+statement macro definitions (as above) or in normal OPL code, e.g.
+
+        dchoice "Choice", "Value1,\
+                           Value2,\
+                           Value3"
+                           
+6.2 Defining function macros
+----------------------------
+Macro functions are an extension of the simple macros described in
+the previous section. They are analogous to OPL procedures in that
+they take arguments. For example:
+
+        #define GT?(a,b)        if (a<=b)                       :\
+                                        print a,">",b,"failed"  :\
+                                endif
+                                
+With the above definition the following OPP code....
+
+        GT?(x%,0)
+        
+...would expand to...
+
+        if (x%<=0) :print x%,">",0,"failed" :endif
+        
+To define a macro function make sure that the "(" follows immediately
+after the macro function name. This is followed by a comma separated
+list of function variables terminated by a ")". A macro function may
+have any number of arguments between 0 and 20 inclusive.
+
+Each occurrence of a function argument within the macro definition is
+replaced by the associated value when the macro is expanded.
+
+Like simple macros, a macro function definition may include other
+macros, for example:
+
+        #define AX                     axreg%
+        #define OSFLAGS                osflags%
+        #define OSFN(fn)               OSFLAGS=os(fn,addr(AX))
+        #define OSSUB(fn,sub)          AX=sub :OSFN(fn)
+        
+Using some of the above macros the following code demonstrates how to
+access an OS call in the Psion ROM using a macro function (the full
+macro definitions appear in the supplied include files OS\call.oph
+and os\gen.oph):
+
+        #include <os\gen>
+        #include <os\call>
+        PROC main:
+                local OSREGS
+                OSSUB(GenManager,GenGetRamSizeInParas)
+                print -(AX/64);"K RAM"
+                get
+        ENDP
+        
+There is a built in macro function called OPPEVAL() which takes one
+argument. When pre-processing a file the argument is evaluated by
+OPP, for example, going back to the example in the previous section:
+
+        #define WIDTH          5
+        #define HEIGHT         10
+        #define SIZE           (WIDTH*HEIGHT)
+        local array%(OPPEVAL(SIZE))
+        
+The OPPEVAL() function is required in order to evaluate (5*10) since
+otherwise OPP would pass the line as follows to the OPL translator:
+
+        local array%((5*10))
+        
+This would fail since the OPL translator can only handle simple
+numbers in an array dimension.
+
+The OPPEVAL() macro may also be used to evaluate an expression at
+translation time rather than at run time for performance and space
+reasons, for example:
+
+        #define FLAGMASK       OPPEVAL(FLAG1 OR FLAG2 OR FLAG3)
+        
+If the OPPEVAL() function was not present in the above definition
+then for every occurrence of FLAGMASK within the OPL source a
+calculation would be required at run time.
+
+6.3 Notes on macro expansion
+----------------------------
+When pre-processing a line OPP looks for macro symbols delimited by
+certain characters. The complete set of characters is:
+
+(          ,        -         <        :         SPACE
+)          =        *         >        |         TAB
+;          +        /         #        !         START/END OF LINE
+.                      
+                          
+The same delimiters are also used when OPP looks for argument
+variables within a macro function definition.
+
+When the pre-processor encounters any strings they are copied
+directly without pre-processing.
+
+Take the following macro definition...
+
+        #define TEST        1
+        
+...then the following examples demonstrate what will and will not be
+expanded:
+
+        print (TEST+1)   TEST expanded
+        print (Test+1)   Test not expanded - macros are case sensitive
+        print (TEST%+1)  TEST not expanded since % is not a delimiter
+        print "TEST"     TEST not expanded - any strings are not
+        		 pre-processed
+
+6.4 Undefining macros
+---------------------
+A macro definition may be removed using the #undef directive followed
+by the macro name, for example:
+
+        #define DEBUG
+        #define MOD(a,b)       (a-(a/b)*b)
+        #undef DEBUG
+        #undef MOD
+        
+6.5 Built-in macros
+-------------------
+OPP includes a number of pre-defined built-in macros:
+
+   Macro                  Purpose                  Example of value
+__FILE__     Name of file being translated      "LOC::M:\OPP\TEST.OPP"
+__LINE__     Line number being translated       23
+__DATE__     Date of translation                "May 10 1995"
+__TIME__     Time of translation                "23:53:06"
+__PROC__     Name of current procedure          "main"
+OPP          OPP version number                 $16F
+Psion*       Indicates translating on a Psion   
+DOS          Indicates translating on a PC      
+XTran*       Set if translating for S3 on a     
+             S3a
+OsVersion*   Psion OS version number, 3.18F=    $318F
+RomVersion*  Psion ROM version number, 3.20F=   $320F
+PsuType*     Power supply type 0=old MC,        3
+             1=MC, 2=Series 3, 3=Series 3a
+LcdType*     LCD type, 11=S3a                   11
+OPPEVAL()    Evaluate expression                OPPEVAL(SIZE+2)
+SIZEOF()     See section on structures          SIZEOF(my_struct)
+OFFSETOF()   See section on structures          OFFSETOF(my_struct,field)
+
+*These macros are not available when using the MSDOS version of OPP.
+
+6.6 ! special character
+-----------------------
+The ANSI standard defines the # character to have a special meaning
+within a macro definition. Due to the fact that # is used within OPL,
+OPP looks for the character ! rather than #. Consider:
+
+        #define ASSERT(expr)    if not (expr)			:\
+                                        print !expr,"failed"	:\
+                                endif
+                                
+The presence of the ! character before the macro function variable
+instructs OPP to quote the expression when expanded. Thus the
+following line...
+
+        ASSERT(a%>0)
+        
+...would expand to...
+
+        if not (a%>0) :print "a%>0","failed" :endif
+        
+This mechanism is required since simply adding quotes around the
+variable would cause OPP to copy the string directly, i.e. if the
+definition was...
+
+        #define ASSERT(expr)    if not (expr)			:\
+                                        print "expr","failed"	:\
+                                endif
+                                
+...then the above line would expand to...
+
+        if not (a%>0) :print "expr","failed" :endif
+        
+6.7 !! special characters
+-------------------------
+## is another ANSI standard token. Again, due to the use of # by OPL,
+the pre-processor uses the identifiers !! instead. Consider the
+following macro definition:
+
+        #define M(name)        module!!name!!%:
+        
+The !! characters indicate a delimiter for a macro function argument.
+OPP notes the delimiter and then discards the !! characters from the
+expansion. Thus the following...
+
+        M(a)
+        
+...would expand to...
+
+        modulea%:
+        
+Without the !! OPP would not detect the presence of the name argument
+since neither "e" nor % are normal delimiter characters.
+
+7. CONDITIONS
+
+OPL includes the conditions if, else, elseif and endif. OPP has
+similar directives #if, #ifdef, #ifndef, #else, #elif and #endif
+which are analogous to OPL commands.
+
+Using conditional pre-processor directives provides control over the
+sections of OPP code which are to be translated. For example:
+
+        #define DEBUG
+        #ifdef DEBUG
+                print "Translated with brief debug enabled"
+                #ifdef MOREDEBUG
+                        print "Translated with additional debug enabled"
+                #endif
+        #else
+                print "Debug code not translated"
+        #endif
+        
+The #ifdef directive tests for the presence of a macro, if it exists
+then the remaining code up to a matching #endif or #else is passed to
+the OPL translator. #ifndef has the opposite affect, i.e. the
+condition is true if the macro does not exist.
+
+The condition "#if expression" is true if the expression evaluates to
+true or non-zero. Examples of valid expressions are as follows:
+
+        #if DEBUG_LEVEL > 2
+        #if OsVersion >= $300
+        #if LcdType = 11
+        #if (PsuType = 2) or (PsuType = 3)
+
+The "#elif expression" may be used as follows:
+
+        #if DEBUG_LEVEL = 1
+                print "debug level 1"
+        #elif DEBUG_LEVEL = 2
+                print "debug level 2"
+        #elif DEBUG_LEVEL = 3
+                print "debug level 3"
+        #else
+                print "no debug"
+        #endif
+
+Note that the current release of OPP does not support use of
+"defined()" in #if or #elif expressions.

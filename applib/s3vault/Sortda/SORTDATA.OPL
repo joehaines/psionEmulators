@@ -1,0 +1,80 @@
+REM
+REM	This procedure was adapted from the sorting routine in
+REM the Series 3 manual.  It is as slow (or slower), but
+REM automatically "reverses" names to sort on last name.  While
+REM it doesn't handle names like "van Dam", it does exclude
+REM names with "INC", "CORP", "PLC" or "LTD" from the reversal.
+REM (Note that it doesn't do this in a foolproof way.)
+REM
+REM	Written by David B. Nanian, UnderWare, Inc.
+REM	CompuServe ID 70531,2236, Internet: dnanian@uw.com
+REM	Uploaded 1 July 1992.
+REM
+
+PROC SortData:
+	LOCAL last%,e$(255),e%,lpos%,n$(128),c%,sepPos%
+	n$="\dat\*.dbf"
+	dINIT "Sort Data File"
+	dFILE n$,"Data file:",0
+	IF DIALOG REM Returns 0 if cancelled
+		OPEN n$,a,name$
+		LAST
+		last%=POS
+		IF COUNT>0
+			WHILE last%<>0
+				POSITION last%
+				e%=POS
+				e$=getName$:(a.name$)
+				DO
+					IF getName$:(a.name$)<e$
+						e$=getName$:(a.name$)
+						e%=POS
+					ENDIF
+					lpos%=POS
+					BACK
+				UNTIL POS=1 and lpos%=1
+				POSITION e%
+				PRINT e$
+				UPDATE
+				last%=last%-1
+			ENDWH
+		ENDIF
+		CLOSE
+	ENDIF
+ENDP
+
+PROC getName$:(nameStr$)
+	LOCAL spLoc%,fstName$(127),lstName$(127)
+	
+	lstName$=UPPER$(nameStr$)
+	IF LOC(lstName$, ",")
+		RETURN lstName$
+	ENDIF
+	IF LOC(lstName$, "INC")
+		RETURN lstName$
+	ENDIF
+	IF LOC(lstName$, "CORP")
+		RETURN lstName$
+	ENDIF
+	IF LOC(lstName$, "PLC")
+		RETURN lstName$
+	ENDIF
+	IF LOC(lstName$, "LTD")
+		RETURN lstName$
+	ENDIF
+	spLoc%=LOC(lstName$," ")
+	WHILE spLoc%
+		IF spLoc%<>1
+			IF fstName$<>""
+				fstName$=fstName$+" "
+			ENDIF
+			fstName$=fstName$+LEFT$(lstName$,spLoc%-1)
+		ENDIF
+		lstName$=RIGHT$(lstName$,LEN(lstName$)-spLoc%)
+		spLoc%=LOC(lstName$," ")
+	ENDWH
+	IF fstName$<>""
+		fstName$=", "+fstName$
+	ENDIF
+	RETURN lstName$+fstName$
+ENDP

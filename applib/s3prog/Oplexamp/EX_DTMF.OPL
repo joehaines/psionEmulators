@@ -1,0 +1,18 @@
+PROC dtmf:
+LOCAL h%,a$(24),b$(25),z%,r%,a%(2)
+r%=IOOPEN(h%,"SND:",0)
+IF r%<0 :RAISE r% :ENDIF
+dINIT
+dEDIT a$,"Dial"
+IF DIALOG
+	a%(1)=8+(256*8)
+	a%(2)=48
+	b$=a$+CHR$(0)
+	z%=ADDR(b$)
+	r%=IOW(h%,10,#z%+1,a%())
+	IF r%<0 :RAISE r% :ENDIF
+ENDIF
+r%=IOCLOSE(h%)
+IF r%<0 :RAISE r% :ENDIF
+ENDP
+

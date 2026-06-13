@@ -1,0 +1,705 @@
+App Paint
+type $1000
+icon "m:\pic\easel.pic"
+enda
+
+PROC Main:
+LOCAL menu$(13)
+GLOBAL gg%,gm%,gt%,gts%,font%,d%,txt$(50),st%,st1%,st2%,st3%,st4%,but%
+GLOBAl fild%,i%,coord%,coord$(4),choice$(7),Fn$(128),Key%,Mod%,col$(3,10),sprid%
+GLOBAL x%,y%,dx%,dy%,w&,h&,s%,screenx&,screeny&,screenw&,screenh&,bord%,bord$(3)
+cache 2000,2000
+Init:
+Do
+getkey:
+If Key%=290 OR (mod% AND $08)
+	if key%=290 :lock on
+		mINIT
+		mcard "File","Open",%o,"Save",%s,"Save Area",%a,"Save Icon",%i,"Exit",-%x,"About Paint",%p
+		mcard "Draw","Brush",%b,"Rectangle",%r,"Circle/Elipse",%c,"Line",%l,"Text",%t
+		mcard "Options","Border "+bord$,%d,"Clear Screen",%k,coord$+" Coordinates",%w,"Move",%m,"Resize",%z,"Picture Information",%f
+		key%=menu :lock off
+	Else
+		key%=key%-512
+	Endif
+	if loc("osaixpbrcltdkwmzf",chr$(key%))
+		choice$="choice"+chr$(key%)
+		@(choice$):
+	endif
+endif
+Until key%=999
+ENDP
+
+PROC choiceo: rem open file
+local bit%,id%,pmod%,bgflag%
+bgflag%=0
+lock on
+dinit "Open Picture File"
+dfile fn$,"File",1+2
+d%=dialog :lock off
+if d%=0 :return :endif
+if not exist(fn$) :giprint "Not found" :return :endif
+lock on
+dinit
+i%=i%+1 :dchoice i%,"Colour Plane to Load","Black,Grey,Both"
+gg%=gg%+1 :dchoice gg%,"Colour to Paste","Black,Grey,Both"
+pmod%=1 :dchoice pmod%,"Paste Mode","Set,Clear,Invert,Replace"
+d%=dialog :lock off
+i%=i%-1
+gg%=gg%-1
+if d%=0 :return :endif
+if i%=2 :i%=0 :bgflag%=1 :endif rem load black first
+pmod%=pmod%-1
+diampos gg%+1
+onerr probload
+bit%=gloadbit(fn$,0,i%)
+w&=gwidth :h&=gheight
+guse 1
+if bord% :border:(1) :endif
+lock on
+dinit "Picture information"
+dtext "Paste",fn$
+dtext "W ž H",gen$(w&,3)+" ž "+gen$(h&,3)
+dtext "","Into work area of size:"
+dlong screenw&,"Width",10,1000
+dlong screenh&,"Height",10,1000
+d%=dialog :lock off
+if d%=0 :return :endif
+if bord% :border:(0) :endif
+modeset:
+Busy "Hit ENTER to Paste"
+ggrey gg%
+x%=0 :y%=0
+do
+	gat x%,y%
+	gcopy bit%,0,0,w&,h&,2
+	getkey:
+	posit:
+	gcopy bit%,0,0,w&,h&,2
+until key%=13
+busy off
+modeset:
+gat x%,y%
+if bgflag% rem copying black to black and grey to grey
+	gclose bit%
+	bit%=gloadbit(fn$,0,0) rem load+copy black first
+	guse 1 :ggrey 0 :gcopy bit%,0,0,w&,h&,pmod% :gclose bit%
+	onerr nogrey
+	bit%=gloadbit(fn$,0,1) rem load+copy grey
+	guse 1 :ggrey 1 :gcopy bit%,0,0,w&,h&,pmod% :gclose bit%
+	i%=2
+else
+	onerr probload
+	gcopy bit%,0,0,w&,h&,pmod% :gclose bit%
+endif
+if bord% :border:(0) :endif
+modeset:
+x%=5 :y%=5
+return
+probload::
+onerr off
+lock on
+alert("Terribly Sorry!  The problem is...",err$(err))
+lock off
+modeset:
+x%=5 :y%=5
+return
+nogrey::
+onerr off
+lock on
+alert("This picture does not appear to have a grey plane!",err$(err))
+lock off
+modeset:
+x%=5 :y%=5
+Endp
+
+Proc choices: rem Save Picture
+local id%
+onerr probsave
+lock on
+dinit "Save Entire Picture"
+gg%=3 :dchoice gg%,"Save Which Colour Plane(s)","Black,Grey,Both"
+d%=dialog :lock off
+gg%=gg%-1
+if d%=0 :return :endif
+if gg% :i%=1 :else :i%=0 :endif
+id%=gcreate (0,0,screenw&,screenh&,1,i%)
+gat 0,0
+ggrey gg%
+gcopy 1,0,0,screenw&,screenh&,3
+lock on
+dinit "Save Entire Picture"
+dtext "Size",gen$(gwidth,3)+" ž "+gen$(gheight,3)
+dfile fn$,"File",1+2+16
+d%=dialog :lock off
+if d%=0 :return :endif
+gsavebit fn$
+giprint "Picture Saved"
+gclose id%
+return
+probsave::
+onerr off
+lock on
+alert("Terribly Sorry!  The problem is...",err$(err))
+lock off
+Endp
+
+PROC Choicea: rem save area
+local id%
+onerr probarea
+lock on
+dinit "Save Area"
+gg%=3 :dchoice gg%,"Save Which Colour Plane(s)","Black,Grey,Both"
+d%=dialog :lock off
+gg%=gg%-1
+if d%=0 :return :endif
+locate:("Go top left")
+dx%=x% :dy%=y%
+busy "Stretch box"
+ggrey 0
+do
+	gat dx%,dy%
+	ggmode 2
+	gbox x%-dx%,y%-dy% rem draws box
+	getkey:
+	gbox x%-dx%,y%-dy% rem deletes box
+	posit:
+	ggmode 0
+until key%=13 or key%=27
+cursor off
+busy off
+if key%=27 :return :endif
+if gg% :i%=1 :else :i%=0 :endif
+id%=gcreate (0,0,x%-dx%,y%-dy%,1,i%)
+gat 0,0
+ggrey gg%
+gcopy 1,dx%,dy%,x%-dx%,y%-dy%,3
+lock on
+dinit "Save Area"
+dtext "Size",gen$(gwidth,3)+" ž "+gen$(gheight,3)
+dfile fn$,"File",1+2+16
+d%=dialog :lock off
+if d%
+	gsavebit fn$
+	giprint "Picture Saved"
+	gclose id%
+else
+	gclose id% :giprint "Aborted Filesave!"
+endif
+return
+probarea::
+onerr off
+lock on
+alert("Terribly Sorry!  The problem is...",err$(err))
+lock off
+ENDP
+
+PROC choicei: rem save icon
+local id%
+ggrey 2
+ggmode 2
+busy "Select area"
+do
+	gat x%,y%
+	gbox 48,48 rem draws box
+	getkey:
+	posit:
+	gbox 48,48 rem deletes box
+	if key%=27 :busy off :return :endif
+until key%=13
+id%=gcreate (0,0,48,48,1,1)
+ggrey 2
+busy off
+gat 0,0
+gcopy 1,x%,y%,48,48,3
+lock on
+dinit "Save Icon"
+dfile fn$,"File",1+2+16
+d%=dialog :lock off
+if d%
+	gsavebit fn$
+	giprint "48ž48 Icon Saved"
+	gclose id%
+else :gclose id%
+endif
+ENDP
+
+PROC choicer: rem draw a rectangle
+local but%
+lock on
+dinit "Rectangle type"
+dbuttons "Empty",%e,"Filled",%f,"Button",%b
+d%=dialog :lock off
+if d%=%b
+	lock on
+	dinit "Button options"
+	dedit txt$,"Button Text",15
+	but%=1 :dchoice but%,"Style","Raised,Normal,Depressed"
+	font%=font%-3 :dchoice font%,"Font","Mono 8x8,Roman 8,Roman 11,Roman 13,Roman 16,Swiss 8,Swiss 11,Swiss 13,Swiss 16,Mono 6x6"
+	dchoice st1%,"Bold","No,Yes"
+	dchoice st2%,"Underlined","No,Yes"
+	dchoice st3%,"Double Height","No,Yes"
+	dchoice st4%,"Italic","No,Yes"
+	dialog :lock off
+	font%=font%+3
+	but%=but%-1
+	st%=(st1%-1)+((st2%-1)*2)+((st3%-1)*8)+((st4%-1)*32)
+	gstyle st%
+elseif d%=%f or d%=%e
+	options:("Rectangle Options")
+elseif d%=0
+	return
+endif
+locate:("Go top left")
+dx%=x% :dy%=y%
+gat x%,y%
+ggrey 2 :ggmode 2
+busy "Stretch box.."
+do
+	gat dx%,dy%
+	gbox x%-dx%,y%-dy% rem draws box
+	giprint "Size "+num$(x%-dx%,3)+" ž "+num$(y%-dy%,3)
+	getkey:
+	gbox x%-dx%,y%-dy% rem deletes box
+	posit:
+until key%=13 or key%=27
+busy off
+if key%=13
+	modeset:
+	if d%=%e :gbox x%-dx%,y%-dy% rem empty
+	elseif d%=%f :gfill x%-dx%,y%-dy%,gm% rem filled
+	elseif d%=%b :gbutton txt$,1,x%-dx%,y%-dy%,but% rem button
+	endif
+endif
+ENDP
+
+PROC choicec: rem draw elipse/circle
+local a%(963),c&,x&,y&,r&,h,y1%,y2%,c2%
+busy "Circle mode"
+options:("Circle/Elipse Options")
+lock on
+dinit "Circle/Elipse"
+r&=20 :dlong r&,"Radius",1,120
+h=1 :dfloat h,"Relative height",0.05,10
+dchoice fild%,"Circle Type","Empty,Filled"
+d%=dialog :lock off
+if d%=0 :busy off :return :endif
+locate:("Go circle centre")
+modeset:
+gupdate off
+x&=x% :y&=y%
+c&=1 :d%=2*r&
+if fild%=2
+	gat x%-r&,y% :glineby 0,0
+	while c&<d%
+		y2%=-sqr(r&*c&*2-c&**2)*h
+		gat x%-r&+c&,y%-y2% :glineby 0,2*y2% :c&=c&+1
+	endwh
+else rem not filled
+	busy "calculating..."
+	a%(1)=x&+r& :a%(2)=y& :a%(3)=4*r& :y1%=0
+	while c&<=d%
+		c2%=c&*2 :y2%=-sqr(r&*c2%-c&**2)*h
+		a%(2+c2%)=-2 :a%(3+c2%)=y2%-y1%
+		y1%=y2% :c&=c&+1
+	endwh
+	c&=1
+	while c&<=d%
+		c2%=c&*2 :y2%=sqr(r&*c2%-c&**2)*h
+		a%(2+a%(3)+c2%)=2 :a%(3+a%(3)+c2%)=y2%-y1%
+		y1%=y2% :c&=c&+1
+	endwh
+	gpoly a%()
+	busy off
+endif
+gupdate on
+ENDP
+
+Proc choicew: rem toggle coordinates
+if coord%=0
+	coord%=1 :coord$="Hide" :giprint "Coordinates Enabled"
+elseif coord%=1
+	coord%=0 :coord$="Show" :giprint "Coordinates Disabled"
+endif
+endp
+
+PROC choicel: rem draw a line
+options:("Line Options")
+locate:("Go start")
+ggrey 2 :ggmode 2
+lintop::
+dx%=x% :dy%=y%
+ggmode 2
+do
+	busy "Stretch Line.."
+	gat x%,y%
+	glineto dx%,dy%
+	getkey:
+	glineto x%,y%
+	posit:
+until key%=13 or key%=27 or key%=32
+if key%=13 or key%=32
+	modeset:
+	gat dx%,dy% :glineto x%,y%
+endif
+if key%=32 :goto lintop :endif
+busy off
+ENDP
+
+PROC choicet: rem draw text
+lock on
+dinit
+dedit txt$,"Text",15
+font%=font%-3 :dchoice font%,"Font","Mono 8x8,Roman 8,Roman 11,Roman 13,Roman 16,Swiss 8,Swiss 11,Swiss 13,Swiss 16,Mono 6x6"
+gt%=gt%+1 :dchoice gt%,"Draw Mode","Normal,Clear,Invert,Replace"
+gg%=gg%+1 :dchoice gg%, "Colour","Black,Grey,Both"
+dchoice st1%,"Bold","No,Yes"
+dchoice st2%,"Underlined","No,Yes"
+dchoice st3%,"Double Height","No,Yes"
+dchoice st4%,"Italic","No,Yes"
+d%=dialog :lock off
+gt%=gt%-1 :gg%=gg%-1
+diampos gg%+1
+cursor off
+gts%=(st1%-1)+((st2%-1)*2)+((st3%-1)*8)+((st4%-1)*32)
+font%=font%+3
+if d%=0 :return :endif
+modeset:
+busy "Hit ENTER to paste"
+gtmode 2
+do
+	gat x%,y%
+	gprint txt$
+	getkey:
+	gat x%,y%
+	gprint txt$
+	posit:
+until key%=13 or key%=27
+busy off
+modeset:
+if key%=13
+	gat x%,y%
+	gprint txt$
+endif
+ENDP
+
+Proc choiceb: rem brush mode
+local s%
+x%=5 :y%=5
+s%=5
+do
+busy col$(gg%+1)+" brush"
+ggrey gg%
+gat x%,y% :cursor 1,0,s%,s%,0
+getkey:
+If mod% and 2 :gfill s%,s%,0 rem set
+elseif mod% and 4 :gfill s%,s%,1 :endif rem cleared
+posit:
+If mod% and 2 :gfill s%,s%,0 rem set
+elseif mod% and 4 :gfill s%,s%,1 :endif rem cleared
+If key%=43 :s%=s%+1 :giprint "Brush size "+gen$(s%,3)
+pause -10
+Elseif key%=45 and s%>1 :s%=s%-1 :giprint "Brush size "+gen$(s%,3)
+pause -10
+Endif
+If Key%=290 OR (mod% AND $08)
+	If key%=290
+		mINIT
+		mcard "File","Exit brush mode",%x
+		mcard "Options",coord$+" Coordinates",%w,"Find Cursor",%f
+		key%=menu
+	Else
+		key%=key%-512
+	Endif
+Endif
+If key%=%w :choicew:
+elseif key%=%f
+	cursor off
+	ggrey 2 :ggmode 2
+	do
+	gat 0,0 :glineto x%,y%
+	gat screenw&,0 :glineto x%,y%
+	gat 0,screenh& :glineto x%,y%
+	gat screenw&,screenh& :glineto x%,y%
+	pause 3
+	gat 0,0 :glineto x%,y%
+	gat screenw&,0 :glineto x%,y%
+	gat 0,screenh& :glineto x%,y%
+	gat screenw&,screenh& :glineto x%,y%
+	pause -3
+	until key
+	modeset:
+	cursor on
+endif
+until key%=27 or key%=13 or key%=%x
+busy off
+cursor off
+Endp
+
+Proc choiced: rem toggle border
+if bord%=0
+	bord%=1 :bord$="off" :border:(0)
+else
+	bord%=0 :bord$="on" :border:(1)
+endif
+endp
+
+Proc choicek: rem clear screen
+if warn%:("Clear Screen?")=%y
+	screenx&=0 :screeny&=0 :screenw&=416 :screenh&=160
+	modeset:
+	defaultwin 1
+	if bord% :border:(0) :endif
+endif
+Endp
+
+Proc choicem: rem move screen
+busy "Move picture"
+x%=screenx& :y%=screeny&
+do
+	getkey:
+	posit:
+	gsetwin x%,y%
+until key%=27 or key%=13
+busy off
+screenx&=x% :screeny&=y%
+modeset:
+x%=5 :y%=5
+Endp
+
+Proc choicez: rem resize picture
+onerr probsize
+if bord% :border:(1) :endif
+lock on
+dinit "Re-Size Picture"
+dLONG screenw&,"Screen Width",10,1000
+dLONG screenh&,"Screen Height",10,1000
+dtext "","(advisable to save before resizing!",2
+dtext "","hit Escape to abort)",2
+d%=dialog :lock off
+if d%
+	screenx&=0 :screeny&=0
+	modeset:
+	x%=5 :y%=5
+endif
+if bord% :border:(0) :endif
+return
+probsize::
+onerr off
+lock on
+alert("Terribly Sorry!  The problem is...",err$(err))
+lock off
+if bord% :border:(0) :endif
+ENDP
+
+Proc choicex: rem exit
+if warn%:("Exit Program")=%y :stop :Endif
+Endp
+
+Proc choicep: rem about Paint
+lock on
+dinit
+dTEXT "","Paint",$302
+dTEXT "","A simple but versatile",$102
+dTEXT "","picture/icon utility",$102
+dTEXT "","Freeware. Please hack source code!",$302
+dTEXT "","Julian C. Toler",2
+dTEXT "","April 1995",2
+dialog :lock off
+Endp
+
+Proc choicef: rem picture information
+local sp&
+onerr nomem
+trap create "m:\dummyfil.odb",a,f1$
+sp&=space
+trap close
+trap delete("m:\dummyfil.odb")
+lock on
+dinit "Picture Information"
+dtext "Screen width ž height",gen$(screenw&,5)+" ž "+gen$(screenh&,5)
+dtext "Point of origin x,y (top left)",gen$(screenx&,5)+" ž "+gen$(screeny&,5)
+dtext "Approximate free memory",gen$(sp&+5800,7)
+d%=dialog :lock off
+return
+nomem::
+onerr off
+trap close
+lock on
+alert("Memory too low to measure!")
+lock off
+Endp
+
+Proc warn%:(mes$)
+lock on
+dinit mes$
+Dbuttons "No",-%n,"Yes",%y
+d%=dialog :lock off
+return d%
+Endp
+
+PROC options:(mes$)
+lock on
+dinit mes$
+gm%=gm%+1 :dchoice gm%,"Graphic Mode","Normal,Clear,Invert"
+gg%=gg%+1 :dchoice gg%,"Colour","Black,Grey,Both"
+dialog :lock off
+gm%=gm%-1 :gg%=gg%-1
+diampos gg%+1
+modeset:
+ENDP
+
+Proc modeset:
+gupdate off
+gsetwin screenx&,screeny&,screenw&,screenh&
+ggmode gm% :ggrey gg% :gtmode gt% :gstyle gts% :gfont font%
+if screenx&+screenw&>418
+	if screenx&+screenw&>450
+	statuswin off
+	else
+	statuswin on,1
+	endif
+else
+	statuswin on,2 
+endif
+gupdate on
+Endp
+
+Proc border:(stat%)
+ggmode stat%
+ggrey 2
+gat 0,0
+gbox screenw&,screenh&
+Endp
+
+PROC getkey:
+local w$(128),t$(2),a%(6)
+a%(1)=0
+GETEVENT a%()
+IF a%(1)=$404 rem file event
+	w$=GETCMD$
+	t$=LEFT$(w$,1) rem "C","O" or"X"
+	IF t$="X" rem Close file + quit
+		stop
+	endif
+ENDIF
+Key%=a%(1)
+Mod%=a%(2) AND $00FF
+If key%=291 :help:
+elseif key%=292 rem diamond
+	gg%=gg%+1 :if gg%=3 :gg%=0 :endif
+	diampos gg%+1
+endif
+ENDP
+
+Proc crbit: rem create cursor sprite bitap
+if not exist("m:\opd\cross.pic")
+trap mkdir "m:\opd"
+gcreate(0,0,11,11,1,0)
+gat 5,0 :glineby 0,11
+gat 0,5 :glineby 11,0
+ggmode 1
+gat 5,5 :glineby 0,0
+gsavebit "m:\opd\cross.pic"
+gclose gidentity
+endif
+endp
+
+Proc sprinit:
+local bit$(6,5)
+sprid%=createsprite
+bit$(1)=""
+bit$(2)=""
+bit$(3)="cross" rem invert black pixels
+bit$(4)=""
+bit$(5)=""
+bit$(6)=""
+appendsprite 3,bit$(),0,0
+bit$(1)=""
+bit$(2)=""
+bit$(3)=""
+bit$(4)=""
+bit$(5)=""
+bit$(6)=""
+appendsprite 3,bit$(),0,0
+Endp
+
+Proc locate:(mes$)
+busy mes$
+sprinit:
+drawsprite x%-5,y%-5
+do
+	getkey:
+	posit:
+	possprite x%-5,y%-5
+until key%=13 or key%=27
+closesprite sprid%
+busy off
+Endp
+
+PROC posit:
+IF key%=256 :y%=y%-1 :rem up
+elseif key%=257 :y%=y%+1 rem down
+elseif key%=259 :x%=x%-1 rem left
+elseif key%=258 :x%=x%+1 rem right
+elseif key%=260 :y%=y%-10 
+elseif key%=261 :y%=y%+10
+elseif key%=262 :x%=x%-10
+elseif key%=263 :x%=x%+10
+Endif
+if coord% :giprint gen$(x%,4)+"ž"+gen$(y%,4) :endif
+ENDP
+
+PROC Help:
+local lochelp$(50),path$(1)
+lochelp$=":\app\paint\painthlp.opo"
+again::
+path$="A" :if exist(path$+lochelp$) :goto skip :endif
+path$="B" :if exist(path$+lochelp$) :goto skip :endif
+path$="M" :if exist(path$+lochelp$) :goto skip :endif
+if lochelp$=":\opo\painthlp.opo"
+	giprint "Help file not found"
+	return
+else
+	lochelp$=":\opo\painthlp.opo"
+	goto again
+endif
+skip::
+loadm path$+lochelp$
+painthlp:
+unloadm path$+lochelp$
+ENDP
+
+PROC Init:
+defaultwin 1
+gat 130,50
+gxborder 1,$203,220,70
+gfont 8
+ggrey 1
+gat 142,82 :gprintb "Paint",200,3
+ggrey 0
+gat 140,80 :gprintb "Paint",200,3
+gfont 11
+gat 140,98 :gprintb "Drawing/icon design utility",200,3
+pause -30
+crbit:
+ggrey 2
+gcls
+statuswin on
+col$(1)="Black"
+col$(2)="Grey"
+col$(3)="Black+Grey"
+fn$="M:\PIC\*.PIC"
+txt$="Example Text"
+gm%=0 :gg%=0 :gt%=0 :gts%=0 :font%=7
+w&=416 :h&=160
+x%=5 :y%=5
+fild%=2
+coord%=0
+choicew:
+DIAMINIT gg%+1,"Black","Grey","Both"
+screenx&=0 :screeny&=0 :screenw&=416 :screenh&=160
+modeset:
+bord%=0
+choiced:
+ENDP

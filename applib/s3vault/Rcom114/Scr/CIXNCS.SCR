@@ -1,0 +1,82 @@
+!
+! Cix logon for a non constant speed modem
+!
+    INFO "Improved CIX Logon"
+    SETUP ( Baud=2400 :Stop=1 :Parity=none :Handshake=XonXoff
+    	    Fail=None :Timeout=20 :Echo=off :Data=8 )
+    ON send fail goto bad
+    SET c1=4
+rAlive:
+    SEND "AT"
+    WAIT 20 ( ON reply "OK<$d><$a>" GOTO alive )
+    ON c1 GOTO rAlive
+    GOTO merror
+alive:
+    SENDWAIT 10 "AT&F","OK<$d><$a>" GOTO merror
+    SET C1=3
+    GOTO reDial
+wait100:
+    INFO "Waiting to redial"
+    WAIT 60
+reDial:
+    SEND "ATD<CixNumber>"
+    WAIT 60 (
+	ON reply "CONNECT<$d>" GOTO letsgo300
+	ON reply "CONNECT 1200<$d>" GOTO letsgo1200
+	ON reply "CONNECT 2400<$d>" GOTO letsgo2400
+	ON reply "CONNECT<$d>" GOTO letsgo300
+	ON reply "NO DIALTONE" GOTO tele
+	ON reply "NO CARRIER" GOTO nocar
+	ON reply "ERROR" GOTO black
+	ON reply "BUSY" GOTO again )
+    GOTO merror
+again:
+    ON c1 GOTO wait100
+    ALERT "Line busy" : EXIT
+letsGo300:
+    INFO "CONNECTED...300"
+    SETUP BAUD=300
+    GOTO letsGo
+letsGo1200:
+    INFO "CONNECTED...1200"
+    SETUP BAUD=1200
+    GOTO letsGo
+letsGo2400:
+    INFO "CONNECTED...2400"
+letsGo:
+    SENDWAIT 60 "<$d>";,"login:" GOTO noLog
+    SENDWAIT 60 "qix<$d>";,"new user)" GOTO noUser
+    SENDWAIT 30 "<CixUserName>","Password:" GOTO noPass
+    SEND "<CixPassword>"
+tryAgain:
+    WAIT 40 (
+	ON REPLY "Main:" GOTO gotMain
+	ON REPLY "More" GOTO gotMore )
+    ALERT "SOMETHING STRANGE"
+gotMain:
+    EXIT
+gotMore:
+    WAIT 1
+    SEND "n"
+    GOTO tryAgain
+
+black:
+    ALERT "Number dialled too many times" : EXIT
+nocar:
+    ALERT "No connection made" : EXIT
+tele:
+    ALERT "Check connected to telephone" : EXIT
+merror:
+    ALERT "Check modem connected" : EXIT
+bad:
+    ALERT "Check RS232 lead connected" : EXIT
+noLog:
+    ALERT "No Login received" : EXIT
+noUser:
+    ALERT "No user name" : EXIT
+noPass:
+    ALERT "No password" : EXIT
+noMain:
+    ALERT "No main"
+    EXIT
+

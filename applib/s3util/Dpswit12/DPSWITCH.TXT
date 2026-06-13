@@ -1,0 +1,110 @@
+
+DPSwitch - You may never need your "System" button anymore!
+===========================================================
+
+What is it?
+-----------
+DPSwitch is a task switcher for the Psion Series 3a.  It cannot launch
+tasks, it only switches between opened tasks.  If you need a complete
+task switcher + launcher, I suggest you take a look at "Finder" from
+Tom Dolbilin or "Taskman" from Mark Esposito.
+
+Why another task switcher?
+--------------------------
+DPSwitch was originally writen for my own specific needs:
+-fast task switch hot key (control-a)
+-doesn't use much memory (10k only)
+
+The other two task switchers I mentioned were simply too big and
+memory hungry for my little use...  so DPSwitch was born.
+
+I thought the program might be useful to other people so I release it
+here as FREEware.  If you like it, I would appreciate a little EMail.
+If it really makes your life much easier or saved your Psion with a
+broken "System" button, small tokens of appreciation are always
+welcome ;-) Send them to me at:
+
+    Daniel Pfund
+  19, ch. Tirelonge
+    CH-1213 Onex
+    Switzerland
+
+
+EMail: Pfund3@uni2a.unige.ch (until 11Oct96) or 
+Pfund@mail.dotcom.fr afterwards.
+
+You will always find the latest versions of all my programs on my
+homepage at:
+
+ http://www.geocities.com/SiliconValley/8130/
+
+
+Installation
+------------
+Installing is very easy:
+
+-if you have a Series 3a:  just copy the opa file (DPSwitch.opa) to any
+ \APP directory on one of your disks (M A or B).  To install, press
+ Psion-i from the System screen and select DPSwitch.  You'll see the
+ icon appear on your System screen.
+
+-if you have a Series 3:  copy the opo file (DPSwitch.opo) to your \OPO
+ directory.  You must use RunOPL in order to run it (sorry, there is no
+ icon on the Series 3 version).
+
+If you want, you can also rename the Series 3a file to DPSwitch.opo and
+put it into your \OPO directory and launch it from the RunOPL icon.
+This avoids clogging up your System Screen and also saves you an icon
+(for the 50 icon limit of the Psion).
+
+Usage
+-----
+Leave the program open all the time for maximum efficiency.  The hot
+key is shift-escape.  Apart from that, I believe it is really easy to
+understand what the program does...
+
+Just one limit though (that I haven't reached on my 512k Psion):  it
+will only list the first 9 active tasks.  This is a Psion limitation
+as OPL strings are only allowed 255 characters max.  I know a way
+around this (see the file Longlist.zip at the Imperial College
+archive) but I don't want to implement such a memory hungry method for
+such a small problem!
+
+Advice to programmers
+---------------------
+DPSwitch reads the process names and files used by each running app
+every time it is activated.
+
+If you run a lot of 3rd party software written in OPL, you'll see that
+most of them appear under "SYS$OPO.$xx".  This is the default name
+from the RunOPL interpreter.  I strongly suggest to OPL programmers to
+rename their process to their program's name with the following code
+example:
+
+name$="Filename"+CHR$(0)
+REM name$ must be defined with correct size! (9 max)
+CALL( $0C88,CALL($88),0,0,0,UADD(ADDR(name$),1) )
+
+The CALL($88) gets the current process' Id and the CALL($0C88...)
+renames the process with the selected Id to the name name$.  Be
+careful to enter the addresses correctly!
+
+Legal section
+-------------
+DPSwitch is provided "as is" and I cannot be held responsible if it
+crashes your Psion or of any other misbehavings it may occasion.  I
+have tested the program myself and I use every day, so I would say
+that such a case would be highly unlikely...  But you never know, if
+you have encoutered a problem, please report it immediately to me so I
+can take correct action against it in future versions.
+
+I hope you'll like the program.  Mail me any comments you may have.
+
+History
+-------
+
+ver Date    Comments
+--------------------
+1.0 13Mar96 First public release
+1.1 14May96 Added System Modal call + Series 3 "Classic" version
+1.2 29May96 Removed System Modal ;-) + changed hotkey to Shift-Esc

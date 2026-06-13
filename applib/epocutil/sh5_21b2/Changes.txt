@@ -1,0 +1,138 @@
+2.10beta2 released 5/1/99
+
+  •	Font and styles are now changed by name. e.g.
+
+		set font Courier18 bold
+
+	The size of the current font can be changed with +number and
+	 -number. The style and font name can be changed independently
+	and the style cleared using a style of "normal".
+
+  •	The "banner" command has been updated to use named fonts
+	and styles as detailed above.
+
+  •	Added execution of commands within command lines. e.g.
+
+		set date=‘date‘
+
+	The "‘" is character 145. This incorporates just the FIRSTLINE of
+	output from the command and the command MUST use fprint%:
+	rather than PRINT - the implementation mechanism uses a variant of
+	output redirection.	
+
+  •	With macros the "@" construct has been altered to use the execution
+	method given above - ie. the first line of command output will form
+	part of the current command line. For added flexibility two new
+	targets - :null and :screen have been added that redirect output
+	(and errors) to the screen or simply discard it.
+
+  •	Enhanced sample autoexec.bat file demonstrating setting macros and
+	toolbar operations.
+
+  •	Displaying/removing the toolbar is now handled by "set -o toolbar"
+	rather than "set toolbar on/off/toggle". Use "set ~o toolbar" to
+	toggle the state.
+
+  •	Various minor fixes
+
+
+2.10beta1 released 28/6/98
+
+  •	Reimplemented pipes as binary, rather than text streams
+	(thanks to Ian Morgan for providing code for this). There is
+	a new function, fread%: to read this binary stream.
+
+  •	fprint%: has been modified so that it DOESN'T append the
+	end of line sequence; this enables it to work correctly with
+	binary files and to build a single line on the screen with
+	multiple fprint%: commands. A global string _CRLR$ has
+	been setup so to get the correct behaviour just add "+_CRLF$"
+	to the fprint%: commands (see the source for examples).
+
+  •	The "more" command has been rewritten. It now can be used
+	to view binary as well as text files and has scrollback. See
+	the help entry for details.
+
+  •	New shell options:
+		nobeep - silences all Shell5 warning beeps
+		debug - prints ERRX$ when an EPOC error is detected.
+		sort - sort "ls" and filename expansion output alphabetically.
+		         This isn't currently the default as there is a small
+		         performance penalty, particularly on large directories.
+
+  •	Implemented an error stream that can be redirected to a
+	file (currently this works similarly to the UN*X csh model,
+	where the error stream can be added to the output stream
+	but NOT redirected separately).
+
+  •	Recoding existing commands to use enhanced pipes and error
+	stream. Many commands including echo, od, putclip and wc have
+	been extensively revised.
+
+  •	Two new variables for the prompt. %T for time in 24-hour format
+	and %t for the time in am/pm format.
+
+  •	The two external commands, button and subst are now part of the
+	standard distribution.
+
+
+2.01 released 18/4/98
+
+  •	Fixed a bug in sysinfo that incorrectly returned the ROM
+	version as 1.1, rather than 1.01.
+
+  •	Made the dEDITMULTI edit dialog scale according to the
+	screen size. This gives Geofox users more vertical editing
+	space.
+
+
+2.0 released 18/3/98
+
+   •	Allow PgUp, PgDn, End, Start, Menu and Dial to be redefined
+	via bindkey, and also take the "Shift-" modifier. The
+	documentation implied this was already possible.
+
+   •	Allow .APP applications to take directories as arguments.
+	Previously this returned an (incorrect) "out of range" error.
+
+
+2.0beta3 released 11/3/98
+
+   •	Search within command history implemented. Keys are
+	set to the find-next and find-prev bindings via bindkey 	
+	(these are set to ctrl-n and ctrl-p by the default autoexec.bat).
+
+   •	No longer an 8 character limit on labels in batch files.
+
+   •	Various bug fixes including a memory leak in _if% that could
+	cause a program crash when processing batch files.
+
+   •	Code cleaned up in preparation for the release version.
+
+
+2.0beta2 released 2/3/98
+
+   •	.APP files can now be run directly from the command line,
+	"runapp" is no longer needed and has been removed from
+	the distribution. Thanks to Pascal Nicolas and Richard
+	Panton for their input on this.
+
+   •	Improved "if" command. Now the "== <string2>" is optional.
+	If it's not included the statements following <string1> are
+	executed if <string1> is NOT empty or 0.
+
+   •	Improved "edit" command. The cursor position is set to the
+	top of the file and the text is no longer selected. The
+	method is that used by Roger Muggleton in his editors
+	based on dEDITMULTI (http://www.cix.co.uk/~hzk/).
+
+   •	Fixed a silly bug in help%: causing case sensitivity in
+	filenames. This meant the program may have tried to open
+	help files multiple times (rather than switching to the already
+	open help file).
+
+   •	Fixed bug in od%: and more%: where pathnames were not
+	put through PrPath$: when the status bar at the bottom of
+	the screen was displayed.
+
+2.0beta1 released 26/2/98

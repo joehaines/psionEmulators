@@ -1,0 +1,538 @@
+==========
+Usenet/comp.sys.psion #23301, from brown@rnibncw.demon.co.uk, 10749 chars, Jan 25 11:22 96
+----------
+Article: 23301 of comp.sys.psion
+Path: cix.compulink.co.uk!news.compulink.co.uk!btnet!zetnet.co.uk!demon!mail2news.demon.co.uk!rnibncw.demon.co.uk
+From: brown@rnibncw.demon.co.uk
+Newsgroups: comp.sys.psion
+Subject: OPL Hyperspace plot
+Date: Thu, 25 Jan 1996 11:22:08 GMT
+Organization: RNIB New College Worcester.
+Lines: 523
+Message-ID: <9601290813.ae26518@news.demon.net>
+X-NNTP-Posting-Host: rnibncw.demon.co.uk
+X-Mail2News-Path: rnibncw.demon.co.uk
+
+rem Set of OPL programs for the plotting of equilateral objects in 
+multiple
+rem dimensions on the Psion 3 and 3a (eg 4D, 5D)
+rem Animation program required eg the one in V-Land
+rem PD code, sorry no support available, comments to
+rem brown@rnibncw.demon.co.uk
+
+rem HYP3A.OPL: S3a translate this module
+
+PROC main:
+	GLOBAL s3%,maxd%
+	LOADM "Hyper"
+	DEFAULTWIN 1
+	FONT 8,16
+	PRINT "Using S3a high-res mode"
+	s3%=1
+	maxd%=7
+	hyper:
+ENDP
+
+PROC grey:(d%)
+	IF d%=1
+		gGrey 2
+	ELSE
+		gGrey -2
+	ENDIF
+ENDP
+
+rem HYPER.OPL: S3 Translate this module
+
+rem Bug list
+rem Exit doesn't save changes (make proper app, diff anim names etc)
+rem Hidden lines only work in 3D
+rem Greyscale
+
+PROC main:
+	GLOBAL s3%,maxd%
+	PRINT "Assuming S3 or compatibility mode"
+	s3%=2:rem 1 for 3a
+	maxd%=5
+	hyper:
+ENDP
+
+PROC hyper:
+	GLOBAL trig(19),coords%(5),bkCrds%(5),sideLen&(5)
+	GLOBAL cx%,cy%,upd%,cnt%,anRt&(10),frm&
+	GLOBAL rotArr&(10),inf(3),hid%(3),hidVal%(3)
+	LOCAL k%,n%,cx&,cy&,dims%
+	LOADM "Calc"
+	sideLen&(1)=50:sideLen&(2)=50:sideLen&(3)=50:sideLen&(4)=50
+	cx%=250:cy%=75:dims%=3:upd%=1:anRt&(4)=5:anRt&(5)=5:anRt&(6)=5
+	rotArr&(1)=30:rotArr&(2)=30:rotArr&(3)=30:rotArr&(4)=30:rotArr&(5)=30:
+	inf(1)=10000:inf(2)=10000:hid%(1)=4:hid%(2)=4
+	n%=1:frm&=9:cnt%=1
+	initTrig:
+	WHILE 1
+		IF n%
+			PRINT "Press Help for info"
+			n%=0
+		ELSE
+			calcPts:(dims%)
+		ENDIF
+		WHILE 1
+			k%=GET
+			IF k%=290:rem menu
+				mInit
+				mCard "View","Plot",112,"Hidden lines",616,"Vanishing points",630,"Centre",611
+				mCard "Object","Lengths",620,"Dimensions",612,"Rotation",626
+				mCard "Animate","Generate",615,"Settings",627
+				mCard "Special","Info",105,"Preferences",625,"Exit, lose changes",634,"Exit",632
+				k%=MENU+512
+			ENDIF
+			IF k%=620:rem 512+asc("l")
+				setLen:(dims%)
+			ELSEIF k%=627
+				setAnim:(dims%)
+			ELSEIF k%=615
+				WHILE calcPts:(dims%)=0 AND cnt%<=frm&
+					gSAVEBIT "Hyper."+GEN$(cnt%,3)
+					k%=nCr:(dims%+0.0,2.0)
+					WHILE k%>0
+						rotArr&(k%)=rotArr&(k%)+anRt&(k%)
+						k%=k%-1
+					ENDWH
+					cnt%=cnt%+1
+				ENDWH
+				cnt%=1
+			ELSEIF k%=625
+				upd%=upd%+1
+				dInit "Preferences"
+				dChoice upd%,"Immediate updates","Off,On"
+				dialog
+				upd%=upd%-1
+			ELSEIF k%=611
+				cx&=cx% :cy&=cy%
+				dInit "Centre"
+				dText "","Co-ordinates of"
+				dText "","centre of screen"
+				dLong cx&,"X",0,640
+				dLong cy&,"Y",0,480
+				dialog
+				cx%=cx& :cy%=cy&
+			ELSEIF k%=612
+				cx&=dims%
+				dInit "Hyperspace"
+				dLong cx&,"# dimensions",2,5
+				dialog
+				dims%=cx&
+			ELSEIF k%=616
+				setHid:(dims%)
+			ELSEIF k%=630
+				setPers:(dims%)
+			ELSEIF k%=626
+				setRot:(dims%)
+			ELSEIF k%=291 or k%=617
+				helpBox:
+			ELSEIF k%=632
+				save:
+				RETURN
+			ELSEIF k%=634
+				RETURN
+			ELSEIF k%=624
+				BREAK
+			ENDIF
+		ENDWH
+	ENDWH
+ENDP
+
+PROC helpBox:
+	dInit "Help: Hyperspace"
+	dText "","Menu for menus"
+	dText "","Compatibility mode uses same scale as 3a"
+	dText "","Run HYP3A for 3a version"
+	dText "","Run HYPER for compat mode"
+	dText "","(larger menu/dialogue font)"
+	dialog
+ENDP
+
+PROC bitAnd%:(a%,bt%)
+	LOCAL l%
+	l%=a%/bt%
+	IF l%<>INT(l%/2)*2:RETURN bt%
+	else :return 0:endif
+ENDP
+
+PROC calcPts:(dims%)
+	LOCAL l%,lp%,m%,main%
+	IF upd%=0:gUpdate OFF :ENDIF
+	main%=dims% :l%=1
+	WHILE main%>2
+		hidVal%(main%-2)=0
+		IF hid%(main%-2)=2 OR (hid%(main%-2)=4 AND cnt%=INT(cnt%/2)*2) OR hid%(main%-2)=3
+			l%=2
+		ENDIF
+		main%=main%-1
+	ENDWH
+	main%=l%:IF dims%<3:main%=2:ENDIF
+	WHILE main%<=2
+		CLS
+		l%=1:m%=2**dims%
+		IF main%=1
+			BUSY "Finding hidden lines"
+		ELSE
+			BUSY "Plotting"
+		ENDIF
+		WHILE l%<m%
+			IF KEY
+				PRINT "Interrupted"
+				IF upd%=0:gUpdate :gUpdate ON :ENDIF
+				BUSY OFF
+				RETURN 1
+			ENDIF
+			lp%=1
+			WHILE lp%<=dims%
+				IF bitAnd%:(l%,2**(lp%-1))
+					bkCrds%(lp%)=sideLen&(lp%)
+				ELSE
+					bkCrds%(lp%)=-sideLen&(lp%)
+				ENDIF
+				lp%=lp%+1
+			ENDWH
+			lp%=1:loadCrds:(dims%)
+			WHILE lp%<=dims%
+				IF coords%(lp%)>0:rem Only need draw once
+					coords%(lp%)=-coords%(lp%)
+					move:(dims%)
+					loadCrds:(dims%)
+					draw:(dims%)
+					loadCrds:(dims%)
+				ENDIF
+				lp%=lp%+1
+			ENDWH
+			l%=l%+1
+		ENDWH
+		main%=main%+1
+	ENDWH
+	BUSY OFF
+	IF upd%=0:gUpdate ON :gUpdate :ENDIF
+	BEEP 5,320
+	RETURN 0
+ENDP
+
+PROC loadCrds:(dims%)
+	LOCAL l%
+	l%=1
+	WHILE l%<=dims%
+		coords%(l%)=bkCrds%(l%)
+		l%=l%+1
+	ENDWH
+ENDP
+
+PROC move:(dims%)
+	LOCAL l%
+	doRot:(dims%)
+	pers:(dims%)
+	gAt (coords%(1)+cx%)/s3%,(coords%(2)+cy%)/s3%
+	l%=dims%
+	WHILE l%>2
+		IF coords%(l%)>=hidVal%(l%-2)
+			hidVal%(l%-2)=coords%(l%)
+		ENDIF
+		l%=l%-1
+	ENDWH
+ENDP
+
+PROC draw:(dims%)
+	LOCAL l%,plt%
+	doRot:(dims%)
+	pers:(dims%)
+	l%=dims% :plt%=1
+	WHILE l%>2
+		IF coords%(l%)>=hidVal%(l%-2)
+			hidVal%(l%-2)=coords%(l%)
+			IF hid%(l%-2)=2 OR (hid%(l%-2)=4 AND cnt%=INT(cnt%/2)*2)
+				plt%=0:BREAK
+			ELSEIF hid%(l%-2)=3 AND plt%=1
+				plt%=2
+			ENDIF
+		ENDIF
+		l%=l%-1
+	ENDWH
+	IF plt%=2
+		grey:(1)
+	ELSE
+		grey:(0)
+	ENDIF
+	IF plt%
+		gLineTo (coords%(1)+cx%)/s3%,(coords%(2)+cy%)/s3%
+	ENDIF
+ENDP
+
+rem Perspective
+PROC pers:(dims%)
+	LOCAL lp%,l2%,f
+	lp%=dims%
+	WHILE lp%>2
+		IF inf(lp%-2)
+			f=(inf(lp%-2)-coords%(lp%))/inf(lp%-2) :IF f<0:f=0:ENDIF
+			l2%=lp%-1
+			WHILE l2%>=1
+				coords%(l2%)=coords%(l2%)*f
+				l2%=l2%-1
+			ENDWH
+		ENDIF
+		lp%=lp%-1
+	ENDWH
+ENDP
+
+PROC setPers:(dims%)
+	LOCAL lp%
+	IF dims%>2
+		dInit "Vanishing points"
+		dText "","0 gives no perspective"
+		dText "","Smaller values are more pronounced"
+		lp%=3
+		WHILE lp%<=dims%
+			IF lp%-INT(lp%/maxd%)*maxd%=0
+				dText "","More to follow"
+				IF DIALOG=0:RETURN 0 :ENDIF
+				dInit "More vanishing points"
+			ENDIF
+			dFloat inf(lp%-2),axTitl$:(lp%),0,100000
+			lp%=lp%+1
+		ENDWH
+		return dialog
+	ELSE
+		dInit "Vanishing points"
+		dText "","Insufficent dimensions for perspective"
+		dialog
+	ENDIF
+ENDP
+
+PROC setHid:(dims%)
+	LOCAL lp%
+	IF dims%>2
+		dInit "Hidden line removal"
+		dText "","Grey available for S3a only"
+		dText "","Alternate = even # anamation frames"
+		lp%=3
+		WHILE lp%<=dims%
+			IF lp%-INT(lp%/maxd%)*maxd%=0
+				dText "","More to follow"
+				IF DIALOG=0:RETURN 0 :ENDIF
+				dInit "More hidden lines"
+			ENDIF
+			IF s3%=1
+				dChoice hid%(lp%-2),axtitl$:(lp%),"Plot,Hide,Alternate,Grey"
+			ELSE
+				dChoice hid%(lp%-2),axtitl$:(lp%),"Plot,Hide,Alternate"
+			ENDIF
+			lp%=lp%+1
+		ENDWH
+		return dialog
+	ELSE
+		dInit "Hidden line removal"
+		dText "","Insufficent dimensions"
+		dialog
+	ENDIF
+ENDP
+
+rem Get axes from rotation offset o% in dims% dimensions
+PROC ax1%:(o%,dims%)
+	IF nCr:(dims%-1.0,2.0)<o%
+		RETURN o%-int(nCr:(dims%-1.0,2.0))
+	ELSE
+		RETURN ax1%:(o%,dims%-1)
+	ENDIF
+ENDP
+
+PROC ax2%:(o%,dims%)
+	IF nCr:(dims%-1.0,2.0)<o%
+		RETURN dims%
+	ELSE
+		RETURN ax2%:(o%,dims%-1)
+	ENDIF
+ENDP
+
+PROC axTitl$:(o%)
+	LOCAL a$(4)
+	IF o%=1:RETURN "X"
+	ELSEIF o%=2:RETURN "Y"
+	ELSEIF o%=3:RETURN "Z"
+	ELSEIF o%=4:RETURN "T"
+	ELSE
+		a$="D-"+GEN$(o%,2)
+		RETURN a$
+	ENDIF
+ENDP
+
+PROC setLen:(dims%)
+	LOCAL l%
+	dInit "Set lengths"
+	l%=1
+	WHILE l%<=dims%
+		IF l%-INT(l%/maxd%)*maxd%=0
+			dText "","More to follow"
+			IF DIALOG=0:RETURN 0 :ENDIF
+			dInit "More lengths"
+		ENDIF
+		dLong sideLen&(l%),axTitl$:(l%),0,300
+		l%=l%+1
+	ENDWH
+	RETURN dialog
+ENDP
+
+PROC setAnim:(dims%)
+	LOCAL lp%,m%,d$(9)
+	dInit "Animation"
+	dLong frm&,"# frames",1,9
+	dText "","Degree increments per frame"
+	lp%=3:m%=nCr:(dims%+0.0,2.0)
+	WHILE lp%-2<=m%
+		IF lp%-INT(lp%/maxd%)*maxd%=0
+			dText "","More to follow"
+			IF DIALOG=0:RETURN 0:ENDIF
+			dInit "More animation"
+		ENDIF
+		d$=axTitl$:(ax1%:(lp%-2,dims%))+"/"+axTitl$:(ax2%:(lp%-2,dims%))
+		dLong anRt&(lp%-2),d$,0,360
+		lp%=lp%+1
+	ENDWH
+	RETURN DIALOG
+ENDP
+
+PROC setRot:(dims%)
+	LOCAL lp%,d$(9),m%
+	dInit "Set rotation"
+	dText "","All angles in degrees"
+	lp%=1:m%=nCr:(dims%+0.0,2.0)
+	WHILE lp%<=m%
+		IF lp%-INT(lp%/maxd%)*maxd%=0
+			dText "","More to follow"
+			IF DIALOG=0:RETURN 0:ENDIF
+			dInit "More rotation"
+		ENDIF
+		d$=axTitl$:(ax1%:(lp%,dims%))+"/"+axTitl$:(ax2%:(lp%,dims%))
+		dLong rotArr&(lp%),d$,0,360
+		lp%=lp%+1
+	ENDWH
+	RETURN DIALOG
+ENDP
+
+PROC doRot:(dims%)
+	LOCAL lp%,d1%,d2%
+	lp%=1:d1%=dims%
+	WHILE d1%>1
+		d2%=d1%-1
+		WHILE d2%>=1
+			rotate:(d1%,d2%,optSin:(rotArr&(lp%)),optSin:(90-rotArr&(lp%)))
+			lp%=lp%+1
+			d2%=d2%-1
+		ENDWH
+		d1%=d1%-1
+	ENDWH
+ENDP
+
+PROC rotate:(xx%,yy%,sinth,costh)
+	LOCAL x2%,y2%
+	x2%=coords%(xx%)*sinth+coords%(yy%)*costh
+	y2%=coords%(xx%)*costh-coords%(yy%)*sinth
+	coords%(xx%)=x2% :coords%(yy%)=y2%
+ENDP
+
+PROC initTrig:
+	LOCAL l%
+	BUSY "Calculating trig"
+	l%=0
+	WHILE l%<=90
+		trig(l%/5+1)=sin(l%*2*PI/360.0)
+		l%=l%+5
+	ENDWH
+	BUSY OFF
+ENDP
+
+PROC optSin:(theta&)
+	IF theta&<0
+		RETURN -optSin:(-theta&)
+	ELSEIF theta&<=90
+		RETURN trig(theta&/5+1)
+	ELSEIF theta&<=180
+		RETURN optSin:(180-theta&)
+	ELSEIF theta&<=360
+		RETURN -optSin:(theta&-180)
+	ELSE
+		RETURN optSin:(theta&-360)
+	ENDIF
+ENDP
+
+PROC save:
+	rem ***
+ENDP
+
+PROC grey:(d%)
+	rem Do nothing
+ENDP
+
+rem CALC.OPL: S3 translate this module
+
+PROC cumBin:(x,n,p)
+	LOCAL r,total
+	r=0:total=0
+	WHILE r<=x
+		total=total+nCr:(n,r)*p**r*(1-p)**(n-r)
+		r=r+1
+	ENDWH
+	RETURN total
+ENDP
+
+PROC cosrulA:(a,b,c)
+	RETURN acos((b**2+c**2-a**2)/2/b/c)
+ENDP
+
+PROC cosrula:(A,b,c)
+	RETURN sqr(b**2+c**2-2*b*c*cos(A))
+ENDP
+
+PROC dist:(ax,ay,bx,by)
+	RETURN SQR((bx-ax)**2+(by-ay)**2)
+ENDP
+
+PROC quad1:(a,b,c)
+	return (-b+sqr(b**2-4*a*c))/2/a
+ENDP
+
+PROC quad2:(a,b,c)
+	return (-b-sqr(b**2-4*a*c))/2/a
+ENDP
+
+PROC nCr:(n,r)
+	return fact:(n)/(fact:(n-r)*fact:(r))
+ENDP
+
+PROC nPr:(n,r)
+	return fact:(n)/fact:(n-r)
+ENDP
+
+PROC fact:(r)
+	LOCAL t,r2
+	t=1:r2=r
+	WHILE r2>1
+		t=t*r2
+		r2=r2-1
+	ENDWH
+	RETURN t
+ENDP
+
+---===---
+
+Automatic appendment: There is a multi-user expandable adventure on 
+adventur@rnibncw.demon.co.uk
+
+I am a pupil at this college and the opinions expressed hereby are 
+not necessarily those of the RNIB nor those of RNIB New College 
+Worcester.
+
+Silas S. Brown,
+RNIB New College Worcester,
+Whittington Road,
+WORCESTER,
+WR5  2JX
+brown@rnibncw.demon.co.uk
+
+

@@ -1,0 +1,666 @@
+---------------------------------------------------------------------
+Psion Series 3/3a OPL Programmers FAQ                 V1.0 April 1994
+---------------------------------------------------------------------
+
+This (unofficial) FAQ is maintained by Andrew Baldwin,
+ar.baldwin@ic.ac.uk or andrew@zarquon.demon.co.uk
+
+If you have any complaints, problems or suggestions for improvement,
+then please tell me!
+I will attempt to add to it any questions/solutions that come up on
+the comp.sys.psion newsgroup. If you have any OPL questions, that
+is the best place (on the Internet) to direct them to.
+
+----------------------
+
+
+Contents
+--------
+
+1. Introduction
+   1.1  What is OPL? 
+   1.2  Starting out with OPL
+   1.3  OPL Vs. Other Languages
+
+2. OPO's Vs. OPA's
+   2.1  OPO's
+   2.2  OPA's
+
+3. Speed
+   3.1  Translated NOT Compiled!
+   3.2  How do I speed up my OPL programs?
+
+4. Series 3/3a file formats
+   4.1  Graphics - .PIC files
+   4.2  (Series 3a) Sound - .WVE files  
+
+5. Revtran
+
+6. Flickering Graphics - gUPDATE
+
+7. OPL Questions & Answers
+   7.1  Arrays
+   7.2  Dialogs and Menus
+   7.3  Passing data from procedures  
+   7.4  Returning owner info from OPL
+   7.5  Auto-off
+   7.6  Sprites
+   7.7  OS functions
+   7.8  Including Bitmaps in OPL files
+   7.9  FINDFIELD documentation error
+
+----------------------
+
+1. Introduction
+===============
+
+1.1 What is OPL?
+----------------
+OPL is a language, similar in ways to BASIC, that has evolved through
+a range of Psion machines into its current incarnations on the
+Series 3 and Series 3a machines.
+It has been designed to produce small output code and be fast in
+operation.
+
+1.2 Starting out with OPL
+-------------------------
+The best way to start learning OPL is to work through the Programming
+Manual that comes with your machine. If you have had experience with
+other computer languages, you should have no trouble in learning OPL.
+
+1.3 OPL Vs. Other Languages
+---------------------------
+Currently, the only other ways to program the Series 3/3a machines
+are using the `C' language and Machine Code.
+
+To program in `C', you need to purchase the Psion `C' SDK directly
+from Psion. This is available in various versions costing up to
+about 300 UK pounds and gives you a PC `C' compiler, utility programs,
+and comprehensive (13 manuals) documentation.
+
+If you don't have access to a PC, or you don't want to spend the 
+money on the SDK, the only other option currently open to you is
+to write some machine code.
+
+The processors in the Series 3 & 3a machines are NEC V30's which
+are Intel 8086 compatible, so if you are familiar with 8086
+machine language or can get a book on it, this option is open to
+you. Giles Goddard (gsg@cix.compulink.co.uk) has written a program
+called S3asm which allows you to write machine code in 8086
+assembly language. Hopefully this program will soon be available
+on the internet from src.doc.ic.ac.uk
+Although programming in machine code is much more complex than 
+using OPL and can cause your machine to crash, it is quite safe
+to use on the Series 3/3a because of the machine's hardware
+memory protection. For an example of what is capable in assembly,
+take a look at the various 3d tank programs available by ftp
+on src.doc.ic.ac.uk (/packages/psion/icdoc/games).
+
+
+2. OPO's Vs. OPA's
+==================
+There are 2 different types of programs you can produce from OPL.
+
+2.1 OPO's
+---------
+OPO files are what you normally produce when you choose
+"Translate" from the OPL editor. 
+
+They run either from the RUN option in the editor, or from
+underneath the RunOpl icon on the system screen.
+
+If you RUN them from the editor you have the advantage that
+if any errors are encountered, the editor will jump to the
+position in the OPL code where the error occurred, thus making
+programs much easier to debug.
+
+OPO programs do not need to be aware of system events and
+messages, since the system will take care of killing the
+program if this is requested from the system screen (by pressing
+delete when the bold text of a running program is highlighted).
+
+2.2 OPA's
+---------
+OPA files are produced when a header containing at least:
+
+APP ProgName
+   TYPE 0
+ENDA
+
+is added to the top of the program.
+The format of these headers and also some sample OPA's 
+(applications) are given in the `Advanced Topics' chapter in the
+programming manuals.
+
+OPA's can have their own ICON and have to be INSTALLED on the
+system screen.
+
+Writing an OPA is no simple task. OPA's *MUST* be aware of and
+respond properly to system events and messages passed to them
+by the operating system.
+This means that the OPA should continually use either TESTEVENT
+or GETEVENT.
+
+If the OPA is waiting for user interaction, it should call
+GETEVENT. This will wait for an event (either a key-press or
+a system message) and ensure the program is not using up all the
+CPU time doing nothing (this would prevent the Auto-Off function
+from working).
+
+If the OPA is busy doing something, it should regularly call
+TESTEVENT. This will see if an event has occurred since the last
+check. If an event has occurred, the program should then call
+GETEVENT.
+
+At a minimum, OPA's *MUST* respond to the system message "X"
+and close down/quit when this is received. It *SHOULD* also
+respond to $402 (program has moved to background) by pausing
+and not taking up all the CPU time.
+
+If you write an OPA that uses any extra data files (either
+OPO modules, .PIC files or others), it is recommended that
+those go in a subdirectory with the same name as the program
+in the same APP directory as the program.
+
+Note: Something that is not pointed out in the manual is that
+when you tell an application what file it is to use as an icon,
+the icon file is actually included in the OPA file. This means
+it is not necessary to include the .PIC file along with any
+distributed applications - often seen and unnecessary!
+
+3. Speed
+========
+
+3.1 Translated NOT Compiled!
+----------------------------
+When you "Translate" an OPL program, it is not compiled in the
+same way that, for example, a C program would be. Instead it
+is converted into Q-Code, which is simply a more compact version
+of the original OPL code. This Q-Code is then interpreted whenever
+it is run.
+
+You may think that this results in a considerable speed loss when
+compared with programs written in `C', but this is only the case
+for very computationally intensive tasks. For graphical operations,
+there is very little difference since both C and OPL just use the
+relevant ROM calls to access the Window Server.
+
+3.2 How do I speed up my OPL programs?
+--------------------------------------
+To know how to speed up your OPL programs, you need to know what
+is slowing them down.
+
+The prime candidates are:
+
+   i. Floating point maths
+  ii. Procedures
+ iii. Slow graphic commands
+
+
+i.  There are 3 types of numerical variable in OPL, integers, long
+    integers, and floating point variables.
+    Integers are by far the fastest type to perform calculations
+    with, so if you don't require either decimals, or integer
+    numbers outside the range -32769 to 32767, you should ALWAYS
+    use these.
+    If you can't use integers, then you should use long integers,
+    even for decimal calculations. Simply scale the integer
+    up by a factor of 10 x decimal accuracy before calculation
+    and then scale down again after.
+    If this is not possible then you have to use floating point
+    variables and your program will slow down appreciably. 
+
+    If you require Sin or Cos functions in your program, you
+    should not use the provided functions since they are
+    VERY slow. Instead, create an array early in the program
+    that contains the values of Sin and Cos at required angles,
+    and then look the values up in this array whenever required.
+    Alternatively, you could output a file containing these values
+    whenever the program is first run.
+
+ii. Whenever your program calls a procedure, that procedure is
+    loaded into the Series 3/3a's memory and run. This loading
+    operation has a time overhead.
+    The Series 3a has a set of commands to handle procedure
+    caching, and you should use these on the 3a if you have any
+    time intensive loops that call other procedures very often.
+    Given enough cache memory, these procedures are only loaded
+    into memory once and the loop will run much faster.
+    The Series 3 does not offer these commands, and you should
+    instead try and move the code from the procedures "in-line",
+    i.e. into the main body of the loop.
+
+iii.The graphics on the Series 3/3a are generally very fast,
+    but the fastest graphics command in OPL is gCOPY. If you are
+    performing any complex tasks with many moving windows, you
+    may be able to produce a considerable speed increase by
+    instead using only gCOPY's onto one displayed window.
+
+
+4 Series 3/3a file formats
+==========================
+
+4.1 Graphics - .PIC files
+-------------------------
+OPL supports only one type of graphics file format, .PIC files.
+These files can hold store multiple b/w bitmaps of any size.
+
+How do you create .PIC files?
+
+Since the gSAVEBIT command only saves .PIC files with only 1
+image (or 2 on the Series 3a), you need some other method to
+produce multi-bitmap files.
+
+The simplest (free) way to produce .PIC files with more than one
+image is to use the program WSPCX.EXE (available by ftp from
+src.doc.ic.ac.uk) which runs on a PC. This program accepts the
+more common .PCX format and can convert these .PIC files
+and also take multiple single image .PIC files and produce one
+multi image .PIC file from them.
+
+4.2 (Series 3a) Sound - .WVE files
+----------------------------------
+On the Series 3a, OPL offers the ability to play .WVE sample files.
+
+These can either be produced by the built in RECORD application
+or you can use the WAV2WVE.EXE program (also available by ftp from
+src.doc.ic.ac.uk) for the PC to covert samples from the common
+PC .WAV format to the Psion .WVE format
+
+
+5. Revtran
+==========
+As mentioned earlier, OPL programs are not compiled, simply
+translated into a more compact form. This means that it is possible
+to recover from an OPO or OPA file, an OPL file that is exactly
+the same in function as the original OPL code.
+There is a program available that allows you to do this, it is
+known as Revtran (available by ftp from src.doc.ic.ac.uk).
+
+This can be very useful for discovering how an author has achieved
+certain effects in a program, but code produced by this method
+should never be re-distributed.
+
+If an author has made it plain that they do not permit the use of
+Revtran on their software you should not do so. However, if you are 
+an author who does not wish Revtran to be used on your software,
+there is a simple way to prevent the current version (2.4) of 
+Revtran from being able to reverse translate a module.
+
+Since Revtran can only handle line lengths up to 255 characters,
+and also since it expands floating point number, if you insert a
+line such as:
+
+LOCAL dm$(100)
+dm$ = GEN$(0.0,1) + GEN$(0.0,1) + GEN$(0.0,1) + (etc....)
+
+with about 16 of the "GEN$(0.0,1)" commands, then Revtran will
+be unable to work on the translated module.
+
+Note: this is only valid up to the current version of Revtran.
+      Future versions may well be able to get round this line.
+
+If you have nothing against people seeing your source code,
+I encourage you to distribute the original OPL source along
+with a program, which is much more useful than Revtran output
+anyway, and even more so if it is well documented.
+In the end this can only benefit the Psion community since
+software is the life blood of any machine.
+
+
+6. Flickering Graphics - gUPDATE
+================================
+If a program you write uses graphic (g) commands to any
+extent whatsoever, you will benefit both in speed and look
+by judicious use of the gUPDATE command.
+
+Early in a program you should use the command
+
+gUPDATE OFF
+
+This disables automatic graphic updating and graphics will
+only now be drawn to the screen when either:
+
+  * gUPDATE is called
+
+  * The gUPDATE buffer becomes to full - this happens after between
+    about 10 and 20 graphic operations depending on type.
+
+
+
+If you are performing graphic operations that take up a large part
+of the screen, the use of gUPDATE will not prevent graphics from 
+flickering.
+
+The best way I have so far found of preventing this is the following.
+
+  * Ensure you have a background window and a foreground window
+
+  * make the foreground window active (gUSE)
+
+  * make the foreground window non-visible (gVISIBLE OFF)
+
+  * draw to the foreground window
+
+  * make the foreground window visible (gVISIBLE ON)
+
+  * call gUPDATE
+
+
+This method doesn't work if you have to many graphic operations
+since gUPDATE will trigger too soon and the foreground window
+will momentarily disappear. In this situation you will have to
+try some slower double buffering method where you again have
+2 windows, but draw to the one in the background before bringing
+it to the foreground and calling gUPDATE.
+
+
+7. OPL Questions & Answers
+==========================
+
+7.1 Arrays
+----------
+
+  Simulating Multi Dimensional Arrays
+  -----------------------------------
+
+People frequently ask how to do multi-dimensional arrays in OPL,
+since it only supports 1-dimensional arrays normally.
+
+Say for example, you want a 2 dimensional integer array p%(x,y)
+where x and y are the maximum size of the dimensions.
+
+The simplest way to do this is to declare an array 
+
+p%(x*y)
+
+although you will need to put the explicit result of x*y 
+(e.g. x=10, y=10 -> p%(100) ) in since OPL will complain otherwise.
+
+To access the elements of the array you simply refer to 
+
+p% ( (b%-1)*x% +a% ) where a%,b% is the element you want.
+
+Since you are performing an integer multiply every time you need
+to access the array, a slightly quicker method (although requiring
+more memory) suggested by Matt Millar (uv94002@black.ox.ac.uk)
+is to create an array of pre-calculated values of (b%-1)*x%
+and store these in another array of size y% and then calling
+
+p% ( m%(b%) + a% )
+
+
+  Dynamic Arrays
+  --------------
+   
+OPL arrays are not dynamic, but must be declared at a fixed size
+at the beginning of a procedure.
+
+To get around this, you can utilize the memory allocation facilities
+offered directly on the 3a, and via OS calls on the Series 3.
+
+The commands ALLOC, FREEALLOC, etc. on the 3a are simply handles
+to OS functions which can be found in Clive Feather's excellent
+"Psionics" files (available by ftp from src.doc.ic.ac.uk).
+
+If you are using the heap allocator commands on a 3a, you should
+thoroughly read through the relevant Advanced Topics section
+in the Programming Manual (starts Page 145).
+
+The use of these commands can be simplified by creating a set
+of procedures to access your simulated array.
+
+
+7.2 Dialogs and Menus
+---------------------
+The Dialog and Menu commands of OPL offer the facility to create
+programs that look very similar to the built in applications of
+the machine, however, there are some limitations.
+
+  Dialogs
+  -------
+
+Whenever you open a dialog box with the DIALOG command, your
+program completely loses control until the DIALOG is exited.
+This means it is impossible to have fields in dialogs change
+when information in different fields is altered. This is often
+seen in some of the built in apps, but is only achievable
+using the object orientated facilities offered by the `C' SDK.
+When using Dialogs in an OPA, you should always call LOCK ON
+before the DIALOG command, and LOCK OFF afterwards. This
+tells the system that your application is not receptive to
+system messages (such as "X" - quit).
+
+  Menus
+  -----
+
+Similarly to dialogs, when a menu is displayed, control is
+lost by the program. You should again use LOCK ON before 
+the menu and LOCK OFF afterwards in an OPA.
+
+
+7.3 Passing data from procedures
+--------------------------------
+Some people bemoan the fact that OPL procedures can only return
+single parameters with the RETURN command. The solution to 
+this is of course use GLOBAL variables which should be declared
+in procedures called before the relevant procedure.
+Alternatively, you could pass an address to a procedure -
+the address being that of a variable or array where you want the
+data to be returned to.
+
+
+7.4 Returning owner info from OPL
+---------------------------------
+The machine owner information (name, address etc.) is stored
+as an environment variable. To return these 4 strings, the
+following procedure can be used:
+
+(A GLOBAL variable own$(4,50) is assumed to have been
+previously declared outside this procedure)
+
+PROC Getowner:
+   LOCAL buf$(255)
+   LOCAL nam$(6)
+   LOCAL failed%
+   LOCAL regs%(6)
+   LOCAL t%
+
+   nam$ = "$WS_PW"
+   regs%(1) = $2100
+   regs%(4) = LEN(nam$)
+   regs%(5) = ADDR(buf$)+1
+   regs%(6) = ADDR(nam$)+1
+   failed% = 1 AND OS($8B,ADDR(regs%()))
+   IF failed%
+       RETURN
+   ELSE
+       regs%(1) = regs%(1) AND $FF
+       POKEB ADDR(buf$),regs%(1)
+       t%=1
+       DO
+           own$(t%) = MID$(buf$,PEEKB(ADDR(buf$)+(4*t%)+1)+1,
+                      (cont)PEEKB(ADDR(buf$)+(4*t%)))
+           t% = t%+1
+       UNTIL t%=5
+   ENDIF
+ENDP
+
+
+7.5 Auto-off
+------------
+The Series 3/3a machines employ a complex multitasking operating
+system. This means that it is possible for program to run in the
+background while the machine is doing other things.
+If you write a program that is designed to operate in the background
+and it runs continuously rather than waiting for an event, it is
+important that it doesn't prevent the machine's Auto-off function
+from working.
+
+To do this, two things must happen.
+
+  * The program must pause for at least 2/30 second (pause 2) 
+    in its loop to give the Auto-off function time to work.
+
+  * The program must be set GenMarkNonActive
+
+
+To set a program GenMarkNonActive you must
+
+    CALL($138b)
+
+This can be cancelled (GenMarkActive?)
+
+    CALL($128b)
+
+
+7.6 Sprites
+-----------
+The Series 3a offers limited support for *a* SPRITE with a set
+of commands. What is not made clear in the manual is that
+ONLY 1 sprite is available.
+If you require more than one sprite in your program, it is
+necessary to write your own "sprite" commands using gCOPY's
+and other commands.
+
+
+7.7 OS functions
+----------------
+The commands OS and CALL give access to the built in operating
+system functions of the 3 and 3a. Unfortunately, very few of
+these are documented in the manuals.
+To find out the functions and syntax of many of these, you should
+obtain the "Psionics" files of Clive Feather (available by ftp
+from src.doc.ic.ac.uk) , which contain information about these 
+and also many other topics of interest to Psion programmers.
+
+7.8 Including Bitmaps in OPL files
+----------------------------------
+Something that is very common in applications is for the bitmaps
+used by a program to be stored as part of the bitmap file used
+for an applications icon. To gain access to a bitmap that
+is stored this way requires the following piece of code:
+
+PROC Cutpics%:(nim%)
+   LOCAL id%,wi%,ht%
+   LOCAL f$(128),buf%(100)
+   LOCAL h%,l%,o%
+
+   f$ = cmd$(1)
+   l% = IOOPEN(h%,f$,$400)
+
+   IF l%
+       GOTO cl2
+   ENDIF
+
+   l% = IOREAD(h%,ADDR(buf%(1)),200)
+
+   IF l% <= 140
+       GOTO cl
+   ENDIF
+
+   IF buf%(2) <> $l+(%O*256)
+       GOTO cl
+   ENDIF
+
+   o% = 23+(buf%(11) AND $ff)
+   l% = PEEKW(ADDR(buf%(1))+o%)
+
+   IF l% <> %P+(%I*256)
+       GOTO cl
+   ENDIF
+
+   CALL($5f8d,1,o%,0,0,0)
+
+   cl::
+   IOCLOSE(h%)
+   cl2::
+
+   id% = gLOADBIT(f$,0,nim%)
+   RETURN id%
+
+ENDP
+
+Call hte procedure with the image number for the file, and it will
+return the id%() number as if you had called gLOADBIT directly.
+
+7.9 FINDFIELD documentation error
+---------------------------------
+Apparently there is an error in the manual documentation for
+the FINDFIELD command. 
+(according to Anthony Kucernak (ark1000@cus.cam.ac.uk)) 
+
+The correct definition of the command is:
+
+	  FINDFIELD(a$,start%,no%,flags%)
+
+where a$, start%, and no% are as displayed in the manual but flags% are the sum
+of two digits:
+      0   ...   case-independent search
+      16  ...   case-dependent search
+and
+      0   ...   search backwards from current record
+      1   ...   forwards from current record
+      2   ...   backwards from end of file
+      3   ...   forwards from start of file
+
+
+
+---------------
+Here endeth the FAQ!
+
+Comments made to above:
+----------------------------------------------------------------
+
+>3.2 How do I speed up my OPL programs?
+>--------------------------------------
+>iii.The graphics on the Series 3/3a are generally very fast,
+>    but the fastest graphics command in OPL is gCOPY. If you are
+>    performing any complex tasks with many moving windows, you
+>    may be able to produce a considerable speed increase by
+>    instead using only gCOPY's onto one displayed window.
+Another popular way in the graphic/game worlds is double buffering. This
+is where you would display one bitmap whilst drawing in the other; once
+the drawing is complete you switch the buffers so that the one you
+were drawing on is now displayed and the other will be the one you
+will now draw into. This can be simply achieved by creating two
+windows using and using gORDER to move the windows between levels
+It works quite nicely if you have an array WIN%(2) pointing to the
+two bitmaps and a variable currwin% which you can use as follows:
+
+use WIN%(currwin%)				// select current window to draw into
+
+... draw ...
+
+gORDER(WIN%(currwin%),0)		// displays it and hides the other for free
+
+currwin%=3-currwin%				// switch to the next buffer for the next
+								// drawing (can't tell I can program C++
+								// can you ;-))
+
+Make sure the two bitmaps are defined to be the same size though!
+
+BTW, do the later versions of the 3a still have the '%=' bug where if
+you type those characters really quickly (as you would if you were
+programming) the machine would interpret it as the diamond key and
+switch you to outline mode. It's particularly annoying because you
+cannot program the diamond key functions like in the other programs.
+God! Don't they teach orthogonality anymore :-)
+
+>try some slower double buffering method where you again have
+>2 windows, but draw to the one in the background before bringing
+>it to the foreground and calling gUPDATE.
+Oops, got a little ahead of me there; but it's 4:30am. So tough:-)
+Also, it's not actually that slow. I manage to move 5 objects w/
+no trouble.
+
+>7.6 Sprites
+>-----------
+>The Series 3a offers limited support for *a* SPRITE with a set
+>of commands. What is not made clear in the manual is that
+>ONLY 1 sprite is available.
+Yeah, that was so annoying when I found that out! Hope this doesn't
+mean that they're going to release another machine until I've made
+my money back on this one!
+
+

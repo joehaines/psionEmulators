@@ -1,0 +1,82 @@
+As I've postet my converted fonts to comp.sys.psion, I got a small
+programme (setfont.img) which will set the system-font (used by
+menus, dialogs etc.) to a non-ROM-font from ' psioncorp@cix.compulink.co.uk
+(Psion UK plc)'. I asked if I could spread this little file, he said
+yes and sent me also the source code.
+
+..bye.. (ns103@fim.uni-erlangen.de) (if you understand german, call
+                                     my BBS: +49-911-3939034.)
+
+
+
+#include <plib.h>
+#include <wlib.h>
+#include <hwif.h>
+
+
+GLREF_D UWORD       _UseFullScreen; 
+LOCAL_D UINT        wMainWid;   /* Handle for Main window */
+LOCAL_D UINT        wMainGC;    /* Graphic context for Main window */
+
+LOCAL_C VOID MainLoop(VOID)
+    {
+    INT         handle;
+    H_DI_FSEL   FileDialog; 
+    TEXT openbuf[P_FNAMESIZE+2];
+
+
+    uZTStoBCS(&openbuf[0],"LOC::M:\\FON\\COURIR13.FON");
+    FileDialog.fname = &openbuf[0]; 
+    FileDialog.flags = 
+H_FILE_PICK_SELECTOR|H_FILE_RESTRICT_LIST|H_FILE_SET_DEFEXT;
+
+
+    if (uOpenDialog("Set system font"))
+        return;
+    if (uAddDialogItem(H_DIALOG_FSEL,"File:",&FileDialog))
+        return;
+    if (uRunDialog()<=0)
+        return;    
+    
+    *(openbuf + (*openbuf) + 1) = 0;
+    handle = gOpenFont(openbuf + 1);
+
+    if (wSetSystemFont(W_SYSTEM_FONT_S3B, handle, 0))
+        {
+        wDisconnect();
+        p_printf("Could not do wSetSystemFont");
+        p_getch();
+        }
+
+    p_exit(0);
+
+    }
+
+
+LOCAL_C VOID CreateGC(VOID)
+
+   {
+   wMainGC   =  gCreateGC0(wMainWid);
+
+   if (wMainGC < 0)
+      p_exit(wMainGC);
+   }
+
+
+LOCAL_C VOID SpecificInit(VOID)
+
+   {
+   wMainWid = uFindMainWid();
+   CreateGC();
+   }
+
+GLDEF_C VOID main(VOID)
+   
+   {
+   _UseFullScreen = TRUE;
+   uCommonInit();
+   SpecificInit();
+   MainLoop();
+   }
+
+

@@ -1,0 +1,91 @@
+{\rtf1\ansi \deff128\deflang1033{\fonttbl{\f3\fmodern\fcharset0\fprq1 Courier;}{\f9\fswiss\fcharset0\fprq2 Helvetica;}{\f126\fswiss\fcharset0\fprq2 Helvetica-Narrow;}{\f128\froman\fcharset0\fprq2 Palatino;}}
+{\colortbl;\red0\green0\blue0;\red0\green0\blue255;\red0\green255\blue255;\red0\green255\blue0;\red255\green0\blue255;\red255\green0\blue0;\red255\green255\blue0;\red255\green255\blue255;\red0\green0\blue128;\red0\green128\blue128;\red0\green128\blue0;
+\red128\green0\blue128;\red128\green0\blue0;\red128\green128\blue0;\red128\green128\blue128;\red192\green192\blue192;}{\stylesheet{\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 \snext0 Normal;}{\s1\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \b\scaps\f9 
+\sbasedon0\snext0 heading 1;}{\s2\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \b\i\f126 \sbasedon0\snext0 heading 2;}{\s3\li360\dxfrtext180\dfrmtxtx180\dfrmtxty180 \b\f128\fs22 \sbasedon0\snext15 heading 3;}{\*\cs10 \additive Default Paragraph Font;}{
+\s15\li720\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 \sbasedon0\snext15 Normal Indent;}{\s16\tqc\tx4680\tqr\tx9360\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128 \sbasedon0\snext16 header;}{\s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 
+\sbasedon0\snext17 Body;}{\s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 \sbasedon0\snext18 Code;}{\s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul \sbasedon0\snext19 Subtitle;}{\s20\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \b\f9 
+\sbasedon0\snext20 Title;}}{\info{\title Implementing Link-Paste in OPL}{\author Tom Dolbilin}{\operator Richard Crang}{\creatim\yr1994\mo3\dy26\hr20\min5}{\revtim\yr1994\mo5\dy11\hr1\min9}{\version3}{\edmins34}{\nofpages6004}{\nofwords4}{\nofchars1189}
+{\vern49203}}\margl1440\margr1440 \widowctrl\ftnbj\aenddoc\hyphhotz0\noextrasprl\prcolbl\cvmme\sprsspbf\brkfrm\swpbdr\hyphcaps0 \fet0\sectd \linex0\endnhere {\*\pnseclvl1\pnucrm\pnstart1\pnindent720\pnhang{\pntxta .}}{\*\pnseclvl2
+\pnucltr\pnstart1\pnindent720\pnhang{\pntxta .}}{\*\pnseclvl3\pndec\pnstart1\pnindent720\pnhang{\pntxta .}}{\*\pnseclvl4\pnlcltr\pnstart1\pnindent720\pnhang{\pntxta )}}{\*\pnseclvl5\pndec\pnstart1\pnindent720\pnhang{\pntxtb (}{\pntxta )}}{\*\pnseclvl6
+\pnlcltr\pnstart1\pnindent720\pnhang{\pntxtb (}{\pntxta )}}{\*\pnseclvl7\pnlcrm\pnstart1\pnindent720\pnhang{\pntxtb (}{\pntxta )}}{\*\pnseclvl8\pnlcltr\pnstart1\pnindent720\pnhang{\pntxtb (}{\pntxta )}}{\*\pnseclvl9\pnlcrm\pnstart1\pnindent720\pnhang
+{\pntxtb (}{\pntxta )}}\pard\plain \s1\sa240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \b\scaps\f9 {\i\scaps0\fs32 Implementing Link Paste in OPL\line }{\i\scaps0\fs20 Notes prepared by Tom Dolbilin March 26, 1994.\line Revision May 11, 1994.
+\par }\pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 Link Paste method is used for bringing data from one application to another. During this process the application that serves the data acts as a Link Paste 
+Server (LPS) and the application that receives the data acts as a Link Paste Client (LPC). In general, applications may support only one of these modes, but the support for both is more common (Data, Word, Sheet and Agenda are the examples).
+\par \pard\plain \s20\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \b\f9 Notes on Link Paste Server example (LPS.OPL)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 
+There can be only one active LPS on the system at any one time. In order to become one, the application has to register with the Window Server. Normally this is done only if the application has some of its information highlig
+hted at the time when it is switched to background. As soon as it registers as the LPS, it should be ready to receive a message from a LPC that wants to copy over the data.
+\par \pard\plain \s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul Initialization
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 One of the first things to do is to initialize messaging with the {\f3 MessInit} call:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 ret%=call($83,$404,0,0,0,0)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 Here the second parameter, {\f3 $404}, is interpreted as {\f3 4*$100+4}
+ where the first 4 is number of bytes to allocate for the message arguments (per message). In the example these are two words {\f3 arg1%} and {\f3 arg2%}. The second {\f3 4} is the number of message slots to allocate for queuing.
+\par \pard \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 Next we need the Window Server process ID. Note that in this particular case there is no need to add the terminating zero to {\f3 name$}, because it has just been declared and initialized:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 name$="SYS$WSRV.*"\line wsrvPid%=call($188,addr(name$)+1)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 Now it is time to queue the console event and message reception. Both are asynchronous with status words {\f3 kStat%} and {\f3 mStat%} respectively:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 ioa(-2,14,kStat%,event%(1),#0)\line call($183,addr(pM%),0,0,0,addr(mStat%)) rem MessReceiveAsynchronous
+\par \pard\plain \s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul Main event loop
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 In the main loop we wait for an event to happen. When it happens, we can find out what it was by checking the values of the status words. If {\f3 mStat%<>-46}
+ then we have received a message. If {\f3 kStat%<>-46} then either a key has been pressed or a system event has occurred.
+\par \pard \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 We are only interested in two types of messages:
+\par \pard \s17\sb120\tx720\tx3600\dxfrtext180\dfrmtxtx180\dfrmtxty180 {\f3 $21\tab TY_LINKSV_STEP}\tab sets the beginning of a stage in the linking process
+\par {\f3 $22\tab TY_LINKSV_DEATH}\tab sent to us if our LPC terminates
+\par \pard \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 When a message is received, its type and the two arguments are read from the message structure located at {\f3 pM%}:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 mtype%=peekw(pM%+4)\line arg1%=peekw(pM%+8)\line arg2%=peekw(pM%+10)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 The meaning of the arguments is message-dependent. In the case of a {\f3 TY_LINKSV_STEP}
+ message, it is also stage-dependent. The very first stage in the linking process is the initial request of a LPC. This is when we register the LPC as our client and find out which formats it supports. The rest of the stages are technically identical and 
+the number of them depends of the amount of information to be transferred and the size of the temporary buffer it is going through.
+\par \pard\plain \s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul The first stage in linking
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 We know if this is the first request because {\f3 clntPid%} is NULL. At this time {\f3 clntPid%} is set to the process ID of our LPC, which can be read from the message structure:
+
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 clntPid%=peekw(pM%+6)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 However, we only do this if we support the format requested by the LPC. The format is a long integer that is stored across two words\emdash the message arguments {\f3 arg1%} and {\f3 
+arg2%}:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 fmt&=peekl(addr(arg1%))
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 {\f3 fmt&} can be a combination of any of the possible format values listed below:
+\par \pard \s17\fi-3060\li3060\sb120\tx720\dxfrtext180\dfrmtxtx180\dfrmtxty180 {\f3 $00\tab DF_LINK_NATIVE}\tab application-dependent native format
+\par \pard \s17\fi-3060\li3060\sb120\tx720\dxfrtext180\dfrmtxtx180\dfrmtxty180 {\f3 $02\tab DF_LINK_TEXT}\tab {\f3 NULL} paragraph delimiters are not transmitted, but different text buffers should be treated as separate paragraphs
+\par \pard \s17\fi-3060\li3060\sb120\tx720\dxfrtext180\dfrmtxtx180\dfrmtxty180 {\f3 $04\tab DF_LINK_TABTEXT}\tab same as {\f3 DF_LINK_TEXT}, but can include tab characters
+\par \pard \s17\fi-3060\li3060\sb120\tx720\dxfrtext180\dfrmtxtx180\dfrmtxty180 {\f3 $10\tab DF_LINK_PARAS}\tab the server can include {\f3 NULL} paragraph delimiters and the transmitted buffers of text are not treated as separate paragraphs
+\par \pard\plain \s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul The subsequent stage(s) in linking
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 Non-zero {\f3 clntPid%}
+ means that this is a subsequent stage when a chunk of data should be transferred from the server to the client. The two message arguments have the following meaning:
+\par \pard \s17\fi-1440\li1440\sb120\tx1440\dxfrtext180\dfrmtxtx180\dfrmtxty180 {\f3 arg1%}\tab the address in the client segment where the data buffer should be copied to. NULL signifies the end of the transfer.
+\par \pard \s17\fi-1440\li1440\sb120\tx1440\dxfrtext180\dfrmtxtx180\dfrmtxty180 {\f3 arg2%}\tab the size of the buffer to be copied. Normally, it should not exceed 256 bytes unless a native link-paste format is used.
+\par \pard \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 If the amount of data to be sent must not exceed the size of the buffer. If it does, t
+hen it will have to be broken up in chunks and transferred in more than one step. After the length of the chunk is calculated, the buffer is copied to the client process segment by using the {\f3 ProcCopyToById} call:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 ret%=min(len(buf$),arg2%)\line call($92,clntPid%,ret%,0,addr(buf$)+1,arg1%)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 The {\f3 ret%} value is important because it will have to be included in the {\f3 MessFree} call:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 call($783,pM%,ret%)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 The example only shows how to transfer a single buffer of data. However, it can be easily modified to allow for transfer of multiple buffers. Just keep the {\f3 state%}
+ variable set to NULL until the last buffer has been transferred.
+\par \pard\plain \s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul Becoming the server
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 None of the above will happen until we register ourselves as the LPS. We do this in response to the system event {\f3 $402} (send to background) by informing the Window Server with a {
+\f3 MessSendReceiveWithWait} call:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 fmt&=$16 rem Prepared to render in any format\line ret%=call($683,wsrvPid%,3,0,addr(fmt&))
+\par \pard\plain \dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 The third parameter {\f3 3} is the {\f3 SY_LINK_SERVER} constant, the type of message to send.
+\par \pard\plain \s20\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \b\f9 Notes on Link Paste Client example (LPC.OPL)
+\par \pard\plain \s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul Initialization
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 As in the case with LPS, we need to get the process ID of the Window Server:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 name$="SYS$WSRV.*"\line wsrvPid%=call($188,addr(name$)+1)
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 We also need to get the handle of our I/O semaphore to be able to release the signals we are not interested in. The semaphore handle is stored in the {\f3 E_PROC}
+ structure associated with our process. This structure is found in the system kernel's segment at address calculated from our own process ID, {\f3 (ourPid% and $fff)}. Furthermore, th
+e semaphore handle is stored in bytes 34 and 35 of the structure. We can use the {\f3 GenGetOsData} call to retrieve these 2 bytes:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 call($78b,0,2,0,(call($88) and $fff)+33,addr(ioSem%))
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 Next, we use the {\f3 MessSendReceiveWithWait}
+ call to ask the Window Server to give us the process ID of the LPS, if there is one. At the same time we pass the pointer to the address of {\f3 fmt&} so we can find out which formats are supported by the LPS:
+\par \pard\plain \s18\sb240\sa120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f3\fs20 pfmt%=addr(fmt&)\line srvPid%=call($683,wsrvPid%,4,0,addr(pfmt%))
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 Getting the name of the LP
+S is unnecessary and the code does this only to display it in the title of the dialog, which lists all formats supported by the LPS and lets the user to select which of them to use. Again, this is done for demonstration purposes. In practice, your applica
+tion should pick the best format automatically. Note, that since the native format {\f3 DF_LINK_NATIVE} is {\f3 0}, it is impossible to tell if it\rquote 
+s available or even supported by the link-paste server. Use it only if you are sure that the LPS supports it. For example, the text editor mode of Word will crash if you request {\f3 DF_LINK_NATIVE} from it.
+\par \pard \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 
+When the dialog returns, the selected format should be sent to the LPS as a message argument. Technically it should be 4 bytes long and stored across both message arguments, but because in this example the format values are small, it is sufficient to assi
+gn it only to the first message argument {\f3 w%(1)}.
+\par \pard\plain \s19\sb240\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\ul Procedure {\f3 talk%:(arg1%,arg2%)}
+\par \pard\plain \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 This procedure sends the {\f3 TY_LINKSV_STEP ($21)} message to the LPS and waits for the reply. The proce
+dure parameters are the message arguments. The return value is the error. The chunks of data are being received one by one until an error is returned. EOF is returned when all the data has been transferred.
+\par \pard \s17\sb120\dxfrtext180\dfrmtxtx180\dfrmtxty180 One piece of code has been omitted from the LPC example for simplicity. It\rquote s supposed to make sure that the server doesn\rquote 
+t die during the conversation. Without it, should the server die, the client will get stuck in an infinite loop. LPS.OPL shows how to set up such checking.
+\par \pard\plain \qc\sb600\brdrt\brdrs\brdrw15\brsp20 \dxfrtext180\dfrmtxtx180\dfrmtxty180 \f128\fs22 {\scaps\f9\fs24 End of Document
+\par }}

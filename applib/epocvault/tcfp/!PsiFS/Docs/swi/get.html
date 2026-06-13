@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!-- File        : swi/get.html -->
+<!-- Date        : 10-Jun-99 -->
+<!-- Author      : © Alexander Thoukydides, 1998, 1999 -->
+<!-- Description : Part of the PsiFS documentation. -->
+<HTML>
+<HEAD>
+<TITLE>PsiFS Documentation - SWI Calls [PsiFS_Get]</TITLE>
+<LINK REV=MADE HREF="mailto:psifs@thouky.tcp.co.uk">
+<LINK REL=PARENT HREF="index.html">
+<META NAME=DESCRIPTION CONTENT="PsiFS Documentation - SWI Calls [PsiFS_Get]">
+</HEAD>
+<BODY TEXT="#000000" BGCOLOR="#FFFFFF" LINK="#0000FF" VLINK="#004499" ALINK="#FF0000">
+<CENTER>
+<H1><FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT>: SWI Calls</H1>
+<B>PsiFS_Get</B> </CENTER>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Read a <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> option or status value</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>option or status value to read</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD COLSPAN=3>If the value specified by R0 is a string</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD></TD><TD>R1&nbsp;=</TD><TD>pointer to buffer to contain null terminated string value</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD></TD><TD>R2&nbsp;=</TD><TD>size of buffer</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD COLSPAN=3>If the value specified by R0 is numeric</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD></TD><TD>R1&nbsp;=</TD><TD>value of the option</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD COLSPAN=3>If the value specified by R0 is a string</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD></TD><TD>R2&nbsp;=</TD><TD>
+number of spare bytes in the buffer <B>including</B> the null terminator, i.e.:
+<TABLE ALIGN=LEFT>
+<TR ALIGN=TOP VALIGN=TOP><TD NOWRAP>R2 &gt; 0</TD><TD>implies there are (R2-1) completely unused bytes in the buffer; so R2=1 implies there are 0 unused bytes in the buffer, and therefore the terminator just fitted</TD></TR>
+<TR ALIGN=TOP VALIGN=TOP><TD NOWRAP>R2 &lt; 1</TD><TD>implies there are (1-R2) too many bytes to fit in the buffer, which has consequently not been filled in; so R2=0 implies there is 1 byte too many - the terminator - to fit in the buffer</TD></TR>
+</TABLE>
+</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Interrupts:</B></FONT></TD><TD COLSPAN=3>Interrupt status is undefined<BR>Fast interrupts are enabled</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Processor&nbsp;mode:</B></FONT></TD><TD COLSPAN=3>Processor is in SVC mode</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Re-entrancy:</B></FONT></TD><TD COLSPAN=3>SWI is not re-entrant</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads a <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> option or status value. An error may be returned if an attempt is made to read the value of an option that is meaningless for the current mode of operation.
+<P>
+The values that may be read are:
+<TABLE BORDER=1 ALIGN=CENTER>
+<TR><TH>R0</TH><TH>Type</TH><TH>Option</TH></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;0</TD><TD ALIGN=CENTER>numeric</TD><TD>mode of operation</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;100</TD><TD ALIGN=CENTER>string</TD><TD>name of the serial block driver</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;101</TD><TD ALIGN=CENTER>numeric</TD><TD>serial block driver port number</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;102</TD><TD ALIGN=CENTER>numeric</TD><TD>serial block driver baud rate</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;103</TD><TD ALIGN=CENTER>string</TD><TD>optional extra serial block driver options</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;104</TD><TD ALIGN=CENTER>numeric</TD><TD>automatic baud rate identification mode</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;200</TD><TD ALIGN=CENTER>numeric</TD><TD>number of bytes of serial data received</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;201</TD><TD ALIGN=CENTER>numeric</TD><TD>number of bytes of serial data transmitted</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;1000</TD><TD ALIGN=CENTER>numeric</TD><TD>status of the remote link</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;11xx</TD><TD ALIGN=CENTER>numeric</TD><TD>status of the specified remote drive</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;12xx</TD><TD ALIGN=CENTER>string</TD><TD>name of the specified remote drive</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;2000</TD><TD ALIGN=CENTER>numeric</TD><TD>status of the printer mirror</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;2001</TD><TD ALIGN=CENTER>string</TD><TD>name of the printer mirror destination</TD></TR>
+</TABLE>
+<P>
+If a string value is specified this may be used as a two-pass process:
+<OL>
+<LI>On entry, set R0 to specify the value to read, and R1 and R2 (the pointer to, and the size of, the buffer) to zero. On exit, R2 = -(length of string)
+<LI>Claim a buffer of the right size (1-R2, not just -R2, as a space is needed for the terminator). On entry, ensure that R0 still specifies the value to read, that R1 is set to point to the buffer, and R2 contains the lenght of the buffer. On exit the buffer should be filled in, and R2 should be 1; but check to make sure.
+</OL>
+</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Related&nbsp;SWIs:</B></FONT></TD><TD COLSPAN=3><TT><A HREF="set.html" TITLE="PsiFS_Set">PsiFS_Set</A></TT>, <TT><A HREF="mode.html" TITLE="PsiFS_Mode">PsiFS_Mode</A></TT></TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Related&nbsp;vectors:</B></FONT></TD><TD COLSPAN=3>None</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;0</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the mode of operation</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;0</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>mode of operation</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the current mode of operation. The possible values are:
+<TABLE BORDER=1 ALIGN=CENTER>
+<TR><TH>Value</TH><TH>Meaning</TH></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>0</TD><TD>inactive</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>1</TD><TD>remote link mode</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>2</TD><TD>printer mirror mode</TD></TR>
+</TABLE>
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;100</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the serial block driver name</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;100</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>pointer to buffer to contain null terminated serial block driver name</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>size of buffer</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>number of spare bytes in the buffer <B>including</B> the null terminator</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the name of the configured serial block driver.
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;101</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the serial block driver port number</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;101</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>port number (0 for the first)</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the configured serial block driver port number.
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;102</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the serial block driver baud rate</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;102</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>baud rate</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the configured serial block driver baud rate. The actual baud rate used may be different if either the requested baud rate is not available or automatic baud rate identification is active.
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;103</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the serial block driver options</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;103</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>pointer to buffer to contain null terminated serial block driver options</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>size of buffer</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>number of spare bytes in the buffer <B>including</B> the null terminator</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the optional parameter string of the configured serial block driver.
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;104</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the automatic baud rate identification mode</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;104</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>automatic baud rate identification (0 disables)</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads whether automatic baud rate identification is enabled. Only the remote link is affected; the printer mirror always uses the configured baud rate.
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;200</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the number of bytes of serial data received</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;200</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>number of bytes of serial data received</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the number of bytes of serial data received since the remote link or printer mirror was last enabled.
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;201</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the number of bytes of serial data transmitted</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;200</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>number of bytes of serial data trasmitted</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the number of bytes of serial data transmitted since the remote link or printer mirror was last enabled.
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;1000</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the status of the remote link</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;1000</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>remote link status</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the status of the remote link. The bits of the result have the following meaning:
+<TABLE BORDER=1 ALIGN=CENTER>
+<TR><TH>Bit</TH><TH>Meaning when set</TH></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>0</TD><TD ALIGN=LEFT>remote link active</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>4</TD><TD ALIGN=LEFT>connected to a <I>SIBO</I> device</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>5</TD><TD ALIGN=LEFT>connected to an <I>EPOC</I> device</TD></TR>
+</TABLE>
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;11xx</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the status of the specified remote drive</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;1100 + drive</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>remote drive status</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the status of a single remote drive. The bits of the result have the following meaning:
+<TABLE BORDER=1 ALIGN=CENTER>
+<TR><TH>Bit</TH><TH>Meaning when set</TH></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>0</TD><TD ALIGN=LEFT>drive present</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>8</TD><TD ALIGN=LEFT>ROM drive</TD></TR>
+</TABLE>
+<P>
+The drive may be specified in one of three ways:
+<UL>
+<LI>a zero based index (0 for drive A, through to 25 for drive Z)
+<LI>the ASCII code of the drive letter in upper case (65 for drive A, through to 90 for drive Z)
+<LI>the ASCII code of the drive letter in lower case (97 for drive A, through to 122 for drive Z)
+</UL>
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;12xx</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the name of the specified remote drive</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;1200 + drive</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>pointer to buffer to contain null terminated drive name</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>size of buffer</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>number of spare bytes in the buffer <B>including</B> the null terminator</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the name of a single remote drive.
+<P>
+The drive may be specified in one of three ways:
+<UL>
+<LI>a zero based index (0 for drive A, through to 25 for drive Z)
+<LI>the ASCII code of the drive letter in upper case (65 for drive A, through to 90 for drive Z)
+<LI>the ASCII code of the drive letter in lower case (97 for drive A, through to 122 for drive Z)
+</UL>
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;2000</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the status of the printer mirror</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;2000</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>printer mirror status</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the status of the printer mirror. The bits of the result have the following meaning:
+<TABLE BORDER=1 ALIGN=CENTER>
+<TR><TH>Bit</TH><TH>Meaning when set</TH></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>0</TD><TD ALIGN=LEFT>printer mirror active</TD></TR>
+</TABLE>
+</TD></TR>
+</TABLE>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_Get &amp;2001</B></TT><BR><TT>(SWI&nbsp;&amp;520C3)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Get the name of the printer mirror destination</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>&amp;2001</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>pointer to buffer to contain null terminated printer mirror destination</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>size of buffer</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>number of spare bytes in the buffer <B>including</B> the null terminator</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+This call reads the name of the printer mirror destination.
+</TD></TR>
+</TABLE>
+<HR> <TABLE WIDTH="100%">
+<TR VALIGN=TOP>
+<TD>
+[<A HREF="../index.html" TITLE="Contents">Contents</A>]
+[<A HREF="index.html" TITLE="Up">Up</A>]
+</TD>
+<TD ALIGN=RIGHT>
+<FONT SIZE=-1><I><A HREF="../legal/copy.html" TITLE="Copyright">Copyright</A> &copy; <A HREF="mailto:psifs@thouky.tcp.co.uk" TITLE="Send email to Alexander Thoukydides">Alexander Thoukydides</A>, 1998, 1999</I></FONT>
+</TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>

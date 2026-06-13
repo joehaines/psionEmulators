@@ -1,0 +1,265 @@
+The text here is from various bits sent to me when I was solving the
+problem of doing 2-D arrays efficiently in OPL. Hope they help ....
+
+Message 1
+----------------------------
+
+REM xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+REM    SET UP A ONE-DIMENSIONAL ARRAY AND ACCESS IT AS A 5X3 TWO-DIMENSIONAL
+REM                    ARRAY, ALLOWING IT TO BE EDITED
+REM xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+REM    The core subroutine getIx2%:(row%,col%,maxCol%) returns the index
+REM    required into the one dimensional array.
+REM
+REM    To access 'row' row%, 'column' column% of twoD%(15) all that is 
+REM    required in fact is the line:
+REM          twoD%( getIx2%:(row%,column%,3) )
+REM
+REM    eg.   twoD%(getIx2%:(4,2,3)) = 10, to assign to the element and
+REM          val% = twoD%(getIx2%:(4,2,3))=10, to read the element
+REM
+REM    If speed is critical the index can be found equivalently in-line:
+REM
+REM             twoD%((4-1)*3+2) = 10                     (see getIx2%:)
+REM    or even
+REM             twoD%(11) = 10    : rem 11 = (4-1)*3+2
+REM
+REM    but this code would be very difficult to maintain!
+REM
+REM    The array is stored as follows:
+REM
+REM +------------+------------------------------------------------------------
+REM |  Array     |  Elements stored at contigous locations
+REM +------------+------------------------------------------------------------
+REM | OneD%(r)   |  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+REM |            |
+REM | TwoD%(r,c) | 1,1 1,2 1,3 2,1 2,2 2,3 3,1 3,2 3,3 4,1 4,2 4,3 5,1 5,2 5,3
+REM +------------+------------------------------------------------------------
+REM
+REM  So twoD%(4,2) is equivalent to oneD%(11) as stated above.
+REM  
+
+REM -------------------------------------------------------------------------
+
+proc Main:
+  screen 78,25
+  print
+  twoDim:
+endp
+
+REM -------------------------------------------------------------------------
+
+REM The core procedure for 2-dimensional array access
+
+proc getIx2%:(row%,column%,maxCol%)
+
+  if column%>maxCol%
+    raise -111  : rem Subscript error
+  endif
+  return (row%-1)*maxCol%+column%
+endp
+
+REM Note that any dimension of array can be handled in a similar way.
+REM Eg. A 3-dimensional 6x4x2 array would use:
+REM     getIx3%:(3,2,1,   4,2)        to get element height=3,row=2,column=1
+REM
+
+proc getIx3%:(height%,row%,col%,maxRow%,maxCol%)
+  if column%>maxCol% or row%>maxRow%
+    raise -111  : rem Subscript error
+  endif
+  return((height-1)*maxCol%*maxRow%+(row%-1)*maxCol%+column%)
+endp
+
+REM -------------------------------------------------------------------------
+
+proc twodim:
+  global a$(15,3),a(15),a%(15),a&(15)
+  global maxCol%
+  local quit%
+
+  maxCol%=3
+  set:              REM set up the arrays above as two-dimensional 
+  dispAll:
+  do
+    quit%=modify%:
+  until quit%
+  dispAll:
+	at 30,12 : print "Press a key to exit"
+  get
+  cls
+endp
+
+proc dispAll:
+  local type%
+
+  cls :at 1,5
+  type%=0
+  while type%<4
+    disp:(type%)    REM display one of the arrays in table form (a%() first)
+    type%=type%+1
+  endwh
+endp
+
+REM Set up all the 2-dimensional arrays
+
+proc set:
+  local row%,column%,ind2%
+
+  row%=0
+  while row%<5
+    row%=row%+1
+    column%=0
+    while column%<maxCol%
+      column%=column%+1
+      ind2%=getIx2%:(row%,column%,maxCol%)
+      a$(ind2%)=chr$(%0+row%)+":"+chr$(%0+column%)
+      a(ind2%)=row%+(column%/10.)
+      a%(ind2%)=row%*&100+column%
+      a&(ind2%)=row%*&10000+column%
+    endwh
+  endwh
+endp
+
+REM display the 2-dimensional array of the given type.
+
+proc disp:(type%)
+  local len%, ind2%
+  local row%,column%
+
+  row%=0
+  while row%<5              : rem do rows
+    row%=row%+1
+    column%=0
+    while column%<maxCol%    : rem do columns
+      column%=column%+1
+      ind2%=getIx2%:(row%,column%,maxCol%)    :REM get 2 dimensional index
+      if type%=0
+        len%=4-len(a$(ind2%))
+        print a$(ind2%);rept$(" ",len%);
+      elseif type%=1
+        print hex$(a&(ind2%)),
+      elseif type%=2
+        print a(ind2%),
+      elseif type%=3
+        print hex$(a%(ind2%)),
+      endif
+    endwh
+    print
+  endwh
+  print
+endp
+
+proc modify%:
+  local r$(1),c$(1)
+  local row%,column%,ind2%
+
+  Rem Returns 1 to quit, else 0
+
+  at 1,1
+  print "Edit string array element: ROW>   COLUMN>     (""Q"" quits)"
+  onerr e1::
+  do
+e1::
+   at 33,1 :print " "
+   at 33,1 :input r$
+   if upper$(r$)="Q"
+      return(1)
+   endif
+   row%=val(r$)
+  until row%>=1 and row%<=5
+  onerr e2::
+  do  
+e2::
+   at 43,1 :print " "
+   at 43,1 :input c$
+   if upper$(c$)="Q"
+      return(1)
+   endif
+   column%=val(c$)
+  until column%>=1 and column%<=3
+  
+  ind2%=getIx2%:(row%,column%,maxCol%)
+  at 65,1 :print a$(ind2%)
+  at (column%-1)*4+1,row%+1 :trap edit a$(ind2%)
+  if upper$(a$(ind2%))="Q"
+    return(1)
+  endif
+  return(0)
+endp
+
+Message 2
+---------------------
+
+> A simple OPL example (including a few lines of assembler) would seem
+> to be the best way to go here. Anyone with the assembler expertise
+> and the free time fancy a go? (in return for free registrations etc?)
+
+Something along these lines:
+
+  push    dx      ; Save DX (mul zaps it)
+  dec     ax      ; Normalise index
+  add     ax,ax
+  mul     cx      ; First dimension
+  dec     bx      ; Normalise index
+  add     bx,bx
+  add     ax,bx   ; Second dimension
+  pop     bx      ; Retrieve DX in BX
+  add     bx,ax   ; Address of element
+  mov     ax,[bx] ; Get element in AX
+  retf
+
+So supposing an array foo%(m%*n%) i.e. m% x n% array
+
+  value%=usr(addr(mc%(1)), i%, j%, n%, addr(foo%(1)))
+
+should retrieve the element foo%(i%, j%) where 1<=i%<=m% and 1<=j%<=n%
+
+If this is right then mc%(9) is:
+
+mc%(1)=$4852
+mc%(2)=$C003
+mc%(3)=$E1F7
+mc%(4)=$034B
+mc%(5)=$03DB
+mc%(6)=$5BC3
+mc%(7)=$D803
+mc%(8)=$078B
+mc%(9)=$00CB
+
+I've given this a quick test and it seems okay.  It would be faster to 
+pass the addr() stuff as variables in the usr() function, of course. I 
+don't know what the overhead of usr() itself is, though.
+
+David, a rainy afternoon, Edinburgh
+
+
+Message 3
+--------------------
+
+I assume you've got something like a data%(100) to support a 10x10 matrix 
+and have to do stuff like ...
+
+PROC getval%(x%,y%)
+        return data%((y%-1)*10+x%)
+ENDP
+
+The proc is cached of course ;-) Wish we had this when we were doing TILT 
+we started off with lots of nice Procs and ended up moving all their code 
+back into the main event loop proc and got an approx x4 improvement.
+
+What have we got a mult, a sub, a add and an array lookup - What can we 
+save? A mult and a sub? OK let's swap them for an array lookup maybe 
+that's better - so initialise a ydim%(10) at start up to hold 0, 10, ... 
+90 and you can do ... 
+
+PROC getval%(x%,y%)
+        return data%(ydim(y%)+x%)
+ENDP
+
+ISTM that inherently you're trying to convert 2 items (x,y) to 1 - the 
+array offset so some processing needs to be done - I doubt that OPL adds 
+or array lookups are terribly inefficient but I sure some assembler wiz 
+will demonstrate otherwise. 
+

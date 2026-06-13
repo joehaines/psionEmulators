@@ -1,0 +1,118 @@
+PROC Main:
+	GLOBAL l%, k%
+	LOADM "Listbox"
+	DoMenu:
+	DO
+		k% = GET
+		IF k% = 290
+			DoMenu:
+		ELSEIF l% > 0
+			LProcess:(l%, k%)
+		ENDIF
+	UNTIL 0
+ENDP
+
+PROC DrawLine:(item%, w%)
+	gPRINTB "Item "+GEN$(item%,8),w%
+ENDP
+
+PROC DoMenu:
+	LOCAL m%
+	mINIT
+	mCARD "List","Create",%c,"Re-Size",%s,"Font",%f,"Border",%b,"Goto",%g
+	mCARD "Other","Information",%i,"Exit",%x
+	m% = MENU
+	IF m% = %x
+		l% = LClose%:(l%)
+		STOP
+	ELSEIF m% = %c
+		CreList:
+	ELSEIF m% = %s
+		SizeList:
+	ELSEIF m% = %f
+		FontList:
+	ELSEIF m% = %b
+		BordList:
+	ELSEIF m% = %g
+		GotoList:
+	ELSEIF m% = %i
+		InfoList:
+	ENDIF
+ENDP
+
+PROC CreList:
+	LOCAL x&, y&, w&, h&, size&, fnt&
+	LOCAL x%, y%, w%, h%, size%, fnt%
+
+	w& = gWIDTH
+	h& = gHEIGHT
+	size& = 100
+	fnt& = 10
+	dINIT "Create list"
+	dLONG x&, "X", 0, gWIDTH
+	dLONG y&, "Y", 0, gHEIGHT
+	dLONG w&, "Width", 0, gWIDTH
+	dLONG h&, "Height", 0, gHEIGHT
+	dLONG size&, "Size", 0, 32000
+	dLONG fnt&, "Font", 1, 13
+	IF DIALOG
+		l% = LClose%:(l%)
+		x% = x& :y% = y& :w% = w& :h% = h&
+		size% = size& :fnt% = fnt&
+		l% = LCreate%:(x%,y%,w%,h%,size%,fnt%,"drawline")
+	ENDIF
+ENDP
+
+PROC SizeList:
+	LOCAL size%, size&
+	
+	dINIT "Re-size list"
+	dLONG size&, "Size", 0, 32000
+	IF DIALOG
+		size% = size&
+		LSize:(l%, size%)
+	ENDIF
+ENDP
+
+PROC FontList:
+	LOCAL fnt%, fnt&
+	
+	dINIT "Set Font"
+	dLONG fnt&, "Font", 1, 13
+	IF DIALOG
+		fnt% = fnt&
+		LFont:(l%, fnt%)
+	ENDIF
+ENDP
+
+PROC BordList:
+	LOCAL b%, b&
+
+	dINIT "Border"
+	dLONG b&, "Style", 1, 4
+	IF DIALOG
+		b% = b&
+		LBorder:(l%, b%)
+	ENDIF
+ENDP
+
+PROC GotoList:
+	LOCAL p%, p&
+
+	dINIT "Goto"
+	dLONG p&, "Item",0,32000
+	IF DIALOG
+		p% = p&
+		LGoto:(l%, p%)
+	ENDIF
+ENDP
+
+PROC InfoList:
+	dINIT "Information"
+	dTEXT "Current index", GEN$(LSelect%:(l%),8)
+	dTEXT "Size", GEN$(LInfo%:(l%, 1),8)
+	dTEXT "X, Y", GEN$(LInfo%:(l%, 2),8)+", "+GEN$(LInfo%:(l%, 3),8)
+	dTEXT "W, H", GEN$(LInfo%:(l%, 4),8)+", "+GEN$(LInfo%:(l%, 5),8)
+	dTEXT "Font", GEN$(LInfo%:(l%, 19),8)
+	DIALOG
+ENDP

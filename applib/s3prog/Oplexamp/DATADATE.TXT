@@ -1,0 +1,57 @@
+==========
+psion/opl #1338, from amalkin, 361 chars, Aug 17 11:51 94
+----------
+Finding the date and time of data files in OPL
+I am writing an application in OPL to do with foreign language 
+learning. In it, an increasing number of data files is created.
+Files are regularly accessed either by choice (of name) or according 
+to age.
+Can anyone tell me how I can get the date and time a data file was 
+last modified in OPL?
+
+TIA
+:-)
+Anthony
+
+
+==========
+psion/opl #1339, from perseus, 855 chars, Aug 17 23:56 94
+Comment to 1338. 
+----------
+Here's one I prepared earlier...
+
+>--->--->---
+
+PROC GetDate&:(N$)
+  GLOBAL F$(131)
+  GLOBAL ax%,bx%,cx%,dx%,si%,di%
+  GLOBAL Stat&(4)
+
+  F$=N$+CHR$(0)
+  bx%=ADDR(F$)+1
+  cx%=ADDR(Stat&(1))
+
+  ax%=$0800 : REM FilStausGet, Sync
+  IF (OS($0087,ADDR(ax%)) AND 1)=1
+    Stat&(3)=ax% AND &000000FF
+  ENDIF
+  RETURN(Stat&(3))
+ENDP
+
+>--->--->---
+
+DateGet&:(f$) returns a long integer, which is the last modification date 
+(in seconds from midnight 1/1/1970) of the file in f$, as given by the 
+system.
+
+NOTE : I think that the value returned may not always be correct, ie I 
+think the system doesn't waste space updating this value when records are 
+added/amended.  If so, you'll need another routine...
+
+For your info, Stat&(2) gives file size.  The low 16 bits of Stat&(1) 
+give the file version number, and the high 16 bits are the file 
+attributes.
+
+Percy.
+
+

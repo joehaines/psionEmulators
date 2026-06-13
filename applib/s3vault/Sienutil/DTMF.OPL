@@ -1,0 +1,60 @@
+PROC Start:
+	local c$(9),d$(12),control$(24)
+	local dial$(24),f$(128)
+	local prefix%,code%,d%
+	onerr ErrHndl
+	f$="\opd\Dtmf.opd"
+	prefix%=1 :code%=1
+	if exist(f$)
+		open f$,d,a$,b$
+		c$=d.a$ :d$=d.b$
+		close
+	else
+		c$="01698" :d$="712827"
+	endif
+	dial$="9 "+c$+" "+d$ :control$=dial$
+	do
+		dinit "DTMF dialler"
+		dchoice prefix%,"Prefix","Include,Exclude"
+		dchoice code%,"Code","Include,Exclude"
+		dedit control$,"#"
+		d%=dialog
+		if d%=0 :break :endif
+		if prefix%<>1
+			if code%<>1
+				dial$=d$
+			else
+				dial$=c$+" "+d$
+			endif
+		else
+			if code%<>1
+				dial$="9 "+d$
+			else
+				dial$="9 "+c$+" "+d$
+			endif
+		endif
+		if control$<>"9 "+c$+" "+d$ :dial$=control$ :endif
+		Dtmf:(dial$)
+	until 0
+ErrHndl::
+	onerr off
+ENDP
+
+PROC Dtmf:(dial$)
+	local h%,z%,r%,zts$(25),edial%(2)
+	onerr ErrHndl
+	zts$=dial$+chr$(0)	
+	z%=addr(zts$)+1
+	edial%(1)=8+(256*8)
+	edial%(2)=48
+	r%=ioopen(h%,"SND:",0)
+	if r%=0
+		iow(h%,10,#z%,edial%())
+		ioclose(h%)
+	else
+		giprint "Error opening SND: "+err$(r%)
+	endif
+ErrHndl::
+	onerr off
+ENDP
+

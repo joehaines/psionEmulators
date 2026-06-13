@@ -1,0 +1,61 @@
+APP Woggle
+rem *** Woggle - a game a bit like Boggle!***
+rem *** Programmed by Julian Toler        ***
+rem *** 24, Parkcroft Road, West Bridgford***
+rem *** Nottingham, NG2 3AA.  October 1994***
+type $1000
+icon "\opd\Woggle.pic"
+ENDA
+
+PROC top:
+LOCAL s%,n%,x%,y%,t%,let$(16,1),bogdat$(101)
+bogdat$="AAAAAAABBCCDDEEEEEEEEEEEEFFFGGHHHHHIIIIIIIJKLLLLMMNNNNNNNOOOOOOOOPPQRRRRRSSSSSTTTTTTTTUUUUUVVWWWXYYYZ"
+randomize minute*second
+defaultwin 1
+gfont 12
+gstyle 9
+gat 20,55
+gprint "W o g g l e"
+do
+n%=1 :x%=0 :y%=0
+gstyle 0
+do
+	let$(n%)=mid$(bogdat$,(rnd*101)+1,1)
+	gat x%+130,y%+40
+	gbutton let$(n%),1,24,24,0
+	n%=n%+1 :x%=x%+25
+	if x%=100 :x%=0 :y%=y%+25 :endif
+until n%=17
+
+gfont 10
+gat 250,15 :gprint "Make as many words as possible!"
+gat 250,30 :gprint "Letters can run up, down, left,"
+gat 250,45 :gprint "right or diagonally.  Each letter"
+gat 250,60 :gprint "only be used once per word."
+gat 250,75 :gprint "3 minutes per round."
+gat 350,140 :gprint "Hit any key to quit"
+gfont 12
+gat 20,80 :gprint "Counting.."
+t%=180
+do
+	gat 30,90 :gbutton gen$(t%,3),1,40,40,0
+	t%=t%-1
+	pause -20
+	if key :goto dial:: :endif
+until t%=0
+do
+	BEEP 5,300 :PAUSE 5 :BEEP 5,200 :t%=t%+1
+until t%=5
+dial::
+dinit "Not Boggle"
+dtext "","End of Round",$202
+dposition -1,0
+dbuttons "Quit",-27,"New Round",13
+if dialog=0 :end: :endif
+until 0
+ENDP
+
+proc end:
+alert("Thank you for playing Woggle!","Julian Toler, 24, Parkcroft Rd, NG26FN, UK")
+stop
+endp

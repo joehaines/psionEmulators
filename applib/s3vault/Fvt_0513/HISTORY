@@ -1,0 +1,134 @@
+ V0.4 (42nd of April)
+======
+New:
+- 'Reset terminal' with Psion-R now works and does:
+  - Clears the screen
+  - Resets the cursor to the upper left corner
+  - Resets fontstyle to normal text
+  - Resets scrolling-region to 1;25
+  - Turns cursor on
+- Reset-terminal through ESCc works too.
+- Commands to switch cursor on and off implemented:
+  - [?25l and [?50l to switch it off
+  - [?25h and [?50h to turn it on again
+- Added code to convert FreeVT into an application.
+- FreeVT now has a very nice icon!
+  Thanks for this go to Ajai Khattri (ajai@ffast.att.com)!
+- Save and load of settings works.
+- Loading of settings via commandline argument, i.e. file selection from
+  system-screen, works too.
+- Saved settings are the following:
+  - baudrate
+  - parity
+  - databits
+  - stopbits
+  - handshaking
+  - preferred protocoll
+- Portparameters are now displayed in the right corner of the status-bar.
+- Fixed all erasing commands (i.e. ESC Pn J and ESC Pn K)
+- Tab stops should work properly now (Tabs are set at every 8th char)
+- New menu "Modem", does not do anything fancy by now; but that'll change :-)
+- VT100 interpretation will only take 2 secs. max. I.e. because some not yet
+  implemented VT100 commands caused FreeVT to hang in intervt:!
+
+Todo:
+- Menu is now nearly fully functional. Only up-/downloads are missing.
+  Anyone able to write the up-/download procedure??? I would be very glad if
+  someone else could do this!
+- Scrolling-regions for 'normal' operation still missing.
+
+
+ V0.3 (24th of March)
+======
+New:
+- Rudimentary implementation of scrolling-region. Most texteditors do run
+  now (tested with vi and joe using LINUX)
+- Procedure-cache now used => drastically increased performance!
+- All menu-functions concerning the port work now.
+- Cursor adressing changed. Should be more waterproof now.
+
+Todo:
+- Still any optimization for speed is very welcome!
+- Other VT100 functions, like graphic-chars, keypad-mode, have to be done.
+
+
+ V0.2 (20th of March)
+======
+New:
+- A menu has been added. Not much functionality in it, but it is working.
+  Call is done by the "Menu"-button.
+  Function for the menu is called
+  PROC vtmenu:
+- Hotkeys for some of the submenus are working.
+- Portparameters are settable, only handshake is still hardcoded in the
+  source (at the moment I do not understand how this parameter can be
+  calculated from four boolean values).
+- Source is included under the terms of the Gnu copying license (also
+  included).
+
+Todo:
+- Major missing feature is the VT 'set scrolling region'. Any volunteers?
+- Lots of optimizations have to be done; interpretation of VT100 sequences
+  is still too slow.
+
+
+ V0.1
+======
+At the moment FreeVT only supports 19200 baud, 8 databits, no parity,
+1 stopbit with XON/XOFF and RTS/CTS handshake. These parameters are set
+using the rsset: routine from the Psion programming manual.
+To exit FreeVT press Psion-x (like in most other applications too).
+After startup you should see a little (still unnused) statusbar in the
+bottomline. From the top of the display down to the statusline is the
+display window for all VT100 operations (called w1% in the source, w2% is
+the statusbar window). The display is configured to be 80x25 characters (OK,
+original VT100 has only 24 rows, but this should be no problem and gives the
+user one more line to display data).
+The program is divided into several parts:
+
+PROC freevt:		the main procedure at the moment
+PROC intervt:		interpretation of VT100 commands (when ESC was
+			detected in the inputstream by freevt:)
+PROC delete:
+PROC backspace:		procedures to handle backspace and delete
+			(identical at the moment)
+PROC mat:		procedure to position the cursor in the graphics-
+			window
+PROC lread$:		reads a single char from the serial port, if one
+			is waiting in the buffer; returns NULL-string if
+			nothing is to read.
+PROC lreadl$:		reads a complete line af text from the serial port
+			until a char < 32 is received or there are more than
+			80 chars to read; returns NULL-string if nothing is
+			to read.
+PROC rsset:		the procedure to set RS232 parameters (see OPL
+			programming manual for details).
+
+Screen I/O is done using a graphic window and direct pixel-addressing all
+positions. This may make the whole thing slow, but it is necessary for some
+VT100 commands. Not all features could be done without :-(
+At the moment the most "popular" implemented VT100 commands are:
+
+(preceeding ESC ommitted)
+[J	=	erase from cursor to end of screen
+[1J	=	erase from beginning of screen to cursor
+[2J	=	erase whole display
+[7m	=	select inverse characters
+[4m	=	select underline characters
+[m	=	deselect character options
+[A - [D	=	cursor movements
+[Pn;Pnf
+[Pn;PnH	=	position cursor (in the Pn'th column and Pn'th row)
+[K	=	erase from cursor to end of line
+[1K	=	erase from beginning of line to cursor
+[2K	=	erase complete line
+[PnL	=	insert Pn lines
+M	=	reverse index (i.e. scroll up)
+E	=	next line (scroll forward)
+
+Also sending of the cursor keys is implemented in freevt:.
+
+That's it. I don't know what to write further. Best would be, you send me
+some questions :-)
+CU soon
+  nils

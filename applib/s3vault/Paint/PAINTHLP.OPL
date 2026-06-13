@@ -1,0 +1,262 @@
+Proc top:
+dINIT
+dTEXT "","Help: Paint",$302
+dTEXT "","This help program is designed to called by selecting"
+dTEXT "","HELP from the program ""Paint"". It should be placed"
+dTEXT "","in an APP sub-directory called ""PAINT"""
+dTEXT "","(e.g. M:\APP\PAINT\).  If help for this program is not"
+dTEXT "","required, the file PAINTHLP.OPO can be deleted to"
+dTEXT "","save on memory/flashcard space."
+dTEXT "","Enter for help, Escape to quit.",$502
+if dialog :painthlp: :endif
+stop
+Endp
+
+PROC painthlp:
+local dummy%
+tophelp::
+dINIT
+dTEXT "","Help: Paint",$302
+dTEXT "","þGeneral principles",$500
+dTEXT "","þMenu options",$500
+dTEXT "","Hit escape to exit help",2
+vector DIALOG
+dummy,gen,menopt,options
+endv
+return
+dummy::
+
+gen::
+dINIT
+dTEXT "","Help: General Principles",$302
+dTEXT "","Paint is a simple but capable drawing package."
+dTEXT "","The program has been designed to be compact with only a few bells"
+dTEXT "","and whistles. For example, the cut/paste feature of many Psion"
+dTEXT "","applications has not been implimented, however it is possible to"
+dTEXT "","cut and save an area of the screen and this may be re-loaded as a"
+dTEXT "","file if required. The program is perfect for routine tasks such as"
+dTEXT "","icon design. I hope it is found useful."
+DIALOG
+goto tophelp
+
+menopt::
+dINIT
+dTEXT "","Help: Menu",$302
+dTEXT "","þFile",$500
+dTEXT "","þDraw",$500
+dTEXT "","þOptions",$500
+vector DIALOG
+dummy,filemen,draw,options
+endv
+goto tophelp
+
+filemen::
+dINIT
+dTEXT "","Help: File Menu",$302
+dTEXT "","þOpen",$500
+dTEXT "","þSave",$500
+dTEXT "","þSave Area",$500
+dTEXT "","þSave icon",$500
+dTEXT "","þExit",$500
+dTEXT "","þAbout",$500
+vector dialog
+dummy,fopen,fsave,fsavea,ficon,exit,about
+endv
+goto menopt
+
+fopen::
+dINIT
+dTEXT "","Help: File Open",$302
+dTEXT "","Opens a PIC file and paste anywhere on the screen."
+dTEXT "","The picture may be loaded one colour plane at a time"
+dTEXT "","or both together.  Grey may be copied to black and"
+dTEXT "","vice versa (if vice is your cup of tea)."
+dTEXT "","If you try to load a grey plane when no such plane"
+dTEXT "","is present in the file, an error is reported."
+dialog
+goto filemen
+
+fsave::
+dINIT
+dTEXT "","Help: File Save Entire Picture",$302
+dTEXT "","Options to save black, grey or both colours"
+dTEXT "","to a file.  Please note that there is no error"
+dTEXT "","checking on the existance of specified"
+dTEXT "","directories or memory availability (SORRY!)."
+dialog
+goto filemen
+
+fsavea::
+dINIT
+dTEXT "","Help: File Save Area",$302
+dTEXT "","Provides a rubber band box to select area to save to file."
+dTEXT "","A flashing cursor will be seen. This may be obscured by"
+dTEXT "","your drawing so move it around a bit until it is visible."
+dTEXT "","Press enter to set the top left corner of the save box,"
+dTEXT "","then drag out a box covering the area to be saved."
+dTEXT "","Press enter again to complete the area selection."
+dTEXT "","The area INCLUDING that under the box outline is saved"
+dialog
+goto filemen
+
+ficon::
+dINIT
+dTEXT "","Help: File Save Icon",$302
+dTEXT "","Provides a moveable 48 ž 48 pixel box to"
+dTEXT "","select area to save as a Series 3a icon file."
+dTEXT "","Both black and grey planes are captured."
+dialog
+goto filemen
+
+exit::
+dINIT
+dTEXT "","Help: File Exit",$302
+dTEXT "","Quits the application."
+dTEXT "","Beware, no files are saved!"
+DIALOG
+goto filemen
+
+about::
+dinit
+dTEXT "","Help: About",$302
+dTEXT "","A brief advert for yours truly."
+DIALOG
+goto filemen
+
+draw::
+dINIT
+dTEXT "","Help: Draw",$302
+dTEXT "","þBrush",$500
+dTEXT "","þRectangle",$500
+dTEXT "","þElipse/Circle",$500
+dTEXT "","þLine",$500
+dTEXT "","þText",$500
+vector dialog
+dummy,brush,rectang,elipse,line,text
+endv
+goto menopt
+
+brush::
+dINIT
+dTEXT "","Help: Brush",$302
+dTEXT "","In brush mode, holding SHIFT and moving the cursor will apply"
+dTEXT "","the selected colour(s), whereas holding down CONTROL will"
+dTEXT "","delete pixels in the selected colour(s).  Use the "+chr$(260)+" key to"
+dTEXT "","switch colours.  Use the +/- keys to increase/decrease the"
+dTEXT "","size of the brush. Use PSION key to speed up cursor movement."
+dTEXT "","Simulate an eraser by selecting both colours and hold CONTROL"
+dTEXT "","while moving the cursor. Use PSION-F to find a lost cursor!"
+DIALOG
+goto draw
+
+rectang::
+dinit
+dTEXT "","Help: Rectangle",$302
+dTEXT "","Provides a rubber band box to select rectangle area."
+dTEXT "","A flashing cursor will be seen. This may be obscured"
+dTEXT "","by your drawing so move it around a bit until it is visible."
+dTEXT "","Press enter to set the top left corner of the rectangle,"
+dTEXT "","then drag out the rectangle to the desired size."
+dTEXT "","Press enter again to complete the area selection."
+dTEXT "","Select coordinate display for accurate position/size."
+DIALOG
+goto draw
+
+elipse::
+dinit
+dTEXT "","Help: Circle/Elipse",$302
+dTEXT "","Use the dialog to select options required. Note that the"
+dTEXT "","The Relative Height option provides the facilityity to draw"
+dTEXT "","elipses as well as regular circles.  The x diameter remains"
+dTEXT "","constant (an elipse with diameter 20 but relative height of"
+dTEXT "","0.5 gives an elipse of width 20 and a height of 10)."
+dTEXT "","Choose the centre of the circle/elipse by moving the cursor"
+dTEXT "","and pressing ENTER.  Use coordinates for accuracy."
+DIALOG
+goto draw
+
+text::
+dinit
+dTEXT "","Help: Text",$302
+dTEXT "","After choosing options and entering text,"
+dTEXT "","the program allows precise placement on the screen."
+dTEXT "","Use suitable colours/modes with slight displacement"
+dTEXT "","to create shadow effects."
+dialog
+goto draw
+
+line::
+dinit
+dTEXT "","Help: Line",$302
+dTEXT "","Single or continuous lines may be drawn."
+dTEXT "","Fix a point on a continuous line using"
+dTEXT "","the space bar.  Start and Terminate"
+dTEXT "","lines by pressing Enter."
+dialog
+goto draw
+
+options::
+dINIT
+dTEXT "","Help: Options",$302
+dTEXT "","þBorder",$500
+dTEXT "","þClear screen",$500
+dTEXT "","þShow/hide coordinates",$500
+dTEXT "","þMove",$500
+dTEXT "","þResize",$500
+dTEXT "","þPicture information",$500
+vector dialog
+dummy,border,clear,coord,move,info
+endv
+goto menopt
+
+border::
+dinit
+dTEXT "","Help: Border",$302
+dTEXT "","Draws a one pixel border around (inside of) the picture."
+dTEXT "","This makes it easier to see the edges, but note that this"
+dTEXT "","border is part of the picture and is saved when using the"
+dTEXT "","Psion-S option.  De-selecting the border removes a one"
+dTEXT "","pixel strip around the edge of the picture."
+dialog
+goto options
+
+Clear::
+dinit
+dTEXT "","Help: Clear Screen",$302
+dTEXT "","Clears the screen and resets"
+dTEXT "","window to 416 ž 160 pixels."
+dTEXT "","NO PICTURE IS SAVED!",$300
+dialog
+goto options
+
+Coord::
+dinit
+dTEXT "","Help: Show/Hide Coordinates",$302
+dTEXT "","Coordinate display (x ž y) is available"
+dTEXT "","when using the brush, drawing rectangles,"
+dTEXT "","or placing text etc. and can be enabled or"
+dTEXT "","disabled using this option."
+dialog
+goto options
+
+move::
+dinit
+dTEXT "","Help: Move",$302
+dTEXT "","This feature is essential for pictures having"
+dTEXT "","dimensions greater than the screen (480 ž 160)"
+dTEXT "","The picture can be shifted to allow viewing"
+dTEXT "","or editing. Save large pictures using the Save"
+dTEXT "","(Psion-S) option rather than Save Area."
+dialog
+goto options
+
+info::
+dinit
+dTEXT "","Help: Information",$302
+dTEXT "","Provides the following statistics:"
+dTEXT "","Screen width and height"
+dTEXT "","Point of origin for the current picture window"
+dTEXT "","Free memory (approximate but close enough!)"
+dialog
+goto options
+Endp

@@ -1,0 +1,186 @@
+proc findfile:
+local fmask$(55),s$(20,55),s%,fpath$(40),i%,eswit%,ec%,lc%
+local dswit%,pswit%,pg%,off%(6),pdev$(40),mess$(80)
+rem Variables from finfo:
+global fname$(128),a$(128)
+global fzts$(130) :rem ZTS version of fname$
+global e% :rem error from FilStatusGet
+global ver%,attrib%,size&,mdate&,spare& :rem keep together
+global yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+
+pswit%=1 :lc%=0 :dswit%=1
+while 1
+	if pswit%=3
+		lprint
+		lprint "END OF REPORT"
+		lprint chr$(12);
+		lclose
+		pswit%=2
+		busy off
+		giprint "Finished"
+	elseif lc%<>0
+		print "Finished. Press a key";
+		get
+		lc%=0
+	endif
+	pdev$="PAR:A"
+	fmask$=""
+	cls
+	dinit "Find File"
+	dedit fmask$,"File mask"
+	dchoice dswit%,"Show Properties","No,Yes"
+	dchoice pswit%,"Ouput to","Display,Printer"
+	dedit pdev$,"Print device"
+	if dialog=0 :return :endif
+	fmask$=parse$(fmask$,"*.*",off%())
+	if loc(fmask$,"\")=0
+		fmask$="\"+fmask$
+	endif
+	if pswit%>1
+		trap lopen pdev$
+		if err
+			mess$="Invalid print device ("+pdev$+")"
+			alert(mess$)
+			pswit%=1
+			continue
+		endif
+		busy "Printing results..."
+		lprint
+		lprint "Files like",fmask$," Printed:",datim$,"   Page: 1"
+		lprint
+		pswit%=3
+	else
+		cls
+	endif
+	lc%=0
+	pg%=1
+	s%=1
+	s$(s%)=fmask$
+	i%=len(fmask$)
+	while mid$(fmask$,i%,1)<>"\" :i%=i%-1 :endwh
+	fname$=mid$(fmask$,i%+1,99)
+	while s%>0
+		rem find all subdirectories
+		fmask$=s$(s%)
+		s%=s%-1
+		rem find \ at end of path name
+		i%=len(fmask$)
+		while mid$(fmask$,i%,1)<>"\" :i%=i%-1 :endwh
+		fpath$=left$(fmask$,i%)
+		eswit%=1 :onerr errlab::
+		a$=dir$(fpath$+"*.")
+		onerr off
+		while a$<>""
+			s%=s%+1
+			if s%>20
+				beep 10,50
+				alert("Program Stack Overflow")
+				return
+			endif
+			s$(s%)=a$+"\"
+			a$=dir$("")
+		endwh
+filelab::
+		rem now get all file names that match
+		eswit%=2 :onerr errlab::
+		a$=dir$(fpath$+fname$)
+		onerr off
+		while a$<>""
+			if dswit%>1
+				finfo:
+			endif
+			if pswit%>1
+				if lc%>56
+					lprint chr$(12)
+					pg%=pg%+1
+					lprint "Files like",fname$,"Page: ",pg%
+					lprint
+					lc%=0
+				endif
+				lprint left$(a$+" "+rept$(".",55),56);
+				lprint props$:
+			else
+				if lc%>7
+					print "Paused..."
+					lc%=get
+					if lc%=27 :lc%=0 :s%=0 :break :endif
+					lc%=0
+				endif
+				print a$
+				if dswit%>1
+					print props$:
+					if pswit%<2
+						lc%=lc%+1
+					endif
+				endif
+			endif
+			lc%=lc%+1
+			a$=dir$("")
+		endwh
+flab2::
+	endwh
+	beep 10,50
+endwh
+return
+errlab::
+	ec%=err
+	onerr off
+	if abs(ec%)=38
+		alert("Bad file name")
+		goto flab2::
+	elseif abs(ec%)=42 
+		if eswit%=1 :goto filelab::
+		elseif eswit%=2 :goto flab2::
+		endif
+	endif
+	beep 10,50
+	cls :print "Error: ",ec%,err$(ec%)
+	get
+	return		
+endp
+
+proc finfo:
+rem Obtain file size and status info
+fzts$=a$+chr$(0)
+e%=call($887,addr(fzts$)+1,addr(ver%),0,0,0)
+ENDP
+
+proc props$:
+rem generate string containing file properties
+local rep$(128),ampm$(2)
+if e%
+	rep$="Error obtaining properties"
+else
+	rep$=""
+	rep$=rep$+gen$(size&,-6)+" "
+	secstodate mdate&,yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+	if hr%>12
+		ampm$="pm"
+		hr%=hr%-12
+	else
+		ampm$="am"
+	endif
+	rep$=rep$+gen$(hr%,-2)+":"+mid$(gen$(100+mn%,-3),2,2)+ampm$+" "
+	rep$=rep$+gen$(dy%,-2)+"/"+mid$(gen$(100+mo%,-3),2,2)+"/"+gen$(yr%,4)+" "
+	if attrib% and $20 
+		rep$=rep$+"Mod "
+	else
+		rep$=rep$+"    "
+	endif
+	if attrib% and $4 
+		rep$=rep$+"Sys "
+	else
+		rep$=rep$+"    "
+	endif
+	if attrib% and $2 
+		rep$=rep$+"Hid "
+	else
+		rep$=rep$+"    "
+	endif
+	if (Attrib% and $1)=0 
+		rep$=rep$+"RdOnly"
+	endif
+endif
+return rep$
+endp
+

@@ -1,0 +1,198 @@
+#ifndef EPOCDEFS_OPH
+
+#define EPOCDEFS_OPH
+
+#ifndef _TIME_DEF
+#define _TIME_DEF
+#endif
+
+STRUCT _MBLOCK
+	mlen%
+	mnext%
+ENDS
+
+#define P_FOPEN 0x0000
+#define P_FCREATE 0x0001
+#define P_FREPLACE 0x0002
+#define P_FAPPEND 0x0003
+#define P_FUNIQUE 0x0004
+#define P_FSER_MASK 0x000f
+#define P_FSTREAM 0x0000
+#define P_FSTREAM_TEXT 0x0010
+#define P_FTEXT 0x0020
+#define P_FDIR 0x0030
+#define P_FFORMAT 0x0040
+#define P_FDEVICE 0x0050
+#define P_FNODE 0x0060
+#define P_FMT_MASK 0x00f0
+#define P_FUPDATE 0x0100
+#define P_FRANDOM 0x0200
+#define P_FSHARE 0x0400
+#define P_FACC_MASK 0x0f00
+#define P_FLOWDENSITY   0x1000
+
+#define P_FPANIC 0
+#define P_FREAD 1
+#define P_FWRITE 2
+#define P_FCLOSE 3
+#define P_FCANCEL 4
+#define P_FATTACH 5
+#define P_FDETACH 6
+#define P_FSET 7
+#define P_FSENSE 8
+#define P_FFLUSH 9
+#define P_FRELATIVE P_FREAD
+#define P_FABSOLUTE P_FWRITE
+#define P_FSEEK 10
+#define P_FSETEOF 11
+#define P_FWRITE_REPLY 12
+#define P_FTEST 10
+#define P_FCTRL 11
+#define P_FINQ 12
+#define P_FRSUPER 13
+#define P_FSTOP 14
+#define P_FSTART 15
+#define P_FENABLE 16
+#define P_FSETINT 17
+#define P_FABS 1
+#define P_FEND 2
+#define P_FCUR 3
+#define P_FRSENSE 4
+#define P_FRSET 5
+#define P_FREWIND 6
+
+#include <sdk\errors>
+
+#define P_CD_ROOT 0
+#define P_CD_PARENT 1
+#define P_CD_SUBDIR 2
+
+#define P_FAWRITE 0x01
+#define P_FAHIDDEN 0x02
+#define P_FASYSTEM 0x04
+#define P_FAVOLUME 0x08
+#define P_FADIR 0x10
+#define P_FAMOD 0x20
+#define P_FAREAD 0x100
+#define P_FAEXEC 0x200
+#define P_FASTREAM 0x400
+#define P_FATEXT 0x800
+
+STRUCT P_INFO
+	version%
+	status%
+	size&
+	modst&
+	spare#(4)
+ENDS
+
+#define P_VOLUMENAME    32
+#define P_FMEDIA_UNKNOWN 0
+#define P_FMEDIA_FLOPPY 1
+#define P_FMEDIA_HARDDISK 2
+#define P_FMEDIA_FLASH 3
+#define P_FMEDIA_RAM 4
+#define P_FMEDIA_ROM 5
+#define P_FMEDIA_WRITEPROTECTED 6
+#define P_FMEDIA_COMPRESSIBLE 0x8000
+#define P_FMEDIA_DYNAMIC 0x4000
+#define P_FMEDIA_INTERNAL 0x2000
+#define P_FMEDIA_DUAL_DENSITY 0x1000
+#define P_FMEDIA_FORMATTABLE 0x800
+
+STRUCT P_DINFO
+	version%
+	mediatype%
+	removable%
+	size&
+	free&
+	name#(P_VOLUMENAME)
+	batterystate%
+	spare#(16)
+ENDS
+
+#define P_FSYSTYPE_FLAT 0
+#define P_FSYSTYPE_HIER 1
+
+STRUCT P_NINFO
+	version%
+	type%
+	formattable%
+	spare#(26)
+ENDS
+
+#define P_PWILD_ANY 0x01
+#define P_PWILD_NAME 0x02
+#define P_PWILD_EXT 0x04
+#define P_FSYSNAMESIZE 5
+
+STRUCT P_FPARSE
+	system#
+	device#
+	path#
+	name#
+	ext#
+	flags#
+ENDS
+
+#define P_FBLKSHIFT 9
+#define P_FBLKSIZE 0x200
+#define P_FMAXRSIZE 0x100
+#define P_FMAXSSIZE 0x4000
+#define P_FSIZRPOS 4
+#define P_MAXDEV 128
+#define P_MAXPATH 128
+#define P_MAXNAME 128
+#define P_MAXEXTN 128
+#define P_FNAMESIZE 128
+
+STRUCT P_DAYSEC
+	day&
+	sec&
+ENDS
+
+STRUCT P_DATE
+	year#
+	month#
+	day#
+	hour#
+	minute#
+	second#
+	yrday%
+ENDS
+
+#define P_SCR_ATTRB 0
+#define P_SCR_SCROLL 1
+#define P_SCR_CLR 2
+#define P_SCR_POSA 3
+#define P_SCR_POSR 4
+#define P_SCR_WSET 5
+#define P_SCR_SLOCK 6
+#define P_SCR_WLOCK 7
+#define P_SCR_NEL 8
+#define P_SCR_CURSOR 9
+#define P_SCR_ESCAPE 10
+
+STRUCT P_POINT
+	x%
+	y%
+ENDS
+
+STRUCT P_RECT
+	tl#(SIZEOF(P_POINT))
+	br#(SIZEOF(P_POINT))
+ENDS
+
+STRUCT P_RECTP
+	r#(SIZEOF(P_RECT))
+	p#(SIZEOF(P_POINT))
+ENDS
+
+STRUCT P_EXTENT
+	tl#(SIZEOF(P_POINT))
+	width%
+	height%
+ENDS
+
+#define _E_SEARCH 0x10
+#define _E_EXEC 0x20

@@ -1,0 +1,72 @@
+                               JBMacFix
+                             Version 1.1
+                            (c)JBSoft 1996
+
+                                 Ё
+                                 цд©
+                               юбады
+                                юд©
+                                дды
+
+
+Overview
+--------
+JBMacFix is a program to stop termination of programs launched by Tom
+Dolbilin's MacSys ending up on the MacSys screen. Instead they will go
+to the application they were launched from - if that application has
+been closed down then the System screen is used.
+
+There are two parts to the program - a macro file which needs to be
+merged in with the user-written macro (called RUNJB.MCR but this can
+be renamed to anything you wish) and an OPO file called JBMACFIX.OPO
+which needs to be on the same drive and in the same directory as
+MACRO.OPA (which is normally an \APP directory on one of the available
+drives).
+
+I would suggest that you place RUNJB.MCR in your normal \MACRO\MCR
+directory as this will make merging easier. Use Psion-M whilst editing
+your macro, but remember to place the cursor at the end of the macro
+so far written as the insert is a complete procedure and so needs to
+be separated from your existing code.
+
+To use the application, after merging RUNJB.MCR into the macro you are
+editing and, instead of using RunApp and its variants, use
+RUNJB:(app$, file$, pid%) . The variables it requires are the same as
+RunApp with the addition of a variable to say where to end up. This
+could normally be ActPid%: but, if this line is some way down your
+code, it would be better to seed an integer variable near the top of
+your code and use that instead of ActPid%: - any change in focus using
+UsePid: or similar commands will alter what ActPid%: will return.
+
+So a complete line would look like this...
+
+    RUNJB:("JBDATA","ADDRESS",ActPid%:)
+
+All three variables must be given and, if there is no file to pass to
+the program then a null string ("") should be used.
+
+Warning
+-------
+For each new file launched in this way actually two files are launched
+- the application you desire plus JBMACFIX.OPO. Any subsequent attempt
+to launch the file will just return you to the already open
+application. Because of this additional file it is possible that you
+might hit the total permitted running files which will then produce a
+Can't Run error. The amount of memory used by this additional file has
+been reduced to the bare minimum so the impact on your available
+System memory should not be too bad.
+
+Release History
+---------------
+1.0   First public release.
+1.1   Fixed a bug of jumping to when file opened by another program.
+
+
+
+
+Contact
+-------
+John Boyce
+  CompuServe: 100014,1240
+CIX/Internet: jboyce@cix.compulink.co.uk
+                                                      13 December 1996

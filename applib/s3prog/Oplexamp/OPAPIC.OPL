@@ -1,0 +1,37 @@
+PROC draw:
+	local id%,wi%,ht%
+	local f$(128),buf%(100)
+	local h%,l%,o%
+	f$=cmd$(1)
+	while 1
+		dInit
+		dFile f$,"Icon:",0
+		if dialog=0 :stop :endif
+		l%=ioopen(h%,f$,$400)
+		if l% :goto cl2 :endif
+		l%=ioread(h%,addr(buf%(1)),200)
+		if l%<=140 :goto cl :endif
+		if buf%(1)<>%O+(%P*256) :goto cl :endif
+		if buf%(2)<>%L+(%O*256) :goto cl :endif
+		o%=23+(buf%(11) and $ff)
+		l%=peekw(addr(buf%(1))+o%)
+		if l%<>%P+(%I*256) :goto cl :endif
+		if l%=0 :goto cl :endif
+		call($5f8d,1,o%,0,0,0)
+cl::
+		ioclose(h%)
+cl2::
+		onerr t
+		id%=gLoadBit(f$)
+		wi%=gWidth :ht%=gHeight
+		gUse 1
+		gMove 0,0: gFill 240,80,1
+		gCopy id%,0,0,wi%,ht%,3
+		get
+		gClose id%
+		continue
+t::
+	onerr off
+	beep 5,300
+	endwh
+ENDP

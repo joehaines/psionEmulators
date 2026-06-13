@@ -1,0 +1,692 @@
+REM +-----------------------+
+REM Author  Jon Simpson   
+REM Title                  
+REM Date      
+REM +-----------------------+
+PROC vocab:
+
+REM Procedures
+GLOBAL route$(15,8), k$(15)
+
+REM Languages
+GLOBAL lan$(6,11), lfn$(128), clan$(11)
+GLOBAL maxnl%
+GLOBAL lanused%, clan%
+
+REM Files
+GLOBAL cdfn$(128), rcnt%
+
+REM Flags
+GLOBAL true%, false%, pl%, prcon%, contpr%
+GLOBAL gupf%
+
+REM Choice option strings
+GLOBAL gend$(26), mnu%
+GLOBAL spst$(25)
+
+REM Search/Find operations
+GLOBAL ssf%
+GLOBAL sw$(20)
+
+REM Statistics
+GLOBAL twc%, tgc%
+
+REM Insertion/editing
+GLOBAL lhlw$(20),lflw$(20),lpho$(20),lgen%
+
+REM key/menu option
+LOCAL k%         
+LOCAL kpos%
+
+k%=%+
+
+Initial:
+ReadLan:
+DrawScr:
+DO
+ k% = DrawMenu:
+ IF k%
+  kpos%=LOC( k$, CHR$(k%) )
+  IF kpos% <> 0
+   @(route$( kpos% )):
+  ENDIF
+ ENDIF
+UNTIL k%=%x
+
+ENDP
+
+PROC Initial:
+LOCAL ct%
+ k$="" 
+ k$=k$+"D" : route$(1)="Del"
+ k$=k$+"E" : route$(2)="Ins"
+ k$=k$+"F" : route$(3)="Find"
+ k$=k$+"G" : route$(4)="Guess"
+ k$=k$+"N" : route$(5)="New"
+ k$=k$+"O" : route$(6)="Open"
+ k$=k$+"P" : route$(7)="Pri"
+ k$=k$+"R" : route$(8)="Rmv"
+ k$=k$+"S" : route$(9)="SeSpec"
+ k$=k$+"U" : route$(10)="Upd"
+ k$=k$+"V" : route$(11)="Vsn"
+ k$=k$+"X" : route$(12)="Exit"
+ lfn$ = "Langs"
+ maxnl% = 6 : lanused% = 0
+ ct%=1
+ WHILE ct% <= maxnl%
+  lan$( ct% ) = "Unspecified"  
+  ct%=ct% + 1
+ ENDWH
+
+ true%=-1
+ false%=0
+ pl%=false%
+ contpr%=false%
+ gupf%=false%
+ twc%=0
+ tgc%=0
+ gend$="not applicable,male,female"
+ spst$=REPT$(" ",25)
+
+ENDP
+
+PROC DrawMenu:
+ mINIT
+ mCARD "File","New Language",%N,"Open Language",%O,"Remove Language",%R
+ mCARD "Quiz","Guess word",%G,"Specify search field",%S,"Find word",%F
+ mCARD "Change","Update word",%U,"Enter word",%E,"Delete word",%D
+ mCARD "Special","Printer Logging",%P,"Version",%V,"Exit",%X
+ mnu%=MENU
+ RETURN mnu%
+ENDP
+
+PROC DrawScr:
+ gSETWIN 0,48,gWIDTH,gHEIGHT-48
+ gBORDER 1
+ RANDOMIZE DAY+HOUR+SECOND
+ gTMODE 3
+ gAT 5,9 : gPRINT "No. of tests : "
+ gAT 120,9 : gPRINT "No. of guesses : "
+ gAT 60,18 : gPRINT "Overall rating : "
+ gAT 5,27 : gPRINT CHR$(184)+"J.Simpson 1993"
+ gAT 120,27 : gPRINT "No. of records : "
+ gSTYLE 1
+ AddRecs:
+ AddGues:
+ AddWrds:
+ENDP
+
+PROC AddRecs:
+ gAT 200,27
+ gPRINT "       "
+ gAT 200,27
+ gPRINT rcnt%
+ENDP
+
+PROC AddFct:
+LOCAL tgc,twc
+ tgc=tgc% : twc=twc%
+ gAT 150,18
+ IF twc%=0
+  gPRINT "0   " 
+ ELSE
+  gPRINT FIX$(tgc/twc,3,6)+"    "
+ ENDIF
+ENDP
+
+PROC AddGues:
+ gAT 200,9
+ gPRINT "       "
+ gAT 200,9
+ gPRINT tgc%
+ AddFct:
+ENDP
+
+PROC AddWrds:
+ gAT 75,9
+ gPRINT "       "
+ gAT 75,9
+ gPRINT twc%
+ AddFct:
+ENDP
+
+PROC Del:
+LOCAL fp%
+ dINIT "Enter word for deletion search"
+ dEDIT sw$, "Word"
+ IF DIALOG
+  POSITION 1
+  DO
+   fp%=FIND( sw$ )
+   IF fp%=0
+    dINIT "Information"
+    dTEXT "Unable to match : ",sw$
+    DIALOG
+   ElSE
+    dINIT  "Deletion confirmation"
+    DTEXT "Home ",B.hlw$
+    DTEXT LEFT$(clan$,4)+" ",B.flw$
+    dBUTTONS "Adandon",-27,"Delete",13
+    IF DIALOG=13
+     ERASE
+     rcnt%=rcnt%-1
+     AddRecs:
+    ENDIF
+   ENDIF
+   NEXT
+  UNTIL fp%=0
+ ENDIF
+ENDP
+
+
+PROC Find:
+ IF ssf%=1
+  dINIT "Enter word in home language"
+ ELSE
+  dINIT "Enter word in " + clan$
+ ENDIF
+ dTEXT "","Note: to "
+ dTEXT "match one char ","?",$100
+ dTEXT "match any chars ","*",$100
+ dEDIT sw$, "Word"
+ IF DIALOG
+  RunSch:( sw$ )
+ ENDIF
+ENDP
+
+PROC Compare$:( s1$, s2$ )
+LOCAL s1p%, s2p%,rp%,lp%, rw$(20),tc$(1),al%
+ tgc%=tgc%+1
+ AddGues:
+ s1p%=1 : s2p%=0 : rp%=1 : al%=LEN( s2$ )
+ WHILE s1p% <= LEN(s1$)
+  tc$=MID$(s1$,s1p%,1)
+  lp%=LOC(RIGHT$(s2$,al%-s2p%),tc$)
+  IF lp%<>0
+   IF lp% > 1
+    rw$=rw$+REPT$(".",lp%-1)
+   ENDIF
+   rw$=rw$+tc$
+   s2p%=s2p%+lp%
+  ENDIF
+  s1p%=s1p%+1
+ ENDWH
+ rw$=rw$+REPT$(".",al%-LEN(rw$))
+ RETURN rw$
+ENDP
+
+PROC Guess:
+LOCAL rn%,rw$(20),gw$(20),hw$(20),aw$(20)
+LOCAL bw$(20), dr%, dr2%, atc%,ss$(4)
+ dr%=12
+ WHILE dr%<>0
+  twc%=twc% +1
+  atc%=1
+  rn%=RND*rcnt%
+  POSITION rn%
+  IF ssf%=1
+   rw$=B.hlw$
+   aw$=B.flw$
+   hw$=clan$
+   ss$=""
+  ELSE
+   rw$=B.flw$
+   aw$=B.hlw$
+   hw$="Home language "
+   IF B.bf%=2
+    ss$=" (m)"    
+   ENDIF
+   IF B.bf%=3
+    ss$=" (f)"    
+   ENDIF
+  ENDIF
+  gw$=REPT$(".",LEN(aw$))
+  DO
+   dINIT "Enter guess "+FIX$(atc%,0,2)+" for ["+rw$+ss$+"]"
+   dEDIT gw$,hw$
+   dBUTTONS "Abandon",-27,"Next Word",9,"Try this",13
+   dr%=DIALOG
+   IF dr%=13
+    REM now to test gw$ against aw$
+    IF pl%
+     LPRINT "Test "+FIX$(atc%,0,4)+" for "+rw$+" is "+gw$
+    ENDIF
+    atc%=atc%+1
+    IF gw$<>aw$
+     bw$=Compare$:( gw$, aw$ )
+     gw$=bw$
+    ELSE
+     AddWrds:
+     dINIT "Correct  ! "
+     dTEXT bw$+" is ",rw$
+     IF B.pho$ <> ""
+      dTEXT "Phonetic: ",B.pho$
+     ENDIF
+     dBUTTONS "Abandon",-27,"Next test",13
+     dr%=DIALOG
+     IF pl%
+      LPRINT "Correct ["+bw$+"] is ["+rw$+"]"
+     ENDIF
+     IF dr%=13
+      dr%=12
+     ENDIF
+    ENDIF  REM correct result given    
+   ENDIF   REM accepted word to try
+  UNTIL dr%<>13
+ ENDWH    REM not finshed testing
+ENDP
+
+PROC Ins:
+LOCAL opt%, thlw$(20),tflw$(20),tpho$(20),tgen%
+
+ thlw$=lhlw$ : tflw$=lflw$ : tpho$=lpho$ :  tgen%=lgen% 
+ opt%=32
+ WHILE opt%=32
+  opt%=1
+  IF gupf%=true%
+   dINIT "Edit "+clan$+" word"
+  ELSE
+   dINIT "New "+clan$+" word"
+  ENDIF
+  dEDIT lhlw$,"Home word"
+  dEDIT lflw$,LEFT$(clan$,3)+" word"
+  dEDIT lpho$,LEFT$(clan$,3)+" phtic"
+  dCHOICE lgen%,"Gender",gend$
+  IF DIALOG
+   dINIT LEFT$(lhlw$,12) + " - " + LEFT$(lflw$,12)
+   IF gupf%=true%
+     dBUTTONS "Ignore Changes",27,"Save",13
+   ELSE
+    dBUTTONS "Aband",-27,"Save&Retain",32,"Save",13
+   ENDIF
+   opt%=DIALOG
+   IF (opt%=0) and (gupf%=true%)
+    lhlw$=thlw$ : lflw$=tflw$ : lpho$=tpho$ : lgen%=tgen% 
+    opt%=13
+   ENDIF
+   IF (opt%=32) or (opt%=13)
+    B.hlw$=lhlw$ : B.flw$=lflw$ : B.pho$=lpho$ : B.bf%=lgen%
+    APPEND
+    rcnt% = rcnt% + 1 
+    AddRecs:
+   ENDIF
+  ENDIF
+ ENDWH REM opt is to store and retain
+ENDP
+
+PROC New:
+LOCAL t%, ct%, ct2%
+ IF lanused%=maxnl%
+  t% = ALERT( "Unable to add a new language.")
+ ELSE
+   IF lanused% = 0
+    dINIT "Please specify a language"
+   ELSE
+    dINIT "Please specify a new language"
+   ENDIF
+   ct%=1
+   WHILE ct% <= lanused%
+    dTEXT "Language " + FIX$( ct%,0,1), lan$(ct%)
+    ct%=ct%+1
+   ENDWH
+   WHILE ct% <= maxnl%
+    dEDIT lan$(ct%), "Language " + FIX$( ct%,0,1)
+    ct%=ct%+1
+   ENDWH
+   DIALOG
+   ct%=1 : lanused%=0
+   WHILE ct% <= maxnl%
+
+    REM check all langs are unique
+    ct2%=1
+    WHILE ct2% < ct%
+     IF lan$(ct2%)=lan$(ct%)
+      lan$(ct%)="Unspecified"
+     ENDIF
+     ct2%=ct2%+1
+    ENDWH
+    IF lan$(ct%)<>"Unspecified"
+     lanused%=lanused%+1
+    ENDIF
+    ct%=ct%+1
+   ENDWH
+   IF lanused%=0
+    BEEP 0.5,200
+    ALERT("No languages specified.")
+   ELSE
+    WritLan:   REM write to file
+   ENDIF
+   IF lanused%=1
+    UseLan:( 1 )
+   ENDIF   
+ ENDIF
+ENDP
+
+PROC Open:
+LOCAL ct%, t%, lc$(75)
+ IF lanused% < 2
+  clan%=0
+  UseLan:( 1 )
+  dINIT "Information"
+  dTEXT "","Only one language defined for use."
+  dTEXT "","Language set to "+clan$
+  DIALOG
+ ELSE
+  dINIT "Please specify a language"
+  ct%=1 : lc$=""
+  WHILE ct% < lanused%
+   lc$=lc$+lan$(ct%)+","
+   ct%=ct%+1
+  ENDWH
+  lc$=lc$+lan$( lanused% )
+  dCHOICE t%,"Language ",lc$
+  DIALOG
+  IF t%
+   UseLan:( t% )
+  ENDIF
+  GIPRINT "Lang: "+clan$
+ ENDIF
+ IF pl%
+  LPRINT "Current language : " + clan$
+ ENDIF
+ENDP
+
+PROC Pri:
+ IF pl%
+  pl%=false%
+  GIPRINT "Printer logging off."
+  IF prcon%
+   TRAP LCLOSE
+  ENDIF
+ ELSE
+  PrTest:
+  IF prcon%=false%
+   GIPRINT "Printer not conected"
+  ELSE
+   pl%=true% 
+   GIPRINT "Printer logging on."
+  ENDIF
+ ENDIF
+ENDP
+
+PROC Rmv:
+LOCAL lc$(75), ct%, t%
+ dINIT "Please specify a language"
+ ct%=1 : lc$=""
+ WHILE ct% < lanused%
+  lc$=lc$+lan$(ct%)+","
+  ct%=ct%+1
+ ENDWH
+ lc$=lc$+lan$( lanused% )
+ dCHOICE t%,"Language ",lc$
+ DIALOG
+ IF t%
+  dINIT "Please Confirm"
+  dTEXT "","Please note this WILL delete data file"
+  dTEXT "Deletion of:",lan$(t%)
+  dBUTTONS "Abandon",-27,"Delete",13
+  IF DIALOG
+   ct%=t%
+   REM move language names
+   WHILE ct% < maxnl%
+    lan$( ct% ) = lan$( ct% + 1)
+    ct%=ct%+1
+   ENDWH
+   lan$( maxnl% )="Unspecified"
+   lanused%=lanused% - 1
+
+   REM delete data file
+   IF t%=clan%
+    TRAP CLOSE  REM attempt to close data file
+    rcnt%=0 
+    AddRecs:
+   ENDIF
+
+   IF EXIST( cdfn$ )
+    TRAP DELETE( cdfn$ )
+   ENDIF
+
+   REM test for no languages left
+   IF lanused%=0
+    WHILE lanused%=0
+     New:
+    ENDWH
+    Open:
+    
+   ELSE
+    Writlan:
+    IF t%=clan%
+     REM note this is current language, so
+     Open:
+    ENDIF REM deleted current language
+   ENDIF  REM no languages left
+   REM attempt to delete data file   
+  
+  ENDIF   REM deletion confirmed
+ ENDIF    REM language specified
+ENDP
+
+PROC SeSpec:
+ IF ssf%=1
+  ssf%=2
+  GIPRINT "Searching for "+clan$
+ ELSE
+  ssf%=1
+  GIPRINT "Searching on home language"
+ ENDIF
+ 
+ REM log to printer
+ IF pl%
+  IF ssf%=1
+   LPRINT "Searching on home language"
+  ELSE
+   LPRINT "Searching for "+clan$
+  ENDIF
+ ENDIF
+ENDP
+
+PROC Upd:
+LOCAL ct%,fp%
+ ct%=0
+ dINIT "Enter word for deletion search"
+ dEDIT sw$, "Word"
+ IF DIALOG
+  POSITION 1
+  DO
+   fp%=FIND( sw$ )
+   IF fp%<>0
+    ct%=ct%+1
+    dINIT  "Edit confirmation "+FIX$(ct%,0,3)
+    DTEXT "Home ",B.hlw$
+    DTEXT LEFT$(clan$,4)+" ",B.flw$
+    dBUTTONS "Adandon",-27,"Edit",13
+    IF DIALOG=13
+     lhlw$=B.hlw$ : lflw$=B.flw$ : lpho$=B.pho$ : lgen%=B.bf% 
+     ERASE
+     rcnt%=rcnt%-1
+     AddRecs:
+     gupf%=true%
+     Ins:
+     gupf%=false%
+    ENDIF
+   ENDIF
+   NEXT
+  UNTIL fp%=0
+ ENDIF
+ENDP
+
+PROC Vsn:
+ dINIT "Vocab Tester"
+ dTEXT "Version ","1.00"
+ DIALOG
+ENDP
+
+PROC Exit:
+ TRAP CLOSE
+ENDP
+
+PROC ReadLan:
+ IF EXIST( lfn$ ) REM does lang name file exist
+  OPEN lfn$,A,lng$ REM yes ...
+  USE A
+  DO
+   lanused% = lanused% + 1
+   lan$( lanused% ) = A.lng$
+   NEXT   
+  UNTIL (EOF) or lanused% > maxnl%
+  CLOSE
+  IF lanused%=1
+   UseLan:( lanused% )
+  ELSE
+   Open:
+  ENDIF
+ ELSE
+  REM operator must specify a language
+  WHILE lanused%=0
+   New:
+  ENDWH
+ ENDIF
+ENDP
+
+PROC WritLan:
+LOCAL ct%
+ ct%=1
+  IF EXIST( lfn$ )
+   DELETE lfn$
+  ENDIF
+  CREATE lfn$,A,lng$
+  USE A
+  WHILE ct% <= maxnl%
+   IF lan$( ct% ) <> "Unspecified"
+    A.lng$=lan$( ct% )
+    APPEND   
+   ENDIF
+   ct% = ct% + 1
+  ENDWH
+ CLOSE
+ENDP
+
+PROC PrTest:
+ TRAP LOPEN "PAR:A"
+ IF ERR=0
+  prcon%=true%
+ ELSE
+  prcon%=false%
+ ENDIF
+ENDP
+
+PROC UseLan:( Lnum% )
+ IF Lnum% <> clan%
+  TRAP CLOSE
+  clan%=lnum%
+  clan$=lan$( clan% )
+  cdfn$="\OPD\"+LEFT$(clan$,7)
+  IF EXIST( cdfn$)
+   OPEN cdfn$, B, hlw$, flw$, pho$, bf%
+  ElSE
+   CREATE cdfn$, B, hlw$, flw$, pho$, bf%
+  ENDIF
+  rcnt%=COUNT
+ENDIF
+ENDP
+
+PROC StMtch:( s1$, s2$ )
+LOCAL lcs1%, lcs2%, cont%, lc$(1), rv%
+ lcs1% = 1 : lcs2% = 0 : cont%=true%
+ WHILE cont%
+  lc$=MID$( s1$,lcs1%,1)
+  IF LOC( "*?",lc$ ) = 0
+   lcs2% = LOC(  RIGHT$( s2$, LEN(s2$)-lcs2%),lc$)  
+   IF lcs2% = 0
+    cont%=false%
+    rv%=false%
+   ELSE
+    lcs1%=lcs1%+1
+   ENDIF
+  ELSE
+   lcs1%=lcs1%+1
+  ENDIF
+  IF lcs1% > LEN( s1$ )
+   cont%=false%
+   rv%=true%
+  ENDIF
+ ENDWH
+ RETURN rv%
+ENDP
+
+PROC DispMch:( s$ )
+LOCAL lr%, ss$(4)
+ ss$=""
+ IF B.bf%=2
+  ss$=" (m)"
+ ELSE
+  ss$=" (f)"
+ ENDIF
+  IF pl%
+   LPRINT CHR$(186) + LEFT$( " "+B.hlw$+spst$,25)+ CHR$(186) +LEFT$( " "+B.flw$+ss$+spst$,25) + CHR$(186) + LEFT$( " "+B.pho$+spst$ ,25 ) + CHR$(186)
+  ENDIF
+  IF contpr%=false%
+   dINIT "Matched to " + s$
+   dTEXT "Home word",B.hlw$
+   dTEXT LEFT$(clan$,3)+" word",B.flw$+ss$
+   dTEXT LEFT$(clan$,3)+" phonetic",B.pho$
+   IF pl%
+    dBUTTONS "Cancel Search",-27,"Next",32,"Print all",13
+   ELSE
+    dBUTTONS "Cancel Search",-27,"Next",32
+   ENDIF
+   lr%=DIALOG
+  ELSE
+   lr%=13  REM flag to keep printing
+  ENDIF
+  RETURN lr%
+ENDP
+
+PROC RunSch:( s$ )
+LOCAL fp%, stm%,fnd%, lw$(20), cpo%
+ fp%=1 : fnd%=false% : contpr%=false% : cpo%=false%
+ POSITION 1
+ IF pl%
+  LPRINT CHR$(201)+REPT$(CHR$(205),25)+CHR$(203)+REPT$(CHR$(205),25)+CHR$(203)+ REPT$(CHR$(205),25)+CHR$(187)
+  LPRINT CHR$(186)+ "Home country             " + CHR$(186) + LEFT$(clan$ + " word "+spst$,25)  +CHR$(186) + "Phonetic                 " + CHR$(186)
+  LPRINT CHR$(204)+REPT$(CHR$(205),25)+CHR$(206)+REPT$(CHR$(205),25)+CHR$(206)+ REPT$(CHR$(205),25)+CHR$(185)
+ ENDIF
+ DO
+  fp%=FIND( s$ )
+  IF (fp%=0) AND (fnd%=false%)
+   dINIT "Whoops"
+   dTEXT "Unable to match ",s$
+   DIALOG
+  ELSE
+   REM check match is for current search spec
+   IF ssf% = 1
+    lw$=B.hlw$
+   ELSE
+    lw$=B.flw$
+   ENDIF
+   stm%=StMtch:( s$, lw$ )
+   IF LEN(lw$) > 0
+    IF stm%=true%
+     fnd%=true%
+     fp%=DispMch:( s$ )
+     IF fp%=13
+      contpr%=true%
+      IF cpo%=false%
+       BUSY "Printing"
+       cpo%=true%
+      ENDIF REM check for display of BUSY 
+     ENDIF  REM db option returned for print
+    ENDIF    REM strings matched, find succes
+    IF NOT EOF
+     NEXT
+    ENDIF  REM not yet end of file
+   ENDIF   REM zero length string
+  ENDIF    REM found match in file
+ UNTIL fp%=0
+ IF pl%
+  LPRINT CHR$(200)+REPT$(CHR$(205),25)+CHR$(202)+ REPT$(CHR$(205),25)+CHR$(202)+ REPT$(CHR$(205),25)+CHR$(188)
+ ENDIF
+ BUSY ""
+ENDP
+
+

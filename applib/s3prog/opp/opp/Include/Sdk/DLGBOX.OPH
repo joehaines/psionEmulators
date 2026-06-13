@@ -1,0 +1,152 @@
+#define DLGBOX_OPH
+
+#ifndef BWIN_OPH
+#include <sdk\bwin>
+#endif
+
+#ifndef TEXTWIN_OPH
+#include <sdk\textwin>
+#endif
+
+/* Constants for dlgchain */
+
+#define PR_WIN_NO_DDP PR_WIN_FORCE_TOP
+#define HELPDLG_BASIC_HELP PR_WIN_FORCE_RIGHT
+#define HELPDLG_HELP_INDEX PR_WIN_FORCE_LEFT
+#define DLGCHAIN_WITH_MENU PR_WIN_FORCE_BOTTOM
+
+/* Property of dlgchain */
+
+STRUCT PRS_DLGCHAIN
+	next%
+ENDS
+
+STRUCT PR_DLGCHAIN
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+ENDS
+
+/* Constants for dlgbox */
+
+#define DLGBOX_NOTIFY_ENTER 0x0001
+#define DLGBOX_NOTIFY_ESCAPE 0x0002
+#define DLGBOX_RBUF_FILLED 0x0004
+#define DLGBOX_ACTION_LIST 0x0008
+#define DLGBOX_FROM_HWIF 0x0010
+#define DLGBOX_SMALL_FONT DLGBOX_FROM_HWIF
+#define DLGBOX_NO_WAIT 0x0020
+#define DLGBOX_NOTIFY_ALL_ACT 0x0040
+#define DLGBOX_REPORT_ACT_HORIZ 0x0080
+#define DLGBOX_APPEND_UNITS_TITLE 0x0100
+#define DLGBOX_SMALL_ACTION_LIST 0x0200
+#define DLGBOX_NO_SHADOW 0x0400
+#define DLGBOX_NO_DDP 0x0800
+#define DLGBOX_ITEM_NOTIFY_CHANGED 0x0001
+#define DLGBOX_ITEM_DIMMED 0x0002
+#define DLGBOX_ITEM_UNDERLINED 0x0004
+#define DLGBOX_ITEM_APPL_CAT 0x0008
+#define DLGBOX_ITEM_CENTRE 0x0010
+#define DLGBOX_ITEM_DEAD 0x0020
+#define DLGBOX_ITEM_NOTIFY_FOCUS 0x0080
+#define DLGBOX_ITEM_NEEDS_PACK 0x0100
+#define DLGBOX_ITEM_LOCKED 0x0200
+#define DLGBOX_ITEM_CAN_DEFER_X 0x0400
+#define DLGBOX_ITEM_X_PENDING 0x0800
+#define DLGBOX_ITEM_ACLIST 0x1000
+#define DLGBOX_LEFT_GAP (BWIN_CUSHION_X+7)
+#define DLGBOX_BULLET_GAP 3
+#define DLGBOX_VERT_GAP (BWIN_CUSHION_Y+2)
+#define UNDERLINE_DEPTH 3
+#define EXTRA_GUTTER_WIDTH 4
+#define DLGBOX_MAX_ITEM 9
+#define DLGBOX_ROMAN8_FONT 5
+
+/* Types for dlgbox */
+
+STRUCT HD_DLGBOX_RSC
+	flags%
+	title#(1)
+ENDS
+
+STRUCT AD_DLGBOX
+	flags%
+	class#
+	prompt#(1)
+ENDS
+
+STRUCT DLGBOX_ITEM
+	hand%
+	prompt%
+	flags%
+ENDS
+
+/* AC: the following should be a union */
+
+STRUCT DLGBOX_ITEM_UNION
+	item#(OPPEVAL(SIZEOF(DLGBOX_ITEM)*7))
+ENDS
+
+/* Property of dlgbox */
+
+STRUCT PRS_DLGBOX
+	u#(SIZEOF(DLGBOX_ITEM_UNION))
+	rbuf%
+	dimrid%
+	helprid%
+	flags%
+	focus#
+	count#
+	current#
+	font#
+	absorb#
+	changed#
+ENDS
+
+STRUCT PR_DLGBOX
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+ENDS
+
+/* Types for errordlg */
+
+STRUCT RBUF_ERROR
+	error%
+	message#(80)
+ENDS
+
+/* Property of errordlg */
+
+STRUCT PR_ERRORDLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+ENDS
+
+/* Types for querydlg */
+
+STRUCT RBUF_QUERY
+	result%
+	message#(100)
+ENDS
+
+/* Property of querydlg */
+
+STRUCT PR_QUERYDLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+ENDS
+
+/* Property of flistdlg */
+
+STRUCT PR_FLISTDLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+ENDS

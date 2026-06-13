@@ -1,0 +1,71 @@
+#define P_DBF_OPH
+
+#define DbfMaxRecords 0xfffe    /* 0-fffd,1-fffe for OPL with ffff at eof */ 
+#define DbfRecordTypeMask 0xf000    /* Top nibble of header word */ 
+#define DbfRecordLengthMask 0x0fff   /* Bottom 12 bits of header word */ 
+#define DbfFieldTypeWord 0
+#define DbfFieldTypeLong 1
+#define DbfFieldTypeDouble 2
+#define DbfFieldTypeString 3
+#define DbfFindAllStrings -1		/* for nStrings parameter to DbfFindRead */ 
+#define DbfFindBackwards 0x0000
+#define DbfFindForwards 0x0100
+#define DbfFindLast 0x0200
+#define DbfFindFirst 0x0300
+#define DbfFindCaseIndependent 0x0000
+#define DbfFindCaseDependent 0x1000
+#define DbfCopyFromHandle 0
+#define DbfCopyToHandle 1
+#define DbfStateCopyAbort -2    /* for DbfCopyFile only */ 
+#define DbfStateOpenNoIndex -2   /* for DbfOpen only */ 
+#define DbfStateDisabled -1
+#define DbfStateStart 0
+#define DbfStateScanBuffer 1
+#define DbfStateGetBuffer 2
+#define DbfStateFinished 3
+#define DbfHeaderNameSize 16
+#define DbfHeaderLength 22   /* Length of header without F.I.R */ 
+#define DbfMaxFirLength 32   /* 32 bytes */ 
+#define DbfMinBufferSize 512  /* Minimum buffer size */ 
+#define DbfMaxBufferSize 16384 /* Maximum buffer size */ 
+#define DbfMaxRecordLength 4094 /* Maximum record length,not inc. header */ 
+#define DbfRecordTypeFir 2   /* Record type for Field Information Record */ 
+#define DbfRecordTypeDesc 3  /* Record type for 'descriptive' record */ 
+#define DbfRecordTypeAll 15  /* Record type to match all records (except erased) */ 
+
+STRUCT DbfHeader
+	fileType#(DbfHeaderNameSize)
+	createVersion%
+	dataStart%
+	needVersion%
+	firHeader%
+	fir#(DbfMaxFirLength)
+ENDS
+
+STRUCT DbfRecord
+	header%
+	data#(2)
+ENDS
+
+STRUCT DbfOpenArgs
+	pFcb%
+	fName%
+	mode%
+	pHead%
+ENDS
+
+/* Structure filled in by OPL ODBINFO */
+
+STRUCT odbinfo
+	ctrl_block%
+	current_rec%
+	field_names%
+	num_fields%
+	rec_buf%
+	null_len%
+	all_text#
+	readonly#
+	copied_down#
+	num_text#
+	device%
+ENDS

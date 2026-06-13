@@ -1,0 +1,237 @@
+
+
+                                  Install
+ 
+ Copy BaseCalc.opa to the APP directory on any drive and install with
+<Psion>I.
+ 
+ Note: Use the outline feature in Word for table of contents.
+ 
+
+                             General Overview
+ 
+ BaseCalc displays a 32 bit number in 4 "bases" across the screen. The
+"bases" are ASCII, binary, decimal and hexadecimal.  The display is set up
+as a "scrolling tape" so results from previous calculations show. Grey grid
+lines are used to section large numbers and to mark the result of a
+calculation. The operator is shown in the last column
+ 
+ There is one input window that can be moved to any of the four columns by
+using the  left or right arrow keys. This location determines the base in
+which you input your numbers.
+ 
+ The processing of numbers and operators are Reverse Polish Notation (RPN
+or postfix notation) and is modeled after Hewlett Packard (HP) calculators.
+To add two numbers input the first number and press <Enter> (set the
+accumulator) input the second number and press <+> the accumulator (first
+number) and the second number are then added together and the result is
+shown (which is now in the accumulator.) A more detailed explanation of
+this and other internal registers are in a latter section.
+ 
+ A brief description of keys and functions are available in the program
+when you press <Help>. I would advise to read the ASCII section before
+seriously diving into the program since its use and behavior is not
+immediately obvious.
+ 
+ Note: BaseCalc uses no files (just like Calc.)
+ 
+
+                                   About
+ 
+ Pressing <Psion>A display the BaseCalc version number, copyright notice
+and a plea to register the software. I have a family of four loving kids
+and wife. They all depend on me for financial support. I can really use the
+money, or a decent job offer.
+ 
+ Registration will get you a version of the program without the nag screen.
+ 
+ After years of putting up with other peoples programmers calculators and
+wishing they would do more. I finally put together my own. I hope you enjoy
+the ideas and functionality I tried to put into this package. If you have
+any complaints or suggestions feel free to write or call.
+ 
+                              Barry Childress
+                         3415 North Second Street
+                            Harrisburg PA 17110
+                                     
+                Phone (717)234-0750  Compuserve 73510,1420
+                                     
+ 
+ In case you were wondering the program's icon is a truth table for And (&)
+Xor (^) and Or (|).
+ 
+ I would like to thank Cade Roux for his ideas on the ASCII input.
+ 
+
+                                 Features
+ 
+ Most features are accessible through the <Menu> key or with the Psion
+short cut key. A brief help screen is also provided.
+ 
+ * The amount entered is defined as a number in the input window before an
+operation is selected.
+ 
+General Keys
+ 
+ The left and right arrow keys select which base that you want to enter
+your numbers in. Note: it is possible to overflow the 32 bit register with
+a decimal number.
+ 
+  <Esc> Clears the accumulator. See <Psion>-C to clear all registers.
+ 
+ <Psion>L Sets the accumulator to the result before the last operation.
+This works like a single level undo.
+ 
+ <Psion>X Exit BaseCalc.
+ 
+Math operators
+ 
+ Note: If no number is entered the stack is popped and the 2nd accumulator
+on the stack becomes the amount entered (The accumulator remains the same
+before the operation.)
+ 
+ + Adds the amount entered to the accumulator.
+ - Subtracts the amount entered from the accumulator.
+ * Multiplies the amount entered by the accumulator.
+ / Divides the accumulator by the amount entered.
+ # Sets the accumulator to the amount entered power.
+ 
+ Note: If a number does overflow the accumulator is cleared and an E is
+displayed in the right operator column
+ 
+Binary operators
+ 
+ These operators work the same way the math operators work on the
+registers. Except for ~ (not) which is a urinary operator and its operation
+is explained below.
+ 
+ Note: The icon for BaseCalc is the truth table for the first three
+operations.
+ 
+ & And the accumulator.
+ \  Or the accumulator (the | symbol is used in the right column .)
+ ^  Exclusive or (xor) the accumulator.
+ ~ Not the amount entered and push it on the stack or if there is no amount
+entered ~ is performed on the accumulator.
+ 
+Shift bits
+ 
+ < (or ,) Shift the accumulator left by the amount entered or by the amount
+on the stack.
+ > (or .) Shift the accumulator right by the amount entered or by the
+amount on the stack.
+ 
+ Note: Bits shifted left beyond 32 bits can result in an overflow error.
+ 
+Stack operations
+ 
+ Show <Psion>S
+ Displays the stack and Last register. The lines are noted with the
+following symbols in the operator column:
+     L    Last
+     ...  Bottom of stack (auto repeats)
+     3    Third item on stack
+     2    Second item on stack
+     Ï    The accumulator
+ 
+ Last <Psion>L
+ The sets the accumulator to the last result that was in the accumulator
+(undo.)
+ 
+ Exchange <Psion>E
+ Exchanges the accumulator with the second item on the stack. Or if there
+is an amount entered it gets pushed on the stack underneath the accumulator
+(the amount entered becomes the second item on the stack.)
+ This helps correct the order of items before an operation such as divide
+or power.
+ The operator symbol is X.
+ 
+ Pop <Psion>P
+ Pops a register off the stack (discards the current accumulator.)
+ 
+ Clear All <Psion>C
+ Clears all registers.
+ The operator symbol is A
+ 
+
+                                 Examples:
+ 
+ In going through a VGA programming example book I ran across this example
+of a bit pattern for a striped rainbow effect that had me a bit puzzled
+till I entered the numbers in BaseCalc and looked at the "sideways" in the
+binary column. Try entering the following numbers in Hex and see if you can
+see the bit pattern.
+     CCCC CCCC
+     F0F0 F0F0
+     FF00 FF00
+     FFFF 0000
+ 
+RPN
+ 
+ To add 1+1
+     1<Enter>
+     1+
+ 
+Constant numbers
+ 
+ To use a number as a constant, push it on the stack four times so as it is
+popped off it repeats in the forth stack register.
+ 
+     1<Enter><Enter><Enter><Enter>
+     <    (Shift right by 1)
+     <    (...)
+          (Shows the powers of 2)
+ 
+ASCII
+ 
+ One use for the ASCII column is to find the ASCII value for a key. With
+the input window in the ASCII column (small window on the left) press the
+key you want to find the value of and then press <Enter>.
+ 
+ You also can use ASCII values in operations. To find the difference
+between upper and lower case letters:
+     a <Enter>
+     <Shift>A -
+ 
+ Converting a Hex string to its value is generally a two step process where
+you first subtract the value of ASCII "0" and if the result is larger then
+nine then it is a A-F digit. The calculations would go like this:
+     <Shift>A <Enter>
+     0 -
+ (move to Dec column and subtract what the value should be.)
+     10 -
+ 
+ Or the same thing without moving  the input window.
+     <Shift>A <Enter>
+     0 -
+     <Control>010 -
+ 
+ <Control> xxx inputs the ASCII character with the decimal value xxx.
+ 
+ Now lets double check against the Hex digit F.
+ (move back to the ASCII column.)
+     <Shift>F
+     0 -
+       -  (This subtracts the 7 from our last calculation.)
+ 
+ And we get F in the Hex column.
+ 
+ You can also use the ASCII column to get the codes for any key on the
+Psion by first pressing <Tab> then the key you want the code for and
+finally <Enter> or any other operation key.
+ 
+ Notes: 
+ You will also need to press <Tab> first if you want to enter one of the
+operators (+-*/\~^&<>,.). 
+ You can use <Control>A as a quick way to enter 1. <Control>A through
+<Control>Z are ASCII codes  1-26 but some codes are taken as regular key
+presses (8-Delete, 9-Tab, 13-Enter and the system swallows ^S and the next
+key.)
+ 
+
+                                 Copyright
+ 
+ BaseCalc is Copyrighted 1994 by Barry Childress  All rights reserved. The
+program may be distributed provided all documentation remains intact and
+fees for distribution do not exceed $7.
+ 

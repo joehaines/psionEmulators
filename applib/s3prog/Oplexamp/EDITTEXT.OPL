@@ -1,0 +1,139 @@
+==========
+psion/opl #2822, from hzk, 3601 chars, May 6 13:20 96
+Comment to 2817.
+----------
+I wrote a single line editor for my packet radio program a while back.
+This used monospaced text, so I have modified it for proportional text.
+The result is below!
+
+Basically you can move the cursor around inside the text, and delete
+and insert characters at will.  On the following extract there is no
+check on whether the text goes off the display - my original program
+sent the text to the transmitter before this could happen.
+
+There may be the odd bug - I have not fully checked this proportional
+text version.  Hopefully the cursor keeps in the correct place as you
+type and delete - it seems OK.
+
+You can add extras easily, like make the "Esc" key abort the action.
+I also did a two line version for a series 3, and a whole page editor
+(absolute nightmare)!  I threw away the code for the latter, since it
+became impossible to understand after I blinked.
+
+It may not be quite what you want, and there is bound to be something
+in the Psion ROM to make it easier, but this OPL uses standard commands
+which are all in the manual.  It may be possible to simplify and tidy
+up the code too, especially around the code which manipulates the
+cursor inside the text.
+
+Anyway, here it is.  Hope it is some use.
+
+Roger.
+
+
+PROC main:
+
+  GLOBAL pos%         REM number of characters from right end
+  GLOBAL text$(80)    REM holds string
+  LOCAL k%            REM key pressed
+  gFONT 7             REM a suitable font
+  gTMODE 3            REM replace mode
+  gAT 0,100           REM start position
+
+  DO                  REM get keys pressed
+    k%=GET
+  UNTIL sle%:(k%)=-1
+
+  gAT 0,120 :gPRINT text$   REM print final text
+  GET
+
+ENDP
+
+
+PROC sle%:(j%)
+  LOCAL txtlen%          REM length of text$
+  LOCAL charwid%         REM width of character
+
+  charwid%=gTWIDTH(CHR$(j%))  REM get width of key pressed
+  txtlen%=LEN(text$)
+  CURSOR 1               REM cursor visible in default win
+
+  IF j%=8                REM Delete pressed
+
+    IF pos%=txtlen%      REM if cursor at start of text
+
+      BEEP 2,500         REM nowt to delete!
+
+    ELSEIF pos%<>0       REM if cursor inside text
+
+      text$=LEFT$(text$,txtlen%-(pos%+1))+RIGHT$(text$,pos%)
+      charwid%=gTWIDTH(MID$(text$,txtlen%-(pos%),1))
+      gAT 0,100 :gPRINTB text$,gTWIDTH(text$)+charwid%
+      gAT gTWIDTH(LEFT$(text$,txtlen%-(pos%+1))),gY
+
+    ELSE                 REM if cursor at end od text
+
+      charwid%=gTWIDTH(RIGHT$(text$,1))
+      text$=LEFT$(text$,txtlen%-1)
+      gAT 0,100 :gPRINTB text$,gTWIDTH(text$)+charwid%
+      gAT gTWIDTH(text$),gY
+
+    ENDIF
+
+  ELSEIF j%=258   REM right arrow key pressed
+
+    IF pos%>0
+
+      pos%=pos%-1
+      charwid%=gTWIDTH(MID$(text$,txtlen%-pos%,1))
+      gAT gX+charwid%,gY
+
+    ENDIF
+
+  ELSEIF j%=259  REM left arrow key pressed
+
+    IF gX<>0     REM cursor not at start of text
+
+      charwid%=gTWIDTH(MID$(text$,txtlen%-pos%,1))
+      gAT gX-charwid%,gY
+      pos%=pos%+1
+
+    ENDIF
+
+  ELSEIF j%=262   REM "Home" key pressed
+
+    gAT 0,100
+    pos%=LEN(text$)
+
+  ELSEIF j%=263  REM "End" key pressed
+
+    gAT gTWIDTH(text$),gY
+    pos%=0
+
+  ELSEIF j%<>13 AND j%<256   REM a letter key pressed
+
+    IF pos%=0   REM cursor at end of line
+
+      text$=text$+CHR$(j%)
+      gPRINT CHR$(j%)
+
+    ELSE
+
+      txtlen%=LEN(text$)
+      text$=LEFT$(text$,txtlen%-pos%)+CHR$(j%)+RIGHT$(text$,pos%)
+      gAT 0,100 :gPRINT text$
+      gAT gTWIDTH(LEFT$(text$,txtlen%-(pos%-1))),gY
+
+    ENDIF
+
+  ELSEIF j%=13      REM "Enter" pressed
+
+    RETURN -1
+
+  ENDIF
+
+ENDP
+
+
+
+

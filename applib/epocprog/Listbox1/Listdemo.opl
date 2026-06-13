@@ -1,0 +1,31 @@
+PROC Main:
+	LOCAL mylist%, fname$(128), k%
+
+	LOADM "ListBox"
+
+	dINIT "View database file"
+	dFILE fname$, "File", 0
+	IF DIALOG
+		OPENR fname$, A, Field1$, Field2$
+	ELSE
+		STOP
+	ENDIF
+
+	mylist% = LCreate%:(10, 10, gWIDTH - 20, gHEIGHT - 20, COUNT, 10, "drawline")
+
+	BUSY "ESC to exit", 2
+
+	DO
+		k% = GET
+		LProcess:(mylist%, k%)
+	UNTIL k% = 27
+
+	mylist% = LClose%:(mylist%)
+
+ENDP
+
+PROC drawline:(item%, width%)
+	POSITION item%
+	gPRINTB A.Field1$, width%
+ENDP
+

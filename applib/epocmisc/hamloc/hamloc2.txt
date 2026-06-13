@@ -1,0 +1,181 @@
+HamLoc is a simple converter for calculating a station location. It 
+calculates between latitude and longitude, IARU locator, and UK 
+National Grid.
+
+By entering just one of these parameters, HamLoc will calculate the 
+other two. 
+There are some limitations, mainly due to the way latitude and 
+longitude are described. The Earth is not a true spheroid, as the 
+diameter across the equator is greater than the distance between the 
+poles. Neither is the Earth a true ellipsoid, the surface is somewhat 
+uneven! In order to produce maps and charts, different countries 
+adopt different methods to make a mathematical model which best fits 
+their country. Generally, an ellipsiod with a suitable major and 
+minor axis is positioned so as the surface best fits the shape of the 
+surface of their country.
+ 
+There are many such ellipsoids in use by different map makers, some 
+of which have been used as a basis to describe the whole world. The 
+satellite based Global Positioning System uses a method based on one 
+such ellipsoid. 
+Inaccuracies can be reduced by adding corrections based on known 
+locations, however for amateur radio purposes the calculations can be 
+simplified, since a precision better than a few metres is not usually 
+required.
+
+GPS uses a system called WGS84 (World Geodetic System 1984) to 
+describe latitude and longitude. This is used to calculate the IARU 
+locator system. 
+
+UK National Grid references use 3 different ellipsiods:
+The "Airey Spheroid  of 1830" for Great Britain and its islands, 
+The "Modified Airey Spheroid" for the OS maps of Ireland,
+INT24 for the Channel Islands, Jersey, Guernsey, Alderney, Sark, 
+Herm, etc.
+
+The method by which these ellipsoids are made to fit the shape of the 
+earth is Known as a datum. Thus 3 datums are used, based on the above 
+ellipsoids:
+
+OSGB36 for Great Britain,
+Ireland 65 (or 75) for Northern Ireland,
+ED50 for the Channel Islands.
+
+Conversions between WGS84 (GPS) latitude and longitude, and OSGB36 
+National Grid (England, Wales and Scotland) should be accurate to 
+within a few metres. The calculations used for locations in Ireland 
+and Northern Ireland assume the Irish 65 datum based on the "Modified 
+Airey" Ellipoid.  If anyone knows how to convert this to WGS84 then 
+please let me know! However the difference is quite small and 
+probably within the accuracy of civil GPS and paper maps.
+
+In the case of the Channel Islands, I have not converted the INT24 
+ellipsoid to WGS84. Once again the inaccuracy should be very small. 
+If you are using paper maps, the error may be less than the thickness 
+of a grid line on the map.
+
+The method used to describe the National Grid for the Channel Islands 
+is not the same as the UK. It is based on the UTM grid, calculated 
+from the INT24 ellipsoid. I have not been able to find sufficient 
+data to confirm my calculations, but I believe them to be quite 
+accurate. If you have any accurate data, I would appreciate some spot 
+values!
+
+Similarly I would appreciate some spot values for Ireland. If you 
+have a 1:25,000 (or better) map of Northern Ireland, I would 
+appreciate the spot values at the corners of your map!
+
+Please note that the IARU locator system describes "squares" of quite 
+large area. If you type in your NGR or lat/lon and get your locator, 
+then highlight the locator and press enter, you will most likely get 
+a different NGR or lat/lon. This is because the centre of the IARU 
+locator is used as the input. Obviously there is no way that Hamloc 
+can know where in a locator your QTH is!
+
+
+Using HamLoc
+
+It is very easy to use Hamloc, the user interface is very simple. 
+There is no Help or Menu - everything should be obvious.
+
+To enter latitude and longitude, simply move the cursor and enter the 
+figures. Press enter when you have filled in both fields.
+
+You can use either conventional degrees, minutes and seconds, or you 
+can use degrees, minutes, and hundredths of minutes. Use the 
+Geographics setting to change this. The program will re-initialise, 
+but should retain and convert any values you have entered to the new 
+setting. Unfortunately the "seconds" symbol is still displayed when 
+the ddmm.mm system is chosen.
+
+Locators and National Grid can be entered by moving the highlight to 
+the appropriate parameter and type in your location. The IARU locator 
+should be entered like JM39GE, i.e. 6 character without spaces. The 
+letter case is not important, and locators are converted to upper 
+case for clarity.
+
+The UK National Grid can be entered in several forms, like
+SU24
+SU 24
+SU2345
+SU234567
+SU 23456 78901
+
+Spaces are optional, although results have spaces for clarity. If you 
+enter a four-character NGR, it is converted as follows:
+
+SU24  to  SU 25000 45000
+
+A six-character NGR is converted as follows:
+
+SU2345  to  SU 23000 45000
+
+Eight and ten character NGR's are similarly converted.
+
+NGR's for Northern Ireland have only one letter, but are similarly 
+converted:
+
+J3344  to  J 33000 44000
+
+i.e. in all cases the NGR is converted to the 1 metre form.
+
+
+Distances and bearings
+
+You can save any current setting as a reference by pressing Ctrl-S or 
+pressing the "Set as reference" button on the first page. Thereafter, 
+the Great Circle and Rhumb Line distances and bearings are calculated 
+for each location when you press enter. The results are displayed on 
+the "Bearings" page in Kilometres and Nautical Miles.
+
+Calculations use standard navigation techniques.
+
+Installing Hamloc
+
+In the archive are a number of files. Extract these to a temporary 
+folder on your computer.
+
+If you have an earlier version of Hamloc installed, you should delete 
+the folder C:\System\Apps\Hamloc\ and all its contents.
+
+The file Hamloc.sis can be installed using Psion Install. If you have 
+PsiWin 2.1 or later on your PC, you may be able to double click this 
+file for automatic installation to your Psion. If you have Psion 
+Install on your Series 5, you can copy Hamloc.sis to any folder on 
+your Psion, and install from there by highlighting it and pressing 
+enter. Note than NMPD.OPX will be installed during the process.
+
+
+Uninstalling Hamloc
+
+If you used Psion Install or PsiWin 2.1, you can uninstall using the 
+Add/Remove applet in the Series 5 Control Panel.
+
+Otherwise just delete the folder C:\System\Apps\Hamloc\ and all its 
+contents.
+HamLoc writes a small file HamLoc.ini which holds its reference 
+location.
+
+
+Notes
+
+HamLoc was written by Roger Muggleton G0HZK. I would like to thank 
+Dr. Roger Blakeway G1PXM and the many others who gave me assistance 
+with algorithms and reference data.
+
+HamLoc is Freeware.
+
+The authors claims no responsibility for HamLoc's suitability for 
+use, and no responsibility for any damage to any computer whatsoever. 
+Use HamLoc at your own risk. HamLoc is not intended as a navigational 
+tool, and should not be used as such. Nor should it be used where 
+risk to life, or safety, is involved.
+
+Hamloc uses NMPD.OPX by Neuon.
+NMPD.opx is copyright (c) Alex Wilbur, Henry Hirst & Neuon 1999
+The opx will be installed automatically from the Hamloc.sis file.
+
+HamLoc Version 2.00 December 1999
+
+All comments to the author at  roger@g0hzk.co.uk
+

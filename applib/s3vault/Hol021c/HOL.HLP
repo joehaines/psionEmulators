@@ -1,0 +1,301 @@
+HOL
+
+#begin
+License
+HOL - calculate and write holidays
+to Psion agenda.
+Copyright (C) 1988, 1989, 1990,
+1991, 1992, 1993, 1994 Free 
+Software Foundation, Inc.
+Copyright (C) 1996 
+Odd Gripenstam
+
+This program is free software; you
+can redistribute it and/or modify
+it under the terms of the GNU 
+General Public License as published
+by the Free Software Foundation;
+either version 2 of the License, 
+or (at your option) any later 
+version.
+
+This program is distributed in 
+the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without 
+even the implied warranty of
+MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  
+See the GNU General Public 
+License for more details.
+
+You should have received a copy of
+the GNU General Public License 
+along with this program; if not, 
+write to the Free Software 
+Foundation, Inc., 
+59 Temple Place - Suite 330, 
+Boston, MA 02111-1307, USA.
+#end
+
+#begin
+Steps to use the program
+Examine the holiday definition 
+files with a text editor to see 
+if one suits you. If not, you 
+can modify or create one.
+
+Open a holiday file with this 
+program. Select which defined 
+holidays to calculate.
+Optionally, calculate and preview 
+the dates.
+Calculate and write holidays to 
+the agenda file. Use the option
+to make a backup copy of 
+the agenda.
+#end
+
+#begin
+Opening a holiday file
+Open a holiday definition file 
+with Psion-O. 
+
+All holidays that are defined in
+the file will be listed on the 
+screen with the style and year-
+symbol specified in the file. 
+
+The listing can be scrolled with 
+PgUp, PgDn, Home, End and arrow
+keys.
+#end
+
+#begin
+Selecting holidays
+Initially all holidays are selected
+to be written to the agenda file.
+This is shown with a '*' on each 
+row. 
+
+Select or deselect holidays with
+Psion-M, Psion-U, Psion-N, 
+Psion-T or the SPACE-key.
+#end
+
+#begin
+Previewing dates
+Calculate and preview the dates 
+with Psion-P. 
+
+Enter a year range to calculate 
+dates for. 
+Select whether to use repeating 
+entries.
+The dates will be listed on the 
+screen. 
+
+Press ESC to cancel the listing 
+or any other key to temporarily 
+pause the listing.
+#end
+
+#begin
+Writing dates
+Calculate and write the dates to 
+an agenda file with Psion-W. 
+
+Enter a year range to calculate 
+dates for. 
+Select whether to use repeating 
+entries.
+Select how to show repeating 
+entries.
+Select an agenda file to write to. 
+To be safe you should use the 
+option to make a backup copy of 
+the agenda file.
+The dates will be listed on 
+the screen as they are written to
+the file. 
+Press any key to cancel.
+#end
+
+#begin
+Use repeating entries 
+If you set "Use repeating entries"
+("Repeat entries") to "If possible" 
+then holidays specified only with
+one of the following directives 
+will be written as a repeating 
+entry:
+
+  FIX(month,day)
+  FLOAT(month, weekday, n)  
+    where n is 1,2,3,4 or -1.
+#end
+
+#begin
+Holiday definition files
+Holidays are defined by writing 
+a holiday definition file. 
+A holiday file is a text file 
+with the file type .HOL. 
+It contains directives to 
+the HOL program on what holidays 
+to calculate and how to write 
+them to an agenda file.
+
+Look at the file EXAMPLE.HOL and 
+the following help topics for 
+help on how to specify holidays.
+#end
+
+#begin
+Comments
+A comment is any text after an 
+exclamation mark or the keyword 
+REM up to the end of the current
+line.
+#end
+
+#begin
+FIX(month, day)
+Sets the date to day # DAY in 
+month # MONTH. 
+
+Day and month numbers start 
+at 1.
+#end
+
+#begin
+HFIX(month, day)
+Sets the date to day # DAY in 
+Hebrew month # MONTH.
+
+Day and month numbers start 
+at 1 (month 1 = Nisan).
+Month 13 is the last month of 
+the year (Adar or Adar II)
+#end
+
+#begin
+IFIX(month, day)
+Sets the date to day # DAY in 
+Islamic month # MONTH.
+
+Day and month numbers start 
+at 1 (month 1 = Muharram).
+#end
+
+#begin
+FLOAT(month, weekday, n)
+Sets the date to the date of 
+the Nth WEEKDAY in month # MONTH.
+
+Month numbers start at 1. 
+N starts at 1. 
+If N < 0 count N WEEKDAYs from 
+the end of the month. 
+WEEKDAY numbers are from 
+0 (Sunday) to 6 (Saturday).
+#end
+
+#begin
+FLOAT(month, weekday, n, day)
+Sets the date to the date of 
+the Nth WEEKDAY before/after 
+day # DAY in month # MONTH.
+
+Day and month numbers start 
+at 1. N starts at 1. 
+If N < 0 count N WEEKDAYs before
+DAY MONTH, otherwise count N 
+WEEKDAYs after DAY MONTH. 
+WEEKDAY numbers are from 
+0 (Sunday) to 6 (Saturday).
+#end
+
+#begin
+LAST(month)
+Sets the date to the date of 
+the last day of month # MONTH.
+#end
+
+#begin
+EASTER
+Sets the date to the date of 
+Easter Sunday (non-orthodox).
+#end
+
+#begin
+DONEIF(condition)
+If the condition is true then 
+the rest of the current holiday 
+directive (up to ';') will not 
+be used.
+#end
+
+#begin
+IF
+IF(condition) 
+{ simple-date-expression }
+
+If the condition is true then 
+the simple-date-expression 
+will be used. 
+#end
+
+#begin
+ELSEIF
+ELSEIF(condition) 
+{ simple-date-expression }
+
+If the condition is true and 
+no preceeding IF or ELSEIF 
+condition was true then 
+the simple-date-expression 
+will be used.
+#end
+
+#begin
+ELSE 
+ELSE 
+{ simple-date-expression }
+
+If no preceeding IF or 
+ELSEIF condition was true 
+then the simple-date-
+expression will be used.
+#end
+
+#begin
+Conditions
+Conditions are functions that
+return 'true' or 'false'
+depending on the current date.
+#end
+
+#begin        
+WEEKDAY(weekday)
+Can only be used in DONEIF.
+
+Returns 'true' if the date is 
+on the weekday specified as a 
+parameter. 
+
+WEEKDAY numbers are from 0 
+(Sunday) to 6 (Saturday).
+#end
+
+#begin
+NOT(condition)
+Returns the opposite value
+of the condition.
+#end
+
+#begin
+OR condition
+Returns 'true' if either
+the current value or 
+condition is 'true'.
+#end

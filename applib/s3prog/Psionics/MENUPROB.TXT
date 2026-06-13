@@ -1,0 +1,52 @@
+PSIONICS FILE - MENUPROB
+========================
+Series 3s menu problem workaround
+Last modified 1994-09-12
+=================================
+
+There are some circumstances in which OPL programs with menus can gradually
+lose small amounts of system memory.
+
+All memory lost in this way is fully recovered by the Series 3s when the OPL
+application exits, but if the application runs for a long time without
+exiting, it is possible that the cumulative amount of memory lost will in time
+adversely affect performance.
+
+This bug is present in all versions of the Series 3s (but has been fixed in
+the 3a). It does not affect any programs written in C.
+
+To work around the bug, replace all occurences of the MENU keyword with
+calls to a new procedure MENU%: which in turn calls the MENU keyword and
+some machine code. The inconvenience of requiring an extra layer around calls
+to MENU is slight for commercial OPL programs, since these programs are likely
+to have such a layer already (for example to make calls to LOCK on
+either side of the call to MENU). This layer can be merged with the MENU%:
+procedure shown here. The contents of MENU%: may of course be placed in-line
+instead of in a separate procedure.
+
+The machine code called by the USR commands automatically detects the case
+when no memory has been lost by the MENU command and does nothing.
+
+    PROC MENU%:
+      LOCAL r%
+      LOCAL x1&(7),x2&(7),x3&(8)
+
+      x1&(1)=&8BF88BFC
+      x1&(2)=&8B00121E
+      x1&(3)=&778B205F
+      x1&(4)=&E42AAC0C
+      x1&(5)=&A5ABC88B
+      x1&(6)=&75C084AC
+      x1&(7)=&CBF8E2FB
+      x2&(1)=&00B4F08B
+      x2&(2)=&FC808BCD
+      x2&(3)=&AD0D7330
+      x2&(4)=&C932D08B
+      x2&(5)=&CDD88BAD
+      x2&(6)=&F8754ACF
+      x2&(7)=&000000CB
+      USR(ADDR(x1&(1)),ADDR(x3&(1)),0,0,0)
+      r%=MENU
+      USR(ADDR(x2&(1)),ADDR(x3&(1)),0,0,0)
+      RETURN(r%)
+    ENDP

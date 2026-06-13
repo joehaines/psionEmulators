@@ -1,0 +1,160 @@
+TDCGPS.OPA - NMEA reader & mapping for Psion 3a
+-----------------------------------------------
+
+File list
+---------
+
+File            Directory       Description
+----            ---------       -----------
+TDCGPS.TXT	Not required	This file
+TDCGPS.OPA	\APP		Program file
+TDCGPS.DBF	\APP\TDCGPS	Database for registration of user maps
+TDCGPS.RSC	\APP\TDCGPS	Help file
+TDCGPS.WRD	\WRD (optional)	Documentation for program, and with information about the GPS accessories available from TDC.
+TDCGPS3A.DOC	Not required	Word 6 format flysheet with screen shots of program in operation
+POINTA.PIC	\APP\TDCGPS	Bitmap for 'dot-on-map' pointer
+POINTB.PIC	\APP\TDCGPS	Bitmap for 'dot-on-map' pointer
+POINTC.PIC	\APP\TDCGPS	Bitmap for 'dot-on-map' pointer
+POINTD.PIC	\APP\TDCGPS	Bitmap for 'dot-on-map' pointer
+POINTE.PIC	\APP\TDCGPS	Bitmap for 'dot-on-map' pointer
+ENGS.PIC	\APP\TDCGPS	South of England map
+ENGM.PIC	\APP\TDCGPS	Midlands of England map
+ENGN.PIC	\APP\TDCGPS	North of England map
+
+If you do note require the England maps, then leave them out, but make sure you delete the entries for them in the TDCGPS.DBF database, otherwise you will receive an error message when the program starts.  Even though this database may be empty, it is still required.
+
+This program may only be re-distributed complete with all of the files as above.
+
+Place the .OPA file in your \APP directory, and use Psion-I to add to the main menu.
+
+All other files (i.e. any .PIC files, .DBF etc), should go into the \APP\TDCGPS directory.  You will need to create this if it does not exist already.
+
+It works with the Rockwell MicroTracker LP or Jupiter in NMEA mode, but is OK with a number of other systems, please see the .WRD file for more information and an indication of features being planned for future releases.
+
+My company, TDC, is the premier Rockwell distributor in the UK, and also a distributor for MicroPulse and Aero GPS antennas.  Our regular seminars provide delegates with hands-on experience of the GPS systems, as well as a great insight into the many applications of GPS.  For more information on the products that TDC handle and applications support we can provide for our products, please contact TDC on +44 (0)156 332800, or e-mail sales@tdc.co.uk.  Ask for the current GPS catalogue, or information on our GPS starter packs.
+
+The latest version of this program can always be found at http://ourworld.compuserve.com/homepages/simontaylor.
+
+Simon Taylor
+100043.104@compuserve.com
+
+Planned additions :
+-------------------
+'Goto' screen with ETA
+Selectable screens, allow user to switch off certain screens.
+
+Revision history :
+------------------
+b0.15  03/04/97
+---------------
+* Allowed INITMP function to accept either comma or dot number formats (European users tend to use , as decimal point). This should fix many complaints of problems with INITMP.
+
+b0.14  25/01/97
+---------------
+* Changed log data file so it's created in internal \DAT directory. Use on SSD's is not appropriate due to SSD speed.
+* Help file also had to be in internal drive, now fixed so it is on current drive.
+
+b0.12  23/01/96
+---------------
+* Generally tidied and sped up program internals
+* 'AutoMap' does not reselect until it has been off the current map for five seconds
+* Sped up the re-draw of track display (this has consequentially improved the rest of the program's operation)
+
+b0.11  21/01/96
+---------------
+* Added TDCGPS.RSC help file and help key functionality within program.
+* If position moves off of a map during 'AutoMap', new map is computed straight away.
+* Psion-A always calls 'AutoMap' feature after use.
+
+b0.10  19/01/96
+---------------
+* Added detection for the non-presence of files such as the database and the POINT*.PIC files. No error checking gave a number of errors in previous versions when the program was not installed correctly.
+* Added rudimentary datalogging, with date/time and decimal x & y positions being logged into TDCGPSDT.DBF database as per set track intervals.  Logging is enabled and disabled using Psion-L.
+* Added 'AutoMap' feature, which always displays the best resolution map available. The choice of map is checked every minute. (Psion-A)
+
+b0.09  27/10/96
+---------------
+* Added two spaces after heading indication which stops multiple degress characters being left on display
+* Added Navigation suppress facility, so navigation display is cleared if GPS system ceases to navigate (At the request of Gordon Lean).
+* Increased the number of maps allowed to 50.
+* If the Psion is set to am/pm rather than 24hr clock operation, the GMT setting is a bit peculiar, so have added a 'None' option for GMT offset, which resets the offset value to zero.
+
+b0.08  17/09/96 Full release of b0.07 !
+---------------
+* Added ENGS, ENGM and ENGN maps to distributed files.
+
+b0.07  24/07/96 (Only released to a few users, versions may exist without the complete set of feature shown here))
+---------------
+* Added 'easy NGR' function, which although not terrifically accurate is fast ! - displayed in the navigation window title bar.  I would appreciate information on the inaccuracy of this display, please e-mail the displayed NGR, and the actual NGR as calculated from a map (UK relevant only) so I can add adjustments in later versions.
+* Added version display and auto-initialisation for Jupiter receiver
+* Satellite display window position/depth was not being saved at program exit, now fixed
+* Improved initialisation for Rockwell receivers
+* Increased speed alarm limit to 999 MPH
+* Added support for Rockwell Jupiter 12 channel GPS receiver
+* Changed move window / change current window command to TAB
+* Psion-G command (GMT) allows the entry of time offsets from GMT (-12 to +12 hours)
+* Revised menus & information screen slightly
+* Added Psion-R command to allow the configuration of GPS messages received from the Rockwell MicroTracker LP
+
+b0.06  02/04/96
+---------------
+* Fixed problem of detection of current drive, was being called AFTER files were trying to be opened, now should be OK.
+
+Known problems :
+
+No error correction exists if a bitmap file is not present, or is not suitable (wrong size).  Also if more than 16 bitmaps are present, the program will overflow an internal array.
+
+b0.05  27/03/96
+---------------
+* Removed access to NMEA.DBF (a data file which was never implemented)
+* Added detection of current drive, and set data files to be accessed from that drive (program would not previously work on an SSD) - feedback is that this still does not work !.
+
+b0.04  21/03/96
+---------------
+
+* Tidied up menu.
+* Map is now selected to foreground when which map function used, and map is in background.
+* Speed alarm made settable, and has variable tone alarm, getting higher pitched as speed increases.
+* Added map preview option.
+* Bug in Track display as position crosses minute borders fixed, previously would 'jump' across display.
+* Dramatically improved handing of serial errors.
+* Track display buffer optimised, improvement in main program loop speed.
+* Map pointer sprite made more visible.
+* Remote link if switched on is automatically switched off.
+* Speed & heading numeric values made non-proportional to avoid display corruption.
+* Knots speed display changed to integer.
+* Map brought to foreground upon exit to preserve ordered display of windows upon re-start.
+
+b0.03  14/03/96
+---------------
+* Added mapping facility.
+* Added Track display, 100 values are stored at a programmed interval (default 10 seconds, range is 5 to 60 seconds).  Display auto-scales, and shows current position and track of route taken.
+* Fixed bug in NGR sheet prefix letters calculation.
+* Added space to odometer display when in miles, previously showed feet symbol from the prior display.
+* Added space after altitude display.
+* Odometer reset command now works.
+
+Known problems :
+
+Serial overrun occurs after execution of program for some time, corrupts lat/long display.
+If GPS is disconnected, Psion-X will not exit program, you must use Psion-ESC.
+If map is in foreground when program is exited, order of windows is corrupted upon re-running program.
+A new revision is planned by the end of March, and will be available on Compuserve, and the TDC BBS (01256 57900).
+
+b0.02  30/01/96
+---------------
+* Added two spaces after the DGPS timeout value to avoid old displays being added to single-digit timeout numbers.
+
+b0.01  29/01/96
+---------------
+* Added configurable DGPS port, moveable windows and UK NGR calculation.
+* TDCGPS.WRD is the beginnings of the new 'manual' for the program.
+* Also added compatibility with other GPSs thanks to sample data from David Trussell.
+
+b0.00  23/01/96
+---------------
+* Interim version with system screen and new icon.
+
+V0.00  15/01/96
+---------------
+* First release, requires addition of system screen and full implementation of place database, movable windows.  Only one menu command is properly implemented - Exit (!).

@@ -1,0 +1,118 @@
+                                   Taxi!
+
+                        An Estimator for Taxi Fares
+                                Version 1.0
+                                     
+                              Kevin Northover
+
+Taxi! is  a utility  to  estimate taxicab  fares  given an  estimated  road
+distance (for example from Mapper3a/London)  and an assumed average  speed.
+It uses a  database file that  is easily  modified with the  built in  Data
+application so you can add your favourite (or least favourite depending  on
+costs!)  cities.  London and New York are included.
+
+The motivation  for  writing  Taxi!  came  from  using  Steve  Litchfield's
+excellent, now  sadly withdrawn,  Mapper3a/London and  taking lots  of  cab
+rides while on a business trip to London.
+
+You use Taxi! entirely at your own risk.  It is only an estimator and local
+conditions (and  drivers) can  cause fares  for the  same journey  to  vary
+significantly from day  to day.    My experience  suggests that an  average
+speed between 7 and 10 miles per hour gives plausible estimates for Central
+London journeys of around 3 to 4 miles.
+
+Taxi! is placed in the public domain, you are free to do what you like with
+it.  If you find it useful and add more cities I'd appreciate a copy of the
+database entries.
+
+INSTALLATION and USE
+
+There are three files that should be installed:
+
+TAXI.OPA       in a \APP\ directory on any drive
+               this is the application, a Type 1 OPA
+TAXI.DBF       in a \OPD\ on any drive
+               this is the cities database
+HAILTAXI.DBF   [Optional] in a \OPD\ on any drive
+
+               this sets up your startup and defaults
+
+Then install the icon using Psion-I from the system screen.
+
+Taxi! puts up  two dialogs,  one to  enter the  journey specification,  the
+second to report  the estimated  fare and any  extra information  available
+(see Cities Database).  Keying Enter continues the program,
+
+Esc terminates it.
+
+STARTUP and DEFAULTS
+
+Taxi! has three levels of default, controllable by the user:
+
+   1 None: if Hailtaxi.dbf  is not  present then  the first  record in  the
+     Taxi.dbf file sets the initial city and distance measure.  The program
+     defaults to a journey of 2 miles  at 9 Mph. The user will be  prompted
+     to confirm these.
+
+   2 Default: if Hailtaxi.dbf contains only one record, then that sets  the
+     defaults for the initial prompt.
+
+   3 Startup: if  Hailtaxi.dbf  contains more  than  one record:  the  last
+     record will  be used  to specify  the journey,  the user  will not  be
+     prompted initially  for  journey  details; a  fare  estimate  will  be
+     calculated and displayed; and the record  will be deleted.  This  mode
+     is intended for invoking the program from another application.
+
+Hailtaxi.dbf is a simple database , an example follows:
+
+City:        London
+Distance:    3
+Speed:       9
+Distance in: Miles
+
+Distances can be handled in either Miles or Kilometers (Kms).  The  program
+displays in the units set by the default processing.
+
+CITIES DATABASE
+
+The database  contains the  tariff  schedules for  the  taxi meters.    The
+entries should  be  fairly  self-explanatory from  looking  at  the  London
+example, however the format makes use  of tab delimited sub-fields to  make
+the data entry  layout easier to  scan and  check.  (Enter  the tabs  using
+Ctrl-Tab in Data.)  Data field names, and explanatory notes follow.
+
+City:                   City name
+Currency:               local currency symbol
+Distance in:            Miles or Kms
+Number Fare Bands:      number of different meter rates 1 <= n <= 3
+Band Rates per Tick:    fare increment on meter for each band
+Band Times per Tick:    maximum time between meter ticks (secs)
+Band Distance per Tick: maximum distances before fare increments  (in
+                        units specified)
+Maximum Fares for Band: cumulative fares  before  switching  to  next
+                        charge band;
+                        set the last sub-field to a large number!
+Extras:                 up to six lines of additonal data to be displayed
+                        either as a single string or 2 sub-fields
+                        Look at the the  London and New  York cities to  see
+                        how this works
+                        ...
+Notes:                  ignored by the program
+
+
+
+ASSUMPTIONS and RESTRICTIONS
+
+The program and  database assume that  meters all work  much the same  way.
+The number  of fare  bands is  limited  to three,  change the  #define  and
+retranslate to modify this.
+
+There is a  limit of  about 25  on the number  of cities  the program  will
+handle; this  is determined  by the  maximum length  (255) of  the  dCHOICE
+string.  However 25 should be more than enough for most travelers.
+
+ACKNOWLEDGEMENTS
+
+Andy Clarkson for OPP and OPPDBG.   Steve Litchfield for Mapper3a,  without
+those distance estimates Taxi! would be much harder.
+

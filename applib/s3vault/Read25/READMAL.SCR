@@ -1,0 +1,102 @@
+!
+! Logon script for ReadCIX Mail 
+!
+QUERY "Downloaded File Details" (
+		"Full Path and Name",s1)
+    INFO "CIX Logon"
+    SETUP ( Baud=9600 :Stop=1 :Parity=none :Handshake=rtscts
+    	    Fail=None :Timeout=20 :Echo=off :Data=8 )
+    ON send fail goto bad
+    SET c1=4
+rAlive:
+		SEND "AT&B1 &H1"
+		SEND "ATX3"
+    WAIT 20 ( ON reply "OK<$d><$a>" GOTO alive )
+    ON c1 GOTO rAlive
+    GOTO merror
+alive:
+    SET C1=3
+    GOTO reDial
+wait100:
+    INFO "Waiting to redial"
+    WAIT 60
+reDial:
+    SEND "ATDP<CixNumber>"
+    WAIT 120 (
+	ON reply "CONNECT" GOTO letsgo
+	ON reply "NO DIALTONE" GOTO tele
+	ON reply "NO CARRIER" GOTO nocar
+	ON reply "ERROR" GOTO black
+	ON reply "BUSY" GOTO again )
+    GOTO merror
+again:
+    ON c1 GOTO wait100
+    ALERT "Line busy" : EXIT
+letsGo:
+    INFO "CONNECTED..."
+    SENDWAIT 60 "<$d>";,"login:" GOTO noLog
+    SENDWAIT 60 "qix<$d>";,"new user)" GOTO noUser
+    SENDWAIT 30 "<CixUserName>","Password:" GOTO noPass
+    SEND "<CixPassword>"
+tryAgain:
+    WAIT 40 (
+	ON REPLY "Main:" GOTO gotMain
+	ON REPLY "More" GOTO gotMore )
+    ALERT "SOMETHING STRANGE"
+gotMain:
+		SEND "OPTION DOWNLOAD C Q"
+		INFO "Getting Mail"
+		SEND "MAIL<$d>"
+		SEND "File All"
+	retry1:
+		WAIT 10 (ON REPLY "Mail:" GOTO read)
+		GOTO retry1
+	read:
+		SEND "q"
+		WAIT 40 (ON REPLY "Main:" GOTO file)
+	file:
+		INFO "Starting Download"
+		SEND "Down"
+		WAIT 5
+		RECEIVE s1,"XMCRC" 
+	ragain:
+		WAIT 10 (ON REPLY "Main:" GOTO swoff
+		         ON REPLY "y/n"   GOTO yorn)
+		INFO "Problem! Continuing Manually"
+		EXIT
+swoff:
+		INFO "Sending LOGOFF"
+		SENDWAIT 20 "BYE","y/n" GOTO cont1
+		SEND "Y"
+	cont1:
+		INFO "Hanging UP!!"
+		HANGUP
+    INFO "Finished"
+    EXIT
+gotMore:
+    WAIT 1
+    SEND "n"
+    GOTO tryAgain
+yorn:
+		SEND "Y<$d>"
+		GOTO swoff
+black:
+    ALERT "Number dialled too many times" : EXIT
+nocar:
+    ALERT "No connection made" : EXIT
+tele:
+    ALERT "Check connected to telephone" : EXIT
+merror:
+    ALERT "Check modem connected" : EXIT
+bad:
+    ALERT "Check RS232 lead connected" : EXIT
+noLog:
+    ALERT "No Login received" : EXIT
+noUser:
+    ALERT "No user name" : EXIT
+noPass:
+    ALERT "No password" : EXIT
+noMain:
+    ALERT "No main"
+    EXIT
+

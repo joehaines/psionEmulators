@@ -1,0 +1,237 @@
+FORMULA Tutorial
+=================
+for: PSION System 3a/c/Siena
+
+Author: (C) Peter von Walter; 26.5.99
+email: vwalter@physi.uni-heidelberg.de
+www: http://pi.physi.uni-heidelberg.de/~vwalter/my/homepage.html
+
+Installation
+------------
+Please read FORMULA.TXT and do the installation!
+
+
+Start the program
+-----------------
+- Select the file "UNITS" under the FORMULA icon and open it with ENTER.
+A (nag) dialog with information about the program and how long the DEMO will be valid is shown. You
+could go with ENTER to the registration but for now..
+
+- Press ESC to accept the demo mode.
+The program starts with an empty entry field (below) and a log area above.
+
+
+Opening records
+---------------
+- Enter 'inch' and press ENTER to search for the data record with the name 'inch'. With the provided
+example file 'UNITS' it will find and open a dialog which shows the basic conversions as stated in
+the record. This record is actually written for unit conversion (see later) but will be presented
+here as a table and allows you to enter any value in any line for recalculation. 
+
+- Press ESC to exit the dialog mode.
+
+- Try again with some other records like 'ounce'. Note also the different domains (us, imperial,
+apothecaris, troy, ..). Experiment with the menu 'Record' and the items 'Group' and 'Select' to get
+an overview of your database for conversions and which help you to enter the unit names. Experiment
+with the powerful 'Find' function. Always press ENTER after selecting!
+
+
+- Select from the Menu 'File' the item 'DATA'. This immediately opens the current data base UNITS.DBF
+with the DATA application and allows you to inspect, to edit or to add and delete records at your
+will. But use it now only for a short browse through the data base! A good practice might be to look
+for the data record 'inch', previously opened, and to see how it really looks like!
+
+- Close the DATA application and reenter FORMULA with PSION-X. IMPORTANT: Always exit the DATA
+application first, before entering another program!
+
+
+Simple conversions
+---------------------
+- Enter 'inch=' (and press ENTER). This is the entry of an equation and does not open a dialog but
+tries to solve the equation. As you did not enter the target unit you ask implicetely for the
+standard units (SI), in this case 'meter' and this gives the equivalence of '0.0254 m'. The completed
+equation will be recorded in the log area.
+
+- Enter '3 inch=' and the result will be accordingly '0.0762 m'.
+
+- Now enter '3 inch=cm'. As you ask explicetely for the equivalence in 'cm', the system will
+calculate '7.62 cm'. Got the idea!?
+
+- Try some more, like '3 foot=inch' or 'lightyear=foot'!!
+
+
+Complex conversions
+-------------------
+- Enter '2 yard2=cm2'; Answer='16722.5..cm2'. This shows how the program handles derived units like
+areas and the prefixes 'c'='centi'=1/100. Note, that derived units do not have to be in the database,
+they always will be calculated by the program itself from the basic units.
+
+- Enter '10 yard/sec='; Answer='9.144 m s-1', meaning SI units 'meter per second'.
+
+- Now enter '10 yard/sec=mile. Obviously both sides of the equation are NOT compatible, You can not
+convert a speed to a length. In this case the program always tries to solve the equation by
+complementing the missing units. Therefore the answer is '0.0056.. mile s-1'. Simply add '=mile/h'
+(or '=mph') in the entry field to get the more appropriate result.
+
+- Try any expressions on both sides of the equation. Note how the program searches through the
+database for resolving dependent units (which could always take a couple of seconds).
+
+
+Builtin functions and constants
+-------------------------------
+You can use all standard functions and constants which are also available in the calculator:
+
+- Enter 'sin(pi/2)'; Answer='1'.
+
+Any additional constants can be defined in the database (e.g. 'electron').
+
+
+Adding units
+------------
+Study the following examples and you will get rules:
+
+- Enter '1 yard + 1 cm'; Answer='1.0109.. yard'.
+- Enter '1 cm + 1 yard'; Answer='92.44 cm'. Automatically convert to the first unit!
+- Enter '1 cm + 1 yard='; Answer='0.9244 m'. Convert to standard units (SI)!
+- Enter '1 cm + 1 yard=inch'; Answer='36.4 inch'. Is this what you wanted?
+
+This new feature allows you to add/subtract different units from each other. Of course you only can
+add/subtract units of the same dimension. It does not make sense to add 'inch' to 'sec', does it?!
+
+
+Time and Date functions
+-----------------------
+See the following examples (Date format='day.month.year'; Time format='24hour:minute:second'):
+
+- Enter '1.2.99'+1000d'; Answer='28.10.2001'.
+You have added 1000 days (of course Y2K compliant!) to the date 1.Feb.1999.
+
+- Enter '1.2.99 10:00-60s';Answer='1.2.1999 9:59:0'.
+You subtracted 60 seconds from a date and time!
+
+- Enter '..'; Answer= e.g. '26.5.1999'.
+If you omit any information, the program fills it with the current date information.
+
+- Enter '::'; Answer= e.g. '26.5.1999 11:30:52'.
+This is the current date and time.
+
+Note: If you convert to a date you are limited to the date between 1.1.1970 and 1.1.2100.
+
+
+Using the Find function
+-----------------------
+The Menu function 'Find' is very simple to use but powerful. Here are some rules:
+
+- Press Psion+f for invoking the Find dialog.
+
+- Enter String:'inch' and select Field:Name.
+This will search for the record with the exact match in name with 'inch'. Actually there is none,
+because the name of the record 'inch' also contains alias names. The program will then add
+automatically wildcards to the end (and then to the beginning) of the string to search for
+substrings. It builds up an according list of all matching records. If there is only one, the name of
+the record will be immediately copied to the entry field. Press Enter to open the found record.
+
+- Enter String:'*inch*' and select Field:<ALL>.
+The search will come up with a list of all records, which contain the substring 'inch' in any field.
+
+The find function will be automatically invoked if your entry into the entry field will not succeed
+in the first run. 
+
+After selecting the name of the record will be copied into the current cursor position in the entry
+field. Use Enter to evaluate afterwards.
+
+
+Plotting a function
+-------------------
+- Enter 'y=x**2;x=-10..10'.
+This means, you would like to plot the function y=x**2 in the range from x=-10 to 10. As you did not
+define the value range for y, the program evaluates the range automatically (Autorange) and finally
+plots the function. Note, that the program filled in the range for y in the entry field!
+
+- Enter 'Value=k**2+1;value=-10..10';0..10'.
+in this case you explicitely determined the value range for the ordinate. The function will be
+plotted accordingly. 'Value' and 'k' are just labels and will be printed on the chart.
+
+- Enter 'Value=k**2+3;value=-10..10';0..10';overlay
+As the x and y ranges are the same you can plot the new function into the same chart as an overlay.
+
+- Press the diamond key to switch between the plot sheet (which will be preserved) and the standard
+log area.
+
+
+Evaluating a table
+------------------
+- Select and open the file TABLES(.DBF) from the Menu item 'File/Open'.
+
+- Enter 'Times' for a table of different times, which correspond to each other.
+
+- Go to any line and enter a new value for that variable (e.g. 7 days, then press ENTER.
+See the corresponding values for all other lines!
+
+- See that you can also enter any expression (e.g. 1/12 year, should be one month!)
+
+- Press ESC to leave the current table.
+
+- Try some of the other tables in the file and browse with DATA through the file to see how the
+records are constructed.
+
+
+Evaluating an equation
+----------------------
+
+- Select and open the file EQUATION(.DBF) from the Menu item 'File/Open'.
+
+- Enter 'Cone' for an equation with different variables.
+
+This record 'Cone' describes the known formula V = 1/3 * r**2 * pi *h for the volume of a cone.
+Additionally the formulas for coat surface and total surface areas are given.
+
+- Enter 2 for height and 3 for radius and press ENTER (leave the cursor in line radius!).
+You will be presented with a new dialog 'Evaluate', which allows you to select either Volume or
+height to be calculated. As the program only remembers the last entry (radius) two choices are left.
+
+- Select 'Volume' with ENTER (ENTER).
+Radius and Height are used to calculate Volume. M and O are also recalculated!
+
+
+Plotting an equation
+--------------------
+
+- Enter a range '1..10' for radius and press ENTER (leave the cursor in line radius!).
+A new dialog 'Plot' opens, which allows to choose one of the four (from r) dependent equations.
+Note that also M and O can be selected now.
+
+- Select 'M Surface' and press ENTER for a new plot.
+After a short time for evaluating the range of M (autoranging), the function will be plotted.
+Note the ranging and labeling of the graph.
+
+- Press any key to return back to the record display.
+Watch the entered range for the calculated variable M! You could change this manually and plot again
+to produce a graph exactly according to your needs.
+
+- Enter now 10 into line 'h height'.
+You are now about to produce the same plot with another (fixed third) parameter.
+
+- IMPORTANT: Select again the range in line radius and press ENTER there!
+With this you select what variable will be on the x-Axis!
+
+- Select 'M Surface' again for the plot (default) and press the DIAMOND key for an overlay.
+See how the new plot keeps the previous scales and the new graph fits in the picture.
+
+- Press any key to return back to the record display.
+
+- Press ESC until you have been stepped back complete to the main screen.
+This will be now the picture you have generated!
+
+- Press 'Psion-C' to clear the picture.
+
+
+Now its your turn
+-----------------
+This concludes the tutorial.
+
+You should now have a good impression, what the program could do for you.
+Try the other functions for yourself and use the online help in each dialog to find out what they are
+for.
+
+Hope to hear from you!

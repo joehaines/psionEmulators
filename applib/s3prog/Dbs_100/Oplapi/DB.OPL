@@ -1,0 +1,728 @@
+#include "dbs.oph"
+
+#define MAXFIELDS 8
+
+app OPLData
+icon "db.pic"
+type $1000
+enda
+proc main:
+	GLOBAL fname$(MAXFIELDS,DBS_NAMESIZE)
+	GLOBAL ftype%(MAXFIELDS)
+	GLOBAL fsize%(MAXFIELDS)
+	GLOBAL fattr%(MAXFIELDS)
+	GLOBAL dbname$(128)
+	GLOBAL tbname$(128)
+	global quit%
+	global hDBase%,hTable%,hView%
+	GLOBAL valid%,fcount%
+	GLOBAL bmark$(DBS_BOOKMARK_SIZE)
+	GLOBAL filter$(100),sort$(100)
+	local choice%,key%,hkey$(15),hkey1$(3),hkey2$(5),p$(5)
+	hkey$ = "bdcoxaeflnpzmvs"
+	hkey1$ = "bdx"
+	hkey2$ = "bdcox"
+	quit% = 0
+	connect:
+	init:
+	display:
+	do
+		key% = GET
+		if (key% = $122)
+			minit
+			if dbname$ = ""
+				mcard "File","Create database",asc("b"),"Open database",asc("d")
+			else
+				mcard "File","Create database",asc("b"),"Open database",asc("d"),"Create table",asc("c"),"Open table",asc("o")
+			endif
+			if tbname$ <> ""
+				mcard "Record","Edit record",asc("e"),"Add record",-asc("a"),"Find first",asc("f"),"Find last",asc("l"),"Find next",asc("n"),"Find previous",asc("p")
+ 				mcard "Special","Set view filter",asc("v"),"Set view sort",-asc("s"),"Place bookmark",asc("z"),"Move to bookmark",-asc("m"),"Exit",asc("x")
+			else
+ 				mcard "Special","Exit",asc("x")
+			endif
+			choice% = menu
+			if (choice% and (loc(hkey$,chr$(choice%)) <> 0))
+				p$ = "proc" + chr$(choice%)
+				@(p$):
+			endif
+		elseif (key% and $200)
+			key% = key% - $200
+			if dbname$ = ""
+				if loc(hkey1$,chr$(key%))
+					p$ = "proc" + chr$(key%)
+					@(p$):
+				endif
+			elseif tbname$ = ""
+				if loc(hkey2$,chr$(key%))
+					p$ = "proc" + chr$(key%)
+					@(p$):
+				endif
+			else
+				if loc(hkey$,chr$(key%))
+					p$ = "proc" + chr$(key%)
+					@(p$):
+				endif
+			endif			
+		elseif (valid% = 0 and tbname$ <> "")
+			if key% = 258
+				moven:
+			elseif key% = 259
+				movep:
+			elseif key% = 262
+				movef:
+			elseif key% = 263
+				movel:
+			endif
+		elseif (tbname$ <> "")
+			if key% = 262
+				movef:
+			elseif key% = 263
+				movel:
+		    endif
+		endif
+	until quit%		
+	dconnect:
+ENDP
+
+proc connect:
+	LOCAL version$(8),ver%
+	busy "Connecting to server..."
+	loadm "\opo\database.opo"
+	if (DbsConnect(0) <> 0)
+		busy off
+		dINIT "Failed to connect to server !"
+		dialog
+		stop
+	endif
+	DbsVersion(ver%,version$)
+	busy off
+	giprint "Server version "+version$
+ENDP
+
+
+proc dconnect:
+	closeall:
+	DbsDisconnect
+	unloadm "\opo\database.opo"
+ENDP
+
+proc procx:
+	quit% = 1
+ENDP
+
+
+proc procc:
+	local tb$(128),hBuffer%
+	local type%,f&,empty$(1)
+	tb$ = dbname$
+	dinit "Create new table"
+	dfile tb$,"Table filename",1+16
+	dLONG f&,"No of fields",1,MAXFIELDS
+	if (dialog <> 0)
+		closetbl:
+		fcount% = f&
+		
+		DbsTableCreateInit(hBuffer%)
+		f& = 1
+		while f& <= fcount% 
+			fname$(f&) = ""
+			ftype%(f&) = 0
+			fsize%(f&) = 0
+			fattr%(f&) = 0
+			dinit "Add field"
+			dchoice type%,"Field type","Logical,Int16,Int32,Double,String,Date,Int8,UInt8,UInt16,UInt32"
+			dedit fname$(f&),"Field name"
+			dialog
+			if type% = 1
+				ftype%(f&) = DBS_TYPE_LOGICAL
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_LOGICAL,0,0,fname$(f&))
+			elseif type% = 2
+				ftype%(f&) = DBS_TYPE_INT16
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_INT16,0,0,fname$(f&))
+			elseif type% = 3
+				ftype%(f&) = DBS_TYPE_INT32
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_INT32,0,0,fname$(f&))
+			elseif type% = 4
+				ftype%(f&) = DBS_TYPE_DOUBLE
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_DOUBLE,0,0,fname$(f&))
+			elseif type% = 5
+				fsize%(f&) = 255
+				ftype%(f&) = DBS_TYPE_STRING
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_STRING,255,0,fname$(f&))
+			elseif type% = 6
+				ftype%(f&) = DBS_TYPE_DATE
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_DATE,0,0,fname$(f&))
+			elseif type% = 7
+				ftype%(f&) = DBS_TYPE_INT8
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_INT8,0,0,fname$(f&))
+			elseif type% = 8
+				ftype%(f&) = DBS_TYPE_UINT8
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_UINT8,0,0,fname$(f&))
+			elseif type% = 9
+				ftype%(f&) = DBS_TYPE_UINT16
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_UINT16,0,0,fname$(f&))
+			elseif type% = 10
+				ftype%(f&) = DBS_TYPE_UINT32
+				DbsTableCreateAddField(hBuffer%,DBS_TYPE_UINT32,0,0,fname$(f&))
+			endif
+			f& = f& + 1
+		endwh
+		if (DbsTableCreate(hBuffer%,hDBase%,hTable%,tb$,0) <> 0)
+			giprint "Create failed !"
+			beep 5,300
+			tbname$ = ""
+		else
+			tbname$ = tb$
+			busy "Creating table..."
+			filter$=""
+			sort$=""
+			DbsDynaViewCreateOnTableText(hTable%,hView%,empty$,empty$,0)
+			busy off
+			movef:
+		endif
+		display:
+	endif
+ENDP
+
+proc proco:
+	local d%,ret%,newtb$(128),dummy%,loop%,empty$(1)
+	REM open table
+	newtb$ = dbname$
+	dINIT "Open table"
+	dfile newtb$,"Filename",0
+	d% = dialog
+	if d% <> 0
+		closetbl:
+		tbname$ = newtb$
+		ret% = DbsTableOpen(hDBase%,hTable%,tbname$,0)
+		if ret% <> 0
+			giprint "Couldn't open table"
+			beep 5,300
+			tbname$ = ""
+			return
+		endif
+		fcount%=DbsTableGetFieldCount(hTable%)
+		if fcount% > MAXFIELDS
+			giprint "More than 8 fields - only using 8 !"
+			fcount% = MAXFIELDS
+		endif
+		loop% = fcount%
+		while loop% > 0
+			DbsTableGetFieldDef(hTable%,(loop%-1),fname$(loop%),dummy%,ftype%(loop%),fsize%(loop%),fattr%(loop%))
+			loop% = loop% - 1
+		endwh
+		busy "Opening table..."
+		filter$=""
+		sort$=""
+		DbsDynaViewCreateOnTableText(hTable%,hView%,empty$,empty$,0)
+		busy off
+		movef:
+	endif
+ENDP
+
+PROC init:
+	dbname$ = ""
+	tbname$ = ""
+	defaultwin 0
+ENDP
+
+proc procf:
+	local find$(255),ret%
+	REM find first
+	find$ = getfind$:("Find first")
+	busy "Searching..."
+	ret% = DbsViewFindFirst(hView%,find$)
+	busy off
+	retfind:(ret%)
+ENDP
+
+proc procl:
+	local find$(255),ret%
+	REM find last
+	find$ = getfind$:("Find last")
+	busy "Searching..."
+	ret% = DbsViewFindLast(hView%,find$)
+	busy off
+	retfind:(ret%)
+ENDP
+
+proc procn:
+	local find$(255),ret%
+	REM find next
+	find$ = getfind$:("Find next")
+	busy "Searching..."
+	ret% = DbsViewFindNext(hView%,find$)
+	busy off
+	retfind:(ret%)
+ENDP
+
+proc procp:
+	local find$(255),ret%
+	REM find previous
+	find$ = getfind$:("Find previous")
+	busy "Searching..."
+	ret% = DbsViewFindPrevious(hView%,find$)
+	busy off
+	retfind:(ret%)
+ENDP
+
+proc display:
+	local w%
+
+	gcls
+	gborder $201
+	if dbname$ = ""
+		pcentre:("No current database")
+		return
+	endif
+	w% = gwidth
+	if tbname$ = ""
+		gat ((w%-gtwidth("Database : " + dbname$))/2),20
+		gprint "Database : " + dbname$
+		gat 0,25
+		glineto w%,25
+		pcentre:("No current table")
+	ELSE
+		gat ((w%-gtwidth("Table : " + tbname$))/2),20
+		gprint "Table : " + tbname$
+		gat 0,25
+		glineto w%,25
+		if (valid% = 0)
+			showrec:
+		else
+			pcentre:("No current record")
+		endif
+	endif		
+ENDP
+
+proc procb:
+	local d%,ret%
+	REM create database
+	dINIT "Create database"
+	dfile dbname$,"Directory",1+4+8
+	d% = dialog
+	if d% <> 0
+		closeall:
+		ret% = DbsDatabaseOpen(hDBase%,"Psion",dbname$,DBS_CREATE)
+		if ret% = 0
+			tbname$ = ""
+			display:
+		elseif ret% < 0
+			giprint "Couldn't create database : " + gen$(ret%,3)
+			beep 5,300
+			dbname$ = ""
+		endif
+	endif
+ENDP
+
+proc procd:
+	local d%,ret%
+	REM open database
+	closeall:
+	dINIT "Open database"
+	dfile dbname$,"Directory",4
+	d% = dialog
+	if d% <> 0
+		ret% = DbsDatabaseOpen(hDBase%,"Psion",dbname$,0)
+		if ret% = 0
+			tbname$ = ""
+			display:
+		elseif ret% < 0
+			giprint "Couldn't open database"
+			beep 5,300
+			dbname$ = ""
+		endif
+	endif
+ENDP
+
+proc pcentre:(text$)
+	local h%,w%
+	h% = gheight
+	w% = gwidth
+	gat ((w%-gtwidth(text$))/2),(h%/2)
+	gprint text$
+ENDP
+
+proc moven:
+	local ret%
+	ret% = DbsViewMoveNext(hView%)
+	if ret% = -36 /* EOF */
+		giprint "End of file"
+		beep 5,300
+		valid% = DbsViewMoveLast(hView%)
+	endif
+	display:
+ENDP
+
+proc movep:
+	local ret%
+	ret% = DbsViewMovePrevious(hView%)
+	if ret% = -36 /* EOF */
+		giprint "Beginning of file"
+		beep 5,300
+		valid% = DbsViewMoveFirst(hView%)
+	elseif ret% = -4
+		giprint "Not supported"
+		beep 5,300
+		return
+	endif
+	display:
+ENDP
+
+proc movel:
+	local ret%
+	ret% = DbsViewMoveLast(hView%)
+	if ret% = -4
+		giprint "Not supported"
+		beep 5,300
+		return
+	endif
+	valid% = ret%
+	display:
+ENDP
+
+proc movef:
+	valid% = DbsViewMoveFirst(hView%)
+	display:
+ENDP
+
+proc proca:
+  	LOCAL v%(MAXFIELDS)
+	LOCAL v&(MAXFIELDS)
+	LOCAL v(MAXFIELDS)
+	LOCAL v$(MAXFIELDS,255)
+	local fno%,type%,name$(DBS_NAMESIZE),zero&
+	
+	zero&=0
+	
+	dinit "Add record"
+	fno% = 0
+	while fno% < fcount%
+		type% = ftype%(fno%+1)
+		name$ = fname$(fno%+1)
+		if type% = DBS_TYPE_LOGICAL
+			dchoice v%(fno%+1),name$,"True,False"
+		elseif type% = DBS_TYPE_INT8
+			dlong v&(fno%+1),name$,-128,127
+		elseif type% = DBS_TYPE_UINT8
+			dlong v&(fno%+1),name$,0,255
+		elseif type% = DBS_TYPE_INT16
+			dlong v&(fno%+1),name$,-32768,32767
+		elseif type% = DBS_TYPE_UINT16
+			dlong v&(fno%+1),name$,0,65535
+		elseif type% = DBS_TYPE_INT32 or type% = DBS_TYPE_UINT32
+			dlong v&(fno%+1),name$,-2147483648,2147483647
+		elseif type% = DBS_TYPE_DOUBLE
+			dfloat v(fno%+1),name$,-1e99,1e99
+		elseif type% = DBS_TYPE_STRING
+			dedit v$(fno%+1),name$
+		elseif type% = DBS_TYPE_DATE
+			ddate v&(fno%+1),name$,0,32000
+		endif
+		fno% = fno% + 1
+	endwh	
+	if (dialog <> 0)
+		DbsViewAppendRecord(hView%)
+		fno% = 0
+		while fno% < fcount%
+			type% = ftype%(fno%+1)
+			if type% = DBS_TYPE_LOGICAL
+				if v%(fno%+1) = 2
+					v%(fno%+1) = 0
+				endif
+				DbsViewSetFieldLogical(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_INT8
+				v%(fno%+1) = v&(fno%+1)
+				DbsViewSetFieldInt8(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_UINT8
+				v%(fno%+1) = v&(fno%+1)
+				DbsViewSetFieldUInt8(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_INT16
+				v%(fno%+1) = v&(fno%+1)
+				DbsViewSetFieldInt16(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_UINT16
+				if (v&(fno%+1)>32767)
+					v%(fno%+1) = v&(fno%+1) - 65536
+        else
+          v%(fno%+1) = v&(fno%+1)
+				endif
+				DbsViewSetFieldInt16(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_INT32 or type% = DBS_TYPE_UINT32
+				DbsViewSetFieldInt32(hView%,fno%,v&(fno%+1))
+			elseif type% = DBS_TYPE_DOUBLE
+				DbsViewSetFieldDouble(hView%,fno%,v(fno%+1))
+			elseif type% = DBS_TYPE_STRING
+				DbsViewSetFieldString(hView%,fno%,v$(fno%+1))
+			elseif type% = DBS_TYPE_DATE
+				DbsViewSetFieldDate(hView%,fno%,v&(fno%+1),zero&)
+			endif
+			fno% = fno% + 1
+		endwh
+		valid% = DbsViewUpdateRecord(hView%)
+	endif
+	display:
+ENDP
+
+proc closeall:
+	if (dbname$ <> "")
+		closetbl:
+		DbsDatabaseClose(hDBase%)
+	endif
+ENDP
+
+proc closetbl:
+	if (tbname$ <> "")
+		DbsViewClose(hView%)
+		DbsTableClose(hTable%)
+	endif
+ENDP
+
+proc proce:
+  	LOCAL v%(MAXFIELDS)
+	LOCAL v&(MAXFIELDS)
+	LOCAL v(MAXFIELDS)
+	LOCAL v$(MAXFIELDS,255)
+	local fno%,type%,name$(DBS_NAMESIZE),zero&,s&,s$(255)
+	
+	if (valid% <> 0)
+		giprint "No record to edit !"
+		beep 5,300
+		return
+	endif
+
+	zero&=0
+	
+	dinit "Edit record"
+	fno% = 0
+	while fno% < fcount%
+		type% = ftype%(fno%+1)
+		name$ = fname$(fno%+1)
+		if type% = DBS_TYPE_LOGICAL
+			DbsViewGetFieldLogical(hView%,fno%,v%(fno%+1))
+			dchoice v%(fno%+1),name$,"True,False"
+		elseif type% = DBS_TYPE_INT8
+			DbsViewGetFieldInt8(hView%,fno%,v%(fno%+1))
+			v&(fno%+1)=v%(fno%+1)
+			dlong v&(fno%+1),name$,-128,127
+		elseif type% = DBS_TYPE_UINT8
+			DbsViewGetFieldInt8(hView%,fno%,v%(fno%+1))
+			v&(fno%+1)=v%(fno%+1)
+			dlong v&(fno%+1),name$,0,255
+		elseif type% = DBS_TYPE_INT16
+			DbsViewGetFieldInt16(hView%,fno%,v%(fno%+1))
+			v&(fno%+1) = v%(fno%+1)
+			dlong v&(fno%+1),name$,-32768,32767
+		elseif type% = DBS_TYPE_UINT16
+			DbsViewGetFieldInt16(hView%,fno%,v%(fno%+1))
+			if v%(fno%+1) < 0
+				v&(fno%+1) = v%(fno%+1) + 65536
+			endif
+			dlong v&(fno%+1),name$,0,65535
+		elseif type% = DBS_TYPE_INT32 or type% = DBS_TYPE_UINT32
+			DbsViewGetFieldInt32(hView%,fno%,v&(fno%+1))
+			dlong v&(fno%+1),name$,-2147483648,2147483647
+		elseif type% = DBS_TYPE_DOUBLE
+			DbsViewGetFieldDouble(hView%,fno%,v(fno%+1))
+			dfloat v(fno%+1),name$,-1e99,1e99
+		elseif type% = DBS_TYPE_STRING
+			DbsViewGetFieldString(hView%,fno%,s$)
+			v$(fno%+1) = s$
+			dedit v$(fno%+1),name$
+		elseif type% = DBS_TYPE_DATE
+			DbsViewGetFieldDate(hView%,fno%,v&(fno%+1),s&)
+			ddate v&(fno%+1),name$,0,32000
+		endif
+		fno% = fno% + 1
+	endwh	
+	if (dialog <> 0)
+		DbsViewEditRecord(hView%)
+		fno% = 0
+		while fno% < fcount%
+			type% = ftype%(fno%+1)
+			if type% = DBS_TYPE_LOGICAL
+				if v%(fno%+1) = 2
+					v%(fno%+1) = 0
+				endif
+				DbsViewSetFieldLogical(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_INT8
+				v%(fno%+1) = v&(fno%+1)
+				DbsViewSetFieldInt8(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_UINT8
+				v%(fno%+1) = v&(fno%+1)
+				DbsViewSetFieldUInt8(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_INT16
+				v%(fno%+1) = v&(fno%+1)
+				DbsViewSetFieldInt16(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_UINT16
+				if v&(fno%+1) > 32767
+					v%(fno%+1) = v&(fno%+1) - 65536
+        else
+          v%(fno%+1) = v&(fno%+1)
+				endif
+				DbsViewSetFieldInt16(hView%,fno%,v%(fno%+1))
+			elseif type% = DBS_TYPE_INT32 or type% = DBS_TYPE_UINT32
+				DbsViewSetFieldInt32(hView%,fno%,v&(fno%+1))
+			elseif type% = DBS_TYPE_DOUBLE
+				DbsViewSetFieldDouble(hView%,fno%,v(fno%+1))
+			elseif type% = DBS_TYPE_STRING
+				DbsViewSetFieldString(hView%,fno%,v$(fno%+1))
+			elseif type% = DBS_TYPE_DATE
+				DbsViewSetFieldDate(hView%,fno%,v&(fno%+1),zero&)
+			endif
+			fno% = fno% + 1
+		endwh
+		DbsViewUpdateRecord(hView%)
+	endif
+	display:
+ENDP
+
+proc showrec:
+	local fno%,type%,h%
+	local v%,v&,v,v$(255),d&,s&
+	fno% = 0
+	gat 105,25
+	h% = gheight
+	glineto 105,h%  
+	while fno% < fcount%
+		gat 10,25+15*(fno%+1)
+		gprint fname$(fno%+1)
+		type% = ftype%(fno%+1)
+		gat 115,25+15*(fno%+1)
+		if type% = DBS_TYPE_LOGICAL
+			DbsViewGetFieldLogical(hView%,fno%,v%)
+			if v% = 0
+				gprint "False"
+			else
+				gprint "True"
+			endif
+		elseif type% = DBS_TYPE_INT16
+			DbsViewGetFieldInt16(hView%,fno%,v%)
+			gprint v%
+		elseif type% = DBS_TYPE_INT32
+			DbsViewGetFieldInt32(hView%,fno%,v&)
+			gprint v&
+		elseif type% = DBS_TYPE_DOUBLE
+			DbsViewGetFieldDouble(hView%,fno%,v)
+			gprint v
+		elseif type% = DBS_TYPE_STRING
+			DbsViewGetFieldString(hView%,fno%,v$)
+			gprint v$
+		elseif type% = DBS_TYPE_DATE
+			DbsViewGetFieldDate(hView%,fno%,d&,s&)
+			gprint "Days ";d&;" Secs ";s&
+		elseif type% = DBS_TYPE_INT8
+			DbsViewGetFieldInt8(hView%,fno%,v%)
+			gprint v%
+		elseif type% = DBS_TYPE_UINT8
+			DbsViewGetFieldUInt8(hView%,fno%,v%)
+			gprint v%
+		elseif type% = DBS_TYPE_UINT16
+			DbsViewGetFieldInt16(hView%,fno%,v%)
+			if v%<0
+				gprint (v%+65536)
+			else
+				gprint v%
+			endif
+		elseif type% = DBS_TYPE_UINT32
+			DbsViewGetFieldInt32(hView%,fno%,v&)
+			gprint v&;" (Unsigned)"
+		else
+			gprint "Unsupported type"
+		endif
+		fno% = fno% + 1
+	endwh
+ENDP
+
+proc getfind$:(prompt$)
+	local s$(255)
+	dinit prompt$
+	dedit s$,"Search"
+	dialog
+	return s$
+ENDP
+
+proc retfind:(ret%)
+	if ret% = E_DBS_NOMATCH /* no match */
+		giprint "No matching record"
+		beep 5,300
+	elseif ret% = E_DBS_SYNTAXERR
+		giprint "Syntax record"
+		beep 5,300
+		return
+	elseif ret% = E_DBS_BRACKET
+		giprint "Missing bracket"
+		beep 5,300
+		return
+	elseif ret% = E_DBS_MISMATCH
+		giprint "Type mismatch"
+		beep 5,300
+		return
+	elseif ret% = E_DBS_NOFIELD
+		giprint "Field expected"
+		beep 5,300
+		return
+	elseif ret% = E_DBS_NAME
+		giprint "No such field"
+		beep 5,300
+		return
+	elseif ret% = -4
+		giprint "Not supported"
+		beep 5,300
+		return
+	endif
+	valid% = ret%
+	display:
+ENDP
+
+proc procz:
+	DbsViewGetBookmark(hView%,bmark$)
+	giprint "Bookmark placed"
+ENDP
+
+
+PROC procm:
+	if DbsViewMoveBookmark(hView%,bmark$) <> 0
+		giprint "No bookmark"
+		beep 5,300
+		return
+	endif
+	display:
+ENDP
+
+proc procv:
+	dinit "Set view filter"
+	dedit filter$,"Filter"
+	dialog
+	DbsViewClose(hView%)
+	busy "Creating view",1
+	if (DbsDynaViewCreateOnTableText(hTable%,hView%,filter$,sort$,0) <> 0)
+		busy off
+		beep 5,300
+		giprint "Filter failed"
+		filter$ = ""
+		DbsDynaViewCreateOnTableText(hTable%,hView%,filter$,sort$,0)
+	endif
+	DbsViewMoveFirst(hView%)
+	busy off
+	movef:
+ENDP
+
+proc procs:
+	dinit "Sort records"
+	dedit sort$,"Sort"
+	dialog
+	DbsViewClose(hView%)
+	busy "Sorting records",1
+	if (DbsDynaViewCreateOnTableText(hTable%,hView%,filter$,sort$,0) <> 0)
+		busy off
+		beep 5,300
+		giprint "Sort failed"
+		sort$ = ""
+		DbsDynaViewCreateOnTableText(hTable%,hView%,filter$,sort$,0)
+	endif
+	DbsViewMoveFirst(hView%)
+	busy off
+	movef:
+ENDP
+

@@ -1,0 +1,180 @@
+REM Source file - EVENTS4.OPL
+
+REM Like events 3, but now background
+REM processing is performed in
+REM its own context. It starts after
+REM ten seconds, and will continue until
+REM it reaches 10000 iterations
+
+REM We also add basic serial port reads.
+
+REM Written by Jezar at Psion, for
+REM The 1994 Psion Developers Conference
+
+
+
+PROC Start:
+	Prelude:
+	EMmake:("EMinit")
+ENDP
+
+
+PROC Prelude:
+	TRAP CACHE $0800,$FFFF
+	CACHE OFF
+	LOADM "EVENTMAN"
+	PRINT "Timers, fired background calc with"
+	PRINT "information, keystrokes, and serial read."
+	PRINT "";
+ENDP
+
+
+PROC EMinit:
+	TIinit%:("TIbeep",20,1000)
+	TIinit%:("TIbeep",8,2000)
+	KYinit%:
+	TIinit%:("BGcalc",100,0)
+	SEinit%:
+ENDP
+
+
+PROC Check:(err%,accept%)
+	IF err%<0 AND err%<>accept%
+		RAISE err%
+	ENDIF
+ENDP
+
+
+PROC BGcalc%:(me%)
+	LOCAL calc%,info%,myloop%
+	
+	IOSIGNAL
+	TIkill:(me%)
+	calc%=EMadd%:("True",-127)
+	info%=TIinit%:("TIinfo",15,calc%)
+	
+	BEEP 15,200
+	WHILE myloop%<10000
+		myloop%=myloop%+1
+		IF (myloop% AND $0F)=0
+			EMuser2&(calc%)=myloop%
+			IOSIGNAL
+			EMwait:
+		ENDIF
+	ENDWH
+	BEEP 15,200
+	
+	TIkill:(info%)
+	EMrem:(calc%)
+ENDP
+
+
+PROC True%:(me%)
+	RETURN -1
+ENDP
+
+
+PROC SEinit%:
+	LOCAL me%,err%
+	
+	me%=EMadd%:("SErun",-100)
+	err%=IOOPEN(EMhand%(me%),"TTY:A",-1)
+	IF err%
+		EMrem:(me%)
+		gIPRINT "Serial unavailable: "+ERR$(err%)
+		RETURN
+	ENDIF
+	
+	EMuser2&(me%)=1
+	SEque:(me%)
+	RETURN me%
+ENDP
+
+
+PROC SEque:(me%)
+	IOC(EMhand%(me%),1,EMstat%(me%),EMuser1&(me%),EMuser2&(me%))
+ENDP
+
+
+PROC SErun%:(me%)
+	Check:(EMstat%(me%),0)
+	PRINT CHR$(EMuser1&(me%));
+	SEque:(me%)
+ENDP
+
+
+PROC KYinit%:
+	LOCAL me%
+	
+	CURSOR ON
+	me%=EMadd%:("KYrun",0)
+	KYque:(me%)
+	RETURN me%
+ENDP
+
+
+PROC KYque:(me%)
+	IOC(-2,14,EMstat%(me%),EMuser1&(me%))
+ENDP
+
+
+PROC KYrun%:(me%)
+	LOCAL k%
+	
+	Check:(EMstat%(me%),0)
+	k%=(EMuser1&(me%) AND $FF)
+	IF k%=13
+		PRINT
+		PRINT "";
+	ELSEIF k%>31 AND k%<127
+		PRINT CHR$(k%);
+	ENDIF
+	KYque:(me%)
+ENDP
+
+
+PROC TIinit%:(func$,delay%,data%)
+	LOCAL me%,err%
+	
+	me%=EMadd%:(func$,0)
+	Check:(IOOPEN(EMhand%(me%),"TIM:",-1),0)
+	EMuser1&(me%)=delay%
+	EMuser2&(me%)=data%
+	TIque:(me%)
+	RETURN me%
+ENDP
+
+
+PROC TIque:(me%)
+	IOC(EMhand%(me%),1,EMstat%(me%),EMuser1&(me%))
+ENDP
+
+
+PROC TIbeep%:(me%)
+	Check:(EMstat%(me%),0)
+	BEEP -2,512000/EMuser2&(me%)
+	TIque:(me%)
+ENDP
+
+
+PROC TIinfo%:(me%)
+	LOCAL data%,BGhand%
+	
+	Check:(EMstat%(me%),0)
+	BGhand%=EMuser2&(me%)
+	data%=EMuser2&(BGhand%)
+	gIPRINT "Background processed "+GEN$(data%,6)+" times"
+	TIque:(me%)
+ENDP
+
+
+PROC TIkill:(timer%)
+	IOCANCEL(EMhand%(timer%))
+	IOWAIT
+	IOCLOSE(EMhand%(timer%))
+	EMrem:(timer%)
+ENDP
+
+
+REM End of file.
+

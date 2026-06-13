@@ -1,0 +1,34 @@
+# Per-app launch catalogue for the Psion Series 3c (v5.20f ROM).
+#
+# Built-in apps reachable from the System screen via F1..F8. Each row
+# lists the EPOC F-key code, the human label, and the minimum non-paper
+# pixel count required to confirm the app's UI reached steady state.
+#
+# Test driver: scripts/test-series3c-apps.sh
+#
+# Methodology (per app):
+#   1. Cold boot the harness for 8s.
+#   2. Press Esc (key 4) to dismiss any cold-boot dialog.
+#   3. Wait 10s, then press the F-key with a 32-frame (~500 ms) hold —
+#      shorter holds intermittently miss the kernel keyboard scan window
+#      for some columns (COL0/COL1 keys: F1, F2, F4, F5, F7, F8).
+#   4. Run for ~30 more sim seconds so the app's splash dismisses and
+#      the steady-state UI renders.
+#   5. Sample the framebuffer; the app passes when its non-paper pixel
+#      count is at least the per-app threshold (sanity-check that the
+#      app's distinct UI is on screen rather than a blank screen or the
+#      stock System launcher).
+#
+# Thresholds were measured from a verified-good run on 2026-04-26 at
+# series3c v5.20f and chosen as ~25% below the observed value, leaving
+# headroom for cursor-blink frames.
+#
+# Format: f-key | EpocKey | label                | min-non-paper
+F1 |  96 | System              |  9000
+F2 |  97 | Data                |  5000
+F3 |  98 | Word                |  2000
+F4 |  99 | Agenda              |  6000
+F5 | 100 | Time                | 14000
+F6 | 101 | World               | 18000
+F7 | 102 | Calc                | 24000
+F8 | 103 | Sheet               |  9000

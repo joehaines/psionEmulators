@@ -1,0 +1,120 @@
+! This is an example holiday file for HOL. 
+! All text between an exclamation mark and the end of line is a comment.
+REM "REM" can be used instead of "!"
+
+! Put an entry called "Christmas Day" on December 25th
+"Christmas Day" = fix(12, 25);       ! fix(month, day-in-month)
+
+! Set the default style to italic. 
+style = italic; ! Other styles are "bold", "underline", "normal"
+
+! Set a default year symbol for the year view
+year_symbol = "H";                   ! One character within quotes
+"New Year's Day" = fix(1, 1);        ! January 1st 
+
+
+! You can use different values for style and/or year_symbol for one holiday.
+! Put the directives within curly brackets:
+{
+   YEAR_SYMBOL = "A";               ! Only for this holiday
+   "St. Valentines Day" = FIX(2,2); ! Only one holiday within brackets
+   STYLE = ITALIC,BOLD,UNDERLINE;   ! Only for this holiday
+}
+! The following will be bold with year_symbol "H" as before.
+
+! EASTER is a special keyword for Easter Sunday
+! Save the date as alias E for convenience (and speed).
+{alias = E;                         ! Always within brackets
+"Easter" = easter;}
+"Good Friday" = e - 2 ;             ! Two days before easter Sunday
+"Easter Monday"=e+1;                ! One day after easter Sunday
+
+! Hebrew fixed date. '%HY' will be replaced by the Hebrew year
+"Rosh HaShanah %hy" = hfix(7,1);    ! hfix(hebrew-month, day-in-month)
+
+! Islamic fixed date. '%IY' will be replaced by the Islamic year.
+"Islamic New Year %iy" = ifix(1, 1);
+
+
+! The defaults can be changed
+year_symbol = "a";
+style = normal;
+
+! Midsummer day is on the 1st Saturday in June after the 20th
+"Midsommardagen" = float(6,         ! June
+                         6,         ! Saturday (Sunday = 0)
+                         1,         ! 1st (negative would be last in month)
+                         20);       ! after the 20th (optional)
+
+"Mother's Day" = float(5, 0 , 2);   ! Second Sunday in May
+
+year_symbol = "";                   ! No year symbol
+
+! We can use if/elseif/else to do different calculations 
+! depending on whether the calculated date is on a certain
+! weekday
+
+! The time report is due on the last working day of February
+"Tidrapporten!" = last(2)           ! Last day of February
+                  if (weekday(6) or ! Is that a Saturday or 
+                      weekday(0))   ! Sunday?
+                  {
+                    float(2, 5, -1) ! Yes, get the last Friday instead
+                  };
+
+! We can add several 'elseif' and at most one 'else' after the 'if'
+"Yom HaAtzma'ut" = hfix(1,15)
+                   if (weekday(0)) {! Is 1/15 a Sunday?
+                      +18           ! Yes, add 18 days to 1/15
+                   } elseif (weekday(6)) { ! Is 1/15 a Saturday?
+                      + 19          ! Yes, add 19 days to 1/15
+                   } else {         ! For all other weekdays
+                      +20           ! Add 20 days to 1/15
+                   };
+
+! Some holidays don't occur at all some years
+! There's always a bank holiday for New Years Day, so if
+! Jan 1st is in the weekend they add a holiday on Monday
+! (excellent rule :-))
+"New Year's Day Holiday" = 
+    fix(1,1)                        ! January 1
+    if (weekday(0) or weekday(6)) { ! Sunday or Saturday
+      float(1, 1, 1)	            ! First Monday in January
+    } else {
+      ignore        ! Same as New Year's Day - don't write it
+    };
+
+! 'doneif' was my first attempt to include a condition check.
+! It's easier to use the newer if/elseif/else constructs, 
+! but I'll include an example here anyway.
+"Aniversario San Mart¡n" = 
+                 fix(8, 17)         ! Usually on August 17
+                 doneif(weekday(6)  ! Check that it's a Saturday
+                     or weekday(0)  ! or Sunday
+                     or weekday(1)) ! or Monday and skip the rest if
+                                    ! that is true
+                 float(8, 1, 1, 15);! Otherwise get the Monday closest
+                                    ! to Aug 17 (first after the 15th)
+
+! Holidays are written as untimed entries by default, but that can be
+! controlled with the entry_type directive.
+
+! Some people prefer to have holidays marked with the anniversary symbol
+ENTRY_TYPE = ANNIVERSARY;
+"An anniversary" = fix(9, 7);
+
+! Entry types can be changed for one holiday if put within brackets.
+{
+   ENTRY_TYPE = UNTIMED;
+   "An untimed entry" = fix(6, 1);
+}
+
+! This date will not be written to the agenda. It is used as the base
+! for calculating several holidays, and we save time by calculating it
+! only once.
+{ 
+  alias = t; 
+  entry_type = ignore;  ! Don't write to agenda - only a help variable
+  "[Tish'a B'Av help date]" = hfix(5,9);
+}
+

@@ -1,0 +1,30 @@
+#ifndef OS_BUF_OPH
+#define OS_BUF_OPH
+
+#include <os\call>
+
+#define BufferCompare		$A3
+#define BufferCompareFolded	$A4
+#define BufferCopy		$A1
+#define BufferJustify		$AB
+#define BufferLocate		$A7
+#define BufferLocateFolded	$A8
+#define BufferMatch		$A5
+#define BufferMatchFolded	$A6
+#define BufferSubBuffer		$A9
+#define BufferSubBufferFolded	$AA
+#define BufferSwap		$A2
+
+#define BCOPY(from,to,len)		CX=len :SI=from :DI=to :OSFN(BufferCopy)
+#define BSWAP(b1,b2,len)		CX=len :SI=b1 :DI=b2 :OSFN(BufferCopy)
+#define BCMP(b1,len1,b2,len2)		BX=len1 :CX=len2 :SI=b1 :DI=b2 :OSFN(BufferCompare)
+#define BCMPF(b1,len1,b2,len2)		BX=len1 :CX=len2 :SI=b1 :DI=b2 :OSFN(BufferCompareFolded)
+#define BMATCH(buf,blen,pat,plen)	CX=blen :DX=plen :SI=buf :DI=pat :OSFN(BufferMatch)
+#define BMATCHF(buf,blen,pat,plen)	CX=blen :DX=plen :SI=buf :DI=pat :OSFN(BufferMatchFolded)
+#define BLOC(buf,len,char)		AX=$100*char :CX=len :SI=buf :OSFN(BufferLocate)
+#define BLOCF(buf,len,char)		AX=$100*char :CX=len :SI=buf :OSFN(BufferLocateFolded)
+#define BSUBB(b1,b1len,b2,b2len)	BX=b2len :CX=b1len :SI=b1 :DI=b2 :OSFN(BufferSubBuffer)
+#define BSUBBF(b1,b1len,b2,b2len)	BX=b2len :CX=b1len :SI=b1 :DI=b2 :OSFN(BufferSubBufferFolded)
+#define BJUST(b1,b1len,b2,b2len,char)	BX=b2len :CX=b1len :DX=char :SI=b1 :DI=b2 :OSFN(BufferJustify)
+
+#endif

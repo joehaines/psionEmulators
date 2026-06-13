@@ -1,0 +1,42 @@
+PROC lpOpen:
+    LOCAL dylName$(20)
+    LOCAL i%
+    LOCAL ret%
+    dylName$="LOC::M:\DYL\LPC.DYL"
+    i%=%A
+    WHILE 1
+        IF EXIST(dylName$) :break :ENDIF
+        IF i%=%C :RAISE -33 :ENDIF
+        pokeb ADDR(dylName$)+6,i%
+        i%=i%+1
+    ENDWH
+    ret%=LOADLIB(lpcHand%,dylName$,1)
+    IF ret% : panic:(ret%) :ENDIF
+    lpoHand%=NEWOBJH(lpcHand%,0)
+    IF lpoHand%=0 :panic:(-10) :ENDIF
+    ret%=ENTERSEND(lpoHand%,1,#0)
+    IF ret% :panic:(ret%) :ENDIF
+    RETURN lpoHand%
+ENDP
+
+PROC panic:(ret%)
+    lpClose:
+    RAISE ret%
+ENDP
+
+PROC lpClose:
+    if lpoHand% :SEND(lpoHand%,0) :lpoHand%=0 :endif
+    if lpcHand% :UNLOADLIB(lpcHand%) :lpcHand%=0 :endif
+ENDP
+
+PROC lpWrite:(letter%,content$)
+    LOCAL tmp$(255)
+    LOCAL ad%
+    tmp$=content$+chr$(0)
+    ad%=ADDR(tmp$)+1
+    return SEND(lpoHand%,2,#letter%,#ad%)
+ENDP
+
+PROC lpSend:(method%,p1%,p2%,p3%)
+    return(ENTERSEND(lpoHand%,method%,#p1%,#p2%,#p3%))
+ENDP

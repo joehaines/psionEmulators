@@ -1,0 +1,116 @@
+Rem Linear regression functions coded in OPL for use from Psion
+Rem Series3 calculator application.
+Rem Copyright 1998 Daniel James.
+Rem This code is made freely available for non-commercial use.
+Rem Calculator memories M2..M9 are used.
+Rem M9 = sum(x*y)
+Rem M8 = sum(y^2)
+Rem M7 = sum(x^2)
+Rem M6 = sum(y)
+Rem M5 = sum(x)
+Rem M4 = N (the number of points)
+Rem M3 = the slope of the line
+Rem M2 = the intercept of the line (the y coordinate of the point
+Rem where the line crosses the x axis).
+
+Rem PROC calclr: is the top-level function. This is not called from
+Rem the calculator but if CALCLR.OPO is accidentally run as an application
+REM this proc will display a message.
+
+PROC calclr:
+	print "Regression calculations for Psion S3"
+	print "Run these functions from the calculator!"
+	print "N.B. Calculator memories 2-9 are used"
+	print "Copyright ";chr$(&B8);" 1998, Daniel James."
+	get
+ENDP
+
+Rem PROC pt:(x,y) is called from the calculator to add a new data 
+Rem point (x,y). The poc updates the running totals in memories M4..M9
+
+PROC pt:(x,y)
+	m9 = m9+x*y
+	m8 = m8+y*y
+	m7 = m7+x*x
+	m6 = m6+y
+	m5 = m5+x
+	m4 = m4+1
+	return m4
+ENDP
+
+Rem PROC delpt:(x,y) is called from the calculator to remove an incorrectly
+Rem entered data point (x,y).
+
+PROC delpt:(x,y)
+	m9 = m9-x*y
+	m8 = m8-y*y
+	m7 = m7-x*x
+	m6 = m6-y
+	m5 = m5-x
+	m4 = m4-1
+	return m4
+ENDP
+
+Rem PROC mx: returns the mean of the x coordinate values.
+
+PROC mx:
+	return m5/m4
+ENDP
+
+Rem PROC my: returns the mean of the y coordinate values.
+
+PROC my:
+	return m6/m4
+ENDP
+
+Rem PROC Clear: clears the calculator memories M2..M9, deleting all
+Rem data points.
+
+PROC Clear:
+	M9 = 0
+	M8 = 0
+	M7 = 0
+	M6 = 0
+	M5 = 0
+	M4 = 0
+	M3 = 0
+	M2 = 0
+ENDP
+
+Rem PROC LineFit: computes the slope and intercept of the straight line
+Rem representing the best fit to the coordinate set represented by the
+Rem values in M4..M9. The return value is the correlation coefficient R.
+
+PROC LineFit:
+	M3 = (m9-m5*m6/m4)/(m7-m5*m5/m4)
+	M2 = (m6-m3*m5)/m4
+	return m3*sdevx:/sdevy:
+ENDP
+
+Rem PROC FitX:(y) returns the x coordinate of the point on the line at the
+Rem specified y coordinate.
+
+PROC FitX:(y)
+	return (y-m2)/m3
+ENDP
+
+Rem PROC FitY:(x) returns the y coordinate of the point on the line at the
+Rem specified x coordinate.
+
+PROC FitY:(x)
+	return m3*x+m2
+ENDP
+
+Rem PROC sdevx: returns the standard deviation of the x coordinate values
+Rem The 'sample' standard deviation calculation (N-1 weight) is used
+
+PROC sdevx:
+	return sqr( (m7-m5*m5/m4)/(m4-1) )
+ENDP
+
+Rem PROC sdevy: returns the standard deviation of the y coordinate values
+
+PROC sdevy:
+	return sqr( (m8-m6*m6/m4)/(m4-1) )
+ENDP
+

@@ -1,0 +1,285 @@
+DATAMAP
+=======
+for: PSION System 3a/c/(Siena?)
+
+Author: (C) Peter von Walter; 28.5.99
+email: vwalter@physi.uni-heidelberg.de
+www: http://pi.physi.uni-heidelberg.de/~vwalter/my/homepage.html
+
+
+What is "DATAMAP"
+-----------------
+DATAMAP is a very flexible object oriented drawing program for any kind of maps which integrates
+records from standard database files (DATA). It draws graphical objects (pictures, lines, rectangles,
+circles and text) and displays data objects (records) according to a discretionary coordinate system
+on a choosen map area. These maps can be very large (larger than the screen) and will be redrawn or
+panned accordingly.
+
+Actually the program was born by experiencing the limitations of the built in WORLD application:
+- You can not change databases (different files use the same builtin data)
+- The possibilities of editing or adding cities and countries are very limited.
+- Lat/Lon informations are not really used for locations on the map (!?).
+- You can not change or add other fields of informations (e.g. currency information). 
+- You can not change maps!
+- Is is not possible to add graphical informations.
+
+All this overcomes DATAMAP:
+Maps can be changed or be based on the same underlying pictures but be overlayed with different
+graphic objects. Databases can be changed. As these are string oriented data records you can create
+and edit them any time also using your DATA application.
+
+
+Applications
+------------
+DATAMAP can be used for any kind of pictures or drawings which are related to data items:
+
+- Geographic Atlas with many different maps (World, Continents, Country, Area, Town, Streets, ...)
+and data bases  (Cities, Countries, Events, Islands, Streets, ...).
+- Technical drawings of devices, maschines, ..  containing part items.
+- Architectural maps showing building details.
+- Manage the inventory of a warehouse or depot.
+- Locate your favourite collections (books on the shelf, ..) in a graphical form.
+- Organize and manage your wine cellar.
+- ...
+
+
+Files
+-----
+You should have the following (after unzipping):
+
+DATAMAP.TXT     {you are reading it}
+DATAMAP.TUT     {a short tutorial}
+
+In the folder \APP\:
+DATAMAP.OPA     {program}
+SYS$VW00.OPO    {program library}
+DATAMAP.RSC     {online help file, optional}
+
+In the folder \DATAMAP\:
+WORLD.MAP       {example map file, optional}
+CONTI.MAP       {example map file, optional}
+EUROPE.MAP      {example map file, optional}
+GERMANY.MAP      {example map file, optional}
+
+EUROPE.PIC      {picture file for EUROPE.MAP, optional}
+GERMANY.PIC      {picture file for GERMANY.MAP, optional}
+
+AIRPORTS.DBF    {example database file for AIRPORTS, optional}
+
+
+Installation
+------------
+Copy the complete folder \APP\ to any drive!
+Copy the complete folder \DATAMAP\ to any drive!
+Install (from system) the application DATAMAP.OPA.
+
+After installation the program symbol (World with Folder) appears with the example files
+WORLD,EUROPE,GERMAN,CONTI underneath it. Start one!
+
+
+How to use the program
+----------------------
+The best way to learn the program is to use it!
+
+For example: Start EUROPE and open (DATA-OPEN) the database AIRPORTS.
+Add, edit & delete new records!
+Play around with the very powerful functions FIND & SELECT.
+Add, edit & delete new graphic objects.
+
+Install the online help file (DATAMAP.RSC) and use the Help button in each dialog (or in the main
+screen) to find out what they mean. Always use ESC to leave a dialog.
+If you are familiar with all the functions you can throw away the help file to save some kilobytes of
+your precious memory!
+
+Use the step by step tutorial in DATAMAP.TUT!
+
+
+Memory Considerations
+---------------------
+Pictures used on maps can consume a lot of memory - for storing in files but also when they have to
+be drawn in the program. A full screen picture (480*160 pixels) on one plane (black or grey) needs
+nearly 10KB of memory.
+
+A very important preference lets you choose the maximum amount of memory you want to spend for
+loading a map ('MAP/SETUP/Window Width; Height'). This so called window can be larger than the screen
+and holds part or the whole map in program memory. BUT: A window will never be bigger than a map!
+
+If you want to see something on the map which is outside the current screen, but still inside the
+window the program simply shifts the window and the already loaded map to the new location. But if
+the map is larger than the window the remaining part of the map has to be reloaded - this takes a
+little more time. A large window saves this time but needs more memory. If you are low on memory you
+have to compromise or stay with the standard screen size (480;160) for minimum memory.
+
+Maps can be really big, max 30000*30000 pixels. If you want to fill it with a single picture it would
+need in grey and black over 200MB of data!! But if you forgo pictures you can always draw other
+graphic objects (lines, rectangles, circles, text) which consume very little memory, typically around
+20 Bytes/per object!
+
+
+MAP files (*.MAP)
+=================
+This file contains all setups and the necessary information to draw a map graphically. Different
+records (Types) describe the size of the map and the different elements on the map.
+
+NOTE: Not the label of the fields but simply the order and the type of the record (field 1)
+determines the meaning of the fields. You can always open the current map file with the MAP-DATA
+command and explore the meaning of the fields. All fields are strings.
+
+Types of records:
+
+Map:
+----
+Field1: 0
+Field2: Default Data file name
+Field3: Coordination Output Format (0=generic; 1=Geo ; 2=Degree_Geo; 3=Degree&Minutes_Geo)
+Field4: Max. size of display window (Width; Height)
+Field5: Map size in pixels (Width;Height)
+Field6: Left;Top border of map in user coordinates
+Field7: Right;Bottom border of map in user coordinates
+Field8: Cursor shape and offset of data window to cursor
+   (Neg. values = crosshair cursor; positiv values = blinking cursor)
+Field9: Grid width for cursor movement (normally 10)
+
+Picture:
+--------
+Field1: 1
+Field2: Picture file name
+Field3: ID number of picture (position in file)
+Field4: x Position
+Field5: y Position
+Field6: Width in pixels
+Field7: Height in pixels
+Field8: Plane (0=Black; 1=Grey ; 2=Both)
+Field9: Mode (0=Set; 1=Clear ; 2=Inverse)
+
+Line:
+-----
+Field1: 2
+Field2: <empty>
+Field3: Style (0=Thin; 1=Thick)
+Field4: x Position
+Field5: y Position
+Field6: dx in pixels
+Field7: dy in pixels
+Field8: Plane (0=Black; 1=Grey ; 2=Both)
+Field9: Mode (0=Set; 1=Clear ; 2=Inverse)
+
+Rectangle:
+----------
+Field1: 3
+Field2: <empty>
+Field3: Style (0=Outline; 1=Filled)
+Field4: x Position
+Field5: y Position
+Field6: width in pixels
+Field7: height in pixels
+Field8: Plane (0=Black; 1=Grey ; 2=Both)
+Field9: Mode (0=Set; 1=Clear ; 2=Inverse)
+
+Circle:
+-------
+Field1: 4
+Field2: <empty>
+Field3: Radius in pixels
+Field4: x Position
+Field5: y Position
+Field6: Nr of segments
+Field7: <empty>
+Field8: Plane (0=Black; 1=Grey ; 2=Both)
+Field9: Mode (0=Set; 1=Clear ; 2=Inverse)
+
+Text:
+-----
+Field1: 5
+Field2: Text
+Field3: Style
+Field4: x Position
+Field5: y Position
+Field6: <empty>
+Field7: Font
+Field8: Plane (0=Black; 1=Grey ; 2=Both)
+Field9: Mode (0=Set; 1=Clear ; 2=Inverse)
+
+
+DATA files (*.DBF)
+==================
+These files are ordinary DATA files and can be created and edited also with the standard DATA
+application. NOTE: DATAMAP can only handle (display) maximum 8 fields with maximum 255 characters per
+field!
+
+Two fields have special meanings:
+- The Label Field is for referencing the record (e.g. selecting it). It should be unique but not has
+to be necessarily. Normally the first field in the record will be used for that. But you can choose
+any field either by labeling the field containing the special character '!' (recommended) or by
+choosing the field explicetely from the setup dialog (however this information may be incorrect if
+switching to another data file!).
+
+- The Coordinate Field is for positioning the record on the map. Normally the second field in the
+record will be used for that. But you can choose any field either by labeling the field containing
+the special character ';' (recommended) or by choosing the field explicetely from the setup dialog
+(however this information may be incorrect if switching to another data file!). The following formats
+will be recognized if reading coordinate informations:
+
+Generic: any two numbers x and y, positive or negative,separated by a semicolon, e.g. "3.3443;
+-80.25"
+
+Generic_Geo: any two numbers with a following letter "N","E" or "O" for positive or "S","W" for
+negative values, e.g. "3.3443N; 80.25S"
+
+Degree_Geo: any two numbers in degree with a following letter "N","E" or "O" for positive or "S","W"
+for negative values, e.g. "3.3443¡N; 80.25¡S"
+
+Degree&Minutes_Geo: any two numbers in degree and Minutes with a following letter "N","E" or "O" for
+positive or "S","W" for negative values, e.g. "3¡20.3N; 200¡15S"
+
+
+Registration
+-------------
+This program is SHAREWARE!
+
+You have the possibility to test it for a certain time (14 days) with the following limits in a demo
+mode:
+Max. 5 drawing objects per map.
+No saving of preferences.
+
+If you consider the program useless, simply delete it. If you want to continue to use the program, I
+ask you for a little contribution (see program "About"!). I will send you a personal key (preferable
+via email) which allows you to work with the program unlimited.
+
+Please do the following:
+-call "About" in the menu of the program
+-open the registration dialog with "ENTER" (if in Demo-Mode) for all needed informations.
+-send me the amount shown there (in DM or equivalent), directly as a bill throuh post mail (is
+propably the cheapest and save enough!) or send it to my account.
+-IMPORTANT: Send me also your name, under which you would like to register the program and the
+"SerialNr" (number), which is given in the dialog.
+-Enter in "Owner" your name (see above) and in "Key" your personal key (delivered by me) and your
+program should immediately turn into a full working version.
+
+The program can (should) be given away only as demo version (without key).
+
+
+Disclaimer
+----------
+THE AUTHOR SHALL NOT BE HELD LIABLE IN ANY WAY FOR ANY DAMAGE THAT MAY OCCUR TO YOU OR YOUR SYSTEM AS
+A RESULT OF USING THIS PROGRAM OR OTHERWISE!
+
+Each program can have errors (sorry)! Of course I will try to get rid of these in future versions.
+Also I will try to improve and extend the functionality of the programs, as far as I can.
+Registration is of course also valid for these future versions.
+
+Please feel free to contact me if you found an obvious error (Sometimes its really a bug not a
+feature!) and to send me all your proposals for improvement.
+
+Thank you for giving it a try!
+
+
+Version
+-------
+1.0:
+First public version.
+
+2.0:
+Complete rearrangement of file structure.
+Enhanced FIND function!
+

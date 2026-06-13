@@ -1,0 +1,45 @@
+==========
+psion/opl #1928, from jezar, 1200 chars, May 4 13:18 95
+----------
+Changing the text of a DTEXT
+
+Some people have been asking how to change the text of a DTEXT 
+dynamically when running under my APPMAN.OPL
+
+Well, you can use the following routine to do this. Note that, ideally, 
+you might also like to do a gINFO "Press Tab to change this item" if 
+someone presses anything other than Tab, or another key the dialog cannot 
+handle while the cursor is on the relevant DTEXT item.
+
+Here is the procedure:
+
+PROC dTXTSET%:(itm%,text$) REM Set the text
+        
+        LOCAL ret%
+        
+        REM This LOCAL data is ALL used!
+        REM SE_TEXTWIN struct:
+        LOCAL flags%,stat%,text%,len%
+        
+        LOCAL txt$(255)
+        
+        REM Check that the dialog box exists
+        IF PEEKW($36)=0
+                RAISE -85
+        ENDIF
+        
+        txt$=text$
+        text%=ADDR(txt$)+1
+        len%=LEN(txt$)
+        flags%=8      REM (SE_TEXTWIN_TEXT)
+        CALL($0dd6,0,0,0)  REM Enable ws leaves
+        REM Tell the dialog box to set item
+        ret%=ENTERSEND0(PEEKW($36),10,#itm%,flags%)
+        CALL($0dd6,0,0,1)  REM Disable ws leaves
+        IF ret%
+                RAISE ret%
+        ENDIF
+ENDP
+
+
+

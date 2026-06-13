@@ -1,0 +1,118 @@
+Receiving the time
+
+
+
+"GPS-Time" basics
+
+This program will receive time information from orbiting GPS
+satellites via GPS navigation equipment, and set the Psion clock and
+or record the error.
+
+The GPS set has to output data which includes "$GPGSV" sentences. 
+These are likely to be included by any NMEA-capable GPS.
+
+Time Zone
+
+The time zone set in the Psion (not in the GPS) is not displayed
+directly but will effect the calculation of local time.  The time
+given by GPS is in GMT or UTC.  Both the UTC and the
+local
+ised versions of the time are displayed.
+
+The time zone is not merely the geographic one but includes Daylight
+Saving if this is set by the "Clock" built-in Psion application.
+
+Error handling
+
+The program endeavours to cope with problems with data from the GPS
+set.  If the 3-Link is absent this is discovered immediately.  If the
+GPS is not sending data then the program will time it out.
+
+The data from GPS must contain "$GPRMC" for time signals to be
+decoded.  This sentence must appear within the first 20 lines
+or the program will give up.
+
+The date and time are given in a simple fixed format and are parsed
+by counting commas.  If digits of the date or time are not in place
+then the erroneous input is displayed with the faulty characters
+indicated.  If the date or time are faulty then just the input is
+shown.
+
+If problems are found, try the Psion Comms application using: Port
+"TTY:A"; Setup (Baud=4800; Data=8; Stop=1; Parity=None;
+Handshake=XonXoff; Newline="<$0D>")
+
+Adjustment
+
+The clock adjustment is made by the
+num
+ber of seconds shown in the dialogue.  The time is NOT set to the
+localised GPS time, so any delay in answering the dialogue does not
+matter.  There is no way of altering the adjustment that will be
+made.
+
+The log file
+
+The name of the log file is chosen using a special dialogue.  If the
+file already exists then its contents may be replaced by the new
+single entry or the new entry added to the end.
+
+The file selection dialogue is repeated until the answers are
+consistent with the state of the file discovered.
+
+If the write fails, perhaps because the file is currently open, the
+dialogue is repeated ready for another attempt.
+
+If the dialogue is abandoned then clock adjustment, if it was
+requested, will already have taken place.
+
+Logging
+
+The logging of the current (UTC) time, the error in seconds and
+whether the correction was applied does not currently have a defined
+purpose.  It is intended in the future to support periodic adjustment
+to correct the average daily error.
+
+The current time is recorded in days and
+deci
+mal days since 1/1/1970.  Any calculation should be independent of
+changes in time zone.
+
+The indicator of whether a change was made is 1 for change and 0 for
+none, so it can be used as a multiplier of the error to get the
+alteration..
+
+Further reading
+
+A number of places around the world offer a dial-up time service to
+anyone with a computer, modem and corresponding software.  The
+service from NIST is really intended for use via PCs so PC software
+is available from them.  Mike Coon has written a freeware
+equi
+valent for the Psion 3A.
+
+The PC software can be obtained for free ftp download from:
+time_a.timefreq.bldrdoc.gov or for $42 on diskette by post from:
+Office of Standard Reference Materials, NIST, Gaithersburg, MD,
+20899, (301) 975-6776
+
+Other software for connecting GPS sets to Psion is available.  Look
+for PsiGar (only for Garmin GPS) from Jonathan Duff or for TDCGPS
+from Simon Taylor.
+
+Additional technical information
+
+More information about GPS data and NMEA in general 
+
+Software and additional detail can
+be
+ obtained from WWW.
+
+About program and author
+
+"GPS-time" Version 1.0, written by Mike Coon of UK.
+
+Contact 106710.2362@compuserve.com
+
+Usual restrictions placed on freeware apply.
+

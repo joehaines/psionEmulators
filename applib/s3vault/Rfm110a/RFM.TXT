@@ -1,0 +1,301 @@
+    			RFM command summary
+    			===================
+
+RFM INSTALL [PORT=] [BAUD=] [USE J: A:]*4
+
+    Installs the TSR. If PORT= or BAUD= is supplied then they must
+    occur before any USE commands. Up to 4 drive pairs can be
+    specified after the USE commands. The first drive letter
+    specifies an MSDOS drive and the second drive letter specifies
+    a drive letter on the remote machine.
+
+    PORT= may be specified as:
+
+    	  COM1,COM2,COM3 or COM4. Alternatively as:
+    	  1,2,3 or 4. Alternatively as TTY:nXyyy where:
+    	  n=Interrupt number in HEX (i.e. 3,4,A,B etc.)
+    	  yyy=I/O base address in HEX (i.e. 3F8)
+
+    	  Default=COM1
+
+    BAUD= maybe specifies as:
+
+    	  300,600,1200,2400,4800,9600,19200.
+
+    	  Default=19200 (For Series3 Classic or HC this should be 9600).
+
+    Not available under windows.
+
+    EXAMPLES
+
+    	RFM INSTALL USE I: M: L: A: R: B:
+
+    	This installs the RFM TSR using COM1 at 19200 baud and maps
+    	MSDOS drive I: to the remote drive M: (internal), L: to A: and
+    	R: to B:. (I,L and R are nmemonics for INTERNAL,LEFT and RIGHT).
+
+    	RFM INSTALL PORT=2 USE I: M: L: A: R: B:
+
+    	As above but uses port COM2.
+
+    	RFM INSTALL PORT=COM2 BAUD=9600 USE I: M: L: A: R: B:
+
+    	As above but uses a baud rate of 9600.
+
+    	RFM I P=2 B=9600 U I: M: L: A: R: B:
+
+    	As above but uses abbreviations for all the keywords.
+
+    	RFM I P=TTY:3x2F8 B=9600 U I: M: L: A: R: B:
+
+    	As above but specifies IRQ 3 and I/O address 2F8 which is the
+    	same as COM2.
+
+RFM SHELL [PORT=] [BAUD=] [USE J: A:]*4 [EXEC=command]
+
+    Starts RFM and then executes the DOS command shell, optionally
+    passing it a command line. If a command line is specified then it
+    will be executed and RFM will exit. The command can be a .BAT file.
+
+    The PORT,BAUD and USE commands are as described for INSTALL.
+
+    If RFM is started without a command then it can be exited by typing
+    EXIT at the command line. Note that in this mode RFM REMOVE does
+    not have any effect.
+
+    Not available under windows.
+
+RFM REMOVE
+
+    Removes the TSR after freeing all the USE drives. This command
+    reports an error if RFM was started with the SHELL command.
+
+    Not available under windows.
+
+RFM PAUSE
+
+    Temporarily stops opeartion allowing the PORT to be used for
+    other purposes.
+
+    Not available under windows.
+
+RFM CONTINUE
+
+    Resumes operation.
+
+    Not available under windows.
+
+RFM USE [J: A:]*4
+
+    Assigns a DOS drive to the remote drive. Up to 4 pairs of drive
+    assignments can be specified.
+
+    Not available under windows.
+
+RFM FREE [A:]*4
+
+    De-assigns the DOS drive. Up to 4 drives can be specified for
+    freeing.
+
+    Not available under windows.
+
+RFM FORMAT J:[\labelname]
+RFM NFORMAT J:[\labelname]
+
+    Formats the remote assigned to MSDOS drive J: optionally specifying
+    the label as labelname. The program will request a Y/N answer before
+    proceeding to format the device. Any files open on the remote drive
+    will cause this command to return a LOCKED error. It may prove
+    useful to use RFM STOP drive: to make sure that no files remain open
+    on the remote drive.
+
+    NFORMAT behaves in a similar fashion to FORMAT with the exeception
+    that no Y/N answer is requested. This is dangerous, so use it with
+    caution.
+
+RFM STOP J:
+
+    This command will stop any programs which have files open on the
+    remote drive assign to the MSDOS drive.
+
+    This command is especially useful when backing up the whole of a
+    remote drive. By stopping all running programs on the remote drive
+    all files can be copied without ACCESS errors stopping the copy.
+
+RFM [DISPLAY]
+
+    Shows the current status of RFM.
+
+RFM QUERY
+
+    Sets the ERRORLEVEL variable in batch files to:
+
+    0 - If RFM is running and connected.
+    1 - If RFM is not running.
+    2 - If RFM is running and not connected.
+
+RFM EXEC programName [MODE=mode] [ALIAS=alias] [DIR=dir]
+    		     [EXT=ext] [TEMPLATE=template]
+    	 [command/filename]
+
+
+N.B. This function isn't fully implemented yet in V1.10
+=======================================================
+
+    This will cause the program programName to be started on
+    the remote computer and optionally pass it a command. For Series3
+    computers the filename to be opened is all that is normally needed
+    as RFM will work out the necessary details. If no drive letter is
+    specified then the internal drive will always be used.
+
+    RFM EXEC SHEET BUDGET (Opens the file \SPR\BUDGET.SPR on internal)
+    RFM EXEC SHEET A:BUDGET (Opens the file \SPR\BUDGET.SPR on drive A:)
+    RFM EXEC SHEET A:BUDGET (Opens the file \SPR\BUDGET.SPR on drive A:)
+    RFM EXEC \TEST *.* (Run file TEST in the root directory passing it
+    			a command line of *.*)
+
+    If program name is specified without an extension, i.e. RFM E AGENDA
+    then a search will be made for the program on all drives of the local
+    filing system and then the ROM filing system looking for files with
+    the extensions in the following order:
+
+    1) .ALS in directory \APP\ (.ALS is an ALIAS file)
+    2) .OPO in directory \OPO\ (.OPO is an OPL program)
+    3) .OPA in directory \OPA\ (.OPA is an OPL application)
+    4) .APP in directory \APP\ (.APP is an application)
+    5) .IMG in directory \IMG\ (.IMG is a command line program)
+
+    If an extension is specified then the search will be restricted to
+    files with that extension only on all drives and the ROM.
+
+    If a path is specified then the serach will be in the specified path
+    only on all drives. As the ROM filing system does not support paths
+    it will not be searched in this case.
+
+    If a drive is specified the search will be restricted to that drive
+    only.
+
+    Series3 programs can also be passed their specialised command lines
+    using the MODE, ALIAS, DIR, EXT and TEMPLATE keywords. A command line
+    of this kind is signalled by the presence of any of the keywords. If
+    the target machine is not a Series3 then these extra parameters are
+    ignored and just the command is passed to the program.
+
+    MODE=
+
+    	 O - Opens a file which must already exist (default)
+    	 C - Creates a new file which must not exist
+
+    ALIAS=
+
+    	Some programs such WORD.APP can be aliased to behave in
+        different ways. WORD.APP if passed ALIAS=OPLXR will behave
+    	as PROGRAM, the OPL editor.
+
+    DIR=
+
+    	This is the default directory the program should work from.
+    	For WORD.APP this should be DIR=\WRD\. If no DIR is specified
+    	then it is taken from the command line which must specify a
+    	directory. If it does not then a default directory of \TMP\
+    	will be supplied.
+
+    EXT=
+
+    	This is the default extension for the program. e.g. For Agenda
+    	it would be .AGN.
+
+    TEMPLATE=
+
+    	Certain programs such as Word use a template file. This is
+    	specified in the Shell Data File by yet another bit. It gets
+    	added on the end of path name.
+
+    EXAMPLE
+
+    	RFM E AGENDA.APP M=O DIR=\AGN\ A:\AGN\AGENDA.AGN
+
+RFM HELP [INSTALL SHELL REMOVE PAUSE CONTINUE USE FREE
+    	  NFORMAT FORMAT STOP DISPLAY QUERY EXEC]
+
+    Provides HELP.
+
+
+All RFM commands may be abbreviated. RFM I is equivalent to RFM INSTALL,
+as is RFM INST. Where commands start with the same letters enough
+letters must be specified to determine which command is required. i.e.
+RFM FR and RFM FO for RFM FREE and RFM FORMAT.
+
+NOTE: The internal drive on Series3 can be specified as M: or I:.
+
+ERRORLEVEL
+----------
+
+The RFM program always sets the ERRORLEVEL to 0 on successfully
+completing a command. Otherwise it set the level to 1. The RFM
+QUERY command is an exeception and can set the value to 0,1 or
+2.
+
+    				BACKUP
+    				======
+
+RFM can be used to automate the task of backing up a remote drive with
+a batch file RBACK.BAT. The batch file is invoked with the following
+command line to backup remote drive A.
+
+RBACK A
+
+This will cause the whole of the contents of remote drive A to be copied
+to directory \BACK\A. A higher level batch file could do all the drives
+on a Series3 by having the commands:
+
+RBACK A
+RBACK M
+RBACK B
+
+If RFM is running permanently (RFM INSTALL) then use the RBACK1 batch
+file.
+
+RBACK.BAT has the following line:
+
+    RFM SHELL EXEC=RBACK1 %1   (Assumes 19200 baud and COM1)
+
+RBACK1.BAT has the following lines:
+
+    RFM USE X: %1:
+    RFM STOP X:
+    IF ERRORLEVEL 1 GOTO END
+    IF EXIST \BACK\%1\NUL THEN GOTO CHANGED
+    XCOPY X:\*.* \BACK\%1\*.* /S
+    GOTO END
+    :CHANGED
+    XCOPY X:\*.* \BACK\%1\*.* /S/M
+    :END
+
+    				RESTORE
+    				=======
+
+A similar system can be used to manage restoring a backup.
+
+If RFM is running permanently (RFM INSTALL) then use the RREST1 batch
+file.
+
+RREST.BAT has the following line:
+
+    RFM SHELL EXEC=RREST1 %1   (Assumes 19200 baud and COM1)
+
+RREST1.BAT has the following lines:
+
+    RFM USE X: %1:
+    RFM STOP X:
+    IF ERRORLEVEL 1 GOTO END
+    RFM FORMAT X:
+    IF ERRORLEVEL 1 GOTO END
+    XCOPY \BACK\%1\*.* X:\*.* /S
+    :END
+
+The RFM FORMAT X: can be changed to RFM NFORMAT X: to give an unattended
+restore facility but caution should be used as it is easy to specify the
+wrong drive.
+
+

@@ -1,0 +1,196 @@
+PSION CONTEST KEYER                                                                A                               PSION CONTEST KEYER
+===================
+
+Description
+-----------
+
+Tired of lugging a heavy laptop around? Put it into your shirt pocket!
+The Hamkey1.opa program turns your PSION into a full-fledged
+cw contest/dxpedition keyer/logger, provided you have a 3-LINK RS232 cable. 
+With a simple hardware interface (1 npn transistor and 1 resistor) it
+will key your transceiver with up to 40 wpm. Of course not only
+for working the WPX, but also for casual portable qrp operating...
+
+Features:
+
+* Program 10 messages on the fly..
+* Logs contest qso in format compatible with 
+  PSION QSO LOG program
+* Dupe check
+* Automatic serial nr. insert optional
+* Supports RUN mode as well as "Search & Pound" mode
+* Keyer speeds 10 ... 40 wpm
+* Auto cq loop with programmable pause
+* Tune button
+* Log view
+
+(As all my tranceivers have a built-in keyer, I did not (yet)
+include a iambic keyer. If there are enough requests for it I could
+think of incorporating one in a future release, but I'd like to keep
+the code as small as possble.)
+
+For casual operation this keyer + PSION QSO LOG form an ideal
+combination.
+
+Installation
+------------
+
+After unzipping, copy the following files into:
+
+Hamkeyd1.opa		\APP\		(Keyer program)
+Msgkey.rsc		M:\OPD\		(Help file)
+Keymsg.dbf		M:\LOG\		(Example messages)
+Testlog.log		\LOG\		(Empty log file)
+Logprint.opo		\OPO\		(Log formatting utility)
+
+Install the opa in the normal way with PSION_I.
+The Logprint facility uses RUNOPL.
+The logfiles can be int he \LOG\ directory on any drive.
+Msgkey.rsc and Keymsg.dbf MUST be on the internal drive!
+
+Hardware interface
+------------------
+
+The software toggles DTR (pin 6 on a DB25 plug).
+Connect the emitter of an npn transistor (BC107) to pin 7 (DB25, grnd).
+Connect a 10 kOhm resistor between pin 6 (DB25, DTR) and the base.
+Connect a cable between pin 7 and transceiver grnd, resp. collector and
+key input of the trx. 
+The whole interface can be housed in the DB25 plug.
+If your trx has no built-in keyer you wire it in parallel to the keyer
+you normally use (or to a straight key..).
+
+Quick start
+-----------
+
+Start the program from the System screen and try MENU and HELP.
+Change the messages into anything you like.. (messages 6...0 with
+shift-M) and try it out.. The keyer will remember them for you.
+A log file is only used in CONTEST/DXPEDITION mode. Use a separate file
+for every contest, so qso nr starts with 001. Messages 1...5 have
+a special meaning in contest mode.
+
+OPERATION
+---------
+
+Casual operating:
+
+In normal operating mode the keyer has only 2 functions: 
+*  	Call cq (excellent for qrpp)
+* 	replay one of 10 messages.
+The messages can be programmed with the "m" (1...5) or "M" (6...0) keys.
+Pressing one of the number keys (1,2 .....0) will replay a message.
+Speed can only be set between messages.
+The cq loop is started with "c". This will repeat message 1 until you
+hit a key. The pause between cq's can be changed (default is 3 secs.).
+As the psion radiates some rf (especially the screen) you can switch
+the psion into SLEEP mode with the DELETE key if necessary. This is
+sometimes handy when operating portable, and the psion sits next to
+the antenna! ESC will switch it on again (TRY THIS TONITE WITH YOUR 
+486 !!).
+
+Contest/dxpedition operating:
+
+For contest operating the keyer has some extra functionality:
+* 	Logging , and 
+* 	Dupe checking.
+In a CW contest there are different exchange sequences for RUN mode
+and for S&P (or "Hunt and Peck") mode. You can switch between these 
+modes with the TAB key. Messages 1...5 have a special meaning for
+contesting, as the keyer has been optimized for fast operation.
+
+RUN MODE (also dxped.):
+Msg 1:	CQ string (also used for CQ loop)
+Msg 2:	Exchange. If serial nr. is ON, this is added to the report.
+Msg 3:	TU message
+
+S&P MODE:
+Msg 4:	Call used
+Msg 5:	Acknowledgement + Exchange (+ serial nr.)
+
+RUN mode:
+---------
+
+ACTION			EXAMPLE		KEYER OUTPUT
+------------------------------------------------------------------
+Press "c"				cq cq.....      
+Press ENTER						
+Press ENTER						
+Input the CALL 		DJ0LN
+press ENTER. 				DJ0LN 599001
+Input Exchange		320
+press ENTER				TU PA0RCT 
+
+S&P Mode:
+---------
+
+ACTION			EXAMPLE		KEYER OUTPUT
+-----------------------------------------------------------------
+Press ENTER
+Input Call		DJ0LN
+Press ENTER				PA0RCT
+(Press ENTER 2x)			(PA0RCT)
+Input Exchange		320
+Press ENTER				TU UR 599001
+
+above sequences are a representation of common practise during the
+"big ones". Of course you are free to "lengthen" the exchanged info,
+but remember this is a CONTEST.
+
+You will notice that the only key you have to remember is the ENTER key.
+This simplicity of operation is compatible with TRLOG, the best PC
+contest logger from N6TR which I use for the "big" contests.
+
+
+Dupe check
+----------
+
+Dupe check works only in contest mode. If a call is already in the
+log for the band you are on, the program will refuse the qso.
+If you wish to log anyway, put a DOT before the call.
+
+
+File compatibility
+------------------
+
+You can start a new logfile from the system screen (System menue, 
+New file).
+The files generated by the program are compatible with the DATA
+application. Moreover, they are compatible with PSION QSO LOG,
+which allows you to simply merge the contest log into your qso
+master file. PSION QSO LOG also includes a simple (slow) sort function
+to re-sequence your log in case the DATA application dumps your updated
+records at the end of the file, but you can use a lot of existing
+tools which are quicker..
+
+Log printing
+------------
+
+The logprint.opo utility generates a printable formatted textfile.
+This can be changed with an appropriate text editor (e.g. WORD
+application in TEXT format).
+
+Timing
+------
+
+The keymsg.dbf file contains 1 parameter (6th line) which corrects
+the clock for UTC (-2 for Amsterdam summer time..). Change it
+with the DATA application (if you open a new log file the program 
+asks you for this value..).
+
+Registration
+------------
+
+Yes, this program is shareware. Feel free to distribute it amongst
+your friends, unless you do not want to give them the same competitive
+edge....
+
+If you decide to use the program, please send Hfl 15,- or any other money
+or cheque with comparable value (no coins or stamps please) to:
+Rein Couperus, Genderweg 15, 5521NX EERSEL, The Netherlands.
+
+Please indicate your Call and your email address (if available).
+This enables me to send you a personalized copy of the program without
+ads and nag screens, + free updates for 1 year.
+
+Comments, bug reports etc to: reinc@iaehv.nl

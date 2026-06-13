@@ -1,0 +1,53 @@
+GBconv.opo   A module for Psion Series 5 and Geofox OPL programmers.
+
+GBconv is a simple module which can be used to convert an UK National
+Grid Reference into Latitude and Longitude, and vice-versa. It is
+designed for use by OPL programmers.
+
+To use it, simply LOADM the module into your program. You can then
+use 3 procedures within the module to do the conversions:
+
+ Ngr2LL:(ngr$,1)  is used to convert the NGR to degrees of latitude
+ Ngr2LL:(ngr$,2)  is used to convert the NGR to degrees of longitude
+ LL2Ngr$:(north,east)  will convert degrees north and east to an NGR
+
+The module understands the NGR as used for England, Wales and Scotland,
+also the Channel Islands (WA and WV) and Northern Ireland (C,D,G,H & J).
+An NGR should be entered like: SP612045 or J470379.
+Latitude and Longitude should be entered as degrees (decimal) like 51.2345
+with south and west as negative, north and east as positive.
+
+There is little error checking, so make sure your programs use the correct
+format. The code which distinguishes where in the UK a given Lat and Lon 
+are is very simplw, and I think it works! If a location in Northern 
+Ireland gets given a mainland NGR please let me know the details!
+
+This module was written for use by OPL programmers, who may use it and
+distribute it free of charge. I make no guarantee to accuracy, but you can
+easily check it out with an OS map.
+
+Use the module entirely at your own risk. I accept no claims for damage to
+your Psion or Geofox in any way whatsoever. The module was written out of
+academic interest, it was not intended for hikers, explorers, or anyone
+who might use it to find their war to safety.
+
+The code within was written by Roger Muggleton and Roger Blakeway, for an
+entirely different purpose! No doubt the maths is not original. If anything
+goes wrong, please contact Roger Muggleton.   Email:  hzk@cix.co.uk
+
+Demo code:
+
+PROC ngr_latlon:
+	LOCAL e,n,ngr$(8)
+	FONT 268435958,1
+	LOADM "GBconv.opo"
+	ngr$="SW577456"
+	PRINT ngr$
+	n=Ngr2LL:(ngr$,1)
+	e=Ngr2LL:(ngr$,2)
+	PRINT "N",n
+	PRINT "E",e
+	ngr$=LL2ngr$:(n,e)
+	PRINT ngr$
+	GET
+ENDP

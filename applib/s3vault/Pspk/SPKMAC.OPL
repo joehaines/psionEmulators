@@ -1,0 +1,14 @@
+    PROC spkTxt:
+        GLOBAL lpcHand%,lpoHand%
+        LOCAL buf$(100)
+        LOADM "KMACLIB"
+        LOADM "SPEECH"
+        CALL($198d,100,0)
+        lpOpen:
+        lpWrite:(%f,"")
+        lpSend:(32,ADDR(buf$)+1,98,0):REM *** Increase 98 / 99 etc to buffer size
+        POKEB ADDR(buf$),99
+        POKEB ADDR(buf$),LOC(buf$,chr$(0))-1
+        say:(buf$)
+        lpClose:
+    ENDP

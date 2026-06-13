@@ -1,0 +1,113 @@
+rem APP Movie
+rem  ICON "B:\OPD\Cine.PIC"
+rem  TYPE $1000
+rem ENDA
+
+PROC PRACTICE:
+  LOCAL A%,B%,C%,D%,E%,F%,G%,H%,J%,K%,L%
+  LOCAL A$(128),B$(4),C$(1),D$(6),W$(7)
+  LOCAL A&,W%,X%,Y%,Z%
+  CALL(5003,0,0,0,0,0)
+  ONERR MID::
+  TOP::
+  W$="DANCER"
+  D$="OPD"
+  D%=0
+  E%=0
+  F%=0
+  G%=0
+  B$="pic"
+  C%=3
+  J%=1
+  Z%=1
+  dINIT "Movie V 2.0 written by Graham Linsky"
+  dTEXT "","Use arrow keys if picture is too big",$202
+  dEDIT W$,"Title",5
+  dCHOICE C%,"Disk","A,Internal,B"
+  dEDIT D$,"Directory",5
+  dEDIT B$,"File extension",3
+  dLONG A&,"Delay (20=1 sec.)",1,200
+  dCHOICE L%,"Animation Mode","Bounce,Loop"
+  K%=DIALOG
+  IF K%=0
+  STOP
+  ENDIF
+  IF C%=1
+    C$="A"
+  ELSEIF C%=2
+    C$="M"
+  ELSEIF C%=3
+    C$="B"
+  ENDIF
+ 
+  DO
+    GOTO BOT::
+    MID::
+    B%=ERR
+    IF B%=-33 AND Z%=1 OR B%=-42
+    dINIT "File selection"
+    dTEXT "","Type only the root of file not the number. Dancer1.pic",2
+    dTEXT "","is keyed in as Dancer. next line use <Tab> to select drive",2
+    dTEXT "","IF directory is not \opd\ key in correct one on third line",2
+    dTEXT "","Experiment with loop/bounce selection. Delay is more a function",2
+    dTEXT "","of file size,Video is a faster program with other disadvantages",2
+    dTEXT "","Use up, down, left and right keys to move around large pics",2
+    dTEXT "","Use <Esc> to exit progam          <Enter> to continue",2
+    DIALOG
+    GOTO TOP::
+    ENDIF
+    IF B%=-33
+    IF L%=2
+    E%=0
+    GOTO NEXT::
+    ENDIF
+			J%=J%*-1
+			E%=E%+1*J%
+		NEXT::
+		ENDIF
+    BOT::
+    DO
+    G%=G%+1
+     E%=E%+1
+    IF J%<0
+    E%=E%-2
+    ENDIF
+      A$=C$+":\"+D$+"\"+W$+GEN$(E%,2)+"."+B$
+      gAT 0,0
+      A%=gLOADBIT(A$,1)
+      W%=gWIDTH
+      H%=gHEIGHT
+      X%=(240-W%/2)+F%
+      Y%=(80-H%/2)+D%
+      gUSE 1
+      K%=KEY
+      IF K%=256 :D%=D%+5 :ENDIF
+      IF ABS(D%)>(H%/2-80)
+      D%=(H%/2-80)
+      ENDIF
+      IF K%=257 :D%=D%-5 :ENDIF
+      IF ABS(D%)>(H%/2-80)
+      D%=-(H%/2-80)
+      ENDIF
+   IF W%>480
+      IF K%=258 :F%=F%-5 :ENDIF
+      IF ABS(F%)>(W%/2-240)
+      F%=-(W%/2-240)
+      ENDIF
+      IF K%=259 :F%=F%+5 :ENDIF
+      IF ABS(F%)>(W%/2-240)
+      F%=(W%/2-240)
+      ENDIF
+    ENDIF
+    	IF K%=27 :STOP :ENDIF
+    	IF K%=632 :STOP :ENDIF
+      IF K%=623 :GOTO TOP:: :ENDIF
+      gAT X%,Y%
+      gCOPY A%,0,0,W%,H%,3 
+      PAUSE A&
+      IF G%=500 :PAUSE 3 :G%=0 :ENDIF
+      Z%=2
+      gCLOSE A%
+      UNTIL  E%=100
+     UNTIL  E%=101
+ENDP

@@ -1,0 +1,89 @@
+APP Video
+	type 0
+ENDA
+
+PROC video:
+GLOBAL c%,w$(128),b1%,b2%,x1%,y1%,w%,h%,n%,s%,k%,i%,p%,x1&,y1&,w&,h&,w2%,h2%,d1%,d2%,dx%,dy%,j%,z%
+	REM Dont keep S3 awake!
+	call ($138b,0,0,0,0,0)
+rem HERE ARE THE DEFAULTS
+	w$="Dancer"
+	x1&=0 :y1&=25 :w&=227 :h&=80
+rem THAT'S ALL
+	dinit "Pic viewer"
+	dfile w$,"Root name of files:",1
+	dlong x1&,"Top left X",0,720
+	dlong y1&,"Top left Y",0,240
+	dlong w&,"Width",1,240
+	dlong h&,"Height",1,80
+	if dialog=0 :stop :endif
+	x1%=x1& :y1%=y1& :w%=w& :h%=h&
+	c%=0
+	b2%=gLOADBIT(w$+"1")
+	w2%=gwidth :h2%=gheight
+	gclose b2%
+	b1%=gcreate(0,0,240,80,0)
+	onerr lastpic
+	do
+		c%=c%+1
+		b2%=gLOADBIT(w$+NUM$(c%,2))
+		guse b1%
+		gsetwin 0,0,w2%,c%*h2%
+		gat 0,h2%*(c%-1)
+		gcopy b2%,0,0,w2%,h2%,3
+		gclose b2%
+	until 0
+lastpic::
+	onerr off
+	if err<>-33 :raise err :endif
+	n%=c%-1 :if n%=0 :raise -33 :endif
+	d1%=gcreate(0,h%,w%,80-h%,1)
+	d2%=gcreate(w%,0,240-w%,80,1)
+	gorder d1%,1 :gorder d2%,2 :gorder b1%,3
+	guse b1% :gvisible on
+	c%=0 :i%=1
+	do
+		c%=c%+i%
+ 		gsetwin -1*x1%+dx%,-1*((h2%*(c%-1))+y1%)+dy%
+		if c%=n% :i%=-1
+		elseif c%=1 :i%=1
+		endif
+		if p% :k%=get
+		else k%=key
+		endif
+		if k%
+			if k%=%> or k%=%.
+				p%=0 :if s% :s%=s%-1 :endif
+			elseif k%=%< or k%=%,
+				p%=0 :s%=s%+1
+			elseif k%=259 rem LEFT
+				dx%=dx%+3
+			elseif k%=258 rem RIGHT
+				dx%=dx%-3
+			elseif k%=256 rem UP
+				dy%=dy%+2
+			elseif k%=257 rem DOWN
+				dy%=dy%-2
+			elseif k%=32
+				p%=1
+			else :p%=0
+			endif
+		if dx%>x1% :dx%=x1% :endif
+		z%=-1*(w2%-(x1%+w%))
+		if dx%<z% :dx%=z% :endif
+		if dy%>y1% :dy%=y1% :endif
+		z%=-1*(h2%-(y1%+h%))
+		if dy%<z% :dy%=z% :endif
+		if k%<256 :beep 3,80+80*(s%+1) :endif
+		endif
+		if s%
+rem this was PAUSE S%, but PAUSE 1 seems to have no effect.
+			pause s%+1
+		endif
+rem Protection against keeping the S3 awake forever.
+rem You'd still be buggered if there were 2 programs running...
+rem Only alternative is for this to do OFF after, say 15 minutes - a bit unfair.
+		if j%=1000 :j%=0 :pause 2 :endif
+	until 0
+ENDP
+

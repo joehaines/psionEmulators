@@ -1,0 +1,89 @@
+PROC mocinst:
+	GLOBAL dn$(128),mt%,it%,dt%,st%,fl%
+	dn$="" :mt%=1 :it%=1 :fl%=1 :dt%=1 :st%=1
+	CLS
+	PRINT "	MoC Installation Program"
+	PRINT "	========================"
+	PRINT "Insert source SSD or connect PC Link."
+	PRINT "Ensure files unpacked to a PC Directory"
+	PRINT "Insert destination SSD or ensure enough"
+	PRINT "space available in internal RAM."
+	PRINT "Space Required: S3:42kb; S3a:51kb."
+	PRINT "======================================="
+	PRINT "PRESS ANY KEY THEN ESC IF NOT READY YET"
+	GET
+	rept::
+	dINIT "MoC Installation Options"
+	dCHOICE mt%,"Machine Type:","SERIES 3,SERIES 3a"
+	dFILE dn$,"Files from:",4
+	dCHOICE it%,"Program files to:","Internal,A,B"
+	dCHOICE dt%,"Manual file to:","Internal,A,B"
+	dCHOICE st%,"Sample file to:","Internal,A,B"
+	IF DIALOG=0 :RETURN :ENDIF
+	IF NOT EXIST(dn$+"MOC.OPA")
+		GIPRINT "MoC Files not available"
+		GOTO rept::
+	ENDIF
+	BUSY "Installing MoC...",3
+	TRAP MKDIR dir$:(dt%)+"WRD"
+	TRAP MKDIR dir$:(st%)+"MOC"
+	TRAP MKDIR dir$:(it%)+"APP\LIB"
+	TRAP MKDIR dir$:(it%)+"APP\MOC"
+	IF mt%=1
+		IF EXIST(dir$:(it%)+"LIB\FRAMELIB.OPO")
+			LOADM dir$:(it%)+"LIB\FRAMELIB.OPO"
+			IF fVer%:<303
+				fl%=0
+			ENDIF
+			UNLOADM dir$:(it%)+"LIB\FRAMELIB.OPO"
+		ENDIF
+		IF fl%=1
+			COPY dn$+"FRAMELIB.OPO",dir$:(it%)+"APP\LIB\"
+		ENDIF
+		COPY dn$+"MOCLIB.OPO",dir$:(it%)+"APP\MOC\"
+		COPY dn$+"MOCS3.OPO",dir$:(it%)+"APP\MOC\"
+		COPY dn$+"MOC.OPA",dir$:(it%)+"APP\"
+		COPY dn$+"MOC.WRD",dir$:(dt%)+"WRD\"
+	ELSE
+		IF EXIST(dir$:(it%)+"LIB\FRAMELBA.OPO")
+			LOADM dir$:(it%)+"LIB\FRAMELBA.OPO"
+			IF fVer%:<303
+				fl%=0
+			ENDIF
+			UNLOADM dir$:(it%)+"LIB\FRAMELBA.OPO"
+		ENDIF
+		IF fl%=1
+			COPY dn$+"FRAMELBA.OPO",dir$:(it%)+"APP\LIB\"
+		ENDIF
+		COPY dn$+"MOCLIBA.OPO",dir$:(it%)+"APP\MOC\"
+		COPY dn$+"MOCS3A.OPO",dir$:(it%)+"APP\MOC\"
+		COPY dn$+"MOCA.OPA",dir$:(it%)+"APP\MOC.OPA"
+		COPY dn$+"MOCA.WRD",dir$:(dt%)+"WRD\MOC.WRD"
+		COPY dn$+"CUT*.PIC",dir$:(it%)+"APP\MOC\"
+		COPY dn$+"WIND*.PIC",dir$:(it%)+"APP\MOC\"
+	ENDIF
+	COPY dn$+"EXAMPLE.MOC",dir$:(st%)+"MOC\"
+	BUSY OFF
+	CLS
+	PRINT "	MoC Installation Program"
+	PRINT "	========================"
+	PRINT "Files installed correctly. Now, at the"
+	PRINT "system level, press PSION-I, select the"
+	PRINT "drive which you selected for Program"
+	PRINT "files and pick 'Moc.opa'. The MoC icon"
+	PRINT "will appear with an example schedule in"
+	PRINT "its filelist. The MoC manual is in the"
+	PRINT "Word filelist.  PRESS A KEY TO END PGM."
+	GET
+ENDP
+
+PROC dir$:(i%)
+	IF i%=1
+		RETURN "LOC::M:\"
+	ELSEIF i%=2
+		RETURN "LOC::A:\"
+	ELSE
+		RETURN "LOC::B:\"
+	ENDIF
+ENDP
+

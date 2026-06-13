@@ -1,0 +1,222 @@
+Emu48E v1.5 : l'emulateur des calculatrices HP 48/49 pour Epoc32.
+--------------------------------------------------------------------
+Auteur : Raphael MASSOT, a partir des sources d' Emu48 de Sebastien CARLIER.
+Date : 04/01/2004
+
+
+1) Generalites.
+2) Installation.
+3) Telechargement des ROM (non fournies)
+4) Fonctionnement.
+5) Menus.
+6) Versions.
+7) Problemes.
+
+
+1) Generalites.
+---------------
+Emu48E est l'adaptation pour Epoc32 d'Emu48.
+C'est une application Eikon programmee en c++ qui tourne sur Psion Revo, Series 5 (ER3 et ER5), Netbook, Ericsson MC218 et Osaris (et peut-etre d'autres).
+Fonctionne maintenant sur Nokia Communicator 9200 series (Symbian 6.0) et Sony-Ericsson P800 (Symbian 7.0, ne marche pas sur certains P800, je ne sais pas pourquoi pour l'instant).
+
+2) Installation.
+----------------
+ATTENTION : Les fichiers ROM ne sont plus fournis, voir 3).
+
+L'installation se fait par le fichier .sis (Langues : francais, anglais ou allemand).
+Une desinstallation de supprime pas les fichiers .bak, il ne faut pas utiliser des .bak de Gx avec une rom Sx et vice-versa (je n'ai pas teste mais cela doit donner des choses bizarres).
+
+Le programme s'installe sur le disque C, D ou E sous \system\Apps\Emu48E\ :
+
+  - Emu48E.app : l'application.
+  - Emu48E.aif : fichier aif de l'application.
+  - Emu48E.rsc : les ressources de l'application.
+  - annunc.mbm : l'image des indicateurs.
+  - main*.mbm, main2SGx.mbm, main5*.mbm : les images de la machine.
+  - keya2SGx.mbm, keyl2*.mbm et keyr2*.mbm : les images des touches pour la vue n°2.
+
+puis apres une premiere utilisation : 
+  - chipset.bak : sauvegarde de l'etat du processeur Saturn (480 octets)
+  - ramP0.bak : sauvegarde de la RAM port 0 (32Ko pour une Sx, 128Ko pour une Gx)
+  - ramP1.bak : sauvegarde de la RAM port 1 (1 octet si vide, 128Ko si utilisee)
+  - ramP2.bak : sauvegarde de la RAM port 2 (1 octet si vide, 128Ko si utilisee)
+  - Emu48E.ini : sauvegarde des preferences
+
+Les 3 groupes de fichiers (application, images et rom) peuvent etre installes separement sur C, D ou E.
+
+Remarque : Les fichiers .bak peuvent etre sauvegardes dans un coin et restaures en cas de plantage de la machine.
+
+3) Telechargement des ROM.
+--------------------------
+
+Les fichiers ROM ne sont plus fournis et doivent etre telecharges puis copies dans le repertoire
+de votre choix (au premier lancement de l'emulateur, vous devez selectionner le fichier .rom).
+Les ROM sont disponibles sur le site www.hpcalc.org a l'adresse :
+
+http://www.hpcalc.org/hp48/pc/emulators/ pour les HP 48
+http://www.hpcalc.org/hp49/pc/rom/ pour la HP 49G
+
+  * Pour une HP 48 Sx :
+	- telecharger le fichier "HP 48Sx Revision J ROM" (sxrom-j.zip)
+	- dezipper
+	- renommer le fichier en sx.rom
+
+  * Pour une HP 48 Gx :
+	- telecharger le fichier "HP 48Gx Revision R ROM" (gxrom-r.zip)
+	- dezipper
+	- renommer le fichier en gx.rom
+
+  * Pour une HP 49 G :
+	- telecharger le fichier "Unsupported Beta ROM 1.19-6" (beta1196.zip)
+	- dezipper le fichier rom.49g dans un dossier temporaire
+	- copier l'utilitaire conv49.exe fourni avec Emu48E dans ce dossier
+	- lancer l'utilitaire en ligne de commande : conv49 rom.49g 49g.rom
+
+4) Fonctionnement.
+------------------
+
+Occupation memoire des differentes versions (sans les sauvegardes et avec les ROM) :
+
+Version		Sur disque	Utilisation memoire
+-------		----------	-------------------
+48 Sx		500 Ko		1 Mo
+48 Gx		800 Ko		2 Mo
+49 G		2.3 Mo		5.3 Mo
+
+ Au demarrage, les fichiers de sauvegarde (*.bak) sont charges s'ils sont presents, sinon la Ram est remise a zero. Si les fichiers ramP0.bak et ramP1.bak existent mais que le fichier chipset.bak n'est pas present, seul le chipset est remis a zero.
+ A la fermeture, les parametres et les fichiers de sauvegarde sont enregistres automatiquement.
+
+ Clavier pour un Psion:
+   - 1, 2, 3, 4, 5, 6, 7, 8, 9, 0
+   - A, B, C, D, E, F (touches de menu de la HP48)
+   - *, /, +, -
+   - fleches haut, bas, droite, gauche
+   - . -> .
+   - , -> .
+   - j -> *, k -> /, l -> +, m -> - (azerty)
+   - y -> *, u -> /, i -> +, o -> - (qwerty)
+   - Esc -> On
+   - Enter -> Enter
+   - Espace -> Space
+   - Eff -> "<-"
+
+ Specifique au Nokia 9210:
+   - Toutes les touches alpha de la HP48 ou 49 se retrouvent sur les touches alphabetiques du 9210.
+   - Shift-A -> touche Alpha de la HP
+   - Shift-flecheGauche -> shift gauche HP
+   - Shift-flecheDroite -> shift droit HP
+   - Shift-BackSpace -> Del HP
+
+
+5) Menus.
+---------
+
+ Menu Fichier :
+ --------------
+  - Nouveau : supprime les fichiers de sauvegarde et reinitialise la RAM.
+  - Recharger : recharge la derniere sauvegarde.
+  - Sauver : sauvegarde la RAM de la calculatrice.
+  - Reset : reset de la machine (ne reinitialise pas la RAM)
+
+  - Options :
+     . Affichage :
+        * bitmap reel : l'affichage est mis a jours a chaque fois qu'il y a ecriture dans la memoire ecran. C'est plus lent surtout avec les jeux ou il y a de l'animation
+        * bitmap rapide : l'affichage est mis a jours seulement quand le processeur de la HP se met en veille. On gagne en rapidite.
+        * frame buffer (uniquement sur Psion): ecriture directe dans la memoire ecran : le plus rapide dans tous les cas.
+     . Clavier :
+        * normal
+        * simulation du relachement d'une touche dans le cas d'utilisation de programme de gestion du clavier qui suppriment l'evenement 'touche haut'.
+     . Appui touche
+        Reglage du temps minimum pendant lequel la touche doit etre maintenue.
+     . Grayscale sync (sur Psion):
+        Synchronisation du balayage de l'ecran de la HP pour l'affichage correct des niveaux de gris.
+     . Sauvegarde : sauve la RAM en quittant.
+
+  - Quitter : ferme le programme (option: sauvegarde la Ram sur disque).
+
+
+ Menu Edition :
+ --------------
+  - Sauvegarder objet : sauvegarde le premier element de la pile dans un fichier.
+  - Charger objet : place un objet dans la pile a partir d'un fichier.
+  - Copier : copie la chaine de caracteres de la pile vers le presse-papier.
+  - Coller : place la chaine de caractere du presse-papier sur la pile.
+
+ Menu Affichage :
+ ----------------
+  - Choix de la taille :
+      * Petit : bitmap Lcd simple, pour le Psion Revo.
+      * Moyen : bitmap Lcd double, grosses touches, le dessin des touches change suivant le mode (shift gauche, shift droit, alpha), pour le Revo et grand ecran.
+      * Grand : bitmap Lcd double, grosses touches et indications au dessus des touches, pour grand ecran.
+
+
+6) Versions.
+------------
+
+ * v1.5:
+ -------
+ - selection du fichier .rom au demarrage.
+ - Copier/coller de nombre reels.
+ - Copier/coller big integer HP49.
+ - Touches *,/,+,- dependant du langage.
+ - Installation en Allemand.
+
+ * v1.4:
+ -------
+ - Supporte la ROM de la HP 49G.
+ - Port P2 de 128Ko utilisable pour la HP48 Gx.
+ - Sauvegarde en cours d'utilisation.
+ - Recharge de la sauvegarde en cours d'utilisation.
+ - Correction du bug kern-exec 3 en mode bitmap et en mode frame-buffer avec le Netbook.
+ - Correction du bug au chargement des fichiers de sauvegarde sur C: si l'installation est sur D: ou E:
+
+ * v1.3:
+ -------
+ - Utilisation du frame buffer du Psion pour un affichage rapide des animations (pb avec le Netbook, voir 6) Problemes).
+ - Niveaux de gris HP assez bien rendus (reglage dans les parametres).
+ - Reglage du temps minimum d'appui sur une touche en ms plutot qu'en ticks.
+ - Affichage correct de l'heure (pb de timer)
+ - Sauvegarde des preferences
+ - Sauvegarde de la RAM en option
+ - Possibilite d'appuyer sur plusieurs touches en meme temps
+ - Correction du bug a la sauvegarde si l'installation est totalement sur D: ou E:
+ - Ecran par defaut plus lisible.
+
+ * v1.2:
+ -------
+ - Possibilite de charger ou sauvegarder des object a partir ou vers un fichier.
+ - Utilisation du presse-papier pour coller ou copier une chaine de caractere sur la pile.
+ - On peut utiliser les touches numeriques, + - * /, Entree, curseur, On, barre d'espace et Efface.
+ - Correction du probleme lors d'un appui court sur une touche, le temps mini est reglable dans les options.
+ - changement des touches lorsque l'on est en shift ou en alpha dans la vue 'medium'
+ - Installation mixte sur C, D ou E.
+ - Correction du chargement du port P1 qui etait remis a zero a chaque fois
+ - correction du jour manquant a la date.
+ - un fichier de 'skins' avec fond blanc est fourni pour les ecrans avec peu de contraste.
+
+ * v1.1:
+ -------
+ - 3 vues sont maintenant possibles pour le Revo et grand ecran.
+ - Correction du probleme d'installation sur le disque D.
+ - Correction du bug de l'ecran noir quand la calculatrice est eteinte.
+ - Correction de l'erreur E32User-Cbase 42 au lancement quand on avait quitte le programme en cours de saisie avec le curseur clignotant.
+
+ * v1.0:
+ -------
+ - C'est une premiere version donc minimale par rapport a Emu48.
+ - La vitesse d'execution est quand meme en dessous de celle d'une veritable HP48.
+ - Il n'y a pas encore la possibilite de copier ou de coller des objets sur la pile mais cela viendra.
+
+
+7) Problemes.
+-------------
+ - Ne fonctionne pas sur certains P800 (Erreur a la creation/chargement de bitmap)
+ - Pas d'acces aux 1Mo de flash avec la HP 49G.
+ - Pas de Beep.
+
+
+--
+Raphael MASSOT
+Besancon
+Mail : psiomas@free.fr
+Web : http://psiomas.free.fr

@@ -1,0 +1,103 @@
+MoC         Master of Ceremonies            Technical Reference Manual
+----------------------------------------------------------------------
+FORMAT OF MoC FILES
+
+This is the native format used by MoC. The default extension is "MOC"
+though this can be changed (see "Configuration" below).
+
+The file is an OPL database file and can be opened from an OPL
+program using a command of the form:
+
+     OPEN filename$,log,h%,m%,t1$,t2$
+
+The records are in random order and must be ordered by sorting on the
+numerical value of the h% field (the values of which are NOT
+contiguous).
+
+The fields are defined as follows:
+
+h% - Hash value that determines the order of the records. Negative
+     values are reserved and should be ignored. Positive values will
+     be unique and a record with a greater hash value comes after one
+     with a lesser value.
+
+m% - Number of minutes duration of item. Zero indicates a heading.
+
+t1$- First and second lines of text. Zero to 60 characters for t1$,
+t2$  180 characters for t2$. In the S3 version, niether line should
+     exceed 40 characters. All characters are allowed, except TAB.
+     In the S3a version, a semicolon will cause the line to split in
+     two in the smaller fonts.
+
+There will never be more than 98 records with positive hash values in
+any one file.
+
+----------------------------------------------------------------------
+FORMAT OF WRD FILES
+
+WRD files produced by MoC are suitable for processing in the Word
+application and printing out. They are, in fact, plain text files
+using TAB characters for layout. 
+
+----------------------------------------------------------------------
+FORMAT OF TAB FILES
+
+TAB files are the preferred format for exchanging items between MoC
+files and are also useful for exchanging data with spreadsheets and
+other programs.
+
+Each item is a record (line) in the file and there are three fields
+in each record separated by TAB characters.
+
+The first field is the minutes represented as 1-4 numeric characters.
+A heading has a zero character in this field.
+
+The second and third fields are the two lines of text. They must be
+less than 60 characters long for the second field, and 180 for the
+third. The second field must have at least one character.
+
+The third field may be missing altogether and there may be additional
+fields after the third. Additional fields are ignored on input.
+
+----------------------------------------------------------------------
+FORMAT OF CSV FILES
+
+CSV stands for "Comma separated variable" and is a common format for
+interchange between databases, spreadsheets and word processors. It is
+similar to the TAB format, except that the fields are separated by
+commas rather than TABs. So that the text fields may contain commas,
+they are also enclosed in quote marks. Any spaces in the file are
+ignored, unless they are between the quote marks in the text fields.
+
+----------------------------------------------------------------------
+CONFIGURATION
+
+The application is structured as three code librarys (OPO files) and
+a small, top level application file (MOC.OPA). The source code for
+the OPA file is included to enable you to change the directory
+locations and data file extension in case of conflict with other
+applications. In order to make changes, download moc.opl (Series 3)
+or moca.opl (Series 3a) and the appropriate icon file (moc.pic, or
+moca.pic).
+If you re-configured the previous version in this way, note that it
+is no longer necessary to supply the directory and file extension to
+the runMoc: procedure. This information is now picked up from the
+APP block for compatibility with the S3a "Create new list" feature.
+One of the code libraries is my generic Series 3 application
+framework which handles all the details of asynchronous device
+handling including the keyboard and timers. This is available in a
+fully documented version with source code for use in your own
+applications.
+
+----------------------------------------------------------------------
+HISTORY
+
+This is the second release version of MoC. The changes are mainly
+to take advantage of the new features in the Series 3a machine,
+however there are also minor improvements and bug-fixes for Series
+3 users.
+Many thanks to those who made comments and reported the few small
+bugs that slipped through in the previous version.
+
+----------------------------------------------------------------------
+

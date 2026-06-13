@@ -1,0 +1,49 @@
+==========
+psion/opl #2358, from dbrewood, 1388 chars, Oct 12 18:48 95
+Comment to 2355.
+----------
+>2.      Is there any way of changing my process I.D. (as shown in the
+>        dialogue in LPC) from the default of SYS$PRG0 to something relating
+>        to my application. 
+
+Msg #65 of 66   Time: 27 Sep 95  17:51:42
+From: rburtonw@nyx10.cs.du.edu
+To  : All
+Subj: Process name change
+---------[U.COMP.SYS.PSION]-----------------------------------------------
+Author: Roger Burton-west   Address: rburtonw@nyx10.cs.du.edu
+
+Here's a code fragment I threw together this morning. Just call it at
+the beginning of the program with the process name you want to use (up
+to 8 characters), which will then appear in the process table
+(accessible via Spy and CMDP, among others) instead of the default
+SYS$PRGO. This makes crashes much easier to resolve, and provides a
+neater appearance.
+
+Oh, in case anyone's wondering, this is so trivial (based on the
+Psionics files, as usual) that I'm making it free for general use.
+
+PROC callme:(v$)
+  local pid%,k$(9),m%
+  pid%=call($88)
+  k$=v$+chr$(0)
+  m%=addr(k$)+1
+  call($c88,pid%,0,0,0,m%)
+ENDP
+
+Roger
+
+--
+ /~~\_/~\ BEWARE ,,,  |~) _  _  _  _  |~)    __|_ _  _ __\    / _  __|_
+|  #=#======of==#   | |~\(_)(_|(/_|   |_)|_||  | (_)| |   \/\/ (/__\ |
+ \__/~\_/ FILKER ```         _| rburtonw@nyx.cs.du.edu <- main address
+
+Via *FIST* v2.27ß Gate on @nest.demon.co.uk (90:100/106.0)
+
+
+
+
+Daron M. Brewood
+
+
+

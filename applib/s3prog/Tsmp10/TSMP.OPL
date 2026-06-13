@@ -1,0 +1,61 @@
+PROC tsmp:
+  global pcb%,buf%(480)
+  deldrv:
+  askrun:
+  loaddrv:
+  opench:
+  main:
+  ioclose(pcb%)
+ENDP
+
+PROC deldrv:
+  local s$(4)
+  s$="SMP"
+  call($0885,addr(s$)+1,0,$dd01)
+ENDP
+
+PROC askrun:
+  if alert("SMP: deleted","Start sampling?","Exit","Continue")=1
+    stop
+  endif
+ENDP
+
+PROC loaddrv:
+  local off%(6),f$(130),r%
+  local ax%,bx%,cx%,dx%,si%,di%,fl%
+  f$=parse$("\sys$samp.LDD",cmd$(1),off%(1))
+  bx%=addr(f$)+1
+  ax%=$0600
+  fl%=os($85,addr(ax%))
+  ax%=ax% or $ff00
+  if (fl% and 1) and (ax% <> -32)
+    alert("Failed to load SYS$SAMP.LDD",err$(ax%))
+    stop
+  endif
+ENDP
+
+PROC opench:
+  local r%
+  r%=IOOPEN(pcb%,"SMP:",-1)
+  if r%
+    alert("Failed to open channel to SMP:",err$(r%))
+    stop
+  endif
+ENDP
+
+PROC main:
+  local x%,y%
+  gUpdate OFF
+  while 1
+    IOREAD(pcb%,addr(buf%(1)),480)
+    gCls
+    gAt 0,80
+    x%=1
+    while x%<=480
+      y%=80+buf%(x%)/64
+      gLineTo x%,y%
+      x%=x%+1
+    endwh
+    gUpdate
+  endwh
+ENDP

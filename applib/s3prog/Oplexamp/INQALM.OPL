@@ -1,0 +1,81 @@
+PROC inqalm:
+	global TimPid%
+	local DatAct%
+	local next%
+	local typ%
+	local alminfo%(50)
+	TimPid%=fTimPid%:
+	DatAct%=fDatAct%:
+	Fetch:(DatAct%,addr(next%),2)
+	while next%<>DatAct%
+		Fetch:(next%,addr(alminfo%()),100)
+		next%=alminfo%(1)
+		print "*** Alarm for Process ID $";hex$(alminfo%(4))
+		print "  Will ring at -",
+		printd:(addr(alminfo%(6)),1)
+		typ%= alminfo%(5) and $ff
+		if typ%
+			print "  Alarm with text:"
+			prints:(addr(alminfo%(15)))
+			print "  Appointment at -",
+			printd:(addr(alminfo%(8)),typ%)
+		else
+			print "  Clock alarm"
+		endif
+		get
+	endwh
+	print "No more alarms queued"
+	get
+ENDP
+
+PROC fTimPid%:
+	local ssname$(8)
+	ssname$="*.$06"+chr$(0)
+	return call($0188,addr(ssname$)+1,0,0,0,0)
+ENDP
+	
+PROC fDatAct%:
+	local DatLook%(4)
+	local offset%
+	local buf%(128)
+	Fetch:($a00,addr(buf%()),256)
+	DatLook%(1)=1+2*256
+	DatLook%(2)=4+8*256
+	DatLook%(3)=16+32*256
+	DatLook%(4)=64
+	offset%=call($a9,8,256,0,addr(buf%()),addr(DatLook%()))
+	return($a00+offset%+12)
+ENDP
+
+PROC Fetch:(poff%,buf%,blen%)
+	call($91,TimPid%,blen%,0,poff%,buf%)
+ENDP
+
+PROC prints:(buf%)
+	local almmess$(64)
+	scpy:(addr(almmess$)+1,buf%)
+	pokeb addr(almmess$),slen%:(buf%)
+	almmess$=chr$(34)+almmess$+chr$(34)
+	print "  ";almmess$
+ENDP
+
+PROC scpy:(di%,si%)
+	call($ac,0,0,0,si%,di%)
+ENDP
+
+PROC slen%:(di%)
+	return call($b9,0,0,0,0,di%)
+ENDP
+
+PROC printd:(buf%,typ%)
+	local yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+	secstodate peekl(buf%),yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+	if typ%=1
+		print hr%;":";
+		if mn%<10
+			print "0";
+		endif
+		print mn%;",",
+	endif
+	print dy%;"/";mo%;"/";yr%
+ENDP

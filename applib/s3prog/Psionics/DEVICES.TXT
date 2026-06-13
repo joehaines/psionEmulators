@@ -1,0 +1,739 @@
+PSIONICS FILE - DEVICES
+=======================
+Device driver interfaces
+Last modified 1994-09-13
+========================
+
+This document describes all known functions for all known device drivers. It
+does not include file IO, even when done through the same interfaces.
+
+The device drivers documented are:
+  SND: Sound device
+  TIM: Timer device
+  ALM: Alarm device
+  WLD: World device
+  TTY: Serial port device
+  PAR: Parallel port device
+  FRC: Free running counter
+  XMD: XModem driver
+  YMD: YModem driver
+  Console device
+
+
+Types of device driver
+----------------------
+On the Series 3, much functionality, including the filing system, is provided
+via device drivers. There are three kinds of device drivers:
+* physical device drivers: these drive the hardware directly
+* base logical device drivers: these provide a basic abstraction for working
+  with logical device drivers
+* stacked logical device drivers: these provide higher levels of abstraction
+Only logical device drivers need to know about physical device drivers; all
+user applications operate through logical device drivers.
+
+For example, the 3-Link pod and cable might be accessed through a physical
+device driver called TTY.LNK: (all physical device drivers have a two part
+name). This is automatically loaded the first time that the logical device
+driver TTY: is opened, and TTY: will use it to actually communicate with the
+pod.
+
+When TTY: is opened, the kernel will return a handle. Read and write operations
+on that handle will send data directly to and from the port. Alternatively,
+the XMD: device driver could be stacked on top of TTY: on that handle. Once
+this has been done, read and write on that handle will now be done via the XMD:
+driver, which wraps the data in the XModem protocol and calls the TTY: driver
+to do the actual output. There is no limit to how many device drivers can be
+stacked upon one another.
+
+
+Opening a handle
+----------------
+A base logical device driver is opened with the IOOPEN keyword or the IoOpen
+system call; a stacked logical device driver is opened with IoOpen. The name is
+examined to see whether it has a colon as the fourth character but not the
+fifth; if so, it is split into a device name and a channel name. The kernel
+then checks that the logical device exists; if not, or if the name does not
+have the correct form, it prefixes "FIL:" to the name and tries again (FIL
+is the filing system logical device driver). For example:
+    "SND:"        device "SND"  channel name ""
+    "TTY:A"       device "TTY"  channel name "A"
+    "FIL:A:XXX"   device "FIL"  channel name "A:XXX"
+    "HELLO.TXT"   device "FIL"  channel name "HELLO.TXT"
+    "ROM::XXX"    device "FIL"  channel name "ROM::XXX"
+    "FIL:TTY:"    device "FIL"  channel name "TTY:"
+    "QXV:"        device "FIL"  channel name "QXV:"
+[the last example assumes there is no QXV device driver].
+
+The filing system and the FIL: driver are described in the Psionics file
+FILEIO. All other known drivers are described here.
+
+IOOPEN and IoOpen are passed a mode to open the device or file. Drivers other
+than the filing system and those specifically mentioning it ignore the mode.
+It is recommended that a mode of -1 be used, as this is always rejected by the
+filing system; thus an error in the device name or a missing driver will be
+detected.
+
+A driver may refuse to open a given channel name, or all channels, more than
+a certain number of times without closing some first. For example, a TTY
+driver might only allow one open handle at a time for each port.
+
+
+Using the device driver
+-----------------------
+Once a device driver has been opened, it is accessed with the keywords IOW,
+IOA, and IOC (Series 3a only). These keywords offer the same services, and
+differ only in the way completion is indicated.
+
+IOW waits until the operation completes, and then returns. No signal is
+    generated.
+IOA has an extra status variable argument. The variable is set to -46 at the
+    start of the operation, and then to the final result when it completes; a
+    signal is generated at this moment (it can be collected with IOWAIT or
+    IOWAITSTAT). Note that some operations complete immediately, and so the
+    status of -46 is never seen.
+IOC is like IOA, but if the operation completes immediately, it places the
+    result into the status variable and generates a signal. Thus the code
+    making the call can check the result in one place (after collecting the
+    signal) rather than two (after the call and after the signal).
+
+Each call is passed a function number and two parameters for passing other
+information. The latter identify blocks of memory; the actual argument can be
+either the name of an OPL variable (typically the first element of an array),
+in which case that variable marks the start of the block, or it can be the #
+operator applied to the address of the block. The former is equivalent to
+#ADDR(variable).
+
+If the parameter is shown as "unused", then any variable or value can be used,
+as it will be ignored; it is often convenient to use #0 as such an argument.
+
+Unless stated otherwise, a successful call returns zero, and an unsuccessful
+call some non-zero error code.
+
+
+Standard functions
+------------------
+
+These functions apply to all drivers.
+
+Function:   1 (read)
+Function:   2 (write)
+Argument 1: buffer
+Argument 2: count (word)
+
+These functions are equivalent to the IOREAD and IOWRITE keywords. They read
+or write up to the specified number of bytes from or to the device; in the
+case of function 1, the count is changed to the actual amount read.
+
+These functions can be used with any handle that is using a driver labelled
+as a data driver (such as the serial port device or the XModem driver).
+
+
+Function:   3
+Argument 1: unused
+Argument 2: unused
+
+This will close the handle; it is equivalent to the IOCLOSE keyword.
+
+
+Function:   4
+Argument 1: unused
+Argument 2: unused
+
+This will cancel any uncompleted function on the handle; the function will
+complete immediately, with the status variable set to -48 ("I/O cancelled").
+A signal will still be generated, and must be collected with IOWAITSTAT or
+IOWAIT.
+
+
+Sound device
+------------
+
+The sound device has the name "SND:". There are no channel names.
+
+
+Function:   1 (sound channel 1)
+Function:   2 (sound channel 2)
+Argument 1: note information
+Argument 2: word holding number of notes
+This function is supported by the HC, MC, and Series 3a only.
+
+This plays a sequence of notes on the specified sound channel. The note
+information is an array of words, two per note; the first is the frequency of
+the note (in Hz), and the second the duration in beats (see function 7).
+The sound will not start until both these functions have been called (thus
+ensuring the sound is synchronized on both channels). The function completes
+when the specified channel finishes playing, even if the other has not.
+
+
+Function:   7
+Argument 1: 2 byte information block
+Argument 2: unused
+
+The characteristics of the sound system are set according to the block:
+  Offset  0 (byte): beats per minute (2 to 240, default 120)
+  Offset  1 (byte): volume (0 max to 5 min)
+The beats per minute is only supported by the HC, MC, and Series 3a. On the
+Series 3a, volumes 1 and 2 are identical, as are 4 and 5. On the Series 3s,
+volumes 0 and 5 are unavailable.
+
+
+Function:   8
+Argument 1: 2 byte information block
+Argument 2: unused
+
+The block is filled in with information about the sound channel, using the
+same format as function 7.
+
+
+Function:   9
+Argument 1: alarm type (0 = rings, 1 = chimes)
+Argument 2: unused
+
+The specified alarm is played; this function completes when the sound has
+completely played.
+
+
+Function:   10
+Argument 1: phone number (cstr)
+Argument 2: parameter block
+
+This generates DTMF dialling sounds. The number contains the digits to be
+dialled (0 to 9, *, #, and A to F can be used; E is the same as *, and F the
+same as #). The parameter block has the format:
+  Offset 0 (byte): tone length   )
+  Offset 1 (byte): delay length  ) all in 1/32 seconds
+  Offset 2 (word): pause length  )
+
+
+
+Timer device
+------------
+
+The timer device has the name "TIM:". There are no channel names.
+
+Function:   1
+Argument 1: delay in 1/10 seconds (long)
+Argument 2: unused
+
+This will complete after the specified delay. Time when the machine is switched
+off is not counted as part of the delay. Changing the system clock will not
+affect the completion of this function.
+
+
+Function:   2
+Argument 1: abstime (long)
+Argument 2: unused
+
+This will complete at the specified time. If the machine is switched off at
+that time, it will switch back on. Changing the system clock will affect the
+completion of this function.
+
+
+Alarm device
+------------
+
+The alarm device has the name "ALM:". There are no channel names.
+
+Function:   1 (display date only)
+Function:   2 (display date and time)
+Argument 1: time specification block
+Argument 2: message (cstr)
+
+This schedules an alarm, which causes a message box to be shown at some later
+time. The time specification block has the format:
+  Offset  0 (long): abstime when the alarm should sound
+  Offset  4 (long): abstime to be displayed in the message box
+The message (maximum 64 characters) is shown in the message box.
+
+The function completes when the alarm goes off. If the machine is switched off
+at that time, it will switch back on. Changing the system clock will affect the
+completion of this function.
+
+
+Function:   10 (display date only)
+Function:   11 (display date and time)
+Argument 1: time specification block
+Argument 2: message (cstr)
+These functions are supported by the Series 3a only.
+
+This schedules an alarm, which causes a message box to be shown at some later
+time. The time specification block has the format:
+  Offset  0 (long): abstime when the alarm should sound
+  Offset  4 (long): abstime to be displayed in the message box
+  Offset  8 (byte): length of name (L)
+  Offset  9 to L+8: name of alarm sound
+
+These functions are identical to functions 1 and 2, except that the alarm sound
+is specified by the call. The sound name may be one of the following:
+- the name of a sound file; this is searched for in each of:
+    A:\WVE\name.WVE
+    B:\WVE\name.WVE
+    M:\WVE\name.WVE
+    ROM::name.WVE
+  [This appears to be the search order, but it is not documented.]
+  The Series 3a ROM contains the sounds:
+    SYS$AL01   Fanfare
+    SYS$AL02   Soft bells
+    SYS$AL03   Church bell
+- a single byte (thus offset 8 is set to 1) with the value 1 (for rings),
+  2 (for chimes), or 16 (for silence).
+
+
+World device
+------------
+
+The world device has the name "WLD:". There are no channel names.
+
+This device gives access to the World database. This includes the built-in
+database and any one world file. If the World application is running, this is
+the file it currently has open. Otherwise it is the last world file to be open.
+Several functions use a "city name block". This is a 42 byte block with the
+format:
+  Offset  0 to 20: name of a city (cstr)
+  Offset 21 to 41: name of a country (cstr)
+Unless stated otherwise, the country is that in which the city lies.
+
+Many functions establish or use a searching order. This can be set to:
+- all cities, in alphabetical order ("city order")
+- capital cities, in alphabetical order of country ("country order")
+- unspecifed ("random order")
+Search order is cyclic: the last city or country is followed by the first.
+
+
+Function:   10
+Argument 1: clue (cstr)
+Argument 2: city name block
+
+This locates a city whose name begins with the clue (the search is not case
+sensitive, so "lon" will find London, but "ond" will not). If successful, the
+city block is filled in with the city, and city order is set.
+
+
+Function:   11
+Argument 1: clue (cstr)
+Argument 2: city name block
+
+This locates a country whose name begins with the clue (the search is not case
+sensitive, so "lon" will find London, but "ond" will not). If successful, the
+city block is filled in with the capital city of the country, and country order
+is set.
+
+
+Function:   12
+Argument 1: city name (cstr)
+Argument 2: unused
+
+This function succeeds if the city name (ignoring case) is the same as the last
+city returned by functions 10, 13, 14, or 15. Random order is set.
+@Why ?@
+
+
+Function:   13 (next city)
+Function:   14 (previous city)
+Argument 1: city name block
+Argument 2: unused
+
+These functions fill the block with the next (or previous) city in the current
+search order.
+
+
+Function:   15
+Argument 1: city name block
+Argument 2: unused
+
+This function fills the block with the home city; city order is set.
+
+
+Function:   16
+Argument 1: unused
+Argument 2: unused
+
+This function sets the home city to the last city returned.
+
+
+Function:   17
+Argument 1: city name block
+Argument 2: unused
+
+This function fills the block with the capital city of the default country;
+country order is set.
+
+
+Function:   18
+Argument 1: unused
+Argument 2: unused
+
+This function sets the default country to that of the last city returned.
+
+
+  IOW ("WLD:", 19, original, dial_25)
+Function:   19
+Argument 1: original number (cstr)
+Argument 2: diallable number (cstr)
+
+This function generates a diallable number (up to 24 characters) from the
+original number, using the following rules:
+- all characters before the first digit are stripped from the number;
+- the number then ends at the first character other than a digit, space, or the
+  special characters * # , and - (star, hash, comma, and dash);
+- if there are any spaces or dashes in the number, they are removed and the
+  diallable number is modified as follows:
+  * if the first digit was a zero, it is removed;
+  * if the home city is not in the default country, the sequence is prefixed
+    with the international sequence to dial from the home city to the default
+    country;
+- if not, the number is precisely those characters left.
+
+For example, "abc,123,456xx789" generates "123,456". Assuming that the default
+country is the UK and the default city is in the USA, "abc00-34 56x78"
+generates "01144003456".
+
+
+Function:   22
+Argument 1: 80 byte buffer
+Argument 2: unused
+
+This function fills the buffer with information about the last city returned:
+  Offset  0 to  20: (cstr) city name
+  Offset 21 to  41: (cstr) country name
+  Offset 42 (byte): country time code (see below)
+  Offset 43 (byte): DST rule: 0 = none, 2 = European, 4 = North, 8 = South
+  Offset 44 (word): minutes ahead of GMT for city
+  Offset 46 (word): city latitude in minutes north (negative means south)
+  Offset 48 (word): city longtitude in minutes west (negative means east)
+  Offset 50 to  66: (cstr) dial code from home city
+  Offset 67 to  75: (cstr) area code of city
+  Offset 76 (word): X coordinate of city on map (in pixels)
+  Offset 78 (word): Y coordinate of city on map (in pixels)
+
+The country time code gives the "central" time in the country. It is an offset
+from GMT in units of 30 minutes; for countries behind GMT, 256 is added (or
+equivalently, the byte is signed). In practice, this is the time for the
+capital city, with the three exceptions of Australia (code 19), Canada, and
+the USA (both code $F2 or -14). @Why ?@
+
+
+Function:   23
+Argument 1: 66 byte buffer
+Argument 2: unused
+
+This function fills the buffer with information about the country of the last
+city returned:
+  Offset  0 to  20: (cstr) city name
+  Offset 21 to  41: (cstr) country name
+  Offset 42 (byte): country time code (see above)
+  Offset 43 (byte): DST rule: 0 = none, 2 = European, 4 = North, 8 = South
+  Offset 44 (word): minutes ahead of GMT for capital city
+  Offset 46 to  50: (cstr) national dialling code
+  Offset 51 to  55: (cstr) international dialling code
+  Offset 56 to  60: (cstr) country code
+
+
+Function:   25
+Argument 1: city name block
+Argument 2: unused
+
+This function returns the next city in the same country as the last city
+returned (using city order).
+
+
+Serial port device (data device)
+--------------------------------
+
+The serial port device has the name "TTY:". The channel name is a single
+letter from A to Z, identifying the particular port to use. Which ports are
+actually provided depends on the specific system.
+
+An open serial port can be read and written with IOREAD and IOWRITE, or with
+IOW functions 1 and 2.
+
+
+Function:   7
+Argument 1: 12 byte control block
+Argument 2: unused
+
+This function sets various characteristics of the serial port. The control
+block has the format:
+  Offset  0 (byte): transmit baud rate
+  Offset  1 (byte): receive baud rate
+    Baud rates are encoded as:
+     1 =    50      7 =   600     13 =  4800     19 = 115000
+     2 =    75      8 =  1200     14 =  7200
+     3 =   110      9 =  1800     15 =  9600
+     4 =   134     10 =  2000     16 = 19200
+     5 =   150     11 =  2400     17 = 38400
+     6 =   300     12 =  3600     18 = 56000
+  Offset  2 (byte): framing
+    Bits 0 to 3: number of data bits minus 5 (e.g. 3 means 8 bits)
+    Bit 4:       clear for 1 stop bit, set for 2 stop bits
+    Bit 5:       parity bit enabled if set
+  Offset  3 (byte): 0 = no parity, 1 = even parity, 2 = odd parity
+  Offset  4 (byte): handshaking
+    Bits 0 to 1: 3 = XON handshaking, 0 = no XON handshaking
+    Bit 2:       0 = RTS handshaking, 1 = no RTS handshaking
+    Bit 3:       1 = DSR handshaking, 0 = no DSR handshaking
+    (Any combination of XON, RTS, and DSR can be set at once.)
+  Offset  5 (byte): XON character (usually 17)
+  Offset  6 (byte): XOFF character (usually 19)
+  Offset  7 (byte): flags
+    Bit 0: ignore parity errors
+  Offset  8 (long): terminating mask
+The terminating mask specifies which of the characters with codes 0 to 31
+terminate a read. For example, if bits 10 and 13 are set, then a read on the
+port will terminate after reading a byte with value 10 or 13.
+
+
+Function:   8
+Argument 1: 12 byte control block
+Argument 2: unused
+
+This function fills the control block with the current settings (see function
+7).
+
+
+Function:   9
+Argument 1: unused
+Argument 2: unused
+
+This function discards any buffered input and any error state. Any handshaking
+is set to restart reception.
+
+
+Function:   10
+Argument 1: count (word)
+Argument 2: unused
+
+The count is set to the number of bytes buffered and waiting to be read.
+
+
+Function:   11
+Argument 1: 2 byte control block
+Argument 2: unused
+
+The first byte of the control block is set to indicate the state of the modem
+control lines:
+    Bit 0: set if CTS active
+    Bit 1: set if DSR active
+    Bit 2: set if DCD active
+
+The second byte specifies the new setting for the DTR line:
+    0 = leave unchanged
+    1 = set DTR active
+    2 = set DTR inactive
+
+
+Function:   12
+Argument 1: 6 byte information block
+Argument 2: unused
+
+The information block is filled in to indicate which facilites are supported
+by the port.
+  Offset  0 (long):
+    Bit  0: set if supports 50 baud
+    Bit  1: set if supports 75 baud
+    Bit  2: set if supports 110 baud
+    Bit  3: set if supports 134 baud
+    Bit  4: set if supports 150 baud
+    Bit  5: set if supports 300 baud
+    Bit  6: set if supports 600 baud
+    Bit  7: set if supports 1200 baud
+    Bit  8: set if supports 1800 baud
+    Bit  9: set if supports 2000 baud
+    Bit 10: set if supports 2400 baud
+    Bit 11: set if supports 3600 baud
+    Bit 12: set if supports 4800 baud
+    Bit 13: set if supports 7200 baud
+    Bit 14: set if supports 9600 baud
+    Bit 15: set if supports 19200 baud
+    Bit 16: set if supports 38400 baud
+    Bit 17: set if supports 56000 baud
+  Offset  4 (word):
+    Bit  0: set if supports 5 bits
+    Bit  1: set if supports 6 bits
+    Bit  2: set if supports 7 bits
+    Bit  3: set if supports 8 bits
+    Bit  4: set if supports 2 stop bits
+    Bit  5: set if supports even parity
+    Bit  6: set if supports odd parity
+    Bit  7: set if supports mark parity
+    Bit  8: set if supports space parity
+    Bit  9: set if supports setting DTR
+    Bit 10: set if supports different transmit and receive baud rates
+    Bit 11: set if supports soft xon/xoff characters
+
+
+Parallel port device (data device)
+----------------------------------
+
+The parallel port device has the name "PAR:". The channel name is a single
+letter from A to Z, identifying the particular port to use. Which ports are
+actually provided depends on the specific system. A port will consume power
+while open.
+
+An open parallel port can be written with IOWRITE, or with IOW function 2.
+
+No other functions are available on the Series 3.
+
+
+Free running counter
+--------------------
+
+The Free running counter has the name "FRC:". There are no channel names. It
+is only available on the Series 3a. Only one process may have the FRC open
+at a time, and so it should be closed as soon as possible.
+
+In the following description, an "FRC-tick" is 1/1024 seconds.
+
+
+Function:   1
+Argument 1: (word) set to current count
+Argument 2: unused
+
+The current setting of the counter is placed in the word. If the counter is
+in mode 1, the count is then reset to zero (the counter continues counting).
+This call will not complete while the counter is zero.
+
+
+Function:   15
+Argument 1: (word) operating mode (0 or 1)
+Argument 2: (word) step time (10 to 65535)
+
+Starts the counter from zero. Mode 0 means that the counter will increment
+every FRC-tick. Mode 1 means that the counter will increment at every N
+FRC-ticks, where N is the step time. Any uncompleted function on the counter
+will be completed.
+
+
+XModem and YModem drivers (data device)
+---------------------------------------
+
+The XModem driver has the name "XMD:", and the YModem driver the name "YMD:".
+There are no channel names. Both are stacked on to another data device.
+
+Once stacked, the driver will use the underlying device to transfer data
+using the XModem (single transfer) or YModem (multiple transfer) protocol.
+These protocols have a number of variants:
+- XModem may use checksums or CRCs on each frame. CRCs are more reliable.
+- YModem may use the error correcting or G mode. The G mode does not allow
+  errors to be corrected, only detected.
+- The transfer may use short frames (128 data bytes) only, or both short and
+  long frames (1024 data bytes).
+
+Function 1 is used to receive data. The initial value of the length argument
+will be ignored, and a whole frame (128 or 1024) bytes will be placed in the
+buffer, which must therefore be large enough. When an end-of-file message is
+received, the function will fail with error -36.
+
+Function 2 is used to send data. The length is used as follows:
+       0 : an end-of-file message is sent
+     128: a short frame is sent
+    1024: a long frame is sent
+If the length is any other value, the specified amount of data is transferred,
+followed by enough $1A bytes to fill a frame (a short frame if the length is
+less than 128, and a long frame otherwise).
+
+With YModem, the first frame must be a short frame with the following contents,
+in order:
+  - (cstr) file name
+  - file length in bytes (decimal digits)
+  - a single space, then the abstime file last modified (octal digits)
+  - a single space, then the file mode, using Unix conventions (octal digits)
+  - a single space, then the sending software version number (octal digits)
+The last field or fields may be omitted, provided that the name is present.
+The rest of the frame must contain only zero bytes. A frame consisting only of
+128 zero bytes indicates that there are no more files.
+
+
+Function:   10
+Argument 1: (word) direction: 0 = transmit, 1 = receive
+Argument 2: (word) mode
+
+This establishes a connection with the other end of the link. The direction
+indicates which way the file transfer will take place. The mode is one of
+the following values:
+  If long frames are to be rejected while receiving:
+    XModem:
+      0 = CRC mode if supported by far end, otherwise checksum mode
+      1 = CRC mode
+      2 = Checksum mode
+    YModem:
+      3 = Error correcting mode
+      4 = G mode
+  If long frames are to be accepted while receiving:
+    XModem:
+      $8001 = CRC mode
+    YModem:
+      $8003 = Error correcting mode
+      $8004 = G mode
+
+With YModem, this function must be called for each file.
+
+
+Function:   11
+Argument 1: unused
+Argument 2: unused
+
+This disconnects an existing connection while leaving the driver attached.
+With YModem, this function should not be called between files.
+
+
+Console device
+--------------
+
+This is a special device that does not need to be opened; it has the handle -2.
+
+
+Function:   7
+Argument 1: (word) the value 0
+Argument 2: (word) style: 0 = normal, 2 = inverse, 4 = underlined, 6 = both
+
+This alters the text style as specified.
+
+
+Function:   7
+Argument 1: (word) the value 2
+Argument 2: rectangle
+
+This clears an area described by the rectangle:
+  Offset  0 (word): left   coordinate (included)
+  Offset  2 (word): top    coordinate (included)
+  Offset  4 (word): right  coordinate (excluded)
+  Offset  7 (word): bottom coordinate (excluded)
+
+
+Function:   7
+Argument 1: (word) the value 17
+Argument 2: control block
+
+This sets the font type for the text window, and (as a side effect) resizes
+and moves the current screen (as set by the SCREEN keyword). The control word
+has the format:
+  Offset  0 (word): font ID plus $3FFF
+  Offset  2 (word): style: 0 = normal, 1 = bold, 2 = double size
+
+
+  IOW (-2, 8, args%(), args%())
+Function:   8
+Argument 1: information block
+Argument 2: must be the same as argument 1
+
+This function places the cursor position, relative to the specified rectangle,
+in the information block. This has the format:
+  Offset  0 (word): left   limit
+  Offset  2 (word): top    limit
+  Offset  4 (word): right  limit @why ?@
+  Offset  6 (word): bottom limit @why ?@
+  Offset  8 (word): set to cursor x coordinate
+  Offset 10 (word): set to cursor y coordinate
+All coordinates are in character positions, as used by the SCREEN keyword.
+
+
+Function:   14
+Argument 1: array of two words
+Argument 2: unused
+
+This function is equivalent to the GETEVENT keyword. The TESTEVENT keyword
+also uses this function, testing to see if the status is -46 or not. This
+function can be called from OPL programs that are not OPA applications.
+
+@Lots more still in the manual@

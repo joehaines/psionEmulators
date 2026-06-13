@@ -1,0 +1,431 @@
+Version 1.1
+3 March 1998
+Andrew Gregory
+46 Griffell Way
+Duncraig WA 6023
+Australia
+Email: agregory@unidata.com.au
+
+Application Manager
+
+The Application Manager (AM) is a collection of useful procedures intended to let you create professional-looking applications under the EPOC 16 operating system (Series 3a/3c, WorkAbout, Siena). Supported features are:
+
+Event driven. The main loop is similar to GETEVENT and will call your own procedures.
+Asynchronous I/O.
+Access to the built-in WDR printer drivers, including print preview.
+Access to the built-in help system.
+Asynchronous menus and dialog boxes.
+Dynamic (run-time) choice lists.
+Progress bar gauge dialog box control.
+Extra dialog box underlines.
+Country settings.
+Link Paste (Copy/Bring) client and server.
+Serial Link.
+Serial port configuration.
+
+NOTE: the AM uses the word at memory address $34. Do not use this in your applications.
+
+The AM has been tested on a real 512K Series 3a, plus the Series 3a emulator (EPOC 16 emulator) using Series 3a, WorkAbout, and Siena ROM images. Each of the individual features of the AM has been tested in isolation, but I cannot vouch for the operation of the features when used together. For example, I have not tested the operation of the WDR printer routines inside the main event handling routines.
+
+Obtaining the Latest Application Manager
+
+At the moment, the latest version of the AM can be obtained from:
+
+http://www.unidata.com.au/psion/
+
+Credits
+
+Most of the AM is not my original work. I have taken the work done by the following people and re-written it to be consistent and to work together. Many thanks go to:
+
+Jeremy Wakefield (Jezar) for the main async dialog and menu handling code, the async I/O handling code, the help interface, and the dialog bar gauge interface.
+David Wood for the dialog underlining code.
+Andy Clarkson for the WDR printer driver interface.
+Colly and Tom Dolbilin for the Link Paste client/server interface.
+
+I have not obtained the express permission from any of the above people for the use of their code, but most of the code is freely available anyway.
+
+Conditions of Use
+
+The AM is free for use by anyone who wishes to use it subject to the conditions listed below:
+
+Make it clear that you did NOT write the AM portion of your program.
+Provide either the AM in its entirety (source OPL, compiled OPO, and this WRD file) along with your application, or instructions on where to find the latest version (or both!).
+Neither I, nor any of the original authors can be held responsible for anything the AM does, good or otherwise!
+Don't pester the people listed above about the AM - they don't know anything about it!
+
+Using the Application Manager
+
+Background
+
+The idea behind the AM is for it to wait for an event to occur, then call a procedure to handle that specific event. For example, one procedure to handle the keypresses, another to handle System commands, etc. This type of programming is called "event-driven".
+
+If you have already designed your program to be event driven, then you probably are using the GETEVENT keyword and are calling procedures based on its returned value. If you are not using GETEVENT, then most likely your program is not event driven - you will probably have quite a bit of work to do re-designing your program to be event-driven.
+
+Mainline
+
+All programs using the AM will have a similar mainline:
+
+PROC main:
+	REM your GLOBAL variables here
+	LOADM "appman.opo"
+	REM name of your init%: procedure here:
+	mpStart%:( "init" )
+	cnOff%:( 0 )
+	UNLOADM "appman.opo"
+ENDP
+
+The mpStart%: procedure will call your specified initialisation procedure (in the example above it is called "init"). The initialisation procedure takes no parameters and returns an integer. If the return value is non-zero, mpStart%: returns immediately.
+
+Initialisation Procedure
+
+Typically, your initialisation procedure will set the GLOBAL EvtFunc$() procedure name array to specify which procedures will be called for what events. For example:
+
+PROC init%:
+	EvtFunc$( 1 ) = "hdlkey"
+ENDP
+
+This specifies that whenever a key is pressed (event type #1), the procedure "hdlkey" will be called (see EvtFunc$() for information on which event-handling procedures are passed which parameters).
+
+After your initialisation procedure has been called, mpStart%: will enter the main program loop and not return until either an unrecoverable error occurs, or one of the event handling procedures returns 2, or a value less than zero (see EvtFunc$()).
+
+Alphabetical Listing
+
+This listing includes both procedures and global variables. Procedures have a colon (:) in their names, global variables do not.
+
+amStart%:
+
+This is the main event loop. It is called by mpStart%: if your initialisation procedure returns a zero (success). Call this to start processing the various events. It will always return zero if it exits without errors, otherwise it will RAISE the error.
+
+cdGet:( cdptr%, csptr% )
+
+Get the country data. cdptr% must point to an array of at least 20 integers, csptr% must point to an OPL string of at least 8 characters. For example:
+
+PROC test:
+	LOCAL cd%( 20 ), cs$( 8 )
+	cdGet:( ADDR( cd%() ), ADDR( cs$ ) )
+ENDP
+
+The layout of cd%() is as follows:
+
+cd%(  1 ) = Country code (dialling code)
+cd%(  2 ) = Offset in minutes of local time from GMT
+cd%(  3 ) = Date format (0=MM/DD/YY,1=DD/MM/YY,2=YY/MM/SS)
+cd%(  4 ) = Time format (0=12hr,1=24hr)
+cd%(  5 ) = Currency symbol position (0=before amount,1=after)
+cd%(  6 ) = Currency symbol spacing (0=space between symbol and amount, 1=no space)
+cd%(  7 ) = # of decimal places in currency
+cd%(  8 ) = Negative amount display (0=leading minus sign,1=brackets)
+cd%(  9 ) = Triad separator threshold (0=none,1=normal,4=French)
+cd%( 10 ) = Triad separator character code
+cd%( 11 ) = Decimal separator character code
+cd%( 12 ) = Date separator character code
+cd%( 13 ) = Time separator character code
+cd%( 14 ) = Start of week (0=Monday,...,6=Sunday)
+cd%( 15 ) = Summer times - which times to adjust (bit = 1 = adjust) (bit 0 = system, 1 = European, 2 = northern hemisphere, 3 = southern hemisphere)
+cd%( 16 ) = Clock type (0=analogue,1=digital)
+cd%( 17 ) = # characters of day name to use as abbreviation
+cd%( 18 ) = # characters of month name to use as abbreviation
+cd%( 19 ) = bit map indicating which days are workdays (bit 0 for Monday, ..., bit 6 for Sunday)
+cd%( 20 ) = units (0=imperial,1=metric)
+
+cs$ will have the currency symbol stored in it.
+
+cnOff%:( state% )
+
+This turns console reads on or off. When state% is zero, console reads are turned on, otherwise they're turned off. amStart%: turns console reads off. You must turn them back on (i.e. when the 'outermost' amStart%: call returns) to re-enable the following OPL commands: TESTEVENT, GET, GET$, KEY, KEY$, KMOD, GETEVENT, EDIT, INPUT, and PAUSE.
+
+dclAdd%:( va%, str$ )
+
+Add a choice item to the dynamic list. Returns zero on no error. va% is the handle returned by dclInit%:, str$ is the string to add.
+
+dclDone%:( va% )
+
+Cleans up after a dynamic choice list. Call this after the DIALOG or wsDial%: procedures have returned. va% is the handle returned by dclInit%:.
+
+dclInit%:( flat%, gran%, size% )
+
+Initialise a dynamic choice list. flat% specifies the memory management technique: 0=variable length records (memory efficient, but slow), non-0=fixed length records (memory hungry, but faster). gran% specifies the size of the chunks of memory allocated to the list (memory blocks are allocated to hold gran% records). size% specifies the size of fixed length records (this paramter is ignored for variable length records). Since the strings are stored as zero-terminated strings, this procedure will add one to the size.
+Returns a handle to the choice list that should be passed to the other dcl...%:() procedures, or zero on error.
+
+dclSet%:( va%, sel% )
+
+Set a line in a dialog box as using a dynamic choice list. It will automatically use the most recently defined dialog line, so you MUST make sure it is a dCHOICE, eg:
+
+	dCHOICE choice%, "Your Prompt Here", "x"
+	dclSet%:( va%, 1 )
+
+The dCHOICE sets up the prompt and the variable the number of the selected item will be stored into. The dclSet%: assigns the large list and sets the initial selection: va% is the handle returned by dclInit%:, sel% is the initial selection in the choice list (the first item in the list is numbered 1).
+
+dCount%:
+
+Returns the number of dialog box control in the current dialog box, or -1 if there is no current dialog box.
+
+dCurrnt%:
+
+Returns the item number of the currently selected dialog box control in the current dialog box, or -1 if there is no current dialog box. Controls are numbered starting at zero for the top control.
+
+This procedure could be used in a keyboard handling function set up specially for the dialog box to implement context sensitive help or sub-dialog boxes.
+
+dDONEWN%:( maximum& )
+
+This creates a progress bar gauge in a dialog box. maximum& is the maximum& value for the gauge. The amount of shaded bar shown is set when dDWSET%: (below) is called. The size of the bar gauge is fixed. Use the returned value (the line number of the bar in the dialog, zero being the first line) to pass as idx% to dDWSET%: below.
+
+dDWSET%:( itm%, value& )
+
+This sets the value of a previously created progress bar gauge. The percentage of shaded bar shown can be calculated as: value&/maximum&*100, where maximum& is the value passed to the dDONEWN%: procedure (above). itm% is the value returned by dDONEWN%: above (if you know what line the progress bar is in the dialog, you can use that as the idx%; count the lines in the dialog from zero).
+
+dTXTSET%:( itm%, str$ )
+
+This sets the body$ of the dTEXT item on line number itm% in the current dialog box to str$. The first item in a dialog is numbered zero. The style of the items is unchanged.
+
+dULINE:( index%, on% )
+
+Allows extra underlines to be added to dialog boxes. Call this before the DIALOG (or wsDial%:). index% starts at zero for the first item. If on% is zero, an underline is removed, non-zero adds an underline.
+
+emAdd%:( func$, pri% )
+
+Registers a callback procedure with the event manager. Returns zero on error, otherwise it returns a handle. The handle can be used as an index into the following GLOBAL arrays:
+
+emHand%()	The handle to use for IOOPEN calls.
+emStat%()	The status word for asynchronous I/O.
+emUser1&()	User parameter 1.
+emUser2&()	User parameter 2.
+
+Call this procedure before calling IOOPEN and IOA/IOC functions.
+
+emDspch%:
+
+This internal procedure is called when an asynchronous I/O function signals its' completion. This checks the registered I/O functions and calls the appropriate callback procedure. Returns zero if no events claimed the signal. amStart%: (above) calls this procedure.
+
+emFunc%:( slot% )
+
+This is your callback procedure (is isn't really called emFunc%: - it's whatever you called it). The slot% parameter allows access to the emHand%(), emStat%(), emUser1&() and emUser2&() variables - use slot% as the array index.
+
+emRem%:( slot% )
+
+Un-registers a callback procedure. Call this after finishing asynchronous I/O, or after using IOCANCEL and IOWAITSTAT.
+
+EvtFunc$()
+
+This is an array of procedure names, each entry in the array corresponds to a type of event. Set the handling procedure to a null string to ignore the event (default). Common event types are:
+
+1 = Keyboard
+5 = Process has gone to the background
+6 = Process has come to the foreground
+17 = System shell has sent a command (use GETCMD$ to get the command)
+20 = Machine has been switched on
+22 = Date has changed
+
+So EvtFunc$(1) has the name of the procedure to be called for keyboard events, EvtFunc$(5) has the name of the procedure for gone to background events, etc.
+
+The event handling procedures, except for the keyboard handler (type 1), take no parameters. For example:
+
+PROC hdlr%:
+ENDP
+
+The keyboard handler takes three parameters. The key code, the key modifier, and the key repeat:
+
+PROC keyhdlr%:( key%, kmod%, krep% )
+ENDP
+
+key% and kmod% are as for the KEY and KMOD OPL keywords. krep% is a count of the number of times the key was repeated before the event was dispatched (handled).
+
+Keyboard events will be dispatched, even if a menu or dialog box is showing. If you are showing a menu, it is probably best to set EvtFunc$(1) to a null to ignore keyboard events for the duration of the menu. If you are showing a dialog box, it should be null, or set to a special dialog box keyboard handler which could handle context-sensitive help, or sub-dialog boxes.
+
+All event handlers return an integer:
+	<0	the return value will be RAISEd as an error
+	0	dispatch event as normal
+	1	ignores the event
+	2	causes amStart%: to return to its caller
+	>2	these are undefined (reserved) and should not be used
+
+Apart from the common event types listed above, the following less common ones are also available:
+
+2 = mouse
+3 = redraw
+4 = unknown
+7 = rubberband
+8 = user
+9 = active
+10 = unknown
+11 = cancel
+12 = kstate
+13 = rubberband init
+14 = deiconise
+15 = attach
+16 = detach
+18 = task key
+19 = task update
+21 = escape
+
+hlpSync%:( fname$, base&, page& )
+
+Displays the given help page number from the given help file using the built-in help system (this procedure is incompatible with classic Series 3 machines).
+
+NOTE: this call is synchronous - no event handling will be performed whilst help is displayed.
+
+init%:
+
+The initialisation procedure is called by mpStart%: and should set up the event handling procedures, (by setting the EvtFunc$() array). Asynchronous I/O can also be started here (see the emXXXX%: family of procedures).
+
+lkPid%:
+
+Returns the PID of the Serial Link process, or zero if the Serial Link is not active.
+
+lkStart%:( port$, baud% )
+
+Start the serial link process. port$ is the serial port identifier (eg. "A") and baud% is the baud rate number (same as for rsset:, q.v.). Returns the PID of the Serial Link process, or zero if the link could not be started. WARNING: if the serial link cable is not plugged in, you will get an ugly system error message.
+
+lkTerm%:( pid% )
+
+Terminate the Serial Link process. pid% should be the same number as that returned by the call to lkStart%:. However, if you pass zero as the PID, then this procedure will attempt to guess the PID by using the lkPid%: procedure (q.v.). Returns zero on success, otherwise returns the error code.
+
+lpBackG%:
+
+If your program is to be a Link Paste server, it must be set up to call this procedure when it goes to the background. Any processing required to set up the data to be made available to Link Paste clients could be done here.
+NOTE: This procedure will not do anything unless the user has pressed some keys while inside your application. This allows users to task switch "through" your application, without your application "taking over" the Link Paste server role.
+
+lpBring$:( pid% )
+
+Gets the next chunk of Link Paste data from the Link Paste server. pid% must be the process ID of the current Link Paste server as obtained from a previous call to lpSrvId%:.
+
+This raises an error when there is no more data.
+
+lpData%:( bptr%, uptr% )
+
+This procedure must be provided by any program that is to be a Link Paste server. It returns zero while there is more data to send, otherwise it must return non-zero to indicate this is the last of the data. bptr% is a pointer to a 255 character OPL string buffer, uptr% is a pointer to a 2-byte bit of memory that contains the user word passed to lpInit:.
+
+lpFmt&
+
+This global variable must be defined in your mainline. It is used by the lpBackG%: and lpMsg%: procedures to control what format requests the Link Paste server will accept. Normally it can be set just before lpBackG%: is called.
+
+lpInit:( pri%, user% )
+
+Initialises Link Paste server support. This procedure requires use of the Event Manager. pri% is the Event Manager priority number, user% is a user parameter. A pointer to user% is passed to the user-defined lpData%: procedure. The most likely use for user% is to keep track of where the data is up to between calls to lpData%:.
+
+lpSrvId%:( reqfmt& )
+
+Gets the process ID of the current Link Paste server, or zero if there is no Link Paste server. reqfmt& is the format the Link Paste data should be in:
+
+2 = Plain text
+4 = Tabbed text
+16 = Paragraph text
+
+Native format is not supported.
+
+mpStart%:( init$ )
+
+Starts the main event loop. Calls the given init$ procedure (q.v.) before the loop begins. When it is done, you should call cnOff%:(0) (q.v.) to re-enable console keywords (such as GET, KEY, etc..).
+
+prEnd:( pbuf% )
+
+Frees memory allocated to the print buffer. pbuf% must be a handle returned by prInit%: or prLine%:.
+
+prGHF$:( where% )
+
+Gets the text for the header/footer. If where% is 0, the header text is returned. If where% is 1, the footer text is returned.
+
+prGParm$:( addr% )
+
+Gets the printer parameters. It takes a pointer to an array of 30 integers (60 bytes). The array values are filled in as shown below. The filename of the printer driver is returned. All measurements are in units of 1/1440".
+parm%(   1 )	Printer model number within the printer driver.
+parm%(   2 )	Page width.
+parm%(   3 )	Page height.
+parm%(   4 )	Left margin.
+parm%(   5 )	Top margin.
+parm%(   6 )	Width of printable area (to right margin).
+parm%(   7 )	Height of printable area (to bottom margin).
+parm%(   8 )	Header offset from top of page.
+parm%(   9 )	Footer offset from bottom of page.
+parm%( 10 )	*?Printer driver flags?
+parm%( 11 )	*?Document flags?
+parm%( 12 )	*?Page number to begin printing (first page is 1)?
+parm%( 13 )	*?Page number to stop printing (-1 to print to end)?
+parm%( 14 )	Header font ID.
+parm%( 15 )	Header font style.
+parm%( 16 )	Header font height.
+parm%( 17 )	Low byte: Header alignment (0=Left, 1=Right, 2=Center, 3=Justified, 4=Two column, 5=Three column).
+			High byte: Header on first page (0=No, 1=Yes).
+parm%( 18 )	Footer font ID.
+parm%( 19 )	Footer font style.
+parm%( 20 )	Footer font height.
+parm%( 21 )	Low byte: Footer alignment (as for Header alignment).
+			High byte: Footer on first page (0=No, 1=Yes).
+parm%( 22 )	Page number offset (adds this to the page numbers for printing).
+parm%( 23 )	*?Last page number?
+parm%( 24 )	Page number style (0=1,2,3; 1=I,II,III; 2=i,ii,iii).
+parm%( 25 )	Default printer font ID.
+parm%( 26 )	Default printer font style.
+parm%( 27 )	Default printer font height.
+parm%( 28 )	*Low byte: ?Size choice?
+			High byte: Widow/Orphan Control (0=No, 1=Yes).
+parm%( 29 )	unused (zero).
+parm%( 30 )	unused (zero).
+
+* - parameter is not accessible through the standard Print Setup dialog (prSetup:).
+
+prInit%:( inum%, grow% )
+
+Initialises the routines that manage the printout lines. inum% is the initial number of lines allocated, grow% is the number the allocation increases by when it becomes full. The procedures returns a handle to the print buffer that must be passed to the prEnd:, prPrint: and prLine%: procedures (described below).
+
+prLine%:( pbuf%, s%, line$ )
+
+Adds the line in line$ to the print buffer. If the print buffer is full, the buffer is increased by the number of lines specified to the prInit%: procedure (described above). The line will be printed in the style specified by s%. This procedure may alter the memory allocated to the print buffer: ALWAYS assign the return value to the variable that was passed as pbuf% when prLine%: was called.
+
+prPrint:( pbuf%, dest% )
+
+Print the lines in the given print buffer. dest% is the destination: 0=printer, 1=preview.
+
+prSetup:
+
+Displays the standard Print Setup dialog box. Updates the system printer setup settings.
+
+prSHF$:( where%, txt$ )
+
+Sets the text for the header/footer. where% is as for prGHF$: above.
+
+prSParm:( name$, addr% )
+
+Sets the printer parameters. It takes the filename of the printer driver, and a pointer to an array of 30 integers. The array format is the same as that described under prGParm$: above.
+
+rsset:( hdl%, baud%, parity%, data%, stop%, hand%, term& )
+
+Configures the serial port. hdl% is the I/O handle (if LOPEN was used, pass -1), baud% is the baud rate number where:
+
+1 = 50 baud
+2 = 75
+3 = 110
+4 = 134
+5 = 150
+6 = 300
+7 = 600
+8 = 1200
+9 = 1800
+10 = 2000
+11 = 2400
+12 = 3600
+13 = 4800
+14 = 7200
+15 = 9600
+16 = 19200
+17 = 38400 (assumed S3c)
+18 = 57600 (assumed S3c)
+
+parity% controls the parity: 0 = none, 1 = even, 2 = odd.
+data% controls the number of data bits: 5, 6, 7, or 8.
+stop% controls the number of stop bits: 1 or 2.
+hand% controls the method of handshaking (flow control): 11 = all, 4 = none, 7 = XON, 0 = RTS, 3 = XON and RTS, 12 = DSR, 15 = XON and DSR, 8 = RTS and DSR.
+term& is the read termination bitmap. Each bit set indicates that the corresponding ASCII character marks the end of a read. (eg. bit 13 = ASCII 13, etc.)
+
+wsDial%:
+
+This is the asynchronous version of the OPL instruction DIALOG. Build the dialog as usual using dINIT and dXXXX instructions, then instead of calling DIALOG, call wsDial%: instead. Return values are as for DIALOG.
+
+wsMenu%:
+
+This is the asynchronous version of the OPL instruction MENU. Build the menu as usual using mINIT and mCARD, then instead of calling MENU, call wsMenu%: instead. Return values are as for MENU.
+
+wsOnTop%:( func$ )
+
+As for wsDial%:, but call this whenever you need a dialog on top of a dialog. If you haven't already called wsDial%:, this will RAISE an error. func$ is your function that will create and call the sub-dialog (via dINIT and wsDial%:, as usual).
+

@@ -1,0 +1,317 @@
+WORLD DEVICE DRIVER INTERFACE (WLD:)
+====================================
+
+On the S3 and on the S3a there is a device driver WLD: that allows
+applications to access the data in the world database of cities and
+countries stored in the ROM of the machine.  As well as returning raw
+data, this device driver also has services to perform intelligent
+calculations based on this data (eg WR_GET_DIAL_STRING and WR_CALC).
+
+The WLD: device driver actually communicates with the TIME application
+via IPC (inter-process communication) to provide the functionality
+described below.  Ordinarily, the TIME application is always running,
+so a call to open a channel to WLD: will never normally fail.  For
+most purposes, however, users of WLD: need not be aware of the method
+of its implementation.
+
+To make sense of the following information, some familiarity with the
+basic ideas of the IOW/ IOA calls will be helpful.
+
+The information in this document is explained in C programming terms,
+but it should be clear how to convert it into Opl programming terms.
+
+WLD DEVICE DRIVER INTERFACE STRUCTURES
+--------------------------------------
+
+The following constants and structures are used in the interface to WLD:
+
+#define WR_FIND_CITY 10
+#define WR_FIND_COUNTRY 11
+#define WR_FIND_EXACT 12
+#define WR_NEXT 13
+#define WR_BACK 14
+#define WR_GET_HOME 15
+#define WR_SET_HOME 16
+#define WR_GET_DEFAULT_COUNTRY 17
+#define WR_SET_DEFAULT_COUNTRY 18
+#define WR_GET_DIAL_STRING 19
+#define WR_EXTRA 20
+#define WR_SET_EXTRA 21
+#define WR_GET_CITY_DATA 22
+#define WR_GET_COUNTRY_DATA 23
+#define WR_CALC 24
+#define WR_NEXT_LOCK 25
+
+#define WR_MAX_NAME 20
+#define WR_MAX_DIAL 16
+#define WR_MAX_CODE 8
+#define WR_MAX_INTRA 4
+#define WR_MAX_INTER 4
+#define WR_MAX_DIAL_STRING 24
+#define WR_MAX_IN_STRING 64
+
+#define WR_UNITS_MILES 0
+#define WR_UNITS_KILOMETERS 1
+#define WR_UNITS_NAUTICAL 2
+
+#define WR_START_STATE 1
+#define WR_END_STATE 0
+
+#define WR_HOME_DONE 0
+#define WR_HOME_SET 1
+#define WR_HOME_DOING 2
+
+#define WR_NOT_FOUND -1
+#define WR_FOUND 0
+
+#define WR_EXTRA_ADD_CITY 0
+#define WR_EXTRA_UPDATE_CITY 1
+#define WR_EXTRA_DELETE_CITY 2
+#define WR_EXTRA_UPDATE_COUNTRY 3
+#define WR_EXTRA_ADD_HOME 4
+
+#define WR_DELETED 0
+#define WR_REVERTED 1
+
+#define WR_TOO_MANY_ERR -23
+#define WR_NOTVALID_ERR -25
+#define WR_DELHOME_ERR -26
+#define WR_DELCAPITAL_ERR -27
+#define WR_DUPLICATE_ERR -28
+
+typedef struct
+    {
+    WORD iLat;  /* + for North in minutes */
+    WORD iLong; /* + for West in minutes */
+    } LATL;
+
+typedef struct
+    {
+    TEXT city[WR_MAX_NAME+1]
+    TEXT country[WR_MAX_NAME+1]
+    } WR_FIND_RES;
+
+typedef struct
+    {
+    WR_FIND_RES f;
+    UBYTE units;    /* Miles, Km or Nautical Miles - for WR_CALC */
+    UBYTE DST;      /* 0 -constant, 2 -European, 4 -USA, 8 -Southern */
+    WORD GMT;       /* variance in minutes */
+    LATL latl;
+    TEXT dial[WR_MAX_DIAL+1]; /* dial code from home to city */
+    TEXT STD[WR_MAX_CODE+1];  /* used by WR_CITY_UPDATE_CITY */
+    P_POINT pos;              /* city XY position */
+    } WR_CITY_DATA;
+
+typedef struct
+    {
+    TEXT dialIntra[WR_MAX_INTRA+1]; /* internal STD access code */
+    TEXT dialInter[WR_MAX_INTER+1]; /* international access code */
+    TEXT dial[WR_MAX_CODE+1];   /* either the city or country code */
+    UBYTE dummy;
+    } CO_DIAL;
+
+typedef struct
+    {
+    WR_FIND_RES f;
+    UBYTE baseGMT; /* used internally only */
+    UBYTE DST;     /* 0 -constant, 2 -European, 4 -USA, 8 -Southern */
+    WORD GMT;      /* variance in minutes */
+    CO_DIAL dial;
+    } WR_COUNTRY_DATA;
+
+typedef union
+    {
+    WR_CITY_DATA ci;
+    WR_COUNTRY_DATA co;
+    } WR_EXTRA_DATA;
+
+typedef struct
+    {
+    WORD distance; /* in the units specified in WR_CITY_DATA */
+    WORD sunRise;  /* in minutes local time */
+    WORD sunSet;   /* in minutes local time */
+    WORD always;   /* -1 -dark, 0 -good SR & SS, 1 -light */
+    } WR_CALC_OUT;
+
+typedef union
+    {
+    WR_CITY_DATA in; /* input lat, long and units */
+    WR_CALC_OUT out;
+    } WR_CALC_DATA;
+
+WLD DEVICE DRIVER INTERFACE FUNCTIONS
+-------------------------------------
+
+A channel to WLD: can be opened with the following call:
+
+    INT ret;
+    VOID *w;
+    ret=p_open(&w,"wld:",-1);
+
+and all the following functions can be requested using p_ioa(),
+p_ioc() or p_iow().  The functions P_FCANCEL and P_FCLOSE are all as
+normal with the additional functionality that regardless of whether a
+request is outstanding a P_FCANCEL will free any storage associated
+with a part completed WR_CALC.
+
+At all times an open channel is always positioned on a valid city or
+country.  The city or country can be changed by means of some of the
+following functions, eg WR_FIND_CITY or WR_NEXT.  Additional
+information about the current city or country can be obtained by
+means of other functions described below, eg WR_GET_CITY_DATA.
+
+There are also functions to set or sense the current home city and
+the current default country.
+
+INT WR_FIND_CITY(TEXT *match, WR_FIND_RES *result)
+--------------------------------------------------
+Finds the next city, after the current one, with start of name
+matching the string in 'match'.
+Maximum size WR_MAX_NAME.  Text can be any case - a fold is
+automatically done.  Returns WR_NOT_FOUND or WR_FOUND.
+If not found then previous position is restored.
+
+INT WR_FIND_COUNTRY(TEXT *match, WR_FIND_RES *result)
+--------------------------------------------------
+Match is in 'match'.  Maximum size WR_MAX_NAME.  Text can be any case
+- a fold is automatically done.  Return WR_NOT_FOUND or WR_FOUND.
+If not found then previous position is restored.
+
+INT WR_FIND_EXACT(WR_FIND_RES *match)
+-------------------------------------
+Match is in 'match'.  Matches the city if not zero length otherwise
+matches the country.  It searches for an exact match between the
+input 'match' text and the entire city/country name.  Text can be any
+case - a fold is automatically done.
+Return WR_NOT_FOUND or WR_FOUND.
+If not found then previous status is restored.  On success the mode
+(for NEXT etc) is city or country depending on whether the city field
+was null.
+
+VOID WR_NEXT(WR_FIND_RES *result)
+---------------------------------
+Returns the next city or country in the database.  The database is
+sorted alphabetically.  It determines whether to return the next city
+or country according to the previous city or country call.  So after a
+call to WR_FIND_CITY it will be in 'city' mode; after WR_FIND_COUNTRY
+it is in 'country' mode.
+This function has no input parameters.
+
+VOID WR_BACK(WR_FIND_RES *result)
+---------------------------------
+Returns the previous city or country in the database.  It is exactly
+the reverse of  WR_NEXT.
+This function has no input parameters.
+
+VOID WR_GET_HOME(WR_FIND_RES *result)
+-------------------------------------
+Returns the home city.
+This function has no input parameters.
+The mode (for NEXT etc) is city.
+
+INT WR_SET_HOME(VOID)
+---------------------
+Set home to the current city.  This is a system wide setting.
+No input parameters.
+Returns WR_NOTVALID_ERR if item no longer valid.
+
+VOID WR_GET_DEFAULT_COUNTRY(WR_FIND_RES *result)
+------------------------------------------------
+No input parameters.  The mode after this call (for NEXT etc) is city.
+
+INT WR_SET_DEFAULT_COUNTRY(VOID)
+--------------------------------
+Set the current country to be the default country.  This is a system
+wide setting.
+No input parameters.  Returns WR_NOTVALID_ERR if item no longer valid.
+
+INT WR_GET_DIAL_STRING(TEXT *inString, TEXT *outString)
+-------------------------------------------------------
+Input in 'inString'.  Output in 'outString'.
+Can fail with E_GEN_ARG (null string, missing ']' after '[' or country
+name not found).
+Limit of 128 for the input string.
+Output buffer must allow for WR_MAX_DIAL_STRING+1 bytes, returns
+E_GEN_OVER if it is too long.
+
+INT WR_EXTRA(WORD *func, WR_EXTRA_DATA *data)
+---------------------------------------------
+Alters the data in the RAM file (normally World.wld, on English
+machines) where "extra" data is stored.
+
+Function number in 'func' and new data in 'data'.  'data' is not
+required for DELETE.  Can fail because of eg out-of-memory so can
+return system errors or the specific errors listed below.  No data
+checking is performed.
+
+This function requires a file to have been opened with WR_SET_EXTRA
+(normally done by the World application) and for there to be enough
+room on the media for the operation.  The standard default file is
+\WLD\WORLD.WLD.
+
+Returns WR_NOTVALID_ERR if item is no longer valid.
+
+  func        WR_EXTRA_ADD_CITY
+Returns E_GEN_ARG if it fails to match the country string to a
+country.  Returns WR_DUPLICATE_ERR if the city/country matches an
+existing city/country.  Returns WR_TOO_MANY_ERR if more than 32 items
+are already present.
+
+  func        WR_EXTRA_UPDATE_CITY
+Returns E_GEN_ARG if it fails to match the country text to a country. 
+Returns WR_DUPLICATE_ERR if the city/country matches an existing
+city/country (which it is not being updated).
+
+  func        WR_EXTRA_DELETE_CITY
+Returns WR_NOT_VALID if current item is not an extra city,
+WR_DELHOME_ERR if the item is the current home, WR_DELCAPITAL_ERR if
+the item is an added capital city.  Returns either WR_REVERTED or 
+WR_DELETED depending on whether it was an added on updated item.
+
+  func        WR_EXTRA_UPDATE_COUNTRY
+Returns E_GEN_ARG if the capital string does not match an existing
+city in the country being updated or if the new country name
+conflicts with an existing country.  All city GMTs in extra for that
+country will be adjusted.  They will also take the new DST.
+
+INT WR_SET_EXTRA(WORD *flag, TEXT *name)
+----------------------------------------
+Flag is in 'flag' and name is in 'name'.  Returns system errors and
+E_GEN_IMAGE if the file is badly formatted or has a different
+database version number.  The name is parsed with the extension
+'.WLD'.
+
+  flag        P_FOPEN
+Fails if files does not exist or can not be opened. If it is badly
+formatted it returns E_GEN_IMAGE.  If the current item is in the
+extra database it becomes invalid (though NEXT & BACK will work but
+any function using the current position will fail).  For example
+WR_GET_CITY_DATA will give the error WR_NOTVALID_ERR.
+
+  flag        P_FREPLACE or P_FCREATE
+Fails if can not replace/create the file.
+
+INT WR_GET_CITY_DATA(WR_CITY_DATA *result)
+------------------------------------------
+Returns the data associated with the current city.
+No input parameters.  Returns WR_NOTVALID_ERR if item no longer valid.
+
+INT WR_GET_COUNTRY_DATA(WR_COUNTRY_DATA *result)
+------------------------------------------------
+Returns the data associated with the current country.
+No input parameters.  Returns WR_NOTVALID_ERR if item no longer valid.
+
+INT WR_CALC(WORD *state, WR_CALC_DATA *calc)
+--------------------------------------------
+Initially call with 'state'= WR_START_STATE and input data in 'calc'. 
+Then call the function repeatedly until 'state'==WR_END_STATE.  When
+it is the calculation is finished and the output data is in 'calc'. 
+This is done so that the calculation can be cancelled part way.
+Can return system errors (eg E_GEN_NOMEMORY).
+
+VOID WR_NEXT_LOCK(WR_FIND_RES *result)
+--------------------------------------
+Returns the next city in the current country.
+
+

@@ -1,0 +1,114 @@
+PsiTrain File Formats
+
+If you are interested in building your own timetable databases this information in this document will be useful to you.  If you think that the database will be useful to others, please email the files to myself at mike@boink.demon.co.uk and I'll put it on the Web server at http://www.boink.demon.co.uk/
+
+A support application, PsiTrnEd, is provided to assist in the creation, maintenance and validation of databases. To keep PsiTrain memory usge down, and speed up, little validation is done - errors in the data do produce unpredicable results.
+
+(Note that PsiTrain can't load a database if you're curently editing a database file.  PsiTrnEd can be loaded, but you must not be editting, using the text editor.)
+
+
+Filenames
+
+If there are to be many contributions the naming convention of files will be important.
+
+I propose the following (plus the appropriate extension for each file in the database :
+
+  Xcaaayyr
+
+where :
+ X is the transport type
+  (t-train, b-bus, a-air, f-ferry ...)
+ c is a company code, for that providing the service
+  (eg b-british rail (and TOCs ?), e-Eurostar,
+   g-Great Central Railway, and with a different
+   transport type, m-British Midland, b-British
+   Airways, v-Virgin etc)
+ aaa is an area code (country+county/state ?)
+ yyr release year and sequence number for this
+   timetable.
+
+Valid X,c and aaa types will be found on the website and new ones can be registered by sending an email to me.
+
+(The example databases just have descriptive filenames and do not follow this convention.)
+
+
+Overview
+
+Each database has three text files :
+  .ptt - top level information
+  .stn - stations
+  .trn - trains
+
+All are simple textfiles to enable and encourage anyone to create a database.  I may enhance PsiTrnEd to compile the data at a later date to improve performance.
+
+In general, records are colon delimited fields. As PsiTrain is a type 3 application it will display all .ppt files found in the \ptt directories on any disk.  This allows static databases to be put on flash, for instance, whilst those databases you are working on are located on RAM.
+
+Lines can be up to 255 chars in length.
+
+In each of the files, comments may be added by commencing the line with 'REM' or '#'.
+
+
+ptt
+
+The ptt file can contain the following records. (All records are optional, but if none present the file must still exist.)
+
+  desc:<description>
+  ttfrom:<ddmmyyyy>
+  ttto:<ddmmyyyy>
+  stn:<stn file location and filename>
+  trn:<trn file location and filename>
+  uset:<useful information title>
+  used:<useful information detail lines>
+  by:<Transportation type>
+
+The desc record defines the title of the database, which is displayed when the database is loaded.
+
+ttfrom and ttto define the range of days for which this timetable is valid.  PsiTrain will not permit queries to be made outside this range, though, of course the ptt file can be edited to ignore dates altogether.
+
+The stn and trn records permit the database files to be located on another disk or directory.  If not specified it is assumed that they are in the same location with the same filename as the ptt file (with the appropriate extension).
+
+Useful information screens (as many as you like) are defined by specifying title and detail lines.  Up to 8 lines are displayed per page.  Specifying a title starts a new page.
+
+The default transportation type is "Train" though this can be overridden using a "by" definition. This is only used when displaying the result.  This can be up to 16 chars.
+
+stn
+
+This is simply a list of stations, one station per line.  The line number is used in the trn file, and it should be noted new strations should always be added at the end of the file (or be prepared to make other changes too).  If a station is inserted into the middle of the stn file, it will affect the
+line number of all subsequent stations. (The line number is used in the trn file).
+
+Station names may be up to 30 chars long, and the number of stations is limited only by memory.
+
+
+trn
+
+The format of a train record is as follows :
+
+<train id>:<running/service flags[,addition desc]:+
+ <station>:<arr time>:<dep time>:+
+ <station>:<arr time>:<dep time>:+
+ [<station>:<arr time>:<dep time>:...]
+
+(The + character in a field indicates continuation both in this document and in PsiTrain.  Leading spaces in any line are removed, which may aid readability. The / character can be used for continuation in the same manner.)
+
+The train id can be up to 8 chars long, and is displayed in the result.
+
+Running/service flags can be include any of the following :
+  1-7: runs on this day of the week, mon to sun
+  w: runs mon-fri
+  f: first class accomodation available
+  r: first class restaurant service available
+  b: buffet service available
+  t: trolley service available
+  s: seat reservations possible
+
+If specified, the additional description (after a comma in the service flags field) is displayed in the result along side the depature station.
+
+The stations are specified as the line number from the station file.  Departure and arrival times are in format hhmm or can be left blank if not known, or not applicable.  Either or both can be specified - but not neither.
+
+A train can call at up to 20 stations, including terminal ones.
+
+Trains should be sorted in departure time order as the search routines depend on it.  The exception to this is with mutualy exclusive days. ie Mon-Fri, Sat, and Sun can be kept apart, and may improve readability.  However do not separate Friday-only services from the weekday ones, for instance.
+
+Note that if the arrival times are not sorted (quite possible) the next/previous functions, when acting on an arrival time search, may be compromised. This risk is taken to optimise
+search times, and may be removed in a future release if it proves to be a problem.
+

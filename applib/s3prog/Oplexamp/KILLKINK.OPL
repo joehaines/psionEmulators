@@ -1,0 +1,34 @@
+==========
+psion/opl #2361, from perseus, 879 chars, Oct 13 14:37 95
+Comment to 2359.
+----------
+> sending the "X" system message doesn't have much of an effect! 
+
+I doubt Link even looks at such information.
+
+> Anyone know how to tell an IMG process to stop?
+
+You need to send it a 'terminate' message.  This won't always stop it, 
+but it is better than a straight 'Kill', which is supposed to be a last 
+resort.
+
+Heres some code which should stop the link, given its Process ID and a 
+reason for its demise.  The reason can be zero.
+
+PROC term:(pid%,reason%)
+LOCAL ax%,bx%,cx%,dx%,si%,di% REM must be in this order
+LOCAL flags%
+
+bx%=pid%
+ax%=$0D00 REM AH=0x0d for terminate, 0x08 for kill
+ax%=ax% OR (Reason% AND $00FF)
+flags%=OS($88,addr(ax%))  :REM $88 for PROCMANAGER
+flags%=flags% AND $0001
+return(flags%)
+ENDP
+
+Please forgive me if it doesn't work, it's simply a reworked version of 
+the OS call example code as in the programming guide.
+
+
+

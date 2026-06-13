@@ -1,0 +1,96 @@
+REM ***************************************************************************
+REM * Written By Rowan Prior - Psion Technical Support                        *
+REM * Written On April 15th 1992                                              *
+REM *                                                                         *
+REM * Purpose - Checks the voltage of the Main and Backup Battery on the      *
+REM *           Series 3.  Also detects the the presents of an AC Adapter     *
+REM ***************************************************************************
+
+PROC batch:
+	LOCAL m%(3),w%(4),a%,k%,mb,bb,l%
+	GLOBAL mb$(5),bb$(5)
+	GLOBAL km%
+
+	REM Get high and low battery setting
+	a%=warn%:(addr(w%(1)))
+	IF a%
+		PRINT err$(a%)
+		GET
+		STOP
+	ENDIF
+	REM Read the battery itself
+	a%=bat%:(addr(m%(1)))
+	IF a%
+		PRINT ERR$(a%)
+		GET
+		STOP
+	ENDIF
+	a%=bat%:(addr(m%(1)))
+	IF (m%(1)<w%(1)) OR (m%(2)<w%(2))
+		dInit "BATTERY CHECK Version 1.00"
+		dText "","OPL Version",$102
+		dText "","WARNING",$102
+		IF m%(1)<w%(1)
+			dText "","Main Battery Low",$102
+		ENDIF
+		IF m%(2)<w%(2)
+			dText "","Backup Battery Low",$102
+		ENDIF
+		DIALOG
+	ENDIF
+	mb=flt(m%(1))/1000
+	bb=flt(m%(2))/1000
+	mb$=FIX$(mb,2,5)
+	bb$=FIX$(bb,2,5)
+	dInit "BATTERY CHECK Version 1.00"
+	dText "","OPL Version",$102
+	IF m%(3)
+		dText "","Mains Present",$100
+		dText "Mains",mb$+"v",$102
+	ELSE
+		dText "Main Battery",mb$,$102
+	ENDIF
+	dText "Backup Battery",bb$,$102
+	DIALOG
+ENDP
+
+REM 
+REM buf% is the address of a 4 integer array 
+REM The first element is the main battery low voltage in mV
+REM The second element is the backup battery low voltage in mV
+REM The third element is the nominal maximum voltage of the main battery
+REM The fouth element is the nominal maximum voltage of the backup battery
+REM
+PROC warn%:(buf%)
+
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	bx%=buf%
+	ax%=$1c00
+	IF os($8e,ADDR(ax%)) AND 1
+		RETURN ax% OR $ff00
+	ELSE
+		RETURN 0
+	ENDIF
+ENDP
+
+REM buf% is the address of a 3 integer array 
+REM The first element is the main battery voltage in mV
+REM The second element is the backup battery voltage in mV
+REM The third element if non zero if mains is present
+
+PROC bat%:(buf%)
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+
+	bx%=buf%
+	ax%=$1100
+	IF OS($8e,addr(ax%)) AND 1
+		RETURN ax% OR $ff00
+	ELSE
+		IF PEEKW(buf%+2)<1000
+			POKEW buf%+2,0
+		ENDIF
+		RETURN 0
+	ENDIF
+ENDP
+
+

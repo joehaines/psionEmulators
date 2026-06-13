@@ -1,0 +1,238 @@
+REM APPLICATION FRAMEWORK FOR PSION SERIES 3.      (v24Oct92)
+REM =========================================
+REM By: John Hind. (Full documentation in FRAME.TXT)
+
+PROC fLock:          REM Used in application callbacks prior to dialogue & menu use
+ BUSY OFF
+ LOCK ON
+ENDP
+
+PROC fUnlock:        REM Used in application callbacks after dialogue or menu use
+ BUSY "busy....",1,2
+ LOCK OFF
+ENDP
+
+PROC fAutoOff:       REM Used in application initialisations to enable auto-off
+ CALL($138B,0,0,0,0,0)
+ENDP
+
+PROC fRun:(mesMsk%,hkMsk$)              REM Main Application Framework routine
+ GLOBAL fParm%       REM Message Parameter
+ GLOBAL fParm$(128)  REM Message Parameter
+ GLOBAL fKmod%       REM Key modifier status at last key message
+ LOCAL t%,j&,t&      REM These declarations must be in this order on their own.
+ REM   t%            REM Ticks (1/32ths of second)
+ REM   j&            REM Unknown (just a place-holder)
+ REM   t&            REM Time in seconds since the year dot
+ LOCAL fFopen%       REM True if a file is currently open
+ LOCAL fCStat%       REM Command/key status (-46=pending, 0=ready)
+ LOCAL fTStat%       REM Timer status (-46=pending, 0=ready)
+ LOCAL fTCB%         REM Handle for timer control block
+ LOCAL fS&           REM Elapsed seconds at last timer message
+ LOCAL fMask%        REM Message mask set (bits)
+ LOCAL fHkMsk$(30)   REM Hotkey mask set (characters in string)
+ LOCAL k%(2)         REM Parameters from command/key request
+ LOCAL m%            REM Current message
+ LOCAL mn%           REM Next message
+ LOCAL a%(6)         REM Used for parsing filenames
+ LOCAL init%         REM True during processing of initialisation messages
+ LOCAL x&,x%,y&      REM Working variables
+
+ m%=0 :fFopen%=0 :fTStat%=-46           REM Initialisation
+
+ fParm$=CMD$(2)                         REM Initial Filename
+ IF CMD$(3)="C"
+  m%=101                                REM Create file command
+ ELSEIF CMD$(3)="O"
+  m%=102                                REM Open file command
+ ENDIF
+ init%=-1                               REM Initial masks still to be processed
+
+ ONERR SysErr
+Restart::
+ IOA(-2,14,fCStat%,k%(1),#0)            REM Queue asynchronous keyboard/command request
+ DO
+  IF m%=0                               REM No Frame messages, so look for System ones
+   BUSY OFF                             REM Responsive to user input now
+   IF fTStat%=-46 AND fCStat%=-46
+    IOWAIT                              REM Suspend until message received
+   ENDIF
+   BUSY "busy....",1,2                  REM Not responsive to user input while processing
+
+   IF fTStat%<>-46                      REM Timer message received
+    CALL($078b,0,10,0,$41c,addr(t%))    REM Fetch time information
+    x%=SECOND                           REM Current (clock) seconds
+    y&=10-((t% AND $1f)*10)/32          REM Calculate timer ticks to next whole second
+    x&=t&-fS&                           REM Elapsed seconds since last message generated
+    fS&=t&                              REM Store current seconds for next cycle
+    IF (fMask% AND $80)                 REM Timer is minutes timer
+     y&=y&+10*(60-x%)                   REM Scale number of ticks to next whole minute
+     x&=(x&+30)/60                      REM Scale parameter value to elapsed minutes
+     m%=8                               REM Minutes time-out message
+    ELSE
+     m%=7                               REM Seconds time-out message
+    ENDIF
+    IOA(fTCB%,1,fTStat%,y&,#0)          REM Queue asynchronous timer message request
+    fParm%=x&
+
+   ELSEIF fCStat%<>-46                  REM Key/command message received
+    IOA(-2,14,fCStat%,k%(1),#0)         REM Re-queue asynchronous key/command request
+
+    IF (k%(1) AND $400)                 REM It was a command
+     m%=k%(1)-$400
+     IF m%=4                            REM It was a file command
+      fParm$=GETCMD$                    REM Get the command parameter
+      x%=ASC(fParm$)                    REM Get the type character
+      fParm$=MID$(fParm$,2,128)         REM Get the filename
+      m%=0                              REM Just in case future version adds more commands
+      IF x%=%X
+       m%=100                           REM Exit command
+      ELSEIF x%=%C
+       m%=101                           REM Create file command
+      ELSEIF x%=%O
+       m%=102                           REM Open file command
+      ENDIF
+     ENDIF
+
+    ELSE                                REM Must be a keystroke
+     fParm%=k%(1)                       REM The keycode
+     fKmod%=k%(2) AND $00FF             REM The modifier key set
+
+     IF (fParm% AND $200)               REM It's a hotkey
+      fParm%=fParm%-$200                REM ASCII value.
+      fParm$=CHR$(fparm%)               REM Character
+      m%=4                              REM Hotkey message
+
+     ELSEIF fParm%>31 AND fParm%<256    REM It's a printable key
+      fParm$=CHR$(fparm%)               REM Character
+      m%=5                              REM Printable key message
+
+     ELSEIF fParm%=290                  REM It's the menu key
+      m%=9                              REM Menu key message
+     ELSEIF fParm%=291                  REM It's the help key
+      m%=10                             REM Help key message
+     ELSE                               REM It's something else
+      m%=6                              REM Special key message
+     ENDIF
+    ENDIF
+   ENDIF
+  ENDIF
+
+  mn%=0                                 REM Default next message to null
+
+  IF m%=4                               REM Message is "hotkey pressed"
+   x%=fParm% AND $FFDF                  REM Make uppercase
+   IF LOC(fHkMsk$,CHR$(x%))>0           REM If enabled
+    mn%=@%("aHk"+CHR$(x%)):             REM Invoke Callback "aHkx%"
+    m%=0                                REM Message handling complete
+   ENDIF
+  ENDIF
+
+  IF m%>0 AND m%<17                     REM Message is maskable
+   IF (((2**(m%-1)) AND fMask%) <> 0)   REM Message is not masked
+    mn%=@%("aMh"+NUM$(m%,2)):           REM Invoke Callback "aMhnn%:"
+   ENDIF
+
+  ELSEIF m%>0 AND m%<100                REM Message is not maskable
+   mn%=@%("aMh"+NUM$(m%,2)):            REM Invoke Callback "aMhnn%:"
+
+  ELSEIF m%=101 OR m%=102               REM Message is "Create file" or "Open file"
+   IF (fFopen%) :mn%=aClose%: :ENDIF    REM If file already open, close it
+   fParm$=PARSE$(fParm$,"",a%())        REM Parse the file name
+   IF a%(6)<>0 :mn%=-4 :ENDIF           REM Error: "Filename not unique"
+   IF (mn%=0)
+    IF m%=101                           REM Message is "Create file"
+     mn%=aCreate%:                      REM Invoke Callback "aCreate%:"
+    ELSE                                REM Must be file open command
+     IF NOT EXIST(fParm$)
+      mn%=-3                            REM Error: "File does not exist"
+     ELSE
+      mn%=aOpen%:                       REM Invoke Callback "aOpen%:"
+     ENDIF
+    ENDIF
+    IF mn%>=0
+     SETNAME MID$(fParm$,a%(4),a%(5)-a%(4))       REM Set instance name to filename
+     fFopen%=-1                         REM Mark as file open
+    ENDIF
+   ENDIF
+
+  ELSEIF m%>$0080                       REM Message is a framework control message
+   IF m% AND 1                          REM Message is "Change message mask"
+
+    IF ((fMask% AND $C0) <> (fParm% AND $C0)) REM Change to timer masking
+
+     IF ((fMask% AND $C0) <> 0)         REM Switched off
+      IOW(fTCB%,4,#0,#0) :IOWAITSTAT x% REM Cancel pending timer request
+      fTStat%=-46                       REM Fake still pending
+     ENDIF
+
+     IF ((fParm% AND $C0) <> 0)         REM Switched on
+      IF fTCB%=0
+       IOOPEN(fTCB%,"TIM:",-1)          REM Open timer device if necessary
+      ENDIF 
+      CALL($078b,0,10,0,$41c,addr(t%))  REM Get time info
+      fS&=t&                            REM Initialise seconds store
+      fTStat%=0                         REM Fake timed-out
+     ENDIF
+    ENDIF
+
+    fMask%=fParm%                       REM Store new mask
+   ENDIF
+
+   IF m% AND 2                          REM Message is "Change Hotkey Mask"
+    fHkMsk$=fParm$
+   ENDIF   
+
+  ELSEIF m%<0                           REM Message is error message
+
+   ONERR NoEH                           REM May not be an application "aError%:"
+    m%=aError%:(m%)                     REM Invoke Callback "aError%:"
+   ONERR OFF
+
+  EHCnt::                               REM Re-entry from application error handler
+   IF m%<0                              REM Error still not handled
+    fLock:
+     ALERT("TERMINAL ERROR",fParm$,"Stop")
+    fUnlock:
+    mn%=100                             REM Terminate message
+   ELSE                                 REM Error was handled
+    ONERR SysErr                        REM Re-initialise error handling
+   ENDIF
+  ENDIF
+
+  IF init%                              REM On initialisation, still need to set masks
+   init%=0                              REM Consider it done (well it will be soon!)
+   fParm%=mesMsk%                       REM Put the message mask in the message parameter
+   fParm$=hkMsk$                        REM And the hot-key mask
+   mn%=131                              REM Next message is "Set both masks"
+  ENDIF
+
+  m%=mn%                                REM Next message becomes current
+
+ UNTIL m%=100                           REM Message is "Terminate application"
+
+ ONERR OFF                              REM Errors cannot be recovered now
+ IF (fFopen%) :aClose%: :ENDIF          REM On termination ensure files closed
+ RETURN                                 REM And exit framework routine...
+
+SysErr::                                REM Handler for system errors in application
+ ONERR OFF                              REM Let PSION handle errors in the error handler!
+ fParm%=ERR                             REM Error number
+ fParm$=ERR$(fParm%)                    REM Error text
+ m%=-1                                  REM Message is "System Error"
+ GOTO Restart                           REM Put this back into the message loop
+
+NoEH::                                  REM Handler for missing "aError%:" routine
+ ONERR OFF                              REM Rather them than me!
+ x%=ERR                                 REM Get the error number
+ IF x%=-99                              REM Error is "Procedure not found"
+  ONERR SysErr                              
+  GOTO EHCnt                            REM Not worried.. press on regardless
+ ELSE                                   REM Error is real
+  ONERR SysErr
+  RAISE x%                              REM So raise it again
+ ENDIF
+
+ENDP
+
+REM End of Source Code.

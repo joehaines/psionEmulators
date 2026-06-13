@@ -1,0 +1,167 @@
+Using SNDFRC.LDD from Opl
+=========================
+These notes comment the associated program, TESTMUS.OPL.
+This demonstrates the use of SNDFRC.LDD, which is an extension of the
+Operating System allowing better access to the loudspeaker on the
+Series3.  Sounds played via the loudspeaker are generally louder than
+those played via the buzzer (eg the output of BEEP commands in Opl).
+
+In order for the program to work, the file SNDFRC.LDD should be
+placed in M:\ on the Series3.  Somebody who wanted to place this LDD
+elsewhere could alter the code inside the routine InstMus:.
+
+Overview
+--------
+
+TESTMUS.OPL demonstrates:
+    (1) Installing and removing the LDD
+    (2) Simple playing of "tunes"
+    (3) More advanced playing of "tunes" that can be cancelled.
+
+The easiest bit to understand is (2), which involves the routines
+OpenMus:, play:, and CloseMus:.  (Many users could get by with a
+simpler version of OpenMus:, to start with.)
+The only variables needed for these are mcb% and vals%().
+The variable mcb% is the handle of the control block filled in by
+ioopen.  It needs to be passed to subsequent calls ioclose and
+iowrite.
+
+The essence of OpenMus: is the single line
+    ioopen(mcb%,"MUS:",-1)
+The rest of it is just error handling to cope with the case when
+another application already has the sound channel in use (eg an
+application which is DTMF dialling).
+
+The way the sounds are actually emitted is in response to the iowrite
+call.  The buf% parameter here is the address of an array of
+integers, as set up by the caller.  The len% parameter is how many
+notes to play.
+
+Each "note" is made up of three parts: tone, length, and volume.
+Eg in
+    vals%(9) = $3b + (40*256) + (3*64)
+the tone is $3b, the length (duration) is 40, and the volume is 3.
+
+There are only 4 possible values of volume: 0 (the quietest), 1, 2,
+and 3 (the loudest).
+
+The duration is measured in 1/100 ths of a second, and can have any
+value from 1 to 255.  Note that because of the limitations of Opl you
+cannot type in eg
+    vals%(2) = $0 + (150*256) + (2*64)
+(without getting an OVERFLOW error raised)
+but you can instead use
+    vals%(2) = $0 + ((256-150)*256) + (2*64)
+
+The allowed values of tone in principle range from $0 to $3f.
+In practice you may consider using:
+
+DTMF (dual) tones:
+------------------
+$10 for digit 0, $11 for digit 1, ..., $19 for digit 9, $1a for a
+(defined for some telephone systems), ..., $1d for d, $1e for * and
+$1f for #.
+
+MODEM tones:
+------------
+$24 gives 1300 Hz, $25 gives 2100 Hz, then 1200, 2200, 980, 1180,
+1070, 1270, 1650, 1850, 2025, and $2f gives 2225 Hz.
+
+MUSICAL tones:
+--------------
+Twenty five notes are possible, incrementing by semi-tones over a 2
+octave interval from D#5 to D#7:
+$30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $3a, $29, $3b, $3c,
+$3d, $0e, $3e, $2c, $3f, $04, $05, $25, $2f, $06, $07.
+
+Pauses:
+-------
+If tone is set to $0, the speaker will remain silent for the
+specified duration.
+
+When to open and close the MUS: device
+--------------------------------------
+If you like, just copy TESTMUS.OPL and open and close the device at
+the beginning and end of your program.
+
+But this is actually very anti-social!!
+
+For example, if you have MUS: open, it prevents any other application
+using the loudspeaker at all.  if you wrote a game which opened
+MUS: at its beginning, and only made sounds from time to time, and
+left this game in the background while you went to the Data
+application to look up a telephone number, you would find the DTMF
+dialler would be unable to beep, and would report "Sound system in
+use" - even though the game is silent at the time.
+
+Far better in these situations for a program to open MUS: just before
+it needs to do some playing, and then close it again immediately
+afterwards.  Ie put the open and close code inside the play: routine.
+
+When to install and free SNDFRC.LDD
+-----------------------------------
+This is potentially a lengthy topic, and the following notes only
+skim the surface.
+The best advice is probably that a program which needs to use MUS:
+should always call the equivalent of InstMus: on its start up, and
+ignore any error message given if the device is already installed. 
+Further, it should probably *NOT* call FreeMus: at its close, since
+this may have an unexpected effect on other applications running
+simultaneously, which also access MUS:.
+
+Instead, leave the LDD permanently installed if you can (it takes up
+around 1.5k of ram), but provide another OPO whose sole content is
+the equivalent of FreeMus:, so that someone who wants to recover the
+ram space later can do so.
+
+The magic runes inside InstMus: invoke an operating system routine to
+install the LDD, so that any subsequent reference to "MUS:" will be
+accepted by the operating system (the code to inplement MUS: being
+located inside the LDD).
+
+Allowing tunes to be cancelled
+------------------------------
+If you run TESTMUS, you will find it has four phases:
+    A musical scale, with varying volume and duration
+    A constant note with varying volume
+    Some DTMF tones
+    The same DTMF tones repeated.
+The difference between the two sets of DTMF tones is just that the
+first set can be abandoned part way through, if the user presses Esc.
+Pressing Esc during any of the other phases of the program has no
+effect.
+
+The sole use of the variables mstat%, kstat%, and key%() in the
+program is to allow this cancelling to take place.
+
+(Opl programmers unfamiliar with asynchronous i/o may wish to stop
+reading here.)
+
+The best general mechanism for this is demonstrated in the program:
+instead of using the (synchronous) IOWRITE, change to the
+asynchronous IOA(...,2,...), which supports a later cancel using
+IOW(...,3).
+
+The loop of the form
+    WHILE 1
+        IOWAIT
+        ....
+    ENDWH
+is the standard way of being able to respond to events which can
+occur in an order the program cannot predict (in this case, whether
+the user presses a key first, or the DTMF tones finish playing). 
+After the IOWAIT returns, you test the various stat% variables to see
+which of the events has indeed completed.
+
+What various procedure names mean:
+----------------------------------
+queplay: is the asynchronous form of play:
+quekey: queues an asynchronous keyboard read
+cankey: cancels any outstanding asynchronous keyboard read
+canplay: cancels any ongoing (asynchronously-launched) tone emission
+flushkey: flushes the keyboard buffer.
+
+These notes prepared:
+---------------------
+By DavidW, 13/05/92.
+

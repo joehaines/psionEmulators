@@ -1,0 +1,81 @@
+@ECHO OFF
+
+ECHO.
+ECHO HEXXAGON INSTALLER
+ECHO ------------------
+ECHO.
+
+IF "%1" == "" GOTO HELP
+IF "%1" == "A:" GOTO OKINST
+IF "%1" == "a:" GOTO OKINST
+IF "%1" == "B:" GOTO OKINST
+IF "%1" == "b:" GOTO OKINST
+IF "%1" == "M:" GOTO OKINST
+IF "%1" == "m:" GOTO OKINST
+GOTO HELP
+
+:OKINST
+
+XSTAT >NUL
+IF ERRORLEVEL 1 GOTO WAITLINK
+
+:GOONINST
+ECHO.
+ECHO Installing Hexxagon to drive %1...
+ECHO.
+
+IF NOT EXIST REM::%1\APP                 MD   REM::%1\APP
+COPY HEXXAGON.OPA REM::%1\APP\
+IF ERRORLEVEL 1 GOTO PROBLEM
+IF NOT EXIST REM::%1\APP\HEXXAGON        MD   REM::%1\APP\HEXXAGON
+COPY HEXXAGON.BIN REM::%1\APP\HEXXAGON\
+IF ERRORLEVEL 1 GOTO PROBLEM
+COPY HEXXAGON.PIC REM::%1\APP\HEXXAGON\
+IF ERRORLEVEL 1 GOTO PROBLEM
+COPY HEXXAGON.HLP REM::%1\APP\HEXXAGON\
+IF ERRORLEVEL 1 GOTO PROBLEM
+COPY HEXX_*.WVE   REM::%1\APP\HEXXAGON\
+IF ERRORLEVEL 1 GOTO PROBLEM
+
+ECHO.
+ECHO.
+ECHO HEXXAGON HAS BEEN SUCCESSFULLY INSTALLED
+ECHO.
+ECHO Install the game in the System Screen and... Enjoy playing it!
+ECHO.
+
+GOTO END
+
+:HELP
+ECHO.
+ECHO Please run INSTALL again, adding the letter of the S3a drive where you
+ECHO want to install Hexxagon to, followed by a colon.
+ECHO.
+ECHO Examples:
+ECHO             INSTALL A:          For installing to SSD A: (the LEFT one)
+ECHO             INSTALL B:          For installing to SSD A: (the RIGHT one)
+ECHO             INSTALL M:          For installing to Internal RAM Disk
+ECHO.
+GOTO END
+
+:PROBLEM
+ECHO.
+ECHO.
+ECHO THERE WERE PROBLEMS WHILE INSTALLING HEXXAGON.
+ECHO.
+ECHO Please be sure that there is enough space on destination drive, that
+ECHO the SSD doors are closed and that the Remote Link is enabled on your S3a.
+ECHO.
+GOTO END
+
+:WAITLINK
+
+ECHO Please connect your S3a and enable the Remote Link
+ECHO.
+
+XWAIT LINK
+IF ERRORLEVEL 1 GOTO PROBLEM
+
+GOTO GOONINST
+
+:END

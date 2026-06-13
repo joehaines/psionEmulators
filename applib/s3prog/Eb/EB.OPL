@@ -1,0 +1,709 @@
+#ifndef L_STRUC_MAC
+#  include <l_struc.mac>
+#endif
+
+#ifndef EB_OPH
+#  include "eb.oph"
+#endif
+
+PROC main:
+
+	GLOBAL				_ebControlFormat
+
+	GLOBAL      		editBox%(10)  /*  H_EDIT_BOX from HWIF.H  */
+	GLOBAL				eHand%  /*  Handle of edit box  */
+	GLOBAL				DECL_UADD  /*  For unsigned maths  */
+
+	INIT_UADD  /*  For unsigned maths  */
+
+	SpecificInit:
+	CreateEditBox:
+	InitText:
+	MainLoop:
+
+ENDP
+
+
+PROC SpecificInit:
+
+	LOCAL					wId%  /*  Window ID  */
+
+
+	_ebControlFormat = 0  /*  See Hwif manual page 100  */
+
+	wId% = uFindMainWid  /*  Find the window ID  */
+	gSETWIN 0, 0, 240, 80
+	gBORDER 0
+   
+	S_POKEW(ADDR(editBox%()), 0, 2048)  /*  maxchars  */
+	S_POKEW(ADDR(editBox%()), 2, 236)  /*  vulen  */
+	S_POKEW(ADDR(editBox%()), 4, 5)  /*  vislines  */
+	S_POKEW(ADDR(editBox%()), 6, 2)  /*  pos.tl.x */
+	S_POKEW(ADDR(editBox%()), 8, 2)  /*  pos.tl.y */
+	S_POKEW(ADDR(editBox%()), 10, wId%)  /*  win  */
+	S_POKEW(ADDR(editBox%()), 12, $4005)  /*  font  */
+	S_POKEW(ADDR(editBox%()), 14, 0)  /*  style  */
+	S_POKEW(ADDR(editBox%()), 16, 0)  /*  lead_tot  */
+	S_POKEW(ADDR(editBox%()), 18, 0)  /*  lead_top  */
+ 
+ENDP
+
+
+PROC  CreateEditBox:
+
+	eHand% = hEBOpen(H_EDIT_BOX_LEFT_CURSOR + H_EDIT_BOX_VISLINES + H_EDIT_BOX_CLIPBOARD, ADDR(editBox%()))
+	IF (eHand% = 0)
+		PRINT "Unable to create edit box"
+		GET
+		STOP
+	ENDIF
+
+	hEBEmphasise(eHand%, TRUE)
+
+ENDP
+
+
+
+PROC MainLoop:
+
+	LOCAL					k%  /*  Variable to receive keypresses  */
+
+	
+	DO
+		k% = GET
+		IF k% = W_KEY_ESCAPE  /*  Escape exists with information  */
+			Exit:
+		ELSEIF k% = W_KEY_TAB  /*  Tab does Evaluate  */
+			hEBEvaluate(eHand%)
+		ELSEIF k% = ASC("c") + 512  /*  <Psion><C> to copy  */
+			Copy:
+		ELSEIF k% = ASC("i") + 512  /*  <Psion><I> to insert  */
+			Insert:
+		ELSEIF k% = ASC("f") + 512  /*  <Psion><F> for find  */
+			Find:
+		ELSE
+			hEBHandleKey(eHand%, k%, KMOD)
+		ENDIF
+
+	UNTIL 0
+
+ENDP
+
+
+
+PROC InitText:
+
+	LOCAL					ret%
+	LOCAL					i$(30)  /*  String for initial text  */
+	LOCAL					pI%  /*  Pointer to string  */
+
+	pI% = _UADD(ADDR(i$), 1)  /*  Skip the LCB  */
+
+	i$ = "This is a journey into sound" + CHR$(0)
+	Check%:(hEBSetText(eHand%, pI%, LEN(i$)), "setting initial text")
+
+ENDP
+
+
+
+PROC Exit:
+
+	LOCAL					sLen%  /*  Variable to receive length  */
+	LOCAL					sOffset%  /*  Variable  to receive offset  */
+	LOCAL					sT$(4)
+	LOCAL					oT$(4)
+
+
+	sLen% = hEBSenseSelect(eHand%, ADDR(sOffset%))
+	sT$ = GEN$(sLen%, 4)
+	oT$ = GEN$(sOffset%, 4)
+
+	dINIT "Edit box ended"
+	dTEXT "", "Selected region was "+sT$+" chars long.", 2
+	dTEXT "", "Select offset was "+oT$+".", 2
+	DIALOG
+	hEBClose(eHand%)
+	STOP
+
+ENDP
+
+
+	
+PROC Copy:
+
+	LOCAL					ret%
+
+	ret% = hEBCopy(eHand%)
+	IF (ret% = 1)
+		gIPRINT "Nothing to copy"
+	ELSEIF (ret% < 0)
+		gIPRINT "Error copying"
+	ELSE
+		gIPRINT "Text copied"
+	ENDIF
+
+ENDP
+
+
+
+PROC Insert:
+
+	LOCAL					ret%
+
+	ret% = hEBPaste(eHand%)
+	IF (ret% = 1)
+		gIPRINT "No text to insert"
+	ELSEIF (ret% < 0)
+		gIPRINT "Error inserting"
+	ELSE
+		gIPRINT "Text inserted"
+	ENDIF
+
+ENDP
+
+
+
+PROC Find:
+
+	LOCAL					s$(10)  /*  String for search clue  */
+	LOCAL					pS%  /*  Pointer to the string  */
+	LOCAL					dir%  /*  direction  */
+	LOCAL					case%  /*  case-sensitivity  */
+	LOCAL					flags%  /*  Flags for the find  */
+
+	dir% = 1
+	case% = 1
+	flags% = 0
+
+	dINIT "Find in edit box"
+	dEDIT s$, "Text to find", 10
+	dCHOICE dir%, "Direction", "Forwards, Backwards"
+	dCHOICE case%, "Case sensitive", "No,Yes"
+	IF (DIALOG = 0)
+		RETURN
+	ENDIF
+
+	s$ = s$ + CHR$(0)
+	pS% = _UADD(ADDR(s$), 1)
+
+	IF (dir% = 2)
+		flags% = flags% + 1
+	ENDIF
+
+	IF (case% = 2)
+		flags% = flags% + 2
+	ENDIF
+
+	IF (hEBFind(eHand%, pS%, flags%))
+		gIPRINT  "Text found"
+	ELSE
+		gIPRINT "Text not found"
+	ENDIF
+
+	RETURN
+
+ENDP
+
+
+
+PROC hEBOpen(f%, e%)
+
+	LOCAL					olib%  /*  Category handle of OLIB.DYL  */
+	LOCAL					hwim%  /*  Category handle of HWIM.DYL  */
+	LOCAL					ret%  /*  Return value  */
+	LOCAL					ebH%  /*  From hEBOpen() in EHWIF.C  */
+	LOCAL					inEd%(4)  /*  IN_EDWIN from EDWIN.G  */
+	LOCAL					inEdX%(9)  /*  IN_EDWIN_X from EDWIN.G  */
+	LOCAL					prWin%(4)  /*  PR_WIN from WIN.G  */
+	LOCAL					pInEd%  /*  Pointer to above  */
+	LOCAL					pInEdX%  /*  Pointer to above  */
+	LOCAL					pPrWin%  /*  Pointer to above  */
+
+	LOCAL					fx%  /*  Local copy of f%  */
+
+	fx% = f% + IN_EDWIN_VULEN_PIXELS + IN_EDWIN_NO_AUTOSELECT + IN_EDWIN_POSITION_SUPPLIED
+
+	Check%:(FINDLIB(hwim%, "HWIM.DYL"), "FINDLIB hwim%")  /*  Find category handle of HWIM.DYL  */
+	ebH% = NEWOBJH(hwim%, C_EDWIN)  /*  Create an instance of C_EDWIN  */
+	IF (ebH% = 0)  /*  If that didn't work...  */
+		RETURN 0
+	ENDIF
+
+	S_POKEW(ADDR(prWin%()), 4, S_PEEKW(e%, 10))  /*  win.win.id=heb->win;  */
+
+	S_POKEW(ADDR(inEd%()), 0, S_PEEKW(e%, 2))  /*  in.vulen=heb->vulen;  */
+	S_POKEW(ADDR(inEd%()), 2, fx%)
+	S_POKEW(ADDR(inEd%()), 4, S_PEEKW(e%, 0))  /*  in.maxlen=heb->maxchars;  */
+	S_POKEB(ADDR(inEd%()), 6, 0)  /*  in.contents[0]=0;  */
+
+	S_POKEW(ADDR(inEdX%()), 0, S_PEEKW(e%, 4))  /*  inx.vislines=heb->vislines;  */
+	S_POKEW(ADDR(inEdX%()), 2, S_PEEKW(e%, 6))  /*  inx.pos=heb->pos;  */
+	S_POKEW(ADDR(inEdX%()), 4, S_PEEKW(e%, 8))  /*  inx.pos=heb->pos;  */
+	S_POKEW(ADDR(inEdX%()), 6, S_PEEKW(e%, 12))  /*  inx.font=heb->font;  */
+	S_POKEW(ADDR(inEdX%()), 8, S_PEEKW(e%, 14))  /*  inx.style=heb->style;  */
+	S_POKEW(ADDR(inEdX%()), 10, S_PEEKW(e%, 16))  /*  inx.leading.total=heb->lead_tot;  */
+	S_POKEW(ADDR(inEdX%()), 12, S_PEEKW(e%, 18))  /*  inx.leading.top=heb->lead_tot;  */
+	S_POKEW(ADDR(inEdX%()), 16, 0)  /*  inx.clip=NULL;  */
+	
+	pInEd% = ADDR(inEd%())
+	pPrWin% = ADDR(prWin%())
+	pInEdX% = ADDR(inEdX%())
+
+	ret% = ENTERSEND(ebH%, O_WN_INIT, #pInEd%, #pPrWin%, #pInEdX%)
+    
+	IF (ret% < 0)
+		hEBClose(ebH%)
+		RETURN 0
+	ENDIF
+
+	RETURN ebH%
+
+ENDP
+
+
+PROC hEBHandleKey(e%, k%, m%)
+
+	LOCAL					ret%  /*  Return value  */
+	LOCAL					kx%  /*  Local copies  */
+	LOCAL					mx%
+
+	kx% = k%
+	mx% = m%
+
+	IF (k% = W_KEY_RETURN)
+		mx% = m% + W_SHIFT_MODIFIER
+	ENDIF
+	
+	ret% = ENTERSEND(e%, O_WN_KEY, #kx%, #mx%)
+	IF (ret% <> 0) AND (_ebControlFormat <> 0)
+		ret% = hEBCompleteFormat(e%)
+	ENDIF
+
+	RETURN ret%
+
+ENDP
+	
+	
+
+PROC hEBCompleteFormat(e%)
+
+	LOCAL					ret%  /*  Return value  */
+	LOCAL					pScrimg%  /*  PR_SCRIMG *scrimg;  */
+	LOCAL					fFlag%  /*  scrimg.formatting  */
+	LOCAL					wrap%  /*  scrimg->scrimg.wrap  */
+
+	pScrimg% = S_PEEKW(e%, EDWIN_SCRIMG)  /*  scrimg=EebH->edwin.scrimg;  */
+	fFlag% = S_PEEKB(pScrimg%, EDWIN_SCRIMG_FORMATTING)  /*  scrimg->scrimg.formatting  */
+	IF (fFlag% <> 0)
+		RETURN 0
+	ENDIF
+
+	ret% = ENTERSEND(pScrimg%, O_SI_SET)
+	wrap% = S_PEEKW(pScrimg%, 0)  /*  scrimg->scrimg.wrap  */
+	SEND(wrap%, O_AO_CANCEL)
+	RETURN ret%
+
+ENDP
+
+
+
+PROC hEBSenseText(e%)
+
+	LOCAL					sense%(2)  /*  SE_EDWIN  */
+	LOCAL					pSense%
+
+	pSense% = ADDR(sense%())
+	SEND(e%, O_WN_SENSE, #pSense%)
+	RETURN sense%(2)
+
+ENDP
+
+
+
+PROC hEBSetText(e%, t%, l%)
+
+	LOCAL					set%(2)  /*  SE_EDWIN  */
+	LOCAL					pSet%
+
+	set%(1) = t%
+	set%(2) = l%
+	pSet% = ADDR(set%())
+	RETURN ENTERSEND(e%, O_WN_SET, #pSet%)
+
+ENDP
+
+
+
+PROC hEBEmphasise(e%, f%)
+
+	LOCAL					fx%  /*  Local copy  */
+
+	fx% = f%
+	
+	SEND(e%, O_WN_EMPHASISE, #fx%)  /*  Set the emphasis to f%  */
+
+ENDP
+
+
+
+PROC hEBSetSelect(e%, a%, c%)
+
+	LOCAL					set%(5)  /*  SET_EDWIN  */
+	LOCAL					pSet%
+
+	set%(1) = SET_EDWIN_CURSOR + SET_EDWIN_ANCHOR
+	set%(5) = a%  /*  set.anchor=aoff;  */
+	set%(4) = c%  /*  set.cursor=coff;  */
+	pSet% = ADDR(set%())
+
+	RETURN ENTERSEND(e%, O_EW_SET, #pSet%)
+
+ENDP
+
+
+
+PROC hEBSenseSelect(e%, t%)
+
+	LOCAL					tx%  /*  Local copy  */
+	LOCAL					pScrimg%  /*  PR_SCRIMG *scrimg;  */
+
+	tx% = t%
+
+	pScrimg% = S_PEEKW(e%, EDWIN_SCRIMG)  /*  scrimg=EebH->edwin.scrimg;  */
+	RETURN ENTERSEND(pScrimg%, O_SI_GET_SELECT, #tx%)
+
+ENDP
+
+
+
+
+PROC hEBSenseClipText(e%)
+
+	LOCAL					pT%  /*  Pointer to the text  */
+	LOCAL					pPT% /*  Pointer to pointer  */
+	LOCAL					pClip%  /*  EebH->edwin.clip  */
+
+	pPT% = ADDR(pT%)
+	pClip% = S_PEEKW(e%, EDWIN_CLIP)  /*  clip=EebH->edwin.clip  */
+
+	SEND(pClip% , O_EF_SENSE_BUF, #pPT%)
+	RETURN pT%
+
+ENDP
+
+
+
+PROC hEBSetClipText(e%, p%, l%)
+
+	LOCAL					px%
+	LOCAL					lx%
+	LOCAL					pClip%  /*  EebH->edwin.clip  */
+	
+	px% = p%
+	lx% = l%
+	pClip% = S_PEEKW(e%, EDWIN_CLIP)  /*  clip=EebH->edwin.clip  */
+
+	RETURN ENTERSEND(pClip%, O_EP_SET_TEXT, #px%, #lx%)
+
+ENDP
+
+
+
+PROC hEBChangeWidth(e%, w%)
+
+	LOCAL					ext%(4)  /*  P_EXTENT ext  */
+	LOCAL					r%
+	LOCAL					pExt%  /*  Pointer to ext  */
+
+	pExt% = ADDR(ext%())
+
+	SEND(e%, O_EW_SENSE_SIZE, #pExt%)
+	r% = S_PEEKW(e%, EDWIN_MARGINS_RIGHT)  /*  EebH->edwin.margins.right  */
+	r% = r% + (w% - ext%(3))  /*  ...+=width-ext.width;  */
+	S_POKEW(e%, EDWIN_MARGINS_RIGHT, r%)
+	ext%(3) = w%  /*  ext.width=width  */
+	RETURN ENTERSEND(e%, O_EW_SET_SIZE, #pExt%)
+
+ENDP
+
+
+
+
+PROC hEBSetCWidth(e%, w%)
+
+	LOCAL					ret%  /*  Return value  */
+	LOCAL					wx%  /*  Local copy  */
+	LOCAL					pScrimg%  /*  PR_SCRIMG *scrimg;  */
+	LOCAL					win%(11)  /*  SCRIMG_WIN  */
+	LOCAL					pWin%  /*  Pointer to win%()  */
+
+	wx% = w%
+	pScrimg% = S_PEEKW(e%, EDWIN_SCRIMG)  /*  scrimg=EebH->edwin.scrimg;  */
+	pWin% = ADDR(win%)
+
+	SEND(pScrimg%, O_SI_SENSE, #pWin%)
+	S_POKEB(ADDR(win%()), 18, wx%)
+	ENTERSEND(pScrimg%, O_SI_SET, #pWin%)
+
+ENDP
+
+
+
+PROC hEBInsert(e%, p%, l%)
+
+	LOCAL					px%  /*  Local copies  */
+	LOCAL					lx%
+	
+	px% = p%
+	lx% = l%
+
+	RETURN ENTERSEND(e%, O_EW_INSERT, #px%, #lx%)
+
+ENDP
+
+
+
+PROC hEBReplace(e%, p%, b%)
+
+	LOCAL					px%  /*  Local copies  */
+	LOCAL					bx%
+
+	px% = p%
+	bx% = b%
+
+	RETURN ENTERSEND(e%, O_EW_REPLACE, #px%, bx%)
+
+ENDP
+
+
+
+PROC hEBEvaluate(e%)
+
+	RETURN ENTERSEND(e%, O_EW_EVALUATE)
+
+ENDP
+
+
+
+PROC hEBCopy(e%)
+
+	IF (S_PEEKW(e%, EDWIN_SELECT) = 0)  /*  (!(EebH->edwin.select))  */
+		RETURN 1
+	ENDIF
+
+	RETURN ENTERSEND(e%, O_EW_REPLACE_CLIP)
+
+ENDP
+
+
+
+PROC hEBPaste(e%)
+
+	LOCAL					pClip%  /*  EebH->edwin.clip  */
+
+	pClip% = S_PEEKW(e%, EDWIN_CLIP)  /*  clip=EebH->edwin.clip  */
+	IF (SEND(pClip%, O_EP_SENSE_LEN) = 0)
+		RETURN 1
+	ENDIF
+
+	RETURN ENTERSEND(e%, O_EW_PASTE_CLIP)
+
+ENDP
+
+
+
+PROC hEBFind(e%, p%, f%)
+
+	LOCAL					px%  /*  Local copies  */
+	LOCAL					fx%
+
+	px% = p%
+	fx% = f%
+
+	RETURN SEND(e%, O_EW_FIND, #px%, #fx%)
+
+ENDP
+
+
+
+PROC hEBClearChanged(e%)
+
+	S_POKEB(e%, EDWIN_CHANGE, FALSE)  /*  EebH->edwin.change=FALSE;  */
+
+ENDP
+
+
+
+PROC hEBSenseChanged(e%)
+
+	RETURN S_PEEKB(e%, EDWIN_CHANGE)  /*  EebH->edwin.change;  */
+
+ENDP
+
+
+
+PROC hEBShowSymbols(e%, f%)
+
+	LOCAL					fx%  /*  Local copy  */
+	LOCAL					pScrimg%  /*  PR_SCRIMG *scrimg;  */
+	LOCAL					pScrlay%  /*  Eebh->edwin.scrlay  */
+	LOCAL					style%(8)  /*  SCRLAY_STYLE  */
+	LOCAL					pStyle%  /*  Pointer to style  */
+
+	pScrimg% = S_PEEKW(e%, EDWIN_SCRIMG)  /*  scrimg=EebH->edwin.scrimg;  */
+	pScrlay% = S_PEEKW(e%, EDWIN_SCRLAY)
+	pStyle% = ADDR(style%())
+	SEND(pScrlay%, O_SL_SENSE, #pStyle%)
+
+	S_POKEB(ADDR(style%()), 0, FALSE)  /*  style.options=FALSE  */
+	IF (f%)
+		S_POKEB(ADDR(style%()), 0, SCRLAY_SHOW_SPACES + SCRLAY_SHOW_LFS)
+	ENDIF
+	SEND(pScrlay%, O_SL_SET, #pStyle%)
+	RETURN ENTERSEND(pScrimg%, O_SI_STYLE_CHANGED)
+
+ENDP
+
+
+PROC hEBClose(e%)
+
+	SEND(e%, O_DESTROY)  /*  Destroy the object  */
+
+ENDP
+
+
+
+PROC hEBSenseDoc(e%)
+
+	RETURN S_PEEKW(e%, EDWIN_DOC)  /*  return(EebH->edwin.doc);  */
+
+ENDP
+
+
+
+PROC hEDCapacity(d%, c%)
+
+	LOCAL					cx%  /*  Local copy  */
+
+	cx% = c% + 1
+
+	RETURN ENTERSEND(d%, O_EP_CAPACITY, #cx%)
+
+ENDP
+
+
+
+PROC hEDInsert(d%, p%, b%, l%)
+
+	LOCAL					px%  /*  Local copies  */
+	LOCAL					bx%
+	LOCAL					lx%
+
+	px% = p%
+	bx% = b%
+	lx% = l%
+
+	RETURN ENTERSEND(d%, O_EP_INSERT, #px%, #bx%, #lx%)
+
+ENDP
+
+
+
+PROC hEBDocChanged(e%)
+
+	LOCAL					doc%  /*  EebH->edwin.doc  */
+	LOCAL					doclen%
+	LOCAL					pDoclen%  /*  Pointer to doclen%  */
+	LOCAL					pScrimg%  /*  PR_SCRIMG *scrimg;  */
+
+	pScrimg% = S_PEEKW(e%, EDWIN_SCRIMG)  /*  scrimg=EebH->edwin.scrimg;  */
+	doc% = S_PEEKW(e%, EDWIN_DOC)
+	doclen% = SEND(doc%, O_EP_SENSE_LEN)
+	doclen% = doclen% + 1
+	pDoclen% = ADDR(doclen%)
+	S_POKEW(e%, EDWIN_CLEN, doclen%)  /*  EebH->edwin.clen=doclen+1;  */
+	RETURN ENTERSEND(pScrimg%, O_SI_DOC_CHANGED, #pDoclen%)
+
+ENDP
+
+
+
+PROC  hEBSetMargin(e%, m%)
+
+	LOCAL					ret%  /*  return value  */
+	LOCAL					oright%
+	LOCAL					pScrimg%  /*  PR_SCRIMG *scrimg;  */
+
+	pScrimg% = S_PEEKW(e%, EDWIN_SCRIMG)  /*  scrimg=EebH->edwin.scrimg;  */
+ 
+	oright% = S_PEEKW(e%, EDWIN_MARGINS_RIGHT)  /*  oright=EebH->edwin.margins.right;  */
+	S_POKEW(e%, EDWIN_MARGINS_RIGHT, m%)  /*  EebH->edwin.margins.right=right;  */
+	ret% = ENTERSEND(pScrimg%, O_SI_STYLE_CHANGED, #SCRIMG_STCHNG_DOC)
+	IF (ret% < 0)
+		S_POKEW(e%, EDWIN_MARGINS_RIGHT, oright%)  /*  EebH->edwin.margins.right=right;  */
+	ENDIF
+	RETURN ret%
+
+ENDP
+
+
+
+PROC  hEBSenseMargin(e%)
+
+	RETURN S_PEEKW(e%, EDWIN_MARGINS_RIGHT)  /*  return(EebH->edwin.margins.right);  */
+
+ENDP
+
+
+
+PROC  hEBPosToXL(e%, p%)
+
+	LOCAL					px%  /*  Local copy  */
+	LOCAL					pScrlay%  /*  Eebh->edwin.scrlay  */
+
+	px% = p%
+	pScrlay% = S_PEEKW(e%, EDWIN_SCRLAY)
+	RETURN SEND(pScrlay%, O_SL_POS_TO_XL, #px%)
+
+ENDP
+
+
+
+PROC uFindMainWid
+
+	LOCAL					ret%
+	LOCAL					mainWid%
+	LOCAL					info%(4)
+	LOCAL					pInfo%
+
+	pInfo% = ADDR(info%())
+
+	ret% = IOW(-2, P_FINQ, #pInfo%, #0)
+
+	mainWid% = info%(1)
+	RETURN mainWid%
+
+ENDP
+
+
+
+PROC Check%:(r%, e$)
+
+	IF (r% >= 0)
+		RETURN r%
+	ELSE
+		PRINT "Error was:",r%
+		PRINT ERR$(r%)
+		PRINT e$
+		GET
+		STOP
+	ENDIF
+
+ENDP
+	
+
+
+	
+
+	
+

@@ -1,0 +1,95 @@
+PSION link
+==========
+
+This distribution is for transferring files between a PSION organiser and a Unix machine, via a serial cable. The code has been used successfully on a PC running linux and a PSION 5, but it ought to work with other flavours of unix and the PSION series 3 machines also.
+
+Quick start
+===========
+
+1.  Compile the code 
+
+Take a quick look at "defaults.h" - sensible values are supplied in the file. (System admin people should know that a unix socket number should be allocated here.)
+Solaris users will need to uncomment a line in the top level Makefile (just search for the word "Solaris").
+
+type: make
+
+2.  Run the test 
+
+NB. this test creates and deletes a file called "C:\ptest". If you already have such a file on the PSION, it will be deleted if you run the test!
+
+type: make test
+
+3.  Now, if you look at the screen output, the basic command syntax should be fairly obvious!
+
+4. Install the files
+
+type: make install
+
+NB. This will put the "ncp" and "rfsv" executables into /usr/local/bin/. You shouldn't have to run "ncp" by hand.
+
+Change history
+==============
+
+1.3 -> 1.4 (*) rfsv now starts ncp automatically.
+           (*) Compiles with sparcworks compiler.
+
+1.2 -> 1.3 (*) Ftp like interface added. Just execute "rfsv"
+           (*) Bug fix to receiving the VALID packet terminator sequence 0x10 0x10 0x10 0x03
+               - this caused a problem when transferring some binary files from the psion.
+
+1.0 -> 1.2 (*) Some bug fixes and changes to Makefiles
+
+More detailed explanation of code
+=================================
+
+There are two executables: a daemon process; and a file manipulation tool. Descriptions follow:
+
+"rfsv" command (remote file service - a psion protocol)
+------------------------------------------------------- 
+
+This code is the user interface for transferring and manipulating psion files. A socket number should be supplied that matches the required "ncp daemon" process (see below).
+
+Syntax: rfsv -s (socket number) (command) (command parameters)
+
+Commands and parameters:
+
+  ftp (or no parameters) - enter interactive "ftp - like" mode
+  dir (psion file) - NB. end directory names with a "/" to see the whole contents 
+  mkdir (psion directory) 
+  del (psion file) 
+  read (psion file) (unix file) 
+  write (unix file) (psion file) 
+
+"ncp" daemon (Network Control Protocol - a psion protocol) 
+----------------------------------------------------------
+
+This code manages all communication with the psion. It allows several simultaneous channels of communication, so that you can still access the psion while transferring a large file. One daemon is needed for each psion connected to your computer. Also, a unix tcp/ip socket number is required, and the daemon listens on this for communication requests.
+
+Syntax: ncp -s (socket number) -d (device) -b (baud rate)
+NB. This is started automaticall with "default device" and "default baud rate" by the "rfsv" command - unless you start it first!
+
+
+Credits
+=======
+
+Thanks to Olaf Flebbe (o.flebbe@science-computing.de) for his document describing the communication protocol. This code would not have been written without his document.
+Thanks to Rudolf Koenig (rfkoenig@immd4.informatik.uni-erlangen.de) for supplying the low level serial interface code (from his p3nfs code)
+Thanks to Pete Bentley, and anyone else who has mailed me bug fixes.
+
+Also thanks to my wife Rach, and son Alex for allowing me some "time off" to write this.
+If you have any queries/ suggestions please e-mail me, Phil Proudman, at philip.proudman@btinternet.com - but please browse the FAQ first.
+
+FAQ
+===
+Q: What about long filenames?
+A: The code uses the psion 3 communication protocol. The psion 5 has a "back compatibility" mode which lets it use the same protocol. Unfortunately the psion 3 had "dos like filenames" - which means that until somebody writes a document describing the updated 5 protocol we're stuck with it. (I would still support the 3 protocol too.)
+
+Q: Where did you get this protocol description document?
+A: From Olaf Flebbe. The URL is http://www.science-computing.de/~flebbe/psion/
+
+Q: Which compiler do you use?
+A: I use gcc 2.8.1 and libstdc++ 2.8.1.1. If you port the code to another compiler/ OS, then please e-mail me
+the changes.
+
+Q: I like the way you code. Can I offer you a job with a six figure salary? (not Yen)
+A: No, but ask my wife - she's a hard worker, and very generous to family!

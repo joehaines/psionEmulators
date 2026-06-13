@@ -1,0 +1,565 @@
+                                  
+                           REVTRAN Manual
+                                  
+                     Version 6.2, March 1999
+
+
+Introduction
+
+   Revtran is a program for Psion handheld computers, which reverse-
+   translates translated programs back into moderately intelligible
+   OPL source code.  It is written in OPL, and will run on the Series
+   3/3a/3c/5, the Workabout, and probably the Series 3mx.  Not the
+   Siena.  Revtran processes Series 3/3a, Workabout, HC, MC (all
+   OPL16) and Series 5 (OPL32) OPL programs.
+
+
+Uses
+
+   You might use Revtran on your own programs, e.g. if you have
+   lost the source code, or you want to regress to an earlier
+   version of a program where you have deleted the earlier source
+   code.
+   
+   You might use Revtran on someone else's programs, for a variety
+   of reasons, for example:
+   
+   - to do minor bugfixes, and to make adjustments and improvements
+     to a user interface for your own use.
+   - to remove features that you don't use, and which are taking up
+     space.
+   - to understand the data file formats used, so you can read or
+     write them from another program.
+   - to convert a .OPO to a .OPA or vice versa.
+   - to extract, remove, replace or add an icon picture in a .OPA.
+   - to help port applications from one machine to another.
+   - to learn from others' experience.
+   - NOT to hack into authorisation mechanisms etc.!
+   
+   NOTE: whatever your reason for using Revtran, please DO NOT
+   distribute any modified programs without the original author's
+   approval.  See the 'Ethics' section below.
+
+
+What's new in V6.2
+
+   V6.2 fixes bugs that were found in V6.1, including processing of
+   dEDITMULTI, GETDOC$, INPUT, and BYREF parameters in OPX calls.
+   Also, "String too long" errors should no longer occur.
+
+   V6.1 is the first release since V4.2 was released in 1995.  The
+   major feature added is the ability to reverse-translate OPL32
+   programs (e.g. Series5).  The Series 3/3a versions have had very
+   minor bugfixes, and will now run slower than before, due to
+   additional 32-bit arithmetic in the source code for commonality
+   with the series 5 version, plus improved error-recovery code.
+   N.B. there have been a few unofficial "version 5" versions of
+   Revtran created by others and which may have had a limited
+   distribution.  There is no official V5.x version.
+
+
+Installation
+
+   You should have unzipped the following files:
+   
+   REVTRAN.TXT  This documentation file.
+   REVTRAN.TBL  A look-up table used by Revtran.
+
+   RVTRN3.OPA   Series 3 or Workabout version of the program.
+   
+   RVTRN3A.OPA  Series 3a/3c/3mx version of the program.
+   
+   REVTRAN.APP  Series 5 version of the program.
+   REVTRAN.AIF  Series 5 Application Information File.
+   
+ Installation for Series 5:
+
+   Make sure the 'System' folder is visible, using
+   the System screen's Ctrl+K dialog.
+   Create a directory System\Apps\Revtran.
+   Copy REVTRAN.TBL, REVTRAN.APP and REVTRAN.AIF into the new directory.
+   Revtran should now appear on the Extras bar.
+
+ Installation for other machines:
+
+   Put REVTRAN.TBL in a \APP or \APP\REVTRAN directory on disk A, B
+   or M.  Put RVTRN3.OPA or RVTRN3A.OPA (depending on the machine) in
+   any directory, and "Install" it from the System screen.
+   Note: for Series 3, you may be better sticking with Revtran v4.2,
+   which will run faster.
+   
+   You can rename the .OPA file to anything you like, but
+   REVTRAN.TBL must have that name.
+
+
+Running the program
+
+   Start the Revtran application, then choose appropriate items
+   from the menus presented, as follows.
+   
+   (Open File) This opens a .OPO or .OPA file and checks its basic
+   details.  The default directory for input files is \APP (3/3a) or
+   \System\Apps (5), but normal Psion dialogs are used when selecting
+   input and output files, so you can use Tab or Control-Tab to change
+   directory, e.g. to \OPO.  It is also possible to open .IMG, .APP,
+   .ALS, .GRP, .PIC and .AIF files; these contain no translated OPL
+   code, but may contain an embedded PIC file (usually an Icon), which
+   Revtran can extract.  On the 3/3a, if you wish to access files in
+   the machine's internal ROM, do the following in the 'Open input
+   file' dialog:
+
+   1. With cursor on the top line, press Control-Tab.
+   2. Edit the 'Full path' line to show "ROM::".
+   3. Press Control-Enter, then scroll the Name selector.
+   
+   (Open Application) On the Series 5 version, you can use this option
+   to simultaneously open the .APP/.AIF pair of files making up an
+   application.  The dialog presents a choice of all the valid OPL
+   applications on the machine, including the ROM ones.
+
+   (Write PIC/MBM) If the input file or application contains an icon
+   picture, you should write the picture out to a bitmap (.PIC or
+   .MBM) file or files if you wish to reconstruct an identical .OPA
+   later, because the reverse-translated OPL source will need to make
+   a reference to the bitmap file(s).  Some other file types also have
+   embedded PIC files, possibly with multiple bitmaps, not all of
+   which are icon-related (e.g. in ROM::WORLD.APP on the 3/3a).  You
+   can select which bitmaps to write out; e.g. a pair of 48x48 bitmaps
+   to describe the black and grey planes of a Series 3a icon, or a
+   24x24 bitmap for a Series 3 icon.  On the 3/3a, the bitmaps will be
+   put in the M:\PIC directory by default.
+
+   (Write OPL) When you write out reverse-translated OPL16 OPL, you're
+   given the option of adding or discarding an APP..ENDA section, by
+   choosing an OPA or OPO module type.  If you keep or add an
+   APP..ENDA section, you'll be prompted for the parameters to insert
+   (although as many as possible are copied from the original by
+   default).  If you put a blank entry in the dialog for PATH, EXT or
+   ICON, then that line will be omitted from the APP..ENDA section.
+   
+   If you choose to alter the 'Text features', you can adjust several
+   things.  You can change how new local variable and procedure
+   parameter names are invented, but bear in mind that you may cause
+   name clashes with global variables.  You can choose to output
+   various amounts of comments - see below.  You can choose
+   Hexadecimal output for all integer literals, although some integer
+   literals will be output in hex even if Decimal is selected, to
+   ensure that data types are unchanged.  If you find that
+   reverse-translated OPL has too many nested levels of structure, you
+   can flatten out the 'ELSE' clauses by choosing 'No ELSE' for the
+   'ELSE and WHILE' item.  If the OPL appears to have missing 'ENDWH'
+   statements, this may be due to mis-interpretation of
+   poorly-structured code, and you can choose 'No WHILE', which will
+   result in 'IF' and 'GOTO' being used to achieve the correct
+   behaviour.
+   
+
+Output comments
+
+   In the 'text features' settings, you can choose to output Terse,
+   Medium or Verbose comments in the OPL output.  With 'Medium'
+   selected, some additional 'REM' statements will be added to the OPL
+   output to record some numerical details which may help in debugging
+   a Revtran problem.  Also, for OPL32 code, 'Include' file comments
+   are output, and OPX call comments are output in pass 1, to help in
+   re-creating missing .oxh files.
+
+   With 'Verbose' comments selected, source addresses are added to the
+   end of each line.  Also, OPX call comments are output during both
+   pass 1 and pass 3, and data type conversions are shown in square
+   brackets, both of which make the output OPL untranslatable, so you
+   should only use Verbose output temporarily.  The data type marks
+   are [%], [&], [f] and [$], for integer, long, float and string
+   respectively.  They are inserted before the assignment "="
+   operator, before comparison operators, and before procedure
+   parameter expressions which are type-converted automatically before
+   being passed.  A type mark is also inserted before any procedure
+   call which is made without its return values being used, such as
+   when the call is the first item on a line of code, and in this case
+   the mark indicates the return type.
+
+
+Selection of PROCs to reverse-translate
+
+   If there is more than one translated procedure, you can select a
+   range of procedures to reverse-translate (from 'First proc' to
+   'Last proc').  This range defaults to all the procedures in the
+   file.  If you specify a 'First proc' number which is larger than
+   'Last proc', then all procedures will be skipped, and you will
+   just get a REM statement naming each procedure.
+
+
+OPX calls and missing .OXH header files
+
+   In OPL32 code (Series 5), there may be references to OPX routines,
+   in which case Revtran needs to be able to open the corresponding
+   .OXH file(s) during reverse-translation in order to find the
+   routines' names, numbers of parameters and each parameter's calling
+   scheme (by value or BYREF).  If the .OXH file is not available,
+   then the calling PROC will be skipped.  You may be able to
+   incrementally build up the missing .OXH file(s) manually, giving
+   the OPX routines arbitrary names, and making guesses at the number
+   of parameters until Revtran succeeds in reverse-translating the OPX
+   calls and nearby code.  This takes a lot of manual effort!
+   Selecting 'Verbose' comments and Hexadecimal numbers in the output
+   file is useful, as this gives more information on the types of data
+   being passed to each call, and the return types.  As a first stab
+   you should try declaring the same number of parameters as the stack
+   depth reported at the point the call is made, but you should reduce
+   the number if missing stack items are then reported.  Incorrect
+   numbers of parameters will upset the parsing of subsequent code,
+   causing various errors.  So you might end up with something like:
+
+   DECLARE OPX MISSING,&10001234,$100
+     Missing3:(p1,p2)       :3
+     Missing34:(p1,p2,p3)   :34
+   END DECLARE
+
+   Once you have the numbers of parameters correct, you can refine the
+   .OXH file so that the parameter types and return type are
+   compatible with the ones reported by the 'Verbose' type marks.  The
+   presence of 'ADDR()' in a call implies either a BYREF parameter or
+   a longword address.  It is important to get the parameter types
+   correct, otherwise there will be run-time errors when the OPX is
+   called from re-translated code.  So after further manual analysis
+   and refinement you may now have:
+
+   DECLARE OPX MISSING,&10001234,$100
+     Missing3&:(p1%,p2%)        :3
+     Missing34$:(p1$,p2%,p3&)   :34
+   END DECLARE
+
+   At this stage you can do a final complete reverse-translation with
+   Verbose comments switched off.
+
+
+Capabilities and limitations
+
+   Revtran is intended to cope with all the OPL language constructs
+   described in the Series 3a Programming Manual (Version 1.0), plus
+   the 'dINITS' statement introduced for the Workabout, plus all
+   OPL32 language consructs.  It will only take as input OPO, OPA and
+   APP files created as a result of translating OPL source code.  It
+   cannot process the compiled version of 'C' source code etc.,
+   e.g. .IMG files, other than to extract an icon picture.
+   
+   Versions of the Revtran program for different machines all have
+   similar functionality, e.g. the Series 5 version can process Series
+   3 OPO/OPA files.  However, the Series 3/3a version will not handle
+   AIF files, nor any OPX calls in translated OPL32 code.  The Series
+   3/3a version writes OPL code as a plain text file.  The Series 5
+   version writes OPL code in 'texted' OPL32 source form.
+   
+   If you translate something from, say, English to Japanese, then
+   reverse-translate back to English, you'll lose something in both
+   directions.  Unfortunately, the situation with Revtran is
+   similar.  Most of the information loss is in the 'translate'
+   direction; see the 'differences' sections below.
+   
+   There are a few arbitrary limits hard-coded into Revtran.  In
+   each procedure to be reverse-translated, there can be no more
+   than 40 parameters, 200 global declarations, 100 local
+   declarations, 100 string declarations (local and global
+   combined), 100 different references to other procedures, 100
+   different references to external globals, and 1200 commands.  In
+   this context, an unconditional jump (whether a 'GOTO' or as a
+   translated part of an 'IF..ENDIF' construct etc.) counts as a
+   'command'.  Also, any single command, when reverse-translated,
+   is limited to 255 characters in length; whether or not this
+   limit is breached will be affected by the choice of invented
+   names for locals and parameters, and by the indentation string.
+
+   Revtran does not run particularly quickly, even for an OPL
+   program, partly because dynamic storage allocation is achieved
+   by doing recursive calls to a procedure with a large local
+   storage area.  On a Series 3, with all files on the internal
+   disk, Revtran processes roughly 400 bytes of input file per
+   minute.  On the emulator (EHWIM) running on a reasonably fast
+   PC, it achieves about 4k per minute.  The Series 3a and Series 5
+   versions are much faster, due to procedure cacheing and a
+   faster CPU.
+
+
+Error handling and bugs
+
+   Revtran will check the input file header and refuse to attempt
+   reverse-translation if the signature is not "OPLObjectFile**" for
+   OPL16, or if the UIDs are not correct for OPL32, although PIC file
+   extraction is allowed with some other signatures.  After that, if
+   Revtran encounters something it isn't prepared for in the file, it
+   is likely to raise an error message, but not recover very well;
+   please let me know if this happens and you can't fix it (but see
+   'Ethics' section below).  Apart from the File dialog problem
+   mentioned below, I know of no bugs at present, but no doubt there
+   are some!  My understanding of .OPA/.OPO/.APP file content is based
+   mostly on guesswork, not hard fact, so I've probably got some
+   misconceptions, which will account for some of the bugs.
+
+   If the errors are bad enough to crash the Series 5 Revtran (this
+   really should not happen from version 6.2 onwards), then the output
+   OPL file will not be closed correctly (missing trailer), and any
+   attempt to open it in the normal way (TextEd) will give a 'Corrupt'
+   error.  You may then need a third-party program to convert it to a
+   readable form to find out what went wrong; see my Web site for
+   further news on this subject.
+
+   On the Series 5 (ROM version 1.01), the 'dFile' dialog, as
+   used in Revtran's Open File dialog, can crash the program if
+   the Folder entry is selected, then Tab is pressed, or the
+   Folder entry is touched with the pen.  A workaround is to
+   temporarily select a different Disk before attempting this.
+
+
+Technical description
+
+   Translation
+   
+   After you write an OPL module, you 'translate' it to produce a
+   .OPO, .OPA or .APP file.  There is no form of security encryption
+   involved; the purpose of translation is mainly to create a
+   syntax-checked, semi-interpreted, compact version of the source
+   code.  The resulting file is mainly a list of procedures encoded in
+   'Q-code', which is executed by a software 'virtual machine', the
+   Runtime Interpreter, in the Series 3/3a/5 when you run the program.
+   The Q-code uses stack-based reverse-Polish logic, i.e.  postfix
+   operators etc.  Each OPL function or command is translated to a
+   specific code (one or two bytes usually).  OPL control structure
+   keywords (e.g. GOTO, IF..ENDIF, CONTINUE) are translated into jumps
+   and conditional jumps.  OPL global variable names and procedure
+   names are stored unchanged (in upper case).  OPL local variable
+   names and procedure parameters are converted to numbered storage
+   locations, and their names are lost.  'REM' comments are discarded.
+   Any ICON picture is incorporated in-line.
+
+   My interpretation of the Q-Code syntax (up to S3a) has been
+   incorporated by Clive Feather into his Psionics files, at
+   http://www.davros.org/psion/psionics/
+   The S5-specific Q-code details are not yet there, and should appear
+   first on my website, http://www.cix.co.uk/~mrudin
+   
+   Reverse-translation
+   
+   To regenerate OPL from a Q-code file, Revtran first decodes the
+   file header, extracting any APP details (perhaps including an
+   icon picture).  Then it deals with each procedure, after
+   extracting global variables etc., in three passes:
+   
+   Pass 1:  All the commands, variable assignments and jumps are
+            identified (each command potentially invoking functions
+            in its parameters), and local variables are found.
+   
+   Pass 2:  In three sub-passes, by analysing the jumps, the
+            original control structure is inferred (this is one of
+            the more tricky bits, but it runs quickly).
+   
+   Pass 3:  Each command is turned into text, with the addition of
+            control structure keywords and indentation.  PRINT,
+            LPRINT and GPRINT commands, which were translated
+            piecemeal, are reconstructed.
+   
+   During Pass 1 and Pass 3, Revtran needs to know how to decode
+   particular Q-code values into the original OPL keywords.  Some
+   of this information is included in the Revtran program itself,
+   but most of the run-of-the-mill Function and Command keywords
+   are decoded by reference to the external table REVTRAN.TBL,
+   which was previously generated by MKTABLE.OPO (not included in
+   this package of files).  Revtran behaves a bit like a Q-code
+   interpreter in these phases, tracking the way that values are
+   placed on a stack, and then are replaced by functions and
+   removed by commands.
+   The heuristics that Revtran uses in Pass 2 are unlikely to be
+   foolproof, but have worked on all the test cases I have tried,
+   with the exception of a case in which a 'GOTO' just 
+   before 'ENDIF' can (rarely) cause a 'WHILE' to be 
+   interpreted mistakenly.  If you find any other example 
+   which causes 'unexpected UNTIL', 'structure fault' etc., 
+   please let me know.
+
+
+Differences between original and reverse-translated OPL source code
+
+   The Series5 version of Revtran outputs OPL as an OPL32-style
+   file, i.e. with UID header and special linefeed characters,
+   although the original OPL may have been a simple text file.
+   Any comments in the original OPL are lost.
+   Any pre-processor directives (e.g. for HHTRAN or S3ATRAN) are
+   lost.
+   Indentation and spacing will be different, and there will only
+   be one command per line (no use of ":").
+   Global and local declarations are made in a different order (all
+   the globals then all the locals), but the translated effect
+   should be the same.  Storage space for originally declared but
+   unreferenced locals will be reserved by new dummy declarations
+   which may be of different data types (integers and strings
+   only).
+   Local variables, procedure parameters and labels all lose their
+   original names, and are given invented ones.
+   All global variables and procedure names are shown with an 
+   initial capital letter, and remaining letters in lower case.
+   Data file record field names are shown in upper-case.  Names of
+   arrays for use in ADDR or var-parameters are always like
+   "arr()", where the original might have used the "arr(1)" form.
+   Literal integers may be represented differently, e.g. "$0020"
+   would be reverse-translated as "32" (although, if you wish, you
+   can turn on Hex output for literals).
+   Literal floating-point numbers may be represented differently,
+   e.g. "2.323E04" would be reverse-translated as "23230.0".
+   Unnecessary brackets in expressions are generally not included;
+   operator precedence rules are applied.  The main exception to
+   this is that a pair of brackets is always inserted when the '#'
+   feature is used for var-parameters.
+   Lists of expressions and commas in PRINT, LPRINT and GPRINT
+   commands, may be split into a different number of commands, but
+   the effect should be the same.
+   Any labels which are not jumped to will vanish, and some
+   original GOTO commands may be replaced by functionally
+   equivalent BREAK, CONTINUE or ELSE/ELSEIF constructs.
+
+
+Differences between original and re-translated .OPO/.OPA
+
+   If you re-translate Revtran output and compare the result
+   against the original .OPO/.OPA, then functionally there should
+   be no difference when the program runs, but some of the bytes
+   may be different, as follows:
+   
+   Encoded source line numbers will usually be different.
+   The source file pathname may be different.
+   You may have changed, removed or added an icon picture.
+   There may be other differences if a different translator version
+   is used.
+
+
+Ethics
+
+   Revtran is intended for private use, and must not be used to
+   create OPL source code which is subsequently transferred to
+   anyone else (whether modified or not, and whether re-translated
+   or not).  European law allows reverse-engineering in certain
+   reasonable circumstances, but anything sold as a result of
+   reverse-engineering is likely to be a breach of copyright.
+   
+   Regardless of the law, if a software author clearly does not
+   want you to see the structure of his program, then it would be
+   unethical for you to use Revtran on it.  See also the lengthy
+   discussion on the CIX psion/2_series3 topic, starting at
+   messages #858 and #903.
+   
+   If you experience an error while processing another author's
+   program, this may be because he has included code to deliberately
+   exceed one of Revtran's limitations.  If the author has explicitly
+   requested that you don't reverse-translate, then please don't
+   report the problem to me as a bug, as I won't fix it.  However,
+   from version 6.2, I don't expect Revtran to crash completely on an
+   error, but at most to skip a troublesome PROC, so please let me
+   know the details of any crashes (i.e. where the entire program
+   terminates unexpectedly).
+
+
+Preventing reverse-translation
+
+   Despite the above guidance to software users, some authors may
+   wish to prevent users from reverse-translating their code.  The
+   simplest approach is to put a polite request to this effect in a
+   program's documentation.
+   The translation of OPL into .OPA/.OPO/.APP is not very secure;
+   the process is direct and easily reversible.  The best way to
+   acheive good security is to write in 'C' or some other compiled
+   language.  For OPL32, you could write any sensitive code in C++
+   as an OPX.
+   Listed below are some options for improving the privacy of OPL
+   programs, but please do not ask me for more details, as I am not
+   interested or experienced in defeating Revtran.
+   
+   1. Modify all procedure and global variable names to make them
+   meaningless.  This can be done before translation, or using a
+   special program after translation.  If done after translation,
+   it is possible to replace alphabetic characters with non-
+   printing control characters for greater obscurity.
+   
+   2. Replace some non-executed parts of the translated program
+   with garbage, so that a reverse-translator such as Revtran will
+   stumble or crash.  A dedicated hacker will easily overcome this,
+   by manually interpreting the Q-code structure, and modifying it
+   using a hex editor.
+   
+   3. Find some limit or bug in Revtran, and include code that crashes
+   Revtran by exploiting it.  This is unreliable, as a future version
+   of Revtran may have bugs fixed, and anyone is free to make a
+   modified copy of Revtran with the limitation removed.
+   
+   There are programs about such as OPP, NoRev and so on that offer
+   some degree of protection based on the above techniques; it's up to
+   you to track these down as I have no interest in them.
+
+Distribution and (lack of) support
+
+   I'm distributing Revtran as Smileware - if you use it 
+   and like it, then smile :-)  I wrote Revtran largely out 
+   of curiosity and to get myself familiar with OPL, rather 
+   than to make money (as opposed to the people who make money
+   selling anti-Revtran programs!!).  Even so, you're welcome
+   to send tokens of appreciation if you find Revtran useful!
+   I do not promise any user support (try me anyway), but would
+   welcome bug reports and constructive criticism.  Why not drop me
+   a line anyway as a sort of informal registration.  Please quote
+   version number and machine type.
+   Over half the code for Series 5 support (new in v6.1) was developed
+   by Gareth James, and a couple of small improvements were suggested
+   by Gavin Lewarne.  Apart from these details, Revtran is all my own
+   work, and if you use any of the better bits of my source code,
+   please credit me as author.
+   You are welcome to use Revtran on itself (but don't distribute any
+   changed version), and if you need access to the original source
+   code I will give it and other notes to you for a fee of 15 pounds
+   sterling.
+
+   You may freely give Revtran to your friends, unmodified and
+   including REVTRAN.TXT, but if you wish to make it any more
+   public (on a BBS or website for example), let me know so that I
+   have a chance of keeping it up-to-date.  The best way to list it
+   on the Web is to link to my home page http://www.cix.co.uk/~mrudin
+   
+   You may find the most recent version on CIX, in the psion/files
+   topic, or at the Imperial College Sunsite in
+   ftp://anonymous@src.doc.ic.ac.uk/packages/psion/icdoc/development/,
+   or on my web page http://www.cix.co.uk/~mrudin.
+
+
+Copyright etc.
+
+   Revtran is copyright of the author.
+   
+   You must not use Revtran (source code or executable) for
+   financial gain or to infringe other authors' copyright.  It is
+   your responsibility to use Revtran within the law.
+   
+   No warranty is given on this program.  No liability for any
+   damage or loss to equipment, data or software will be assumed.
+   You use this program at your own risk.
+   
+   Revtran must not be sold, and may be freely distributed (see
+   above) provided that this copyright notice always accompanies it
+   unaltered.  Revtran must not be used commercially, but otherwise
+   permission is granted for free use of the program and its source
+   code in any legal way which does not involve financial gain.
+   
+   Psion is a registered trademark, and Psion Series 3, Series 3a,
+   Series 5, Workabout and SSD are trademarks of Psion PLC.  IBM
+   PC is a trademark of International Business Machines Corp.
+
+
+Author
+
+   Mike Rudin
+   26 Lovell Rd,
+   Cambridge
+   ENGLAND
+   CB4 2QR
+   
+   Or email me on CIX:
+   mrudin@cix.compulink.co.uk
+   http://www.cix.co.uk/~mrudin
+
+
+[End of Revtran manual]

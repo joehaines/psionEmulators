@@ -1,0 +1,125 @@
+PROC iotest:
+GLOBAL x1%,x2%,y1%,y2%
+LOCAL i%,h$(4),a$(5)
+	x1%=2 :y1%=2
+	x2%=25 :y2%=5 REM our test screensize
+	SCREEN x2%-x1%,y2%-y1%,x1%,y1%
+	AT 1,1
+	PRINT "Text window IO test"
+	PRINT "PSION-Esc quits"
+	h$="FSCR" REM our hot-keys
+	DO
+		i%=GET
+		IF i%=$122 REM Menu key
+			mINIT
+			mCARD "Set","Font",%F,"Style",%S,"Rect",%R
+			mCARD "Sense","Cursor",%C
+			i%=MENU
+			IF i% AND INTF(LOC(h$,CHR$(i%)))
+ 				a$="proc"+chr$(i%)
+				@(a$): 
+			ENDIF
+		ELSEIF i% AND $200 REM hot-key
+			i%=(i%-$200) AND $FFDF REM Uppercase it
+			i%=LOC(h$,CHR$(i%)) REM One of ours?
+			IF i%
+ 				a$="proc"+MID$(h$,i%,1)
+				@(a$):
+			ENDIF REM ignore other weird keypresses
+		ELSE REM some other key, so return it
+			PRINT CHR$(i%);
+		ENDIF
+	UNTIL 0
+ENDP
+
+
+
+PROC procf:
+	LOCAL n%,i%,a%
+	dINIT "Font for text window"
+	dCHOICE n%,"Font","Normal,bold,digit"
+	dCHOICE i%,"Bold","No,Yes"
+	dCHOICE a%,"Double","No,Yes"
+	IF DIALOG
+		CLS
+		iofont:(n%,(i%-1)+8*(a%-1))
+	ENDIF
+ENDP
+
+
+
+PROC procs:
+	LOCAL r%,u%
+	dINIT "Style for text window"
+	dCHOICE r%,"Inverse","No,Yes"
+	dCHOICE u%,"Underline","No,Yes"
+	IF DIALOG
+		iostyle:((u%-1)*4+(r%-1)*2)
+	ENDIF
+ENDP
+
+
+
+PROC procc:
+	LOCAL a&
+	a&=iocurs&:
+	PRINT "x";1+(a& AND &ffff);
+	PRINT "y";1+(a&/&10000);
+ENDP
+
+
+
+PROC procr:
+	LOCAL xx1%,yy1%,xx2%,yy2%
+	LOCAL xx1&,yy1&,xx2&,yy2&
+	dINIT "Clear rectangle"
+	dLONG xx1&,"Top left x",1,x2%-x1%
+	dLONG yy1&,"Top left y",1,y2%-y1%
+	dLONG xx2&,"Bottom left x",2,x2%-x1%
+	dLONG yy2&,"Bottom left y",2,y2%-y1%
+	IF DIALOG
+		xx1%=xx1&-1 :xx2%=xx2&-1
+		yy1%=yy1&-1 :yy2%=yy2&-1
+		iorect:(xx1%,yy1%,xx2%,yy2%)
+	ENDIF
+ENDP
+
+
+
+PROC iofont:(font%,style%)
+	LOCAL i%,a%(6)
+	i%=17 :REM font option
+	a%(1)=$4000+font%-1
+	a%(2)=style%
+	IOW(-2,7,i%,a%())
+ENDP
+
+
+
+PROC iostyle:(style%)
+	LOCAL i%,a%
+	i%=0 :REM style option
+	a%=style%
+	IOW(-2,7,i%,a%)
+ENDP
+
+
+
+PROC iocurs&:
+	LOCAL a%(4),a&
+	REM don't change the order of these!
+	a%(1)=x1% :a%(2)=y1%
+	a%(3)=x2% :a%(4)=y2%
+	IOW(-2,8,a%(),a%()) REM 2nd a% is ignored
+	RETURN a&
+ENDP
+
+
+
+PROC iorect:(xx1%,yy1%,xx2%,yy2%)
+	LOCAL i%,a%(6)
+	i%=2 :REM clear rect option
+	a%(1)=xx1% :a%(2)=yy1%
+	a%(3)=xx2% :a%(4)=yy2%
+	IOW(-2,7,i%,a%())
+ENDP

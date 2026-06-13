@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure canvas stays crisp when scaled */
+canvas {
+  image-rendering: pixelated;
+}
+
+/* Show only on touch screens (pointer: coarse) or when no pointing device
+   is connected (any-pointer: none). Replaces the viewport-width md:hidden
+   heuristic so an iPad with an external keyboard still gets the button. */
+.show-on-touch {
+  display: none;
+}
+@media (pointer: coarse), (any-pointer: none) {
+  .show-on-touch {
+    display: revert;
+  }
+}
+
+/* "Lights out" mode — applied to <body> while the EL backlight overlay is
+   active on a backlit device (Fn+Space on 5/5mx/5mxPro, Psion+Space on 3mx).
+   The page background fades to near-black, panels go very dark, text drops
+   to a muted grey, and the device skin photo is dimmed so the lit LCD
+   stands out the way a real backlit screen does in a dark room.
+   Transitions are short enough to feel like a light switch but long enough
+   to read as deliberate. */
+body {
+  transition: background-color 0.35s ease;
+}
+.psion-skin {
+  transition: filter 0.35s ease;
+}
+body.psion-lights-out {
+  background-color: #050505;
+}
+body.psion-lights-out .bg-psion-dark {
+  background-color: #0a0a0a !important;
+}
+body.psion-lights-out .bg-psion-mid {
+  background-color: #181818 !important;
+}
+body.psion-lights-out .text-psion-charcoal,
+body.psion-lights-out .text-gray-400,
+body.psion-lights-out .text-gray-500,
+body.psion-lights-out .text-gray-600 {
+  color: #8a8a8a !important;
+}
+/* Skin photo + SIBO button bar dim enough to read as "dark room" but not
+   so dark that the EL panel's box-shadow glow has nothing to fall on. The
+   backlight overlay projects a tinted halo onto the device frame, so the
+   keyboard / membrane buttons stay visible — lit by the panel itself the
+   way they would be on real hardware. */
+body.psion-lights-out .psion-skin {
+  filter: brightness(0.55) contrast(0.9);
+}

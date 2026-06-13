@@ -1,0 +1,199 @@
+Program CARCOST3.OPA
+Textfile CARCOST3.WRD (this file)
+
+CarCost3.OPA
+
+Version 3.0
+Carl Littlejohns (see Appendix 2)
+
+
+CarCost arose from the need for a simple to use utility that would allow me to
+quickly enter journey, fuel purchase details etc., and that would then allow
+me to get at the data in a useable way.
+
+My favourite stats package happens to be public domain, and will accept comma
+delimited ascii, so that is the format I use when exporting the data.
+
+You can peruse entries from CarCost without exporting the data.  The commonest
+thing I need to do is recall a half complete entry when a journey is complete.
+This is easy to do, and more powerful searches of all stored data are also
+possible.
+
+Installation
+
+The program should be installed in the \APP\ subdirectory, and will create
+it's datafile ( car.odb ) and any ASCII exported file ( carout.asc ) in the
+\OPD\ subdirectory.  The drive used is determined by the current default drive
+set up by {Psion}-G from the series 3 system screen.
+
+Copy CarCost3.OPA to the /APP/ subdirectory of the Series 3 and then from the
+system screen select {Psion}-I and at the installation menu select CARCOST3
+for installation.
+
+The new ICON should appear on screen.  When first run, the program looks for
+it's data file (car.odb) in the \OPD\ area.  If not found the ICON will have
+"CAR3" displayed below it.  If the file exists already, then "Car" appears
+below - as it will in ordinary use.
+
+CarCost creates an empty data file when first run from the system screen.
+
+IF YOU WISH TO USE THE DATAFILE FROM A PREVIOUS VERSION OF CARCOST YOU SHOULD
+COPY IT INTO THE \OPD\ AREA BEFORE RUNNING CARCOST2.
+
+Use
+
+The main command menu appears thus:
+
+        CarCost v3.0
+        -----------------------   
+        FIND    last entry
+        ENTER FUEL purchase
+        DATA   PROCESSING
+        HELP   &  INFORMATION
+
+The menu items are selected by highlighting the item and pressing ENTER.
+
+The first two items, when highlighted give further options if the left or
+right arrow keys are pressed before ENTER.
+
+FIND: LAST entry
+Selecting this recalls the last entry made (assuming the files have not been
+sorted subsequently) and allows it to be edited or added to.  ESC cancels the
+function, ENTER saves the amended record.
+
+FIND: DATABASE entry
+This item displays a search dialog, which allows the display of records
+according to ONE of three types of search.
+
+TYPE - only BUSINESS or only FUEL entries can be displayed etc.
+
+Date - only records ON or AFTER the selected date will appear.
+
+or
+
+Text - only records containing the piece of text entered will be found. e.g.
+enter 'home' and pull in records of journeys to and from home.  Selecting this
+option and entering NO search text will recall ALL records.
+
+ENTER: Fuel Purchase
+This item prompts for a date (but supplies TODAYs date by default- as appears
+on ALL entry screens in CarCost) a mileage reading (mileometer) the number of
+litres purchased and the amount spent.
+
+ENTER: BUSINESS mileage
+This item prompts for date, start and end mileometer reading, and FROM and TWO
+strings for text of the journey details. 
+
+ENTER: PERSONAL mileage
+As for business miles.
+
+ENTER: SERVICE entry
+This item records date, mileage, which service it is, which garage and the
+cost incurred.
+
+ENTER:Misc
+This item records miscellaneous expenditure on the care in a simialr format.
+
+DATA PROCESSING
+This opton produces another dialog that 1. sorts the datafile in order of
+mileometer reading. 2. exports the data a comma delimited ascii.  The format
+of the file allows for importing the data into any package which accepts comma
+delimited files - spreadsheets, graphic packages and databases - as well as
+BASIC.  See appendix 1.
+
+3. deletes all items entered BEFORE a chosen date - by default this starts at
+30days before TODAY. 4. If the datafile is stored on FLASH SSD this option
+will compress it to remove space from deleted records.
+
+Deleting database records:
+
+The main way of deleting records is to use the block delete option which is
+available from the DATA PROCESSING option.
+
+In additiona individual records can be deleted in one of three ways.
+
+1.At the time of data entry, if instead of pressing ENTER, you press ESC then
+that record will NOT be stored as an entry.
+
+2.At the time of data entry, if you move the cursor up to the 'Entry Type'
+option, and then press the left or right arrow keys, the 'type' bar will
+change to display ** DELETE THIS ENTRY ** .  Pressing ENTER at this point
+saves and then immediately deletes the record.  Of course, the 'recall last
+entry' option produces an inaccurate result immediately afterwards, since the
+last record technically doesn't exist!
+
+3. To delete an existing record, use the search menu to locate the record,
+move to the 'Entry Type' bar as before, and using the left/right arrow keys
+set the entry to DELETE and press ENTER.  Pressing ESC in this instance
+PREVENTS the record from being deleted.
+
+
+Appendix 1
+
+ASCII output file \opd\carout.asc format.
+
+This is a text file, the first line of which consists of 8 headings, as
+inverted comma delimited strings separated by commas.
+
+Each subsequent line consists of one record from the data file in the
+following order, depending on the type of entry:
+
+1st item: Entry type
+Stored as a single letter- F-fuel entry, B-business miles, P-personal miles,
+S-service, O-miscellaneous ('other')
+
+2nd item: Date
+Stored as a european date string:
+dd/mm/yy
+
+3rd item: MilesA
+This refers to the mileage at the time the record was entered (or the start
+mileage of a journey)
+
+4th item: MilesB
+This is the mileage at the end of the journey.
+
+5th item:From
+This is a 25 character text string -journey start, or for a service entry it
+is the particular service, or for a misc. item it is the first text item.
+
+6th item:To
+This is the end of journey text string, or for miscellaneous entries, the
+second text item.
+
+7th item
+This is a decimal number corresponding to litres of fuel purchased (if
+applicable, or just "")
+
+8th item (final)
+This is a decimal number corresponding to cost - fuel cost, service cost,
+misc. cost.
+
+Empty items export as empty inverted commas e.g. "".
+
+
+NB When the sort option is run, it sorts the database on item 3, the first
+mileage.
+
+Appendix 2
+
+The author:
+
+Carl Littlejohns   October 1992
+Email:csljohns@cix
+FidoNet 2:253/152
+Fax: 0745-812125
+
+Appendix 3
+
+Public Domain.
+
+This program is in the public domain.  It may not be sold, or included with
+software that is being sold.
+
+The concept of public domain originated from the educational establishments of
+the USA.  I have benefitted greatly from this initiative which I hope will be
+around for  a long time to come...the public domain I mean, not the USA...er
+that is...
+
+Carl Littlejohns    December 1992

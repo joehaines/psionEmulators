@@ -1,0 +1,160 @@
+app asbico                                                              : rem Erstellen der OPA-Datei
+	type 0                                                          : rem Typ 0
+	icon "\opd\asbico"                                              : rem Iconpfad
+enda                                                                    
+
+proc main:                                                              : rem Hauptprogramm    
+	global a%(6)                                                    : rem Ereignisstring
+	local datei$(128)
+	gborder 0                                                       : rem Rahmen
+	dinit "Uebersetzen"                                             : rem Dialogbox "öbersetzen"
+	datei$="\wrd\"                                                  : rem aktueller Pfad
+	dfile datei$,"Datei: ",0                                        : rem Datei$ mind. 128 Zeichen 
+	dbuttons "Abbruch",-27,"Weiter",13
+	lock on
+	if dialog=13 : lock off : auswahl: (datei$) :endif              : rem Lock on bringt Fehlermeldung bei
+	lock off                                                        : rem versuchtem Schlie·en von au·en
+endp
+
+proc auswahl: (name$)                                                   : rem wÑhlt öbersetzungsrichtung
+	if right$(name$,len(name$)-loc(name$,"."))<>"ASC"               : rem Dateiextension <> asc ?
+		binasc:(name$)                                          : rem ja, bin -> asc
+else                                                             
+		ascbin: (name$)                                         : rem nein, asc -> bin
+	endif
+endp
+
+proc binasc: (name$)                                                    : rem wandelt BinÑr-in Asciifile
+	local byte&,kanal1%,kanal2%,i&,ret%,z%,a%,help$(128),chksum&       
+	at 9,5 : print " Erstelle ASCII-File"
+	pause 30
+	ioopen(kanal1%,name$,0)                                         : rem ôffnen Quelldatei
+	ioopen(kanal2%,left$(name$,loc(name$,"."))+"asc",$0102)         : rem ôffnen/Erstellen Zieldatei (.asc)
+	a%=len(name$)
+	help$="*"+name$+"*"+chr$(13)
+	iowrite(kanal2%,addr(help$)+1,a%+3)                             : rem *Quelldateiname*+CR in Zieldatei schreiben
+	do                                                              : rem umwandeln bis Quelldateiende
+		ret%=ioread(kanal1%,addr(i&),1)                         : rem 1.Byte lesen
+		if ret%=1                                               : rem erfolgreich?
+			i&=i& and 255                                   : rem ja, H-Byte ausblenden
+			chksum&=chksum&+i&                              : rem     PrÅfsumme aktualisieren
+			ret%=ioread(kanal1%,addr(a%),1)                 : rem     2.Byte lesen
+			if ret%=1                                       : rem     erfolgreich?
+				ret%=2                                  : rem     ja, Quittierung: 2 Byte gelesen (ret%=2)
+				a%=a% and 255                           : rem         H-Byte ausblenden
+				chksum&=chksum&+a%                      : rem         PrÅfsumme aktualisieren
+				i&=a%+256*i&                            : rem         i%=H-Byte,a%=L-Byte in i%
+				else ret%=1                             : rem     nein, letztes Byte (ret%=1)
+			endif
+		endif
+		if testevent                                            : rem Ereignis von au·en ?
+			getevent a%()                                   : rem ja, welches...?
+			if ( a%(1)=$404 and left$(getcmd$,1)="X")       : rem     Programmbeendigung von au·en?
+			 ende:(kanal1%,kanal2%)                         : rem     ja, Programm beenden
+			endif
+		endif
+		hilfe: (i&,ret%,kanal2%)                                : rem nein, Aufruf Konvertierungsroutine
+		z%=z%+1                                                 : rem BytezÑhler ( jeweils 2 Byte )
+		if z%=8 or ret%<>2                                      : rem 16 Byte konvertiert oder Dateiende ?
+			z%=0                                            : rem ja, BytezÑhler rÅcksetzen
+			help$=chr$(13)                                  
+			iowrite(kanal2%,addr(help$)+1,1)                : rem     CR einfÅgen
+		endif
+		byte&=byte&+ret% : at 13,7: print "Byte:  ",byte&       : rem Ausgabe Anzahl umgewandelter Byte
+	until ret%<>2                                                   : rem bis letztes Byte gelesen
+	help$="*"+hex$(chksum&)+"*"
+	iowrite(kanal2%,addr(help$)+1,len(help$))                       : rem *PrÅfsumme* in Zieldatei schreiben
+	ret%=ioclose(kanal1%)                                           : rem Dateien schlie·en                                        
+	ret%=ioclose(kanal2%)
+	cls
+	gborder 0
+	beep 20,100
+	dinit "ASCII-File erstellt"                                     : rem Dialogbox Fertigmeldung
+	dbuttons "Ende",13
+	lock on : if dialog : endif : lock off                          : rem Warte bis Enter
+endp
+
+PROC hilfe: (wert&,ret%,kanal2%)                                           
+local m$(1),h$(10),i%,a%
+	h$=hex$(wert&)                                                  : rem liefert Hexwert des Int-wertes als String
+	while len(h$)<4 : h$="0"+h$ : endwh                             : rem fÅhrende Nullen einblenden
+	i%=0                                                            : rem entspricht 4 byte in asc-File eintragen  
+	if ret%=2                                                       : rem 2 Byte von Quelldatei gelesen ?
+		elseif ret%=1 : i%=2                                    : rem nein, 1 Byte gelesen ?  ja, 2 Byte in asc-File
+		else i%=4                                               : rem                       nein, 0 Byte in asc-File
+		endif
+	iowrite(kanal2%,addr(h$)+1+i%,4-i%)                             : rem errechnete Anzahl Bytes (0..3) in asc-File schreiben
+ENDP
+
+PROC ascbin: (name$)                                                    : rem wandelt Ascii-in BinÑrfile
+	local help$(128),chksum&,hilf%,wert%,z&,i%,y%,kanal1%,kanal2%
+	at 5,5 : print " RÅckumwandlung Ascii->BinÑrfile"
+	pause 20
+	ioopen(kanal1%,name$,0)                                         : rem Quelldatei îffnen
+	z&=0                                                            : rem SternchenzÑhler rÅcksetzen
+	do
+		ioread (kanal1%,addr(i%),1)                             : rem 1. Byte von Quelldatei lesen
+		if i%=42                                                : rem * ?                            
+			z&=z&+1                                         : rem ja, SternchenzÑhler erhîhen
+		else
+			help$=help$+chr$(i%)                            : rem nein, nÑchstes Zeichen in Zieldateistring eintragen
+		endif
+	until z&=2                                                      : rem bis 2. *
+	ioopen(kanal2%,help$,$0102)                                     : rem ôffnen Zieldatei
+	z&=0                                                            : rem RÅcksetzen BytezÑhler
+	do
+		ioread(kanal1%,addr(i%),1)                              : rem 1. Datenbyte von Quelldatei lesen
+		if i%<>42 and i%<>10 and i%<>13                         : rem wenn nicht  *, CR, LF
+			y%=y%+1                                         : rem dann  L/H-NibblezÑhler erhîhen
+			if i%<65                                        : rem i%=Code fÅr Zahl ?
+				hilf%=i% and 15 : rem 00001111h         : rem ja, H-Nibble von 1. Byte ausblenden ( entspr. Zahl bleibt Åbrig )
+			else
+				hilf%=(i% and 15)+9                     : rem nein, also Buchstabe -> H-Nibble ausblenden und
+			endif                                           : rem                         Wert 10...15 (A-F) erzeugen
+			if y%=1                                         : rem H-Nibble fÅr Zieldatei ?
+				wert%=16*hilf%                          : rem ja, 4 Stellen nach links und in Wert% eintragen
+			else                                            
+				wert%=wert%+hilf%                       : rem nein, also L-Nibble in Wert% eintragen
+				y%=0                                    : rem       L/H-NibblezÑhler rÅcksetzen
+				iowrite(kanal2%,addr(wert%),1)          : rem       erhaltenes Byte in Zieldatei schreiben
+				chksum&=chksum&+wert%                   : rem       PrÅfsumme aktualisieren
+			endif                                              
+		endif
+		if testevent                                            : rem Ereignis von au·en ?
+			getevent a%()                                   : rem ja, welches..?
+			if ( a%(1)=$404 and left$(getcmd$,1)="X")       : rem     Programmbeendigung von au·en ?
+			 ende:(kanal1%,kanal2%)                         : rem     ja, also Programm beenden
+			endif
+		endif
+		z&=z&+1 : at 13,7 : print "Byte: ",z&                  : rem Anzahl Åbersetzter Byte drucken
+	until i%=42                                                     : rem bis nÑchstes *
+	i%=0 : help$=""
+	do
+		ioread(kanal1%,addr(i%),1)                              : rem PrÅfsumme aus asc-File..
+		if i%<>42                                               : rem ...wenn nicht * gelesen ..
+			help$=help$+chr$(i%)                            : rem ... in String einlesen
+		endif                                                      
+	until i%=42                                                     : rem bis letztes *
+	cls                                                                
+	gborder 0
+	if help$=hex$(chksum&)                                          : rem PrÅfsummen identisch ?
+		beep 20,100
+		dinit"Umwandlung erfolgreich"                           : rem ja, Quittierung Åber Dialogbox
+		dbuttons "Ende",13
+		lock on : if dialog : endif : lock off                  : rem     warte bis Enter                                    
+	else                                                               
+		beep 20,100
+		dinit "PrÅfsummenfehler !"                              : rem nein, Fehlermeldung Åber Dialogbox
+		dbuttons "Abbruch",-27
+		lock on : if dialog : endif : lock off                  : rem       warte bis Enter
+	endif
+	ioclose(kanal1%)                                                : rem Dateien schlie·en
+	ioclose(kanal2%)
+endp
+
+proc ende: (kanal1%,kanal2%)                                            : rem Endeprocedur bei Programmbeendigung von au·en
+	ioclose(kanal1%)
+	ioclose(kanal2%)
+	stop
+ENDP
+

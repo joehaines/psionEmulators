@@ -1,0 +1,38 @@
+==========
+Usenet/comp.sys.psion #9560, from dw2@cix.compulink.co.uk, 1013 chars, Feb 2 21:48 95
+Comment to 9444.
+----------
+Article: 9560 of comp.sys.psion
+Newsgroups: comp.sys.psion
+Path: cix.compulink.co.uk!usenet
+From: dw2@cix.compulink.co.uk ("David Wood")
+Subject: Re: spy process names for opa - help needed
+Message-ID: <D3E78u.HMF@cix.compulink.co.uk>
+Organization: Compulink Information eXchange
+References: <3gj689$g38@bright.ecs.soton.ac.uk>
+Date: Thu, 2 Feb 1995 21:48:30 GMT
+X-News-Software: Ameol/NT
+
+> My opa applications have a process name SYS$PRGO.$...
+> which is not to helpful.
+> How do I give them names that mean something to me?
+
+Try the following:
+
+PROC rename:
+  local nm$(10),mypid%
+  nm$="Hello"
+  mypid%=call($88) rem ProcId
+  call($c88,mypid%,0,0,0,addr(nm$)+1) rem ProcRename
+  busy "Hello"
+  get
+ENDP
+
+Note: the DI parameter to ProcRename has to point to a C-style ZTS, which 
+has to be from 1 to 8 bytes long (not counting the trailing zero).
+
+Take care with your use of ProcRename; if you rename processes other than 
+your own, strange effects can ensue!
+
+Regards, DavidW
+

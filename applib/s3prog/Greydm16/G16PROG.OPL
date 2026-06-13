@@ -1,0 +1,56 @@
+REM This program just draws grey boxes all over the screen
+REM 16 shades of grey with dithering!
+
+PROC g16prog:
+	GLOBAL id%(8)
+	local x%,y%,w%,h%,g%,i%,for%
+
+	init:
+	id%(6)=gCREATE(0,0,480,4,0,1)
+	gupdate off
+	i%=1
+
+	id%(3)=gCREATE(0,0,480,160,1,1)
+
+	do 
+		x%=rnd*400
+		y%=rnd*140
+		w%=rnd*100+10
+		h%=rnd*100+10
+		g%=rnd*17
+		gUSE id%(6)
+		ggrey 2
+		gCOPY id%(1),0,g%*4,480,4,3
+		gUSE id%(3)
+		ggrey 2
+		gAT x%+4,y%+4
+		gFILL w%,h%,0
+		gAT x%,y%
+		gPATT id%(6),w%,h%,3
+		gBOX w%,h%
+
+		IF KEY
+			STOP
+		ENDIF
+
+	until 0
+ENDP
+
+PROC init:
+	LOCAL yf%,cnt%
+
+	id%(6)=gLOADBIT("\pic\grey.pic")
+	id%(1)=gCREATE(0,0,480,68,0,1)
+
+	gGREY 1
+	gAT 0,0
+	gFILL 480,36,0
+	gGREY 0
+
+	gPATT id%(6),480,32,3
+	gGREY 1
+	gAT 0,32
+	gPATT id%(6),480,32,3
+
+ENDP
+

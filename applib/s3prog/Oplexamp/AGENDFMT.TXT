@@ -1,0 +1,148 @@
+Msg # 431 of 437                 Date: Tue  9/03/93, 17:03  [I]
+From: PAUL HARGREAVES            Read: 0 times
+
+     To: SPENCER DAVIES
+Subject: AGENDA FILE FORMAT. 1of2
+
+SD>Where can I find out about the format of the files created in Agenda?
+SD>I need to write a program for the Atari ST to use these files produced on
+SD>my Series 3 but I am having little success discovering the header blocks
+SD>format as well as the entries header blocks.
+
+The following is the file spec for the Agenda file format. I'll also
+post an OPL program that can read Agenda files as soon as I can find it.
+
+Iechyd da!
+Paul.
+
+----------> Cut Here <----------
+
+               Series 3 Agenda file format
+
+Agenda field structure
+
+   Integer:    DayNumber
+   Integer:    Duration
+   Integer:    Time
+   Integer:    AlarmTime
+   String:     Text
+
+
+Timed and Untimed items
+
+-  DayNumber is the number of days since 1/1/1900 (=day
+   0). The first legal day is 1/1/1980, the last legal
+   day is 31/12/2049.
+
+-  Duration, Time, and AlarmTime are all stored in
+   minutes.
+
+-  The MSB of Time (i.e. 8000 Hex) is a flag that
+   indicates whether the item is Timed or Untimed. If the
+   MSB is set then the item is Untimed, if its clear then
+   the item is Timed.
+
+-  To extract the time from the Time field it must be
+   ANDed with 7fff Hex to remove the MSB (i.e. Timed and
+   Untimed indicator).
+
+-  The LSB of Duration (i.e. 1 Hex) is a flag that
+   indicates whether the item has an alarm attached. If
+   the LSB is set then no alarm is attached, if its clear
+   then an alarm is attached.
+
+-  To extract the duration from the Duration field,
+   divide by 2 (thus removing the LSB and shifting down
+   the duration).
+
+-  If the item is untimed then the Time field contains
+   the day note slot number i.e. 1 to n and its MSB must
+   be set (i.e. OR in 8000 Hex). The Duration field
+   contains zero if an alarm is attached or one if no
+   alarm is attached.
+
+-  The end time of a timed item i.e. Time+Duration, must
+   be less than 1440 (24*60) minutes.
+
+-  For timed items the AlarmTime is an alarm pre time and
+   is calculated as follows:
+
+   Pre time to Agenda internal alarm format:
+
+          (23*60+59) + Alarm pre time - Time
+
+   Agenda internal alarm format to pre time:
+
+          Time - (23*60+59) + AlarmTime
+
+-  For untimed items the AlarmTime is calculated as
+   follows:
+
+   Pre time to Agenda internal alarm format:
+
+          (Days previous * (24*60)) - ((23*60+59) - Alarm time)
+
+   Agenda internal alarm format to days previous:
+
+          AlarmTime / (24*60)
+
+   Agenda internal alarm format to alarm time:
+
+          (23*60+59) - (AlarmTime modulus (24*60))
+
+
+-  If the item does not have an alarm the AlarmTime field
+   should contain -1.
+
+-  The Text field is stored as a leading byte count
+   string and its length must be less than 64 characters.
+
+
+ToDo items
+
+-  ToDo items have a DayNumber of 65535 (ffff Hex), and
+   must be stored as timed items and so the MSB of the
+   Time field must be clear.
+
+-  The Time field contains the item priority i.e. 1 to 9.
+
+-  The Duration field contains a secondary key 0 to n,
+   which orders the ToDo items within priority.
+
+-  ToDo items cannot have alarms attached.
+
+
+
+Repeat items
+
+-  Timed and Untimed repeat items are stored in exactly
+   the same way as normal timed and untimed items, except
+   that they have a DayNumber of 65534 (fffe Hex).
+
+-  The specific repeat details are stored at the end of
+   the Text field and have the following format:
+
+   Byte:      Type
+   Byte:      Interval
+   Integer:   StartDayNumber
+   Integer:   EndDayNumber
+
+-  The Type field can take the following values:
+
+   Repeat Yearly                = 0
+   Repeat Monthly By Date       = 1
+   Repeat Monthly By Day        = 2
+   Repeat Weekly                = 3
+   Repeat Daily                 = 4
+   Repeat Workdays              = 5
+
+
+-  The StartDayNumber and EndDayNumber are stored as the
+   number of days since 1/1/1900 (=day 0).
+
+-  Setting the EndDayNumber field to zero will mean the
+   item will repeat forever.
+---
+  SLMR 2.0  The best prophet of the future is the past.
+--- FiFo V2.1o [IOSmail 0.89]
+ * Origin: -=- <FORTRESS> BBS {UK} -=- [081-317-3158] -=- (2:440/105)

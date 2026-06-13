@@ -1,0 +1,194 @@
+#define HWIMMAN_OPH
+
+#ifndef PULLDOWN_OPH
+#include <sdk\pulldown>
+#endif
+
+#ifndef APPMAN_OPH
+#include <sdk\appman>
+#endif
+
+#ifndef DLGBOX_OPH
+#include <sdk\dlgbox>
+#endif
+
+#ifndef COMMAN_OPH
+#include <sdk\comman>
+#endif
+
+#ifndef MENUBAR_OPH
+#include <sdk\menubar>
+#endif
+
+/* Constants for wserv */
+
+#define PR_WSERV_CONNECT_AT_BACK W_CONNECT_AT_BACK
+#define PR_WSERV_FOREGROUND 0x02
+#define PR_WSERV_CLIWIN_KEY 0x04
+#define PR_WSERV_CANCELLING 0x08
+#define PR_WSERV_BASIC_HELP 0x10
+#define PR_WSERV_FREEFORM_DIALLING 0x20
+#define PR_WSERV_INSERT_MODE 0x40
+#define PR_WSERV_INSERT_PENDING 0x80
+#define PR_WSERV_OWN_DEFAULT_FONT 0x100
+#define PR_WSERV_RECEIVED_KEY 0x200
+#define PR_WSERV_HIDDEN 0x400
+#define PR_WSERV_METRIC 0x800
+#define PR_WSERV_FULLSCREEN 0x1000
+#define PR_WSERV_CANCELLING_DIALOG 0x2000
+#define PR_WSERV_FROM_HWIF 0x4000
+#define PR_WSERV_OWNPRIO 0x8000
+#define PR_WSERV_HELP_INDEX 0x01
+#define WSERV_DTOB_HEX 3
+#define DEGREES_MODE 0x80
+#define DTOB_MAX_WIDTH 20
+#define WS_EVAL_ENV_SET 0
+#define WS_EVAL_ENV_GET 1
+#define WS_DIAL_ENV_SET 0
+#define WS_DIAL_ENV_GET 1
+#define PDEV_TEXT_MAX_LEN 14
+#define WS_LOCCHG_LOW 0x0100
+#define WS_LOCCHG_HIGH 0x4000
+#define WS_EM_STYLES 0x01
+#define WS_EM_PRINT_CONTEXT 0x02
+#define WS_EM_REUSE_BODY_BUFFER 0x04
+#define WS_EM_REUSE_STYLES_BUFFER 0x08
+#define WS_EM_CALLBACK 0x40
+#define MEMO_NO_CHANGE 0
+#define MEMO_NULL_LENGTH 1
+#define MEMO_STANDARD_CHANGE 2
+
+/* Types for wserv */
+
+STRUCT IN_WSERV
+	com_cat%
+	com_class%
+ENDS
+
+STRUCT WSERV_INFO
+	menu#
+	mnitem#
+	menubar_id%
+	first_com#
+	count#
+	accel#(1)
+ENDS
+
+STRUCT DL_DATA
+	id%
+	rbuf%
+	pdlg%
+ENDS
+
+STRUCT WS_HIDE_APP_DATA
+	dupnp%
+	hidden#(6)
+ENDS
+
+STRUCT WRAP_DATA
+	margin%
+	fmargin%
+	font%
+	style%
+	nlines%
+	ptable%
+ENDS
+
+STRUCT WS_ALLOC_INFO
+	ncells%
+	nbytes%
+ENDS
+
+STRUCT WS_TODAY_HOOK
+	next%
+	object%
+	message%
+ENDS
+
+STRUCT MEMO_DATA_PART
+	len%
+	p%
+ENDS
+
+STRUCT MEMO_DATA
+	body#(SIZEOF(MEMO_DATA_PART))
+	styles#(SIZEOF(MEMO_DATA_PART))
+	title#(SIZEOF(MEMO_DATA_PART))
+ENDS
+
+STRUCT MEMO_CALLBACK
+	owner%
+	method%
+ENDS
+
+/* Property of wserv */
+
+STRUCT PRS_WSERV
+	ws#(SIZEOF(WS_EVENT_X))
+	com%
+	dial%
+	bar%
+	cli%
+	info%
+	oldinfo%
+	filter%
+	filmethod%
+	flags%
+	help_index_id%
+	help%
+	lock#
+	subdial#
+	sc#(10)
+	locmask%
+	filelist%
+	anim%
+	printer%
+ENDS
+
+STRUCT PR_WSERV
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	wserv#(SIZEOF(PRS_WSERV))
+ENDS
+
+/* Constants for hwimman */
+
+#define H_COMMAND_DEFAULT_FILE 'D'
+#define H_COMMAND_OPEN_FILE 'O'
+#define H_COMMAND_CREATE_FILE 'C'
+#define H_COMMAND_EXIT 'X'
+#define H_COMMAND_TRANSLATE_FILE 'T'
+#define H_COMMAND_RUN_FILE 'R'
+#define H_COMMAND_LAUNCH_DYL 'L'
+#define H_COMMAND_BYPASS 'Z'
+#define FLG_APPMAN_FULLSCREEN 0x1000
+#define FLG_APPMAN_LINKING 0x2000
+#define FLG_APPMAN_FROM_HWIF 0x4000
+#define FLG_APPMAN_OWNPRIO 0x8000
+#define FLG_APPMAN_S3FS 0x0100
+#define FLG_APPMAN_WSERV_MASK (PR_WSERV_FROM_HWIF|PR_WSERV_OWNPRIO|PR_WSERV_FULLSCREEN)
+#define RUN_ACTIVE_CLEANUP_NONOTIFY -1
+
+/* Types for hwimman */
+
+STRUCT IN_HWIMMAN
+	flags%
+	wserv_cat%
+	wserv_class%
+ENDS
+
+/* Property of hwimman */
+
+STRUCT PRS_HWIMMAN
+	contig#
+	command#
+	defext%
+	aliasinfo%
+	yield%
+ENDS
+
+STRUCT PR_HWIMMAN
+	root#(SIZEOF(PRS_ROOT))
+	appman#(SIZEOF(PRS_APPMAN))
+	hwimman#(SIZEOF(PRS_HWIMMAN))
+ENDS

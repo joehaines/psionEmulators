@@ -1,0 +1,65 @@
+==========
+psion/opl #1244, from millar, 1704 chars, Jun  4 13:49 94
+Comment to 1234. 
+----------
+PROC scwin:
+
+        global id%, n%, pos%
+        local g%, top%, bot%
+        
+        id%=gCREATE(120,0,240,160,1,1)
+        gBORDER 3
+        
+        while n%<30
+                pos%=(n%+1)*15+9
+                if pos%>152
+                        gscroll 0,-15,5,26,215,121
+                        pos%=144
+                endif
+                gAT 10,pos%
+                gprint "Foo,";gen$(n%,12)
+                n%=n%+1
+        endwh
+        top%=n%-10
+        bot%=n%
+        while 1
+                g%=get
+                if g%=256
+                        n%=top%
+                        top%=top%-1
+                        bot%=bot%-1
+                        pos%=23
+                        if pos%<24
+                                gscroll 0,15,5,11,215,121
+                                pos%=24
+                        endif
+                        gAT 10,pos%
+                        gprint "Foo,";gen$(n%,12)
+                        n%=n%-1
+                elseif g%=257
+                        n%=bot%
+                        top%=top%+1
+                        bot%=bot%+1
+                        pos%=144
+                        if pos%>143
+                                gscroll 0,-15,5,26,215,121
+                                pos%=144
+                        endif
+                        gAT 10,pos%
+                        gprint "Foo,";gen$(n%,12)
+                        n%=n%+1
+                endif
+        endwh
+ENDP
+
+
+
+Hope that got through OK, have a look at it, it's basic but it works.
+It's only a Saturday afternoon hack so don't flame me!  If I have
+time
+I'll do one with all the arrows etc and the ability to edit a current 
+line.
+Hope it helps a little.
+
+-- Matt
+

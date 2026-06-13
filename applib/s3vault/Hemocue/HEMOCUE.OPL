@@ -1,0 +1,39 @@
+APP HemoCue
+	TYPE 0
+	ICON "\OPD\B-cell.PIC"
+ENDA
+	
+PROC Haem2:
+	local a,b,c,d,e
+DO CLS
+
+GIPRINT "¸ Copyright : Brian Tunnard 1993"
+
+Label::
+	dINIT "*HEMOCUE* : Blood Loss Calculator"
+	dFloat c,"Pre-Operative Hb (g/100ml)",0,70
+	dFloat b,"Glycene Vol' (litres)",0,100
+	dFloat a,"HEMOCUE Hb Reading (g/L)",0,250
+	dPOSITION 0,0
+		DIALOG
+
+		d=a*b
+		e=c*10*5.2
+
+IF e=0 :GOTO Label
+ENDIF
+
+	gAT 24,60 :gBOX 180,20
+
+		gSTYLE 8
+		gAT 38,77 :gPrint "Patients Blood Loss ="
+		gAT 180,77 :gPrint "ml"
+		gAT 150,77 :gPrint fix$((d/e)*1000,0,5)
+
+	dINIT "Do Again?"
+	dBUTTONS "No",%N,"Yes",%Y
+	dPOSITION 0,-1
+Until DIALOG<>%y
+
+ENDP
+

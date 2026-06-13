@@ -1,0 +1,291 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss13</scrfont>
+<statwin>on</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N</rfmt>
+<rall>yes</rall>
+<starg></starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>2</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>5.00</xmax>
+<xmin>-5.00</xmin>
+<ymax>5.00</ymax>
+<ymin>-5.00</ymin>
+<xintrvls>5</xintrvls>
+<yintrvls>5</yintrvls>
+<xycells>home,home</xycells></opts>
+<cell>
+<cname>ACAP</cname>
+<text>Analyst Capability
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+    1.46           1.19        1.0           0.86       0.71</text>
+<val>0.80</val></cell>
+<cell>
+<cname>AEXP</cname>
+<text>Application Experience
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+1.29               1.13        1.0          0.91       0.82</text>
+<val>0.82</val></cell>
+<cell>
+<cname>CPLX</cname>
+<text>Product Complexity
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+0.70              0.85        1.00         1.15       1.30                  1.65</text>
+<val>1.30</val></cell>
+<cell>
+<cname>DATA</cname>
+<text>Database Size.
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+                       0.94         1.00        1.08       1.16    </text>
+<val>0.94</val></cell>
+<cell>
+<cname>Embedded</cname>
+<text>The embedded mode of software development describes projects where there is only a general understanding of product objectives, moderate experience in working with related systems, a full need for conformance with pre-established requirements and external interface specs, full concurrent development of hardware and procedures, considerable need for innovative data processing architectures and algorithms, and a high premium on early completion.  This mode can be for all product size ranges.</text></cell>
+<cell>
+<cname>Enhanced</cname>
+<text>To enhance your estimate, fill in values for the following factors, using the guidance from the text field of each factor's cell.  Then execute the script for this cell.
+
+&amp;RELY  &amp;DATA  &amp;CPLX  &amp;RQUT &amp;TIME  &amp;STOR  &amp;VIRT  &amp;TURN  &amp;ACAP  &amp;AEXP  &amp;PCAP  &amp;VEXP  &amp;LEXP  &amp;MODP  &amp;TOOL  &amp;SCED</text>
+<script>out("\nEnhanced Estimate")
+set MM to EnhancedMM!*TotEffect!
+out("\nMM=",MM," man months, TDEV=",TDEV!," calendar months,  FSP=",FSP!," developers required")
+</script></cell>
+<cell>
+<cname>EnhancedMM</cname>
+<val>41.04</val>
+<script>if(mode=1) {
+    3.2*pow(KDSI,1.05)
+} elseif(mode=2) {
+    3.0*pow(KDSI,1.12)
+} elseif(mode=3){
+    2.8*pow(KDSI,1.20)
+} else {
+    out("\nPlease choose a mode of 1,2, or 3")
+    exit
+}</script></cell>
+<cell>
+<cname>FSP</cname>
+<text>This is the number of equivalent Full Time Software Developers needed to achieve the development time computed in TDEV.</text>
+<val>5.93</val>
+<script>MM/TDEV</script></cell>
+<cell>
+<cname>home</cname>
+<text>The Cocomo model estimates the total effort, schedule, and number of developers required to develop a software product, given the estimated number of thousands of lines of delivered source instructions (&amp;KDSI) and the &amp;mode of software development.
+
+The estimates provided are:
+      &amp;MM -- the total effort required in man months
+     &amp;TDEV -- schedule time required assuming optimum staffing
+     &amp;FSP -- Full time software developers needed for optimum staffing.
+
+You must decide whether the project takes place in &amp;Organic, &amp;Semidetached, or &amp;Embedded mode.  Visit the three cells and set &amp;mode's value to 1 for Organic, 2 for Semidetached, or 3 for Embedded.
+
+Enter the number of thousands of estimated delivered source lines, and store the value in &amp;KDSI.
+
+Then return here and select Execute from the Special menu.
+----------------------------------------------------------------
+Go to cell &amp;Enhanced for instructions on generating enhanced estimates based upon a number of detailed factors. 
+</text>
+<script>out("\nMM=",MM!," man months, TDEV=",TDEV!," calendar months,  FSP=",FSP!," developers required")
+</script></cell>
+<cell>
+<cname>KDSI</cname>
+<text>Source statements are all program instructions created by project personnel and processed into machine code by compilers, etc.  Delivered source statements excludes nondelivered support software such as test drivers.  In the value field of this cell place the number of thousands of delivered source statements expected.</text>
+<val>9.37</val></cell>
+<cell>
+<cname>LEXP</cname>
+<text>Programming Language Experience
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+   1.14             1.07        1.0         0.95</text>
+<val>1.0</val></cell>
+<cell>
+<cname>MM</cname>
+<text>This cell computes the expected number of man months(152 hrs) required to produce the number of thousands of delivered source statements given in KSDI.</text>
+<val>52.77</val>
+<script>if(mode=1) {
+    2.4*pow(KDSI,1.05)
+} elseif(mode=2) {
+    3.0*pow(KDSI,1.12)
+} elseif(mode=3){
+    3.6*pow(KDSI,1.20)
+} else {
+    out("\nPlease choose a mode of 1,2, or 3")
+    exit
+}</script></cell>
+<cell>
+<cname>mode</cname>
+<text>The mode of the software development project will be either &amp;Organic, &amp;Semidetached, or &amp;Embedded.  Visit the cells by those names and decide which mode applies for your project.  Then set the value of this cell to:
+    1  for Organic
+    2 for Semidetached
+or
+    3 for Embedded</text>
+<val>3</val></cell>
+<cell>
+<cname>MODP</cname>
+<text>Modern Programming Practices
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+   1.24            1.10        1.0          0.91        0.82</text>
+<val>1.0</val></cell>
+<cell>
+<cname>Organic</cname>
+<text>The organic mode of software development describes projects where there is a thorough understanding of product objectives, there is extensive experience in working with related software systems, there is a basic need for conformance with published requirements and interface specs, some concurrent development of new hardware and operational procedures, minimal need for innovative architectures and algorithms, a low premium on early completion, and less than 50 KDSI.
+</text></cell>
+<cell>
+<cname>PCAP</cname>
+<text>Programmer Capability
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+  1.42             1.19        1.0          0.86        0.70</text>
+<val>0.86</val></cell>
+<cell>
+<cname>RELY</cname>
+<text>Required reliability.
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+  0.75              0.88         1.00        1.15       1.40    </text>
+<val>1.15</val></cell>
+<cell>
+<cname>RQUT</cname>
+<text>Requirement Changes
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+0.98              1.00        1.50         2.00      2.50               4.00</text>
+<val>2.0</val></cell>
+<cell>
+<cname>SCED</cname>
+<text>Schedule Pressures
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+    1.23           1.08        1.0          1.04        1.10</text>
+<val>1.10</val></cell>
+<cell>
+<cname>Semidetached</cname>
+<text>The semidetached mode of software development describes a project in which there is considerable understanding of product objectives, considerable experience in working with related software systems, considerable need for conformance with pre-established requirements and external interface specifications, considerable concurrent development of hardware and procedures, some need for innovative data processing architectures and algorithms, a medium premium on early completion, and between 50 and 300 KDSI.</text></cell>
+<cell>
+<cname>STOR</cname>
+<text>Main Storage Constraint
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+                        0.98        1.0          1.06          1.21                1.56</text>
+<val>0.98</val></cell>
+<cell>
+<cname>TDEV</cname>
+<text>This cell compute the number of months estimated for software development, given he number of man months of effort required.  This assumes the optimum staffing, which can be computed from the cell FSP.</text>
+<val>8.89</val>
+<script>if(mode=1) {
+    2.5*pow(MM,0.38)
+} elseif(mode=2) {
+   2.5*pow(MM,0.35) 
+} elseif(mode=3) {
+   2.5*pow(MM,0.32)
+} else {
+     out("\nInvalid Mode")
+     exit
+}</script></cell>
+<cell>
+<cname>TIME</cname>
+<text>Execution Time Constraint
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+                        0.98        1.00        1.11       1.30                 1.65</text>
+<val>1.11</val></cell>
+<cell>
+<cname>TOOL</cname>
+<text>Use of Software Tools
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+   1.24            1.10        1.0          0.91        0.83</text>
+<val>1.0</val></cell>
+<cell>
+<cname>TotEffect</cname>
+<val>2.09</val>
+<script>RELY * DATA * CPLX * RQUT * TIME * STOR * VIRT * TURN * ACAP * AEXP * PCAP * VEXP * LEXP * MODP * TOOL * SCED</script></cell>
+<cell>
+<cname>TURN</cname>
+<text>Computer Turnaround Time
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------
+                        0.87        1.0           1.07        1.15</text>
+<val>1.0</val></cell>
+<cell>
+<cname>VEXP</cname>
+<text>Virtual machine Experience
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------  
+  1.21              1.10        1.0          0.90</text>
+<val>1.1</val></cell>
+<cell>
+<cname>VIRT</cname>
+<text>Virtual Machine Volatility
+
+ Rate according to scale below.  Place rating into value field of this cell.
+
+Very Low    Low    Nominal   High    Very High     Extra High
+------------------------------------------------------------ 
+                         0.87        1.0          1.15        1.3</text>
+<val>1.0</val></cell></eof>

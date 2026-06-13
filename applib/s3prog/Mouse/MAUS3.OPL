@@ -1,0 +1,75 @@
+PROC maus:
+ rem ** MAUS ** ein Beispielprg. zur Verwendung
+ rem einer seriellen PC-Maus an dem Serie3
+ rem von Marko Schuster '93
+ global a%,b&,p%(5),x%,y%,a$(5),k%,w%,w2%,xx%,yy%,b%
+ a%=ioopen(k%,"TTY:A",$0300)
+ rsset:(8,0,8,1,4) :rem 1200 8n1
+ gupdate off
+ x%=120 :y%=40 :cursor 1,0,1,1
+ w2%=gcreatebit(4,4)
+ guse w2%
+ gcopy 1,x%,y%,4,4,3
+ w%=gcreatebit(4,4) :gcls
+ gat 0,0 :glineto 4,4
+ gat 0,0 :glineto 3,0
+ gat 0,0 :glineto 0,3
+ xx%=x% :yy%=y%
+ do
+  pfeil:
+  xx%=x% :yy%=y%
+  mouse:
+rem  giprint num$(x%,-3)+","+num$(y%,-3)
+ until key$="x"
+ giprint "end" :pause 0 :stop
+endp
+proc rsset:(ba%,pa%,da%,st%,ha%)
+ local frame%,srchar%(6),du%,er%
+ frame%=da%-5
+ srchar%(1)=ba% or (ba%*256)
+ srchar%(2)=frame% or (pa%*256)
+ srchar%(3)=(ha% and 255) or $1100
+ srchar%(4)=$13
+ er%=iow(k%,7,srchar%(1),du%)
+ if er% :raise er% :endif
+endp
+proc mouse:
+  a$=rept$(chr$(0),5)
+  key
+  b%=addr(a$)+1
+  a%=ioread(k%,b%,5)
+  p%(1)=peekb(b%)
+  p%(2)=peekb(b%+1)
+  p%(3)=peekb(b%+2)
+  p%(4)=peekb(b%+3)
+  p%(5)=peekb(b%+4)
+rem  print num$(p%(1),-3),num$(p%(2),-3),num$(p%(3),-3),num$(p%(4),-3),num$(p%(5),-3)
+  if (p%(2)>0 and p%(2)<128) :x%=x%+p%(2) :endif
+  if (p%(4)>0 and p%(4)<128) :x%=x%+p%(4) :endif
+  if p%(2)>128 :x%=x%-(256-p%(2)) :endif
+  if p%(4)>128 :x%=x%-(256-p%(4)) :endif
+  if (p%(3)>0 and p%(3)<128) :y%=y%-p%(3) :endif
+  if (p%(5)>0 and p%(5)<128) :y%=y%-p%(5) :endif
+  if p%(3)>128 :y%=y%+(256-p%(3)) :endif
+  if p%(5)>128 :y%=y%+(256-p%(5)) :endif
+  if p%(1)=135 :gat x%,y% :endif
+  if x%>239 :x%=239 :endif
+  if x%<0 :x%=0 :endif
+  if y%>79 :y%=79 :endif
+  if y%<0 :y%=0 :endif
+endp
+proc pfeil:
+ gat xx%+1,yy%+1
+ gcopy w2%,0,0,4,4,3
+ if p%(1)=131 :gat xx%,yy% :glineto x%,y% :endif
+ guse w2%
+ gcopy 1,x%+1,y%+1,4,4,3
+ guse 1
+ gat x%+1,y%+1
+ if p%(1)<>131
+  gcopy w%,0,0,4,4,2
+ endif
+ gat x%,y%
+ gupdate
+endp
+

@@ -1,0 +1,167 @@
+REM DOPIC.OPL V1-001 (based on DOPIC.C V1-003)
+REM Convert a Lotus 123 PIC file (from the Psion Spreadsheet) into a PostScript
+REM print file. This appears to work for pie charts, line charts and bar charts.
+REM 3D bar charts come out as 2D, limitation noted in the 3a User Guide.
+REM
+REM Author: flo (Paul Williams)
+REM Creation Date: 13-Jan-1996
+REM Contact: P.Williams@rrds.co.uk (preferred), or flo@easynet.co.uk
+
+PROC dopic:
+	GLOBAL ifh%,ridx%,ifb$(255)
+	LOCAL ret%
+	LOCAL ifn$(255),ofn$(255)
+	LOCAL eod%,pendm%,pendf%,sstroke%
+	LOCAL xcs%,ycs%,xco%,yco%,tsx%,tsy%
+	LOCAL byt%,idx%,align%,rot%
+	LOCAL out$(255)
+	ifn$ = "\SPR\.PIC"
+	dINIT "Select Graph and PS files"
+	dFILE ifn$,"PIC",64+8
+	dFILE ofn$,"PS",1+16
+	IF DIALOG = 0
+		STOP
+	ENDIF
+
+	ret% = IOOPEN(ifh%, ifn$, $0400) REM read,binary,share
+	LOPEN ofn$
+	LPRINT "%!PS-Adobe-3.0"
+	LPRINT "%%Title: Converted from",ifn$
+	LPRINT "%%Creator: flo/dopic"
+	LPRINT "%%CreationDate:",DATIM$
+	LPRINT "%%Pages: 1"
+	LPRINT "%%Orientation: Landscape"
+	LPRINT "%%DocumentRequiredResources: font Helvetica"
+	LPRINT "%%EndComments"
+	LPRINT "%%BeginProlog"
+	LPRINT "/bd{bind def}bind def/ld{load def}bd/m/moveto ld/l/lineto ld/rm/rmoveto ld"
+	LPRINT "/gs/gsave ld/gr/grestore ld/sw/stringwidth ld/A0S{dup sw pop -2 div -0.365 tsy"
+	LPRINT "mul rm show}bd/A1S{0 -0.365 tsy mul rm show}bd/A2S{dup sw pop -2 div -0.73 tsy"
+	LPRINT "mul rm show}bd/A3S{dup sw pop neg -0.365 tsy mul rm show}bd/A4S{dup sw pop -2"
+	LPRINT "div 0 rm show}bd/A5S{dup sw pop neg 0 rm show}bd/A6S/show ld/A7S{dup sw pop neg"
+	LPRINT "-0.73 tsy mul rm show}bd/A8S{0 -0.73 tsy mul rm show}bd/R0P{gs}bd/R1P{gs"
+	LPRINT "currentpoint translate 90 rotate 0 0 m}bd/R2P{gs currentpoint translate 180"
+	LPRINT "rotate 0 0 m}bd/R3P{gs currentpoint translate -90 rotate 0 0 m}bd"
+	LPRINT "%%EndProlog"
+	LPRINT "%%Page: 1 1"
+	LPRINT "595 0 translate 90 rotate 50 30 translate 0.231 dup scale"
+	REM skip the first 17 bytes
+	ret% = IOREAD(ifh%, UADD(ADDR(ifb$),1), 17)
+	ifb$ = ""
+	ridx% = 1
+	eod% = 0
+	pendm% = 0
+	pendf% = 0
+	sstroke% = 0
+	WHILE NOT eod%
+		byt%=fgetc%:
+		IF byt% < 0
+			BREAK
+		ENDIF
+		IF (byt% AND $F0) = $B0
+			REM colour
+		ELSEIF byt% = $A0
+			xcs% = getint%:
+			ycs% = getint%:
+			IF sstroke%
+				LPRINT "stroke"
+				sstroke% = 0
+			ENDIF
+			pendm% = 1
+		ELSEIF byt% = $A2
+			IF pendm%
+				LPRINT xcs%,ycs%,"m"
+				pendm% = 0
+			ENDIF
+			xco% = getint%:
+			yco% = getint%:
+			LPRINT xco%,yco%,"l"
+			sstroke% = 1
+		ELSEIF (byt% = $30) OR (byt% = $D0)
+			idx% = fgetc%:
+			xcs% = getint%:
+			ycs% = getint%:
+			LPRINT xcs%,ycs%,"m"
+			WHILE idx% > 0
+				xco% = getint%:
+				yco% = getint%:
+				LPRINT xco%,yco%,"l"
+				idx% = idx% - 1
+			ENDWH
+			LPRINT "closepath stroke"
+		ELSEIF byt% = $AC
+			tsx% = getint%:
+			tsy% = getint%:
+			pendf% = 1
+		ELSEIF byt% = $A7
+			REM font change
+			byt% = fgetc%:
+		ELSEIF byt% = $A8
+			align% = fgetc%:
+			rot% = (align% / 16) AND 3
+			align% = align% AND 7
+			out$ = ""
+			WHILE 1
+				byt% = fgetc%:
+				IF byt% < 1
+					BREAK
+				ENDIF
+				IF LEN(out$) < 254
+					IF (byt% = ASC("(")) OR (byt% = ASC(")")) OR (byt% = ASC("\"))
+						out$ = out$ + "\"
+					ENDIF
+					out$ = out$ + CHR$(byt%)
+				ENDIF
+			ENDWH
+			IF LEN(out$) > 0
+				IF sstroke%
+					LPRINT "stroke"
+					sstroke% = 0
+				ENDIF
+				IF pendf%
+					LPRINT "/tsx",tsx%,"def/tsy",tsy%,"def"
+					LPRINT "/Helvetica findfont [tsx 0 0 tsy 0 0] makefont setfont"
+					pendf% = 0
+				ENDIF
+				IF pendm%
+					LPRINT xcs%,ycs%,"m"
+					pendm% = 0
+				ENDIF
+				LPRINT "R";rot%;"P (";out$;") A";align%;"S gr"
+			ENDIF
+		ELSEIF (byt% AND $F0) = $60
+			eod% = 1
+		ELSE
+			PRINT "unrecognised opcode:",HEX$(byt%)
+			eod% = 1
+		ENDIF
+	ENDWH
+	IF sstroke%
+		LPRINT "stroke"
+	ENDIF
+	LPRINT "showpage"
+	LPRINT "%%Trailer"
+	LPRINT "%%EOF"
+ENDP
+
+PROC fgetc%:
+	LOCAL ret%,c%
+	IF ridx% > LEN(ifb$)
+		ret% = IOREAD(ifh%, UADD(ADDR(ifb$),1), 200)
+		IF ret% < 1
+			RETURN -1
+		ENDIF
+		POKEB ADDR(ifb$),ret%
+		ridx% = 1
+	ENDIF
+	c% = ASC(MID$(ifb$,ridx%,1))
+	ridx% = ridx% + 1
+	RETURN c%
+ENDP
+
+PROC getint%:
+	LOCAL c1%,c2%
+	c1% = fgetc%:
+	c2% = fgetc%:
+	RETURN 256 * c1% + c2%
+ENDP

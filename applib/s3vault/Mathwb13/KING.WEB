@@ -1,0 +1,176 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss11</scrfont>
+<statwin>off</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N\f</rfmt>
+<rall>yes</rall>
+<starg></starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>1</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>10.0</xmax>
+<xmin>-10.0</xmin>
+<ymax>10.0</ymax>
+<ymin>-10.0</ymin>
+<xintrvls>5</xintrvls>
+<yintrvls>5</yintrvls>
+<xycells>home,home</xycells>
+<cell>
+<cname>distributeBushels</cname>
+<val>1</val>
+<script>    set distributeBushels to 1
+    set savedBushels to storedBushels
+      in("How many bushels shall be used for seed?",  portionToSeed)
+     if(portionToSeed>storedBushels)  {
+         set distributeBushels to 0
+         set msg to 2
+    } else {
+        set storedBushels to storedBushels-portionToSeed
+        in("How many bushels shall feed the people?", portionToFeed)
+        if(portionToFeed>storedBushels) {
+             set storedBushels to savedBushels
+             set distributeBushels to 0
+             set msg to 2
+       } else {
+           set storedBushels to storedBushels-portionToFeed
+           in("How many bushels shall feed the army?",portionToArmy)
+           if(portionToArmy>storedBushels) {
+                set storedBushels to savedBushels
+                set distributeBushels to 0
+                set msg to 2
+           } else {
+                 set storedBushels to storedBushels-portionToArmy
+                 set msg to 0
+           }
+       }
+   }
+}</script></cell>
+<cell>
+<cname>harvest</cname>
+<val>39411</val>
+<script>set harvest sig(population-150)*(1.30+rand()) * portionToSeed
+</script></cell>
+<cell>
+<cname>home</cname>
+<text>King allows the user to pretend to govern a kingdom.  Success is a growing population and grain reserves.  Failure is a dwindling population and famine.
+
+The variables controlled by the King are:  Bushels for food, bushels to plant, bushels for defense....allocation of the harvest to diferent purposes.
+
+Position to this cell and select Execute from the Special menu to start this program.</text>
+<script>set NumDecX to 0
+set storedBushels 50000
+set penaltyFlag to 0
+set population 500
+set harvest 10000
+set msg to 0
+set year to 0
+while(not eof) {
+      set year to year+1
+      msg0[msg]()
+      if(distributeBushels! =1) { # valid input
+            if(portionToArmy&lt;2000) {
+                set penaltyFlag to 1+penaltyFlag
+            } else {
+                if(penaltyFlag>0) {
+                      set penaltyFlag to penaltyFlag-1
+                } #endif
+            } #endif
+            harvest!
+            population!
+           if( population!&lt;=0) {
+                set msg to 5
+           } elseif(penaltyFlag>5*rand()) {
+                 set  penaltyFlag to 0
+                 set harvest to harvest/2
+                 set msg to 1
+           } elseif(10*rand()>9) {
+                set msg to 4
+                set harvest to 0.667*harvest
+           } elseif(10*rand()>9) {
+                set msg to 3
+                set population to 9*population/10
+           } #endif
+           set storedBushels to storedBushels+harvest     
+      } else {
+           set harvest to 0
+      } #endif
+} #endwh
+</script></cell>
+<cell>
+<cname>msg</cname>
+<val>0</val></cell>
+<cell>
+<cname>msg0</cname>
+<script>out("\nOh King, it is year ",year," of your reign.")
+out("The yearly census reveals that you have ",population," loyal subjects", "  Your subjects have produced ",harvest," bushels of wheat this year, giving a total storage of ",storedBushels,"  bushels\f")
+</script></cell>
+<cell>
+<cname>msg1</cname>
+<script>out("\nSire, it is year ",year," of your reign.")
+out("Bandits have attacked the grain warehouse.  Much grain was taken.  Some was burned.  Luckily, half of the harvest was saved.")
+out("You have ",population,"frightened subjects", "  Your subjects managed to save ",storedBushels, " bushels of grain\f")
+
+</script></cell>
+<cell>
+<cname>msg2</cname>
+<script>out("\nYour allocation plan is arithmetically impossible master.  Perhaps we should try again?")
+out("\nYou have ",population," subjects", "  Your total grain storage is  ",storedBushels,"  bushels.\f")
+set year to year-1</script></cell>
+<cell>
+<cname>msg3</cname>
+<script>out("\nSire, it is year ",year," of your reign.")
+out("Your subjects have been decimated by a plague.")
+out("You have ",population," subjects", "  Your total grain storage is  ",storedBushels," bushels.\f")
+</script></cell>
+<cell>
+<cname>msg4</cname>
+<script>out("\nSire, it is year ",year," of your reign.")
+out("\nA virus has wiped out a third  of your grain harvest.")
+out("\nYou have ",population," subjects", "  Your total grain storage is  ",storedBushels, " bushels.\f")
+</script></cell>
+<cell>
+<cname>msg5</cname>
+<script>out("\nSire, it is year ",year," of your reign")
+out("\nYou have starved your subjects to death.")
+out("\nYou now rule over a cemetary")
+exit
+</script></cell>
+<cell>
+<cname>penaltyFlag</cname>
+<val>0</val></cell>
+<cell>
+<cname>population</cname>
+<val>325</val>
+<script>population*(1.05*portionToFeed/(population*60)-0.08)</script></cell>
+<cell>
+<cname>portionToArmy</cname>
+<val>2000</val></cell>
+<cell>
+<cname>portionToFeed</cname>
+<val>20000</val></cell>
+<cell>
+<cname>portionToSeed</cname>
+<val>20000</val></cell>
+<cell>
+<cname>savedBushels</cname>
+<val>47411</val></cell>
+<cell>
+<cname>storedBushels</cname>
+<val>47411</val></cell>
+<cell>
+<cname>year</cname>
+<val>2</val></cell></eof>

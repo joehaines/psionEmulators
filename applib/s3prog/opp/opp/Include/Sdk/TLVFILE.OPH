@@ -1,0 +1,229 @@
+#define TLVFILE_OPH
+
+#ifndef APPMAN_OPH
+#include <sdk\appman>
+#endif
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#ifndef P_SERIAL_OPH
+#include <p\serial>
+#endif
+
+#ifndef P_MODEM_OPH
+#include <p\modem>
+#endif
+
+/* Constants for bfile */
+
+#define OP_BFILE_ID_SIZE 16
+
+/* Types for bfile */
+
+STRUCT OP_BFILE_FSIG
+	fid#(OP_BFILE_ID_SIZE)
+	vers%
+	offset%
+	rtvers%
+ENDS
+
+/* Property of bfile */
+
+STRUCT PRS_BFILE
+	pcb%
+	rbuf%
+	rlen%
+	offset%
+ENDS
+
+STRUCT PR_BFILE
+	root#(SIZEOF(PRS_ROOT))
+	bfile#(SIZEOF(PRS_BFILE))
+ENDS
+
+/* Constants for tlvfile */
+
+#define TLV_TYPE_UNKNOWN 0x10
+#define TLV_TYPE_INVALID 0x0f
+#define TLV_TYPE_DELETED 0x00
+#define TLV_TYPE_NORMAL 0x01
+#define TLV_TYPE_FIELDS 0x02
+#define TLV_TYPE_SHIFT 12
+#define TLV_TYPE_MASK 0xf000
+
+/* Types for tlvfile */
+
+STRUCT OP_TLVFILE
+	fsig#(SIZEOF(OP_BFILE_FSIG))
+	types%
+ENDS
+
+STRUCT OP_TLV_REC
+	buf%
+	len%
+	type%
+ENDS
+
+/* Property of tlvfile */
+
+STRUCT PRS_TLVFILE
+	typmask%
+	hdlen%
+	hdtype%
+	pos&
+	fpos&
+ENDS
+
+STRUCT PR_TLVFILE
+	root#(SIZEOF(PRS_ROOT))
+	bfile#(SIZEOF(PRS_BFILE))
+	tlvfile#(SIZEOF(PRS_TLVFILE))
+ENDS
+
+/* Types for tlvdata */
+
+STRUCT PR_TLVDATA_CHARS
+	tlvfile#(SIZEOF(OP_TLVFILE))
+	ext#(6)
+ENDS
+
+/* Property of tlvdata */
+
+STRUCT PRS_TLVDATA
+	tlv%
+	cl_tlv%
+	changed%
+	index%
+	tmask%
+	name#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_TLVDATA
+	root#(SIZEOF(PRS_ROOT))
+	tlvdata#(SIZEOF(PRS_TLVDATA))
+ENDS
+
+/* Constants for serfile */
+
+#define TE_MASK_SERIAL 0x0001
+#define TE_MASK_MODEM 0x0002
+#define TE_MASK_FILE 0x0004
+#define TY_SERFILE_SERIAL 1
+#define OBSOLETE_SERFILE_MODEM 2
+#define TY_SERFILE_FILE 3
+#define TY_SERFILE_NEW_MODEM 4
+#define TY_SERFILE_SERDVR 5
+#define TY_SERFILE_LNKDVR 6
+#define TE_XMDM_NONE 3
+#define TE_DIAL_PULSE 1
+#define TE_DIAL_TONE 2
+#define TE_MODEM_300 0x01
+#define TE_MODEM_1200 0x02
+#define TE_MODEM_2400 0x03
+#define TE_MODEM_4800 0x04
+#define TE_MODEM_9600 0x05
+#define TE_MODEM_19200 0x06
+#define MAX_DEVICE_NAME 10
+#define MAX_MODEM_CMD 40
+
+/* Types for serfile */
+
+STRUCT PF_SERIAL
+	ch#(SIZEOF(P_SRCHAR))
+	port#(P_MAXDEVNAME+2)
+ENDS
+
+STRUCT PF_MODEM
+	mch#(SIZEOF(P_MDMCHR))
+	phone#(25)
+	auto_dial#
+	mdmdvr#(MAX_DEVICE_NAME)
+	mdmcmd#(MAX_MODEM_CMD)
+	spare#(16)
+ENDS
+
+STRUCT PF_FILE
+	protocol%
+ENDS
+
+STRUCT PF_SERDVR
+	ch#(SIZEOF(P_SRCHAR))
+	serdvr#(MAX_DEVICE_NAME)
+	spare#(16)
+ENDS
+
+STRUCT PF_LNKDVR
+	masdvr#(MAX_DEVICE_NAME)
+	lnkdvr#(MAX_DEVICE_NAME)
+	spare#(16)
+ENDS
+
+/* Property of serfile */
+
+STRUCT PRS_SERFILE
+	serial#(SIZEOF(PF_SERIAL))
+	modem#(SIZEOF(PF_MODEM))
+	file#(SIZEOF(PF_FILE))
+	lnkdvr#(SIZEOF(PF_LNKDVR))
+	serdvr#(SIZEOF(PF_SERDVR))
+ENDS
+
+STRUCT PR_SERFILE
+	root#(SIZEOF(PRS_ROOT))
+	tlvdata#(SIZEOF(PRS_TLVDATA))
+	serfile#(SIZEOF(PRS_SERFILE))
+ENDS
+
+/* Constants for print */
+
+#define PRINT_DATA 0x0
+#define PRINT_LINE 0x1
+#define PRINT_FINISH 0x8
+
+/* Types for print */
+
+STRUCT PRINT_STATE
+	buf%
+	len%
+	status%
+ENDS
+
+/* Property of print */
+
+STRUCT PRS_PRINT
+	state#(SIZEOF(PRINT_STATE))
+	crlf#(2)
+ENDS
+
+STRUCT PR_PRINT
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	print#(SIZEOF(PRS_PRINT))
+ENDS
+
+/* Constants for serial */
+
+#define READ_QUEUED 0x01
+#define WRITE_QUEUED 0x02
+
+/* Property of serial */
+
+STRUCT PRS_SERIAL
+	flags%
+	rstat%
+	wstat%
+	rlen%
+	rbuf%
+	wlen%
+	wbuf%
+	rsize%
+	wsize%
+ENDS
+
+STRUCT PR_SERIAL
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	serial#(SIZEOF(PRS_SERIAL))
+ENDS

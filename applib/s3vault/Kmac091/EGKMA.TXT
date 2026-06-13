@@ -1,0 +1,159 @@
+EGKMA.TXT, discussion of some example KMAC macros
+=================================================
+
+See the associated file KMAC.TXT for a general introduction to KMAC
+keyboard macros.  This file (EGKMA.TXT) contains a brief commentary
+on several possible example macros, and can be read as supplementary
+information.
+
+The "Toggle remote link" macro
+------------------------------
+    MACRO Toggle Remote Link
+    KEY L
+    BACKGROUND
+    QUIET
+    CONTENTS
+    aSYS$SHLL.*
+    G
+    620 8, 258, 13
+
+Comments: operates from any application, and toggles remote link
+either on or off.  (It assumes that the 3Link peripheral is
+attached.)  To see the effect, watch the Status Window of the current
+foreground application.
+
+The "aSYS$SHLL.*" line could be replaced by "gSystem".
+
+The "G" line ensures the System Screen is in its ground state, before
+proceeding.
+
+The line "620 8, 258, 13" could be replaced by "S@l^R^C".
+
+The "alloc monitor" macro
+-------------------------
+    MACRO Alloc count
+    KEY A
+    QUIET
+    CONTENTS
+    A
+
+Comments: very useful during program development.  It causes an
+infoprint to be displayed, giving the number of allocated cells in
+the heap of the attached process, and the total size of all these
+cells.
+
+The "toggle show spaces" macro
+------------------------------
+    MACRO Toggle show spaces
+    KEY Q
+    CONTENTS
+    xpWORD
+    625 8, 257, 257, 257, 258, 13
+
+Comments: toggles whether spaces are shown in the Word Processor. 
+The line "xpWORD" means that the macro is harmless if executed
+elsewhere than in the Word Processor.
+
+The "Link paste" macro
+----------------------
+    MACRO Link paste
+    KEY B
+    CONTENTS
+    QBring data now?
+    xd0
+    L
+
+The "Start Agenda in Week View" macro
+-------------------------------------
+    MACRO Start Agn
+    KEY Z
+    CONTENTS
+    QStart Diary?
+    xd0
+    cOAgenda#.AGN#LOC::A:\AGN\DIARY.AGN#
+    pROM::AGENDA.APP
+    S^0^+
+
+Comments: Change the filename in the "c" line as required.  The "^+"
+in the "S" command is the Diamond key.  It MUST be preceded by the
+"pause" key, "^0", or else the application will not be ready to
+receive it and will discard it.
+
+The "Save as text" macro
+------------------------
+    MACRO Save as text
+    KEY S
+    CONTENTS
+    xfWORD
+    609 8, 257, 114, 114, 114, 114, 114, 258
+    E%s.txt
+    257, 257, 258
+
+Comments: Does nothing unless in native Word Processor mode.  Brings
+up the "Save as" dialog and tries to position to the "REM::E" drive,
+by choosing 'R' repeatedly in the "Disk" line of the dialog.  The
+name given in the "File: Name" line is based on the current filename,
+but has "TXT" as the extension.  The macro does not include the final
+ENTER since it gives the user a chance to check that all is well
+before delivering this keypress personally.
+
+The "Merge remote database" macro
+---------------------------------
+    MACRO Merge
+    KEY M
+    QUIET
+    CONTENTS
+    eStartDbf
+    gLOC::M:\DAT\KMAC.DBF
+    F
+    S@m@4^T
+    SREM::E:\SIBOSDK\KMAC\KMAC.IMP
+    S@4^C^D^DT^C
+    S^Y@k
+
+Comments: This works regardless of whether or not the database
+KMAC.DBF is already running.  The "eStartDbf" line catches the error
+if the "g" line fails and makes amends.
+
+The contents of STARTDBF.KMA would be
+    cOData#.DBF#LOC::M:\DAT\KMAC.DBF#
+    pROM::DATA.APP
+
+Note the use of Ctrl-Tab ("S@4^T") and Ctrl-Enter ("S@4^C") to
+circumvent any full-screen file selector.
+
+The macro finishes by invoking the compress command, after first
+"yielding" to allow the merge full time to complete.
+
+The "Upper case selected text" macro
+------------------------------------
+    MACRO Upper case
+    QUIET
+    KEY U
+    CONTENTS
+    o\OPO\UPPERC.OPO
+
+Comments: This macro has all its intelligence in the "UPPERC.OPO" Opl
+module.  Source code for this is
+
+    PROC tupper:
+        GLOBAL lpcHand%,lpoHand%
+        LOCAL buf$(100)
+        LOADM "KMACLIB"
+        CALL($198d,100,0)
+        lpOpen:
+        lpWrite:(%f,"")
+        lpSend:(32,ADDR(buf$)+1,98,0)
+        POKEB ADDR(buf$),99
+        POKEB ADDR(buf$),LOC(buf$,chr$(0))-1
+        buf$=UPPER$(buf$)+chr$(0)
+        lpSend:(4,ADDR(buf$)+1,0,0)
+        lpClose:
+    ENDP
+
+The two methods of LPCON used are methods 32 (O_LPC_BRING) and 4
+(O_LPC_STRING).  In between times, there is some conversion of
+strings from ZTS format into LBC format, and application of the Opl
+UPPER$ command to actually upper-case the string.
+
+See OPLLPC.TXT for more discussion on use of LPC from OPL.

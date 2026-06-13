@@ -1,0 +1,408 @@
+APP Vr3a
+TYPE $9003
+PATH "\vr"
+EXT "txt"
+ICON "\opl\vr.pic"
+ENDA
+
+PROC main:
+GLOBAL vWID%(2),vINFO%(3),vHDLR$(8),vMODE%,vN%,vMAP&(64),vBIT%,vTMP%
+GLOBAL vrFND$(30),vrFILE$(128),vrSTWIN%,vrFID%,vrSTYLE%,vrLN%,vrHDL%,vrTOP%
+LOCAL f$(128),ret%,off%(6)
+LOCAL lin$(255)
+f$=CMD$(1)
+f$=PARSE$("",f$,off%())
+f$=left$(f$,off%(4)-1)+"LIB\VPRINT.OPO"
+TRAP LOADM f$
+IF ERR <> 0
+	dINIT
+	dTEXT "",f$
+	dTEXT "",ERR$(ERR)
+	LOCK ON
+	DIALOG
+	LOCK OFF
+	STOP
+ENDIF
+vHDLR$="handler"
+vrFND$=""
+system:(CMD$(3)+CMD$(2))
+gUPDATE OFF
+ONERR catch
+catch::
+ONERR OFF
+vPAGE:(0)
+DO
+	if TESTEVENT
+		ONERR catch
+		if handler%: <>0
+			if gRANK <> 1
+				vSWITCH:
+			endif
+		endif
+		ONERR OFF
+	endif
+	ret%=IORead(vrHDL%,ADDR(lin$)+1,255)
+	IF ret%>=0
+		vrLN%=vrLN%+1
+		PokeB ADDR(lin$),ret%
+		vPRINT:(ADDR(lin$))
+	ELSEIF ret%=-36
+		ONERR catch
+		if gRANK <>1
+			vPAGE:(1)
+		endif
+		vPAGE:(2)
+	ELSE
+		dINIT
+		dTEXT "",vrFILE$
+		dTEXT "",ERR$(ERR)
+		LOCK ON
+		DIALOG
+		LOCK OFF
+		procx:(%x)
+	ENDIF
+UNTIL ret%=-36
+ret%=IOCLOSE(vrHDL%)
+ENDP
+
+PROC handler%:
+LOCAL sw%,k%,a$(5),a%(6)
+	GETEVENT a%()
+	sw%=0
+	IF (a%(1) AND $400) <> 0
+		IF a%(1) = $404
+			system:(GETCMD$) 
+			RAISE -114
+		ENDIF
+	ELSEIF a%(1)=291
+		help:
+	ELSEIF a%(1)=290 AND((a%(2) AND $0004)=4)
+		IF vrSTWIN% = 0
+			vrSTWIN%=1
+			STATUSWIN ON
+		ELSE
+			vrSTWIN%=0
+			STATUSWIN OFF
+		ENDIF
+		FONT -$3fff,0
+		vFONT:(vrFID%,vrSTYLE%)
+		jump:(vrTOP%)
+		vPAGE:(0)
+		RAISE -114
+	elseif a%(1)=290
+		mINIT
+		mCARD "File","Open",%o,"Review Bookmarks",%b,"About vr3a",%v
+		mCARD "Search","Count",%c,"Find text",%f,"Find again",%g,"Jump to Line",%j
+		mCARD "Special","Set preferences",%q,"Zoom in",%z,"Zoom out",%Z,"Exit",%x
+		k%=MENU
+		if k% AND (LOC("bocfgjqzxv",CHR$(k%))<>0)
+			a$="proc"+chr$(k%)
+			@(a$):(k%)
+		endif
+	elseif (a%(1) AND $200) <>0 
+		k%=a%(1) AND $FF
+		if a%(2) AND 2
+			k%=k% AND $DF
+		ENDIF
+		if k% AND (LOC("bocfgjqzxv",CHR$(k%))<>0)
+			a$="proc"+chr$(k%)
+			@(a$):(k%)
+		endif
+	elseif a%(1)=$20
+		sw%=1
+		vrTOP%=vrLN%
+	endif 
+	return sw%
+ENDP
+
+PROC procb:(k%)
+LOCAL sw%
+OPEN "M:\VR\VRINIT.RC",A,file$,top%,fid%,mode%,stwin%
+ONERR abort
+FIRST
+DO
+	dINIT "Review Bookmarks"
+	dTEXT "",A.file$
+	dTEXT "","Line "+num$(A.top%,4)
+	dBUTTONS "Next",%n,"Prev",%p,"Delete",8
+	LOCK ON
+	sw%=DIALOG
+	LOCK OFF
+	if sw%=%n
+		NEXT
+		IF EOF
+			LAST
+		endif
+	elseif sw%=%p
+		BACK
+	elseif sw%=8
+		ERASE
+	endif
+UNTIL sw%=0
+abort::
+CLOSE 
+ENDP
+
+PROC procc:(k%)
+dINIT
+dTEXT "Lines",num$(count%:,5),1
+LOCK ON
+DIALOG
+LOCK OFF
+ENDP
+
+PROC procf:(k%)
+LOCAL sw%
+dINIT "Find"
+dEDIT vrFND$,"Find text"
+dCHOICE sw%,"Direction","Forwards,From Start of File"
+LOCK ON
+IF DIALOG
+	LOCK OFF
+	IF sw%=2
+		jump:(1)
+	ENDIF
+	procg:(0)
+ENDIF
+LOCK OFF
+ENDP
+
+PROC procg:(k%)
+LOCAL ret%,lin$(255)
+BUSY "Searching",3
+DO
+	ret%=IORead(vrHDL%,ADDR(lin$)+1,255)
+	IF ret%>=0
+		PokeB ADDR(lin$),ret%
+		IF LOC(lin$,vrFND$)<>0
+			BUSY OFF
+			vrTOP%=vrLN%
+			vPAGE:(0)
+			vPRINT:(ADDR(lin$))
+			RAISE -114
+		ENDIF
+		vrLN%=vrLN%+1
+	ENDIF
+UNTIL (ret%=-36)
+BUSY OFF
+GIPRINT "Not Found",3
+jump:(vrTOP%) 
+RAISE -114
+ENDP
+
+PROC procj:(k%)
+LOCAL ln%,ln&
+ln&=vrLN%
+dINIT "Jump to line"
+dLONG ln&,"Line",1,32000
+LOCK ON
+IF DIALOG
+	LOCK OFF
+	ln%=ln&
+	jump:(ln%)
+	vrTOP%=vrLN%
+	if gRANK <> 1 : vSWITCH: : endif
+	RAISE -114
+ENDIF
+LOCK OFF
+ENDP
+
+PROC proco:(k%)
+LOCAL ret%,f$(128)
+f$="\VR\*.txt"
+if k%<>0
+	do
+		dInit "Select a file to read"
+		dFile f$,"Filename:",72
+		LOCK ON
+		if Dialog
+			LOCK OFF 
+		else
+			LOCK OFF
+			return
+		endif
+	Until f$<>""
+	putinf:
+	vrFILE$=f$
+endif
+if vrHDL% <> 0
+	ret%=IOCLOSE(vrHDL%)
+endif
+ret%=IOOpen(vrHDL%,vrFILE$,$0620)
+vrLN%=1
+getinf:
+vFONT:(vrFID%,vrSTYLE%)
+jump:(vrTOP%)
+setname vrFILE$
+if k% <> 0
+	RAISE -114
+endif
+ENDP
+
+PROC procq:(k%)
+LOCAL md%,fid%,style%
+md%=vMODE%
+fid%=(vrFID%-4)
+IF vrSTYLE% AND 16
+	style%=2
+ELSE
+	style%=1
+ENDIF
+dINIT "Set preferences"
+dCHOICE fid%,"Font:","Roman 8,Roman 11,Roman 13,Roman 16,Swiss 8,Swiss 11,Swiss 13,Swiss 16"
+dCHOICE style%,"Character widths","Proportional,Monospaced"
+dCHOICE md%,"Display mode:","Line truncate,Line wrap,Word wrap,Paragraph"
+LOCK ON
+IF DIALOG
+	LOCK OFF
+	IF fid%<>(vrFID%-4) or vrSTYLE%<>(16*(style%-1))
+		vrSTYLE%= 16*(style%-1)
+		vrFID%=fid%+4
+		vFONT:(vrFID%,vrSTYLE%)
+	ENDIF
+	vMODE%=md%
+	jump:(vrTOP%)
+	RAISE -114
+ENDIF
+LOCK OFF
+ENDP
+
+PROC procv:(k%)
+dINIT "About vr3a"
+dTEXT "","Vertical Reader for Psion Series 3a"
+dTEXT "","Version 1.1 - Feb '93"
+dTEXT "","by Ewan Paton - paton@vmark.co.uk"
+LOCK ON
+DIALOG
+LOCK OFF
+ENDP
+
+PROC procx:(k%)
+	putinf:
+	STOP
+ENDP
+
+PROC procz:(k%)
+IF k%=%z
+	vrFID%=(((vrFID%-1) AND (NOT 3)) OR ((vrFID%) AND 3))+1
+ELSE
+	vrFID%=(((vrFID%-1) AND (NOT 3)) OR ((vrFID%-2) AND 3))+1
+ENDIF
+vFONT:(vrFID%,vrSTYLE%)
+vPAGE:(0)
+jump:(vrTOP%)
+RAISE -114
+ENDP
+
+PROC count%:
+LOCAL ret%,hdl%,line%,buf$(255)
+line%=1
+ret%=IOOpen(hdl%,vrFILE$,$0620)
+BUSY "Counting",3
+WHILE ret%>=0
+	ret%=IOREAD(hdl%,ADDR(buf$)+1,255)
+	line%=line%+1
+ENDWH
+ret%=IOCLOSE(hdl%)
+BUSY OFF
+return line%
+ENDP
+
+PROC getinf:
+TRAP OPEN "M:\VR\VRINIT.RC",A,file$,top%,fid%,mode%,style%,stwin%
+if ERR = 0
+	if FIND(vrFILE$)<>0
+		vrTOP%=A.top%
+		vrFID%=A.fid%
+		vMODE%=A.mode%
+		vrSTYLE%=A.style%
+		IF vrSTWIN%<>A.stwin%
+			IF vrSTWIN%=0
+				STATUSWIN ON
+				FONT -$3fff,0
+			ELSE
+				STATUSWIN OFF
+				FONT -$3fff,0
+			ENDIF
+			vrSTWIN%=A.stwin%
+		ENDIF
+	else
+		vrTOP%=1
+		vrFID%=5
+		vMODE%=4
+		vrSTYLE%=0
+	endif
+ELSE
+	CREATE "M:\VR\VRINIT.RC",A,file$,top%,fid%,mode%,style%,stwin%
+	vrTOP%=1
+	vrFID%=5
+	vMODE%=4
+	vrSTYLE%=0
+ENDIF
+CLOSE
+ENDP
+
+PROC help:
+dINIT "Help:Vertical Reader"
+dTEXT "","Vr3a displays ascii text files in landscape orientation in a choice"
+dTEXT "","of 8 builtin proportional fonts. Files in any /VR directories with" 
+dTEXT "","a .TXT suffix will appear beneath the application icon."
+dTEXT "","The last position and display preferences for any file displayed"
+dTEXT "","with Vr3a are saved between invocations in the vrinit.rc file."
+dTEXT "","Menu commands should be self explanatory."
+dTEXT "","The Enter key scrolls the display one line and the Space key"
+dTEXT "","displays the next page."
+LOCK ON
+DIALOG
+LOCK OFF
+ENDP
+
+PROC jump:(ln%)
+LOCAL off&,ret%,buf$(255)
+IF ln% < vrLN%
+	off&=0
+	ret%=IOSEEK(vrHDL%,6,off&)
+	vrLN%=1
+ENDIF
+BUSY "Seeking to line "+num$(ln%,4),3
+WHILE vrLN% < ln%
+	ret%=IOREAD(vrHDL%,ADDR(buf$)+1,255)
+	vrLN%=vrLN%+1
+ENDWH
+BUSY OFF
+ENDP
+
+PROC putinf:
+OPEN "M:\VR\VRINIT.RC",A,file$,top%,fid%,mode%,style%,stwin%
+if FIND(vrFILE$)<>0
+	A.top%=vrTOP%
+	A.fid%=vrFID%
+	A.mode%=vMODE%
+	A.style%=vrSTYLE%
+	A.stwin%=vrSTWIN%
+	UPDATE
+else
+	A.file$=vrFILE$
+	A.top%=vrTOP%
+	A.fid%=vrFID%
+	A.mode%=vMODE%
+	A.style%=vrSTYLE%
+	A.stwin%=vrSTWIN%
+	APPEND
+endif
+CLOSE
+ENDP
+
+PROC system:(msg$)
+IF LEFT$(msg$,1)="O"
+	vrFILE$=mid$(msg$,2,128)
+	proco:(0)
+ELSEIF LEFT$(msg$,1)="C"
+	putinf:
+	vrFILE$=mid$(msg$,2,128)
+	proco:(0)
+ELSEIF LEFT$(msg$,1)="X"
+	procx:
+ENDIF
+ENDP
+

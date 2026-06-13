@@ -1,0 +1,154 @@
+DPBank plugins
+
+Because DPBank was intended to be small and fast, it is likely that you
+may not find the feature you may be looking for in this program; but
+still, you prefer DPBank because of it's better interface, small memory
+requirements, or whatever...
+
+To resolve this dilemna, I've added the possibility to add third party
+programs with the form of "plugins". These plugins will integrate
+closely with DPBank and it will look like the new features are built-in.
+Indeed, all that is needed is the press of a hotkey and the plugin will
+be launched dynamically. Once the plugin has terminated, you will be
+prompted back to DPBank. In case you switch back to DPBank before the
+plugin has terminated, DPBank will close the plugin for you
+automatically because it's not possible to share the account files
+between two programs.
+
+All this happens without the user knowing it as long as the plugin
+author has followed some basic instructions that you can find below.
+
+DPBank plugins MUST be placed in an \APP\DPBANK directories in order to
+be found.
+
+TECHNICAL NOTE TO PROGRAMMERS
+
+Since version 1.6, it's now possible to write "plugins" for DPBank. This
+option is provided so people who want to use DPBank with more features
+than the standard included ones can go ahead while the other users who
+liked the original simplicity of the program can still use the "plain
+vanilla" DPBank without having to worry about getting more memory.
+
+This file explains what you need to do as a programmer in order to
+integrate dynamically with DPBank. It also describes the file formats
+you may need and what you should and should not do with the files.
+
+Note: I have no experience with C programming, so if you want to write a
+plugin in C, you'll have to give me some details because I doubt it will
+work with the actual method used in DPBank. All the instructions below
+apply to plugins wirtten in OPL.
+
+First, you need to make a simple Psion Data file (without labels, ie:
+with the OPL CREATE command) having the following fields:
+
+-The name of your plugin, exactly as you called your APP. This name will
+ appear in the plugin menu of DPBank and at the same time, it will be the
+ shell name of the app when it will be launched.
+-The filename of your plugin (but no need for the path, see below)
+-First line to be displayed in the "info" field for your plugin
+-The second line of info
+-The third line of info
+-The fourth line of info
+
+All fields should be strings. The info lines are limited to 40
+characters per line. ALL fields MUST BE PRESENT! If you don't need all 4
+lines of infos, you must set them to "" be they must be present in the
+data file, or else DPBank will crash.
+
+The info will be displayed in a dialog when the user wants to know more
+about your plugin. You may want to include your name, contact address,
+version number or whatever else you judge interesting...
+
+This Data file must have exactly the same name as your plugin name
+except with an extension of "dpb" and must be located in an \APP\DPBANK
+directory in order for DPBank to locate it and display it in the menu.
+
+If you take for example Nick Dawkin's "Plot" plugin, you'd have the Data
+file "plot.dpb" in the \APP\DPBANK directory and the application file
+"plot.opa" in the \APP\DPBANK directory of any drive.
+
+When the plugin is called from within DPBank, the program will attempt
+to find the plugin application itself in the \APP\DPBANK directoy of all
+drives. If it cannot find the file, it will let the user know of the
+problem.
+
+Once it has located your plugin, DPBank will launch it with the command
+line parameters set to open the current account datafile. Thus, it would
+be equivalent to launching your plugin from the system screen with the
+name of one account (and NOT the group as with DPBank itself for
+example). Your plugin must receive this info with the OPL CMD$(x)
+command. In other words: CMD$(2) will contain for example "accounts.d03"
+and CMD$(3) will contain for example "O" for open.
+
+If you want your plugin to work seperately (ie: launched from the system
+screen), you must make sure you give priority to the command line from
+DPBank and not ask the user which account he wants to use. You can
+differentiate command lines from DPBank and those of the system screen
+because the system will never send a direct account name, but a group
+name ("pre" extension).
+
+Once your plugin is launched, it will have complete control over the
+account data file (as DPBank had previously closed it for himself) and
+you can do whatever manipulations you need with it. In fact, DPBank will
+have no account files open itself.
+
+The transactions datafile database is a plain Psion Data file with no
+headers. You simply cannot open them with the normal Data application
+because all fields are not strings (which is a limitation of the Data
+app).
+
+The data has the following format: (note that this WILL change fairly
+soon, but once I will have changed the format (for version 2.x files), I
+hope it will be more or less definitive)
+-yrmody$: date of transaction in YYYYMMDD format
+-desc$: description of transaction
+-catego$: category of the transaction (short code)
+-locamt: local amount of transaction (in money of account's default)
+-cleared%: reconciled flag is bit 0. Other flags may appear later.
+-foramt: foreign amount (0 if in default money)
+-forcurr$: if this string is empty, then the amount is in the local
+ amount of the account, otherwise, the amount is of this currency (new
+ databases will have something set here always! If the amount is in
+ default money, then it will still have the default money's name)
+-balance: balance associated to this transaction at this position in
+ list.
+
+Note: the files are always sorted in chronological order. This is one of
+the reasons you can't exit without saving your data. If your plugin
+modifies anything on the data file (ie: writes to it), then YOU are
+responsible of re-sorting the whole file at ALL times (since you never
+know when your program will terminate).
+
+It is highly recommended to open the database file in read-only mode for
+the above reason.
+
+Your plugin should have an exit option (Psion-x) and when activated,
+DPBank will re-open the database file, move to the foreground and
+re-display the transactions as to reflect any changes.
+
+You do not need to worry about switching back to DPBank. This will be
+taken care of automatically. In the case where the user would switch
+manually back to DPBank, the program would send a close (eXit) process
+signal to the plugin. In the event that the plugin is not responsive to
+this signal, a kill signal would have to be sent! This could be
+catastrophic if the plugin didn't take care to save all changes it made
+to the database file at all times.
+
+Please don't forget this important point!
+*****************************************
+Your plugin MUST be responsive to System EXIT messages AT ALL times!
+
+DPBank needs to close the plugin because the program needs to have
+complete control over the database file and the Psion doesn't allow to
+have complete control over a file if it's already opened by another
+application.
+
+I hope I've answered all your questions with this file. In the case of
+the contrary, don't hesitate to contact me by email. I will be happy to
+answer any other problems you may have.
+
+Thanks for your interest in writing a DPBank plugin. I understand that
+certain people need more than simply a "Quicken frontend" if I may say,
+and I hope you will take this opportunity to enhance DPBank that little
+bit further. I'm sure all DPBank users will appreciate your effort.
+

@@ -1,0 +1,38 @@
+REM A Series 3 proc to dial DTMF tones from OPL
+REM Written by DWW Psion Plc January 1992
+proc main:
+  local d$(24)
+  d$="1234567890*#"
+  DO
+    dINIT
+    dEDIT d$,"Dial"
+    IF DIALOG=0
+      STOP
+    ENDIF
+    dtmf:(d$)
+  UNTIL 0
+endp
+
+proc dtmf:(dial$)
+  local	h%		REM Handle of SND:
+  local z%		REM Points to start of zts
+  local r%		REM Result of ioopen
+  local zts$(25)	REM zts version of dial$
+  local edial%(2)	REM First word is sum of two bytes 
+			REM first byte is tone length
+			REM second byte is delay length
+			REM second *word* is pause length
+			REM - all in secs/32
+  zts$=dial$+chr$(0)	
+  z%=addr(zts$)+1	REM Skip length byte
+  edial%(1)=8+(256*8)	REM Standard defaults
+  edial%(2)=48
+  r%=ioopen(h%,"SND:",0)
+  IF r%=0
+    iow(h%,10,#z%,edial%())
+    ioclose(h%)
+  else
+    gIPRINT "Error opening SND: "+err$(r%)
+  endif
+endp
+

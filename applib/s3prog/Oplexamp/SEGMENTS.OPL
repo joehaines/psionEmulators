@@ -1,0 +1,368 @@
+ 
+REM  Library module - SEGMENTS.OPL 
+REM
+REM  This module provides access to 
+REM  memory segments. 
+
+REM Written by jezar@cix
+REM Public Domain - use and spread freely
+
+
+
+PROC Dummy:
+local i&,j%
+local name$(120)
+print segmem&:
+get
+i&=60000
+name$="dataq"
+j%=segmake%:(name$,i&)
+get
+segclose:(j%)
+ENDP
+
+
+PROC SegMem&:
+REM  Find out how much space
+REM  is available to make
+REM  memory segments out of.
+
+     LOCAL result%
+     LOCAL pgraphs&,bytes&
+
+     REM Get space in paragraphs:
+     result%=CALL($0080)
+
+     REM Convert to an *unsigned* long:
+     pgraphs& = (&0000FFFF AND result%)
+
+     REM Convert paragraphs to bytes:
+     bytes& = pgraphs& * &10
+
+     RETURN bytes&
+ENDP
+
+ 
+PROC SegMake%:(name$,size&)
+REM  Creates a memory segment
+REM  of specified size and name.
+REM  Size will by rounded up
+REM  in units of sixteen bytes.
+REM  Returns a 'segment handle'
+
+     LOCAL ax%,bx%,cx%,dx%,si%,di%
+     LOCAL pgraphs%
+     LOCAL txtLBC%,txtZTS%,txt%(130)
+
+     txtLBC%=ADDR(txt%(1))
+     txtZTS%=ADDR(txt%(2))
+
+     POKE$ txtLBC%,"#"+name$
+
+     REM Check size is within range:
+     IF size&<&0 OR size&>&7FFF0
+          RAISE -2 :REM Invalid arguments
+     ENDIF
+
+     REM Convert bytes to rounded up paragraphs:
+     pgraphs%=(size&+&0F)/&10
+
+     ax%=$0100
+     bx%=txtZTS%
+     cx%=pgraphs% 
+
+     REM Create the segment:
+     IF (OS($80,ADDR(ax%)) AND $01)
+          RAISE (ax% OR $FF00)
+     ENDIF
+
+     RETURN ax%
+ENDP
+
+
+PROC SegKill:(name$)
+REM  Destroys the segment
+REM  called 'name$' (if not in use)
+REM  This routine should never be 
+REM  necessary.
+
+     LOCAL ax%,bx%,cx%,dx%,si%,di%
+     LOCAL txtLBC%,txtZTS%,txt%(130)
+
+     txtLBC%=ADDR(txt%(1))
+     txtZTS%=ADDR(txt%(2))
+
+     POKE$ txtLBC%,"#"+name$
+
+     ax%=$0200
+     bx%=txtZTS%
+
+     REM Destroy the segment:
+     IF (OS($80,ADDR(ax%)) AND $01)
+          RAISE (ax% OR $FF00)
+     ENDIF
+ENDP
+
+
+PROC SegOpen%:(name$)
+REM  Open the named segment.
+REM  Only necessary if your
+REM  program did not create
+REM  the segment originally.
+
+     LOCAL ax%,bx%,cx%,dx%,si%,di%
+     LOCAL txtLBC%,txtZTS%,txt%(130)
+
+     txtLBC%=ADDR(txt%(1))
+     txtZTS%=ADDR(txt%(2))
+
+     POKE$ txtLBC%,"#"+name$
+
+     ax%=$0300
+     bx%=txtZTS%
+
+     REM Open the segment:
+     IF (OS($80,ADDR(ax%)) AND $01)
+          RAISE (ax% OR $FF00)
+     ENDIF
+
+     RETURN ax%
+ENDP
+
+
+PROC SegClose:(handle%)
+REM  Closes a memory segment.
+REM  Do this when you've finished
+REM  using the segment. If no-one 
+REM  else is using it, then it will 
+REM  be freed.
+
+     LOCAL ax%,bx%,cx%,dx%,si%,di%
+
+     ax%=$0400
+     bx%=handle%
+
+     REM Close the segment:
+     IF (OS($80,ADDR(ax%)) AND $01)
+          RAISE (ax% OR $FF00)
+     ENDIF
+ENDP
+
+
+PROC SegLock:(handle%)
+REM  Lock a memory segment that
+REM  you have created or opened.
+REM  This prevents it from going
+REM  away after closing.
+REM  Normally a rather bad idea.
+
+     REM Lock the segment:
+     CALL($0A80,handle%)
+ENDP
+
+
+PROC SegUnLoc:(handle%)
+REM  Unlock a memory segment that
+REM  was previously locked, enabling
+REM  it to be deleted, when not in
+REM  use elsewhere.
+
+     REM Unlock the segment:
+     CALL($0B80,handle%)
+ENDP
+
+
+PROC SegSize&:(handle%)
+REM  Return the size, in bytes, of
+REM  a segment. The return value
+REM  from the call is guaranteed never
+REM  to be greater than $7FFF so we do not
+REM  need to convert to an unsigned long first.
+
+     LOCAL pgraphs%
+
+     REM Get size in paragraphs:
+     pgraphs%=CALL($0580,handle%)
+
+     REM Convert paragraphs to bytes:
+     bytes& = pgraphs% * &10
+
+     RETURN bytes&
+ENDP
+
+
+PROC SegReSiz:(handle%,newsize&)
+REM  Re-size a segment as indicated.
+
+     LOCAL ax%,bx%,cx%,dx%,si%,di%
+     LOCAL pgraphs%
+
+     REM Check size is within range:
+     IF newsize&<&0 OR newsize&>&7FFF0
+          RAISE -2 :REM Invalid arguments
+     ENDIF
+
+     REM Convert bytes to rounded up paragraphs:
+     pgraphs%=(segsize&+&0F)/&10
+
+     ax%=$0600
+     bx%=handle%
+     cx%=pgraphs%
+
+     REM Resize the segment:
+     IF (OS($80,ADDR(ax%)) AND $01)
+          RAISE (ax% OR $FF00)
+     ENDIF
+ENDP
+
+
+PROC SegCpTo:(handle%,offset%,source%,datalen&)
+REM  Copy data to 'offset%' bytes 
+REM  into the segment 'handle%'.
+REM  'datalen&' is the number of bytes
+REM  to copy, and 'source%' is the
+REM  ADDR() for copying from.
+
+     LOCAL length%,dummy%
+
+     REM Check length is within range:
+     IF datalen&<0 OR datsize&>&0FFFF
+          RAISE -2 :REM Invalid arguments
+     ENDIF
+
+     REM Convert length to a *signed* integer:
+     POKEL ADDR(length%),datalen&
+
+     REM Copy the data:
+     CALL($0880,handle%,length%,0,source%,offset%)
+ENDP
+
+
+PROC SegCpFrm:(handle%,offset%,dest%,datalen&)
+REM  Copy data from 'offset%' bytes 
+REM  into the segment 'handle%'.
+REM  'datalen&' is the number of bytes
+REM  to copy, and 'dest%' is the
+REM  ADDR() for copying to.
+
+     LOCAL length%,dummy%
+
+     REM Check length is within range:
+     IF datalen&<0 OR datsize&>&0FFFF
+          RAISE -2 :REM Invalid arguments
+     ENDIF
+
+     REM Convert length to a *signed* integer:
+     POKEL ADDR(length%),datalen&
+
+     REM Copy the data:
+     CALL($0980,handle%,length%,0,source%,offset%)
+ENDP
+
+
+PROC SegMSze&:
+REM  Returns the current size, 
+REM  in bytes, of the M: (Internal) 
+REM  drive. This module may seem an odd 
+REM  place for this procedure to 
+REM  belong, but it is classed 
+REM  as a segment service.
+
+     LOCAL result%
+     LOCAL pgraphs&,bytes&
+
+     REM Get size in paragraphs:
+     result%=CALL($0C80)
+
+     REM Convert to an *unsigned* long:
+     pgraphs& = (&0000FFFF AND result%)
+
+     REM Convert paragraphs to bytes:
+     bytes& = pgraphs& * &10
+
+     RETURN bytes&
+ENDP
+
+
+PROC SegFind%:(name$,array%)
+REM  Find the names of all segments
+REM     that match the wildcard string
+REM  in 'name$'
+REM  'array%' must be the ADDR() of
+REM  a string array at least thirteen
+REM  characters wide, with as many
+REM  elements as you expect to find
+REM  matches for.
+REM     Returns the number of segment
+REM  names stored into your array.
+
+        LOCAL ax%,bx%,cx%,dx%,si%,di%
+        LOCAL nelm%,elm%,elSize%
+     LOCAL pLBC%,regs%,retcode%
+        LOCAL ptr%,hiword%,apt%
+     LOCAL txtLBC%,txtZTS%,txt%(130)
+
+        apt%    = ADDR(ptr%)
+        regs%   = ADDR(ax%)
+     txtLBC% = ADDR(txt%(1))
+     txtZTS% = ADDR(txt%(2))
+
+     POKE$ txtLBC%,"#"+name$
+        
+     REM Get size of individual array elements:
+        ptr%=array%
+        POKEL apt%,PEEKL(apt%)-1 :hiword%=0
+        elSize%=PEEKB(ptr%)
+
+     REM Now get number of elements in array:
+        POKEL apt%,PEEKL(apt%)-2 :hiword%=0
+        nelm%=PEEKW(ptr%)
+
+        REM Check array size is acceptable:     
+        IF elSize%<13 
+          RAISE -84 :REM Bad array size
+     ENDIF
+        
+        di%=txtZTS% :REM This never changes
+
+        REM Loop and collect names into array:
+        ptr%=array%
+        WHILE elm%<nelm%
+
+                REM Skip leading byte count:
+                pLBC%=ptr%
+                POKEL apt%,PEEKL(apt%)+1 :hiword%=0
+
+                bx%=ax%    :REM ax% from previous looping.
+                ax%=$0700  :REM This always needs resetting.
+                si%=ptr%   :REM The next element in array.
+
+                REM Get next name:
+                IF (OS($80,regs%) AND $01)
+               retcode%=(ax% OR $FF00)
+
+               REM Check for error or finish:
+               IF retcode%<>-33
+                    RAISE retcode%
+               ELSE
+                        BREAK :REM Finished.
+               ENDIF
+                ENDIF
+                
+                REM Fix array string length:
+                POKEB pLBC%,CALL($B9,0,0,0,0,si%)
+                
+                REM Increment pointer to next element:
+                POKEL apt%,PEEKL(apt%)+elSize% :hiword%=0
+                
+                elm%=elm%+1
+        ENDWH
+        
+        RETURN elm%
+ENDP
+
+
+REM  End of module - SEGMENTS.OPL
+
+
+

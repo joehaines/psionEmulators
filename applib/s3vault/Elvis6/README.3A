@@ -1,0 +1,291 @@
+                ELVIS for the Psion 3a and Compatibles
+                ======================================
+                           7th May 1996
+                    Psion 3a version - 6th release
+        
+        INTRODUCTION
+        ~~~~~~~~~~~~
+        This information is intended to provide information
+        that is specific to the Psion 3a implementation of ELVIS.
+
+        ELVIS was ported to the Psion 3a by Keith and Dave Walker.
+        The port is based on the ELVIS v1.8 patch level 4 source.
+        The key features of this port are:
+
+          -  Command level compatibility with the Unix "vi" editor
+             program so that users of "vi" will instantly be able
+             to use the ELVIS program.
+
+          -  The ability to edit larger files than arem possible
+             with the Text Editor built into the Psion 3a.  The
+             file size is limited only by the size of the RAM
+             disk that you can give to ELVIS to create its
+             temporary files on.
+
+        The port was done to provide us with an alternative text
+        editor to that built into the Psion 3a that was more
+        suitable to editing and amending source code files. This
+        was done as part of developing a complete C development
+        system hosted on the Psion 3a.  This C development system
+        is being released under the name of CPOC (which is a play
+        on EPOC as the name of the Psion operating system and
+        "C in your POCket" as a description of the capability).
+
+
+        INSTALLATION AND RUNNING
+        ~~~~~~~~~~~~~~~~~~~~~~~~
+        The files provided are as follows:
+
+            README              The original ELVIS README file
+            README.3a           Psion 3a specific information
+            ELVIS.APP           The ELVIS program itself
+            ELVIS.INI           Sample initialisation file
+
+	The ELVIS.APP file requires about 128K of system memory to run (64K
+	code and 64K data).  It is therefore only really suitable for
+	running on the larger Psion S3a models or one which has been
+	expanded with SSDs.
+
+        The ELVIS.APP file can be installed in any directory that
+        you like.   We would recommend that you put it into either
+        the "\APP\" directory or the "\CPOC\" directory on any drive.
+        If it is placed in this location it will automatically be
+        integrated into the CPOC system when it becomes available.
+
+        If you have any resource files (files with names of the
+        form ELVISnn.RSC) then these should be installed in an
+        ELVIS sub-directory relative to the point at which the
+        ELVIS.APP file is installed.  These additional resource
+        files are only used for nob-
+
+        You can install ELVIS using the standard Psion-I sequence.
+        As supplied, ELVIS will look for files in the \TXT directory
+        on any drive that have a .TXT extension.  By making use of
+        list facility you can specify alternative file locations and
+        file extensions.  This is mentioned in section 16 of the
+        User Guide manual (the chapter called "The System Screen").
+
+        If you have a command line processor (such as the CMDP package
+        released by Psion) then you can also start ELVIS (or one of
+        its aliases) from the command line.  You will need to specify
+        the full path name if you do not want to use the default one.
+
+        Finally, if you have already loaded ELVIS you can use one of the
+        built in ELVIS commands (such as the "r" or "e" commands) to load
+        the required file.
+
+
+        TEMPORARY FILE
+        ~~~~~~~~~~~~~~
+        While ELVIS is editing a file, it uses a temporary file to
+        keep track of all the changes that you are making.  The
+        location of this temporary file is decided as follows:
+
+          -  If the ELVIS initialisation file exists (see below) and
+             it contains a line such for the form
+                 set directory=A:\TMP\
+             then this is used as the location of temporary files.
+
+          -  If the ELVIS initialisation file does not exist and
+             if the "TMP" or "TEMP" environment variables are set
+             then the directory that they point to is used for the
+             ELVIS temporary files.
+
+          -  If none of the above are true then ELVIS will assume the
+             location "\"  (i.e. the root directory of the default
+             drive) is to be used for temporary files.
+
+        It is the users responsibility to ensure that the relevant
+        directory for temporary files does in fact exist.  If it does
+        not, then ELVIS will fail while loading.
+
+
+        INITIALISATION FILE
+        ~~~~~~~~~~~~~~~~~~~
+        The normal "vi" editor when running on a Unix system allows
+        you to set up a file called ".exrc" that holds start up
+        configuration details.   The Psion 3a port of ELVIS uses
+        a file called "ELVIS.INI" instead.   This file (if present)
+        is expected to be a text file that is held in the same
+        directory as the ELVIS.APP file.
+
+        This file is normally the easiest way to specify the location
+        for the ELVIS temporary files.   You can create an initial
+        ELVIS.INI file by loading the WORD application built into the
+        Psion 3a and saving the resulting file as file of type "TEXT".
+        Subsequently you can use ELVIS itself to edit the ELVIS.INI
+        file.
+
+        To make it easier for you, we have provided a sample ELVIS.INI
+        file.  You can use this as a starting point, and tailor it to
+        suit you particular system and preferences.
+
+	There is a psion specific numeric variable called fontindex (fi)
+	which can be used to specify the size of the font to be used.
+	The variable can take a value between 0 and 4, the values
+	representing the font sizes 6-point, 8-point, 11-point, 13-point
+	and 16-point.   By using this variable in the ELCIS.INI file it
+	is possible to specify which font to use on startup.
+
+
+        DOCUMENTATION
+        ~~~~~~~~~~~~~
+        The author of ELVIS provides a full manual on its use and
+        facilities (about 120 pages).  This manual is provided in
+        the Unix ROFF format.  If you want the raw ROFF format
+        version of the documentation, then it is widely available on
+        one of the many Internet sites that hold ELVIS source.  A
+        good site in the UK is "ic.ac.uk" (Imperial College).
+
+        For Psion users, we have processed the ROFF format documentation
+        files to produce a single formatted text file  (about 200Kb
+        in size).  As we expect many of the typical users of ELVIS
+        to already be familiar with the "vi" program, we have not
+        included this documentation in the same package as the main
+        ELVIS application program, but instead made it a separate file
+        (ELVISDOC.ZIP) that you only need to download if you want it.
+
+
+        CHANGING FONT SIZE
+        ~~~~~~~~~~~~~~~~~~
+        A special feature of the Psion port is the support for a range
+        of different font sizes.   You can toggle round the available
+        fonts by using the Psion-Z keypress (or Psion-Shift-Z to go the
+        other way).
+
+        There is also a new 'set' option so that you can add your
+        favourite font setup to the ELVIS.INI file.  This 'set' option
+        uses the keyword 'fontindex' (abbreviation is'fi') followed
+        by a numeric value to specify the font.  The values supported
+        are:
+            0     6 point monospace font
+            1     8 point Swiss font
+            2     11 point Swiss font
+            3     13 point Swiss font
+            4     15 point Swiss font
+        As you change the font size, the number of lines on the screen
+        and the number of columns will be automatically adjusted to fit
+        into the available screen area.
+
+        You can find out the current settings of the fontindex and the
+        number of screen ros and columns at any time by using the 'set'
+        command with no parameters.
+
+
+        LIMITATIONS
+        ~~~~~~~~~~~
+        At this release we have not ported to the 3a the ancilliary
+        programs that can be used in conjunction with ELVIS.  These
+        include programs such as "FORMAT" and "TAGS".  Therefore
+        any command which depend on the presence of such ancilliary
+        programs will not work.  Also the Psion 3a does not have a
+        command shell, so the colon mode "!" command will not work.
+
+        Finally due to the 64Kb limitation that the Psion 3a imposes
+        as the maximum size of the code for any program, we have had
+        to omit some of the optional features.  For those who want to
+        look at the section of the ELVIS documentation that talks about
+        the options used when building it, the following details the
+        build time options we defined to omit optional features
+
+                NO_COLOR
+                NO_CURSORSHAPE
+                NO_DIGRAPH
+                NO_ERRLIST
+                NO_EXTENSIONS
+                NO_FKEY
+                NO_IF
+                NO_LEARN
+                NO_MKEXRC
+                NO_POPUP
+                NO_REFORMAT
+                NO_VISIBLE
+
+
+        FOREIGN LANGUAGE VERSIONS OF ELVIS
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        The ELVIS.APP file as supplied has all its messages in English.
+        However the port of ELVIS was done with support for foreign
+        languages in mind, so all messages are held in the form of a
+        Psion Resource file.
+
+        We do not actually have the skill ourselves to translate messages
+        to a foreign language.  What we are doing therefore is making the
+        source for the English version of the ELVIS resource file
+        generally available in the hope that others will be interested
+        in doing the necessary translation.  This source, and the
+        necessary additional information to make use of it is being
+        uploaded as the ELVISRSS.ZIP file.
+
+        When such resource files become available, they will have file
+        names of the form ELVISnn.RSC where 'nn' is the EPOC country
+        code (01 for English).   These files should then be installed
+        in an ELVIS sub-directory relative to the location at which
+        the ELVIS.APP file has been installed.  On start-up ELVIS will
+        look for such files, and if there is one present which has the
+        correct country code for the Psion in question it will use it in
+        preference to the built-in English version.
+
+
+        CONTACTS FOR THE PSION 3A PORT OF ELVIS
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        The original ELVIS program was developed by Steve Kirkendall.
+        Steve is aware that the Psion 3a port has occured, but is not
+        actively involved in it in any way.
+
+        The Psion 3a port was done by:
+
+            Dave Walker
+                       email:       d.j.walker@slh0101.wins.icl.co.uk
+                       compuserve:  100141,2626
+                       msn:         itimpi@msn.com
+
+            Keith Walker:
+                       email:       kdw@oasis.icl.co.uk
+
+
+        CHANGE HISTORY
+        ~~~~~~~~~~~~~~
+        20 July 1995    Initial release for the Psion 3a
+
+        13 Aug 1995   - ELVIS program now a file based ".APP" file.
+                      - Faster screen updating.
+                      - The Temporary directory changed to default to
+                        the root directory of the current default drive.
+
+	15 Aug 1995   - After a :e, :n or :f command the file being edited
+			is updated on the system screen.
+
+	20 Aug 1995   - Fixed the X p N and , commands (porting problem).
+			Updated :version command with Psion release info.
+			Moved messages into a resource file - frees
+			about 5K in data area.
+			:sh command now actualy runs contents of shell
+			variable (but :!command still doesn't work)
+
+        04 Oct 1995   - Psion 3a 5th Release
+                        Psion-X writes file and exits elvis
+			Shift-Psion-X exits elvis with no write
+			Delete key on system screen now handled
+			Elvis now goes "busy" when performing long task.
+			(Shift-)Psion-Z changes font size.
+			new :set variable fontindex
+			fixed a couple of messages.
+
+        07 May 1996   - Psion 3a 6th Release
+                      - Rebuilt using the "286" option of the TopSpeed
+                        Compiler which produced enough code reduction to
+                        allow fancier handling of regular expressions to
+                        be included.  This means that a number of more
+                        advanced Elvis options relating to the use of
+                        'magic' are now available in the Psion 3a version.
+                      - Changes to make ELVIS use language dependent
+                        resource files when running on a non-English system.
+                      - The Resource file made generally available to
+                        encourage development of non-English versions.
+                      - Will now read screen size and try to use all the
+                        available space.  If used under the Psion 3a
+                        emulator, the displayed size is now up to 50 lines
+                        by 100 characters (previously was 22 x 80).

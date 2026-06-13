@@ -1,0 +1,111 @@
+Underlines in Opl dialogs on the S3a
+------------------------------------
+
+Opl Developers may find the following module, DIULINE.OPL, of use for
+the following reasons:
+    * It allows them to create dialogs with underlines on items other
+      than text items (eg underlines under edit lines)
+    * It allows them to remove underlines from dialog titles (not
+      otherwise possible on the S3a, except by leaving the nominal
+      title line completely blank, as in "dInit")
+
+DIULINE.OPL
+-----------
+    PROC diuline:(index%,on%)
+      local ddp%,numits%,itm%,flags%
+      ddp%=peekw($36) rem DatDialogPtr
+      itm%=ddp%+$a
+      numits%=peekb(ddp%+$3d)
+      if numits%>7
+        itm%=peekw(itm%)
+      endif
+      itm%=itm%+index%*6+4
+      flags%=peekw(itm%)
+      if on%
+        flags%=flags% or 4
+      else
+        flags%=flags% and not 4
+      endif
+      pokew itm%,flags%
+    ENDP
+
+TAKE CARE TO TYPE THIS IN EXACTLY (or, better, copy it electronically).
+
+Use of DIULINE:(index%,on%)
+---------------------------
+The parameter index% gives the item number in the dialog, to which
+the underline is to be applied (if on% is non-zero) or else removed
+(if on% is zero).  Here, the counting starts at ZERO for the top line.
+
+You must only call DIULINE:(index%,on%)
+    * After the dInit of the dialog
+    * After defining the line referred to by index%
+    * Before the corresponding DIALOG call
+
+For example,
+    PROC test:
+      local s$(10)
+      loadm "diuline"
+      s$="Underlined"
+      dInit "Test"
+      dText "abc","def",$200
+      dText "ABC","DEF"
+      dText "ABC","DEF"
+      dText "ABC","DEF"
+      dEdit s$,"String"
+      diuline:(5,1)
+      dText "ABC","DEF"
+      dText "ABC","DEF"
+      diuline:(0,0)
+      dialog
+    ENDP
+
+Here, the first call to diuline: places an underline under the fifth
+item in the dialog, ie the dEdit line.  The final call to diuline:
+(which could in fact have been placed anywhere between the dInit and
+the DIALOG calls) removes the underline from the title line.
+
+Notes:
+------
+S3a dialogs can, of course, have more than one underline in them.
+
+S3 compatibility mode on the S3a *also* has this feature.
+
+In both S3a mode and S3 modes on the S3a, setting an underline, using
+the $200 flag on a dText item, does *not* remove the underline on any
+dInit "xxx" line.
+
+This may have the unintended consequence that a program written for
+the S3, but running on the S3a, will unexpectedly fail with a "Too
+many items" message:
+    if a dialog has seven items
+    if the $200 flag has been applied to a dText item, with the
+intention of underlining an item other than the top item in the dialog.
+
+What happens here is that the dialog ends up with *two* underlines,
+and consequently no longer fits, vertically, on the compatability
+mode screen.
+
+Regrettably, there is no way to fix this, for a given S3 Opl program,
+without re-translating the program after making one of two kinds of
+change in it:
+
+    * Either the dInit "xxx" line should be changed into the pair of
+      lines      dInit
+                 dText, "", "xxx", 2
+
+    * Or follow the dInit "xxx" line with a call diuline:(0,0)
+
+Possibly, this would represent a legitimate use of the RevTran
+program (available eg on CIX).
+
+Finally, calling DIULINE: on an S3 classic (as opposed to inside S3
+compatability mode on the S3a) will have no effect whatsoever -
+assuming that it is called in accordance with the rules stated above.
+(If it is called *other* than in accordance with these rules, the
+program is liable to random damage, but this is, of course, also the
+case when these rules are broken on the S3a.)
+
+These notes prepared by:
+------------------------
+David Wood, Psion Software Development, 21st Sept 1993.

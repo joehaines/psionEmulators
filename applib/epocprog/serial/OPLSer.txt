@@ -1,0 +1,194 @@
+REM --------------------------------------------------------------------
+REM  Program......: Serial.opl
+REM  Version......: 0.9
+REM  Description..: Psion 5 Program to read and write to Comm port as
+REM                 well as read pen and key events
+REM
+REM  Author.......: Damien Lewis (and many others)
+REM --------------------------------------------------------------------
+
+Const RS_BAUD2400   = 11
+Const RS_BAUD9600   = 15
+Const RS_PARITYNONE = 0
+Const RS_DATABITS8  = 8
+Const RS_STOPBITS1  = 1
+Const RS_STOPBITS2  = 2
+
+Const RS_HANDSHAKEALL    = 11
+Const RS_HANDSHAKENONE   = 4
+Const RS_HANDSHAKEXON    = 7
+Const RS_HANDSHAKERTS    = 0
+Const RS_HANDSHAKEXONRTS = 3
+Const RS_HANDSHAKEDSR    = 12
+Const RS_HANDSHAKEXONDSR = 15
+Const RS_HANDSHAKERTSDSR = 8
+
+Const FREAD   = 1
+Const FWRITE  = 2
+Const FCLOSE  = 3
+Const FCANCEL = 4
+Const FSET    = 7
+Const FSENSE  = 8
+Const FFLUSH  = 9
+
+Const TRUE = 1
+Const FALSE = 0
+Const RECORDTOOLARGE = -43
+Const IOPENDING      = -46
+
+REM ----------------------
+REM Main Program Procedure
+REM ----------------------
+PROC Main:
+	GLOBAL hComm%, CommInStatus%, CommOutStatus%, KeyStatus%, IOError%
+	GLOBAL KeyCode%(2)
+	GLOBAL Buffer$(255), BufferLen%
+  GLOBAL Baud%, Parity%, Data%, Stop%, HandShake%
+	GLOBAL Event&(20)
+  GLOBAL Key&, Modifier%, Shift%, Control%
+  GLOBAL MenuPos%
+	
+	LOCAL Name$(1), Type$(10), Action$(5), ActionData&
+  LOCAL CommOpen%
+  LOCAL Term&, Dummy%
+	LOCAL PortName$(10)
+		
+  REM Setup Variables
+  REM ---------------
+  BufferLen%  = 1
+  Baud%       = RS_BAUD9600
+  Parity%     = RS_PARITYNONE
+  Data%       = RS_DATABITS8
+  Stop%       = RS_STOPBITS1
+  HandShake%  = RS_HANDSHAKENONE
+  PortName$   = "TTY:A"
+  KeyStatus%  = 0
+
+  REM Open Comm port and start I/O request
+  REM ------------------------------------
+ 	hComm% = OpenDevice:(PortName$)
+	If hComm% = 0
+	  STOP
+	Endif
+	Term& = 2**13
+  CommPortSetup:(Term&)
+  IOError%=IOC(hComm%, FREAD, CommInStatus%, #UADD(ADDR(Buffer$),1), BufferLen%)
+  IF IOError%
+    RAISE IOError%
+  ENDIF
+
+  REM Async Event Loop
+  REM ----------------
+	Print "Press a key or use the pen. Use the menu to exit."
+	WHILE True
+    IF KeyStatus% <> IOPENDING
+  		GETEVENTA32 KeyStatus%, Event&()
+    ENDIF
+	  IOWAIT
+    IF CommInStatus% <> IOPENDING
+      IOSIGNAL
+      IF CommInStatus% < 0 AND CommInStatus% <> RECORDTOOLARGE
+        IOW(hComm%, FCANCEL, Dummy%, Dummy%)
+        IOW(hComm%, FFLUSH, Dummy%, Dummy%)
+        IOError%=IOC(hComm%, FREAD, CommInStatus%, #UADD(ADDR(Buffer$),1), BufferLen%)
+        IF IOError% <> 0
+          RAISE IOError%
+        ENDIF
+      ELSEIF CommInStatus% = 0 OR CommInStatus% = RECORDTOOLARGE
+        POKEB ADDR(Buffer$),BufferLen%
+        PRINT "Bytes read:";GEN$(LEN(Buffer$),5),
+        PRINT "Data read:";LEFT$(Buffer$,LEN(Buffer$))
+        IOError%=IOC(hComm%, FREAD, CommInStatus%, #UADD(ADDR(Buffer$),1), BufferLen%)
+        IF IOError%
+          RAISE IOError%
+        ENDIF
+      ENDIF
+    ENDIF
+	  IF KeyStatus% <> IOPENDING
+      REM Determine if Shift or Control Keys were used
+      Modifier% = Event&(4) AND 255
+      IF Modifier% AND 2 : Shift% = TRUE : ELSE : Shift% = FALSE : ENDIF
+      IF Modifier% AND 4 : Control% = TRUE : ELSE : Control% = FALSE : ENDIF
+      Key& = Event&(1)
+      IF Key& = &408 and Modifier% = 1
+			  PRINT "Pointer Event"
+      ELSEIF Key& = 4150 or Key& = 10000
+        DisplayMenu:
+      ENDIF
+      IF Key& <= 300
+        ProcessOtherKeys:
+      ENDIF
+      Control% = 0 : Shift% = 0
+    ENDIF
+  ENDWH
+ENDP
+
+REM ----------------------------
+REM Process keys pressed by user
+REM ----------------------------
+PROC ProcessOtherKeys:
+  PRINT "Key Pressed:";GEN$((Key&),5)
+  REM If Control% and/or Shift% are true then these keys have been pressed as well
+
+	If Control% = TRUE
+		Key& = Key& + 96
+		If Key& = %e
+			IOCLOSE(hComm%)
+			Stop
+		Endif
+	Endif  
+ENDP
+
+REM ----------------
+REM Display the Menu
+REM ----------------
+PROC DisplayMenu:
+ 	mINIT
+ 	mCARD "File", "Exit",%e
+ 	Key& = MENU(MenuPos%)
+ 	Control% = TRUE
+ 	Key& = Key& - 96
+ENDP
+
+REM ---------------------
+REM Open Specified Device
+REM ---------------------
+PROC OpenDevice:(PortName$)
+  LOCAL Handle%
+
+  IOError%=IOOPEN(Handle%, PortName$, -1)
+  IF IOError% <> 0
+    Handle% = 0
+    LOCK ON
+    dINIT "Message"
+    dTEXT "","Cannot open device:" + PortName$
+    dTEXT "",GEN$(IOError%,5)
+    DIALOG
+    LOCK OFF
+  ENDIF
+  RETURN Handle%
+ENDP
+
+REM ---------------
+REM Setup Comm Port
+REM ---------------
+PROC CommPortSetup:(Term&)
+  LOCAL Frame%, srchar%(6), Dummy%, ErrorCode%
+
+  Frame% = Data%-5
+  IF Stop% = RS_STOPBITS2
+    Frame% = Frame% OR 16
+  ENDIF
+  IF Parity%
+    Frame% = Frame% OR 32
+  ENDIF
+  srchar%(1) = Baud% OR (Baud% * 256)
+  srchar%(2) = Frame% OR (Parity% * 256)
+  srchar%(3) = (HandShake% AND 255) OR $1100
+  srchar%(4) = $13
+  POKEL ADDR(srchar%(5)), Term&
+  ErrorCode% = IOW(hComm%, FSET, srchar%(1), Dummy%)
+  IF ErrorCode%
+    RAISE ErrorCode%
+  ENDIF
+ENDP

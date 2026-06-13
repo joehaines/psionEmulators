@@ -1,0 +1,334 @@
+/*      MODULE - DBS.OPH
+Database Client API releasable header file for OPL
+
+Version 1.00
+
+Copyright (c) Psion PLC 1995.
+*/
+
+#ifndef DBS_H
+#define DBS_H
+
+/* Database server flags */
+
+#define DBS_MODE_LEAVE		$80
+
+#define DBS_ASCEND			$0000
+#define DBS_DESCEND			$0001
+
+#define DBS_NOUPDATE		$0001
+#define DBS_NOTNULL			$0002
+
+#define DBS_UNIQUE			$0001
+#define DBS_MANUAL          $0002
+#define DBS_PRIMARY			$0008
+
+#define DBS_DATE_CREATE     $0001
+#define DBS_DATE_UPDATE     $0002
+
+#define DBS_CREATE			$0020
+#define DBS_TEMPORARY		$0040
+#define DBS_LOCKWRITE		$0100
+#define DBS_LOCKREAD        $0200
+#define DBS_EXCLUSIVE		$0400
+#define DBS_READONLY        $1000
+#define DBS_APPENDONLY      $2000
+
+/* database server field types */
+
+#define DBS_TYPE_INT16			0
+#define DBS_TYPE_INT32			1
+#define DBS_TYPE_DOUBLE			2
+#define DBS_TYPE_STRING			3
+#define DBS_TYPE_DATE			4
+#define DBS_TYPE_LOGICAL		5
+#define DBS_TYPE_LONGBINARY		6
+#define DBS_TYPE_INT8			7
+#define DBS_TYPE_UINT8			8
+#define DBS_TYPE_UINT16			9
+#define DBS_TYPE_UINT32			10
+
+/* database server seek comparisons */
+
+#define DBS_COMP_EQUAL          0
+#define DBS_COMP_LESS           1
+#define DBS_COMP_LESSEQ         2
+#define DBS_COMP_GREAT          3
+#define DBS_COMP_GREATEQ        4
+#define DBS_COMP_NOTEQ          5
+
+/* database server general limits */
+
+#define DBS_NAMESIZE		32
+#define DBS_MAXKEYS			8
+#define DBS_MAXFIELDS		32
+#define DBS_BOOKMARK_SIZE	8
+
+/* database server error numbers */
+
+#define E_DBS_BASE          -1000
+#define E_DBS_INVALID       (E_DBS_BASE)      /* The record is invalid */
+#define E_DBS_OPEN          (E_DBS_BASE-1)    /* The table or index is already open */
+#define E_DBS_INUPDATE      (E_DBS_BASE-2)    /* The record is already being edited */
+#define E_DBS_NOUPDATE      (E_DBS_BASE-3)    /* The record in not in edit mode */
+#define E_DBS_NOINDEX       (E_DBS_BASE-4)    /* The index is not open */
+#define E_DBS_TYPE          (E_DBS_BASE-5)    /* The type is invalid */
+#define E_DBS_CONVERT       (E_DBS_BASE-6)    /* The conversion is not supported */
+#define E_DBS_FIELD         (E_DBS_BASE-7)    /* The field is too large */
+#define E_DBS_NAME          (E_DBS_BASE-8)    /* The field name is not found */
+#define E_DBS_LOCKED        (E_DBS_BASE-9)    /* The field or record is locked */
+#define E_DBS_NULL          (E_DBS_BASE-10)   /* A NOTNULL field is null */
+#define E_DBS_KEY           (E_DBS_BASE-11)   /* The key is too large */
+#define E_DBS_DUP           (E_DBS_BASE-12)   /* A duplictae key has been found */
+#define E_DBS_BUFFER        (E_DBS_BASE-13)   /* field outside record buffer */
+#define E_DBS_NOMATCH       (E_DBS_BASE-14)   /* no matching record in index */
+#define E_DBS_LBIN          (E_DBS_BASE-15)   /* Field not LongBinary */
+#define E_DBS_FIELDNAME     (E_DBS_BASE-16)   /* Invalid field name */
+#define E_DBS_SYNTAXERR     (E_DBS_BASE-20)   /* Syntax error in expression */
+#define E_DBS_BRACKET       (E_DBS_BASE-21)   /* Missing bracket in expression */
+#define E_DBS_NOFIELD       (E_DBS_BASE-22)   /* No field name/number found */
+#define E_DBS_MISMATCH      (E_DBS_BASE-23)   /* Type mismatch in expression */
+#define E_DBS_BADHANDLE     (E_DBS_BASE-24)   /* Bad object handle */
+#define E_DBS_NOISAM        (E_DBS_BASE-25)   /* Isam format not found */
+#define E_DBS_CONNECTED     (E_DBS_BASE-26)   /* Already connected */
+#define E_DBS_CANTLOCK      (E_DBS_BASE-27)   /* Can't lock dbase,table,index */
+#define E_DBS_BMARK         (E_DBS_BASE-28)   /* Invalid bookmark */
+#define E_DBS_NUMBER        (E_DBS_BASE-29)   /* Field number out of range */
+#define E_DBS_NOTCLOSED     (E_DBS_BASE-30)   /* Still stuff open on it */
+
+#define E_DBS_BADMESSAGE    (E_DBS_BASE-31)   /* Unrecognised server message no */
+#define E_DBS_MAJORERROR    (E_DBS_BASE-32)   /* Yikes ! It's all gone wrong ! */
+
+
+#define DbsConnect(n) \
+        DBCNECT%:(n)
+#define DbsDisconnect \
+        DBDCNCT%:
+#define DbsErrorString(n,s) \
+        DBERROR%:(n,ADDR(s))
+#define DbsGetError \
+		DBGERR%:
+#define DbsSetErrorMode(n) \
+        DBSERR%:(n)
+#define DbsVersion(n,s) \
+		DBVERS%:(ADDR(n),ADDR(s))
+#define DbsSetTempDir(s) \
+		DBSTMP%:(s)
+#define DbsDatabaseOpen(hDB,f,d,fl) \
+        DBDOPEN%:(ADDR(hDB),f,d,fl)
+#define DbsDatabaseClose(hDB) \
+        DBDCLSE%:(hDB)
+#define DbsDatabaseGetTableCount(hDB) \
+        DBDTCNT%:(hDB)
+#define DbsDatabaseGetTableName(hDB,num,n) \
+        DBDTNME%:(hDB,num,ADDR(n))
+
+#define DbsTableCreateInit(buf) \
+        DBTCRTI%:(ADDR(buf))
+#define DbsTableCreateAddField(buf,t,s,a,n) \
+        DBTCRTA%:(buf,t,s,a,n)
+#define DbsTableCreate(buf,hDB,hT,n,f) \
+        DBTCRT%:(buf,hDB,ADDR(hT),n,f)
+#define DbsTableCompress(hDB,n) \
+        DBTCOMP%:(hDB,n)
+#define DbsTableOpen(hDB,hT,n,f) \
+        DBTOPEN%:(hDB,ADDR(hT),n,f)
+#define DbsTableDelete(hT) \
+        DBTDELT%:(hT)
+#define DbsTableClose(hT) \
+        DBTCLSE%:(hT)
+#define DbsTableGetFieldCount(hT) \
+        DBTFCNT%:(hT)
+#define DbsTableGetFieldDef(hT,f,n,num,t,s,a) \
+        DBTFDEF%:(hT,f,ADDR(n),ADDR(num),ADDR(t),ADDR(s),ADDR(a))
+#define DbsTableGetFieldDefByName(hT,f,n,num,t,s,a) \
+        DBTFDBN%:(hT,f,ADDR(n),ADDR(num),ADDR(t),ADDR(s),ADDR(a))
+#define DbsTableGetIndexCount(hT) \
+        DBTICNT%:(hT)
+#define DbsTableGetIndexName(hT,num,n) \
+        DBTINME%:(hT,num,ADDR(n))
+
+#define DbsIndexCreateInit(buf) \
+        DBICRTI%:(ADDR(buf))
+#define DbsIndexCreateAddField(buf,f,fl,l) \
+        DBICRTA%:(buf,f,fl,l)
+#define DbsIndexCreate(buf,hT,hI,i,fl) \
+        DBICRT%:(buf,hT,ADDR(hI),i,fl)
+#define DbsIndexCreateText(hT,hI,i,fl,def) \
+		DBICRTT%:(hT,ADDR(hI),i,fl,def)
+#define DbsIndexOpen(hT,hI,i,fl) \
+        DBIOPEN%:(hT,ADDR(hI),i,fl)
+#define DbsIndexClose(hT,hI) \
+        DBICLSE%:(hT,hI)
+#define DbsIndexDelete(hT,hI) \
+        DBIDELT%:(hT,hI)
+#define DbsIndexRebuild(hT,hI) \
+        DBIRBLD%:(hT,hI)
+#define DbsIndexGetKeyCount(hT,hI,c,a) \
+        DBIKCNT%:(hT,hI,ADDR(c),ADDR(a))
+#define DbsIndexGetKeyDef(hT,hI,n,f,fl,l) \
+        DBIKDEF%:(hT,hI,n,ADDR(f),ADDR(fl),ADDR(l))
+
+#define DbsTblViewCreate(hT,hV,fl) \
+        DBVCRT%:(hT,ADDR(hV),fl)
+#define DbsTblViewSetIndex(hV,hI) \
+        DBVSIDX%:(hV,hI)
+#define DbsTblViewSeekInit(b) \
+        DBVSKI%:(ADDR(b))
+#define DbsTblViewSeekAddLogical(b,v) \
+        DBVSKLG%:(b,v)
+#define DbsTblViewSeekAddInt8(b,v) \
+		DBVSK8%:(b,v)
+#define DbsTblViewSeekAddUInt8(b,v) \
+		DBVSKU8%:(b,v)
+#define DbsTblViewSeekAddInt16(b,v) \
+        DBVSK16%:(b,v)
+#define DbsTblViewSeekAddInt32(b,v) \
+        DBVSK32%:(b,v)
+#define DbsTblViewSeekAddDouble(b,v) \
+        DBVSKDB%:(b,v)
+#define DbsTblViewSeekAddString(b,v) \
+        DBVSKST%:(b,v)
+#define DbsTblViewSeekAddDate(b,v1,v2) \
+        DBVSKDT%:(b,v1,v2)
+#define DbsTblViewSeek(b,hV,c) \
+        DBVSEEK%:(b,hV,c)
+#define DbsTblViewAddIndex(hV) \
+		DBVAIDX%:(hV)
+#define DbsTblViewRemoveIndex(hV) \
+		DBVRIDX%:(hV)
+
+#define DbsDynaViewCreateInit(hB) \
+        DBRCRTI%:(ADDR(hB))
+#define DbsDynaViewCreateAddField(hB,f,fl,l) \
+        DBRCRTA%:(hB,f,fl,l)
+#define DbsDynaViewCreateOnTable(hB,hT,hR,f,l) \
+        DBRCRTT%:(hB,hT,ADDR(hR),f,l)
+#define DbsDynaViewCreateOnDynaView(hB,hR2,hR,f,l) \
+        DBRCRTR%:(hB,hR2,ADDR(hR),f,l)
+#define DbsDynaViewCreateOnTableText(hT,hR,f,s,l) \
+        DBRCRT2%:(hT,ADDR(hR),f,s,l)
+#define DbsDynaViewCreateOnDynaViewText(hR2,hR,f,s,l) \
+        DBRCRR2%:(hR2,ADDR(hR),f,s,l)
+
+#define DbsViewClose(hV) \
+        DBVCLSE%:(hV)
+#define DbsViewClone(hV1,hV2) \
+        DBVCLNE%:(hV1,ADDR(hV2))
+#define DbsViewGetRecordCount(hV,c) \
+        DBVRCNT%:(hV,ADDR(c))
+#define DbsViewFindFirst(hV,s) \
+        DBVFNDF%:(hV,s)
+#define DbsViewFindLast(hV,s) \
+        DBVFNDL%:(hV,s)
+#define DbsViewFindNext(hV,s) \
+        DBVFNDN%:(hV,s)
+#define DbsViewFindPrevious(hV,s) \
+        DBVFNDP%:(hV,s)
+#define DbsViewMoveFirst(hV) \
+        DBVMVEF%:(hV)
+#define DbsViewMoveLast(hV) \
+        DBVMVEL%:(hV)
+#define DbsViewMoveNext(hV) \
+        DBVMVEN%:(hV)
+#define DbsViewMovePrevious(hV) \
+        DBVMVEP%:(hV)
+#define DbsViewGetBookmark(hV,hB) \
+        DBVGTBM%:(hV,ADDR(hB))
+#define DbsViewGetLastModified(hV,hB) \
+        DBVGLMD%:(hV,ADDR(hB))
+#define DbsViewMoveBookmark(hV,hB) \
+        DBVMVBM%:(hV,ADDR(hB))
+#define DbsViewGetFieldSize(hV,f,s) \
+        DBVFSZE%:(hV,f,ADDR(s))
+#define DbsViewGetFieldSizeByName(hV,f,s) \
+        DBVFSBN%:(hV,f,ADDR(s))
+#define DbsViewGetFieldLogical(hV,f,v) \
+        DBVGLG%:(hV,f,ADDR(v))
+#define DbsViewGetFieldInt8(hV,f,v) \
+        DBVG8%:(hV,f,ADDR(v))
+#define DbsViewGetFieldUInt8(hV,f,v) \
+        DBVGU8%:(hV,f,ADDR(v))
+#define DbsViewGetFieldInt16(hV,f,v) \
+        DBVG16%:(hV,f,ADDR(v))
+#define DbsViewGetFieldInt32(hV,f,v) \
+        DBVG32%:(hV,f,ADDR(v))
+#define DbsViewGetFieldDouble(hV,f,v) \
+        DBVGDB%:(hV,f,ADDR(v))
+#define DbsViewGetFieldString(hV,f,v) \
+        DBVGST%:(hV,f,ADDR(v))
+#define DbsViewGetFieldDate(hV,f,v1,v2) \
+        DBVGDT%:(hV,f,ADDR(v1),ADDR(v2))
+#define DbsViewGetFieldLogicalByName(hV,f,v) \
+        DBVGLGB%:(hV,f,ADDR(v))
+#define DbsViewGetFieldInt8ByName(hV,f,v) \
+        DBVG8B%:(hV,f,ADDR(v))
+#define DbsViewGetFieldUInt8ByName(hV,f,v) \
+        DBVGU8B%:(hV,f,ADDR(v))
+#define DbsViewGetFieldInt16ByName(hV,f,v) \
+        DBVG16B%:(hV,f,ADDR(v))
+#define DbsViewGetFieldInt32ByName(hV,f,v) \
+        DBVG32B%:(hV,f,ADDR(v))
+#define DbsViewGetFieldDoubleByName(hV,f,v) \
+        DBVGDBB%:(hV,f,ADDR(v))
+#define DbsViewGetFieldStringByName(hV,f,v) \
+        DBVGSTB%:(hV,f,ADDR(v))
+#define DbsViewGetFieldDateByName(hV,f,v1,v2) \
+        DBVGDTB%:(hV,f,ADDR(v1),ADDR(v2))
+#define DbsViewSetFieldLogical(hV,f,v) \
+        DBVSLG%:(hV,f,v)
+#define DbsViewSetFieldInt8(hV,f,v) \
+        DBVS8%:(hV,f,v)
+#define DbsViewSetFieldUInt8(hV,f,v) \
+        DBVSU8%:(hV,f,v)
+#define DbsViewSetFieldInt16(hV,f,v) \
+        DBVS16%:(hV,f,v)
+#define DbsViewSetFieldInt32(hV,f,v) \
+        DBVS32%:(hV,f,v)
+#define DbsViewSetFieldDouble(hV,f,v) \
+        DBVSDB%:(hV,f,v)
+#define DbsViewSetFieldString(hV,f,v) \
+        DBVSST%:(hV,f,v)
+#define DbsViewSetFieldDate(hV,f,v1,v2) \
+        DBVSDT%:(hV,f,v1,v2)
+#define DbsViewSetFieldLogicalByName(hV,f,v) \
+        DBVSLGB%:(hV,f,v)
+#define DbsViewSetFieldInt8ByName(hV,f,v) \
+        DBVS8B%:(hV,f,v)
+#define DbsViewSetFieldUInt8ByName(hV,f,v) \
+        DBVSU8B%:(hV,f,v)
+#define DbsViewSetFieldInt16ByName(hV,f,v) \
+        DBVS16B%:(hV,f,v)
+#define DbsViewSetFieldInt32ByName(hV,f,v) \
+        DBVS32B%:(hV,f,v)
+#define DbsViewSetFieldDoubleByName(hV,f,v) \
+        DBVSDBB%:(hV,f,v)
+#define DbsViewSetFieldStringByName(hV,f,v) \
+        DBVSSTB%:(hV,f,v)
+#define DbsViewSetFieldDateByName(hV,f,v1,v2) \
+        DBVSDTB%:(hV,f,v1,v2)
+#define DbsViewLBinGetChunk(hV,f,b,l,o) \
+        DBVMGC%:(hV,f,b,l,o)
+#define DbsViewLBinGetChunkByName(hV,f,b,l,o) \
+        DBVMGCB%:(hV,f,b,l,o)
+#define DbsViewLBinAppendChunk(hV,f,b,l) \
+        DBVMAC%:(hV,f,b,l)
+#define DbsViewLBinAppendChunkByName(hV,f,b,l) \
+        DBVMACB%:(hV,f,b,l)
+#define DbsViewLBinClear(hV,f) \
+        DBVMCLR%:(hV,f)
+#define DbsViewLBinClearByName(hV,f) \
+        DBVMCBN%:(hV,f)
+#define DbsViewAppendRecord(hV) \
+        DBVARCD%:(hV)
+#define DbsViewEditRecord(hV) \
+        DBVERCD%:(hV)
+#define DbsViewUpdateRecord(hV) \
+        DBVURCD%:(hV)
+#define DbsViewCancelUpdate(hV) \
+        DBVCRCD%:(hV)
+#define DbsViewDeleteRecord(hV) \
+        DBVDRCD%:(hV)
+
+#endif
+

@@ -1,0 +1,42 @@
+#define P_LINK_OPH
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#ifndef P_FRAME_OPH
+#include <p\frame>
+#endif
+
+/* P_FCONNECT service connection modes */
+
+#define P_LINK_ACCP 0 /* want link as acceptor */ 
+#define P_LINK_INIT 1 /* want link as initiator */ 
+
+/* Link layer states */
+
+#define P_LINK_IDLE 0 /* no connection - idle */ 
+#define P_LINK_IDLE_LR 1 /* no connection - awaiting LR */ 
+#define P_LINK_DATA_IDLE 2 /* connected - idle */ 
+#define P_LINK_DATA_LA 3 /* connected - awaiting LA */ 
+#define P_LINK_IDLE_LA 4 /* not connected - awaiting LA (or LT) to LR */ 
+
+/* State and event log record */
+
+STRUCT P_LLLOG
+	state#
+	event#
+ENDS
+
+#define P_LINK_NLOG 32 /* Max number of debug events,states we record */ 
+#define P_LINK_LOG_MASK 0xC0
+#define P_LINK_LOG_PANIC 0xC0 /* panic number */ 
+#define P_LINK_LOG_MAC 0x00 /* MAC request or timer */ 
+#define P_LINK_LOG_REQ 0x80 /* User request */ 
+#define P_LINK_LOG_COMP 0x40 /* User completion */ 
+
+STRUCT P_LLDATA
+	mac#(SIZEOF(P_LLMAC))
+	br_cnt%
+	rx_cnt%
+ENDS

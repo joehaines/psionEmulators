@@ -1,0 +1,383 @@
+PsiTrain File Formats
+~~~~~~~~~~~~~~~~~~~~~
+If you are interested in building your own
+timetable databases this information in this
+document will be useful to you.  If you think
+that the database will be useful to others,
+please email the files to myself at
+mike@boink.demon.co.uk and I'll put it on the
+Web server at http://www.boink.demon.co.uk/
+
+A support application, PsiTrnEd, is provided to
+assist in the creation, maintenance and validation
+of databases. To keep PsiTrain memory usge down,
+and speed up, little validation is done - errors
+in the data do indeed produce unpredicable results.
+
+(Note that PsiTrain can't load a database if
+you're curently editing a database file using the
+text editor though PsiTrnEd itself can be loaded.)
+
+
+Filenames
+~~~~~~~~~
+If there are to be many contributions the naming
+convention of files will be important.
+
+I propose the following (plus the appropriate
+extension for each file in the database :
+
+  Xccayyr or Xaaayyr
+
+where :
+ X is the transport type
+  (t-train, b-bus, a-air, f-ferry ...)
+ cc is a company code, for that providing the service
+  (eg br-british rail (or see TOCs below), ep-Eurostar,
+   gc-Great Central Railway, and with a different
+   transport type, bm-British Midland, ba-British
+   Airways, va-Virgin Atlantic etc)
+ a or aaa is an area code, if necessary (eg country+county/state)
+   or a timetable number.
+ yyr release year and sequence number for this
+   timetable.
+
+Valid X,cc and aaa types will be found on the
+website and new ones can be registered by sending
+an email to me.
+
+In the UK, railway train operating companies have
+two chatacter codes as documented below :
+
+AR - Anglias Railways
+CA - Cardiff Railway Co
+CH - Chiltern Railway Co
+CT - Central Trains
+EP - Eurostar (UK)
+GE - Great Eastern
+GR - Great North Eastern
+GW - Great Western
+GX - Gatwick Express
+IL - Island Line
+LS - LTS Rail
+ME - Merseyrail Electrics
+ML - Midland Main Line
+NL - North London Railways
+NW - North Western Trains
+RE - Regional Railways North East
+SC - Connex South Central
+SE - Connex South East
+SR - ScotRail
+SW - South West Trains
+TL - Thameslink
+TT - Thames Trains
+WC - Virgin West Coast
+WN - West Anglia Great Northern Railway
+WR - West Coast Railway Co
+WW - South Wales & West Railway
+XC - Virgin Cross Country
+
+(The example databases just have descriptive
+filenames and do not follow this convention.)
+
+
+Overview
+~~~~~~~~
+Each database has three text files :
+  .ptt - top level information
+  .stn - stations
+  .trn - trains
+
+and an optional icon file can also be included :
+  .pic - icons
+
+All data files are simple text files to enable
+and encourage anyone to create a database.
+
+In general, records are colon delimited fields.
+As PsiTrain is a "type 3" application it will
+display all .ppt files found in the \ptt
+directories on any disk.  This allows static
+databases to be put on flash, for instance, whilst
+those databases you are working on are located on
+RAM.
+
+In general, lines can be up to 255 chars in length.
+
+In each of the files, comments may be added by
+commencing the line with 'REM' or '#'.
+
+
+ptt file
+~~~~~~~~
+The ptt file can contain the following records.
+(All records are optional, but if none present
+the file must still exist.)
+
+  desc:<description>
+  show:<message>
+  ttfrom:<ddmmyyyy>
+  ttto:<ddmmyyyy>
+  stn:<stn file location and filename>
+  trn:<trn file location and filename>
+  uset:<useful information title>
+  used:<useful information detail lines>
+  by:<Transportation type>
+  deffrom:<default from station>
+  defto:<default to station>
+  notrn:<number of train definitions>
+  ruleset:<ruleset-ids>
+
+The desc record defines the title of the database,
+which is displayed when the database is loaded.
+
+The show record permits a message to be displayed
+to the user when the timetable is loaded. (Can be
+used to display the name of the timetable author,
+for instance, if the timetable is being shared.)
+
+ttfrom and ttto define the range of days for which
+this timetable is valid.  PsiTrain will not permit
+queries to be made outside this range, though, of
+course the ptt file can be edited to ignore
+dates altogether.
+
+The stn and trn records permit the database files
+to be located on another disk or directory. If not
+specified it is assumed that they are in the same
+location with the same filename as the ptt file
+(with the appropriate extension).
+
+Useful information screens (as many as you like)
+are defined by specifying title and detail lines.
+Up to 8 lines are displayed per page.  Specifying
+a title starts a new page.
+
+The default transportation type is "Train" though
+this can be overridden using a "by" definition.
+This is only used when displaying the result. This
+can be up to 16 chars.
+
+deffrom and defto provide defaults for this
+timetable.  These can be overridden by use defined
+defaults from within PsiTrain. Each is the number
+of the station required.  ie The line number of
+the station in the station definition line.
+
+notrn is optional, but if specified declares the
+number of train definitions in the trn file, which
+speeds up the loading of the timetable.
+
+The use of the ruleset keyword is documented later
+in this document.
+
+
+stn file
+~~~~~~~~
+station[:services]
+
+This is simply a list of stations, one station per
+line, optionally followed by a list of services
+at that station.  Predefined attributes are as
+follows :
+
+  u: Underground
+  s: Shipping
+  a: Airport Link
+  i: tourist information
+  h: Hovercraft and similar
+  c: Rental cars available
+  l: Hotel
+  x: dummy station
+
+Additional icons can be added using any unused
+letters between "a" and "v" - see notes in the
+description of train service definitions below.
+
+The line number is used in the trn file,
+and it should be noted new strations should always
+be added at the end of the file (or be prepared to
+make other changes too).  If a station is inserted
+into the middle of the stn file, it will affect the
+line number of all subsequent stations. (The line
+number is used in the trn file).
+
+Note that there is now a sort facility in the
+editor.  The best approach to insert a station
+is to add it at the end of the station definition
+file, then use the editor sort options.  See the
+help file for more info.
+
+Station names may be up to 30 chars long, and the
+number of stations is limited only by memory.
+
+The x attribute suppresses the station from the
+list of those available for a journey. (ie it is
+used only for showing which station a train is
+headed under the 'towards' column.  This is used
+extensively in the BR automatic extracts.)
+
+trn file
+~~~~~~~~
+The format of a train record is as follows :
+
+<train id>:<running/service flags[,addition desc]:+
+ <station>:<arr/dep time>:+
+ <station>:<arr/dep time>:+
+ [<station>:<arr/dep time>:...]
+
+(The + character in a field indicates continuation
+both in this document and in PsiTrain. Leading
+spaces in any line are removed, which may aid
+readability. The / character can be used for
+continuation in the same manner.  Note, however,
+that the use of continuation should only be used
+to circumvent to line length limitations, as
+continuation has a detrimental effect on
+performance.)
+
+The train id can be up to 8 chars long, and is
+displayed in the result.
+
+Predefined Running/service flags are as follows :
+  1-7: runs on this day of the week, mon to sun
+  w: runs mon-fri
+  f: first class accomodation available
+  r: first class restaurant service available
+  b: buffet service available (hot + cold)
+  t: trolley service available
+  s: seat reservations possible
+  c: seat reservations compulsory
+  d: seat reservations recommended
+  v: silver standard service
+  g: Tourist train
+  i: Intercity service
+  j: Interrail service
+  e: snacks and sandwiches available
+  l: Sleeper
+  -: Dummy flag
+  =: Service runs on restricted dates. This must
+     always be the last flag - details follow.
+
+You may add your own icons if you wish, or
+replace existing unused ones.  There are two
+ways (the second method is recommended over
+the first) :
+
+1. The letters a-u correspond to positions
+in the icon file (icons.pic.)  You will see the
+predefined entries above.
+
+The first row of icons are for train services,
+and the second for station attributes.  Icons
+are 15x15 pixels.  Guides to the corners of the
+icon are just above and below the drawable areas.
+
+This file may be amended to change or add icons.
+
+2. You may distribute your own icons with
+timetables, by including an optional copy
+of icons.pic, amended appropriately, and renamed
+to have the same base name as the timetable files
+(still with the pic extension.)  This file is
+held in the ptt directory along with the other
+timetable components.
+
+This file will then entirely replace the default
+icons for the selected timetable, and it is
+therefore important to start with a copy of the
+default file and retain all icons which are still
+required.
+
+The hyphen flag may be used as a filler character.
+For example, to highlight missing days in a
+schedule.  (eg 12-4567 for journies every day
+except Wednesday.)
+
+If specified, the additional description (after a
+comma in the service flags field) is displayed in
+the result along side the depature station.  In
+the case when '=' is specified as a flag, the
+following codes can used in the description :
+
+  <yyyymmdd: Service runs until specified day (inclusive)
+  >yyyymmdd: Service runs after specified day (inclusive)
+  =yyyymmdd: Service runs on specified day
+
+Only one of each type may appear, but both of
+the first two may be present in the same train
+definition line.
+
+If the word "change" appears in the description
+field (ie as part of an instruction to change
+trains) this definition line is ignored when the
+user has elected to list direct services only.
+
+The stations are specified as the line number from
+the station file. Either a single Departure or
+Arrival time can be specified in the format hhmm
+(or hhcmm).  PsiTrain decides which it is. Both
+can be specified, separated separated by a comma.
+The optional "c" can be any single character and
+is not used in any processing, but is displayed in
+the result.  For instance request stops are denoted
+by the letter "x" on UK timetables.
+
+A special time of 9999 causes the station to be
+ignored when looking for a journey. (Used by
+the BR extracts, in conjunction with stations
+having the x attribute.)
+
+A train can call at up to 50 stations, including
+terminal ones.
+
+Constraints
+~~~~~~~~~~~
+Trains should be sorted in departure time order
+where possible. An exception is when using
+mutually exclusive days.
+ie Mon-Fri, Sat, and Sun can be kept apart, and
+may improve readability.  However do not
+separate Friday-only services from the weekday
+ones, for instance.
+
+Note that if the arrival times are not sorted
+(quite possible, as trains do overtake each other)
+the next/previous functions, when acting on an
+arrival time search, may be compromised.
+(Indeed this is true for departure times too, with
+complex databases.)
+
+It may therefore be necessary to use rulesets,
+as documented below, or to split service
+definitions into multiple lines.
+
+(ie instead of :
+  dep-time:stn1:time:stn2:arr-time:stn3
+ you may need to use :
+  dep-time:stn1:time:stn2
+  time:stn2:arr-time:stn3
+  dep-time:stn1:arr-time:stn3
+ or a subset instead (sorted in departure time
+ order, as this ensure all journies are covered.)
+
+
+Rulesets
+~~~~~~~~
+In order to protect against some of the restrictions
+noted above, rulesets have been introduced.  To
+activate a ruleset, use the ruleset keyword in
+the ptt file.
+
+ruleset:1
+  When searching services, do not assume
+  monotonically increasing departure or arrival
+  times.
+
+  This ruleset will cause PsiTrain to search
+  through the whole trn definition file each time
+  a use looks for an earlier or later service.
+  Therefore only use when necessary.
+
+Multiple rulesets may be specified (eg ruleset:12)
+

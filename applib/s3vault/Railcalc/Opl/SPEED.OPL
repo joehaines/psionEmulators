@@ -1,0 +1,101 @@
+PROC speed:
+	GLOBAL sexa&,sexb&,mile3,mile4,idx$(3)
+	GLOBAL spd$(12),mph$(14),mphtim$(4),milex
+	LOCAL tima1&,tima2&,taba1&,taba2&,p%
+	LOCAL mile1,mile2,timspd$(8),tabspd$(8)
+	LOCAL mphtab$(4),taba3&,mile5,taba5&,taba4&
+		LAST
+			IF A.timA>0
+				RETURN
+			ENDIF
+		redraw::
+		updraw:
+		FIRST
+			taba5&=A.tabD
+			DO
+				NEXT
+			UNTIL A.timA=0
+				IF VAL(A.idx$)=20
+				mphtab$=GEN$(INT(ABS(A.ml-mlfst)/(A.tabA-taba5&)*3600),4)
+				BACK
+				idx$=A.idx$
+				spd$="N/A"
+				GOTO dial
+				ELSEIF VAL(A.idx$)>=30
+				mile5=A.ml
+				taba3&=A.tabA
+				BACK
+				idx$=A.idx$
+				NEXT
+				ENDIF
+			DO
+				BACK
+					UNTIL A.nm$<>"Unstop" AND A.nm$<>"Mile"
+							tima1&=A.timA
+							taba1&=A.tabA
+							taba4&=A.tabD
+							mile1=A.ml
+				mphtab$=GEN$(INT(ABS(mile5-mile1)/(taba3&-taba4&)*INT(3600)),4)
+			DO
+				BACK
+					UNTIL A.nm$<>"Unstop" AND A.nm$<>"Mile"
+							tima2&=A.timD
+							taba2&=A.tabD
+							mile2=A.ml
+				tabspd$=GEN$(INT(ABS(mile1-mile2)/(taba1&-taba2&)*INT(3600)),4)
+				timspd$=GEN$(INT(ABS(mile1-mile2)/(tima1&-tima2&)*INT(3600)),4)
+				spd$=tabspd$+"/"+timspd$+" mph"
+			dial::
+				mphtim$="**"
+	DO
+				mph$=mphtab$+"/("+mphtim$+") mph"
+			IF mlfst>miled
+	mile3=INT(mlfst-(arr&-12)/ppm)
+	mile4=mile3-1
+			ELSEIF mlfst<miled
+	mile3=INT(mlfst+(arr&-12)/ppm)+1
+	mile4=mile3+1
+			ENDIF
+		dINIT
+		dTEXT "","SPEED  ANALYSIS",$302
+		dTEXT "","UPDATE",$402
+		dTEXT "Last section--tabled/timed",spd$,$100
+		dFLOAT mile3,"Next  Milepost  (TO  RECORD)",0,1000
+		dFLOAT mile4,"Following  Milepost (SPEEDO)",0,1000
+		dTEXT "This section--tabled/(speedo)",mph$,$100 
+		dPOSITION -1,-1
+		p%=DIALOG
+			IF p%=2
+				updraw:
+			ELSEIF p%=4
+				mlpost:
+				GOTO redraw
+			ELSEIF p%=5
+				speedo:
+				updraw:
+			ENDIF
+		UNTIL p%=0
+		RETURN
+ENDP
+
+
+PROC mlpost:
+	sex&=(HOUR*(INT(3600)))+(MINUTE*60)+SECOND
+	sexa&=(HOUR*(INT(3600)))+(MINUTE*60)+SECOND
+	A.nm$="Mile"
+	A.timA=sex&
+	A.timD=sex&
+	A.stop$="Passing"
+	A.ml=mile3
+	milex=mile3
+	A.idx$=NUM$((VAL(idx$)+1),3)
+		APPEND
+			sort:
+	RETURN
+ENDP
+
+PROC speedo:
+	sexb&=(HOUR*(INT(3600)))+(MINUTE*60)+SECOND
+	mphtim$=GEN$(INT(ABS(mile4-milex)/(sexb&-sexa&)*INT(3600)),3)
+	RETURN
+ENDP

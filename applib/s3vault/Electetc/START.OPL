@@ -1,0 +1,66 @@
+PROC START:
+LOCAL T,MS,MM,FS,FM,KW,KW2,ST,MR,i$(1),Z%
+GUSE 1
+GAT 40,12
+GSTYLE 1 :GPRINT "  MOTOR RUN-UP TIMES  "
+Z%=GCREATE(400,0,145,149,1)
+GUSE Z%
+GAT 0,0
+GCLOCK ON,$25
+Z%=GCREATE(390,80,80,40,1)
+GUSE Z%
+GBORDER 3
+GAT 4,22
+REM GCLOCK ON,$21
+GSTYLE 0:GPRINT LEFT$(DATIM$,10)
+PRINT
+PRINT "Motor Speed      rpm=";
+INPUT MS
+PRINT "Fan Speed        rpm=";
+INPUT FS
+PRINT "Motor Rating      kw=";
+INPUT KW
+PRINT "Motor Inertia   kgmý=";
+INPUT MM
+PRINT "Fan Inertia         =";
+INPUT FM
+PRINT "Fan Inertia  kgmý or lbftý";
+i$=get$
+IF i$="l" OR i$="L"
+FM=FM*.04212 :AT 16,6 :PRINT "lbftý"
+ELSE
+AT 17,6 :PRINT "kgmý"
+ENDIF
+MR=(FM*((FS/MS)**2))+MM
+T=((10.96/1000000)*((MR*(MS**2))/KW))
+PRINT "อออออออออออออออออออออออออออออ"
+PRINT "Direct-On-line =      Seconds"
+PRINT "Star / Delta   =      Seconds"
+GUSE 1
+IF T>12
+GSTYLE 4
+ELSE
+GSTYLE 1
+ENDIF
+GAT 130,75
+IF T<100
+GPRINT FIX$(T,2,7)
+ELSE
+GPRINT FIX$(T,1,7)
+ENDIF
+GAT 130,90
+IF (T*4)<100
+GPRINT FIX$((T*4),2,7)
+ELSE
+GPRINT FIX$((T*4),1,7)
+AT 2,7:PRINT "ออออ(Increase Motor Size)ออออ"
+ENDIF
+KW2=(MR*(MS**2))/(12/(10.96/1000000))
+IF T>12
+GIPRINT "Starting Time TOO LONG"
+GSTYLE 1
+GAT 140,30
+GPRINT FIX$(KW2,1,7)
+ENDIF
+GET
+ENDP

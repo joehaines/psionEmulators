@@ -1,0 +1,227 @@
+Emu48E v1.5 : Ein HP 48/49 Taschenrechner Emulator für Epoc32.
+-----------------------------------------------------------------
+Author : Raphael MASSOT, basiert auf dem Quellcode Emu48 von Sebastien CARLIER
+Datum : 04.01.2004
+
+1) Über Emu48E.
+2) Installation.
+3) Herunterladen der HP System ROMs (nicht im ZIP enthalten)
+4) Benutzung des Emulators.
+5) Menüs.
+6) Versionen.
+7) Fehler.
+
+1) Über Emu48E.
+----------------
+Emu48E ist eine Übertragung des Emu48 auf EPOC32. Er funktioniert auf den Psions Revo, Series 5 (ER3 and ER5), Netbook sowie
+auf dem Ericsson MC218 und Oregon Scientific Osaris (und eventuell auf anderen EPOC32 Computern). 
+EMU48E ist ein Eikon Anwendung und programmiert in C++.
+Emu48E funktioniert nun auch auf dem Nokia Communicator 9200 (Symbian 6.0) und dem Sony-Ericsson P800 (Symbian 7.0, 
+auf einigen P800 funktioniert er aus ungeklärten Gründen bisher nicht).
+
+2) Installation.
+----------------
+WARNUNG : Die HP System ROMs Dateien sind nicht mehr in der ZIP Datei enthalten, siehe auch  3).
+
+Die Installation erfolgt über eine .sis Datei (Sprache: Deutch, Französisch und Englisch).
+Bei Entfernung des Programms werden die .bak Dateien nicht gelöscht. Sie müssen manuell entfernt werden. *.bak Dateien eines SX 
+dürfen nicht mit *.bak Dateien eines GX benutzt werden (und umgekehrt), da dies zu unerwartetem Verhalten des Emulators führen kann.
+
+Das Programm kann auf Laufwerk C,D oder E in das Verzeichnis \system\Apps\Emu48E\  installiert werden.
+Es gibt die Dateigruppen Anwendungsdateien (1), Bilder (2), Sicherungsdateien *.bak (3) und HP System ROMs (4).
+
+  - Emu48E.app : die Anwendung. 							(1)
+  - Emu48E.aif : Anwendungs aif Datei. 						(1)
+  - Emu48E.rsc : Anwendungs Resourcen. 						(1)
+  - annunc.mbm : Symbol Bilder HP 48/49. 						(2)
+  - main*.mbm, main2SGx.mbm, main5*.mbm : Taschenrechner Bilder. 			(2)
+  - keya2SGx.mbm, keyl2*.mbm et keyr2*.mbm : Tastatur Bilder für die mittlere Ansicht. 	(2)
+
+und nach der ersten Benutzung:
+  - chipset.bak : Saturn Prozessor Sicherung (480 bytes)  			(3)
+  - ramP0.bak : RAM port 0 Sicherung (32KB für den Sx, 128KB für den Gx) 	(3)
+  - ramP1.bak : RAM port 1 Sicherung (1 byte falls leer, 128KB falls benutzt) 	(3)
+  - ramP2.bak : RAM port 2 Sicherung (1 byte falls leer, 128KB falls benutzt) 	(3)
+  - Emu48E.ini : Sicherung Einstellungen  				(1)
+
+Die vier Dateigruppen können jeweils separat auf C,D oder E installiert werden (z.B. Alle Anwendungsdateien (1), Bilder (2) und
+das System ROM (4) auf CF Karte (Laufwerk D) und alle Dateien die häufig geschrieben werden (d.h. Dateigruppe 3) auf Laufwerk C ).
+
+
+Achtung : Die *.bak Dateien können, im Fall eines Absturzes, dazu benutzt werden den alten Zustand des Emulators wiederherzustellen.
+
+3) Herunterladen der HP System ROMs (nicht im ZIP enthalten).
+--------------------------
+Die HP System ROMs sind nicht mehr in der ZIP Datei enthalten. Sie müssen separat heruntergeladen werden. Sie können in ein beliebiges
+Verzeichnis kopiert werden (Beim ersten Aufruf von EMU48 muss man eine *.rom Datei aus diesem Verzeichnis auswählen).
+Die HP System ROMs sind auf www.hpcalc.org verfügbar:
+
+http://www.hpcalc.org/hp48/pc/emulators/ für HP 48
+http://www.hpcalc.org/hp49/pc/rom/ für HP 49G
+
+
+  * Für einen HP 48 Sx :
+	- herunterladen von "HP 48Sx Revision J ROM" (sxrom-j.zip)
+	- unzip
+	- die Datei umbenennen in sx.rom
+	- kopieren von sx.rom in beliebes Verzeichnis
+
+  * Für einen HP 48 Gx :
+	- herunterladen von "HP 48Gx Revision R ROM" (gxrom-r.zip)
+	- unzip
+	- die Datei umbenennen in gx.rom
+	- kopieren von gx.rom in beliebes Verzeichnis
+
+  * Für einen HP 49 G :
+	- herunterladen von "Unsupported Beta ROM 1.19-6" (beta1196.zip)
+	- unzip rom.49g in einen temporären Ordner auf dem PC
+	- starten des Programms conv49.exe in der Kommandozeile des PCs (Programm ist im ZIP enthalten)
+	 mit: conv49 rom.49g 49g.rom
+	- kopieren von 49g.rom in beliebes Verzeichnis
+
+4) Benutzung des Emulators.
+----------------------
+Speicherbelegung der verschiedenen Versionen (ohne Sicherungen aber mit HP System ROM):
+
+Version		im Installationsverzeichnis	im Arbeitsspeicher		ca. Geschwindigkeit im Vergleich zum realen Rechner(*)
+-------		-----------			-------------------		------------------
+48 Sx		500 KB			1 MB			109 %
+48 Gx		800 KB			2 MB			72 %
+49 G		2.3 MB			5.3 MB			62 %
+
+(*) gemessen mit Psion S5mx (und sollte damit für alle Psions mit 36 MHz ARM710T Prozessor und ER5 gelten) 
+ 
+Beim Start werden  die *.bak Dateien geladen, falls sie im Verzeichnis \System\Apps\Emu48E\ vorhanden sind. 
+Ansonsten wird der Speicher des HP48/49 gelöscht.
+Wenn Emu48E geschlossen wird, werden die Einstellungen und die Sicherungsdateien *.bak automatisch gespeichert.
+ 
+ Psion Tastatur
+   - 1, 2, 3, 4, 5, 6, 7, 8, 9, 0
+   - *, /, +, -
+   - Cursor Pfeile
+   - . -> .
+   - , -> .
+   - j -> *, k -> /, l -> +, m -> - (AZERTY Tastatur Layout)
+   - y -> *, u -> /, i -> +, o -> - (QWERTY Tastatur Layout)
+   - Esc -> On
+   - Enter -> Enter
+   - Space -> Space
+   - Backspace -> "<-"
+
+Spezialtasten auf dem Nokia 9210:
+   - Buchstaben Tasten sind den HP48 alpha-Tasten zugeordnet.
+   - Shift-A -> HP48 Alpha
+   - Shift-LeftArrow -> HP48 left shift
+   - Shift-RightArrow -> HP48 right shift
+   - Shift-BackSpace -> HP48 Del
+
+
+5) Menüs.
+---------
+
+ Datei Menü :
+ -----------
+  - Neu : Löschen aller Sicherungen und löschen des RAMs.
+  - Rückladen : Zurückladen der letzten Sicherung.
+  - Sichern : Sichern des HP48 RAM Speichers in eine Datei.
+  - Reset : Rechner Reset (der Speicher wird nicht gelöscht)
+
+  - Einstellungen :
+     . Anzeige
+        * Bitmap Echtzeit : Anzeige wird immer erneuert wenn in den Anzeigespeicher geschrieben wird. Diese Option ergibt eine 
+	langsame Erneuerung der Anzeige speziell bei Spielen.
+        * Bitmap schnell: Anzeige wird nur erneuert wenn der HP48 Prozessor gerade nichts tut. Dies Option ist schneller als Bitmap Echtzeit.
+        * Frame buffer : Schreibt direkt in den Bildschirmspeicher. Dies ist die schnellste Option.
+     . Tastatur (Psion)
+        * normal
+        * simuliert : simuliert "key up" event falls andere Applikationen die Tastaturbelegung verändert haben.
+     . Tastendruck : minimale Zeit die eine Taste gedrückt werden muss.
+     . Graustufen Sync : Bildschirm-Abtastungs-Synchronisation für Graustufen Anzeige.
+     . Sichern : RAM wird bei Beenden auf  Disk geschrieben.
+
+  - Beenden : Beenden des Emulators.
+
+ Edit Menü :
+ -----------
+  - Objekt speichern: speichern des ersten Objekts aus dem Stack in eine Datei.
+  - Objekt laden: bringt den Inhalt einer Datei in den Stack.
+  - kopieren : kopieren eines Strings aus dem Stack in die Zwischenablage.
+  - einfügen : einfügen eines Strings aus der Zwischenablage in den Stack.
+
+ Ansicht Menü :
+ -----------
+  - Auswahl Ansicht :
+      * klein : einfaches CD Bitmap für den Revo
+      * mittel: LCD Bitmap verdoppelt, Tasten ändern sich je nach Modus (shift links, shift rechts, alfa)
+      * gross: LCD Bitmap verdoppelt, grosse Tasten, Labels über den Tasten.
+
+6) Versionen.
+------------
+
+ * v1.5:
+ -------
+ - Auswahl der HP ROM Datei beim Start von EMU48.
+ - Kopieren/Einfügen von Zahlen.
+ - Kopieren/Einfügen von "big integer" HP49.
+ - Lage der Tasten *,/,+,- wird sprachabhängig zugeordnet.
+ - Deutsche Sprachversion
+
+ * v1.4:
+ -------
+ - HP 49G ROM Unterstützung.
+ - Port P2 Unterstützung für HP 48Gx (128 kB).
+ - Neue Menüpkt. : RAM sichern.
+ - Neue Menüpkt. : Zurückladen der letzten Sicherung.
+ - Fehlerbereinigung: kern-exec 3 im bitmap Modus und in frame-buffer Modus beim Netbook.
+ - Fehlerbereinigung: beim Laden von Backup Dateien von C: falls das Programm auf D: or E: installiert ist.
+
+ * v1.3:
+ -------
+ - frame buffer Modus für schnellere Anzeige (problem beim Netbook).
+ - Graustufen Renderer ist nun akzeptabel (Einschaltbar in den Einstellungen).
+ - Minimale Zeit für Tastendruck in ms anstatt in Ticks.
+ - Einstellungen werden gesichert.
+ - RAM Sicherung als Option
+ - mehrere Tasten können gleichzeitig gedrückt werden.
+ - Standard "Skin" besser lesbar.
+ - Fehlerbereinigung: Zeit Anzeige im HP48 ist nun korrekt
+ - Fehlerbereinigung: Fehler falls Backup Dateien auf D: installiert sind
+
+ * v1.2:
+ -------
+ - Laden und Speichern von Objekte von/in Dateien.
+ - Unterstützung der Zwischenablage für Strings.
+ - Psion Tastatur kann für Zahlen for Enter, cursor, On, space, backspace und + - * / benutzt werden
+ - Tastenzuordnung ändert sich je nach Modus in der mittleren Ansicht
+ - Installation auf C, D or E oder allen drei möglich.
+ - "Skins" mit weissem Hintergrund für Bildschirme mit schlechtem Kontrast.
+ - Fehlerbereinigung: Zu kurzer Druck auf eine Taste konnte dazu führen das die Taste nicht erkannt wurde
+ - Fehlerbereinigung:  Port P1 wurde bei jedem Start gelöscht.
+ - Fehlerbereinigung: Tag fehlte im Datum.
+
+
+ * v1.1:
+ -------
+ - 3 Ansichten in drei Grössen für Revo und grössere Bildschirme.
+ - Fehlerbereinigung: Problem falls das Programm auf D installiert wurde.
+ - Fehlerbereinigung: Dunkler Bildschirm falls der Rechner ausgeschaltet wird.
+ - Fehlerbereinigung: "E32User-CBase 42" Fehler bei Start falls das Programm mit einem blinken Cursor geschlossen wurde.
+
+ * v1.0:
+ -------
+ - Erstes Release, minimal im Vergleich zu Emu48.
+ - Emulationsgeschwindigkeit ist langsamer als ein echter HP 48 GX.
+ - Kopieren von/in den Stack von/in die Zwischenablage ist noch nicht eingebaut.
+
+7) Fehler.
+--------
+ - Läuft nicht auf einigen P800 ("error when creating/loading CFbsBitmap")
+ - kein Zugang zum 1MB Flash Speicher des HP 49G
+ - keine beep Unterstützung
+
+--
+Raphael MASSOT
+Besancon, France
+Mail : psiomas@free.fr
+Web : http://psiomas.free.fr
+

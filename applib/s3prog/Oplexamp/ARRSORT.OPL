@@ -1,0 +1,146 @@
+==========
+psion/opl #2580, from rbenno, 4247 chars, Jan 2 0:6 96
+Comment to 2577.
+----------
+>Does anyone have a fragment of OPL code to sort the values held within a 
+>string array? That is to sort the words held within the array in 
+>alphabetical order.
+
+Its funny you should ask that as i have just this minute finished writing 
+such a piece of code for a program that i am working on. This is 
+something that i have just thought up and haven't really put it to the 
+test, but it seems to work so i hope its useful.
+
+--------------CUT HERE AND COPY TO PSION----------------------------
+
+REM The program works like this .It uses three string arrays.
+REM The first is the one you wish to sort, in this case b$().
+REM The program starts by going through the array checking to see
+REM if the first letter is "A" or "a". If it is then it copies the string
+REM to the second array. If it's not "A" or "a" then it copies the string
+REM to the third array. It then starts checking the third array for "B" 
+or "b"
+REM and copies them to the second array, and so on and so on, until the 
+second
+REM array ends up containing all the sorted strings.
+REM It takes about 5 seconds to sort this 144 long array on my S3a.
+REM Just translate it as is and it will display the sorted list on screen.
+REM Produced using ODE.
+    
+PROC SORT:
+LOCAL b$(144,1),c$(144,1),d$(144,1),b%,c%,d%,chr%,count%,num%,x%,y%
+
+REM  this is a random string array for testing this program
+
+b$(1)="n" :b$(2)="f" :b$(3)="n" :b$(4)="h" :b$(5)="l" :b$(6)="p"
+b$(7)="p" :b$(8)="l" :b$(9)="s" :b$(10)="n" :b$(11)="O" :b$(12)="s"
+b$(13)="f" :b$(14)="h" :b$(15)="p" :b$(16)="O" :b$(17)="f" :b$(18)="n"
+b$(19)="a" :b$(20)="l" :b$(21)="x" :b$(22)="a" :b$(23)="o" :b$(24)="w"
+b$(25)="h" :b$(26)="f" :b$(27)="s" :b$(28)="f" :b$(29)="A" :b$(30)="n"
+b$(31)="l" :b$(32)="l" :b$(33)="p" :b$(34)="h" :b$(35)="h" :b$(36)="w"
+b$(37)="A" :b$(38)="f" :b$(39)="n" :b$(40)="n" :b$(41)="o" :b$(42)="x"
+b$(43)="p" :b$(44)="o" :b$(45)="w" :b$(46)="n" :b$(47)="O" :b$(48)="s"
+b$(49)="w" :b$(50)="n" :b$(51)="f" :b$(52)="w" :b$(53)="A" :b$(54)="h"
+b$(55)="p" :b$(56)="s" :b$(57)="n" :b$(58)="x" :b$(59)="h" :b$(60)="p"
+b$(61)="l" :b$(62)="f" :b$(63)="w" :b$(64)="n" :b$(65)="l" :b$(66)="s"
+b$(67)="x" :b$(68)="A" :b$(69)="p" :b$(70)="v" :b$(71)="o" :b$(72)="x"
+b$(73)="h" :b$(74)="h" :b$(75)="s" :b$(76)="h" :b$(77)="A" :b$(78)="p"
+b$(79)="O" :b$(80)="z" :b$(81)="s" :b$(82)="l" :b$(83)="h" :b$(84)="v"
+b$(85)="h" :b$(86)="A" :b$(87)="x" :b$(88)="z" :b$(89)="v" :b$(90)="x"
+b$(91)="p" :b$(92)="v" :b$(93)="e" :b$(94)="e" :b$(95)="y" :b$(96)="e"
+b$(97)="l" :b$(98)="e" :b$(99)="y" :b$(100)="h" :b$(101)="b" :b$(102)="y"
+b$(103)="b" :b$(104)="O" :b$(105)="y" :b$(106)="O" :b$(107)="O" 
+:b$(108)="y"
+b$(109)="q" :b$(110)="z" :b$(111)="q" :b$(112)="q" :b$(113)="q" 
+:b$(114)="q"
+b$(115)="Z" :b$(116)="Z" :b$(117)="Z" :b$(118)="d" :b$(119)="b" 
+:b$(120)="Z"
+b$(121)="d" :b$(122)="b" :b$(123)="d" :b$(124)="d" :b$(125)="c" 
+:b$(126)="c"
+b$(127)="Z" :b$(128)="z" :b$(129)="c" :b$(130)="p" :b$(131)="z" 
+:b$(132)="p"
+b$(133)="p" :b$(134)="p" :b$(135)="d" :b$(136)="d" :b$(137)="O" 
+:b$(138)="d"
+b$(139)="p" :b$(140)="p" :b$(141)="b" :b$(142)="c" :b$(143)="p" 
+:b$(144)="O"
+
+REM this section displays the unsorted list on screen
+
+giprint"Unsorted array"
+
+c%=1
+b%=1
+x%=1 :y%=1
+DO
+DO
+At x%,y%
+PRINT b$(b%)
+b%=b%+1
+c%=c%+1
+y%=y%+1
+UNTIL c%=17
+c%=1 :x%=x%+3 :y%=1
+UNTIL b%>=145
+
+
+busy"Sorting"
+
+REM this section doe's the sorting
+
+b%=1
+c%=1    
+d%=1
+num%=144
+count%=num%
+chr%=65
+DO
+ DO
+  IF LEFT$(b$(b%),1)=CHR$(chr%) OR LEFT$(b$(b%),1)=CHR$(chr%+32)
+   c$(c%)=b$(b%) 
+   c%=c%+1
+  else d$(d%)=b$(b%)
+   d%=d%+1
+  ENDIF
+  b%=b%+1
+ UNTIL b%=count%+1 
+ count%=(num%-c%)+1
+ d%=1 :b%=1 :chr%=chr%+1
+ if count%=0 :goto END :endif
+ DO 
+  IF LEFT$(d$(d%),1)=CHR$(chr%) OR LEFT$(d$(d%),1)=CHR$(chr%+32)
+   c$(c%)=d$(d%)
+   c%=c%+1
+  else b$(b%)=d$(d%)
+   b%=b%+1
+  ENDIF
+  d%=d%+1
+ UNTIL d%=count%+1
+ count%=(num%-c%)+1
+ d%=1 :b%=1 :chr%=chr%+1
+until count%=0
+END::
+CLS
+
+busy off
+
+REM this section displays the sorted list on screen
+
+b%=1
+c%=1
+x%=1 :y%=1
+DO
+DO
+At x%,y%
+PRINT c$(c%)
+b%=b%+1
+c%=c%+1
+y%=y%+1
+UNTIL b%=17
+b%=1 :x%=x%+3 :y%=1
+UNTIL c%>=145
+giprint"Now sorted"
+GET
+
+ENDP
+
+

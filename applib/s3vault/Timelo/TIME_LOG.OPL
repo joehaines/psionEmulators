@@ -1,0 +1,548 @@
+app TimeLog
+	
+	type $1002
+	icon "\icn\time_log"
+	
+enda
+
+PROC TimeLog:
+
+	global a$( 255 )
+	global gProj$( 255 )
+	global gDate$( 255 )
+	global gTime&
+	
+	rem gStat is the Status Window
+	global gStat%
+	
+	rem status% is used for ioa() calls
+	global status%
+	
+	rem TimeLog is my time stamping program, designed to make it
+	rem easier for me to track my hours through the week.
+
+	gBorder 0
+	
+	rem chkfile opens the data files if they exist.
+	rem If they don't exist, it creates them.
+	chkfile:
+	
+	use b
+	last
+	gProj$ = b.project$
+	gDate$ = b.date$
+	
+	rem Initialize the project list
+	makList:
+
+	rem Create the Status Window
+	gStat% = gCreate( 20, 20, 200, 40, 0 )
+			
+	rem Parse keystrokes
+	keyLoop:
+
+ENDP
+
+proc keyLoop:
+
+	local k%
+	
+	while 1
+		
+		shoStat:
+		
+		rem Get the user keystroke
+		k% = get
+		
+		if k% = $122 rem Menu key
+		
+			rem Initialize the menu
+
+			mInit
+			mCard "Projects","Enter New Project",%e,"Update Projects",%u,"Delete Projects",%d
+			mCard "Time Stamps","New Timestamp",%t,"Clear Database",%k,"Countdown Timer",%c
+			mCard "Reports","Weekly Time Entry",%w
+			mCard "Exit","Exit",%x
+			k% = menu
+			
+		elseif k% and $200 rem Hot Key
+
+			rem Subtract to get hot key
+			k% = k% - 512
+			
+		endif
+
+		rem Quit the program
+		if k% = %x or k% = 27 : stop
+			
+		rem <E>nter a new project
+		elseif k% = %e : newProj:
+
+		rem <U>pdate project records
+		elseif k% = %u : updProj:
+
+		rem <D>elete project records
+		elseif k% = %d : delProj:
+			
+		rem Add new <T>ime stamp
+		elseif k% = %t or k% = 13
+		
+			newStmp:
+		
+		rem <K> Clear database
+		elseif k% = %k : delStmp:
+		
+		rem <C>ountdown Timer
+		elseif k% = %c : cTimer:
+		
+		rem <W>eekly report
+		elseif k% = %w : report:
+		
+		rem Turn unit <O>ff
+		elseif k% = %o : off
+		
+		endif
+
+	endwh
+	
+endp
+
+
+proc chkfile:
+
+	local pfile$( 30 )
+	local tfile$( 30 )
+
+	pfile$ = "loc::m:\tlo\projects"
+	tfile$ = "loc::m:\tlo\time"
+	
+	rem See if the project file exists	
+	if not exist( pfile$ )
+	
+		create pfile$, A, PROJECT$
+
+	else
+	
+		open pfile$, a, PROJECT$
+	
+	endif
+	
+	rem See if the time file exists
+	
+	if not exist( tfile$ )
+	
+		create tfile$, b, PROJECT$, DAY%, DATE$, TIME&, elapsed&
+	
+	else
+	
+		open tfile$, B, PROJECT$, DAY%, DATE$, TIME&, elapsed&
+		
+	endif
+	
+endp
+
+proc newProj:
+
+	local cProj$( 255 )
+	
+	use a
+	
+	dInit "Enter New Project"
+	dEdit cProj$, "Project:"
+	
+	if dialog
+	
+		a.project$ = cProj$
+		append
+		makList:
+				
+	endif
+
+endp
+
+proc updProj:
+	local n%
+	local b$( 255 )
+	
+	rem Use the projects table
+	use a
+	
+	dInit "Choose a Project to Edit"
+	dChoice n%, "Project:", a$
+	
+	if dialog
+		
+		position n%
+		b$ = a.project$
+		dInit "Edit Project Name"
+		dEdit b$, ""
+		
+		if dialog
+			
+			a.project$ = b$
+			update
+			makList:
+			
+		endif rem dialog
+		
+	endif
+	 
+endp
+
+proc delProj:
+
+	local n%
+	local b$( 255 )
+	
+	rem Use the projects table
+	use a
+	
+		dInit "Choose a Project to Delete"
+		dChoice n%, "Project:", a$
+		
+		if dialog
+
+			position n%
+			erase
+			makList:
+			close
+			use b
+			close
+			chkFile:
+
+		endif rem dialog		
+	
+endp
+
+proc newStmp:
+
+	local choice%
+	local dow%
+	local b$( 30 )
+	local maxTime&
+	local elapsed
+	local recno%
+	local time&
+	
+	time& = DateToSecs( year, month, day, hour, minute, second )
+	dow% = dow( day, month, year )
+	
+	rem Use the projects table
+	use a
+	
+	dInit "Choose a Project to Track"
+	dChoice choice%, "Project:", a$
+		
+	if dialog
+
+		position choice%
+		use b
+			
+		rem This loop identifies the
+		rem last time maxTime used
+			
+		first
+		while not eof
+			if b.time& > maxTime&
+				maxTime& = b.time&
+				recno% = pos
+			endif
+			next
+		endwh
+			
+		rem Update the elapsed time
+		rem on the last time record
+			
+		position recno%
+		if maxTime& > 0
+			b.elapsed& = time& - b.time&
+			update
+		endif			
+			
+		b.project$ = a.project$
+		b.day% = dow%
+		b.date$ = datim$
+		b.time& = time&
+		b.elapsed& = 0
+		gProj$ = b.project$
+		gDate$ = b.date$
+		gTime& = b.time&
+		append
+		
+	endif rem dialog
+			
+endp
+
+proc delStmp:
+
+	dInit "Clear Log"
+	dText "","Are you sure you", 2
+	dText "","want to do this?", $202
+	dButtons "Yes", %Y, "No", %N
+	
+	if dialog = %y
+		
+		use b
+		close
+		use a
+		close
+		delete "loc::m:\tlo\time"
+		chkFile:
+		dInit
+		dtext "", "Log Cleared", 2
+		dialog
+		
+	endif
+	
+endp
+
+proc makList:
+
+	local choice%
+
+	a$ = ""
+		
+	rem Use the projects table
+	use a
+	
+	if count > 0
+	
+		first
+		a$ = a.project$
+		
+		while 1
+	
+			next
+			if eof
+				break 
+			endif
+
+			if ( len( a$ ) + len( a.project$ ) + 1 ) > 255
+			
+				alert( "Too many projects to biuld the list.","Deleting last item:", a.project$ )
+				erase
+				
+			else
+			
+				a$ = a$ + "," + a.project$
+				
+			endif
+
+		endwh
+		
+	else
+	
+		rem No records to edit
+		beep 5, 300
+		
+	endif
+	
+endp
+
+proc report:
+
+	local last%
+	local e$( 255 )
+	local e%
+	local lpos%
+	local n$( 128 )
+	local c%
+	local day%
+	local w( 7 )
+	local seconds&
+	local dow%
+	local x
+	local row%
+	local col%
+	
+	gUse gStat%
+	gVisible off
+	gUse 1
+	cls
+	col% = 4
+	row% = 11
+	busy "Sorting..."
+	use b
+	
+	last
+	last% = pos
+	
+	if count <> 0
+		
+		while last% <> 0
+			
+			position last%
+			e% = pos
+			e$ = upper$( b.project$ )
+			day% = b.day%
+			
+			do
+				
+				if upper$( b.project$ ) < e$
+					
+					e$ = upper$( b.project$ )
+					e% = pos
+					
+				endif
+					
+				lpos% = pos
+				back
+				
+			until pos = 1 and lpos% = 1
+				
+			position e%
+			update
+			last% = last% - 1
+			
+		endwh
+		
+	endif
+
+	rem Back to top of file
+	first
+	busy off
+	
+	rem Save the current project
+	e$ = b.project$
+	cls
+	gat col%, 0
+	c% = 1
+	
+	do
+	
+		busy "Calculating..."
+		
+		rem Update the math fields
+		if b.day% > 0
+			x = b.elapsed&
+			x = ( x / 60 ) / 60
+			w( b.day% ) = w( b.day% ) + x
+		endif
+					
+		next
+		
+		if e$ <> b.project$
+		
+			if e$ <> "Non-Project"
+			
+				gat col%, gY + row%
+				gfont 2
+				gprint e$
+				gat col% + 10, gY + row%
+				gfont 1
+				gprint fix$(w(7),1,5)," ",fix$(w(1),1,5)," ",fix$(w(2),1,5)," ",fix$( w(3),1,5)," ",fix$(w(4),1,5)," ",fix$(w(5),1,5)," ",fix$(w(6),1,5)
+				c% = c% + 1
+				
+			endif
+			
+			e$ = b.project$
+			w( 1 ) = 0
+			w( 2 ) = 0
+			w( 3 ) = 0
+			w( 4 ) = 0
+			w( 5 ) = 0
+			w( 6 ) = 0
+			w( 7 ) = 0
+			busy off
+			if c% > 16
+				gat col%, 156
+				gfont 1
+				gstyle 4
+				gprint " Press any key for next page... "
+				gstyle 0
+				get
+				cls
+				gat col%, 0
+				c% = 0
+			endif
+		endif
+		
+	until eof
+
+	if c% > 0
+	
+		gAt col%, 156
+		gstyle 4
+		gPrint " Last Page... Press any key to exit... "
+		gStyle 0
+		get
+	
+	endif
+	
+	cls
+	gBorder 0
+				
+endp
+
+proc shoStat:
+
+	gUse gStat%
+	gCls
+	gVisible On
+	gBorder 3
+	
+	gAt 5, 10
+	gFont 2
+	gPrint "Time Stamper"
+	gAt 0, gY + 4
+	gLineby 200, 0
+	gFont 1
+	gAt 5, gY + 9
+	gPrint gProj$
+	gAt 5, gY + 9
+	gPrint gDate$
+	
+endp
+
+proc cTimer:
+
+	local message$( 30 )
+	local almMsg$( 65 )
+	local msgAddr%
+	local minutes&
+	local almTime&( 2 )
+	local retVal%
+	local handle%
+	
+	if status% >= 0
+	
+		retVal% = ioopen( handle%, "ALM:", -1 )
+
+		minutes& = 10
+		message$ = "Countdown Complete"
+
+		dInit "Countdown Timer"
+		dEdit message$, "Message:", 29
+		dLong minutes&, "Minutes:", 0, 99
+		
+		if dialog
+			
+			almTime&( 1 ) = dateToSecs( year, month, day, hour, minute, second ) + ( minutes& * 60 )
+			almTime&( 2 ) = almTime&( 1 )
+			message$ = message$ + chr$( 0 )
+			msgAddr% = addr( message$ )
+
+			retVal% = iow( handle%, 2, almTime&(), #msgAddr% + 1 )
+
+			if retVal% < 0 
+				raise retVal%
+				
+				endif
+			
+		
+		endif
+	
+		retVal% = ioclose( handle% )	
+		
+	else
+	
+		dInit "Countdown Timer Message"
+		dText "", "There is already a", 2
+		dText "", "Countdown Timer", 2
+		dText "", "pending in queue", 2
+		dialog
+	
+	endif
+	
+endp
+

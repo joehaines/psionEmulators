@@ -1,0 +1,139 @@
+==========
+Usenet/comp.sys.psion #7421, from ark1000@cus.cam.ac.uk, 3408 chars, Nov 29 12:56 94
+Comment to 7418.
+----------
+Article: 7421 of comp.sys.psion
+Path: cix.compulink.co.uk!uknet!lyra.csx.cam.ac.uk!ark1000
+From: ark1000@cus.cam.ac.uk (A.R. Kucernak)
+Newsgroups: comp.sys.psion
+Subject: Re: Reading .DBF labels in OPL
+Date: 29 Nov 1994 12:56:07 GMT
+Organization: University of Cambridge, England
+Lines: 122
+Message-ID: <3bf8d7$7lv@lyra.csx.cam.ac.uk>
+References: <CzzttH.EF7@cix.compulink.co.uk> <D00wJ4.DFC@bbc.co.uk>
+NNTP-Posting-Host: bootes.cus.cam.ac.uk
+
+In article <D00wJ4.DFC@bbc.co.uk>, Alan Roberts <alanr@rd.bbc.co.uk> wrote:
+>Mark Avey (maveya@cix.compulink.co.uk) wrote:
+>: Anyone out there know how to read the labels (i.e. the ones specified 
+>: when creating a new .dbf file using the database application) from OPL? I 
+>: presume it is something to do with the ODBINFO command, but I don't seem 
+>: to be getting anywhere with it.
+>
+>: Any help would be appreciated.
+>
+>Me too, I'd very much like to be able to use the labels.
+
+This question came up a while back. A solution was suggested by
+rjc@cogsci.ed.ac.uk (sorry, I don't know his/her name). I include
+the original text below ...
+
+Anthony
+
+8x---------------------------------------------------------------
+
+Someone recently asked how to find the field labels in database files.
+I've lost the original message, sorry.
+
+Here are a couple of OPL procedures I reverse engineered to read and
+write the field names. They seem to work, though I make no guarantees.
+
+	rdfldnm%:(d%)
+
+reads the field names for (open) datafile d% (A=1, B=2...) into the
+global array fldnm$ (yes, evil global variables) and returns the
+number of names.
+
+	wtfldnm:(d%,n%)
+
+Writes n% field names to d%.
+
+Error checking is pretty minimal at the moment. Based sort of on the
+example in the manual, sort of on psionics file info and sort of on
+looking at the memory and praying to the outr'e god dump of
+hexadecimal.
+
+proc rdfldnm%:(d%)
+	local info%(4)
+	local d1%, d2%, d3%, d4%
+	local n%, i%, p%, e%
+	
+	odbinfo info%()
+	
+	d1%=$1700
+	d2%=peekw(info%(d%))
+	if os($d8, addr(d1%)) and 1
+		return -1
+	endif
+	
+	p%=uadd(peekw(uadd(info%(d%),8)),2)
+	
+	while (peekw(p%) and $f000)<>$4000
+		p%=uadd(p%,(peekw(p%) and $0fff)+2)
+	endwh
+	
+	e%=uadd(p%,(peekw(p%) and $0fff)+2)
+	p%=uadd(p%,2)
+	i%=1
+	while p%<e%
+		fldnm$(i%)=peek$(p%)
+		p%=uadd(p%,len(fldnm$(i%))+1)
+		i%=i%+1
+	endwh
+	return i%-1
+endp
+
+proc wtfldnm:(d%,n%)
+	local info%(4)
+	local d1%, d2%, d3%, d4%
+	local i%, p%, s%, l%, r%
+	
+	odbinfo info%()
+	
+	d1%=$1700
+	d2%=peekw(info%(d%))
+	if os($d8, addr(d1%)) and 1
+		raise 1
+	endif
+	
+	p%=uadd(peekw(uadd(info%(d%),8)),2)
+	
+	while (peekw(p%) and $f000)<>$4000
+		p%=uadd(p%,(peekw(p%) and $0fff)+2)
+	endwh
+	
+	s%=peekw(uadd(info%(d%),8))
+	r%=p%
+	p%=uadd(p%,2)
+	
+	i%=1 :l%=0
+	while i%<=n%
+		poke$ p%, fldnm$(i%)
+		p%=uadd(p%,len(fldnm$(i%))+1)
+		l%=l%+len(fldnm$(i%))+1
+		i%=i%+1
+	endwh
+	
+	pokew r%, $4000 or l%
+	
+	d1%=$1800
+	d2%=peekw(info%(d%))
+	d3%=p%-s%
+	
+	if os($d8, addr(d1%)) and 1
+		raise d1% or $ff00
+	endif
+	
+endp
+
+8x-----------------------------------------------------------------
+
+
+
+-- 
+#include <trite.remark>
+#include <std.disclaimer>                            University of Cambridge, 
+Anthony Kucernak                                     Dept. of Materials Science
+Phone: +44 223 334371  Fax: +44 223 334567           Cambridge CB2 3QZ, UK 
+

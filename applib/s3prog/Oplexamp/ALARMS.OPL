@@ -1,0 +1,27 @@
+PROC alarms:
+	local r%,acb%
+	local t1&,t2&,m$(20)
+	local h%,dayinc%
+	r%=ioopen(acb%,"ALM:",-1)
+	if r% :raise r% :endif
+	while 1
+		dayinc%=0
+		h%=hour
+		if h%<7
+			h%=7
+		elseif h%<12
+			h%=12
+		elseif h%<17
+			h%=17
+		elseif h%<23
+			h%=23
+		else
+			dayinc%=1
+			h%=7
+		endif
+		t1&=datetosecs(year,month,day+dayinc%,h%,0,0)
+		t2&=t1&
+		m$="Don't forget!"
+		iow(acb%,2,t1&,#addr(m$)+1)
+	endwh
+ENDP

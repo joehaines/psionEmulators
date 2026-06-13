@@ -1,0 +1,205 @@
+! $Header: e:\proj\3uscript/rcs\charges.scc 2.0 1996/02/16 19:36:08 Mark_Hadfield Exp $
+
+! $Log: charges.scc $
+! Revision 2.0  1996/02/16  19:36:08  Mark_Hadfield
+! 3USCRIPT release 2.0
+!
+! Revision 1.1  1995/10/03  21:04:48  Mark_Hadfield
+! Initial revision
+!
+
+
+
+NEXISTS "m:\cis\switch\Guide.on" goto intro
+ALERT ":-) CHARGES $Revision: 2.0 $"
+goto charges
+
+intro:
+INFO "CHARGES $Revision: 2.0 $"
+goto charges
+
+charges:
+NEXISTS "m:\cis\switch\Charges.on" GOTO switchoff
+EXISTS "\cis\service\Charges.cis" GOTO filexists
+
+! -- Open Charges.Cis --
+EXISTS "m:\cis\switch\Sleuth.on" GOTO closelog
+EXISTS "m:\cis\switch\Log.on" GOTO closelog
+GOTO opencharges
+closelog:
+CAPTURE OFF
+opencharges:
+CAPTURE "\cis\service\Charges.cis"
+
+! -- go charges and turn off paging
+SENDWAIT 360 "go charges",  "hoice !" GOTO noprompt
+SENDWAIT 120 "set page no", "hoice !" GOTO noprompt
+
+! -- 1 -- Account Balance -----------------------
+SENDWAIT 360 "1", "age !" GOTO noprompt
+SENDWAIT 120 "", "hoice !" GOTO noprompt
+
+! -- 2 -- Check Remaining Free Time --------------
+SENDWAIT 360 "2", "age !" GOTO noprompt
+SENDWAIT 120 "", "hoice !" GOTO noprompt
+
+! -- 3 -- Account History ------------------------
+SENDWAIT 360 "3", "age !" GOTO noprompt
+SENDWAIT 120 "", "hoice !" GOTO noprompt
+
+! -- 4 -- Detailed Session Activity (This Week) --
+SENDWAIT 360 "4", "hoice !" GOTO noprompt
+SENDWAIT 360 "1", "age !" GOTO noprompt
+
+! -- Close Charges.cis --
+CAPTURE OFF
+EXISTS "m:\cis\switch\Sleuth.on" GOTO resumesleuth
+EXISTS "m:\cis\switch\Log.on" GOTO resumelog
+GOTO leave
+resumesleuth:
+CAPTURE "\Sleuth.cis",DEBUG,APPEND
+GOTO leave
+resumelog:
+CAPTURE "\cis\archive\Readcis.log",APPEND
+GOTO leave
+
+switchoff:
+NEXISTS "m:\cis\switch\Guide.on" goto goodbye
+ALERT ":-O Charges.On switch not set. Skipping."
+goto goodbye
+
+filexists:
+NEXISTS "m:\cis\switch\Guide.on" goto goodbye
+ALERT ":-O Charges.cis exists. Skipping."
+goto goodbye
+
+ 
+
+ 
+
+
+
+
+
+
+
+noprompt:
+NEXISTS "m:\cis\switch\Guide.on" goto infnoprompt
+ALERT "Compuserve has not responded with a prompt"
+GOTO logoff
+infnoprompt:
+BEEP 5,300
+INFO "Compuserve has not responded with a prompt"
+WAIT 20
+GOTO logoff
+
+unknownpage:
+NEXISTS "m:\cis\switch\Guide.on" goto infnopage
+ALERT "Unknown page. Ask Mark to edit the script again!"
+GOTO logoff
+infnopage:
+BEEP 5,300
+INFO "Unknown page. Time to edit the script again!"
+WAIT 20
+GOTO logoff
+
+
+
+
+leave:
+SENDWAIT 360 "", "!" GOTO noprompt
+
+goodbye:
+ 
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+NEXISTS "m:\cis\switch\user2.on" GOTO user2off
+EXISTS "a:\sco\3user2.sco" GOTO atwo
+EXISTS "b:\sco\3user2.sco" GOTO btwo
+EXISTS "m:\sco\3user2.sco" GOTO mtwo
+
+GOTO farewell
+
+user2off:
+NEXISTS "m:\cis\switch\Guide.on" GOTO farewell
+ALERT ":-O User2.on switch not set. Skipping."
+GOTO farewell
+
+farewell:
+NEXISTS "m:\cis\switch\Guide.on" goto logoff
+ALERT ":-O No other scripts installed. Logging off."
+GOTO logoff
+
+
+
+
+
+
+
+
+
+
+atwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callatwo
+ALERT ":-) 3user2 installed on A:"
+callatwo:
+CALL "a:\sco\3user2.sco"
+
+btwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callbtwo
+ALERT ":-) 3user2 installed on B:"
+callbtwo:
+CALL "b:\sco\3user2.sco"
+
+mtwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callmtwo
+ALERT ":-) 3user2 installed on M:"
+callmtwo:
+CALL "m:\sco\3user2.sco"
+
+
+logoff:
+SENDWAIT 360 "go top", "!" GOTO bombout
+bombout:
+EXISTS "a:\app\readcis\Logoff.sco" GOTO alogoff
+EXISTS "b:\app\readcis\Logoff.sco" GOTO blogoff
+EXISTS "m:\app\readcis\Logoff.sco" GOTO mlogoff
+GOTO mylogoff
+
+alogoff:
+CALL "a:\app\readcis\Logoff.sco"
+blogoff:
+CALL "b:\app\readcis\Logoff.sco"
+mlogoff:
+CALL "m:\app\readcis\Logoff.sco"
+
+mylogoff:
+SENDWAIT 60 "off", "Connect" GOTO modemhangup
+
+modemhangup:
+SENDWAIT 20 "+++", "OK" GOTO disconnect
+SENDWAIT 60 "ATH", "NO CARRIER" GOTO terminate 
+WAIT 20
+
+disconnect:
+HANGUP
+
+terminate:
+EXIT
+
+

@@ -1,0 +1,31 @@
+==========
+psion/opl #1266, from dw2, 656 chars, Jun 12 00:53 94
+Comment to 1265. 
+----------
+Try reading the six bytes from $420 in Operating System dataspace:
+
+$420 is OsTimeInTicks, which gets decremented once every tick - ie 32 
+times a second
+
+$422 is OsTimeInSecondsLsw, the Least Significant Word of the Time in 
+Seconds (this gets incremented every time OsTimeInTicks reaches 0).
+
+$424 is OsTimeInSecondsMsw, the Most Significant Word of the Time in 
+Seconds.
+
+To read from the O/S dataspace, use GenGetOsData (call($078b)).
+
+To get the idea, consider the following program (stop it running with 
+Psion-Esc):
+
+PROC peektick:
+  local t%,sl%,sh%
+  while 1
+    call($078b,0,6,0,$420,addr(t%))
+    print t%,sl%,sh%
+  endwh
+ENDP
+
+Regards, DavidW
+
+

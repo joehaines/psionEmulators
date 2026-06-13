@@ -1,0 +1,316 @@
+Pocket Packet for the Psion Series 5
+Version 5.02, February 1998.
+
+Installation
+
+PocPac should be installed to it's own directory in the system area of drive C.
+Make a directory C:\SYSTEM\APPS\PP\
+(C:SYSTEM\APPS will already exist). 
+
+If you don't know how to do the above, here's how you do it:-
+From a System Window, press Menu and select Tools/Preferences and make sure 
+that "Show Sytem Folder" is checked. Move to the SYSTEM\APPS folder, select 
+"New Folder" from the toolbar, and type PP and press Enter.
+
+Copy the files PP.APP and PP.AIF to this folder.
+
+At this point it is probably a good idea to decide where you wish to keep your 
+captured data, and any files you wish to keep. For example, you could make a 
+directory called C:\Packet to keep all your captured files.
+
+You can then start PocPac by tapping the Extras icon and selecting PocPac.
+
+The first time PocPac is run, it will write a file called PP.INI in the folder 
+it is run from. It is possible that you will see a dialog asking for a path 
+for sending files from (the send path), and a further dialog requesting the 
+path to capture data to (the capture path). You can use these file selectors 
+in the usual manner, e.g. pressing the left and right arrow keys will cycle 
+through all the possible folders. As I said above, it is a good idea to keep 
+a special folder(s) for captured data and files you wish to send. If you have 
+not created these yet, select any folder, e.g. \Documents - you can change 
+this setting later.
+When PocPac has configured itself, you will see a message like:
+
+PocPac Ready!
+
+What is PocPac?
+
+PocPac is a simple split screen terminal for driving a Packet Radio TNC. It 
+requires a TNC with Command and Converse modes, e.g. a Tiny 2 or KPC3 or 
+similar. It does not work in HOST or KISS mode.
+
+It is able to capture incoming text and send text files. It doesn't do YAPP, 
+although it should handle near-binary files like 7plus with no problems. For 
+the latter, the communication between PocPac and your TNC should be set to 8 
+bit no parity, preferably RTS,CTS handshaking, which are preferable settings 
+anyway.
+
+The facilities provided here are broadly similar to those available in PocPac 
+3.xx for the Series 3a/c. The hot keys are different, although the addition 
+of a menu should make things easy to find. There may be some features missing, 
+although there are some extras - for example there are built-in editors and 
+viewers, and all configuration is now possible from inside PocPac.
+
+Connection to the TNC
+
+The first point to mention is that is is a good idea to run your Series 5 
+from the mains adaptor while using packet. Of course this is not essential, 
+but it enables you to use the most beneficial auto switch-off setting, which 
+is "If No External Power" (this is selected from the Series 5 Control Panel). 
+Otherwise it is probably a good compromise to set the auto switch-off to 
+about 10 minutes or more, the idea being to avoid the Series 5 turning off 
+during a packet session.
+
+If it does turn off, just turn it on as usual. In some instances there may be 
+garbled text, in such cases select Restore from PocPacs File menu, which 
+should reset the comms port.
+
+The Psion serial lead is terminated with a 9 pin D type female connector, and 
+TNC's are usually fitted with a 25 pin D type female connection. This means 
+an adaptor is required, which should be a "null-modem" type. If you make up 
+your own, the wiring should be something like this:
+
+	Name	Psion	TNC
+	RxD		2		2
+	TxD		3		3
+	RTS		7		5
+	CTS		8		4
+	GND		5		7
+
+Your TNC may be slightly different, so remember that the Psion connection is 
+designed to plug into a PC serial port, so you will to reverse the data and 
+handshake connections compared to that required to wire a TNC to a PC.
+
+The Keys
+
+PocPac 5 functions are operated from both the keyboard and the menu, mostly 
+the latter. Since there is no Psion key (as on the Series 3a/c), the Control 
+key is used as a modifier. This clashes with some packet commands, but is 
+consistent with Series 5 practice.
+
+The following "Hot Key" commands are available from the keyboard:
+
+Ctrl-B	Sends "C station" where station is the first callsign in the connect 
+	directory.
+
+Ctrl-C	Sends Control-C straight to the TNC to select command mode. Any text 
+	in the type-ahead buffer is not affected.
+
+Ctrl-D	Brings up the Connect directory, and sends "C station" to the callsign 
+	selected.
+
+Ctrl-E	Exits PocPac.
+
+Ctrl-L	Opens or closes the capture file. This is a toggle. If there is no capture
+	file, one is created in the form MMMDD.CAP where MMM is the month, and DD 
+	the day. If such a file for the current date exists, any  subsequent use of
+	Ctrl-L will append text to this file. There is a maximum size of data which
+	can be captured in one PocPac session, this is set to about 500 kbytes. This
+	can be exceeded by stopping and starting PocPac on the same day. The 
+	intention of a limit is to prevent the accidental filling of the Series 5
+	memory due to leaving capture active.
+
+	The status bar shows whether text is being captured or not.
+
+Ctrl-T	Brings up the Send File dialog. Here you may select whether to send a 
+	footer file or not. If you choose to send a footer, a Ctrl-Z will be 
+	appended (to terminate a BBS transfer).
+
+Ctrl-U	Sends a DA command to the TNC to synchronise Series 5 and TNC clocks.
+
+Ctrl-Y	Clears the type-ahead buffer.
+
+Ctrl-Z	Puts a Control-Z in the type-ahead buffer, like any other text character. 
+	Unfortunately the Psion fonts do not show this character, so it may remain 
+	invisible.
+
+The following editing keys work on the keyboard buffer:
+
+Home		Moves cursor to the "home" position.
+End		Moves cursor to the "end" position.
+Left Arrow	Moves cursor one character left. 
+Right Arrow	Moves cursor one character right.
+Up Arrow	Scrolls through the history buffer.
+Down Arrow	Scrolls through the history buffer.
+Ctrl-Y		Clears the current line.
+
+The Menu
+
+The following menu commands are available if the Menu key is pressed. (Note 
+that the shortcuts shown do not necessarily work unless the menu is displayed, 
+only those shown in the section above work from the terminal.)
+
+File menu:
+
+Save	Saves the current configuration settings.
+
+Use	Uses the current settings, without saving them.
+
+Restore	Restores the settings in the PP.INI file, and resets the serial port.
+
+Quit	Exits PocPac.
+
+Edit menu:
+
+Footer	Edits the footer file, which is called PPFOOTER and kept in the 
+	Send Path folder.
+
+Create Text File	This prompts for a file name, creates the file, and 
+			opens the editor.
+
+Open Text File		This opens an existing text file for editing.
+
+Connect Directory	This allows the connect directory to be changed. 
+			Pressing Enter saves the directory.
+
+Capture Path		Here a file selector allows you to choose an existing directory 
+			in which your captured text is kept.
+
+Send Path		As above, except this is where your files for sending are kept.
+
+Set Word Wrap	This sets the length at which automatic wrap occurs. At 
+		the first space after this, the current text is sent, and the 
+		cursors starts a new line.
+
+Port menu:
+
+Baud Rate
+Word Length
+Parity
+Handshake
+
+A bullet marker selection of the most common parameters are provided. While 
+these settings are chosen, the menu will not disappear until Save or Use is
+selected.
+
+Connect menu:
+
+Connect "BBS"	Here a connect to the station shown as "BBS" is initiated. 
+		Identical to Ctrl-B.
+
+Connect Directory	This enables you to choose a station to connect to. 
+			Identical to Ctrl-D.
+
+Transfers menu:
+
+Capture Data	Here you can select text capture, identical to Ctrl-L.
+
+Send File	This brings up the send file menu, identical to Ctrl-T
+
+View Text File	A viewer which enables files up to 30k in the Capture folder 
+		to be read. Pressing Esc exits the viewer.
+
+Special menu:
+
+Echo On		When selected (marked with a tick), PocPac echos the text sent 
+		to your TNC.
+
+The Text editor and viewer.
+
+These are simple affairs which allow text files to be created, edited or viewed. 
+For the footer, there is a limit of 1,000 bytes. For the creation and editing 
+of text files for sending, there is a limit of 5,000 bytes (the normal maximum 
+for packet). The viewer allows files of up to 30,000 bytes to be viewed (not 
+edited).
+
+Most normal editing controls work in the editors/viewer - also you can cut 
+and paste between the editor/viewer and other applications. The editor/viewer 
+wraps between about 60 and 70 characters without inserting CR/LF characters, 
+so you can press enter at the end of each line if you wish to create lines 
+of fixed length (not essential for packet).
+
+You save the text in the editors by pressing the Save button. Pressing the 
+Cancel button, or the Esc key will exit without saving. The latter applies 
+to the viewer.
+
+The editors are very simple, and take varying times to load. This is not 
+related to file size, and seems to be a characteristic of the dialog used 
+for this purpose. For example, a 1,300 byte file takes longer to load than 
+a 2,000 or 28,000 byte file!
+
+The Display
+
+Firstly note that PC line graphics are not displayed by the built-in fonts. 
+To view these graphics, you will have to transfer the file to a PC and use 
+a DOS font, or MS LineDraw font to view them. Later versions of PocPac may be 
+able to load a custom font to display these graphics. Also note that Ctrl-Z 
+does not always show up on the display, although the character works normally!
+
+The author feels that any packet terminal should show only data from  the 
+TNC, i.e. the TNC should be set to ECHO ON. However PocPac can be set to echo 
+text sent to your TNC. This can be achieved by setting Echo On from the 
+Special menu.
+
+TNC Settings
+
+The communications settings may be set from the Port menu. 
+PocPac does not send any line feeds to the TNC, which does not require them. 
+Also it does not add them to incoming text.  Set LFADD OFF and AUTOLF ON. 
+Check that the TNC filters out incoming line feeds, you may need to set 
+LFSUP ON to remove these.
+
+Type-ahead
+
+PocPac uses a type-ahead buffer - text you type will appear in the lower
+window and will not be sent to the TNC unless you either press Enter, or 
+PocPac wordwraps.  Word wrap will occur when you press the space bar after 
+68 letters have been typed.  This threshold can be altered if desired, using 
+the Edit menu.
+
+If wordwrap occurs, a CR will be appended to the text sent to the TNC.  Some 
+BBSs cannot handle long lines of text. If you press Control-C (for TNC Command 
+Mode) this command bypasses the type-ahead and goes straight to the TNC.
+
+The last 5 lines sent (using Enter) are saved, and can be recalled by
+pressing Up or DownArrow.  They can be edited and sent again if required.
+
+Control-Y deletes all you have typed on the current line.
+
+You can edit the current line using the arrow and delete keys - you can 
+alter text anywhere in the current line.  HOME and END have their usual 
+WP meaning.
+Scrollback.
+
+Press PgUp to activate the scrollback windows.  You can then move between 
+the pages using UpArrow and DownArrow (or PgUp and PgDn).  Press Esc to exit 
+scrollback.
+
+While you are viewing scrollback, you can still type into the type-ahead. All 
+letter keys and editing keys still work, as does Enter.  Thus you can view a 
+list from a BBS and type the message numbers you wish to read.  When you press 
+Enter, the line is sent, but scrollback is still active.  Press Esc to return 
+to the main window.
+
+If you leave scrollback active for 2 minutes without doing anything, it will 
+cancel automatically.
+
+
+Problems
+
+When you have finished using PocPac it is wise to quit the application.
+Do not leave PocPac running in the background with your TNC disconnected
+or switched off.
+
+
+Changes since 5.00
+
+Ctrl-Z prints a symbol on type-ahead.
+Iowaitstat added after IOA cancel.
+Send file options improved.
+Individual error dialogs added.
+Need for Up Arrow in editor removed.
+
+Registration
+
+There is no charge for using PocPac, but I would be grateful if users send me 
+a message by packet, internet, or post, telling me that they are using the 
+program. 
+
+Pocket Packet can normally be found at http://www.cix.co.uk/~hzk/
+Registrations, bug reports, wishlists, etc. to:-
+
+Roger Muggleton
+Internet: 	hzk@cix.co.uk
+Packet:		G0HZK @ GB7WIR.#42.GBR.EU
+Post:		I am Qthr.
+Phone:		+44 (0)1753 811918  (1900-2100 UTC only!)

@@ -1,0 +1,147 @@
+IMPORTANT: Configuration/setup files created before v1.4 will NOT work
+with v1.4 and subsequent releases.  There were significant changes to v1.4
+and as a result, emailit.cfg and emailit.tcp contents have been altered.
+You have two choices to upgrade to version v1.4 or later:
+ (1) use the program v1xv14.opo that is in this zip file and it will
+     convert your old files to the new format.  This utility will rename
+     your current emailit.cfg to emailit.cfb so you can go back to an
+     earlier version of emailit if you want.  If you are happy with this
+     version, delete emailit.cfb and v1xv14.opo from your Psion.
+ (2) Delete emailit.cfg and emailit.tcp and re-enter all the setup data
+     again.
+
+
+eMail-It v1.4  (Feb 17/2000)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Changes (listed in no particular order) from v1.3 are:
+* The maximum width of a Reply message has increased to 980 chars.
+* The current time is now correctly displayed on the main screen if a
+  12-hour clock is used.
+* When you forward a message <Psion-f>, Word is now invoked for editing.
+* The "Word wrap" editor has been added as an option on the "Preferences"
+  screen.  Due to the way in which the Psion Word application works, the
+  "Text only" mode does not allow word wrapping, and in "Word wrap" mode
+  the saved file from Word contains "format info" which eMail-It removes.
+* The standard SMTP "dot stuffing" now takes place when you use the "Word
+  wrap" editor.  This was never done in previous releases of eMail-It.
+* Word is now used for displaying/viewing messages.  It takes a little
+  longer to load the message into Word than my display routine in v1.4b,
+  but in doing so, much more functionality is added such as: word-wrapping,
+  scrolling, zooming, printing, cut/paste, etc.  Any changes you make to
+  this "copy" of the message will be discarded.  To "cut/paste", use the
+  "Bring text" facility of Word to move portions of text from this message
+  to another Word document, or you can save your "cuts" to a file using the
+  "Save as" feature of Word and "paste" these into a new message using
+  the "Merge in" feature of Word.  Note: It is not possible to "Bring text"
+  from a message to a new message directly since eMail-It only allows one
+  message to be open at a time.
+* The "Send again" command <Psion-q> has been changed slightly.  If you use
+  this command on an outgoing or queued message, you will be asked if you
+  wish to keep the current message headers (ie. To: Cc: Subject: etc.).
+  This will save you from re-entering this info if you just want to "edit"
+  the message body.
+* You are now allowed to define three POP3 mail server definitions in
+  order to easily download mail from different servers.  The first screen
+  of Mail Setup is now the "Preferences" screen and here you define which
+  POP3 server(s) to access to get your mail.  The next screen is "Network
+  Configuration" where you define the server addresses, etc.  Since you
+  can define only one POP3 server at a time, you have to repeat Mail Setup
+  several times.  Once all your POP3 servers have been defined, you can
+  then select a particular POP3 server to download from or the "ALL defined
+  servers" option.
+  Note:  All outgoing mail will be sent to the SMTP server defined and you
+  have only one choice here.
+* Screen displays, including dialog boxes, have been changed to work
+  correctly on the Siena.
+* ALL messages are now downloaded from the server.  However, in Mail
+  Setup, you can specify if BIG messages are to be truncated and if
+  truncated, how many lines of the message (excluding headers) are to
+  be downloaded.  You also define how BIG is big (in # of k).  Truncated
+  messages will be displayed on the screen and you will be asked if you
+  wish to delete a truncated BIG message if "Leave Mail on Server" has
+  been set to No.
+* If you leave your mail on the server, you are now prompted for which
+  message to start downloading from.  If the last time you received your
+  mail you had 10 messages on the server and now you have 17 (ie. 7 new
+  messages have arrived), you can now indicate that you wish to start
+  downloading from message number 11 in order to just get your new messages.
+* The command <Psion-u> has been added to "un-attach" an attachment
+  that has been sent in MIME base64 format.  This function will
+  try and find an attachment on the selected message.  If one is
+  found, it will be converted and written to the file you entered
+  or accepted.  The directory \emailit\attach\ must exist for this to
+  work.  The attachment will be replaced by a message indicating
+  where it was written to.  To recover the used disk space, use
+  <Psion-k> to compress the mailbox.  Note: the decoding process is real
+  slow at the moment.
+* All downloaded messages are now checked for format so as to simplify
+  later processing by eMail-It.
+* You are no longer restricted to the internal RAM drive to create the
+  \emailit\ directory.  eMail-It now searches M, A, B, C (in that order)
+  for the \emailit\ directory. So now you can use external RAM SSDs or a
+  Cyclone disk.  FLASH SSDs should not be used due to the I/O requirements
+  of eMail-It.  The file emailit.opa should still be placed in this
+  directory to keep everything together.  The subdirectory \attach\
+  should be created so attachments can be placed there.
+* Corrected the timestamp on the System-Time: header.
+* Bug fixed: When sending your mail, eMail-It was not able to correctly
+  send any further messages after a message with an attachment was sent.
+* Bug fixed: eMail-It ran out of memory after downloading a message
+  bigger than 18k and would not complete certain housekeeping tasks.
+* Bug fixed: When sending your mail and a nickname did not exist in the
+  nickname file, eMail-It or TcpIp sometimes crashed.
+* Bug fixed: BIG messages are now properly handled if the download process
+  does not terminate correctly. (ie. if you wanted it left on the server,
+  it will not be deleted on the second connection).
+
+TcpIp v1.2  (Feb 17/2000)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+* TcpIp now maintains a monthly cache of DNS lookups, but this can be
+  deleted manually in TcpIp Setup.
+* Revised the setup dialogs to separate the Port and ISP settings.  This
+  change is to get ready for using the IrDA port instead of just the
+  RS-232 port.  If you select IrDA, TcpIp will send/receive data via the
+  IrDA port (if it exists) just as if it were the RS-232 port, but this
+  may not be what a cell phone is expecting.  I need to research this.
+  The "Debug level" field is part of the Port Settings.  You can delete
+  the *monthly* cache of DNS lookups here also.
+* Added a script timeout field for each ISP in ISP Settings. This used to
+  be hard-coded in TcpIp.
+* If a timeout occurs while the script is running, TcpIp now displays what
+  characters it was waiting for and also what data was recd from the ISP
+  to aid in debugging your script.  Some ISPs will pause for a few seconds
+  once the modems connect to see if you are going to use PAP/CHAP to logon
+  with.  If you send just a carrage return once your modem connects (like
+  Compuserve does), the ISP may prompt you for your username/password.
+* Changed how PPP is negotiated with an ISP.  With some ISPs, PPP could
+  not be negotiated or the wrong ACCM was used during communications.  PAP
+  is now supported, although CHAP is still not.  PPP Link will ask an ISP
+  wanting to use CHAP to use PAP instead.  PPP Link now starts immediately
+  after the ISP script has completed successfully.  This changeis for those
+  ISPs wanting to use PAP.  PPP Link is a little smarter these days!
+* The modem cable info can be found in Walter Wright's Faxit 2.4 software
+  documentation.  http://ourworld.compuserve.com/homepages/WalterWright
+* TcpIp will become SHAREWARE in the future.  This release will work until
+  Dec 31/2000 and the next release will be an assembler version.  The
+  registration fee will allow you to use the TcpIp software (including any
+  future releases) for the next ?? years.  Any suggstions?  You would not
+  believe the number of hours (days?, months?) that went into developing
+  TcpIp after PsiStack was shelved!
+
+
+
+eMail-It Version 1.3  (Oct 31/99)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Improved the speed in which a message is displayed on the screen
+* A few minor program changes to "Mail Setup" and "Reply To".
+* Some additional information added to the readme.txt file.
+* Minor revision to the Help file.
+
+TcpIp 1.1  (Oct 31/99)
+~~~~~~~~~~~~~~~~~~~~~~
+* A new keyword (sp$) was added to the logon script. The sp$ keyword is
+  followed by the 3 digit decimal code of the char you wish to send.  This
+  keyword can be used back-to-back to send a string of chars.
+  ie. sp$032Asp$013 will send the space char, the letter "A" and then a
+  carrage return.
+

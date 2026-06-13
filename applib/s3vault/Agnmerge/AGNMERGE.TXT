@@ -1,0 +1,205 @@
+AGNMERGE V1.0.0
+
+Introduction
+
+This program will merge a number of Psion 3a agenda files into a single agenda file.   During the merge process it will optionally delete memos or alarms, delete
+crossed out entries, change the display occurrence or repeating entries, omit entries that are outside a date range, prefix all or part of the agenda file name
+to each entries from that agenda, or change the style of entries.  All these options can be saved to a configuration file for repeated use.
+
+This program was written to solve the following problem.  I have an agenda file for work only, an another for home only.  I have other agendas which contains
+details of the cycling club with which  I ride, and another of sunrise/sunset times.  To put all these together in a single agenda produces a file so big that
+I would be very slow to work with.  It would sometimes present too much information.  Each of my agenda files are about 20k.  This is an acceptable size to
+work with.  However, when setting an appointment you cannot see potential clashes between the agendas.  I started manually merging them, but the file was too
+big to be manageable, and alarms would be duplicated or would still go off unless deleted in two places.  AGNMERGE will optionally strip out memos and alarms,
+and will merge within a date range.  Currently I merge two months ahead and the combined agenda is 24k.
+
+Much of the work done by AGNMERGE is concerned with minimising the size of the output agenda.  All deleted record are removed.  The output agenda will not be
+further compressed by the agenda compress utility.
+
+AGNMERGE could also be used to shared agenda files between people.  The name of the source agenda file can be placed at the front of every entry in the combined
+agenda.
+
+The program will not work will Series 3 agenda files.
+
+The program has been tested on the Sienna emulator and appears to work.  There is a minor difference between the 3a and 3c agenda formats.  This program is
+not designed for the 3c format.
+
+AGNMERGE is a complicated process that can take several minutes to run on a Psion 3a.  It was designed to minimize the size of the output file.  This is achieved
+at the expense of performance.  Tests have show that it runs up to 16 times faster on the Psion 3a emulator for PC (on a 486 DX2 at 66MHz).  If you are sharing
+agendas between Psions then it might be easier to copy the files to a PC and use the emulator to run the process.
+
+If an agenda file is already opened by another process, the this will cause an error during the merge.  All agenda processes must be closed during merge.  My
+personal technique is to run AGNMERGE at the same time as I backup the Psion (several times a week).  I stop all the processes with JBSTOPGO, run AGNMERGE,
+perform the backup, and restart the processes with JBSTOPGO.  JBSTOPGO is available as freeware from all the usual places.
+
+Installation
+
+AGNMERGE is a self contained application consisting of a single OPA file that should be placed in the \APP directory.  AGNMERGE saves configuration files in
+directory \APP\AGNMERGE.  The icon may be added to the system screen using the install option (Psion + I).
+
+Menu Driven
+
+AGNMERGE, like many Psion application, is menu driven.  On startup the parameter screen is shown.  Press the Psion key to see the menu.  Use the cursor keys
+to navigate around the menu.  Each menu option shows the key combination equivalent.
+
+Control Files
+
+This menu item holds options to load and save configuration files.  These files record the combination of agenda files and how they are to be combined.
+
+New (Psion + N)
+
+This option clears the current configuration and enables the user to set up a configuration from scratch.
+
+Load (Psion + L)
+
+This will load a previously saved configuration.  The configuration files are shown on the system window below the icon before the program is executed.  AGNMERGE
+can automatically load a configuration file from the main system window.
+
+Save (Psion + S)
+
+This will save a configuration to disk.  You can choose the name of the file.  By default it will be written to \APP\AGNMERGE.  If it has been previously saved
+the configuration will be written to the same file.
+
+Save As (Psion + A)
+
+This option will save the current configuration to a different file name.
+
+Agenda Files
+
+This section deals with specifying which agenda files will be combined, and which agenda file they will be written to.
+
+Add Input (Psion + I)
+
+This option adds an agenda file to the list of agenda files to be merged.  Up to seven agendas can be merged.
+
+Remove Input (Psion + R)
+
+This option removes an agenda file to the list of agenda files to be merged.
+
+Set Preferences (Psion + F)
+
+This option specifies which of the input agendas will be used to supply the agenda preferences.
+
+Set Output (Psion + O)
+
+This option specifies the name of the agenda file that will be written.  This must not be the same as any of the input agendas otherwise a file error will
+result.
+
+This dialog will also allow you to set the read only and modified attributes of the output agenda.
+
+By default the output agenda file is made read only to prevent accidental updating of the wrong file.  If the previously generated output agenda file is read
+only it will be made writable at the beginning of this process.
+
+The modified attribute is used by some backup utilities to determine which files to backup.  By default the modified attribute is set.  Turning it off can
+prevent unnecessary backup of a generated file.
+
+Style
+
+These options allow a style to be applied or removed for each entry.  It is possible to specify, for each input agenda, whether each of the three styles (bold,
+underline and italic) will be applied, removed, or left on each entry on all the entries for that agenda.
+
+For instance you might want all the entries from a particular agenda to be italic but not bold.  By default existing styles are retained.
+
+Bold (Psion + B)
+Italic (Psion + I)
+Underline (Psion + U)
+
+Configuration
+
+This menu item contains options to control what parts of the agenda is copied, and how it will be presented.  All options are specified for each input agenda
+file.
+
+Memo (Psion + E)
+
+This option specifies whether memos are copied over with the entry to which they are attached, or deleted from it.
+
+Alarm (Psion + A)
+
+This option specifies whether alarms are copied over with the entry to which they apply, or deleted from the entry.  By default alarms are deleted.
+
+TIP: Delete the alarms from agenda which are usually kept open otherwise alarms will be doubled up.
+
+Crossed Out (Psion + C)
+
+This options specifies whether crossed out entries are copied over to the output agenda.  By default they are deleted.
+
+Prefix agenda name (Psion + P)
+
+In order to determine from which input agenda an entry in the output agenda has come it is possible to prefix the entry with the name of the input agenda. 
+This option will allow any number of letters, from none to all, of the input agenda name to be prefixed to the original entry.  The default is for all of the
+agenda name to be used.
+
+Repeat occurrence show (Psion + W)
+
+This option controls how repeated entries will be displayed in the output agenda.  The repeat occurrence can be left unchanged, which is the default, or all
+repeats can be set to either next only or all.
+
+Date filter (Psion + D)
+
+This options will filter entries by date.  Undated to-do entries are assumed to be dated with today's date.  The options for the filter are the whole agenda,
+ie. not filtering, from today, until today,  this calendar year, this calendar month, one month from today, two months from today, a fixed user defined period. 
+The date range for the agenda is 1st January 1980 to 31st December 2049.
+
+Repeated entries receive special handling if date filtering is enabled.  If the end of the repeat period is before the beginning of the date filter period,
+or the start of the repeat period is after the end of the filter period, then the entry is completely omitted.  Otherwise, if the end of the repeat is after
+the end of the date filter period it is adjusted to be no later than the end of the date filter period.  If the start of repeat is before the date filter period,
+then first repeat on of after the date filter period is calculated.  If this is after the end of the repeat period or the date filter period, then the entry
+is omitted from the merge.
+
+Special
+
+This menu item contains three options
+
+Merge (Psion + M)
+
+This option runs the loaded merge process as defined by the other options.  While it runs there are two bar graphs displayed.  This give an idea of how far
+the process has got.  Each graph is labelled with the agenda file to which they relate.
+
+The lower graph is for the output agenda file.
+
+The upper graph is for the input agenda file.   It is redrawn for each input agenda.  Each input agenda is parsed twice.  During the first parse nothing is
+written to the output agenda, this will be reflected in the lower graph.  The lower graph will not move until the upper graph reaches the halfway  point.
+
+Information (Psion + I)
+
+This displays a simple version and copyright screen.
+
+Exit (Psion + X)
+
+This option terminates the application.  It does not check to that the configuration requires to be saved.
+
+Change Control
+
+V0.1.0    28/09/96  first stable version
+V0.2.0    28/12/96  date filtering added
+V0.2.1    01/01/97  days by month repeat calculation correction
+V1.0.0    20/01/97  first release version
+
+Copyright
+
+AGNMERGE is the intellectual property of David Kurtz (david@kurzbyrn.demon.co.uk).  I have decided to release it as free software because:
+
+1.   I do not suppose that there are many people who would find so useful that they would part with money.  The effort adding nag messages and registration
+codes and in administering a registration scheme would not be worth the expected income.
+
+2. While I have used my best endevour to develop this software,  I will not be responsible for an damage or loss of data or anything else.  You use this software
+at your own risk.  However, so do I!
+
+3. This might cause contractual problems with my employer.
+
+If you do pass AGNMERGE on then please pass on all of the files!
+
+Acknowledgements
+
+The AGNMERGE.OPA supplied has been compiled from source code which has been compacted with AKA.  AKA is written by David Palmer (dpalmer@cix.compulink.co.uk),
+of Ferret Information Systems.
+
+Feedback
+
+If you find any problems, or wish to make an suggestions for enhancements then please mail me at
+
+david@kurzbyrn.demon.co.uk
+
+This and other pieces of software are available from my website
+
+http://www.kurzbyrn.demon.co.uk/psion.htm

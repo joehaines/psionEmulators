@@ -1,0 +1,46 @@
+/*
+ * Some useful debug macros, e.g:
+ *
+ * #define DBG_ENABLE
+ *
+ * PROC main:
+ *	#include <sdk\debug>
+ *	myproc:(-1)
+ * ENDP
+ *
+ * PROC myproc:(a%)
+ *	DBGINPROC()
+ *	DBGPRINTE(a%)
+ *	DBGASSERT(a%>0)
+ *	DBGOFF
+ *	DBGPRINTE(a%)
+ * ENDP
+ *
+ * Running the above would generate the following debug output in
+ * the top right corner of the screen when run:
+ *
+ * DBG:myproc
+ * DBG:a%=-1
+ * DBG:Assert failed:a%>0 line 9
+ *
+ * To re-translate without DEBUG simple leave the #define DBG_ENABLE out
+ */
+
+#ifdef DBG_ENABLE
+	global dbgflg%
+	#define DBGON		dbgflg%=0
+	#define DBGOFF		dbgflg%=1
+	#define DBGPRINT(str)	if dbgflg%=0 :giprint "DBG:"+str,2 :pause 60 :endif
+	#define DBGINPROC()	DBGPRINT(__PROC__)
+	#define DBGPRINTE(expr)	DBGPRINT(!expr+"="+gen$(expr,8))
+	#define DBGASSERT(expr)	if (not (expr)) :DBGPRINT("Assert failed:"+!expr+" line "+num$(__LINE__,4)) :endif
+	#define DBGPROC(pname)	PROC pname :DBGPRINT(!pname)
+#else
+	#define DBGON
+	#define DBGOFF
+	#define DBGPRINT(var)
+	#define DBGINPROC()
+	#define DBGPRINTE(expr)
+	#define DBGASSERT(expr)
+	#define DBGPROC(pname)	PROC pname
+#endif

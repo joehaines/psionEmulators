@@ -1,0 +1,17 @@
+PROC help%:(hfile$,page&)
+	LOCAL gate%,buf%(65),base&,pg&
+	LOCAL fil$(128)
+	IF NOT EXIST(hfile$)
+		GIPRINT "Help not available"
+		RETURN
+	ELSE
+		Fil$ = hfile$
+		pg& = page&
+	ENDIF
+	base& = 1
+	POKE$ ADDR(buf%(1)),"#"+fil$
+	gate%=PEEKW($38)
+	SEND(gate%,27,buf%(2))
+	SEND(gate%,26,#pg&,#base&)
+ENDP
+

@@ -1,0 +1,262 @@
+#define IPC_OPH
+
+#ifndef APPMAN_OPH
+#include <sdk\appman>
+#endif
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+/* Property of server */
+
+STRUCT PRS_SERVER
+	q#(SIZEOF(P_QUE))
+	t1%
+	t2%
+	cid%
+ENDS
+
+STRUCT PR_SERVER
+	root#(SIZEOF(PRS_ROOT))
+	server#(SIZEOF(PRS_SERVER))
+ENDS
+
+/* Constants for linksv */
+
+#define TY_LINKSV_STEP 0x21
+#define TY_LINKSV_DEATH 0x22
+#define DF_LINK_NATIVE 0
+#define DF_LINK_TEXT 1
+#define DF_LINK_TABTEXT 2
+#define DF_LINK_VOICE 3
+#define DF_LINK_PARAS 4
+#define DF_LINK_SPR 5
+#define DF_LINK_WRD 6
+#define DF_LINK_AGD 7
+
+/* Property of linksv */
+
+STRUCT PRS_LINKSV
+	buf%
+	len%
+ENDS
+
+STRUCT PR_LINKSV
+	root#(SIZEOF(PRS_ROOT))
+	server#(SIZEOF(PRS_SERVER))
+	linksv#(SIZEOF(PRS_LINKSV))
+ENDS
+
+/* Property of linkcl */
+
+STRUCT PRS_LINKCL
+	pid%
+ENDS
+
+STRUCT PR_LINKCL
+	root#(SIZEOF(PRS_ROOT))
+	linkcl#(SIZEOF(PRS_LINKCL))
+ENDS
+
+/* Constants for toplip */
+
+#define TY_TOPLIP_LINE 0x10
+#define TY_TOPLIP_DEATH 0x11
+
+/* Types for toplip */
+
+STRUCT PR_TOPLIP_STATUS
+	stat%
+	mode%
+	line%
+	offset%
+ENDS
+
+STRUCT PR_TOPLIP_SOURCE
+	pid%
+	bofs%
+	sofs%
+ENDS
+
+/* Property of toplip */
+
+STRUCT PRS_TOPLIP
+	st#(SIZEOF(PR_TOPLIP_STATUS))
+	buf#(256)
+ENDS
+
+STRUCT PR_TOPLIP
+	root#(SIZEOF(PRS_ROOT))
+	server#(SIZEOF(PRS_SERVER))
+	toplip#(SIZEOF(PRS_TOPLIP))
+ENDS
+
+/* Constants for exopl */
+
+#define EXOPL_ISEXP 0x01
+#define EXOPL_SIGNAL 0x02
+#define EXOPL_NTFY 0x04
+
+/* Types for exopl */
+
+STRUCT EXOPL_RESBUF
+	value 
+	error%
+	line%
+	offset%
+	src#(P_FNAMESIZE)
+ENDS
+
+STRUCT EXOPL_PAR
+	flags%
+	cid%
+	qofs%
+	qlen%
+	rofs%
+ENDS
+
+/* Property of exopl */
+
+STRUCT PRS_EXOPL
+	result#(SIZEOF(EXOPL_RESBUF))
+ENDS
+
+STRUCT PR_EXOPL
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	exopl#(SIZEOF(PRS_EXOPL))
+ENDS
+
+/* Constants for cmap */
+
+#define DR_CMAP_END 0
+#define DR_CMAP_TEXT 1
+#define DR_CMAP_SPACES 2
+#define DR_CMAP_SCROLL 3
+#define OP_CMAP_CLEAR 1
+#define OP_CMAP_INVALID 2
+
+/* Types for cmap */
+
+STRUCT PR_CMAP_DRAW
+	len%
+	buf%
+	row#
+	col#
+ENDS
+
+/* Property of cmap */
+
+STRUCT PRS_CMAP
+	base%
+	toprow%
+	width%
+	height%
+	row%
+	col%
+	scroll%
+	wrap#
+	slock#
+ENDS
+
+STRUCT PR_CMAP
+	root#(SIZEOF(PRS_ROOT))
+	cmap#(SIZEOF(PRS_CMAP))
+ENDS
+
+/* Constants for voice */
+
+#define TY_VOICE_PLAY 0
+#define TY_VOICE_EDIT 1
+#define TY_VOICE_CANCEL 2
+
+/* Types for voice */
+
+STRUCT RQ_VOICE_MSG
+	pstat%
+	buf%
+	len%
+	maxlen%
+ENDS
+
+/* Property of voice */
+
+STRUCT PRS_VOICE
+	owner%
+	method%
+ENDS
+
+STRUCT PR_VOICE
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	voice#(SIZEOF(PRS_VOICE))
+ENDS
+
+/* Constants for notify */
+
+#define NOTIFY_MESS_TYPE 0
+#define NOTIFY_MESS_ARGS 5
+#define NOTIFY_MESS_SIZE 64
+
+/* Property of notify */
+
+STRUCT PRS_NOTIFY
+	err0text#(NOTIFY_MESS_SIZE)
+	err1text#(NOTIFY_MESS_SIZE)
+	but0text#(NOTIFY_MESS_SIZE)
+	but1text#(NOTIFY_MESS_SIZE)
+	but2text#(NOTIFY_MESS_SIZE)
+	pname#(NOTIFY_MESS_SIZE)
+ENDS
+
+STRUCT PR_NOTIFY
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	ipcs#(SIZEOF(PRS_IPCS))
+	notify#(SIZEOF(PRS_NOTIFY))
+ENDS
+
+/* Constants for consol */
+
+#define CONSOL_MESS_READ 0
+#define CONSOL_MESS_WRITE 1
+#define CONSOL_MESS_CLOSE 2
+#define CONSOL_MESS_SET 3
+#define CONSOL_MESS_SENSE 4
+#define CONSOL_MESS_TEST 5
+#define CONSOL_MESS_FLUSH 6
+#define CONSOL_MESS_CANCEL 7
+#define CONSOL_MESS_EDIT 8
+#define CONSOL_MESS_SPARE1 9
+#define CONSOL_MESS_SPARE2 10
+#define CONSOL_MESS_SPARE3 11
+#define CONSOL_MESS_SPARE4 12
+#define CONSOL_MESS_DIED 13
+#define CONSOL_KEY_TYPE_AHEAD 32
+#define CONSOL_MAX_STRING 255
+
+/* Types for consol */
+
+STRUCT PR_CONSOL_WMSG_KEY
+	keycode%
+	modifiers#
+	count#
+ENDS
+
+/* Property of consol */
+
+STRUCT PRS_CONSOL
+	cmap%
+	rcomp%
+	rmess%
+	head%
+	tail%
+	list#(OPPEVAL(SIZEOF(PR_CONSOL_WMSG_KEY)*CONSOL_KEY_TYPE_AHEAD))
+ENDS
+
+STRUCT PR_CONSOL
+	root#(SIZEOF(PRS_ROOT))
+	server#(SIZEOF(PRS_SERVER))
+	consol#(SIZEOF(PRS_CONSOL))
+ENDS

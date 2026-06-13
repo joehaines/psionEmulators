@@ -1,0 +1,71 @@
+			Tree by Rick Andrews
+
+Have you ever lost a file on your Series 3 - or rather, forgotten
+where you put it? Or wonder why the internal drive is using 30K
+more than usual, only to find two copies of your phone list lying
+around. (Remember that sorted one you put into \MISC last week?) It
+can be a bit of a pain having to play hide-and-seek using the
+system directory (psion-*) command, even more so with the early
+versions of the OS that don't have it! So I wrote this little
+utility to help. Here is an example of its output :-
+
+A:\
+ÃÄDAT\
+³ ÃÄPHONE.DBF
+³ ÀÄMISC\
+³   ÃÄTX.DBF
+³   ÀÄWLIST.DBF
+ÃÄAPP\
+³ ÃÄZLOTY.OPA
+³ ÃÄUTILS.OPA
+³ ÀÄSUSHI2.OPA
+ÃÄWRD\
+³ ÀÄMISC\
+³   ÀÄQUOTA.WRD
+ÀÄOPL\
+7 files
+
+Could be useful, couldn't it? Fair enough, it doesn't show dates or
+sizes, but it is a start. You can see which files are where, how many
+sub-directories you have and get a picture of the layout of your
+disk. (Think you've seen this utility before? Its based on one from
+MS-DOS, but that one doesn't show filenames.)
+
+Okay then, how does it work?
+
+It starts by asking which disk is to be examined, then scans that
+disk using the OPL command DIR$ which gives the names of the files
+and sub-directories belonging to a directory. i.e. the entries in the
+file system.  An entries depth (how far down the tree it is) can be
+determined by keeping a count of how many sub-directories have been
+used to reach it. Both these bits of information are stored in
+arrays; called gaName and gaDepth. (I use the 'g' to remind me that
+the variable is global, and the 'a' for array.) The scanning a bit
+time-consuming (about .5 second per entry) so the name of the
+directory being scanned is "BUSYed" onto the screen, to let you see
+what is happening.
+
+The scanning is done recursively - that is, the procedure Descend:
+calls itself. This is one way of ensuring that the entire tree is
+checked, and also allows the array of entries to be built up in a
+logical order, i.e. the directory, its children, and then its peers.
+
+Having completely scanned the disk, the arrays are used to work out
+the shape of the tree (ShowTree:), by comparing the relative depths
+of entries.
+
+This utility could be done with no arrays, which would reduce the
+amount of memory required at run time, but this method would involve
+repeated calls to DIR$ to find the entry depth, making it very slow.
+
+Well, thats it! I'm going to get some sleep. Good night!
+
+P.S. By the way, the ROM:: drive I mentioned last time cannot be seen
+using the system directory command (psion-*). Try using Open File in
+World (for example) to see the names (like Agenda.App). Don't forget
+the Control-Tab, Control-Enter business to select the ROM:: drive.
+Then you can use a one-liner in OPL like COPY "ROM::AGENDA.APP", "M:"
+to copy it to the internal RAM drive where it is more accessible. Or
+you can look at it with a file viewer like HexDump. (I'll send an
+article about HexDump next time.)
+

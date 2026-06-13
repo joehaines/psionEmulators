@@ -1,0 +1,31 @@
+PROC DUST:
+	GLOBAL A,B,C,D,X,Y,Z
+	LOCAL R,k%,xp%,yp%
+	gCLS :RANDOMIZE 100
+	R=.7 :A=R*COS(2*PI/3) :B=R*SIN(2*PI/3)
+	C=2.5 :D=.9
+	X=1 :Y=0 :REM Start coords
+	k%=1
+	DO
+		IF RND <.5
+			First:
+		ELSE
+			Second:
+		ENDIF
+		xp%=INT(30*(3.1+X)) :yp%=INT(15*(2.7+Y))
+		gAT xp%,yp%
+		gLINEBY 0,0
+		k%=k%+1
+	UNTIL k%>10000
+	BEEP 8,300
+	GET
+ENDP
+
+PROC First:
+	Z=X :X=A*X-B*Y :Y=B*Z+A*Y :RETURN
+ENDP
+
+PROC Second:
+	Z=X :X=.2*(X-1)*(X-1)-Y+1 : Y=.8*Z
+	RETURN
+ENDP

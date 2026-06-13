@@ -1,0 +1,64 @@
+==========
+psion/comms #470, from dw2, 2160 chars, Jun 20 20:33 94
+----------
+Running comms programs over 3Fax hardware
+I've been asked more than once now what's required to get programs that 
+open the serial port (eg Comms programs) to work with the 3Fax hardware.
+
+Often, if you try running these programs over the 3Fax hardware, you 
+just get a "Device does not exist" error.  That arises because the 
+hardware of the 3Fax peripheral is different from that in the 3Link 
+peripheral.
+
+In fact, before a program can talk down the 3Fax peripheral, a special 
+device driver, SYS$A550.PDD (or equivalent) needs to be loaded.  The 
+FComms program that comes with the 3Fax software loads this driver 
+automatically before transferring control to the Comms.app in the S3a 
+rom.
+
+If you want to do something similar with some alternative Comms program, 
+you can make use of the following Opl program (run this if you ever get 
+the "Failed to open comms port: Device does not exist" error):
+
+PROC loada550:
+  local ax%,bx%,cx%,dx%,si%,di%,fl%
+  local nm$(30)
+  nm$="LOC::C:\IMG\SYS$A550.PDD"
+  bx%=addr(nm$)+1
+  ax%=$0700   rem for DevLoadPdd
+  fl%=os($85,addr(ax%))
+  ax%=ax% or $ff00
+  if (fl% and 1) and (ax% <> -32)
+    alert("Failed to load PDD",err$(ax%))
+  else
+    print "PDD loaded successfully"
+    get
+  endif
+ENDP
+
+After running this, try running your comms program again, and you should 
+find that it will now successfully open the comms port.
+
+As mentioned, the problem is that the "physical device driver" with 
+filename SYS$A550.PDD has to be loaded before the serial port LDD 
+(logical device driver) is able to talk to the hardware in the 3Fax 
+unit.  The above Opl code loads this PDD.  If you watch your memory 
+monitor, you'll find that loading it ties up another 2k of system memory.
+
+If you don't want to keep this device driver in memory afterwards, run 
+the following Opl program:
+
+PROC dela550:
+  local dn$(8)
+  dn$="TTY.SRX"
+  call($0885,addr(dn$)+1,0,$dd21)  rem DevDelete
+ENDP
+
+Note: the Fax app also loads the a550 PDD before ever talking to the 
+3Fax hardware.  (In fact, it's the fax *process*, SYS$FAXP.IMG, that 
+does this.)  But when it's finished, it unloads the PDD again.
+
+Hope this helps.
+Regards, DavidW
+
+

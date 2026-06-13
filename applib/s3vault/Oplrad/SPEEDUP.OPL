@@ -1,0 +1,31 @@
+PROC SPEEDUP:
+local a%(6), fontno%
+REM This sample shows how to pause your program when it switches to background
+REM This is useful for processor intensive apps such as timers, graphics apps, etc
+
+	while 1
+		if testevent
+		getevent a%()
+		if a%(1)=$402
+			REM The font will change after each switch
+			REM Swaps font, delete next 3 lines in your code
+			if fontno%<>12 :fontno%=12
+			else :fontno%=1 :endif
+			font fontno%,1
+
+			do
+				getevent a%()
+				until a%(1)=$401
+		REM Process keypresses here
+		elseif a%(1)<$400
+			REM Escape exits
+			if a%(1)=27 : break :endif
+			endif :endif
+
+		REM Place your main process here, delete next 3 lines in your code
+		at 1,1
+		print "Time is ";right$(datim$,8)
+		pause 20
+
+	endwh	
+ENDP

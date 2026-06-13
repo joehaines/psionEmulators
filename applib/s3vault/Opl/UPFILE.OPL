@@ -1,0 +1,238 @@
+REM Source file - UPFILE.OPL
+
+REM An example of how placing
+REM proper error handling into an
+REM OPL program can make it easier to
+REM read and write code.
+
+REM The routine to examine, is UpFile:
+REM at the end of this code.
+
+REM Written by Jezar at Psion, for
+REM The 1994 Psion Developers Conference
+
+
+PROC Convert:
+REM  High level user interface procedure
+REM  for converting a file to uppercase.
+	
+	LOCAL i$(130),o$(130)
+	
+	ONERR done::
+	i$=InName$:
+	o$=OutName$:(i$)
+	
+	BUSY "Converting"
+	UpFile:(i$,o$)
+	BUSY OFF
+	
+	Say:("Conversion complete","Exit")
+	RAISE 0
+	
+done::
+	ONERR OFF
+	BUSY OFF
+	dError:(ERR,"Exit")
+ENDP
+
+
+PROC Say:(t$,b$)
+REM  Display a message.
+	
+	dINIT t$
+	dBUTTONS b$,-27
+	DIALOG
+ENDP
+
+
+PROC dError:(e%,b$)
+REM  Report an error to the user.
+	
+	IF e%<0
+		Say:(ERR$(e%),b$)
+	ENDIF
+ENDP
+
+
+PROC InName$:
+REM  Get the input name for conversion
+	
+	LOCAL n$(130)
+	
+	ONERR askfile::
+	n$="\OPL\"
+	RAISE 0
+	
+askfile::
+	ONERR OFF
+	dError:(ERR,"Continue")
+	ONERR askfile::
+	dINIT "Convert to uppercase"
+	dFILE n$,"File:",$0
+	IF DIALOG=0
+		ONERR OFF
+		RAISE 0
+	ENDIF
+	
+	REM For users convenience
+	REM Check readability now:
+	IOCLOSE(oTFileR%:(n$))
+	
+	RETURN n$
+ENDP
+
+
+PROC OutName$:(base$)
+REM  Get the output name for conversion
+REM  based on 'base$'
+	
+	LOCAL n$(130),o%(6)
+	
+	ONERR askfile::	
+	n$=PARSE$(".up",base$,o%())
+	RAISE 0
+	
+askfile::
+	ONERR OFF
+	dError:(ERR,"Continue")
+	ONERR askfile::
+	dINIT "Choose output file"
+	dFILE n$,"File:",$11
+	IF DIALOG=0
+		ONERR OFF
+		RAISE 0
+	ENDIF
+	
+	REM For users convenience
+	REM Check writeability now:
+	REM (actually NOT a good idea
+	REM  if on flash)
+	IOCLOSE(oTFileW%:(n$))
+	
+	RETURN n$
+ENDP
+
+
+PROC TstError:(error%,except%)
+REM  Test 'error%' and RAISE it if
+REM  it is an error other than 'except%'
+	
+	IF error%<0 AND error%<>except%
+		RAISE error%
+	ENDIF
+ENDP
+
+
+PROC oTFileR%:(fname$)
+REM  Open a text file for reading,
+REM  and return the handle.
+	
+	LOCAL h%,e%
+	
+	e%=IOOPEN(h%,fname$,$0020)
+	IF e%<0
+		RAISE e%
+	ENDIF
+	
+	RETURN h%
+ENDP
+
+
+PROC oTFileW%:(fname$)
+REM  Open a text file for writing,
+REM  and return the handle.
+REM  Makes sure that the output
+REM  directory exists.
+	
+	LOCAL h%,e%,o%(6),d$(130)
+	
+	d$=PARSE$(fname$,"",o%())
+	d$=LEFT$(d$,o%(4)-2)
+	TRAP MKDIR d$
+	IF ERR<0 AND ERR<>-32
+		RAISE ERR
+	ENDIF
+	
+	e%=IOOPEN(h%,fname$,$0122)
+	IF e%<0
+		RAISE e%
+	ENDIF
+	
+	RETURN h%
+ENDP
+
+
+PROC TxtRead$:(h%)
+REM  Returns a line of text from
+REM  the open file 'h%'
+	
+	LOCAL e%,txt%(129),txtLBC%,txtZTS%
+	
+	txtLBC%=ADDR(txt%(1))
+	txtZTS%=ADDR(txt%(2))
+	
+	e%=IOREAD(h%,txtZTS%,254)
+	IF e%<0
+		RAISE e%
+	ENDIF
+	
+	POKEB txtLBC%,e%+1
+	RETURN MID$(PEEK$(txtLBC%),2,254)
+ENDP
+
+
+PROC TxtWrite:(h%,txt$)
+REM  Writes a line of text to
+REM  the open text file 'h%'
+	
+	LOCAL e%,txt%(129),txtLBC%,txtZTS%
+	
+	txtLBC%=ADDR(txt%(1))
+	txtZTS%=ADDR(txt%(2))
+	
+	POKE$ txtLBC%,"#"+txt$
+	
+	e%=IOWRITE(h%,txtZTS%,LEN(txt$))
+	IF e%<0
+		RAISE e%
+	ENDIF
+ENDP
+
+
+PROC UpFile:(srcname$,dstname$)
+REM  Convert a text file into
+REM  a new, uppercase one.
+REM  Notice how clean this procedure
+REM  is because it uses OPL error
+REM  handling in the correct way.
+	
+	LOCAL h1%,h2%,c1%,c2%,buf$(255)
+	
+	ONERR closeup::
+	h1%=oTFileR%:(srcname$)
+	h2%=oTFileW%:(dstname$)
+	
+	WHILE 1
+		buf$=TxtRead$:(h1%)
+		buf$=UPPER$(buf$)
+		TxtWrite:(h2%,buf$)
+	ENDWH
+	
+closeup::
+	ONERR done::
+	c2%=IOCLOSE(h2%)
+	c1%=IOCLOSE(h1%)
+	
+	TstError:(ERR,-36)
+	TstError:(c2%,0)
+	TstError:(c1%,0)
+	RAISE 0
+	
+done::
+	ONERR OFF
+	TstError:(ERR,0)
+ENDP
+
+
+REM End of file
+

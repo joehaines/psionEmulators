@@ -1,0 +1,51 @@
+PROC ioType:
+	LOCAL ret%,fName$(128),txt$(255),address%
+	LOCAL handle%,mode%,k%
+print "iotype of a file:"
+print "press a key" :get :cls
+	PRINT "Filename?", :INPUT fName$ :	CLS
+	mode%= $0400 OR $0020
+REM open=$0000, text=$0020, share=$0400
+	ret%=IOOPEN(handle%,fName$,mode%)
+	IF ret%<0
+		showErr:(ret%)
+		RETURN
+	ENDIF	
+	address%=ADDR(txt$)
+	WHILE 1
+		k%=KEY
+		IF k% :	REM if keypress
+			IF k%=27 REM Esc pressed
+				RETURN
+			REM otherwise wait for a key
+			ELSEIF GET=27
+ 				RETURN REM Esc pressed
+			ENDIF
+		ENDIF
+		ret%=IOREAD(handle%,address%+1,255)
+		IF ret%<0
+			IF ret%<>-36 REM NOT EOF
+				showErr:(ret%)
+			ENDIF
+			BREAK
+		ELSE
+			POKEB address%,ret%
+REM poke leading byte count
+			PRINT txt$
+		ENDIF
+	ENDWH
+	ret%=IOCLOSE(handle%)
+	IF ret%
+		showErr:(ret%)
+	ENDIF
+	PAUSE -100 :KEY
+ENDP
+
+
+
+
+PROC showErr:(val%)
+	PRINT "Error",val%,err$(val%)
+	GET
+ENDP
+

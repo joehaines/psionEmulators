@@ -1,0 +1,69 @@
+PROC dohelp:
+	local capt% :rem whether key is captured
+	local owner% :rem pid of owner
+	local pid% :rem own pid
+	local allpids%(22)
+
+	owner%=peekw($28) :rem as ProcCopyTo'ed by CtrlHelp
+	capt%=0 :rem Help key not captured yet
+	nonactv:
+	pid%=call($0088,0,0,0,0,0) :rem ProcId
+	escape off
+	lockback:
+	while 1
+		if call($8c8d,owner%,0,0,0,0)<0 :rem wClientInfo
+			stop :rem Owner has terminated
+		endif
+		call($d98d,0,0,0,addr(allpids%(1)),0) :rem wGetProcessList
+		if allpids%(1)=owner%
+			if capt%=0
+				if call($c58d,$123,$800,0,0,0)=0
+					capt%=1
+				endif
+			endif
+		else
+			if allpids%(1)=pid% :rem was tasked to foreground by Shell
+				lockback:
+			endif
+			if capt%=1
+				if call($c68d,$123,$800,0,0,0)=0
+					capt%=0
+				endif
+			endif
+		endif
+		pause -20
+		if key=$123
+			if capt%=1
+				if call($c68d,$123,$800,0,0,0)=0
+					capt%=0
+				endif
+			endif
+			showhelp:
+		endif
+	endwh
+ENDP
+
+proc nonactv:
+rem Don't keep the machine on just because of this app
+	call ($138b,0,0,0,0,0) :rem GenMarkNonActive
+endp
+
+PROC lockback:
+rem lock into background
+	call($c78d,100,0,0,0,0) :rem wSystemModal
+ENDP
+
+PROC tofore:
+rem Cancel system modality and come to foreground
+	call($c88d,0,0,0,0,0) :rem wCancelSystemModal
+ENDP
+
+PROC showhelp:
+	tofore:
+	dInit
+	dText "","Help text",2
+	dText "","Some more",2
+	dialog
+	lockback:
+ENDP
+	

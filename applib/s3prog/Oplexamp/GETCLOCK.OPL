@@ -1,0 +1,50 @@
+/*      procedure to return the type of clock set       
+
+        Author  DP      2/11/92
+
+        The procedure uses a call to GenGetCountryData
+        which returns a structure listed below.  The 27th byte
+        of the structure is the clock type, it returns
+        0 Analog
+        1 Digital
+
+        Given the structure included below it is possible to change
+        the procedure to return any or all of the values.
+
+CDataEnt struc
+CDataCountryCode		dw	?
+CDataGmtOffset			dw	?
+CDataDateType			db	?
+CDataTimeType			db	?
+CDataCurrencySymbolPosition	db	?
+CDataCurrencySpaceRequired	db	?
+CDataCurrencyDecimalPlaces	db	?
+CDataCurrencyNegativeInBrackets	db	?
+CDataCurrencyTriadsAllowed	db	?
+CDataThousandsSeparator		db	?
+CDataDecimalSeparator		db	?
+CDataDateSeparator		db	?
+CDataTimeSeparator		db	?
+CDataCurrencySymbol		db	9 dup(?)
+CDataStartOfWeek		db	?
+CDataSummerTime			db	?
+CDataClockType			db	?
+CDataDayAbbreviation		db	?
+CDataMonthAbbreviation		db	?
+CDataWorkDays			db	?
+CDataUnits			db	?
+CDataSpare			db	9 dup(?)
+CDataEnt ends
+                                                         */
+proc clock:
+
+        LOCAL   buf$(40)        /*   40 byte buffer to return structure    */          
+        LOCAL   clock%          /*   return the value of the clock type    */
+        
+        call($058b,(addr(buf$)+1))      /*   Call GenGetCountryData        */
+
+        pokeb addr(buf$),40             /*   poke the length of the buffer */
+        clock% = peekb(addr(buf$)+27)      
+        print clock%                    /*   return the clock type         */
+        get
+ENDP

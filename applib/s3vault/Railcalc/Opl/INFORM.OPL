@@ -1,0 +1,225 @@
+PROC stop:
+	GLOBAL stat$(20)
+	LOCAL p%,log&,late&
+	LAST
+		IF A.timA>0
+			RETURN
+		ENDIF
+	FIRST
+		DO
+			NEXT
+		UNTIL A.timA=0
+		stat$=A.nm$
+IF A.stop$="Stopping"
+	dINIT
+	dTEXT "","Approaching  Stop  at  "+stat$,$302
+	dBUTTONS "ARRIVE",13,"Cancel",-27
+	dPOSITION -1,-1
+	p%=DIALOG
+		IF p%=0
+			RETURN
+		ELSEIF p%=13
+			sex&=(HOUR*INT(3600))+(MINUTE*60)+SECOND
+			A.timA=sex&
+				UPDATE
+					sort:
+				FIRST
+					DO
+				NEXT
+				UNTIL A.timD=0
+					wait:
+				sex&=(HOUR*INT(3600))+(MINUTE*60)+SECOND
+				A.timD=sex&
+				UPDATE
+					sort:
+			ENDIF
+ELSEIF A.stop$="Passing"
+		dINIT
+		dTEXT "","About  to  pass  "+stat$,$302
+		dBUTTONS "NOW",13,"Cancel",-27,"Missed ?",32
+		dPOSITION -1,-1
+		p%=DIALOG
+			IF p%=0
+				RETURN
+			ELSEIF p%=13
+				sex&=(HOUR*INT(3600))+(MINUTE*60)+SECOND
+				A.timA=sex&
+				A.timD=sex&
+				UPDATE
+					sort:
+			ELSEIF p%=32
+				sex&=(HOUR*INT(3600))+(MINUTE*60)+SECOND
+				late&=adjust&:(sex&)
+				FIRST
+			DO
+				NEXT
+			UNTIL A.timD=0
+				log&=sex&-A.tabA-late&
+					dINIT
+					dTEXT "","Passing  "+stat$,$302
+					dLONG log&,"Suggest overshot by",0,7200
+					dTEXT "","Alter or Enter as suggested",2
+					dPOSITION -1,-1
+					p%=DIALOG
+				IF p%=0
+					RETURN
+				ELSE
+					A.timA=sex&-log&
+					A.timD=sex&-log&
+					UPDATE
+						sort:
+				ENDIF
+			ENDIF
+ENDIF
+ENDP
+
+PROC unstop:
+	GLOBAL stat$(20)
+	LOCAL indx,indx$(3),p%
+		LAST
+			IF A.timA>0
+				RETURN
+			ENDIF
+		dINIT
+		dTEXT "","Unscheduled  Stop",$302
+		dBUTTONS "STOP",13,"Cancel",-27
+		dPOSITION -1,-1
+		p%=DIALOG
+			IF p%=0
+				RETURN
+			ELSEIF p%=13
+			FIRST
+		DO
+			NEXT
+		UNTIL A.timA=0
+			BACK
+			sex&=HOUR*INT(3600)+MINUTE*60+SECOND
+			arr&=uptrain&:(sex&)
+			indx$=A.idx$
+			indx=VAL(indx$)
+				IF miled>mlfst
+				A.ml=mlfst+(arr&-12)/ppm
+				ELSEIF miled<mlfst
+				A.ml=mlfst-(arr&-12)/ppm
+				ENDIF
+			A.idx$=GEN$((indx+1),3)
+			A.nm$="Unstop"
+			A.stop$="Stopping"
+			A.timA=sex&
+			A.timD=0
+				APPEND
+					sort:
+				FIRST
+			DO
+				NEXT
+			UNTIL A.timD=0
+			stat$=A.nm$
+				wait:
+				sex&=HOUR*INT(3600)+MINUTE*60+SECOND
+				A.timD=sex&
+				UPDATE
+				sort:
+				ENDIF
+				RETURN
+ENDP
+
+PROC adjust&:(sex&)
+	LOCAL pps,tim2,tim3,mil2,mil3,pix
+	arr&=uptrain&:(sex&)
+	line&=uptable&:(sex&)
+			FIRST
+		DO
+			NEXT
+		UNTIL A.timA=0 AND A.stop$="Stopping"
+			tim2=A.tabA
+			mil2=A.ml
+		DO
+			BACK
+		UNTIL A.stop$="Stopping" AND A.nm$<>"Unstop"
+			tim3=A.tabD
+			mil3=A.ml
+			pps=ABS(mil2-mil3)*ppm/(tim2-tim3)
+	IF line&<460
+			pix=line&-(arr&+8)
+			RETURN pix/pps
+	ELSEIF line&=460
+		LAST
+		IF A.timA=0
+		RETURN sex&-A.tabA+((452-arr&)/pps)
+		ENDIF
+	ENDIF
+ENDP
+
+PROC wait:
+	LOCAL pps,pix
+	LOCAL tim2,tim3,mil2,mil3,late,minlt%,sexlt%
+	LOCAL eta,etamin%,etasex%
+	LOCAL etahr%,etax,p%
+		calc::
+			sex&=(HOUR*INT(3600))+(MINUTE*60)+SECOND
+		arr&=ABS(A.ml-mlfst)*ppm+12
+		line&=uptable&:(sex&)
+		gUSE 1
+		gAT 20,135
+		gLINETO line&,135
+		gAT 20,134
+		gLINETO line&,134
+		gUSE idA%
+		gSETWIN arr&,137
+		gUSE 1
+		LAST
+			IF A.timA>0
+			RETURN
+			ENDIF
+		FIRST
+		DO
+			NEXT
+		UNTIL A.timA=0 AND A.stop$="Stopping"
+			tim2=A.tabA
+			mil2=A.ml
+		DO
+			BACK
+		UNTIL A.stop$="Stopping" AND A.nm$<>"Unstop"
+			tim3=A.tabD
+			mil3=A.ml
+			pps=ABS(mil2-mil3)*ppm/(tim2-tim3)
+	IF line&<460
+			pix=line&-(arr&+8)
+			late=pix/pps
+	ELSEIF line&=460
+		LAST
+		IF A.timA=0
+		late=sex&-A.tabA+((452-arr&)/pps)
+		ELSEIF A.timA>0
+			RETURN
+		ENDIF
+	ENDIF
+			minlt%=INT(late/60)
+			sexlt%=INT(late-minlt%*60)
+		LAST
+			eta=A.tabA+late
+			etahr%=INT(eta/3600)
+			etax=eta-etahr%*INT(3600)
+			etamin%=INT(etax/60)
+			etasex%=INT(etax-etamin%*60)
+	dINIT
+	dTEXT "","Waiting  at  "+stat$,$302
+	dTEXT "Minutes  running  late",GEN$(minlt%,3)+"min:"+GEN$(sexlt%,3)+"sec",$101
+	dTEXT "Estimated  arrival  time",GEN$(etahr%,2)+":"+GEN$(etamin%,2)+":"+GEN$(etasex%,2),$101
+	dBUTTONS "LEAVE",13,"Update",32
+	dPOSITION -1,-1
+	p%=DIALOG
+		IF p%=13
+		FIRST
+			DO
+		NEXT
+			UNTIL A.timD=0
+			RETURN
+		ELSEIF p%=32
+		FIRST
+			DO
+		NEXT
+			UNTIL A.timD=0
+			GOTO calc
+		ENDIF
+ENDP

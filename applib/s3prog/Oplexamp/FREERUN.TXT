@@ -1,0 +1,115 @@
+==========
+psion/opl #1348, from masmit, 275 chars, Aug 21 01:42 94
+----------
+TITLE: Timing
+
+Given that it simply is not practical for me to get the SDK etc, and 
+learn C, can anyone tell me if it is possible to get timing accuracy 
+better than the 32nd of a second that I can currently get in OPL? 
+Millisecond accuracy is what I need.
+
+Thanks,
+
+Mark
+
+
+==========
+psion/opl #1350, from baldwina, 1898 chars, Aug 21 11:18 94
+Comment to 1348. 
+----------
+Here's something I posted to comp.sys.psion a bit back:
+
+Note: You didn't specify S3a or S3 - This program is most definately
+S3a *ONLY*. You will be pretty stuck for millisecond resolution on
+a Series 3. Reason being, the S3 only had one Free running counter for
+use by EPOC only, whereas the S3a has 2, one for EPOC and one for
+application use.
+
+---------------------------------
+
+Newsgroups: comp.sys.psion
+From: Andrew@zarquon.demon.co.uk (Andrew Baldwin)
+Subject: Accurate Timer on S3a
+Date: Wed, 29 Jun 1994 23:23:08 +0000
+Message-ID: <Andrew.039z@zarquon.demon.co.uk>
+
+Here's an interesting program for S3a OPL programmers:
+
+-----
+
+PROC main:
+GLOBAL handle%
+LOCAL time&,t%
+
+Startfrc:
+
+t%=0
+DO
+t%=t%+1
+UNTIL t%=31000
+
+time&=Readfrc&:
+PRINT FLT(time&)/1024.0;" seconds to complete"
+PRINT (FLT(31000)/FLT(time&))*1024;" operations per second"
+GET
+
+Stopfrc:
+
+ENDP
+
+PROC Startfrc:
+LOCAL err%,mode&
+err%=IOOPEN(handle%,"FRC:",-1)
+IF err%<0 REM open our timer
+panic:(err%)
+ENDIF
+
+mode&=0
+
+err%=IOW(handle%,15,mode&,mode&)
+IF err%<0
+panic:(err%)
+ENDIF
+ENDP
+
+PROC Stopfrc:
+LOCAL err%
+err%=IOCLOSE(handle%)
+IF err%<0
+panic:(err%)
+ENDIF
+ENDP
+
+PROC Readfrc&:
+LOCAL err%,long&
+err%=IOW(handle%,1,long&,long&)
+IF err%<0
+panic:(err%)
+ENDIF
+RETURN long&
+ENDP
+
+PROC panic:(err%)
+PRINT err%,err$(err%)
+GET
+STOP
+ENDP
+
+----
+
+What does it do? Well, it uses the FRC: (Free Running Counter)
+device on the 3a to count time accurate to 1/1024th of a second.
+It performs an integer addition loop and returns the time taken
+and the number of operations performed per second.
+
+-- 
+Andrew Baldwin ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><>
+ar.baldwin@ic.ac.uk <- reply here please ><> "Holy Zarquon's Singing Fish"
+andrew@zarquon.demon.co.uk  ><> ><> ><> ><>  baldwina@cix.compulink.co.uk
+SHOCK HORROR DAILY ZARQUON EXCLUSIVE  -  .sig lost in HD Disater Area Gig
+
+----------------------------
+
+AndrewB
+
+

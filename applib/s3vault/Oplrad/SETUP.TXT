@@ -1,0 +1,119 @@
+Psion Setup (c)1996 PROTRONICS USA 404-351-1055 CompuServe 71021,1544
+
+Setup is a system used by all Protronics apps to store and retrieve 
+preferences. If run directly it will open SETUP.DBF in the Data app.
+Here you can change defaults or delete those for apps you don't use.
+
+Developer's Kit
+
+Setup was created to standardize user defaults & encourage users to
+register with you. By storing all OPA/OPO defaults in one DBF file,
+total files are reduced, memory is saved, and setup is simplified.
+Development is faster as code is reduced and less memory is needed
+during runtime. If the user defaults are damaged or deleted, SETUP
+will automatically rebuild SETUP.DBF from app defaults passed by the
+calling program.
+
+SETUP.DBF can contain defaults for dozens of apps making them easily
+accessible to the user. By tracking registration codes, users are
+strongly encouraged to register, meaning more money for developers.
+The only thing we ask in exchange for the SETUP.OPO code is for you
+to send us your app when it's done. We will test it & provide feedback.
+
+Installing Setup
+
+1) Copy SETUP.DBF into \DAT  (mark as Hidden*)
+2) Copy SETUP.OPO into \OPO  (mark as Hidden)
+*Optional (Setup will recreate SETUP.DBF if damaged or missing)
+
+To mark SETUP.OPO as Hidden:
+Find the OPL balloon (press Psion-J to install RunOpl)
+Hilite SETUP.OPO, press Psion-T, and set Hidden to "Yes"
+See other .TXT files for more instructions
+
+Notes
+
+You may use Setup for your own development, but remember other apps use
+SETUP.DBF to store defaults too. Please keep to the routines in SETUP.OPO 
+and let us know if you need added functionality.
+
+If you have suggestions, ideas, or install trouble please let us know.
+Send us a $25 registration fee, and you will receive all of our Psion
+Utils via e-mail over the Internet (uuencoded) or CompuServe (zipped).
+You'll be on our list for new releases & receive free updates for life. 
+
+International users may register via CompuServe (GO SWREG  ID#: 7768)
+Registered users get free utility updates for the life of the product
+Our New Web Site: http://ourworld.compuserve.com/homepages/protronics
+Protronics USA 499 Northside Circle, Suite 420, Atlanta GA 30309-2112
+Psion Setup (c)1996 PROTRONICS USA 404-351-1055 CompuServe 71021,1544
+
+
+SETUP.OPO contains 4 functions:
+
+OpenF:(App$)
+App$=Application Name
+
+Opens SETUP.DBF (uses logical D so A, B, & C are free)
+Displays Copyright notice & Licensee
+Checks if registered
+If Not, allows user to enter name & code or use for a trial period
+If the app config is missing, a new one is created
+Reads user defaults into memory
+
+IO$:(Var$,Data$,io%)
+Var$=Name of Variable
+io%=0(read) or 1(write)
+if io%=0, Data$=App Default
+if io%=1, Data$=User Default
+IO$ searches for the variable name
+App default is returned if io% is 1 or Var$ is missing
+User default is returned if io% is 0 and Var$ is found
+
+CloseF:
+Writes user defaults back to file
+Closes SETUP.DBF
+(If no save is necessary, use CLOSE instead of CloseF:)
+
+OpenD:(App$)
+Opens SETUP.DBF using DATA, jumps to App, allows user to edit profile,
+and returns the process ID.
+
+
+Sample App:
+
+PROC MAIN:
+	GLOBAL Remind%, Code%, User$(25), Drive$(7), App$(12)
+
+	Init:
+
+	PRINT "Files:",Drive$
+	IF Remind%
+		PRINT "User:",User$
+		PRINT "Code:",Code%
+		ENDIF
+
+	PRINT chr$(10);"Notice Files =",Drive$,"not M:\WRD\"
+	PRINT "Try changing the data in SETUP.DBF and running again"
+	PRINT "Press a key..." :get
+	OpenD:(App$)
+	UNLOADM "Setup"
+ENDP
+
+PROC Init:
+	GLOBAL Vars$(16,60)
+	app$="MyApp"
+	LOADM "Setup"
+	OpenF:(App$)
+
+	REM Write variables (forces defaults)
+	Drive$= IO$:("Files","M:\TXT\",1)
+	Remind%= IO$:("Remind","On",1)="On"
+
+	REM Read variables (defaults are included in case missing)
+	User$= IO$:("User","Unregistered",0)
+	Code%= VAL( IO$:("Code","9999",0))
+	Drive$= IO$:("Files","M:\WRD\",0)
+
+	closef:
+ENDP

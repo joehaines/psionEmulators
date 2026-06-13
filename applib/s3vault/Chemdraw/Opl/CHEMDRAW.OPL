@@ -1,0 +1,570 @@
+App ChemDraw
+icon "\pic\chemdraw.pic"
+type $1000
+Enda
+
+PROC TOP:
+GLOBAL txt$(20),w&,h&,fn$(128),ofn$(128),obj%
+GLOBAL d%,key%,mod%,dx%,dy%,x%,y%,bit%,p&
+GLOBAL c$(20,20),st1%,st2%,st3%,st4%,font%,opaq%,sprid%
+GLOBAL path$(1),cat$(128),name$(40),note$(60),tit%,picinf%,picinf$(4)
+Global w$(128),t$(2),a%(6),coord%,coord$(4),pol%,mo%,sym%,bon%
+cache 2000,2000
+Init:
+top::
+Do
+getkey:
+if key%=290 OR (mod% AND $08)
+	If key%=290 :lock on
+		mINIT
+		mCARD "File","Save",%s,"Retrieve",%r,"Catalogue",%c,"Exit",%x
+		mCARD "Draw","Polygon",%p,"Bonds",%b,"Moeities",%m,"Large symbols",%L,"Line",%l,"Text",%t,"Brush",%B
+		mCARD "Erase","Clear screen",%k,"Eraser",%e
+		mCARD "Information",coord$+" coordinates",%S,"Help",%h,"About ChemDraw",%a
+		key%=menu :lock off
+	Else
+		key%=key%-512
+	ENDIF
+	If key%=%s
+		if (mod% and 2) :coord: :else save: :endif
+	Elseif key%=%S :coord:
+	Elseif key%=%r :retrieve:
+	Elseif key%=%c :catalog:
+	Elseif key%=%x :exit:
+	Elseif key%=%p :polygon:
+	Elseif key%=%b
+		if (mod% and 2) :pix:(0,"Brush",3) :else bond: :endif
+	Elseif key%=%B :pix:(0,"Brush",3)
+	Elseif key%=%m :moiety:
+	Elseif key%=%l
+		if (mod% and 2) :lsym: :else line: :endif
+	Elseif key%=%L :lsym:
+	Elseif key%=%t :text:
+	Elseif key%=%k :Clear:
+	Elseif key%=%e :pix:(1,"Eraser",10)
+	Elseif key%=%a :about:
+	Endif
+Endif
+Until key%=999
+goto top::
+ENDP
+
+Proc save:
+local id%,cat%,o%(6),fn2$(128),p%
+locate:("Go top left Corner")
+if key%=27 :busy off :return :endif
+dx%=x% :dy%=y%
+busy "Stretch box",3
+do
+	gat dx%,dy%
+	ggmode 2
+	gbox x%-dx%,y%-dy% rem draws box
+	getkey:
+	gbox x%-dx%,y%-dy% rem deletes box
+	Cursor:
+	ggmode 0
+until key%=13 or key%=27
+busy off
+if key%=27 :return :endif
+id%=gcreate (0,0,x%-dx%,y%-dy%,1)
+gat 0,0
+gcopy 1,dx%,dy%,x%-dx%,y%-dy%,3
+lock on
+dinit "Save Picture File"
+dtext "Size",gen$(gwidth,3)+" x "+gen$(gheight,3)
+dfile fn$,"File",1+2+16
+cat%=1 :dchoice cat%,"Add to catalogue","No,Yes"
+d%=dialog :lock off
+if d%
+	fn2$=fn$
+	fn$=PARSE$(fn$,fn2$,o%())
+	onerr probsave
+	trap mkdir (mid$(fn$,1,o%(4)-1))
+	gsavebit fn$
+	giprint "Picture Saved"
+	gclose id%
+	If cat%=2
+		lock on
+		dinit "Catalogue"
+		name$="" :dedit name$,"Descriptive name",10
+		note$="" :dedit note$,"Notes",15
+		d%=dialog :lock off
+		if d%<>0
+			open cat$,a,name$,note$,fn$
+			a.name$=name$ :a.note$=note$ :a.fn$=fn$
+			append :close
+		endif
+	endif
+else
+	gclose id% :giprint "Aborted Filesave!"
+endif
+return
+probsave::
+onerr off
+lock on
+alert("Terribly Sorry!  The problem is...",err$(err))
+lock off
+trap gclose id%
+ENDP
+
+Proc retrieve:
+local bit%,id%
+lock on
+dinit "Load Picture File"
+dfile fn$,"File",1+2
+d%=dialog :lock off
+if d%<>0
+	if exist(fn$) :paste:(0) :endif
+else
+	giprint "File not found"
+endif
+Endp
+
+Proc catalog:
+local delcat%,catwin%,clue$(10),choice%,f%
+guse tit%
+gat 201,16 :gprint "Chembase Catalogue"
+gtmode 1
+gat 200,15 :gprint "Chembase Catalogue"
+gtmode 0
+ggrey 1
+gat 200,15 :gprint "Chembase Catalogue"
+ggrey 0
+guse 1
+open cat$,a,name$,note$,fn$
+catwin%=gcreate(0,20,416,140,1)
+position(p&)
+if count=0 :goto add :endif
+do
+name$=a.name$ :note$=a.note$ :fn$=a.fn$
+gcls :gborder 0 :gfont 11
+gat 350,135 :gprintb gen$(pos,3)+"/"+gen$(count,3),60,1
+onerr notfound
+bit%=gloadbit(fn$,1)
+w&=gwidth :h&=gheight
+guse catwin%
+gat 10,5
+gcopy bit%,0,0,w&,h&,0
+gclose bit%
+guse catwin% :gorder catwin%,1
+goto txt
+notfound::
+onerr off
+giprint "PIC file not found"
+txt::
+if picinf%
+	gstyle 1
+	gat 10,120 :gprintb a.name$,340
+	gstyle 0
+	gat 10,135 :gprintb a.note$,340
+endif
+getkey:
+if key%=13 and mod%=0 :next :elseif key%=13 and mod%=2 :back :endif
+if key%=290 OR (mod% AND $08)
+	If key%=290 :lock on
+		mINIT
+		mCARD "File","Exit Catalogue",%x,"Exit Program",%X
+		mCARD "Search","Next",%f,"Previous",%r,"Jump to",%j,"Query",%q
+		mCARD "Edit","Paste",%p,"Add",%a,"Edit details",%e,"Make last",%m,"Delete",%d
+		mCARD "Options",picinf$+" information",%i
+		key%=menu :lock off
+	Else
+		key%=key%-512
+	ENDIF
+	If key%=%r :back
+	elseif key%=%f :next
+	elseif key%=%x and (mod% and 2) :exit:
+	elseif key%=%X :exit:
+	elseif key%=%i
+		if picinf%
+			picinf%=0 :picinf$="Show"
+		else
+			picinf%=1 :picinf$="Hide"
+		endif
+	elseif key%=%d
+		if warn%:("Delete catalogue entry")=%y :erase :if eof :last :endif
+			if exist(fn$)
+				if warn%:("Delete "+fn$)=%y :delete fn$ :Endif
+			endif
+		endif
+	elseif key%=%p
+		x%=100 :y%=20
+		guse 1
+		gORDER 1,1
+		paste:(0)
+		key%=%x
+	elseif key%=%a
+		add::
+		fn$=path$+":\chem\*.PIC" :name$="" :note$=""
+		lock on
+		dinit "Add PIC File to Catalogue"
+		dfile fn$,"Choose file",1+2
+		name$="" :dedit Name$,"Descriptive name",15
+		note$="" :dedit note$,"Notes",15
+		d%=dialog :lock off
+		if d%<>0
+			a.name$=name$ :a.note$=note$ :a.fn$=fn$
+			append
+		endif
+	elseif key%=%e :lock on
+		dinit "Edit Details"
+		dedit name$,"Descriptive name",15
+		dedit note$,"Notes",15
+		d%=dialog :lock off
+		if d% :a.name$=name$ :a.note$=note$ :update :endif
+	elseif key%=%m :p&=pos :update :position(p&)
+	elseif key%=%j :lock on
+		dinit
+		dLONG p&,"Jump to record number",1,count
+		d%=dialog :lock off
+		if d% :position(p&) :endif
+	elseif key%=%q :lock on
+		dinit
+		dedit clue$,"Find",10
+		choice%=1 :dCHOICE choice%,"Search from","Current record,First record"
+		d%=dialog
+		if d%
+			if choice%=2 :first :else :next :endif
+			f%=FIND("*"+clue$+"*")
+			if f% :position(f%) :giprint "Found" :else :giprint clue$+" not found" :position(p&) :endif
+		endif
+	endif
+endif
+if eof :last :Endif
+p&=pos
+until key%=%x
+close
+gclose catwin%
+guse tit%
+ggrey 2
+gat 200,15 :gprintb " ",150
+gat 200,16 :gprintb " ",150
+ggrey 0
+guse 1
+Endp
+
+Proc exit:
+if warn%:("Exit Program")=%y :stop :Endif
+Endp
+
+Proc polygon:
+lock on
+dinit 
+dchoice pol%,"Choose Shape","Benzene 0ø,Benzene 90ø,Pentane 0ø,Pentane 90ø,Cyclohex flat,Cyclohex chair,Cyclohex boat,Cyclobutane,Cyclopropane"
+d%=dialog :lock off
+if d%
+	obj%=pol%
+	object:
+endif
+Endp
+
+Proc bond:
+lock on
+dinit "Bonds"
+dchoice bon%,"Bond type","Single 0ø,Single 30ø,Single 45ø,Single 60ø,Single 90ø,Single 120ø,Single 135ø,Single 150ø,3D-Out 60ø,3D-In 60ø,3D-Out 150ø,3D-In 150ø,Double 0ø,Double 45ø,Double 90ø,Double 135ø,Triple 0ø,Triple 90ø,Aromatic circle"
+d%=dialog :lock off
+if d%
+	obj%=bon%+19
+	object:
+endif
+Endp
+
+Proc moiety:
+lock on
+dinit "Moieties"
+dchoice mo%,"Moieties","CH2,-CH3,H3C-,-NH2,H2N-,-NO2,O2N-,n-Propyl,i-Propyl,n-Butyl,i-Butyl,t-Butyl,OHî,Clî,Brî,Iî,H+,Na+,K+"
+d%=dialog :lock off
+if d%
+	obj%=mo%+49
+	object:
+endif
+Endp
+
+Proc lsym:
+lock on
+dinit
+dchoice sym%,"Large symbols","Left {,Right },Left [,Right ],Arrow ->,Arrow <-,Arrow up,Arrow down"
+d%=dialog :lock off
+if d%
+	obj%=sym%+79
+	object:
+endif
+Endp
+
+Proc line:
+busy"Go start of line",3
+locate:("Go start of line")
+lintop::
+dx%=x% :dy%=y%
+ggmode 2
+do
+	busy "Stretch Line..",3
+	gat x%,y%
+	glineto dx%,dy%
+	getkey:
+	glineto x%,y%
+	Cursor:
+until key%=13 or key%=27 or key%=32
+ggmode 0
+if key%=13 or key%=32
+	gat dx%,dy% :glineto x%,y%
+endif
+if key%=32 :goto lintop :endif
+busy off
+ENDP
+
+Proc text:
+lock on
+dinit
+dedit txt$,"Text",15
+dchoice font%,"Size","Small,Medium,Large"
+dchoice st1%,"Bold","No,Yes"
+dchoice st2%,"Underlined","No,Yes"
+dchoice st3%,"Double Height","No,Yes"
+dchoice st4%,"Italic","No,Yes"
+dchoice opaq%,"Mode","Normal,Opaque"
+d%=dialog :lock off
+if d%=0 :return :endif
+if font%=1 :gfont 5
+Elseif font%=2 :gfont 6
+Elseif font%=3 :gfont 7
+Endif
+gstyle (st1%-1)+((st2%-1)*2)+((st3%-1)*8)+((st4%-1)*32)
+busy "Hit ENTER to paste",3
+gtmode 2
+do
+	gat x%,y%
+	gprint txt$
+	getkey:
+	gat x%,y%
+	gprint txt$
+	Cursor:
+until key%=13 or key%=27
+if key%=13
+	if opaq%=2 :gtmode 3
+	Else :gtmode 0 :Endif
+	gat x%,y%
+	gprint txt$
+endif
+busy off
+Endp
+
+Proc Clear:
+if warn%:("Clear Screen")=%y :gcls :Gborder 0 :endif
+Endp
+
+Proc pix:(gm%,inf$,curs%)
+local s%
+s%=curs%
+busy inf$+" mode",3
+mod%=0
+do
+gat x%,y% :cursor 1,0,s%,s%,0
+If mod% and 2 :gfill s%,s%,gm% :endif
+getkey:
+cursor:
+If key%=43 :s%=s%+1 :giprint inf$+" size "+gen$(s%,3)
+Elseif key%=45 and s%>1 :s%=s%-1 :giprint inf$+" size "+gen$(s%,3)
+Endif
+If mod% and 2 :gfill s%,s%,gm% :endif
+if key%=%x :exit: :endif
+until key%=27
+busy off
+cursor off
+gborder 0
+Endp
+
+Proc help:
+lock on
+if exist(path$+":\chem\chemhelp.opo")
+	loadm path$+":\chem\chemhelp.opo"
+	chemhelp:
+	unloadm path$+":\chem\chemhelp.opo"
+else
+	giprint "Help file not found in "+path$+":\CHEM\"
+lock off
+Endif
+Endp
+
+Proc Paste:(ob%)
+if ob%=0
+	bit%=gloadbit(fn$,1)
+else
+	bit%=gloadbit(ofn$,1)
+endif
+w&=gwidth :h&=gheight
+guse 1
+Busy "Hit ENTER to Paste",3
+do
+	gat x%,y%
+	gcopy bit%,0,0,w&,h&,2
+	getkey:
+	Cursor:
+	gcopy bit%,0,0,w&,h&,2
+until key%=13 or key%=27
+busy off
+if key%=13 :gcopy bit%,0,0,w&,h&,0 :endif
+gclose bit%
+return
+Endp
+
+Proc object:
+ofn$=path$+":\chem\objects\obj"+gen$(obj%,2)+".pic"
+if not exist(ofn$)
+lock on
+dinit "Can't find Pic file"
+dbuttons "Sorry!",27
+dialog :lock off :return
+Endif
+Paste:(1)
+Endp
+
+Proc warn%:(mes$)
+lock on
+Dinit mes$
+Dbuttons "No",-%n,"Yes",%y
+d%=dialog :lock off
+return d%
+Endp
+
+Proc about:
+lock on
+dINIT
+dTEXT "","ChemDraw v2",$302
+dTEXT "","A Chemistry Notepad",$102
+dTEXT "","Julian C. Toler",2
+dTEXT "","April 1995",2
+dialog
+lock off
+Endp
+
+Proc crbit: rem create cursor sprite bitap
+if not exist("m:\opd\cross.pic")
+trap mkdir "m:\opd"
+gcreate(0,0,11,11,1,0)
+gat 5,0 :glineby 0,11
+gat 0,5 :glineby 11,0
+ggmode 1
+gat 5,5 :glineby 0,0
+gsavebit "m:\opd\cross.pic"
+gclose gidentity
+endif
+endp
+
+Proc sprinit:
+local bit$(6,5)
+sprid%=createsprite
+bit$(1)=""
+bit$(2)=""
+bit$(3)="cross" rem invert black pixels
+bit$(4)=""
+bit$(5)=""
+bit$(6)=""
+appendsprite 3,bit$(),0,0
+bit$(1)=""
+bit$(2)=""
+bit$(3)=""
+bit$(4)=""
+bit$(5)=""
+bit$(6)=""
+appendsprite 3,bit$(),0,0
+Endp
+
+Proc locate:(mes$)
+busy mes$,3
+sprinit:
+drawsprite x%-5,y%+15
+do
+	getkey:
+	cursor:
+	possprite x%-5,y%+15
+until key%=13 or key%=27
+closesprite sprid%
+busy off
+gat x%,y%
+Endp
+
+PROC Cursor:
+IF key%=256 :y%=y%-1 :rem up
+elseif key%=257 :y%=y%+1 rem down
+elseif key%=259 :x%=x%-1 rem left
+elseif key%=258 :x%=x%+1 rem right
+elseif key%=260 :y%=y%-10 
+elseif key%=261 :y%=y%+10
+elseif key%=262 :x%=x%-10
+elseif key%=263 :x%=x%+10
+Endif
+if x%>414 :x%=414 :endif
+if y%>138 :y%=138 :endif
+if x%<2 :x%=2 :endif
+if y%<2 :y%=2 :endif
+if coord% :giprint gen$(x%,3)+"ž"+gen$(y%,3),1 :endif
+ENDP
+
+Proc Init:
+coord$="Show"
+picinf%=1
+picinf$="Hide"
+cat$=":\chem\chembase.odb"
+path$="A" :if exist(path$+cat$) :goto skip :endif
+path$="B" :if exist(path$+cat$) :goto skip :endif
+path$="M" :if exist(path$+cat$) :goto skip :endif
+create path$+cat$,a,name$,note$,fn$
+close
+skip::
+cat$=path$+cat$
+fn$=path$+":\chem\*.pic"
+font%=2
+x%=50 :y%=50
+statuswin on
+defaultwin 1
+gat 120,50
+gxborder 1,$203,200,70
+gfont 8
+ggrey 1
+gat 142,82 :gprintb "ChemDraw",150,3
+ggrey 0
+gat 140,80 :gprintb "ChemDraw",150,3
+gfont 11
+gat 140,98 :gprintb "a chemical notepad",150,3
+pause -30
+ggrey 2
+gcls
+crbit:
+gsetwin 0,20,416,140
+defaultwin 0
+gborder 0
+tit%=gcreate(0,0,416,20,1,1)
+gborder 0
+gat 104,16 :gprint "ChemDraw"
+gtmode 1
+gat 103,15 :gprint "ChemDraw"
+gtmode 0
+ggrey 1
+gat 103,15 :gprint "ChemDraw"
+ggrey 0
+guse 1
+Endp
+
+Proc getkey:
+a%(1)=0
+GETEVENT a%()
+IF a%(1)=$404 rem file event
+	w$=GETCMD$
+	t$=LEFT$(w$,1) rem "C","O" or"X"
+	IF t$="X" rem Close file + quit
+		stop
+	endif
+ENDIF
+Key%=a%(1)
+Mod%=a%(2) AND $00FF
+If key%=291 :help: :endif
+endp
+
+proc coord:
+if coord%=0
+	coord%=1 :coord$="Hide"
+elseif coord%=1
+	coord%=0 :coord$="Show"
+endif
+endp

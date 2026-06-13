@@ -1,0 +1,337 @@
+==========
+Usenet/comp.sys.psion #12279, from roger@runcirc.demon.co.uk, 6490 chars, May 10 23:33 95
+----------
+Article: 12279 of comp.sys.psion
+Path: cix.compulink.co.uk!uknet!sunsite.doc.ic.ac.uk!doc.news.pipex.net!pipex!demon!news.demon.co.uk!runcirc.demon.co.uk!runcirc.demon.co.uk!not-for-mail
+From: roger@runcirc.demon.co.uk (Roger McCalman)
+Newsgroups: comp.sys.psion
+Subject: Timesheets from Agenda files
+Date: 10 May 1995 23:33:41 +0100
+Organization: RunCircle Ltd, Worsham, UK
+Lines: 322
+Message-ID: <3orf05$imf@runcirc.demon.co.uk>
+NNTP-Posting-Host: runcirc
+
+Here is the promised time sheet program. It is not complete but
+so far it has served my purposes.
+
+--------------------------- cut here --------------------------
+
+rem	Description:	Extract timed entries from an agenda file
+rem			All entries are added for both day and
+rem			week totals.
+rem
+rem	Auther:		Roger McCalman (roger@runcirc.demon.co.uk)
+rem	Date:		10 May 1995
+rem
+rem Copyleft as GNU.
+rem
+rem Mail bugs, comments etc to roger@runcirc.demon.co.uk
+
+PROC TimeSht:
+	local buf$(255),fname$(128)
+	local n%, d%
+	local min&, maxdt&
+	local swk&
+	local d1970&
+	global sdate&, edate&
+	global mxdnum&, mndnum&
+	global ltod&, ldnum&
+	global wktotal, dytotal, total
+	global nditems%
+	global startt&(365),durat%(365), dnums%(365)
+	global txtdat$(365,10)
+	global ne%
+
+	ltod& = 0
+	ldnum& = 0
+	total = 0
+	
+	d1970& = days(1,1,1970)
+	mxdnum& = 0
+	mndnum& = &07fffffff
+	
+	fname$ = "\agn\work.agn"
+	do
+		dinit
+		dfile fname$,"File",3
+		if dialog <= 0
+			stop
+		endif
+
+		busy "Loading file"
+		ne% = 1
+		n% = Process%:(0, fname$)
+		busy off
+	until n% > 0
+
+	swk& = week(day, month, year)
+
+	while 0 = 0
+		dinit
+		sdate& = mndnum& + d1970&
+		edate& = mxdnum& + d1970&
+		min& = sdate&
+		maxdt& = edate&
+		dlong swk&,"Week no.",1,53
+		ddate sdate&,"Start date",min&,maxdt&
+		ddate edate&,"End date",min&,maxdt&
+
+		d% = dialog
+		if d% <= 0
+			stop
+		endif
+		if d% > 1
+			edate& = edate& - d1970&
+			sdate& = sdate& - d1970&
+		else
+			sdate& = days(1,1,year) - d1970&
+			sdate& = sdate& + (swk& - 1) * 7
+			edate& = sdate& + 6
+		endif
+		ltod& = 0
+		ne% = 1
+		cls
+		while ne% <= n%
+			Timed:("", 0, 1)
+		endwh
+		EndDay: : print
+		EndWeek:
+		cursor on :get :cursor off
+	endwh
+ENDP
+
+PROC Process%:(mode%, fname$)
+	local ret%
+	local nitems%
+	local fmt$(255), n&
+	local buf$(255)
+	local rectype%, reclen%, nn%
+	local handle%
+
+	nitems% = 0
+
+	ret% = IOOPEN(handle%, fname$, 0)
+	if ret% < 0
+		showerr:(ret%)
+		return -1
+	endif
+
+	buf$ = read$:(handle%, 32)
+	if len(buf$) = 0
+		return -1
+	endif
+	fmt$="AgendaFileType"
+	if left$(buf$,len(fmt$)) <> fmt$
+		return -1
+	endif
+
+	while 0 = 0
+			n& = readint&:(handle%)
+			if n& < 0
+				break
+			endif
+			rectype% = (n& / 4096) and &0f
+			reclen% = n& and &0fff
+
+			while reclen% > 0
+				n& = min(reclen%, 255)
+				nn% = n&
+				buf$ = read$:(handle%, nn%)
+				if len(buf$) = 0
+					break
+				endif
+				reclen% = reclen% - len(buf$)
+				if rectype% = 1
+					Timed:(buf$, reclen%, mode%)
+					nitems% = nitems% + 1
+				endif
+			endwh
+			if len(buf$) = 0
+				break
+			endif
+	endwh
+	ret% = IOCLOSE(handle%)
+	if ret% < 0
+		showerr:(ret%)
+	endif
+	return nitems%
+ENDP
+
+PROC Timed:(buf$, remlen%, mode%)
+	local dnum&
+	local d2s&
+	local tod&, dur&, t&
+	local y%,ly%,mo%,lmo%,d%,ld%
+	local m%, s%, h%, yd%
+	local wk%, lwk%
+	local txtlen%, txt$(255)
+
+	if mode% = 0
+		d2s& = 60 * 60
+		d2s& = d2s& * 24
+		dnum& = getint&:(buf$, 1)
+		t& = getint&:(buf$, 1+2)
+		tod& = dnum& * d2s& + t& * 60
+		dur& = getint&:(buf$, 1+2+2+1+1)
+		if dnum& > mxdnum&
+			mxdnum& = dnum&
+		endif
+		if dnum& < mndnum&
+			mndnum& = dnum&
+		endif
+		startt&(ne%) = tod&
+		durat%(ne%) = dur&
+		dnums%(ne%) = dnum&
+		txtlen% = getbyte%:(buf$, 1+2+2+1+1+2)
+		txtlen% = min(10, txtlen%)
+		txtdat$(ne%) = getstr$:(buf$,1+2+2+1+1+2+1, txtlen%)
+		ne% = ne% + 1
+		return
+	endif
+
+	tod& = startt&(ne%)
+	dnum& = dnums%(ne%)
+	dur& = durat%(ne%)
+	txt$ = txtdat$(ne%)
+	ne% = ne% + 1
+	if dnum& < sdate& or dnum& > edate&
+		return
+	endif
+
+	SECSTODATE ltod&,ly%,lmo%,ld%,h%,m%,s%,yd%
+	SECSTODATE tod&,y%,mo%,d%,h%,m%,s%,yd%
+	lwk% = week(ld%, lmo%, ly%)
+	wk% = week(d%, mo%, y%)
+
+	if dnum& <> ldnum&
+		if ltod& <> 0
+			EndDay:
+		endif
+	endif
+	print
+	if wk% <> lwk%
+		if ltod& <> 0
+			EndWeek:
+		endif
+
+		print " ";d%;", ";month$(mo%);" ";
+		print y%;" week ";wk%
+	endif
+
+	nditems% = nditems% + 1
+	wktotal = wktotal + dur&
+	dytotal = dytotal + dur&
+	total = total + dur&
+	dspdate%:(d%, mo%, y%, h%, m%, dnum& <> ldnum&)
+	print " ";fix$(flt(dur&)/60,2,-6);
+	print " '";txt$;"'";rept$(" ", 10-len(txt$));
+	ltod& = tod&
+	ldnum& = dnum&
+	return
+ENDP
+
+PROC dspdate%:(d%, mo%, y%, h%, m%, pad%)
+    if pad%
+	print left$(dayname$(dow(d%,mo%,y%)),3);" ";fix$(d%, 0, -2);" ";
+    else
+	print rept$(" ",3+1+2+1);
+    endif
+    print zero$:(h%,2);":";zero$:(m%,2);
+ENDP
+
+PROC EndDay:
+	if nditems% > 1
+		print " total "; fix$(dytotal / 60, 2, -6);
+	endif
+	dytotal = 0
+	nditems% = 0
+ENDP
+
+PROC EndWeek:
+	print "Week total = "; fix$(wktotal / 60, 2, -6)
+	wktotal = 0
+ENDP
+
+PROC Read$:(fd%, len%)
+	local address%, ret%
+	local buf$(255)
+
+	address% = ADDR(buf$)
+	ret% = IOREAD(fd%, uadd(address%,1),len%)
+	if ret% < 0
+		if ret%<>-36
+			showerr:(ret%)
+		endif
+	else
+		pokeb address%,ret%
+	endif
+	return buf$
+ENDP
+
+PROC GetInt&:(buf$, pos%)
+	local n&
+	n& = asc(mid$(buf$,pos%+1,1))
+	n& = n& * 256
+	n& = n& + asc(mid$(buf$,pos%,1))
+	return n&
+ENDP
+PROC GetByte%:(buf$, pos%)
+	local n%
+	n% = asc(mid$(buf$,pos%+1,1))
+	return n%
+ENDP
+PROC GetStr$:(buf$, pos%, len%)
+	return mid$(buf$,pos%+1,len%)
+ENDP
+PROC ReadInt&:(fd%)
+	local buf$(2)
+	local n&
+	local ret%
+	local pos%
+	
+	pos% = 1
+	buf$ = read$:(fd%, 2)
+	if len(buf$) = 0
+		return -1
+	endif
+	
+	n& = asc(mid$(buf$,pos%+1,1))
+	n& = n& * 256
+	n& = n& + asc(mid$(buf$,pos%,1))
+	return n&
+ENDP
+
+PROC showerr:(val%)
+	busy off
+	print "Error ", val%, err$(val%)
+	cursor on :get :cursor off
+ENDP
+
+
+PROC zero$:(n%, w%)
+	return rept$("0", w% - len(gen$(n%,w%)))+gen$(n%,w%)
+ENDP
+
+
+PROC DumpBuf:(buf$)
+	local i%,c%,c$(1)
+	i% = 1
+	while i% <= len(buf$)
+		c$=mid$(buf$,i%,1)
+		c%=asc(c$)
+		if c% < asc(" ") or c% > 127
+			print "<";hex$(c%);">";
+		else
+			print c$;
+		endif
+	i%=i%+1
+	endwh
+ENDP
+
+------------------------------- end ----------------------------------
+-- 
+Roger McCalman
+Tel: 01993 878669
+roger@runcirc.demon.co.uk
+

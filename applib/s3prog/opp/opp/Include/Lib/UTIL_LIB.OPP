@@ -1,0 +1,58 @@
+/*
+ * OPP general library procedures
+ */
+/* Convert C to OPL style string */
+LIBPROC ctoo$:(addr%)
+	local i%,s$(255),c%,p1%,p2%
+	p1%=addr%
+	p2%=uadd(addr(s$),1)
+	while i%<255
+		c%=peekb(p1%)
+		if c%=0
+			break
+		endif
+		pokeb p2%,c%
+		p1%=uadd(p1%,1)
+		p2%=uadd(p2%,1)
+		i%++
+	endwh
+	pokeb addr(s$),i%
+	return s$
+ENDP
+
+/* Get length of C string */
+LIBPROC clen%:(addr%)
+	return call($B9,0,0,0,0,addr%)
+ENDP
+
+/* Trim spaces off start & end of OPL string */
+LIBPROC trim$:(s$)
+	local s%,e%
+	s%=1
+	while (s%<=len(s$)) and (mid$(s$,s%,1)=" ")
+		s%=s%+1
+	endwh
+	if s%>len(s$)
+		return ""
+	endif
+	e%=len(s$)
+	while (e%>0) and (mid$(s$,e%,1)=" ")
+		e%=e%-1
+	endwh
+	return mid$(s$,s%,1+e%-s%)
+ENDP
+
+/* Round long int */
+LIBPROC round&:(a&,b&)
+	local v&
+	v&=a&/b&*b&
+	if a&-v&>=b&/2
+		v&=v&+b&
+	endif
+	return v&
+ENDP
+
+/* copy block of memory */
+LIBPROC copy:(a%,b%,l%)
+	call($a1,0,l%,0,a%,b%)
+ENDP

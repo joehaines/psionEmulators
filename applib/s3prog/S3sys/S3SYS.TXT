@@ -1,0 +1,317 @@
+Overview of the Series3 Software System
+=======================================
+
+[Comment by David Wood: This document was written inside Psion in 1992
+but is still largely applicable in 1994.]
+
+This document overviews the system software that is the environment
+for application programs for the Series3. Further detailed
+information may be obtained from the documentation in the C Software 
+Development Kit (C SDK).
+
+The major components of the Series3 software system are:
+--------------------------------------------------------
+
+* EPOC
+
+A preemptive multi-tasking operating system with asynchronous
+services.
+
+* Window server
+
+A server process that provides client programs with low-level graphics
+services and overlapping windows.
+
+* Object class libraries
+
+Dynamic re-entrant object libraries that contain the classes that
+implement, for example, such things as menus and dialog boxes that
+make up the Series3 GUI. These class libraries are used by
+applications written using traditional programming techniques and by
+applications written using object oriented programming techniques.
+
+These components provide an extremely rich programming environment
+for application programs. In the right hands, this translates into
+high quality applications that can be provided at low cost. The
+system supports high quality in terms of application functionality,
+the graphical user interface that accesses that functionality and the
+robustness of applications. The provision of this support reduces the
+cost of development and, because all this support is provided in ROM,
+application code size is dramatically less than in comparable
+systems.
+
+Psion has long specialised in developing software with rich
+functionality in small amounts of memory. In designing the software
+system for the Series3, the primary objective was to make it possible
+to write high quality applications with a working set that is
+measured in 10's of Kilobytes rather than in Megabytes (as is now
+typical on desk-top environments that support GUI's - such as the
+Apple Macintosh, Microsoft Windows or X-Windows).
+
+Although development of the system began in 1987, its roots are
+comparatively young and it is built on a more 'modern' basis than
+many desk-top systems. For example, the Series3 system has preemptive
+multi-tasking and asynchronous services when (at the time of writing)
+one or both of these features are still promised (but not yet
+delivered) for the Apple Macintosh and Microsoft Windows.
+
+EPOC
+----
+
+The features of the EPOC operating system are:
+
+* Multi-tasking
+
+EPOC is a real-time preemptive multi-tasking operating system. It is
+a real-time system in the sense that it can respond to events (such
+as an RS232 interrupt or the completion of a timer) within a
+millisecond. Any process waiting on that event will immediately
+preempt the running process provided that it has a higher priority.
+A multi-tasking operating system is ideally suited to efficient power
+management, extending battery life. EPOC actually stops the processor
+clock when the system is idle.
+
+One user-visible consequence of having a multi-tasking system is that
+users are never presented with an icon that indicates that they may
+not switch to another task until the application has completed the
+current operation (such as, for example, the Macintosh wrist watch or
+the Windows hour glass).
+
+* Asynchronous services
+
+With an asynchronous service, you don't have to wait for the service
+to complete when you request that service. Asynchronous requests are 
+commonly made on I/O device channels but EPOC also supports 
+asynchronous requests for such things as inter-process messaging and 
+timers.
+
+Without asynchronous services, it is difficult to write an
+application that responds to more than one event source. For example,
+the Agenda application on the Series3 does not know whether its next
+event will be a key press or the expiry of an alarm.
+
+The provision of asynchronous events makes it easier to write
+programs that always respond to user input. On the Series3, when you
+are presented with a Cancel button, it always actually works (in
+contrast to some other systems).
+
+* Memory management
+
+EPOC programs are written in the small model of the 8086 processor 
+where the data and code segments are distinct. Simple application 
+programs consist of a code segment and a data segment - both less than
+64K and using 16-bit segment relative addresses. Because the programs
+themselves do not access the segment registers, EPOC is able to move,
+re- size, allocate and free segments (a bit like a software 80386). A
+process can build data structures in excess of 64K in external memory
+segments and programs of greater than 64K can be built using dynamic
+link libraries.
+
+The Series3 hardware provides a write-protect safety catch on memory 
+segments other than the process data segment that terminates any 
+aberrant process but protecting the overall system.
+
+EPOC will extend an application's data segment to satisfy a request to
+allocate memory from the heap and will also reduce it if possible if
+that allocated memory is subsequently freed. All this makes for
+extremely efficient use of the system RAM without requiring the user
+to apportion memory in advance.
+
+* Code sharing
+
+Multiple processes of the same program share the same code segment. 
+This is another feature that contributes towards the efficient use of
+system RAM.
+
+* I/O devices
+
+EPOC extends the classic I/O system that allows for device
+abstraction and installable I/O systems by providing support for
+adding devices without a system reset and for devices that operate
+through the machine being switched off and back on again.
+
+Many I/O devices are built into the ROM - for example, a comprehensive
+RS232 device and a parallel port device.
+
+* File system
+
+File services are implemented by a file server process that serialises
+access by multiple processes to the local file store. The local file
+store itself is MSDOS-compatible.
+
+The file server also supports installable file systems. An installable
+file system is used to implement remote file access to a remote file
+server. Remote file servers have been implemented for the IBM PC
+compatible and the Apple Macintosh.
+
+* Reentrant function library
+
+The utility functions that EPOC uses itself, along with many that it
+does not (eg floating point functions) are accessible to programs.
+They are all written to be re-entrant so that they can be accessed
+(apparently) simultaneously by processes in a preemptive
+multi-tasking environment.
+
+* Client-server architectures
+
+EPOC has very efficient inter-process communication services that 
+provides good support for multi-process applications with
+client-server architectures.
+
+* Object oriented programming
+
+EPOC contains run-time support for object oriented programming. A
+sub- set of that support can also be used to implement code-shared
+dynamic link libraries.
+
+Application programs are normally written in C (using the Clarion
+TopSpeed  C compiler). Programs access EPOC's services through a C
+function library, PLIB.
+
+PLIB provides a thin interfacing layer to the ROM-based services
+(which are called via 8086 software interrupts). The ability of the
+Clarion TopSpeed C compiler to declare function-specific register 
+calling conventions is used to make PLIB even thinner. Some ROM-based
+services are called in-line from the application code (ie without any
+interfacing layer).
+
+The PLIB library (and indirectly the EPOC operating system) is
+described in the PLIB Reference manual in volume 2 of the C SDK. The
+first chapter of that manual expands on the information given above.
+See also the I/O Devices Reference manual in the same volume.
+
+WINDOW SERVER
+-------------
+
+The window server is a system process that runs under EPOC to provide
+client application processes with shared access to the screen and
+keyboard. Using a server process to serialise access to a shared 
+resource is a common technique. The screen and keyboard are shared
+because the Series3 is a single- user multi-tasking system.
+Architecturally, the same approach is used by X-windows (as used to 
+implement GUI's for Unix-based workstations).
+
+Client application programs access the services of the window server
+via another C interfacing library, WLIB. These services are
+summarised as follows:
+
+* Getting events
+
+The window server sends client processes events that drive the user 
+interface. Event types include key press events (which are sent to the
+foreground task), redraw events, foreground and background events.
+
+* Windows
+
+The window server supports a hierarchical system of windows.
+
+Once created, windows may be moved, resized, made visible or invisible
+or scrolled in any direction. Windows may overlap and any drawing is 
+clipped to those parts of the window that are visible.
+
+When areas of a window are exposed by the movement, change in size, or
+the removal of other windows, appropriate redraw events are sent to
+notify the application of invalid areas. The application's redrawing
+of an invalid area is automatically clipped to those parts that need
+to be redrawn. Windows may be assigned a back-up bitmap to avoid
+requiring the application to process redraw events.
+
+* Graphics output
+
+Graphics operations include line and box drawing, filled rectangles,
+text drawing with a variety of bitmap fonts and textual attributes,
+general bitmap operations. All operations are written in assembler
+and are optimised for speed. Drawing is normally directed at a window
+but can also be directed to a bitmap.
+
+The in-built fonts and bitmaps can be extended by external fonts and 
+bitmaps. External bitmaps are used, for example, to implement icons.
+
+The window server is described in detail in the Window Server
+Reference manual in the C SDK.
+
+The window server provides the mechanism for a graphical user
+interface but not the user interface itself. Any number of different
+interface styles could be built using the window server. The Series3 
+interface is defined by object oriented class libraries - described
+next.
+
+OBJECT LIBRARIES
+----------------
+
+The Series3 ROM contains three object class libraries that together
+implement the Series3 user interface and much more.
+
+Object class libraries are better suited for providing high-level
+functionality (for example, text editing) while traditional function
+libraries are better suited for providing more primitive functionality
+(for example, floating point functions). The current trend is for
+more widespread use of  C++ object class libraries to provide more
+productive interfaces to GUI environments. Claims of a six fold
+productivity gain on say Microsoft Windows is typical. However, these
+add-on C++ class libraries are still relatively immature and do not
+currently provide the same depth of functionality as is provided by
+the Series3 class libraries. Furthermore, the Series3 class libraries
+are built into the ROM.  The Series3 contains the following class
+libraries:
+
+* OLIB
+
+Contains classes that are independent of the user interface and of the
+window server. As well as being used by the other two class libraries,
+OLIB is used by applications for an application framework and to 
+implement that portion of the application that is independent of the
+user interface (sometimes called the 'engine').
+
+OLIB contains an application manager class that runs a non-preemptive
+multi-tasking system that is driven by active objects that represent
+event sources. Active objects make it much easier to write structured
+(and hence robust) multi-threaded applications. The application
+manager and active object also support a structured and efficient
+method of error handling with roll-backs to a pre-defined level. OLIB
+includes active object subclasses that implement timer events and
+inter-process events.
+
+Several class hierarchies and object aggregations in OLIB implement 
+dynamic data structures of all kinds, including many kinds of variable
+length arrays, segmented data buffers and text storage.
+
+Other classes include resource file handling and file management.
+
+* FORM
+
+Contains classes that implement on-screen text formatting and a system
+for printing to any printer that is supported with a printer device
+driver. Essentially it implements much of the engine of the Series3
+word processor. FORM depends on the window server but is independent
+of the higher level HWIM.
+
+It is used widely by HWIM to implement, for example, edit boxes and 
+indirectly by all applications. It is used directly by the word
+processor and by other applications for text processing and for
+printing.
+
+* HWIM
+
+Contains classes that implement the Series3 user interface style,
+including menus and dialog boxes.
+
+HWIM subclasses OLIB's application framework to provide an 
+application framework (with support for error handling) for programs
+that conform to Series3 user interface conventions.
+
+There is a substantial window class hierarchy that is used both
+internally and externally to implement 'model world' views and
+interaction systems of many kinds. Some classes may be used directly
+and some are suitable as building blocks for custom views (either for
+further specialisation or for use in custom aggregations).
+
+A large part of HWIM implements the Series3 dialog box system and its
+controls. As well as providing abstract classes for application
+specific dialogs very many of the commonly required concrete dialogs
+are provided - for example, for print set up, page layout and for
+presenting help. There is extensive support for file selection.  HWIM
+also contain a gate class that provide access to menus and dialog 
+boxes from non-object-oriented C programs (using the HWIF interfacing
+library) and also from OPL (a proprietary in-built BASIC-like
+interpreted language).

@@ -1,0 +1,155 @@
+                         -DTMF TESTER V1.0-
+
+                       -Fast Fourier Systems -
+
+
+
+WARNING :
+
+This program should only be run on a Psion Series 3A. It may cause a
+crash and loss of data if run on any other machine.
+
+
+INTRODUCTION :
+
+This program samples a sound (specifically DTMF tones) via the Psion
+3A microphone and determines the frequencies which make up the tones.
+A DTMF tone consists of two frequencies. These frequencies differ for
+different digits in accordance with the following chart :
+
+
+                    1209         1336         1477
+
+
+          697         1            2            3
+
+          770         4            5            6
+
+          852         7            8            9
+
+          941         *            0            #
+
+
+Thus it can be seen that "1" is represented by the frequencies 697 hz
+and 1209 hz, "8" by 852 hz and 1336 hz,  "*" by 941 hz and 1209 hz
+and so on.
+
+These frequencies and certain other parameters for DTMF are governed
+by CCITT recommendation Q.23. The other parameters include power
+levels and the ratio in dBs  of one frequency with respect to the
+other. DTMF has evolved slightly differently in different countries
+and so, for example, frequency tolerances vary from country to
+country. Thus CCITT does not give definitive tolerances but gives
+examples of tolerances in various countries.
+
+
+MEASUREMENTS AND TESTS
+
+The program examines the parts of the frequency spectrum involved
+with DTMF tones and reports back on the frequencies it has detected,
+and compares these with the CCITT recommendations. It also reports on
+the ratio in dBs between the two DTMF frequencies. It performs the
+following tests:
+
+1. Are the two frequencies within 2% of the CCITT rec ?
+
+2. Is the dB ratio < 5 ?
+
+and reports on whether or not the tests have passed.
+
+The program can measure frequencies to plus or minus 4 Hz.
+
+A spectrum is shown to indicate how pure the frequencies of the DTMF
+tone are.
+
+The DTMF digit sampled is also displayed.
+
+
+INSTALLATION
+
+Install the file DTMFTEST.OPA in the APP directory.  Install the file
+SYS$SAMP.LDD in the root directory. (Please note the information
+about this file given below). Install the Dtmftest application using
+Psion-I from the system screen.
+
+The program requires 85k of free memory to run.
+
+
+SYS$SAMP.LDD
+
+This is the file used to load the "SMP" driver which in turn is used
+for sampling sounds via the microphone of the Psion 3A and storing
+the sampled values directly to memory. It is an experimental product
+from Psion and is not currently supported. No claims can be made as
+to its stability. It may reset or crash your machine or cause data
+loss. (I have used it for some time without any adverse effects).
+
+
+USE
+
+The following procedure will allow you to test the DTMF tones
+produced by your 3A:
+
+1. Change the duration of DTMF tones to 2 seconds using PSION-SHIFT-D
+from the system screen and changing the tone time parameter to 64.
+
+2. Open a data file and use the free dial option to generate a DTMF
+tone (ie dial a digit !) and record this using a dictaphone or a tape
+recorder.
+
+3. Close the data file and open the DTMFTEST application. Bypass the
+first few screens and load the SMP driver. At this stage you will get
+the "Press a key to sample DTMF tone" message. Now play back the tone
+you recorded and with the Psion microphone close to the recorder's
+speaker press a key.
+
+You will have to wait approximately 1.5 minutes for the results of
+the tests. (The program uses a fast fourier transform but "fast" is a
+relative term !). 
+
+Pressing a key after the results are displayed will delete the SMP
+driver from memory. You may exit at this stage or load the driver and
+run the test again.
+
+If you exit the application using some method other than that
+presented by the program, the SMP driver will stay loaded in memory
+(using about 6K ). To delete the driver, simply run the application
+again and press ESC to exit at the appropriate screen.
+
+
+DISTRIBUTION
+
+You are free to distribute this program providing this textfile is
+distributed with it.  However, the following exception applies:
+
+<< You may not distribute this program via "Premium Rate" bulletin
+boards. >>
+
+No charge may be levied for this product.
+
+
+
+CONDITIONS of USE:
+
+This program is used entirely at your own risk.
+Reverse engineering is not allowed.
+It may not be used commercially.
+
+
+
+
+Please send comments and bug reports to :
+
+
+djoyce@cix.compulink.co.uk
+
+or
+
+djoyce@telecom.ie
+
+
+
+
+
+                    end of text file
+

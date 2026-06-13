@@ -1,0 +1,39 @@
+/*
+ * Some usefull macros for handling OS calls.
+ *
+ * USAGE:
+ *
+ * Include OSREGS as either a local
+ * or global variable def, e.g local OSREGS
+ *
+ * Next set the appropriate register values AX, BX,...
+ *
+ * Then use the following OS call macros:
+ *
+ * OSFN(OS_fn_number)
+ * OSSUB(OS_fn_number,OS_sub_number)
+ *
+ * Any results will be in the registers AX,BX,... 
+ */
+#ifndef OS_CALL_OPH
+#define OS_CALL_OPH
+
+#define OSREGS	axreg%,bxreg%,cxreg%,dxreg%,sireg%,direg%,osflags%
+#define AX	axreg%
+#define BX	bxreg%
+#define CX	cxreg%
+#define DX	dxreg%
+#define SI	sireg%
+#define DI	direg%
+#define OSFLAGS	osflags%
+
+#define AH	peekb(addr(AX))
+#define AL	(AX and $ff)
+#define UL	(osflags% and 1)
+#define EQ	(osflags% and $40)
+#define SL	(osflags% and $80)
+
+#define OSFN(fn)	OSFLAGS=os(fn,addr(AX))
+#define OSSUB(fn,sub)	AX=(sub|(AX and $ff)) :OSFLAGS=os(fn,addr(AX))
+
+#endif

@@ -1,0 +1,163 @@
+VOCAB Documentation
+
+This software is freebie-ware, but any donations are always appreciated,
+and use is at the operators risk (though this is hopefully a safe 
+routine !).
+
+Please post any observations, suggestions, gripes!
+
+I'd be especialy interseted in finding out how to default the menu
+to the last option used !.
+
+
+OPERATOR NOTES
+==============
+
+The aim of this OPL routine is to provide a simple vocablary tester.
+ 
+This fairly simple program has been to fill a possible small gap in the
+released Berlitz language module. This routine allows a library of 
+foriegn words to be words to be created (for up to six languages ?), and
+then to allow for the random testing of these words.
+
+Provided in source code OPL format, to allow tweeks for other possible
+applications by other potential authors.
+
+Data file are created in /OPD/ directory in default drive, under the name
+of the languages used. Please ensure this does not conflict with any 
+existing files/applications.
+
+
+At the moment, the quiz/guessing will only look at one word. For example,
+the Spanish word 'manana' means both 'tomorrow' and 'morning', so it
+will be a arbitrary choice as to which response the software is after,
+although it should be farely obvious after the first guess.
+
+The use of '*' to match any number of characters and
+           '?' to match any one character
+is valid for all entries, other than when supplying a guess!
+
+
+As this was put together in a weekend, the code is fairly simple and 
+does not do clever things like going to sleep when something else is
+'active'. -Yet.
+
+
+MENUS:
+ FILE
+  N New Language         Allows operator to add a new language
+                         to the system
+  O Open Language        Specifies which of the available 
+                         languages are to be used fo testing
+  R Remove Language      Allows operator to remove a language
+                         from the system. Note this will delete
+                         the data file 
+
+ QUIZ
+  G Guess Word           Prompts operator to guess at a system given word
+  S Specify Search Field Toggle testing of home language and foreign lang 
+  F Find word            Finds occurances of words, 
+                         uses wild cards and printing 
+
+ CHANGE
+  U Update word          Edit an existing word entry
+  E Enter word           Add a new word to data file
+  D Delete word          Remove a word from data file
+
+ SPECIAL  
+  P Printer Logging      Toggles use of printer if one is attached
+  X Exit                 Exits program
+
+
+HAVE FUN !
+
+
+DEVELOPERS NOTES
+================
+
+VARIABLES
+
+GLOBALS  - String Arrays
+lan$      1..maxnl% names of languages e.g. spanish, german etc
+route$    1..10     menu implementation routines
+
+GLOBALS  - Strings
+cdfn$     1..128    file name of current language data
+lfn$      1..128    file name for file containing langauge names 
+k$        1..maxnl% menu acivation keys
+clan$     1..11     name of current language
+spst$     1..25     string on space characters, used for blanking/spacing
+sw$       1..20     search word
+
+
+GLOBALS  - Integers
+lanused%   <=maxnl% number of langaues current in use
+clan%      <=maxnl% current language in use
+contpr%    boolean  continues printing flag
+gupf%      boolean  global update flag, if true-editing, false-insertion
+pl%        boolean  used to determine printer logging
+prcon%     boolean  printer connected
+rcnt%      1..n     no of records in current file    
+ssf%       1..2     specifes selection field for FIND option
+tgc%       n        total number of guesses
+twc%       n        tested word count
+
+CONSTANTS
+maxnl%    := 6      maximum number of langauges available to system 
+true%     := -1     OPL defined boolean value of TRUE
+false%    := 0      OPL defined boolean value of FALSE
+gend$     1..11     male or female gender option
+
+
+
+
+FILE FIELDS
+A.lng$              Language name string stored in lfn$ file
+
+B.hlw$              Home language word
+B.flw$              Foreign language word
+B.pho$              Foreign phonetic
+B.pog%              Part of grammer
+B.bf%               Boolean flags
+
+
+
+ROUTINES
+Vocab:    Main body      forms closure for executable program
+Initial:  Initialisation set initial values for constants, string arrays etc
+DrawMenu: Draw Menu      Creates, displays and selects from MENU
+DrawScr:  Draw Screen    initial graphic display set up
+AddRecs:  \        
+AddGues:   \ Screen      Routines for updating main sceen
+AddWrds:   / Updates     with statistical info
+AddFct:   /
+Del:      Delete Word    prompts operator for a string to match against
+                         operator further prompted for confirmation
+                         before deleting all records with a matching string
+Find:     Find Word      prompts the operator for a string to match against
+                         displays all matches, quichk option to print all
+                         provided, if a printer is attached
+Compare$: Compare        Tests one string (as entered by operator) against
+                         a second known string. returns a string of located#
+                         characters.
+Guess:    Guess Word     operator presented with a word and must then
+                         enter as guess as to what that word is
+Ins:      Insert Word    add a new word to the data file 
+New:      New language   add a new language to the system
+Open:     Open language  swaps currecnt test language
+Upd:      Update word    controls editing of an existing word
+Vsn:      Show version   display version of software
+Pri:      Print toggle   toggle the print logging
+Rmv:      Remove lang    removes a language from the system
+SeSpec:   Search toggle  toggles testing on home/country language
+ReadLan:  Read languages reads languages from system data file
+WritLan:  Write language writes languages back to data file
+PrTest:   Printer test   test whether a printer is attached
+UseLan:   Use language   specifies which language to use
+StMtch:   String Match   test whether the result fron a FIND is valid
+                         against the type of seach field currently specified
+RunSch:   Run Search     contro;s the FINDing of specified words
+
+
+
+Others comments in code

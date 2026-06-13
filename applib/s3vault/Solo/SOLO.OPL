@@ -1,0 +1,1106 @@
+REM Solo 1.0 : Solitaire Card game
+REM (c) 1993 Steve Hawtin
+REM This game may be freely 
+REM distributed provided
+REM  1) All the files are copied 
+REM     unmodified
+REM  2) The distributor charges no more
+REM     than a reasonable copy fee
+
+APP solo
+	TYPE 3
+ 	ICON "\OPD\SOLO.PIC"
+ 	PATH "\APP\SOLO"
+	EXT "SOL"
+ENDA
+
+PROC solo:
+	REM Reserve some space
+	GLOBAL filName$(128),saveIt%
+	GLOBAL space%(300)
+	GLOBAL img%,game%
+	REM Symbolic names for offsets
+	GLOBAL ofSeed%,oUsTime%,ofTurn%
+	GLOBAL oDrSuit%,ofdrNum%,oDrPict%
+	GLOBAL ofLeft%,oftLft%,oPileSz%
+	GLOBAL ofState%,ofKings%,ofMatch%
+	GLOBAL offPack%,offSuit%,offPile%
+	GLOBAL offSrc%,offHide%,offEnd%
+	LOCAL k%
+
+	game% = ADDR(space%())
+	REM ONERR errLab
+	init:
+
+	DO
+		CLS
+		runProg:
+		DO
+			k% = mGET%:
+		UNTIL k%=%q OR k%=%  OR k%=%o
+	UNTIL 0
+
+	REM Error handling
+errLab::
+	ONERR OFF
+	msgPrep:
+	PRINT "Error - ";err$(err)
+	msgAck%:
+ENDP
+
+PROC init:
+	filName$ = "\APP\SOLO\*.sol"
+	oDrSuit% = 8
+	ofdrNum% = 9
+	oDrPict% = 10
+	oUsTime% = 11
+	ofSeed%  = 12
+	ofTurn%  = 14
+	ofLeft%  = 15
+	oftLft%  = 16
+	oPileSz% = 17
+	ofMatch% = 18
+	ofKings% = 19
+	ofState% = 20
+	
+	offPack% = 22
+	POKEB game%+offPack%,52
+	POKEB game%+ofState%,1
+
+	POKEB game%,7
+	POKEB game%+ofTurn%,3
+	POKEB game%+ofLeft%,255
+	POKEB game%+oPileSz%,255
+	POKEB game%+ofMatch%,1
+	POKEB game%+ofKings%,1
+	POKEB game%+oUsTime%,1
+	POKEW game%+ofSeed%,1
+	POKEB game%+oDrSuit%,1
+	POKEB game%+ofdrNum%,0
+	POKEB game%+oDrPict%,1
+	ONERR errEnd
+	img% = gLOADBIT("\app\solo\images.pic")
+	ONERR OFF
+	gUSE 1
+	STATUSWIN OFF
+	SCREEN 40,9,1,1
+	gSETWIN 0,0,240,80
+	filName$ = CMD$(2)
+	IF CMD$(3)="O"
+		openF:
+		saveIt% = 0
+	ELSEIF CMD$(2)="C"
+		saveIt% = 1
+	ENDIF
+	RETURN
+errEnd::
+	IF ERR = -33
+		img% = 0
+	ENDIF
+	ONERR OFF
+ENDP
+
+PROC msgPrep:
+	gAT 0,0
+	gFILL 25*6-1,2*9-1,1
+	AT 1,1
+ENDP
+
+PROC msgAck%:
+	LOCAL k%
+	k% = mGET%:
+	msgPrep:
+	RETURN k%
+ENDP
+
+PROC mGET%:
+	LOCAL chr%
+	LOCAL a%(6),cmdStr$(255)
+
+	DO
+		GETEVENT a%()
+		IF (a%(1) AND $400)=0
+			chr% = a%(1)
+		ELSEIF a%(1)=$401 OR a%(1)=$402 OR a%(1)=$403
+			chr% = 0
+		ELSEIF a%(1)=$404
+			cmdStr$ = GETCMD$
+			IF LEFT$(cmdStr$,1)="C"
+				saveF:
+				filName$=MID$(cmdStr$,2,128)
+				saveIt%=1
+				chr%=%A
+			ELSEIF LEFT$(cmdStr$,1)="O"
+				saveF:
+				filName$=MID$(cmdStr$,2,128)
+				openF:
+				chr%=%O
+			ELSEIF LEFT$(cmdStr$,1)="X"
+				saveF:
+				STOP
+			ELSE
+				msgPrep:
+				PRINT "File event ";cmdStr$
+				chr%=0
+			ENDIF
+		ELSE
+			msgPrep:
+			PRINT "Event ";a%(1);" ?"
+			chr%=0
+		ENDIF
+		IF chr%=$122
+ 			mINIT
+			IF PEEKB(game%+ofState%)=1
+ 				mCARD "File","Open",%O,"Save As",%A,"About",%B,"Help",%?,"Seed",%S,"Start",%Q
+ 				mCARD "Special","Drawing",%I,"Options",%P,"Exit",%X
+	 		ELSE
+	 			mCARD "File","Open",%O,"Save As",%A,"About",%B,"Help",%?,"Stop",%Q
+	 			mCARD "Play","Turn",%T,"To Spades",%S,"To Diamonds",%D,"To Hearts",%H,"To Clubs",%C
+				mCARD "Pile","One",%1,"Two",%2,"Three",%3,"Four",%4,"Five",%5,"Six",%6
+	 			mCARD "Special","Drawing",%I,"Refresh",%R,"Exit",%X
+ 			ENDIF
+			chr%=MENU+512
+			IF chr%=512
+				chr%=0
+			ENDIF
+		ENDIF
+		IF chr%=(512+%b)
+			dINIT "About Game"
+			dTEXT "Solitaire","1.0 (Jan 1993)"
+			dTEXT "Author","Steve Hawtin"
+			dTEXT "Tested by","Angela Beasley"
+			DIALOG
+			chr%=0
+		ELSEIF chr%=(512+%i)
+			setDraw:
+		ELSEIF chr%=(512+%o)
+			openD:
+		ELSEIF chr%=(512+%a)
+			saveD:
+			chr%=0
+		ELSEIF chr%=(512+%x)
+			STOP
+		ELSEIF chr%=(512+%?) OR chr%=291
+			doHelp:
+			chr% = 0
+		ENDIF
+		IF PEEKB(game%+ofState%)=1
+			IF chr%=(512+%p)
+				setOpts:
+				chr%=0
+			ELSEIF chr%=(512+%s)
+				setSOpts:
+				chr%=0
+			ENDIF
+		ENDIF
+	UNTIL chr%<>0
+	IF chr%>=512
+		chr% = chr%-512
+	ENDIF
+	RETURN chr%
+ENDP
+
+PROC saveD:
+	dINIT "Save as"
+	dFILE filName$,"File",$11
+	IF DIALOG=0
+		RETURN
+	ENDIF
+	saveF:
+ENDP
+
+PROC saveF:
+	LOCAL file%,ret%
+
+	BUSY "Saving..."
+	ret%=IOOPEN(file%,filName$,$0102)
+	IF fileErr%:(ret%)
+		BUSY OFF
+		RETURN
+	ENDIF
+	ret%=IOWRITE(file%,game%,offEnd%)
+	IF fileErr%:(ret%)
+		BUSY OFF
+		RETURN
+	ENDIF
+	ret%=IOCLOSE(file%)
+	IF fileErr%:(ret%)
+		BUSY OFF
+		RETURN
+	ENDIF
+	BUSY OFF
+ENDP
+
+PROC openD:
+	LOCAL c%
+	dINIT "Load game"
+	dFILE filName$,"File",$10
+	c% = 1
+	dCHOICE c%,"Current Game","Abandon,Save"
+	IF DIALOG=0
+		RETURN
+	ENDIF
+	IF c%=2
+		saveD:
+	ENDIF
+	openF:
+ENDP
+
+PROC openF:
+	LOCAL file%,ret%,c%,g%(10)
+
+	BUSY "Loading..."
+	ret%=IOOPEN(file%,filName$,$0000)
+	IF fileErr%:(ret%)
+		BUSY OFF
+		RETURN
+	ENDIF
+	c%=0
+	DO
+		ret%=IOREAD(file%,ADDR(g%()),1)
+		POKEB game%+c%,PEEKB(ADDR(g%()))
+		c%=c%+1
+	UNTIL ret%<0
+	IF ret%<>-36 
+		IF fileErr%:(ret%)
+			BUSY OFF
+			RETURN
+		ENDIF
+	ENDIF
+	ret%=IOCLOSE(file%)
+	IF fileErr%:(ret%)
+		BUSY OFF
+		RETURN
+	ENDIF
+	initOffs:
+	BUSY OFF
+ENDP
+
+PROC fileErr%:(r%)
+	IF r%>=0
+		RETURN 0
+	ENDIF
+	GIPRINT ERR$(r%),1
+	RETURN -1
+ENDP
+
+PROC doHelp:
+	LOCAL n%,c%
+	LOCAL l1$(80),l2$(80),l3$(80),l4$(80)
+	LOCAL title$(80),link$(255)
+	LOCAL t$(255)
+
+	ONERR errEnd1
+	OPEN "\app\solo\help.dbf",A,title$,l1$,l2$,l3$,l4$,link$
+	ONERR OFF
+	title$ = "PgIntroduction"
+	DO
+		FIRST
+		IF FIND(title$)=0
+			l1$="Missing page "+title$
+			t$ = "Return to game,Introduction"
+		ELSE
+			l1$= A.l1$
+			t$ = "Return to game,"+A.link$
+		ENDIF
+		title$ = "Soliaire help : "+MID$(title$,3,255)
+		dINIT title$
+		dTEXT ""," "
+		IF l1$<>""
+			dTEXT "",l1$
+		ENDIF
+		IF A.l2$<>""
+			dTEXT "",A.l2$
+		ENDIF
+		IF A.l3$<>""
+			dTEXT "",A.l3$
+		ENDIF
+		IF A.l4$<>""
+			dTEXT "",A.l4$
+		ELSE
+			dTEXT ""," "
+		ENDIF
+		n%=2
+		dCHOICE n%,"<Enter> for ",t$
+		IF DIALOG=0
+			BREAK
+		ENDIF
+		IF n%>1
+			c%=1
+			DO
+				IF MID$(t$,c%,1)=","
+					n% = n%-1
+				ENDIF
+				c%=c%+1
+			UNTIL n%=1
+			link$ = MID$(t$,c%,255)
+			c%=1
+			DO
+				c%=c%+1
+			UNTIL c%=LEN(link$) OR MID$(link$,c%,1)=","
+			IF c%=LEN(link$)
+				title$ = "Pg"+LEFT$(link$,c%)
+			ELSE
+				title$ = "Pg"+LEFT$(link$,c%-1)
+			ENDIF
+			n%=5
+		ENDIF
+	UNTIL n%=1
+	CLOSE
+	RETURN
+errEnd1::
+	IF ERR = -33
+		dINIT "Soliaire help"
+		dTEXT "","Help file missing"
+		DIALOG
+	ELSE
+		dINIT "Soliaire help"
+		dTEXT "","Problem with help file"
+		DIALOG
+	ENDIF
+	ONERR OFF
+ENDP
+
+PROC setSOpts:
+	LOCAL l&,a%
+
+	dINIT "Seed Options"
+	a% = PEEKB(game%+oUsTime%)
+	dCHOICE a%,"Use","Time,Seed"
+	l& = PEEKB(game%+ofSeed%)
+	dLONG l&,"Seed",1,9999
+	DIALOG
+	POKEB game%+oUsTime%,a%
+	POKEW game%+ofSeed%,l&
+ENDP
+
+PROC setDraw:
+	LOCAL a%,b%
+	dINIT "Drawing options"
+	b% = PEEKB(game%+oDrSuit%)
+	dCHOICE b%,"Suits","Image,Text"
+	a% = 1+PEEKB(game%+ofdrNum%)+2*PEEKB(game%+oDrPict%)
+	dCHOICE a%,"Numbers","Text,Numbers,Pictures,Both"
+	IF DIALOG=0
+		RETURN 0
+	ENDIF
+	POKEB game%+oDrSuit%,b%
+	a% = a%-1
+	POKEB game%+oDrPict%,a%/2
+	POKEB game%+ofdrNum%,a%-2*PEEKB(game%+oDrPict%)
+ENDP
+
+PROC setOpts:
+	LOCAL a%,b%,c%,d%,e%,f%
+
+	dINIT "Solitaire Options"
+	a% = PEEKB(game%)-4
+	dCHOICE a%,"Piles","5,6,7,8,9"
+	d% = PEEKB(game%+ofTurn%)
+	dCHOICE d%,"Cards","1,2,3,4"
+	IF PEEKB(game%+ofLeft%)=255
+		b%=1
+	ELSE
+		b%=(PEEKB(game%+ofLeft%)-1)/2+1
+	ENDIF
+	dCHOICE b%,"Packs","Unlimited,1,3,5,7"
+	IF PEEKB(game%+oPileSz%)=255
+		c%=1
+	ELSE
+		c%=PEEKB(game%+oPileSz%)+1
+	ENDIF
+	dCHOICE c%,"Pile Size","Ascending,1,2,3,4,5"
+	e% = PEEKB(game%+ofMatch%)
+	dCHOICE e%,"Colours","Alternate,Any,Same Colour,Same Suit"
+	f% = PEEKB(game%+ofKings%)
+	dCHOICE f%,"Empty piles","Kings,Any"
+	IF DIALOG=0
+		RETURN 0
+	ENDIF
+	POKEB game%,a%+4
+	POKEB game%+ofMatch%,e%
+	POKEB game%+ofTurn%,d%
+	POKEB game%+ofKings%,f%
+	IF b%=1
+		POKEB game%+ofLeft%,255
+	ELSE
+		POKEB game%+ofLeft%,(b%-1)*2+1
+	ENDIF
+	IF c%=1
+		POKEB game%+oPileSz%,255
+	ELSE
+		POKEB game%+oPileSz%,c%-1
+	ENDIF
+ENDP
+
+PROC setSeed%:
+  LOCAL s&
+  
+  IF PEEKB(game%+oUsTime%)=1
+    s& = 60*SECOND + MINUTE + RND*24*60
+  ELSE
+    s& = PEEKW(game%+ofSeed%)
+  ENDIF
+  RANDOMIZE s&
+ENDP
+
+PROC initOffs:
+	LOCAL ps%,numPile%
+
+	ps% = PEEKB(game%+offPack%)
+	numPile% = PEEKB(game%)
+  offHide% = offPack%+ps%+2
+  offSuit% = offHide%+(numPile%+2)*numPile%
+  offPile% = offSuit%+15*4
+  offSrc%  = offPile%+15*numPile%
+  offEnd%  = offSrc%+ps%+2
+ENDP
+
+PROC shuffle:
+	REM Set up a new pack and clear table
+	LOCAL cnt%,ps%,numPile%
+
+	REM Size of pack
+	initOffs:
+	ps% = PEEKB(game%+offPack%)
+	numPile% = PEEKB(game%)
+	POKEB game%+1,0
+	REM Current highlight
+	POKEB game%+2,0
+	POKEB game%+3,0
+	REM Need Redraw
+	POKEB game%+4,1
+	POKEB game%+5,1
+	POKEB game%+6,255
+	POKEB game%+7,255
+	
+  POKEB game%+offPack%,ps%
+  newPack:(game%+offPack%)
+  cnt% = 0
+  DO
+  	POKEB game%+offHide%+cnt%*(numPile%+2),numPile%
+  	POKEB game%+offHide%+1+cnt%*(numPile%+2),0
+  	cnt% = cnt% + 1
+  UNTIL cnt% >= numPile%
+  cnt% = 0
+  DO
+  	POKEB game%+offSuit%+cnt%*15,13
+  	POKEB game%+offSuit%+1+cnt%*15,0
+  	cnt% = cnt%+1
+  UNTIL cnt% = 4
+  cnt% = 0
+  DO
+  	POKEB game%+offPile%+cnt%*15,13
+  	POKEB game%+offPile%+1+cnt%*15,0
+  	cnt% = cnt%+1
+  UNTIL cnt% = numPile%
+  POKEB game%+offSrc%,ps%
+  POKEB game%+offSrc%+1,0
+  IF offEnd% > 300*2
+  	msgPrep:
+  	PRINT "Need ";offEnd%;" bytes space"
+  	msgAck:
+  	STOP
+  ENDIF
+ENDP
+
+PROC newPack:(pack%)
+	REM Shuffle the cards in the pack
+	LOCAL ordered%(53)
+	LOCAL count%,c2%,n%
+
+  count% = 1
+  DO
+    ordered%(count%) = count%-1
+    count% = count%+1
+  UNTIL count% > PEEKB(pack%)
+
+  count% = count%-1
+  DO
+    n% = 1+RND*(count%)
+    POKEB pack%+2+count%-1,ordered%(n%)
+    c2% = n%
+    DO
+      ordered%(c2%) = ordered%(c2%+1)
+      c2% = c2%+1
+    UNTIL c2% >= count%
+    count% = count%-1
+  UNTIL count%<0
+  POKEB pack%+1,PEEKB(pack%)
+  REM showPack:(pack%)
+ENDP
+
+PROC showPack:(p%)
+	LOCAL c%,x%,y%
+	CLS
+	msgPrep:
+	PRINT "Pack"
+	c% = 0
+	x% = 1
+	y% = 2
+	DO
+		putCard:(PEEKB(p%+2+c%),x%,y%)
+		c% = c%+1
+		x% = x%+3
+		IF x%>35
+			x% = 1
+			y% = y%+1
+		ENDIF
+	UNTIL c%>=PEEKB(p%+1)
+	msgAck:
+	CLS
+ENDP
+
+PROC deal:
+	REM Deal from the pack
+	LOCAL cnt%
+	
+	cnt% = 0
+	DO
+		IF PEEKB(game%+oPileSz%)=255
+			s2eMvS:(game%+offPack%,game%+offHide%+cnt%*(PEEKB(game%)+2),cnt%)
+		ELSE
+			s2eMvS:(game%+offPack%,game%+offHide%+cnt%*(PEEKB(game%)+2),PEEKB(game%+oPileSz%))
+		ENDIF
+		s2eMvS:(game%+offPack%,game%+offPile%+cnt%*15,1)
+		cnt% = cnt%+1
+	UNTIL cnt% = PEEKB(game%)
+ENDP
+
+PROC s2sMvS:(src%,dest%,num%)
+	REM Move cards between packs
+	IF num% > 0
+		mvCards:(src%,dest%,num%,0,0)
+	ENDIF
+ENDP
+
+PROC s2eMvS:(src%,dest%,num%)
+	REM Move cards between packs
+	IF num% > 0
+		mvCards:(src%,dest%,num%,0,1)
+	ENDIF
+ENDP
+
+PROC e2sMvS:(src%,dest%,num%)
+	REM Move cards between packs
+	IF num% > 0
+		mvCards:(src%,dest%,num%,1,0)
+	ENDIF
+ENDP
+
+PROC e2eMvS:(src%,dest%,num%)
+	REM Move cards between packs
+	IF num% > 0
+		mvCards:(src%,dest%,num%,1,1)
+	ENDIF
+ENDP
+
+PROC mvCards:(src%,dest%,num%,from%,to%)
+	REM Move cards between packs
+	LOCAL temp%(100),t%,cnt%,t2%
+	t% = ADDR(temp%())
+	
+	IF PEEKB(src%+1) < num%
+		GIPRINT "Empty Pile",1
+		RETURN
+	ENDIF
+	IF num% > PEEKB(dest%)-PEEKB(dest%+1)
+		GIPRINT "Full Pile",1
+		RETURN
+	ENDIF
+	IF from% = 0
+		cnt%=0
+		DO
+			POKEB t%+cnt%,PEEKB(src%+2+cnt%)
+			cnt% = cnt%+1
+		UNTIL cnt% = num%
+		DO
+			POKEB src%+cnt%-num%+2,PEEKB(src%+cnt%+2)
+			cnt% = cnt%+1
+		UNTIL cnt% >= PEEKB(src%+1)
+		POKEB src%+1,PEEKB(src%+1)-num%
+	ELSE
+		t% = src%+2+PEEKB(src%+1)-num%
+		POKEB src%+1,PEEKB(src%+1)-num%
+	ENDIF
+	IF to% = 0
+		cnt%=0
+		DO
+			POKEB dest%+2+num%+cnt%,PEEKB(dest%+2+cnt%)
+			cnt% = cnt%+1
+		UNTIL cnt% >= PEEKB(dest%+1)
+		cnt%=0
+		DO
+			POKEB dest%+2+cnt%,PEEKB(t%+cnt%)
+			cnt% = cnt%+1
+		UNTIL cnt% >= num%
+		POKEB dest%+1,PEEKB(dest%+1)+num%
+	ELSE
+		cnt%=0
+		DO
+			POKEB dest%+2+cnt%+PEEKB(dest%+1),PEEKB(t%+cnt%)
+			cnt% = cnt%+1
+		UNTIL cnt% >= num%
+		POKEB dest%+1,PEEKB(dest%+1)+num%
+	ENDIF
+ENDP
+
+PROC runProg:
+	LOCAL k%,nothing%,t%
+	
+	IF PEEKB(game%+ofState%)<>0
+		BUSY "Dealing..."
+	  setSeed%:
+	  shuffle:
+	  deal:
+	ENDIF
+	nothing%=0
+	POKEB game%+ofState%,0
+	POKEB game%+oftLft%,PEEKB(game%+ofLeft%)
+	POKEB game%+4,1
+	POKEB game%+5,1
+	showGame:
+	BUSY OFF
+	DO
+		IF saveIt%<>0
+			REM saveF:
+			saveIt% = 0
+			msgPrep:
+		ENDIF
+		k% = mGET%:
+		IF k%>=%a AND k%<=%z
+			k%=k%+%A-%a
+		ENDIF
+		IF k%>=%1 AND k%<(%1+PEEKB(game%))
+			toPile:(k%-%1)
+		ELSEIF k%=%T OR k%=% 
+			POKEB game%+6,0
+			IF PEEKB(game%+offPack%+1)=0
+				POKEB game%+oftLft%,PEEKB(game%+oftLft%)-1
+				IF PEEKB(game%+oftLft%)>200
+					POKEB game%+oftLft%,255
+				ELSEIF PEEKB(game%+oftLft%) = 0
+					GIPRINT "No more pack turns",1
+					POKEB game%+ofState%,1
+				ENDIF
+				s2eMvS:(game%+offSrc%,game%+offPack%,PEEKB(game%+offSrc%+1))
+			ELSEIF PEEKB(game%+offPack%+1) < PEEKB(game%+ofTurn%)
+				s2eMvS:(game%+offPack%,game%+offSrc%,PEEKB(game%+offPack%+1))
+			ELSE
+				s2eMvS:(game%+offPack%,game%+offSrc%,PEEKB(game%+ofTurn%))
+			ENDIF
+		ELSEIF k%=%O
+			IF PEEKB(game%+ofState%)<>0
+				CLS
+				AT 5,5
+				PRINT "No game in progress"
+			ELSE
+				POKEB game%+4,1
+				POKEB game%+5,1
+			ENDIF
+		ELSEIF k%=%R OR k%=%I OR k%=13
+			POKEB game%+4,1
+			POKEB game%+5,1
+		ELSEIF k%=%S OR k%=%D OR k%=%C OR k%=%H
+			toSuit:(k%)
+		ELSEIF k%=258 OR k%=259
+			k%= 1-2*(k%-258)
+			t% = PEEKB(game%+2)+k%
+			IF t%<0
+				t% = PEEKB(game%)
+			ELSEIF t%>PEEKB(game%)
+				t% = 0
+			ENDIF
+			IF PEEKB(game%+3)=0
+				nothing%=1
+			ELSE
+				POKEB game%+6,t%
+				POKEB game%+7,PEEKB(game%+2)
+			ENDIF
+			showHlt:
+			POKEB game%+2,t%
+			POKEB game%+3,0
+			showHlt:
+		ELSEIF k%=256 OR k%=257
+			srcUp:(k%-256,0)
+			POKEB game%+6,PEEKB(game%+2)
+		ELSEIF k%=260 OR k%=261
+			srcUp:(k%-260,1)
+			POKEB game%+6,PEEKB(game%+2)
+		ELSEIF k%=%Q
+			CLS
+			AT 5,5
+			PRINT "Game abandoned"
+			POKEB game%+ofState%,1
+		ELSE
+			msgPrep:
+			PRINT "Key <";k%;"> not used"
+			PRINT "Try <Help> or <Menu>"
+			nothing%=1
+		ENDIF
+		IF gameOvr%:
+			POKEB game%+ofState%,1
+		ELSEIF nothing%=0
+			showGame:
+		ENDIF
+		nothing%=0
+	UNTIL PEEKB(game%+ofState%)<>0
+endGame::
+	msgPrep:
+	PRINT "<Space> for another"
+ENDP
+
+PROC gameOvr%:
+	LOCAL k%
+	k%=0
+	DO
+		IF PEEKB(game%+offSuit%+k%*15+1)<>13
+			RETURN 0
+		ENDIF
+		k% = k%+1
+	UNTIL k%>=4
+	CLS
+	k%=0
+	AT 1,3
+	DO
+		PRINT "You win!  ";
+		k%=k%+1
+	UNTIL k%>=20
+	GIPRINT "Completed",1
+	RETURN 1
+ENDP
+
+PROC toPile:(n%)
+	LOCAL card%,dcard%,d%,t%,s1%,s2%
+	GLOBAL s%
+	
+	card% = srcCard%:
+	d% = game%+offPile%+15*n%
+	dcard% = PEEKB(d%+1+PEEKB(d%+1))
+	s1% = (card%/13)
+	s2% = (dcard%/13)
+	t% = s1%+s2%
+	IF PEEKB(d%+1)=0
+		IF PEEKB(game%+ofKings%)=1 AND (card%-s1%*13)<>12
+			GIPRINT "Must be King",1
+			RETURN
+		ENDIF
+	ELSEIF (dcard%-s2%*13)<>(1+card%-s1%*13)
+		GIPRINT "Wrong value",1
+		RETURN
+	ELSEIF PEEKB(game%+ofMatch%)=1 AND (t%=0 OR t%=2 OR t%=4 OR t%=6)
+		GIPRINT "Wrong colour",1
+		RETURN
+	ELSEIF PEEKB(game%+ofMatch%)=3 AND (t%=1 OR t%=3 OR t%=5)
+		GIPRINT "Wrong colour",1
+		RETURN
+	ELSEIF PEEKB(game%+ofMatch%)=4 AND s1%<>s2%
+		GIPRINT "Different suit",1
+		RETURN
+	ENDIF
+	POKEB game%+6,PEEKB(game%+2)
+	POKEB game%+7,n%+1
+	e2eMvS:(s%,game%+offPile%+15*n%,PEEKB(game%+3)+1)
+	POKEB game%+3,0
+	chkSrc:
+ENDP
+
+PROC toSuit:(key%)
+	LOCAL k%,card%
+	GLOBAL s%
+
+	k% = suitOf%:(key%)
+	card% = srcCard%:
+	IF card%= -1
+		GIPRINT "Pile empty",1
+		RETURN
+	ELSEIF PEEKB(game%+3)<>0
+		GIPRINT "One card only",1
+		RETURN
+	ELSEIF (card%/13)<>k%
+		GIPRINT "Wrong suit",1
+		RETURN
+	ELSEIF (card%-k%*13)<>PEEKB(game%+offSuit%+k%*15+1)
+		GIPRINT "Wrong value",1
+		RETURN
+	ENDIF
+	POKEB game%+6,PEEKB(game%+2)
+	POKEB game%+4,1
+	e2sMvs:(s%,game%+offSuit%+k%*15,1)
+	chkSrc:
+ENDP
+
+PROC chkSrc:
+	REM Check the curent src pile
+	LOCAL s%,n%
+	
+	n% = PEEKB(game%+2)
+	IF n%<>0
+		s% = game%+offPile%+15*(n%-1)
+		IF PEEKB(s%+1)<>0
+			RETURN
+		ENDIF
+		IF PEEKB(game%+offHide%+1+(PEEKB(game%)+2)*(n%-1))=0
+			RETURN
+		ENDIF
+		e2sMvs:(game%+offHide%+(PEEKB(game%)+2)*(n%-1),s%,1)
+	ENDIF
+ENDP
+
+PROC srcCard%:
+	GLOBAL n2%,x%,y%,l%,hid%,src%
+	GLOBAL from%
+	LOCAL p%,yOff%
+
+	p% = PEEKB(game%+2)
+	yOff% = PEEKB(game%+3)
+	getP:(p%)
+	IF n2%<=0
+		RETURN -1
+	ELSE
+		RETURN PEEKB(s%+2+n2%-yOff%-1)
+	ENDIF
+ENDP
+
+PROC srcUp:(up%,all%)
+	REM move source up
+	GLOBAL n2%,x%,y%,l%,hid%,s%,src%
+	GLOBAL from%
+	LOCAL p%,yOff%
+
+	p% = PEEKB(game%+2)
+	yOff% = PEEKB(game%+3)
+	getP:(p%)
+	IF p%=0
+		RETURN
+	ELSEIF up%=0 AND yOff%>=n2%-1
+		RETURN
+	ELSEIF up%<>0 AND yOff%<=0
+		RETURN
+	ENDIF
+	IF all%=0
+		IF up%<>0
+			yOff% = yOff%-1
+		ELSE
+			yOff% = yOff%+1
+		ENDIF
+	ELSE
+		IF up%<>0
+			yOff% = 0
+		ELSE
+			yOff% = n2%-1
+		ENDIF
+	ENDIF
+	POKEB game%+3,yOff%
+ENDP
+
+PROC suitOf%:(k%)
+	REM Get suit num from key
+	IF k%>%D
+		IF k%=%H
+			RETURN 3
+		ELSE
+			RETURN 0
+		ENDIF
+	ELSE
+		IF k%=%C
+			RETURN 2
+		ELSE
+			RETURN 1
+		ENDIF
+	ENDIF
+ENDP
+
+PROC showGame:
+	REM Show the various bits
+	LOCAL cnt%
+	
+	gUPDATE OFF
+	cnt% = 0
+	IF PEEKB(game%+4)<>0
+		gAT 25*6,0
+		gFILL 90,2*9-1,1
+		DO
+			showSuit:(cnt%)
+			cnt% = cnt% + 1
+		UNTIL cnt%=4
+		POKEB game%+4,0
+	ENDIF
+	IF PEEKB(game%+5)<>0
+		gAT 0,2*9-1
+		gFILL 240,60+1,1
+		cnt% = 0
+		DO
+			showPile:(cnt%,0)
+			cnt% = cnt% + 1
+		UNTIL cnt% >= PEEKB(game%)+1
+		showHlt:
+		POKEB game%+5,0
+	ELSEIF PEEKB(game%+6)<>255
+		showPile:(PEEKB(game%+6),1)
+		IF PEEKB(game%+7)<>255
+			showPile:(PEEKB(game%+7),1)
+			POKEB game%+7,255
+			IF PEEKB(game%+2)=PEEKB(game%+7)
+				showHlt:
+			ENDIF
+		ENDIF
+		IF PEEKB(game%+2)=PEEKB(game%+6)
+			showHlt:
+		ENDIF
+		POKEB game%+6,255
+	ENDIF
+	gUPDATE ON
+ENDP
+
+PROC showHlt:
+	GLOBAL n2%,x%,y%,l%,hid%,s%,src%
+	GLOBAL from%
+	LOCAL y2%,p%
+
+	p% = PEEKB(game%+2)
+	y2% = PEEKB(game%+3)
+	getP:(p%)
+	IF n2%=0
+		gAT 6*(x%-1)-1,9*(y%-1)-1
+		gGMODE 2
+		gBOX 13,9
+		gGMODE 0
+		RETURN
+	ENDIF
+	y% = y%+n2%-from%-y2%
+	gAT 6*(x%-1)-1,9*(y%-1)-1
+	gFILL 13,9,2
+ENDP
+
+PROC showSuit:(n%)
+	IF 0 = PEEKB(game%+offSuit%+1+15*n%)
+		RETURN
+	ENDIF
+	putCard:(PEEKB(game%+offSuit%+2+15*n%),26+n%*4,1)
+ENDP
+
+PROC getP:(n%)
+	IF n% > 0
+    x% = 38+4*(n%-PEEKB(game%))
+		y% = 3
+		l% = 6
+		hid% = PEEKB(game%+offHide%+1+(PEEKB(game%)+2)*(n%-1))
+		s% = game%+offPile%+15*(n%-1)
+		src% = PEEKB(game%+2)
+	ELSE
+		x% = 2
+		y% = 3
+		l% = 4
+		hid% = PEEKB(game%+offPack%+1)
+		s% = game%+offSrc%
+		src% = 1
+	ENDIF
+	n2% = PEEKB(s%+1)
+	IF src%=n% AND PEEKB(game%+3)>=l%-1
+		from% = n2%-PEEKB(game%+3)-2
+		IF from%<0
+			from%=0
+		ENDIF
+	ELSEIF n2%>l%
+		from% = n2%-l%
+	ELSE
+		from% = 0
+	ENDIF
+ENDP
+
+PROC showPile:(n%,clear%)
+	GLOBAL n2%,x%,y%,l%,hid%,s%,src%
+	GLOBAL from%
+
+	getP:(n%)
+	IF clear%<>0
+		gAT 6*(x%-1)-1,2*9-1
+		gFILL 13,63,1
+	ENDIF
+	AT x%,y%
+	PRINT hid%
+	IF 0 = n2%
+		RETURN
+	ENDIF
+	IF from%<>0
+		y% = y%+1
+		putCard:(-1,x%,y%)
+		from% = from%+1
+		l% = l% - 1
+	ENDIF
+	DO
+		y% = y%+1
+		putCard:(PEEKB(s%+2+from%),x%,y%)
+		from% = from%+1
+		l% = l% - 1
+	UNTIL (from%+1)>=n2% OR l%<=1
+	y% = y%+1
+	IF (from%+1)=n2%
+		putCard:(PEEKB(s%+2+from%),x%,y%)
+	ELSEIF from%<n2%
+		putCard:(-1,x%,y%)
+	ENDIF
+ENDP
+
+PROC putCard:(card%,x%,y%)
+	LOCAL drSuit%,drNum%,drPict%
+	LOCAL suit%,value%,name$(2),pict%
+
+	drSuit% = PEEKB(game%+oDrSuit%)
+	drNum%  = PEEKB(game%+ofdrNum%)
+	drPict% = PEEKB(game%+oDrPict%)
+	suit%=4
+	value%=13
+	IF (card% >= 52)
+		name$ = "??"
+		GIPRINT "Bad Card",1
+		AT 1,1
+		PRINT "<";card%;">";
+	ELSEIF card%>=0
+		suit% = INT(card% / 13)
+		value% = card% - 13*suit%
+		name$ = MID$("A23456789TJQK",value%+1,1)+MID$("SDCH",suit%+1,1)
+	ELSEIF card%=-1
+		AT x%,y%
+		PRINT "--";
+		RETURN
+	ELSE
+		name$ = "-?"
+	ENDIF
+	IF img%=0 OR value%<0 OR value%>12
+		pict%=0
+	ELSEIF value%>0 AND value%<9
+		IF drNum%
+			pict%=1
+		ELSE
+			pict%=0
+		ENDIF
+	ELSE
+		IF drPict%
+			pict%=1
+		ELSE
+			pict%=0
+		ENDIF
+	ENDIF
+	IF img%<>0 AND value%=0 AND pict%=1 AND drSuit%=1
+		gAT x%*6-3,(y%-1)*9
+		gCOPY img%,5*suit%,0,5,7,0
+		RETURN
+	ENDIF
+	IF pict%
+		gAT (x%-1)*6,(y%-1)*9
+		gCOPY img%,25+5*value%,0,5,7,0
+	ELSE
+		AT x%,y%
+		PRINT MID$(name$,1,1);
+	ENDIF
+	IF img%<>0 AND drSuit%=1
+		gAT x%*6,(y%-1)*9
+		gCOPY img%,5*suit%,0,5,7,0
+	ELSE
+		AT x%+1,y%
+		PRINT MID$(name$,2,1);
+	ENDIF
+ENDP
+

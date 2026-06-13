@@ -1,0 +1,680 @@
+PROC match:
+REM  Program to Print out Patients' Details which MATCH a certain String.
+REM  Compatible with Psion Series 3a & 3c.  (Not Series 3).
+
+REM  *** Written by Dr Jason Wolfe ***
+REM  Copyright ¸ Jason Wolfe Jan 1997   Version 1.25
+REM  Contact me by E-mail at jwolfe@clara.net
+REM  Updates are available on-line at http://www.jwolfe.clara.net
+
+REM  This Program is distributed as 'Shareware' - This means it may be
+REM  Freely Copied and Distributed.  However if you find the Program
+REM  Useful, you are REQUIRED to Register yourself as a user of the
+REM  Program, and INVITED to contribute an appropriate Registration Fee.
+REM  The Registration Fee is not compulsory and is basically what you
+REM  think the program is worth.  Registration entitles you to Free 
+REM  Technical Support and Upgrades.  Please DO contact me to register,
+REM  even if you do not intend paying, as I am anxious to find out how
+REM  many people are out there using my programs.
+
+REM  For instructions on using the program, see the associated help file.
+
+REM  You may not Change Any Part of this Program or Use Any Part of it
+REM  in Any Other Products without my express permission.  The program
+REM  must be distributed in its entirety, with the 'help' file and 'dummy'
+REM  files included.  This Program is Not Public Domain.
+
+REM  (You can of course change the program variables relating to the 
+REM  Filename and the Printer & Formatting Defaults)
+
+
+REM  Declares all the variables.
+GLOBAL begin%,end%,admissn$(5),printer%,cons$(75),andor%,lpos%,rpos%,open%
+GLOBAL details$(255),char$(5),yes%,cnt%,count%,A$(2),rmargin%,title$(120)
+GLOBAL tot%,space%,spc$(20),file$(128),buff$(255),display%,case%,return%
+GLOBAL match%,string1$(20),string2$(20),string3$(20),found1%,found2%,found3%
+GLOBAL namelen%,bedlen%,conslen%,wardlen%,hosplen%,doblen%,doalen%,dodlen%
+GLOBAL psion%,printr2%
+FONT 5,0
+
+ONERR error
+
+REM  ***********************************************************************
+
+REM  The name of the data file which contains the Patients
+file$="Dummy"
+
+REM  Adds the File Suffix and Sets the Default Location where Files are Found.
+file$=file$+".dbf"
+SETPATH "M:\Dat\"
+
+REM  The Default Strings
+string1$=""
+string2$=""
+string3$=""
+
+REM  The Default 'Case Sensitivity'
+REM  1 - Case Insensitive,  Case Sensitive - 2
+case%=1
+
+REM  "Logical Operators" (AND / OR / NOT) for the search
+REM  1 - AND   2 - OR   3 - NOT   4 - 1 AND (2 OR 3)   5 - 1 AND 2 (NOT 3)
+REM  6 - 1 OR 2 (NOT 3)    7 - 1 NOT 2    8 - 1 NOT 2 NOT 3
+andor%=1
+
+REM  The Default Printer
+REM  General = 1,  Epson = 2,  Hewlett Packard = 3,  To File = 4
+printer%=2
+
+REM  ***********************************************************************
+
+
+REM  Tests to see which Psion Machine is running this Program
+REM  1 = Series 3,  2 = Series 3a,  3 = Series 3c
+IF EXIST ("rom::files.app") :psion%=3
+	ELSEIF EXIST ("rom::SYS$NORM.FON") :psion%=1
+	ELSE :psion%=2
+ENDIF
+
+REM  The Maximum Width (in characters) allowed for each Column.
+namelen%=18
+bedlen%=3
+conslen%=7
+wardlen%=8
+hosplen%=7
+doblen%=8
+doalen%=10
+dodlen%=10
+
+REM  Menu Options
+dialog::
+dINIT "Match Audit Program   ¸ Jason Wolfe   (1994-1998)   v1.30"
+dFILE file$,"Filename :",0
+dEDIT string1$,"String 1",10
+dEDIT string2$,"String 2",10
+dEDIT string3$,"String 3",10
+dCHOICE case%,"Case Sensitivity","Case Insensitive,Case Sensitive"
+dCHOICE andor%,"And / Or / Not Strings","AND,OR,NOT,1 AND (2 OR 3),1 AND 2 (NOT 3),1 OR 2 (NOT 3),1 NOT 2,1 NOT 2 NOT 3"
+dCHOICE printer%,"Printer Driver","General,Epson,Hewlett Packard,To  File"
+GIPRINT "For explanatory notes see associated help file.",1
+DIALOG
+printr2%=printer%
+
+REM Defines right & left margins & printing format depending on the printer.
+IF printer%=1 :rmargin%=78 :display%=2 :ENDIF
+IF printer%=2 :rmargin%=132 :display%=1 :ENDIF
+IF printer%=3 :rmargin%=158 :display%=1 :ENDIF
+IF printer%=4 :rmargin%=78 :display%=2 :ENDIF
+IF printer%=1 :lpos%=namelen%+conslen%+2 :ENDIF
+IF printer%=2 :lpos%=namelen%+conslen%+hosplen%+doblen%+doalen%+dodlen%+4 :ENDIF
+IF printer%=3 :lpos%=namelen%+conslen%+hosplen%+doblen%+doalen%+dodlen%+4 :ENDIF
+IF printer%=4 :lpos%=namelen%+conslen%+2 :ENDIF
+
+REM  Defines match%
+IF string2$="" :match%=1 :ENDIF
+IF string2$<>"" :match%=2 :ENDIF
+IF string2$<>"" AND string3$<>"" :match%=3 :ENDIF
+IF string2$="" AND string3$<>"" :string2$=string3$ :string3$="" :match%=2 :ENDIF
+IF match%=0 :match%=1 :ENDIF
+IF andor%=4 AND match%<3 :GIPRINT "Incorrect Data",3 :GOTO dialog:: :ENDIF
+IF andor%=5 AND match%<3 :GIPRINT "Incorrect Data",3 :GOTO dialog:: :ENDIF
+IF andor%=6 AND match%<3 :GIPRINT "Incorrect Data",3 :GOTO dialog:: :ENDIF
+IF andor%=7 AND match%<>2 :GIPRINT "Incorrect Data",3 :GOTO dialog:: :ENDIF
+IF andor%=8 AND match%<3 :GIPRINT "Incorrect Data",3 :GOTO dialog:: :ENDIF
+IF string1$="" :GIPRINT "Incorrect Data",3 :GOTO dialog:: :ENDIF
+
+REM  Defines case%
+IF case%=2 :case%=17 :ENDIF
+
+
+REM  Open the file for access.
+IF NOT open%
+	OPENR file$,A,name$,hosp$,ward$,dob$,cons$,dates$,diag$,notes1$,notes2$,notes3$,notes4$,notes5$,notes6$,notes7$,notes8$,notes9$,notes10$,notes11$,notes12$,notes13$,notes14$,notes15$,notes16$
+	open%=1
+ENDIF
+
+REM  Tests to see if a printer is connected.
+IF psion%=2
+	TRAP LOPEN "PAR:A"
+	IF ERR=-41 AND printer%<>4 :printer%=0 :ENDIF
+ENDIF
+IF psion%=3
+	LOPEN "tty:a" :rsset:(16,0,8,1,$1D,&0)
+	IF printer%=0 OR printer%=4 :PAUSE 2 :LCLOSE :ENDIF
+ENDIF
+IF printer%=4 :LOPEN "\P.lis" :ENDIF
+
+REM  Reference List of Printer Codes + Printer Formating Presets
+IF printer%=2 :REM Epson
+	LPRINT CHR$(27);CHR$(120);CHR$(0); REM Draft (Necessary in Epson LX & FX Printers, but not others)
+	LPRINT CHR$(27);CHR$(65);CHR$(10); REM n/72 inch line spacing
+	LPRINT CHR$(27);CHR$(81);CHR$(157); REM Right Margin  (102+55)
+ENDIF
+
+IF printer%=3 :REM Hewlett Packard
+	REM  LPRINT CHR$(27);"&k0G";CHR$(27);"&l0o6d0"; REM Start of Text Job
+	REM  LPRINT CHR$(27);"E" REM End of Text Job
+	REM  LPRINT CHR$(27);"&l3H" REM Form Feed
+ENDIF
+
+REM  Prints Title
+title$="Elements in "+file$+" Matching with "
+IF andor%=3 :title$="Elements in "+file$+" NOT Matching with " :ENDIF
+
+IF andor%=1 AND match%=1 :title$=title$+string1$ :ENDIF
+IF andor%=1 AND match%=2 :title$=title$+string1$+" AND "+string2$ :ENDIF
+IF andor%=1 AND match%=3 :title$=title$+string1$+" AND "+string2$+" AND "+string3$ :ENDIF
+IF andor%=2 AND match%=1 :title$=title$+string1$ :ENDIF
+IF andor%=2 AND match%=2 :title$=title$+string1$+" OR "+string2$ :ENDIF
+IF andor%=2 AND match%=3 :title$=title$+string1$+" OR "+string2$+" OR "+string3$ :ENDIF
+IF andor%=3 AND match%=1 :title$=title$+string1$ :ENDIF
+IF andor%=3 AND match%=2 :title$=title$+"EITHER "+string1$+" OR "+string2$ :ENDIF
+IF andor%=3 AND match%=3 :title$=title$+"EITHER "+string1$+" OR "+string2$+" OR "+string3$ :ENDIF
+IF andor%=4 :title$=title$+string1$+" AND ("+string2$+" OR "+string3$+")" :ENDIF
+IF andor%=5 :title$=title$+string1$+" AND "+string2$+" BUT NOT "+string3$ :ENDIF
+IF andor%=6 :title$=title$+string1$+" OR "+string2$+" BUT NOT "+string3$ :ENDIF
+IF andor%=7 :title$=title$+string1$+" BUT NOT "+string2$ :ENDIF
+IF andor%=8 :title$=title$+string1$+" BUT NOT "+string2$+" AND NOT "+string3$ :ENDIF
+
+STYLE 2
+PRINT title$
+PRINT
+STYLE 0
+
+IF printer%=2
+	LPRINT CHR$(18);CHR$(27);CHR$(120);CHR$(1); REM Select NLQ
+	LPRINT CHR$(27);CHR$(69); :REM Select Emphasized
+	LPRINT CHR$(27);CHR$(45);CHR$(1); :REM Underlining On
+	LPRINT title$ :LPRINT
+	LPRINT CHR$(27);CHR$(45);CHR$(0); :REM Underlining Off
+	LPRINT CHR$(27);CHR$(70); :REM Cancel Emphasized
+	LPRINT CHR$(27);CHR$(120);CHR$(0); REM Draft
+	LPRINT CHR$(15); REM Condensed
+ENDIF
+IF printer%=3
+	LPRINT CHR$(27);"&d0D"; REM Underline On
+	LPRINT CHR$(27);"(s+3B"; REM Bold on
+	LPRINT title$ :LPRINT
+	LPRINT CHR$(27);"(s0B"; REM Bold Off
+	LPRINT CHR$(27);"&d@"; REM Underline Off
+	LPRINT CHR$(27);"(s17H"; REM Condensed
+ENDIF
+IF printer%=1 OR printer%=4
+	LPRINT title$
+	LPRINT
+ENDIF
+
+REM  Add Wildcard Characters
+string1$="*"+string1$+"*"
+string2$="*"+string2$+"*"
+string3$="*"+string3$+"*"
+
+REM  Inner Loop
+DO
+	count%=count%+1
+	back::
+	POSITION count%
+	found1%=FINDFIELD(string1$,1,36,case%)
+	POSITION count%
+	found2%=FINDFIELD(string2$,1,36,case%)
+	POSITION count%
+	found3%=FINDFIELD(string3$,1,36,case%)
+	POSITION count%
+
+	REM - AND
+	IF andor%=1
+		IF match%=1
+			IF found1%=0 :GOTO out:: :ENDIF
+			count%=found1% :GOTO start::
+		ENDIF
+		IF match%=2
+			IF found1%=0 OR found2%=0 :GOTO out:: :ENDIF
+			IF found1%=found2% :count%=found1% :GOTO start:: :ENDIF
+		ENDIF
+		IF match%=3
+			IF found1%=0 OR found2%=0 OR found3%=0 :GOTO out:: :ENDIF
+			IF found1%=found2% AND found2%=found3% :count%=found1% :GOTO start:: :ENDIF
+		ENDIF
+		GOTO next::
+	ENDIF
+
+	REM - OR
+	IF andor%=2
+		IF match%=1 
+			IF found1%=0 :GOTO out:: :ENDIF
+			count%=found1% :GOTO start::
+		ENDIF
+		IF match%=2
+			IF found1%=0 AND found2%=0 :GOTO out:: :ENDIF
+			IF found1%<=found2% AND found1%<>0 :count%=found1% :ENDIF
+			IF found2%<=found1% AND found2%<>0 :count%=found2% :ENDIF
+			IF found1%=0 :count%=found2% :ENDIF
+			IF found2%=0 :count%=found1% :ENDIF
+			GOTO start::
+		ENDIF
+		IF match%=3
+			IF found1%=0 AND found2%=0 AND found3%=0 :GOTO out:: :ENDIF
+			IF found1%<=found2% AND found1%<=found3% AND found1%<>0 :count%=found1% :ENDIF
+			IF found2%<=found1% AND found2%<=found3% AND found2%<>0 :count%=found2% :ENDIF
+			IF found3%<=found1% AND found3%<=found2% AND found3%<>0 :count%=found3% :ENDIF
+			IF found1%=0 AND found2%<=found3% :count%=found2% :ENDIF
+			IF found1%=0 AND found3%<=found2% :count%=found3% :ENDIF
+			IF found2%=0 AND found1%<=found3% :count%=found1% :ENDIF
+			IF found2%=0 AND found3%<=found1% :count%=found3% :ENDIF
+			IF found3%=0 AND found1%<=found2% :count%=found1% :ENDIF
+			IF found3%=0 AND found2%<=found1% :count%=found2% :ENDIF
+			IF found1%=0 AND found2%=0 :count%=found3% :ENDIF
+			IF found2%=0 AND found3%=0 :count%=found1% :ENDIF
+			IF found1%=0 AND found3%=0 :count%=found2% :ENDIF
+			GOTO start::
+		ENDIF
+	ENDIF
+
+	REM - NOT
+	IF andor%=3
+		IF match%=1 AND found1%=count% :GOTO next:: :ENDIF
+		IF match%=2 AND (found1%=count% OR found2%=count%) :GOTO next:: :ENDIF
+		IF match%=3 AND (found1%=count% OR found2%=count% OR found3%=count%) :GOTO next:: :ENDIF
+	ENDIF
+
+	REM - 1 AND (2 OR 3)
+	IF andor%=4
+		IF found1%=0 :GOTO out:: :ENDIF
+		IF found2%=0 AND found3%=0 :GOTO out:: :ENDIF
+		IF found1%=found2% :count%=found1% :GOTO start:: :ENDIF
+		IF found1%=found3% :count%=found1% :GOTO start:: :ENDIF
+		GOTO next::
+	ENDIF
+
+	REM - 1 AND 2 NOT 3
+	IF andor%=5
+		IF found1%=0 OR found2%=0 :GOTO out:: :ENDIF
+		IF found1%<>found2% :GOTO next:: :ENDIF
+		count%=found1%
+		POSITION count%
+		found3%=FINDFIELD(string3$,1,36,case%)
+		IF found1%=found3% :GOTO next:: :ENDIF
+		GOTO start::
+	ENDIF
+
+	REM - 1 OR 2 NOT 3
+	IF andor%=6
+		IF found1%=0 AND found2%=0 :GOTO out:: :ENDIF
+		IF found1%<=found2% AND found1%<>0 :count%=found1% :ENDIF
+		IF found2%<=found1% AND found2%<>0 :count%=found2% :ENDIF
+		IF found1%=0 :count%=found2% :ENDIF
+		IF found2%=0 :count%=found1% :ENDIF
+		POSITION count%
+		found3%=FINDFIELD(string3$,1,36,case%)
+		IF count%=found3% :GOTO next:: :ENDIF
+		GOTO start::
+	ENDIF
+
+	REM - 1 NOT 2
+	IF andor%=7
+		IF found1%=0 :GOTO out:: :ENDIF
+		count%=found1%
+		POSITION count%
+		found2%=FINDFIELD(string2$,1,36,case%)
+		IF found1%=found2% :GOTO next:: :ENDIF
+		GOTO start::
+	ENDIF
+
+	REM - 1 NOT 2 NOT 3
+	IF andor%=8
+		IF found1%=0 :GOTO out:: :ENDIF
+		count%=found1%
+		POSITION count%
+		found2%=FINDFIELD(string2$,1,36,case%)
+		POSITION count%
+		found3%=FINDFIELD(string3$,1,36,case%)
+		IF found1%=found2% OR found1%=found3% :GOTO next:: :ENDIF
+		GOTO start::
+	ENDIF
+
+	start::
+	POSITION count%
+	tot%=tot%+1
+
+	REM  Prints Name
+	IF A.name$="" :A.name$="?" :ENDIF
+	PRINT LEFT$(A.name$,namelen%);
+	IF printer% :LPRINT LEFT$(A.name$,namelen%); :ENDIF
+	spc$=REPT$(" ",(namelen%+1)-LEN(LEFT$(A.name$,namelen%)))
+	PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+	REM  Prints Consultant
+	IF A.cons$="" :A.cons$="?" :ENDIF
+	cons$=A.cons$
+	PRINT LEFT$(cons$,conslen%);
+	IF printer% :LPRINT LEFT$(cons$,conslen%); :ENDIF
+	spc$=REPT$(" ",(conslen%+1)-LEN(LEFT$(cons$,conslen%)))
+	PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+	REM  Prints Ward
+	REM IF A.ward$="" :A.ward$="?" :ENDIF
+	REM space%=LOC(A.ward$," ")
+	REM IF space%=0 :space%=wardlen% :ENDIF
+	REM IF space%>wardlen% :space%=wardlen% :ENDIF
+	REM PRINT LEFT$(A.ward$,space%);
+	REM IF printer% :LPRINT LEFT$(A.ward$,space%); :ENDIF
+	REM spc$=REPT$(" ",(wardlen%+1)-LEN(LEFT$(A.ward$,space%)))
+	REM PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+	REM  Prints Hospital Number
+	IF A.hosp$="" :A.hosp$="?" :ENDIF
+	PRINT LEFT$(A.hosp$,hosplen%);
+	IF printer% :LPRINT LEFT$(A.hosp$,hosplen%); :ENDIF
+	spc$=REPT$(" ",(hosplen%+1)-LEN(LEFT$(A.hosp$,hosplen%)))
+	PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+	REM  Prints Date of Birth
+	IF A.dob$="" :A.dob$="?" :ENDIF
+	space%=LOC(A.dob$," ")
+	IF space%=0 OR space%>doblen% :space%=doblen% :ENDIF
+	PRINT LEFT$(A.dob$,space%);
+	IF printer% :LPRINT LEFT$(A.dob$,space%); :ENDIF
+	spc$=REPT$(" ",(doblen%+1)-LEN(LEFT$(A.dob$,space%)))
+	PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+	REM  Finds the most recent admission & Defines 'admissn$'
+	return%=LOC(A.dates$,CHR$(21))
+	begin%=1 :admissn$="1. "
+	IF return%
+		begin%=LEN(A.dates$)
+		DO
+			begin%=begin%-1
+		UNTIL MID$(A.dates$,begin%,1)=CHR$(21)
+		begin%=begin%+1 :admissn$=MID$(A.dates$,begin%,3)
+	ENDIF
+
+	REM  Prints out the Date of Admission.
+	IF A.dates$="" :A.dates$="A?  -  H?" :ENDIF
+	begin%=LOC(A.dates$,admissn$)
+	IF admissn$="1. " :begin%=0 :ENDIF
+	DO
+		begin%=begin%+1
+	UNTIL MID$(A.dates$,begin%,1)="A" OR begin% >= LEN(A.dates$)
+	end%=begin%
+	DO
+		end%=end%+1
+	UNTIL MID$(A.dates$,end%,1)=" " OR end% >= LEN(A.dates$)
+	IF end% > LEN(A.dates$) :end%=LEN(A.dates$) :ENDIF
+	PRINT MID$(A.dates$,begin%,end%-begin%);
+	IF printer% :LPRINT MID$(A.dates$,begin%,end%-begin%); :ENDIF
+	spc$=REPT$(" ",(doalen%+1)-(end%-begin%+1))
+	PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+	REM  Prints out the Date of Discharge.
+	DO
+		begin%=begin%+1
+		char$=MID$(A.dates$,begin%,1)
+	UNTIL char$="H" OR char$=CHR$(21) OR begin% >= LEN(A.dates$)
+	IF begin% > LEN(A.dates$) :begin%=LEN(A.dates$) :ENDIF
+	end%=begin%
+	DO
+		end%=end%+1
+		char$= MID$(A.dates$,end%,1)
+	UNTIL char$=" " OR char$=CHR$(21) OR end% > LEN(A.dates$)
+	PRINT MID$(A.dates$,begin%,end%-begin%);
+	IF printer% :LPRINT MID$(A.dates$,begin%,end%-begin%); :ENDIF
+	spc$=REPT$(" ",(dodlen%+1)-(end%-begin%+1))
+	PRINT spc$; :IF printer% : LPRINT spc$; :ENDIF
+
+	REM  Prints out the Diagnosis.
+	IF A.diag$="" :A.diag$="?" :ENDIF
+	buff$=""
+	rpos%=namelen%+conslen%+hosplen%+doblen%+doalen%+dodlen%+6
+	details$=LEFT$(A.diag$,255)
+	IF display%=1 :PRINT LEFT$(details$,80-rpos%) :ENDIF
+	print:
+
+	REM  Prints the first 16 lines of Notes
+	yes%=0
+	IF A.notes1$ <> ""
+		details$="  ["+A.notes1$ :yes%=1 :print:
+	ENDIF
+	IF A.notes2$ <> ""
+		details$="  "+A.notes2$ :yes%=1 :print:
+	ENDIF
+	IF A.notes3$ <> ""
+		details$="  "+A.notes3$ :yes%=1 :print:
+	ENDIF
+	IF A.notes4$ <> ""
+		details$="  "+A.notes4$ :yes%=1 :print:
+	ENDIF
+	IF A.notes5$ <> ""
+		details$="  "+A.notes5$ :yes%=1 :print:
+	ENDIF
+	IF A.notes6$ <> ""
+		details$="  "+A.notes6$ :yes%=1 :print:
+	ENDIF
+	IF A.notes7$ <> ""
+		details$="  "+A.notes7$ :yes%=1 :print:
+	ENDIF
+	IF A.notes8$ <> ""
+		details$="  "+A.notes8$ :yes%=1 :print:
+	ENDIF
+	IF A.notes9$ <> ""
+		details$="  "+A.notes9$ :yes%=1 :print:
+	ENDIF
+	IF A.notes10$ <> ""
+		details$="  "+A.notes10$ :yes%=1 :print:
+	ENDIF
+	IF A.notes11$ <> ""
+		details$="  "+A.notes11$ :yes%=1 :print:
+	ENDIF
+	IF A.notes12$ <> ""
+		details$="  "+A.notes12$ :yes%=1 :print:
+	ENDIF
+	IF A.notes13$ <> ""
+		details$="  "+A.notes13$ :yes%=1 :print:
+	ENDIF
+	IF A.notes14$ <> ""
+		details$="  "+A.notes14$ :yes%=1 :print:
+	ENDIF
+	IF A.notes15$ <> ""
+		details$="  "+A.notes15$ :yes%=1 :print:
+	ENDIF
+	IF A.notes16$ <> ""
+		details$="  "+A.notes16$ :yes%=1 :print:
+	ENDIF
+	IF yes% :details$="]" :print: :ENDIF
+
+	REM  IF there is extra information on the Consultant Line, this is Printed.
+	space%=LOC(A.cons$," ")
+	IF space% :details$="  ["+A.cons$+"]" :print: :ENDIF
+
+	REM  If there is an Open Bracket '(' on the Dates Line, this is Noted.
+	begin%=LOC(A.dates$,admissn$) :yes%=0
+	IF admissn$="1. " :begin%=1 :ENDIF
+	DO
+		begin%=begin%+1
+		char$=MID$(A.dates$,begin%,1)
+		IF char$="(" :yes%=1 :ENDIF
+	UNTIL char$="(" OR char$=CHR$(21) OR begin% >= LEN(A.dates$)
+
+	REM  Prints out the extra information after the '('
+	IF yes%
+		begin%=LOC(A.dates$,admissn$)
+		IF admissn$="1. " :begin%=1 :ENDIF
+		DO
+			begin%=begin%+1
+		UNTIL MID$(A.dates$,begin%,1)="("
+		begin%=begin%+1 :end%=begin%
+		DO
+			end%=end%+1
+		UNTIL MID$(A.dates$,end%,1)=")" OR end%>= LEN(A.dates$)
+		IF end% > LEN(A.dates$) :end%=LEN(A.dates$) :ENDIF
+		details$="  ["+MID$(A.dates$,begin%,end%-begin%)
+
+		REM  Prints out the most recent Date relating to the '('
+		begin%=LOC(A.dates$,admissn$)
+		IF admissn$="1. " :begin%=1 :ENDIF
+		DO
+			begin%=begin%+1
+		UNTIL MID$(A.dates$,begin%,1)="H"
+		end%=begin%
+		DO
+			end%=end%+1
+		UNTIL MID$(A.dates$,end%,1)=" "
+		end%=end%-1
+		details$=details$+" "+MID$(A.dates$,begin%,end%-begin%)+"]"
+		print:
+	ENDIF
+
+	REM  If the Patient has died - prints out the Date of Death.
+	begin%=LOC(A.dates$,"RIP H")
+	end%=begin%  :end%=end%+4
+	IF begin%
+		DO
+			end%=end%+1
+		UNTIL MID$(A.dates$,end%,1)=" " OR end% >= LEN(A.dates$)
+		IF end%=LEN(A.dates$) :end%=end%+1 :ENDIF
+		details$="  ["+MID$(A.dates$,begin%,end%-begin%)+"]"
+		print:
+	ENDIF
+
+	IF display%=2 :PRINT :ENDIF
+	IF printer% :LPRINT :ENDIF
+
+	next::
+	IF KEY$ <>"" :BUSY "Press a key...",1,20 :DO :A$=KEY$ :UNTIL A$ <>"" :BUSY OFF :ENDIF
+
+UNTIL count%>=COUNT
+
+out::
+
+REM  Prints out the total Number of Matches.
+PRINT :PRINT :IF printer% :LPRINT :ENDIF
+PRINT "Total Number of Matches : ",NUM$(tot%,3)
+
+IF printer%=2
+	LPRINT CHR$(18);CHR$(27);CHR$(120);CHR$(1); REM Select NLQ
+ENDIF
+IF printer%=3
+	LPRINT CHR$(27);"(s10H"; REM Normal Print Width
+ENDIF
+IF printer%
+	LPRINT "Total Number of Matches : ";tot%
+	LPRINT :LPRINT
+ENDIF
+
+CLOSE
+
+PRINT :PRINT"Search again?  (Y/N)"
+A$=GET$
+IF A$="Y" OR A$="y" OR A$=" "
+	string1$="" :string2$="" :string3$="" :CLS
+	count%=0 :tot%=0 :printer%=printr2% :PAUSE 2 :LCLOSE
+	GOTO dialog::
+ENDIF
+
+error::
+ONERR OFF
+
+IF ERR AND ERR<>-41
+	PRINT :PRINT
+	PRINT "Error Details";REPT$(" ",9);":    ";ERR$(ERR),"(";ERR;")"
+	IF ERR<>-43 AND ERR<>-40 AND ERR<>-44 AND ERR<>-112
+		PRINT :PRINT "Associated with the entry : ";A.name$ :PRINT
+		PRINT :PRINT "Check this Database entry for layout errors."
+	ENDIF
+	IF ERR=-40
+		PRINT
+		PRINT "The file you requested is already in use by another application."
+		PRINT
+		PRINT "Close the Data file and then re-run this program."
+		PRINT
+		PRINT
+		PRINT "The other cause of this error is on a Psion Series 3c if"
+		PRINT "Communications (on the System screen) is set to 'Link Cable'"
+		PRINT "Please reset the Communications option to 'Psion IR' or 'None'."
+		PRINT "See the help file for more information."
+		PRINT
+		PRINT
+		PRINT "Press any key to continue..."
+	ENDIF
+	IF ERR=-112
+		PRINT
+		PRINT "Any single line in a Psion Database cannot be more than 256 bytes (characters)"
+		PRINT "long.  Standard OPL routines do not allow access to records longer than this."
+		PRINT :PRINT "The error is associated with the record : ";A.name$
+		PRINT :PRINT "Go back to the 'Data' application, find this particular entry and shorten it."
+		PRINT :PRINT :PRINT "See the Help file for more details."
+		PRINT :PRINT "Press any key to continue..."
+	ENDIF
+	IF ERR=-43
+		PRINT :PRINT
+		PRINT "Database entries must not be longer than 1K long per record."
+		PRINT "Check through the Data File and shorten the offending record."
+		PRINT
+		PRINT "I'm sorry I can't tell you which entry is too long but I am limited"
+		PRINT "by this operating system which doesn't even allow me to open the file"
+		PRINT "for access if one or more of the records is longer than 1 Kilobyte !"
+		PRINT
+		PRINT "You will just have to check all through the data file yourself"
+		PRINT "and shorten the appropriate record when you find it."
+		PRINT
+		PRINT "Press any key to continue..."
+	ENDIF
+	GET
+ENDIF
+
+ENDP
+
+
+REM  Standard Printing Routine.
+PROC print:
+IF printer% OR display%=2
+	cnt%=0
+	DO
+		cnt%=cnt%+1 :rpos%=rpos%+1
+		REM  Filters out all CHR$(21) & '#' Characters.
+		IF MID$(details$,cnt%,1)=CHR$(21)
+			details$=LEFT$(details$,cnt%-1)+" "+MID$(details$,cnt%+1,255)
+		ELSEIF MID$(details$,cnt%,1)=CHR$(35)
+			details$=LEFT$(details$,cnt%-1)+"*"+MID$(details$,cnt%+1,255)
+		ENDIF
+		REM  Establishes a One Line Buffer & Prints it out when Buffer is full.
+		buff$=buff$+MID$(details$,cnt%,1)
+	IF cnt% >= LEN(details$)
+		IF LEFT$(buff$,1)=" " :buff$=RIGHT$(buff$,LEN(buff$)-1) :ENDIF
+		IF display%=2 :PRINT buff$; :ENDIF
+		IF printer% :LPRINT buff$; :ENDIF
+		buff$="" :GOTO exit
+	ELSEIF rpos% >= rmargin%-10 AND MID$(details$,cnt%,1)=" "
+		IF LEFT$(buff$,1)=" " :buff$=RIGHT$(buff$,LEN(buff$)-1) :ENDIF
+		IF display%=2 :PRINT buff$ :PRINT REPT$(" ",lpos%); :rpos%=lpos% :ENDIF
+		IF printer% :LPRINT buff$ :LPRINT REPT$(" ",lpos%); :rpos%=lpos%  :ENDIF
+		buff$="" :GOTO exit
+	ELSEIF rpos%=rmargin%
+		IF LEFT$(buff$,1)=" " :buff$=RIGHT$(buff$,LEN(buff$)-1) :ENDIF
+		IF display%=2 :PRINT buff$ :PRINT REPT$(" ",lpos%); :rpos%=lpos% :ENDIF
+		IF printer% :LPRINT buff$ :LPRINT REPT$(" ",lpos%); :rpos%=lpos%  :ENDIF
+		buff$="" :GOTO exit
+		ENDIF
+		exit::
+	UNTIL cnt% >= LEN(details$)
+ENDIF
+ENDP
+
+PROC rsset:(baud%,parity%,data%,stop%,hand%,term&)
+	LOCAL frame%,srchar%(6),dummy%,err%
+	frame%=data%-5
+	IF stop%=2 :frame%=frame% OR 16 :ENDIF
+	IF parity% :frame%=frame% OR 32 :ENDIF
+	srchar%(1)=baud% OR (baud%*256)
+	srchar%(2)=frame% OR (parity%*256)
+	srchar%(3)=(hand% AND 255) OR $1100
+	srchar%(4)=$13
+	POKEL ADDR(srchar%(5)),term&
+	err%=IOW(-1,7,srchar%(1),dummy%)
+	IF err%=203
+	REM Printer not connected / Line Failure
+		err%=0
+		IF printer%<>4 :printer%=0 :ENDIF
+	ENDIF
+	IF err% :RAISE err% :ENDIF
+ENDP
+

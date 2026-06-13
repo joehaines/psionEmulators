@@ -1,0 +1,48 @@
+==========
+psion/sibosdk #347, from psion_c, 1174 chars, Jul 14 17:26 93
+Comment to 337. Comments. 
+----------
+The info. as promised, sorry it's late:
+
+  The format  of Window  Server '.PIC' bitmap files as used on
+  the SIBO range of machines is as follows:
+  
+     struct
+       {
+       TEXT app_id[3] = 'PIC';            /* Application ID */
+       UBYTE  chk = 'P' + 'I' + 'C';            /* ID check */
+       UBYTE  file_vn = 0x30;               /* File version */
+       UBYTE  app_vn  = 0x30;        /* Application version */
+       UWORD  count;           /* Number of bitmaps in file */
+     
+       struct
+         {
+         UWORD  checksum;
+         UWORD  width;
+         UWORD  height;
+         UWORD  byte_size;          /* Size of picture data */
+         ULONG  offset;       /* From end of header to data */
+         } [count]
+         {
+         .
+         .
+         .
+         picture data - simple pattern of 0s and 1s with
+         no compression mapping directly to on-screen image
+         .
+         .
+         .
+         } [count];
+       }
+     
+  The checksum is calculated separately for each bitmap in the
+  '.PIC' file  using the  PLIB function  'p_crc()'. The header
+  data is not included in the calculation.
+
+  All the best,
+
+ Ali (psion_c)
+
+  
+  
+

@@ -1,0 +1,37 @@
+REM +-----------------------+
+REM Author  Jon Simpson   
+REM Title                  
+REM Date      
+REM +-----------------------+
+PROC CountDwn:
+	LOCAL min&, sec&, secs&, i%,inchr%
+
+  inchr%=255
+  WHILE inchr%<>0
+ 	dINIT "Countdown Timer"
+ 	dLONG min&, "Minutes",0,&7FFFFFFF/60-1
+ 	dLONG sec&, "Seconds",1,59
+ 	dBUTTONS "Cancel",-27,"Start",13
+ 	inchr% =  DIALOG
+ 	IF inchr%=13
+	   SCREEN 10,4,1,1
+	   gSETWIN 100,20,40,36
+	   gBORDER 0
+	   secs&=sec&+60*min&
+	   WHILE secs&
+	    gCLOCK OFF
+      gAT 2,2
+	    secs&=secs&-1
+	    gCLOCK ON,3,-((HOUR*60)+MINUTE)+secs&
+	    PAUSE 20
+	   ENDWH
+	   
+	   i%=0
+	   DO
+	    BEEP 1,300-(2*i%)
+	    PAUSE 10
+	    i%=i%+1
+	   UNTIL i%=5
+  	ENDIF
+ ENDWH
+ENDP

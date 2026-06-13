@@ -1,0 +1,42 @@
+
+                Pelican Software Inc.
+
+
+
+RunOpa is an example of how to start an Opa from within your own procedure.
+This info was obtained from David Wood at Psion in a message on Cix. Thanks
+again to David for making it available. You may have to experiment with this
+code, although this is a working example. I didn't spend a lot of time figuring
+the command line, but I think I've got it right.
+
+The cmdl$ seems to have five important segments:
+
+        1. O for Open, C for Create
+        2. Appname declared by App keyword
+        3. Default Extension
+        4. Path name for file used by app (cmd$(2))
+        5. Path name used to start app (cmd$(1))
+
+Here's the procedure:
+
+Proc RunOpa:
+local ret%
+local pid%
+local cmdl$(128),appname$(128)
+  appname$="ROM::SYS$PRGO"+chr$(0)
+        Rem Opo  cmdl$="ORunOpl"+chr$(0)+chr$(0)+"LOC::M:\OPO\Myproc.OPO"+chr$(0)
+        Rem use this Command line to run an Opo procedure
+        Rem change drive locations per your setup
+  cmdl$="ONotepad"+chr$(0)+".PAD"+chr$(0)+"LOC::B:\Note\Notepad.pad"+chr$(0)
+  cmdl$=cmdl$+"LOC::B:\APP\Notepad.OPA"+chr$(0)
+        Rem use this command line to run an Opa procedure
+        Rem "ORunOpl" is O, not 0 - Use O for open, C for Create
+        Rem if using C for create, change Notepad.pad to the name to create
+  ret%=call($0187,addr(appname$)+1,addr(cmdl$),0,0,addr(pid%))
+        Rem this is the Filexec call
+  if ret%<0
+   giprint err$(err)
+  else
+   call($0688,pid%,0,0,0,0) Rem Procresume
+  endif
+Endp

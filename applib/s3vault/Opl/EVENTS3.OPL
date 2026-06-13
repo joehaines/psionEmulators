@@ -1,0 +1,125 @@
+REM Source file - EVENTS3.OPL
+
+REM Like Events2.OPL, but now we add
+REM keypress detection and
+REM background processing
+
+REM Written by Jezar at Psion, for
+REM The 1994 Psion Developers Conference
+
+
+
+PROC Start:
+	Prelude:
+	EMmake:("EMinit")
+ENDP
+
+
+PROC Prelude:
+	TRAP CACHE $0800,$FFFF
+	CACHE OFF
+	LOADM "EVENTMAN"
+	PRINT "Three timer demo with gIPRINT,"
+	PRINT "keypresses and background calculation."
+	PRINT "";
+ENDP
+
+
+PROC EMinit:
+	TIinit%:("TIbeep",20,1000)
+	TIinit%:("TIbeep",8,2000)
+	BGinit%:
+	KYinit%:
+ENDP
+
+
+PROC Check:(err%,accept%)
+	IF err%<0 AND err%<>accept%
+		RAISE err%
+	ENDIF
+ENDP
+
+
+PROC BGinit%:
+	LOCAL me%
+	
+	me%=EMadd%:("BGrun",-127)
+	EMuser1&(me%)=TIinit%:("TIinfo",15,me%)
+	IOSIGNAL
+	RETURN me%
+ENDP
+
+
+PROC BGrun%:(me%)
+	EMuser2&(me%)=EMuser2&(me%)+1
+	IOSIGNAL
+ENDP
+
+
+PROC KYinit%:
+	LOCAL me%
+	
+	CURSOR ON
+	me%=EMadd%:("KYrun",0)
+	KYque:(me%)
+	RETURN me%
+ENDP
+
+
+PROC KYque:(me%)
+	IOC(-2,14,EMstat%(me%),EMuser1&(me%))
+ENDP
+
+
+PROC KYrun%:(me%)
+	LOCAL k%
+	
+	Check:(EMstat%(me%),0)
+	k%=(EMuser1&(me%) AND $FF)
+	IF k%=13
+		PRINT
+		PRINT "";
+	ELSEIF k%>31 AND k%<127
+		PRINT CHR$(k%);
+	ENDIF
+	KYque:(me%)
+ENDP
+
+
+PROC TIinit%:(func$,delay%,data%)
+	LOCAL me%,err%
+	
+	me%=EMadd%:(func$,0)
+	Check:(IOOPEN(EMhand%(me%),"TIM:",-1),0)
+	EMuser1&(me%)=delay%
+	EMuser2&(me%)=data%
+	TIque:(me%)
+	RETURN me%
+ENDP
+
+
+PROC TIque:(me%)
+	IOC(EMhand%(me%),1,EMstat%(me%),EMuser1&(me%))
+ENDP
+
+
+PROC TIbeep%:(me%)
+	Check:(EMstat%(me%),0)
+	BEEP -2,512000/EMuser2&(me%)
+	TIque:(me%)
+ENDP
+
+
+PROC TIinfo%:(me%)
+	LOCAL data%,BGhand%
+	
+	Check:(EMstat%(me%),0)
+	BGhand%=EMuser2&(me%)
+	data%=EMuser2&(BGhand%)
+	gIPRINT "Background processed "+GEN$(data%,6)+" times"
+	TIque:(me%)
+ENDP
+
+
+REM End of file.
+

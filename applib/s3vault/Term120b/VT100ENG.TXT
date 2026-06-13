@@ -1,0 +1,325 @@
+VT100 Terminal Emulator
+Prliminary Manual
+
+1. Introduction
+The VT100 Terminal Emulator is a communications program that supports the DEC
+VT100 Escape sequences for ANSI and TTY Emulations.  The software works only
+on the Series3a.
+
+2. Getting Started
+To start the emulator, install the application in the system memu.  Select
+'Insall' from the menu under 'Application', select 'Terminal.app' as the
+filename.  Press ENTER, and the application can be started.  The cursor must
+be under the terminal icon.  When you press ENTER, the terminal screen will
+appear with a flashing cursor.  The software is ready to use and is waiting
+for your command.  The default settings for the port are as follows:
+
+        Port: 9600 Baud, 8 Bits, 1 Stop bit, No parity, TTY:A
+        Handshake: XON/XOFF
+        Initialisation: atz
+        Hangup: +++^$D02H0^M
+        Dial mode: Pulse
+        Screensize 80 Columns by 25 Rows.
+
+All settings can be changed using the 'Settings' option in the 'Options'
+menu.  Use of a handshake protocol is recommended to improve the communication.
+
+3. The Menu
+
+3.1 Communication
+
+3.1.1 Initialisation
+The initialisation is set to 'atz'.  In 'Settings' the 'z' can be changed for
+another symbol.  The 'at' cannot be changed.  If the connection to the modem
+is ok, then 'OK' will appear.
+
+3.1.2 Dialling
+In this dialoguehere are three optionsn:
+        Redial(TAB): Redials the last number
+        Free: free enter of the telephone number
+        File: Searches a database for a number.  The file to use is set in
+          the 'Settings' option (see Appendix B).
+          
+If a number is given by free entry, or dialed from the a file, this will
+automatically be saved in a file.  You can then edit this number and use it
+again later.  The file is in the \INI\ directory.
+When the program is started, both the SSDs and the internal disk are searched.
+
+3.1.3 Hangup
+Breaks the connection.  This sends the string defined in 'Settings', which as
+default is '+++^$D02H0^M'. The ^$d02 causes a delay of three seconds.
+
+3.2 Display
+
+3.2.1 Delete
+The delete command clears the screen, and moves the cursor to the top-left
+corner.
+
+3.2.2 Screen
+In the screen dialogue the following settings can be changed:
+        Local or external echo on or off
+        Status line size, or off
+        Block or underline cursor
+        Enter key with or without linefeed (0x10)
+        Position of the navigation window, or off
+
+The status line informs the user of the current settings of the port, handshake,
+etc.
+
+3.2.3 TTY/VT100
+With this option the user can switch between TTY and VT100.  The menu entry
+is automatically changed.  When changing to VT100, the screen size will be
+asked.
+
+3.3 Transfer
+
+This option controls the settings and the operation of the file transfer.
+
+3.3.1 Protocol
+This option selects a version of X-Modem or Y-Modem.  Pressing TAB lists all 
+of the available protocols.
+
+3.3.2 Send/Receive
+The point 'send' displays a file selector box, from which a file is
+selected to be sent.  For 'receive', the destination filename must be
+specified.  If no protocol has been specified, a different dialogue will
+appear.
+
+3.3.3 Report file on/of
+Switching this option on will save all of the displayed information in a file.
+An edit box will prompt for a filename.  To close the file, select this point
+again.
+
+3.4 Macro
+Macros can be used to automate the logon procedure.  'Change' and 'Select'
+edit and select the macros respectively.  In editing mode, the following
+convention is used:
+        - ^$dnn   Delays execution of the next command for nn seconds
+        - ^^      Sends HEX 5E
+        - ^<Char> Sends the characters HEX 00 to HEX 1D
+                  @ ->  00
+                  A to Z or a to z -> 01 to 1A
+                  [ -> 1B
+                  \ -> 1C
+                  ] -> 1D
+          Examples : ^m sends 0D (RETURN)
+                     ^g sends 07 (Bell)
+                     ^[[2J sends escape sequenz ESC [ 2 J
+
+
+3.5 Options
+
+3.5.1 Settings
+This menu can three further sub-menu options:
+  Telephone directory: Selects the DBF file for the telephone numbers
+  Modem: Edits the codes for Hangup, Initialisation, and Dial prefix
+  Port: Sets the Baud rate, Data bits, Stop bits, and parity
+  Handshake: Selects the type of handshaking.
+
+3.5.2 Zoom
+Changes the font size.  The navigation window shows the current position
+(see 3.2.2).  The navigation window can be moved with Shift-Cursor, or
+Psion-Shift-Cursor for accelerated movements.
+
+3.5.3 Exit
+Closes the program.
+
+4. Summary
+Overview of the main menu:
+ษออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออป
+บ Communicate    Display          Transfer   Macro    Extras     บ
+วฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤถ
+บ Initialise     Clear            Protocol   Select   Settings   บ
+บ Dial           Screen Options   Transmit   Change   Zoom       บ
+บ Hangup         TTY              Receive             Exit       บ
+บ                                 Capture                        บ
+บ                                                                บ
+บ                                                                บ
+ศออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออผ
+
+The options menu:
+ษอออออออออออออออออป
+บ Settings        บ
+วฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤถ
+บ Phone book      บ
+บ Modem           บ
+บ Port            บ
+บ Handshake       บ
+บ                 บ
+ศอออออออออออออออออผ
+
+Changes between versions 1.2B and 1.1B
+
+The initialisation string "atz" has been changed to "atz^M", and the AT
+has can now be edited.
+The error in the synchronisation during the initialisation has been fixed.
+In the English version, the word "Databits" has been corrected.
+The program has been tested on an English Series3a, and runs without
+problems.
+
+
+Appendix A
+
+Restrictions of the Shareware Version
+
+"Dialling from a file"
+The settings for the filename will be saved, but dialling from this file
+is not permitted.
+
+"Port parameters"
+Only Port A can be accessed.
+The maximal baud rate is 2400
+      (Registred version 9600)
+          (Full version 19200).
+
+"Screen size for VT100 mode"
+Changes are ignored.
+
+"Screen dialogue"
+Changes are ignored.
+
+"Select macro"
+Macros can be edited, but not selected.
+
+"Transfer"
+Data transfer is not possible.
+
+"Zoom"
+Only available in registred or full version
+
+
+
+Appendix B
+
+Function of the table view
+
+- Move in the table using the cursor or Shift-Cursor
+- Search the entries for a string
+- Quit the search with ESC
+- Select the number with ENTER
+- Quit without the number with SHIFT-ESC
+
+Appendix C
+
+Files and directories should be as follows:
+
+\APP\terminal.app               Application
+\APP\TERMINAL\term01.rsc        Resource file (English)
+\APP\TERMINAL\term03.rsc        Resource file (German)
+\APP\TERMINAL\dbftable.dyl      Library for table view
+
+Appendix D
+
+INI File
+When the program is first stared, a directory M:\INI\ will be created, and
+a file TERMINAL.INI will be placed in the directory.  This is save in text
+mode, and can be edited by the user.  The order of the lines is not
+imported.  Comment lines begin with a !  This directory can be moved
+to an SSD, although a RAM SSD is recommended.  On subsequent uses, the
+\INI\ directory is searched for on the internal disk, and then on A and B.
+If no directory is found, a new directory will be created on the internal
+disk.
+
+Appendix E
+
+Registration
+
+You may use the Shareware Version unregistered free of charge for a period of
+up to 30 Days, after which you are required to register.  You may copy the
+shareware version of the VT100 Emulator, so long as all associated files are
+copied.  You may not modify any of the files in any way.
+
+Registering the shareware version will entitle you to use Baud rates of up
+to 9600 baud and the zoom function.
+
+Upgrading to the full version entitles you to use Baud rates of up to
+19200 baud, the zoom function, file transfers, dialing from a file, macros,
+Ports B to F, and ALL of the features listed in this document.
+
+Upgrading is only possible at the time of registration.  Once a shareware
+version has been registered, you cannot upgrade, and will have to purchase
+the full version.
+
+To register, upgrade, or purchase the full version, use one of the following
+payment methods:
+
+IN GERMANY
+Send either Cash or a Eurocheque made payable to 'Psion GmbH' to the
+address below, or Fax us your address.  Wir liefern per Nachname.
+
+Shareware Registration: 30,- DM    Upgrade: 100,- DM    Full Version: 130,- DM
+
+
+IN EUROPE
+Send a Eurocheque made payable to 'Psion GmbH' to the address below.
+Cash will be accepted in the following currencies: Deutschmarks
+                                                   Sterling
+
+Shareware Registration: 30,- DM    Upgrade: 120,- DM    Full Version: 150,- DM
+                       15                  50                       70
+
+ (or in the UK, the equivalent in Marmalade sent to 'Psion GmbH Technical
+        Department')
+
+ (not applicable to Psion PLC, from whom payment will only be accepted in
+        Modem Cables, part no. 1404 0002)
+
+THE REST OF THE WORLD
+Send cash to the address listed below.  We accept Deutschmarks, Sterling,
+or US Dollars.
+
+Shareware Registration: 30,- DM    Upgrade: 150,- DM    Full Version: 180,- DM
+                       15                  60                       80
+                       $20                  $80                      $100
+
+ (or the equivalent in a local speciality, sent to 'Psion GmbH Technical
+         Department'.  Particular requested are:
+
+                      Australia: Fry's Coconut Ruff
+                      Canada   : Maple Syrup
+                      China    : Rice
+                      Japan    : Chips to upgrade a 3a to 2MB
+                      Jamaica  : Rum
+                      Singapore: Video cameras
+                      Taiwan   : CD Players
+                      USA      : Bill Gates photograph
+                                 (including sub-sets when available)
+
+                      UK       : Marmalade * see note
+
+ * Added here in case the UK is no longer in Europe by the time we post this.
+
+          And for those in Europe thinking about this method of payment:
+
+                      Greece   : Olives
+                      Holland  : Cheese
+                      Ireland  : Guiness (or "Rock 'n' Roll Kids" CD)
+                      Italy    : Pasta (all types)
+                      Switzerl.: Cheese again)
+
+Our address is:
+
+                        Psion GmbH
+                        Saalburgstr. 157
+                        61350 Bad Homburg
+                        Germany
+
+
+Support is available under the following numbers:
+
+PSION Hotline             +49 6172 9654-28
+PSION Mailbox             +49 6172 37090
+PSION Fax                 +49 6172 39192
+
+
+DISCLAIMER
+
+Psion and the Psion Logo are registered trademarks, and Psion Series3,
+Psion Series3a, SSD, and Solid State Disk are trademarks of Psion PLC.
+
+All trademarks acknowledged.
+
+Neither the author, nor Psion GmbH, are responsible for any loss of
+data which may occur as a result of the use of this program.
+
+

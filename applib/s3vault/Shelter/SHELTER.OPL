@@ -1,0 +1,197 @@
+PROC shelter:
+GLOBAL money,pop&,shelt&,dead&,score&
+GLOBAL attacks&,year&,c&,a,x&,titl$(40)
+GLOBAL again$(1),nme$(3),scr,name$(4,3),hiscr&(4)
+GLOBAL dat$(30),dt$(30),date$(4,30)
+
+IF NOT EXIST ("shelt")
+CREATE "shelt",A,nme$,scr,dt$
+ELSE
+OPEN "shelt",A,nme$,scr,dt$
+ENDIF
+
+x&=1
+DO
+POSITION x&
+name$(x&)=A.nme$
+hiscr&(x&)=A.scr
+date$(x&)=A.dt$
+x&=x&+1
+UNTIL x&=5
+CLOSE
+inst:
+more::
+hiscores:
+money=10000 :pop&=10000 :shelt&=0
+dead&=0 :attacks&=0:score&=0
+year&=1
+
+DO
+again::
+CLS
+PRINT "NUCLEAR FALLOUT","   ","Year",year&
+PRINT
+PRINT "Chances of Attack are",20-year&,"to one"
+PRINT "Population is",pop&,"  Money œ";money
+PRINT "Shelter",shelt&,"   Dead Citizens",dead&
+PRINT "No in Shelter",shelt&/10,"  Nuclear Attacks",attacks&
+PRINT "How much to spend ? œ";
+INPUT a
+
+IF money-a<0 OR shelt&+a<0
+BEEP 32,300 :BEEP 32,600
+GOTO again::
+ENDIF
+
+money=money-a :shelt&=shelt&+a :money=money+INT(money/10+.5)
+
+rem nuclear attack
+IF INT(RND*(20-year&))+1=1
+CLS
+attacks&=attacks&+1 :x&=INT ((shelt&/10)+.5)
+PRINT titl$
+PRINT
+PRINT "Population protected",x&
+x&=pop&-x&
+PRINT
+IF x&<0
+PRINT "No-one killed"
+ELSE PRINT "Number killed",x&
+ENDIF
+dead&=dead&+x& :shelt&=shelt&-INT((shelt&/10)+.5)
+PRINT
+PRINT "Shelter left",shelt&
+PRINT
+PRINT "      Press a key to Continue"
+GET
+
+IF x&/pop&>.9
+CLS
+PRINT titl$
+PRINT
+PRINT "More than half the population are"
+PRINT "dead and the others have revolted"
+PRINT "You are sentenced to face a firing"
+PRINT "squad in the morning for you failures"
+GOTO here::
+ENDIF
+pop&=pop&-x&
+ENDIF
+year&=year&+1
+UNTIL year&=20
+CLS
+score&=money+(pop&*75)+INT((shelt&-(pop&*10))/2)
+PRINT "Well done you managed to get through"
+PRINT "troubled times with œ";money
+PRINT "You kept ";pop&,"people alive"
+PRINT "in",shelt&,"Cubic ft of shelter"
+here::
+PRINT
+PRINT "For that you score",score&,"points."
+chkhi:
+PRINT "Again (Y/N)"
+noans::
+again$=GET$
+IF again$="Y" or again$="y"
+GOTO more::
+ELSEIF again$="N" OR again$="n"
+DELETE "shelt"
+CREATE "shelt",A,nme$,scr,dt$
+x&=1
+DO
+A.nme$=name$(x&)
+A.scr=hiscr&(x&)
+A.dt$=date$(x&)
+APPEND
+x&=x&+1
+UNTIL x&=5
+CLOSE
+hiscores:
+STOP
+ENDIF
+GOTO noans::
+ENDP
+
+
+PROC inst:
+CLS
+titl$="   N U C L E A R    F A L L O U T   "
+PRINT titl$
+PRINT
+PRINT "You are in charge of Civil defence"
+PRINT "for the local town.  War is likely."
+PRINT "It is your job to decide, each year,"
+PRINT "how much you will spend on fallout"
+PRINT "shelters."
+GET
+CLS
+PRINT titl$
+PRINT
+PRINT "You start off with a population of"
+PRINT "10,000, œ10,000 and no shelters."
+PRINT "Each citizen needs 10 cubic metres"
+PRINT "of shelter to survive, and each cubic"
+PRINT "metre costs œ1.  The money you do not"
+PRINT "spend has 10% interest added on to it."
+GET
+CLS
+PRINT titl$
+PRINT
+PRINT "You have to decide whether to save up"
+PRINT "your money or protect as many of your"
+PRINT "citizens you can."
+PRINT "The chances of attack increase every"
+PRINT "year."
+PRINT
+PRINT "  Good Luck ...Press a key to start"
+GET
+ENDP
+
+PROC hiscores:
+CLS :PRINT titl$
+PRINT
+PRINT "High Scores to Date"
+PRINT
+x&=1
+DO
+PRINT name$(x&);"  ";hiscr&(x&);"  ";date$(x&)
+x&=x&+1
+UNTIL x&=5
+GET
+ENDP
+
+PROC chkhi:
+LOCAL y&,init$(3)
+x&=1
+DO
+IF score&>hiscr&(x&)
+GOTO goodie::
+ENDIF
+x&=x&+1
+UNTIL x&=5
+GOTO fini::
+
+goodie::
+PRINT "Well done you've recorded a high score."
+PRINT "Please enter your initials (MAX 3) ";
+INPUT init$
+y&=4
+DO
+IF y&=x&
+GOTO best::
+ENDIF
+name$(y&)=name$(y&-1)
+hiscr&(y&)=hiscr&(y&-1)
+date$(y&)=date$(y&-1)
+y&=y&-1
+IF y&=1 
+GOTO best::
+ENDIF
+UNTIL y&=x&
+best::
+dat$=DATIM$
+name$(x&)=init$
+hiscr&(x&)=score&
+date$(x&)=dat$
+fini::
+ENDP

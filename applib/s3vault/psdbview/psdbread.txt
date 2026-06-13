@@ -1,0 +1,248 @@
+Psdbview. Version 3.68.2 16/07/98
+
+Psdbview is a program for reading , updating and creating 
+database files . The file format it uses is Psion dbf 
+( Series 3/3a/3c format ), this has two advantages ,
+ 1. You can use the Psion dbf.vbx control in Visual Basic to
+ create new databases ( something not possible in Visual 
+Basic usually - at least unless you go to the professional 
+version ) .
+ 2. The file format is far more 
+compact than the dbase files or mdb files Visual Basic normally
+runs on .
+
+This is now the umpteenth complete program , it may not yet be 
+100% !! I am supposed to have tested it but it may still have 
+odd bugs here and there , if you find one please let me know 
+( mkstevo@nildram.co.uk ) . 
+
+This version has even more functions than the last . ( Version 2 )
+
+  I have added a group find facility which enables whole 
+groups of records to be located in one pass , these can now be 
+printed out - see the printing section below .
+
+  The Insta-Search is now selectable and has a 3 second delay 
+added for the program to catch up with the typing .
+
+  The compress option has had to be removed as it could on 
+occasions corrupt datafiles .
+ 
+ I added and then removed a sort facility as it was 
+unbelievably slow . There is a secret way of calling up the sort ,
+if you want to risk corrupting your database and don't mind an 
+eternal wait - email me for the secret password .
+
+  The 'not found' reporting should be more accurate now .
+
+  There was a bug in the add section of the program , 
+instead of allowing you to enter as many new records as 
+required it would only allow you to enter 1 ( correctly ) then 
+any subsequent ones it seemed to lose the first field !
+
+  There was also a bug in the edit labels function which I have 
+rectified .
+
+  I have added a "most recent" file list to the file 
+menu to enable quicker file switching .
+
+  I have modified the way that files are saved to disk so that
+only valid fields are stored ( in previous versions 32 fields were 
+saved automatically even if they had no data in them ) the only
+effect this will have is to improve compatibility with the Psion
+Series 3a based program ( data-selector ). 
+
+  I have added the facility to move between fields whilst 
+adding or updating records by pressing on the F12 ( next ) and 
+F11 ( prev ) keys , saving of records is possible by pressing 
+F2 .
+
+09/02/1998
+
+  I have tidied the buttons into one area which should make it
+easier to navigate around the program , it also now looks a
+lot neater .
+
+  I was alerted to an error whereby on opening a new file the last
+opened file had all it's records removed , I hope I have sorted
+this nasty bug out .
+
+  I found that some of the command buttons dissapeared after certain
+actions , I hope that I finally have sorted this one .
+
+  I have made it easier to create new files ( I hope !! ) you can now 
+navigate to the correct directory using a dialog box before setting 
+the new file name .
+
+14/03/1998
+
+  I have added a print facility , this can print single records or a
+whole file ( or if a group find is present just this selection ) .
+I have had to write my own word wrap routine as printers do not 
+automatically do this , this may cause odd effects if the text to be
+printed has no spaces in it and is over 40 letters ( it may be a long 
+list separated by commas for example ) the word wrap routine should 
+simply break this up into shorter lines in order to print it but it 
+won't be able to 'word wrap' this type of line .
+I have used the same routine to tidy up the display of records in the 
+main viewer , this will also suffer odd effects on long lines of text 
+with no spaces in it .
+If the field labels are more than about 10 letters this may cause the 
+printout/display to become uneven , and if you have long field labels 
+and long lines of text with no spaces the program may lock up when 
+trying to print or display them .
+
+  It is now possible to save selected records only to a new file , to
+do this perform a group search until the correct records are selected 
+click on 'Save as' (Ctrl+a) after setting the file name to save the 
+records to you will be able to chose whether to save only the selected 
+records ( Yes ) save all records in the file ( No ) or cancel . If you 
+chose to save the selected records only a message will appear asking 
+you to wait while a copy file is created , this may take a while 
+( depending on how many records you are saving ) as Psdbview has to 
+copy all of the selected records to a temporary file , create a new 
+database file and then copy the records from the temporary file to the 
+new file finally deleting the temporary file . If no group search is
+valid , 'Save as' will save ALL records in the current file to the new 
+file .
+
+**********************************************************************
+IF SAVING SELECTED RECORDS TO A NEW FILE YOU MUST ENSURE THAT YOU HAVE
+                   AS MANY FIELD LABELS AS FIELDS .
+**********************************************************************
+The reason for this is that the first operation Psdbview carries out 
+is to copy the field labels to the temporary file , it then calculates 
+the number of fields in the database from the number of labels , if you
+do have more fields than labels you may find that the records become 
+out of step with the labels or the records will more likely be 
+truncated to contain only fields which have corresponding labels , 
+either way heed this warning !!
+**********************************************************************
+
+  I have added a 'block delete' facility , this deletes records in a 
+group find . The idea is that you can find a set of records with the 
+group find , save them to a new file , and then delete them from the 
+original file thus moving them out of the original and into a new 
+file . This can be handy for splitting large files into several 
+smaller ones .
+
+  The most recently used list should now not show more than one copy 
+of any particular file name as was possible if the file name appeared 
+on the MRU list yet was opened using the open file command . If the 
+file name was passed to the program as a command line parameter ( if 
+the file was dropped on Psdbview in File Manager or Explorer or if 
+Dbf files are associated with Psdbview in File Manager \ Explorer and 
+then double clicked ) the MRU could be confused and file names seemed 
+to dissapear almost at random . I hope to have corrected this and the 
+MRU should react in the same way as if the file was opened using the 
+open file command . ( But doesn't always !! )
+
+20/05/1998
+
+  I have re-written parts of the program to allow the program window
+to be re-sized in the usual way , the program text boxes and command
+buttons should now adjust themselves to fill the availiable space , 
+the program window can not be shrunk below certain pre-set limits .
+
+  The screen font can be enlarged and reduced at will 
+( file/font/size ) and the selected font can be displayed in either
+bold or italic styles . Any changes here are reflected in the text
+sent to the printer with the print command .
+
+  The compress option has been re-installed on a trial basis ! It
+does not compress the file in the 'zip' sense of the term , it merely
+removes deleted records from a file . I suspect that it was not this
+that was causing the problems in earlier versions , if you have a lot
+of error messages on opening files please let me know ( if you press 
+the 'ignore' button you will find that no further errors occur until
+the file is closed and re-opened ) .
+
+01/06/1998
+
+   The font size , font style and InstaSearch settings are stored in
+the Psdbview.ini file , which should be stored in the same directory
+as the program file - Psdbview.exe . If you have two program files
+in different locations you will have two initial settings files
+too . The settings will only be stored when you close this latest
+version for the first time ( IE it can't tell what settings you used
+on previous versions - only from version 3.64 on ) . I have 
+done this as I found myself constantly re-setting the font size on 
+my laptop and got fed up with having to do so , I finally realised
+how much better it would be if the program could remember the settings
+for me . Should you delete the file Psdbview.ini , all settings will
+return to their defaults , on closing , a new file will be created
+with your current settings stored in this ( hopefully !! ) .
+
+   I have fiddled with the MRU list routines , I am slowly getting
+this to work correctly even with command line parameters . I am 
+hoping that it will not lose odd lines seemingly at random when 
+files are opened by double clicking on them - but don't expect too
+much !
+
+04/06/1998
+
+   I have added an 'Add new record based on the current record'
+( Ctrl+k ) this does just what it says , it adds a new record to the
+end of a file using the current record settings as a starting point .
+
+   Another slight modification is that after a search has been 
+carried out , the search text will be highlighted . In this way simply
+starting to type a new search text will automatically delete the 
+previous search text .
+
+16/06/1998
+
+   When selecting Add , update or Add new based on current the first
+field should be automatically selected , it was possible to enter
+text without first selecting a destination field , this could lead 
+to rather unpredictable results - the text could be placed across all
+30 possible fields in such a fashion that made it impossible to 
+delete without deleting the entire record .
+
+01/07/1998
+
+    It is now possible to hide the field labels , this can be done on 
+the File/View menu command , this can also be called by double 
+clicking on the main display area .
+
+    The search options menu can be called up in the same way but this 
+time by double clicking on the search entry box ( bottom right corner )
+
+05/07/1998
+
+    The file menu can also be called by double clicking on the file
+name box .  
+
+07/07/1998
+
+    I am experimenting with a dual criteria search . This only works 
+on a group find ( F3 ) . To activate this simply enter the first 
+required search text in the text box , follow this with " ## " - minus 
+the quote marks but WITH the spaces - and then the second required 
+search text . The spaces either side of the " ## " will be discounted 
+within the search . Example . To search for Pete in London enter :-
+pete ## london . Then press Group Find ( F3 ) , all the records which 
+contain Pete AND London should be returned in a group , this assumes 
+that the file does contain some records with Pete and London !!
+Searches may take a little longer this way , if you try this in any 
+other search then PsdbView will search for the whole phrase , IE 
+"Pete ## London" will be searched for NOT "Pete" and "London" . The 
+order of the search requests is unimportant to the search routine , 
+although if you have the search options set to "Case dependant" this 
+will only apply to the FIRST search request and not to the second . 
+Entering the "##" symbols will automatically disable the Insta-Search 
+if it is enabled , this prevents the Insta-Search from reporting that 
+the record was Not Found and deleting the search request .
+
+    If you attempt to save an empty record PsdbView will not only not 
+save it but will also press the cancel button for you . This means 
+that if you have finished saving new records you need only to press 
+F2 twice ( once to save the new record and once to 'save' the blank 
+record ) to exit from the Add Records screen . I find this quicker 
+than pressing F2 and then Alt+C or clicking on 'Save' then 'Cancel' .
+
+16/07/1998
+    I have added a new 'Help' topic regarding the 'Invalid File
+Format' messages as I was fed up with explaining that the program will 
+only work on PSION format database files , this will hopefully stop 
+this !!

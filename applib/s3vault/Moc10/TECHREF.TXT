@@ -1,0 +1,128 @@
+MoC         Master of Ceremonies            Technical Reference Manual
+----------------------------------------------------------------------
+FORMAT OF MoC FILES
+
+This is the native format used by MoC. The default extension is "MOC"
+though this can be changed (see "Configuration" below).
+
+The file is an OPL database file and can be opened from an OPL
+program using a command of the form:
+
+     OPEN filename$,log,h%,m%,t1$,t2$
+
+The records are in random order and must be ordered by sorting on the
+numerical value of the h% field (the values of which are NOT
+contiguous).
+
+The fields are defined as follows:
+
+h% - Hash value that determines the order of the records. Negative
+     values are reserved and should be ignored. Positive values will
+     be unique and a record with a greater hash value comes after one
+     with a lesser value.
+
+m% - Number of minutes duration of item. Zero indicates a heading.
+
+t1$- First and second lines of text. Zero to forty characters. All
+t2$  characters are allowed, except TAB.
+
+There will never be more than 98 records with positive hash values in
+any one file.
+----------------------------------------------------------------------
+FORMAT OF WRD FILES
+
+WRD files produced by MoC are suitable for processing in the Word
+application and printing out. They are, in fact, plain text files
+using TAB characters for layout. 
+----------------------------------------------------------------------
+FORMAT OF TAB FILES
+
+TAB files are the preferred format for exchanging items between MoC
+files and are also useful for exchanging data with spreadsheets and
+other programs.
+
+Each item is a record (line) in the file and there are three fields
+in each record separated by TAB characters.
+
+The first field is the minutes represented as 1-4 numeric characters.
+A heading has a zero character in this field.
+
+The second and third fields are the two lines of text. They must be
+less than 40 characters long and the second field must have at least
+one character.
+
+The third field may be missing altogether and there may be additional
+fields after the third. Additional fields are ignored on input.
+----------------------------------------------------------------------
+FORMAT OF CSV FILES
+
+CSV stands for "Comma separated variable" and is a common format for
+interchange between databases, spreadsheets and word processors. It is
+similar to the TAB format, except that the fields are separated by
+commas rather than TABs. So that the text fields may contain commas,
+they are also enclosed in quote marks. Any spaces in the file are
+ignored, unless they are between the quote marks in the text fields.
+----------------------------------------------------------------------
+CONFIGURATION
+
+You can change a number of aspects of the way MoC works.
+
+The first step is to copy some additional files from the distribution
+archive to your Series3. The file "MOC.OPL" and at least one of the
+files "*.PIC" (or your own icon file) must be copied to the "\OPL"
+directory of the Internal, "A" or "B" disk.
+
+Before making any changes, remove the MoC application (PSION-Y at the
+System screen).
+
+Next, bring up the "Moc" file in the "Program" application. The
+configuration instructions that follow refer to line numbers
+identified as comments in the right margin of this file.
+
+To change the application icon:
+  Edit the path and file name of the icon at line 4.
+
+To change the directory for application data files:
+  Edit the path at lines 2 and first parameter at line 8
+
+To change the file name extension for schedule files:
+  Edit the extension at lines 3 and second parameter at line 8
+  (must be exactly 3 characters).
+
+To change the location or name of the dynamic link libraries:
+  Edit the paths at lines 5 and/or 6.
+
+To stop the S3 from switching off while MoC is running:
+  Add a REM command at the start of line 7.
+
+After making the changes, translate the code using PSION-T and exit
+from the Program application. Re-install MoC using PSION-I from the
+System screen.
+----------------------------------------------------------------------
+IMPLEMENTATION NOTES
+
+I encourage other Series3 programmers to use this simple main routine
+and Dynamic Link Library (DLL) approach to applications and to publish
+the source code for the main routine. There are only a limited number
+of TLAs (three letter abbreviations) and sooner or later two
+applications are going to want the same directory and file extension.
+It is thus important to allow users to change this.
+
+I extended the DLL concept by separating the code into an application
+specific library and a generic application framework library. The
+framework library hides all the complexity of handling system
+messages and hot keys and adds machine code for asynchronous timers
+and lazy screen update. This DLL can be shared among multiple
+applications saving disk space. "FRAMELIB.OPO" is fully documented
+with source code in my distribution file "S3FRAM.ZIP" on CompuServe
+and CIX and other programmers are encouraged to make use of it.
+----------------------------------------------------------------------
+HISTORY
+
+This is the first release version of MoC. A beta version has been
+available on CompuServe and CIX since last November. This release
+contains extensive changes, new facilities and bug fixes. I would like
+to thank those who made valuable comments on the beta version and hope
+they recognise their contribution in the finished product.
+----------------------------------------------------------------------
+

@@ -1,0 +1,144 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    # Opt-in flag for the slow boot-validation suite. Off by default so
+    # the deploy path stays quick; flip on when you want the harness
+    # tests to gate the deploy (regression hunts, CI dry-runs, etc.).
+    inputs:
+      run_harness_tests:
+        description: 'Run boot + SIBO app-launch validation'
+        type: boolean
+        default: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Native harness boot-validation ──────────────────────────────────────
+      # Builds the platform-independent core (no Emscripten) and runs every
+      # device listed in tests/devices.txt through the harness in --assert-boot
+      # mode. Skipped by default to keep the deploy fast — opt in via the
+      # workflow_dispatch input.
+
+      - name: Build native harness
+        if: ${{ inputs.run_harness_tests }}
+        run: bash harness/build.sh
+
+      - name: Run boot validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/boot/test-boot.sh --all
+
+      # SIBO2 post-boot test: dismiss the cold-boot "Media is corrupt"
+      # dialog with Esc and assert the System screen is what's on the LCD
+      # at the end (rather than the dialog still being up, which is what
+      # the user-reported "Media is corrupt" symptom looks like). Catches
+      # regressions in the ASIC9 RAM-mirror / page-select decode that
+      # surface as apps hitting KErrCorrupt when they touch M:.
+      - name: Run SIBO app-launch validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-sibo-app-launch.sh --all
+
+      - name: Upload boot-validation artefacts
+        if: ${{ inputs.run_harness_tests && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-validation
+          path: |
+            tests/logs/
+            tests/results/
+            tests/actual/
+
+      # ── WASM build ──────────────────────────────────────────────────────────
+
+      - name: Setup Emscripten SDK
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache-folder: .emsdk-cache
+
+      - name: Cache WASM object files
+        uses: actions/cache@v4
+        with:
+          path: wasm/obj
+          key: wasm-obj-${{ hashFiles('core/**', 'wasm/main.cpp') }}
+
+      - name: Build WASM
+        run: bash scripts/build-wasm.sh
+
+      # ── MAME Series 3a bundle ────────────────────────────────────────────────
+      # Download the pre-built psion3aweb.* files from the mame-3a-bundle
+      # release (produced by the separate "Build MAME Series 3a Bundle"
+      # workflow). If no release exists yet the step succeeds silently and
+      # the mame-3a/index.html will show the "bundle not built" notice.
+
+      - name: Download MAME Series 3a bundle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p frontend/public/mame-3a
+          gh release download mame-3a-bundle \
+            --repo ${{ github.repository }} \
+            --dir frontend/public/mame-3a \
+            --pattern "psion3aweb.*" 2>/dev/null \
+            && echo "MAME bundle downloaded." \
+            || echo "No mame-3a-bundle release found — Series 3a will show build instructions."
+
+      # ── Frontend build ───────────────────────────────────────────────────────
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # 22+: the app-library generator runs TypeScript directly via
+          # --experimental-strip-types (it reuses the frontend's MBM
+          # decoder for icon extraction).
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: bash scripts/build-frontend.sh
+
+      # ── Copy ROMs into dist ──────────────────────────────────────────────────
+
+      - name: Copy ROMs to dist
+        run: |
+          mkdir -p dist/roms
+          cp -r roms/* dist/roms/
+
+      # ── Generate the app library into dist ──────────────────────────────────
+      # Converts the 3-Lib CD-ROM in applib/ into dist/apps:
+      # manifest.json + one zip per app + extracted icons. Generated at
+      # deploy time (never committed) — like the ROM copy above.
+
+      - name: Build app library
+        run: node --experimental-strip-types scripts/build-app-library.mts --out dist/apps
+
+      # ── Copy device skins into dist ──────────────────────────────────────────
+
+      - name: Copy skins to dist
+        run: |
+          mkdir -p dist/skins
+          cp frontend/src/assets/skins/* dist/skins/ 2>/dev/null || true
+
+      # ── FTP Deploy ───────────────────────────────────────────────────────────
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          # Only upload changed files (state file stored alongside dist)
+          state-name: .ftp-deploy-sync-state.json
+          exclude: |
+            **/.git*
+            **/.git*/**

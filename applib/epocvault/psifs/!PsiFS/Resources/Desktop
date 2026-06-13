@@ -1,0 +1,39 @@
+|   File        : Desktop
+|   Date        : 11-Feb-00
+|   Author      : © A.Thoukydides, 1998, 1999, 2000
+|   Description : Script to load and configure PsiFS from within the desktop.
+
+| Check that there is sufficient memory to run
+WimpSlot -min 188K -max 188K
+
+| Directory to contain scrap files
+If "<Wimp$ScrapDir>" = "" Then Error 0 Scrap folder could not be found. Please double-click on a copy of !Scrap and try again.
+If "<Wimp$Scrap>" = "" Then Set Wimp$Scrap <Wimp$ScrapDir>.ScrapFile
+Set PsiFSScrap$Dir <Wimp$ScrapDir>.PsiFS
+
+| Directory to contain configuration files
+If "<Choices$Write>" = "" Then Set PsiFSConfig$Dir <PsiFS$Dir>.Config Else Set PsiFSConfig$Dir <Choices$Write>.PsiFS
+Set PsiFSConfig$Path <PsiFS$Dir>.Config.
+If "<Choices$Write>" <> "" Then Set PsiFSConfig$Path <Choices$Write>.PsiFS.,<PsiFSConfig$Path>
+If "<Choices$Path>" <> "" Then Set PsiFSConfig$Path Choices:PsiFS.,<PsiFSConfig$Path>
+
+| Load the PsiFS module if required
+RMEnsure PsiFS 1.20 Run <PsiFS$Dir>.Resources.Load
+RMEnsure PsiFS 1.20 Error 0 Failed to load the PsiFS module
+
+| Ensure that the correct versions of system modules are loaded
+Run <PsiFS$Dir>.Resources.Ensure MessageTrans 0.27 MsgTrans
+Run <PsiFS$Dir>.Resources.Ensure ColourTrans  0.52 Colours
+Run <PsiFS$Dir>.Resources.Ensure Toolbox      1.45 Toolbox.Toolbox
+Run <PsiFS$Dir>.Resources.Ensure DCS          1.08 Toolbox.DCS_Quit
+Run <PsiFS$Dir>.Resources.Ensure Iconbar      1.18 Toolbox.IconBar
+Run <PsiFS$Dir>.Resources.Ensure Menu         0.35 Toolbox.Menu
+Run <PsiFS$Dir>.Resources.Ensure ProgInfo     0.15 Toolbox.ProgInfo
+Run <PsiFS$Dir>.Resources.Ensure SaveAs       0.16 Toolbox.SaveAs
+Run <PsiFS$Dir>.Resources.Ensure Window       1.59 Toolbox.Window
+
+| Check again that there is sufficient memory to run
+WimpSlot -min 188K -max 188K
+
+| Start the desktop filer
+Run <PsiFS$Dir>.Resources.!RunImage

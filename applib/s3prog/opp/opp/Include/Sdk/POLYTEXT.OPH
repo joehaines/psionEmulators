@@ -1,0 +1,96 @@
+#define POLYTEXT_OPH
+
+#ifndef P_OBJECT_OPH
+#include <p\object>
+#endif
+
+#ifndef VARRAY_OPH
+#include <sdk\varray>
+#endif
+
+/* Constants for ptroot */
+
+#define PT_FIND_DEFAULT 0x0000
+#define PT_FIND_BACKWARDS 0x0001
+#define PT_FIND_CAN_STAY 0x0002
+#define PT_STY_DEFAULT 0x00
+#define PT_STY_BREAK_AT_START 0x01
+#define PT_STY_BREAK_AT_END 0x02
+#define PT_STY_OSTRIKE_XLEFT 0x20
+#define PT_STY_OSTRIKE_XRIGHT 0x40
+#define PT_STY_OVERSTRIKE 0x80
+#define PT_MAX_PHRASE_LEN 236
+#define PT_DESCR_MOD_FONT 0x0001
+#define PT_DESCR_MOD_WS_STYLE 0x0002
+#define PT_DESCR_MOD_PT_STYLE 0x0004
+#define PT_DESCR_MOD_ATTRIB 0x0008
+#define PT_DESCR_MOD_TLEN 0x0010
+
+/* Types for ptroot */
+
+STRUCT PT_FONT_SPEC
+	font_id%
+	attrib#
+ENDS
+
+STRUCT PT_PHRASE_INFO
+	line%
+	offset%
+	width%
+ENDS
+
+STRUCT PT_PHRASE_DESCR
+	font_id%
+	ws_style#
+	pt_style#
+	attrib#
+	tlen#
+ENDS
+
+STRUCT PT_PHRASE
+	descr#(SIZEOF(PT_PHRASE_DESCR))
+	txt#(1)
+ENDS
+
+/* Property of ptroot */
+
+STRUCT PRS_PTROOT
+	nphrases%
+	nchars%
+	nlines%
+	wwidth%
+	lmargin%
+	ascent%
+ENDS
+
+STRUCT PR_PTROOT
+	root#(SIZEOF(PRS_ROOT))
+	ptroot#(SIZEOF(PRS_PTROOT))
+ENDS
+
+/* Property of ptseg */
+
+STRUCT PRS_PTSEG
+	phrases%
+ENDS
+
+STRUCT PR_PTSEG
+	root#(SIZEOF(PRS_ROOT))
+	ptroot#(SIZEOF(PRS_PTROOT))
+	ptseg#(SIZEOF(PRS_PTSEG))
+ENDS
+
+/* Property of ptflat */
+
+STRUCT PRS_PTFLAT
+	buffer%
+	bufsize%
+	granularity%
+	nextoff%
+ENDS
+
+STRUCT PR_PTFLAT
+	root#(SIZEOF(PRS_ROOT))
+	ptroot#(SIZEOF(PRS_PTROOT))
+	ptflat#(SIZEOF(PRS_PTFLAT))
+ENDS

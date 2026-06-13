@@ -1,0 +1,31 @@
+proc main:
+rem 	global year%,month%,day%,yrdy%
+	local inpdate&,timetemp,lat,long,zonein&,zone
+	local i%,rise$(5),set$(5)
+	CLS
+	inpdate&=days(day,month,year)
+	loadm "loc::m:\opo\sunny.opo"
+	do
+		dinit "Enter Parameters"
+		dfloat lat,"Latitude",-180,180
+		dfloat long,"Longitude",-180,180
+		ddate inpdate&,"Date",days(1,1,1951),days(31,12,2000)
+		dlong zonein&,"Time Zone",-12,12
+		lock on
+		i%=dialog
+		lock off
+		if i%
+			busy "Working",1,4
+			rise$=fix$(Sunrise:(lat,long,inpdate&,zonein&),2,5)
+			set$=fix$(Sunset:(lat,long,inpdate&,zonein&),2,5)
+			busy off
+			dinit "Results"
+			dtext "Sunrise",rise$
+			dtext "Sunset",set$
+			dbuttons "Quit",-27,"Repeat",13
+			lock on
+			i%=dialog
+			lock off
+		endif
+	until i%=0
+endp

@@ -1,0 +1,411 @@
+REM Program: OPLGPIC.OPL
+REM Author: AndrewB (baldwina@cix)
+REM Date: 27/8/95
+REM This is a simple OPL program the allows you to load a picture using a
+REM GPIC dyl, and then save it using another GPIC dyl.
+REM It should illustrate the principles of the GPIC interface.
+REM Note: This source code is freely distributable and modifiable
+REM Note2: Series 3a only!
+
+PROC main:
+	GLOBAL handle%			REM This is going to be the DYL handle
+	GLOBAL obj%				REM This is going to be the GPIC object handle
+	GLOBAL pid%					REM This is going to be the Window id%             
+	GLOBAL typedsc$(50)	REM File type of selected DYL
+	GLOBAL dylver%			REM Version of DYL (in Hex)
+	GLOBAL type$(3)			REM Image extension
+	GLOBAL grey%				REM Does picture have grey plane
+
+	loadpic:
+	savepic:
+ENDP
+
+PROC loadpic:
+REM The load picture routine
+	GLOBAL iminfo$(60)		REM GPIMINFO struct
+	lgpic:("Choose GPIC DYL to LOAD Image")
+	uselgpic:
+	killgpic:
+ENDP
+
+PROC savepic:
+REM The save picture routine
+	GLOBAL iminfo$(60)		REM GPIMINFO struct
+	lgpic:("Choose GPIC DYL to SAVE Image")
+	usesgpic:
+	killgpic:
+ENDP
+
+PROC lgpic:(prom$)
+REM Controls choice and loading of DYL
+	GLOBAL dylpath$(2,128),dylid$(2,3)		REM Store our DYL path+id
+	GLOBAL d$(128),i%,im%
+
+	REM This finds the DYLs we have
+	i%=1
+	findgpic:("A:\DYL\GPIC$*.DYL")
+	findgpic:("B:\DYL\GPIC$*.DYL")
+	findgpic:("M:\DYL\GPIC$*.DYL")
+
+	REM Ask the user which DYL they want....
+	dyllist:
+	im%=1
+	dINIT prom$
+	dCHOICE im%,"Which image format?",d$
+	DIALOG
+
+	REM Load the selected DYL and create GPIC object
+	loaddyl:(dylpath$(im%))
+	type$=dylid$(im%)
+ENDP
+
+PROC findgpic:(m$)
+REM This procedure locates GPIC DYLs in the supplied directory
+	d$=DIR$(LEFT$(m$,LEN(m$)-11))
+	IF d$=""
+		RETURN
+	ENDIF
+	d$=DIR$(m$)
+	DO
+		IF d$<>""
+			dylpath$(i%)=d$
+			d$=RIGHT$(d$,7)
+			dylid$(i%)=LEFT$(d$,3)
+			i%=i%+1
+		ENDIF
+		d$=DIR$("")
+	UNTIL (d$="") OR (i%>2)
+ENDP
+
+PROC dyllist:
+REM This procedure build a string list of DYLs suitable for dCHOICE
+	LOCAL i2%
+	i2%=1
+	WHILE i2%<i%
+		d$=d$+dylid$(i2%)
+		i2%=i2%+1
+		IF i2%<i%
+			d$=d$+","
+		ENDIF
+	ENDWH
+ENDP
+
+PROC loaddyl:(dyl$)
+	REM Load DYL
+	error:(LOADLIB(handle%,dyl$,1))
+	REM New GPIC object
+	obj%=NEWOBJH(handle%,0)
+	REM O_VERSION - get Image type + DYL version
+	SEND(obj%,1,typedsc$,dylver%)
+	ZTS2BCS:(ADDR(typedsc$))
+ENDP
+
+PROC uselgpic:
+REM Specific loading routines
+	GLOBAL pic$(128)
+	lpicfile:
+	info:
+	load:
+	display:
+	zapbits:
+ENDP
+
+PROC lpicfile:
+REM Choose a filename to load from
+	pic$="\PIC\"
+	dINIT "Choose "+typedsc$+" file"
+	dFILE pic$,"Image file:",128
+	DIALOG
+	BCS2ZTS:(ADDR(pic$))
+ENDP
+
+PROC info:
+REM Get info about chosen image
+	LOCAL wid%,hi%,depth%,cols&,flags%
+REM This is the call that does the work (O_INFO)
+	error:(SEND(obj%,2,pic$,iminfo$))
+
+	wid%=PEEKW(UADD(ADDR(iminfo$),40))
+	hi%=PEEKW(UADD(ADDR(iminfo$),42))
+	depth%=PEEKW(UADD(ADDR(iminfo$),44))
+	flags%=PEEKW(UADD(ADDR(iminfo$),52))
+	cols&=INT(2)**INT(depth%)
+
+	dINIT "Image details"
+	dTEXT "Image Type:",typedsc$
+	dTEXT "Width:",GEN$(wid%,5)
+	dTEXT "Height:",GEN$(hi%,5)
+	dTEXT "Depth:",GEN$(depth%,5)+" bits/pixel ("+GEN$(cols&,15)+" colours)"
+	DIALOG
+
+REM If depth is greater than 1, set it to 2 (so we load a grey plane)
+	IF depth%>1
+		depth%=2
+		grey%=1
+	ELSE
+		depth%=1
+		grey%=0
+	ENDIF
+	POKEW UADD(ADDR(iminfo$),44),depth%
+
+REM Check flags - if we support dithering 
+	IF (flags% AND 1)
+REM If we support Floyd steinberg set that
+		IF (flags% AND 4)
+			flags%=4
+REM Else use no dithering
+		ELSEIF (flags% AND 2)
+			flags%=2
+		ENDIF
+		POKEW UADD(ADDR(iminfo$),52),flags%
+REM Note normally user should select dithering method
+	ENDIF
+	POKEW UADD(ADDR(iminfo$),46),1
+ENDP
+
+PROC load:
+REM Main load loop
+	LOCAL maxdone&,done&,err%
+REM This call initialises the load (O_LOAD)
+	error:(SEND(obj%,3,pic$,iminfo$))
+
+REM This is the max load state for this file
+	maxdone&=PEEKL(UADD(ADDR(iminfo$),54))
+
+REM This loop performs the actual load
+	DO
+		err%=SEND(obj%,4,iminfo$)
+		IF err%<>1
+			error:(err%)
+		ENDIF
+		done&=PEEKL(UADD(ADDR(iminfo$),54))
+		gIPRINT GEN$((done&*100)/maxdone&,4)+"% Loaded"
+	UNTIL err%=0
+ENDP
+
+PROC display:
+REM Display the loaded bitmap(s) - copy to an OPL window
+	LOCAL in%(32),bid%,gid%
+	LOCAL x%,y%                               REM Keep together!
+	LOCAL tlx%,tly%,brx%,bry%      REM Keep together!
+	LOCAL gc%(3)
+
+	brx%=PEEKW(UADD(ADDR(iminfo$),0))
+	bry%=PEEKW(UADD(ADDR(iminfo$),2))
+	bid%=PEEKW(UADD(ADDR(iminfo$),18))
+	gid%=PEEKW(UADD(ADDR(iminfo$),38))
+
+	IF (gid%<>0)
+		pid%=gCREATE(0,0,brx%,bry%,0,1)   REM Grey Plane
+	ELSE
+		pid%=gCREATE(0,0,brx%,bry%,0,0)  REM No Grey Plane
+	ENDIF
+	gINFO in%()
+
+REM gCreateTempGC
+	CALL($228D,in%(31),0)
+
+	x%=0 : y%=0
+	tlx%=0 : tly%=0
+REM  gCopyBit
+	CALL($298D,ADDR(x%),bid%,ADDR(tlx%),0,0)
+
+	IF (gid%<>0)
+		gc%(2)=$100
+REM gSetGC
+		CALL($248D,0,$20,ADDR(gc%(1)))
+
+REM  gCopyBit
+		CALL($298D,ADDR(x%),gid%,ADDR(tlx%),0)
+
+	ENDIF
+
+REM gFreeTempGC
+	CALL($038D)
+
+	gVISIBLE ON
+	GET
+ENDP
+
+PROC killgpic:
+	REM Destroy object
+	SEND(obj%,0)
+	REM Unload dyl
+	error:(UNLOADLIB(handle%))
+ENDP
+
+PROC usesgpic:
+REM Specific save routines
+	GLOBAL pic$(128)
+	spicfile:
+	prepbit:
+	save:
+	zapbits:
+ENDP
+
+PROC spicfile:
+REM Get a file name from the user to save PIC to.
+REM Note: It is stored as a C ZeroTerminated String
+	pic$="\PIC\"
+	dINIT "Choose "+typedsc$+" filename"
+	dFILE pic$,"Image file:",17
+	DIALOG
+	BCS2ZTS:(ADDR(pic$))
+ENDP
+
+PROC prepbit:
+REM Copy the OPL window pid% to two WServ Bitmaps
+REM This method is not satisfactory but I can't find another one!
+	LOCAL temp$(128),id%,depth%,flags%
+
+	temp$="M:\temp.pic"
+
+REM Save bitmap to temporary file
+	gUSE pid%
+	gSAVEBIT temp$
+
+	BCS2ZTS:(ADDR(temp$))
+
+REM Load bitmaps back in individually - first black bitmap
+REM gOpenBit(filename$,index%,flags%,open_bit_seg)
+	id%=CALL($AE8D,ADDR(temp$),0,6,ADDR(iminfo$))
+REM Store bid%
+	POKEW UADD(ADDR(iminfo$),18),id%
+
+REM Set colour depth to 1
+	depth%=1
+
+	IF (grey%=1)
+REM gOpenBit(filename$,index%,flags%,open_bit_seg)
+		id%=CALL($AE8D,ADDR(temp$),1,6,UADD(ADDR(iminfo$),20))
+REM Store gid%
+		POKEW UADD(ADDR(iminfo$),38),id%
+		depth%=2
+	ENDIF
+
+	temp$="M:\temp.pic"
+
+REM Delete the temporary PIC file
+	DELETE temp$
+
+REM Check see if we support compression
+	error:(SEND(obj%,2,#0,iminfo$)) 
+	flags%=PEEKW(UADD(ADDR(iminfo$),52))
+	IF (flags% AND 8)
+		dINIT "Enable compression?"
+		dBUTTONS "Yes",%y,"No",%n
+		IF DIALOG=%y
+			flags%=8
+		ELSE
+			flags%=0
+		ENDIF
+		POKEW UADD(ADDR(iminfo$),52),flags%
+	ENDIF
+
+REM Set the iminfo struct settings
+	gUSE pid%
+	POKEW UADD(ADDR(iminfo$),40),gWIDTH
+	POKEW UADD(ADDR(iminfo$),42),gHEIGHT
+	POKEW UADD(ADDR(iminfo$),44),depth%
+
+ENDP
+
+PROC save:
+REM The actual save loop
+	LOCAL maxdone&,done&,err%
+
+REM This call initialises the save (O_SAVE)
+	error:(SEND(obj%,5,pic$,iminfo$))
+
+REM This is the max save state for this file
+	maxdone&=PEEKL(UADD(ADDR(iminfo$),54))
+
+REM This loop performs the actual save
+	DO
+REM This is the O_DOSAVE call that does the work
+		err%=SEND(obj%,6,iminfo$)
+		IF err%<>1
+			error:(err%)
+		ENDIF
+		done&=PEEKL(UADD(ADDR(iminfo$),54))
+		done&=(done&*100)/maxdone&
+		gIPRINT GEN$(done&,4)+"% Saved"
+	UNTIL err%=0
+ENDP
+
+PROC zapbits:
+REM Close the bitmaps we have opened
+	LOCAL bid%,gid%
+	bid%=PEEKW(UADD(ADDR(iminfo$),18))
+	gid%=PEEKW(UADD(ADDR(iminfo$),38))
+
+REM wFree
+	CALL($118D,bid%)
+
+	If (grey%<>0)
+REM wFree
+		CALL($118D,gid%)
+	ENDIF
+
+ENDP
+
+PROC error:(err%)
+	LOCAL e1$(20),e2$(60)
+
+	IF err%=0
+		return
+	ENDIF
+
+	e1$="GPIC Error:"
+	IF err%=3
+		e2$="Incorrect file format"
+	ELSEIF err%=4
+		e2$="Corrupt file"
+	ELSEIF err%=5
+		e2$="Too few images"
+	ELSEIF err%=6
+		e2$="No images to save"
+	ELSEIF err%=7
+		e2$="Can't handle"
+	ELSEIF err%=8
+		e2$="FirePic not registered"
+	ELSE
+		e1$="System error:"
+		e2$=err$(err%)
+	ENDIF
+	
+end::
+	ALERT(e1$,e2$)
+	STOP
+ENDP
+
+PROC ZTS2BCS:(stradd%)
+REM Converts C Zero-terminated-string to OPL Byte-counted-string
+	LOCAL len%,ptr%,last%,next%
+	ptr%=stradd%
+	DO
+		len%=len%+1
+		last%=next%
+		next%=PEEKB(ptr%)
+		POKEB ptr%,last%
+		ptr%=UADD(ptr%,1)
+	UNTIL next%=0
+	len%=len%-1
+	ptr%=stradd%
+	POKEB ptr%,len%
+ENDP
+
+PROC BCS2ZTS:(stradd%)
+REM Converts OPL Byte-counted-string to C Zero-terminated-string
+	LOCAL len%,ptr%,last%,next%
+	ptr%=stradd%
+	len%=PEEKB(ptr%)
+	ptr%=UADD(ptr%,len%)
+	DO
+		next%=PEEKB(ptr%)
+		POKEB ptr%,last%    REM We want a zero first time around!
+		ptr%=USUB(ptr%,1)
+		last%=next%
+	UNTIL ptr%<stradd%
+ENDP
+

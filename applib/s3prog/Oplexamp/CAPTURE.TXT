@@ -1,0 +1,35 @@
+>       Does anyone know how I can get a program to run when a certain key
+> is pressed?  Not an application, just a normal program written in OPL.
+> I want to run the program when I press the Psion-Shift-1 key.
+
+Briefly, you need to have *two* programs: one that is the real program 
+that you want to run, and another that sits in the background, waiting 
+for this particular keypress.
+
+In order to receive a keypress even when you are in background, you have 
+to "capture" that keypress, using call($c58d).  This takes two 
+parameters, in the BX and CX "registers".  The BX value is the keycode 
+you want to capture, and the CX is regarded as split into CL (the low 
+byte) and CH (the high byte).  To cut a long story short, set CH as $e in 
+all cases.  Set CL to be the modifiers you want to match.
+
+In your case, there is the additional complication that Psion-1 generates 
+the "unexpected" value (W_KEY_OFF) of $2003.
+
+Thus to capture Psion-Shift-1, put the following into your program:
+
+    if call($c58d,$2003,$e0a)
+      print "Failed to capure key"
+    endif
+    As a simple example, write a 9 line program which starts out as above 
+and then has
+
+    while 1
+      get
+      beep 5,320
+    endwh
+
+Run it, press a few keys, hear the beeps, then task away and try 
+Shift-Psion-1.
+
+Regards, DavidW

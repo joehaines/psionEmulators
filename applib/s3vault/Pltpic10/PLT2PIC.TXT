@@ -1,0 +1,123 @@
+PLT2PIC    AutoCAD Binary PLot File to Psion Pic Converter    [TW] Ver. 1.0
+                 (c) Tim Williamson, October 1993.
+
+Files:      PLTPIC10.ZIP
+            containing:
+               PLT2PIC.EXE  45,760 bytes  Main program file
+               PLT2LIC.TXT  4,859 bytes   (see PLT2PIC.TXT)
+               LILSHOP.PLT  7,4032 bytes  Sample plot file
+
+Author:     (c) Tim Williamson (TimW@cix.compulink.co.uk)
+
+Version:    1.0 (October 1993)
+
+Platform:   DOS with VGA display
+
+Precis:     DOS Utility for converting AutoCAD plot files to Psion
+            Series 3 or 3a PIC files.
+
+Release:    May be freely distributed and used on a non-profit basis.
+            If you find it useful, a small contribution to relieve the
+            author's poverty would be greatly appreciated.
+
+Description:
+This program converts a plot file created by AutoCad into a Psion PIC
+file. It was created to allow a simple way of getting a copy of CAD
+drawings onto a Series 3 or Series 3a, allowing you to specify the size
+of the image created, and to preview it before saving to make sure you
+have enough detail left to be useful.
+
+The only way I could find to do this before writing this program was to
+create a GIF file using AutoCAD version 12 then converting this to a PIC
+using a Psion based utility, which proved to be slow and difficult to
+ensure the resultant image was showing the right information.
+
+You can adjust the size of the PIC created by specifying the width in
+pixels. The height is then automatically calculated, to save wasted
+pixels at the bottom of the image. If you exceed the maximum image size
+(64K bytes, about 850 x 600 pixels depending on the aspect ratio) the
+program automatically re-calculates to create an image of the maximum
+possible size.
+
+
+How To Use This:
+1. Redefine the PLOT output format of AutoCAD to and ADI Binary File
+   format, for version 11, starting at the main menu, select:
+
+      5 - Configure AutoCAD
+      5 - Configure Plotter
+      3 - ADI plotter
+      1 - Binary File
+         multiple pens              - Yes, 2 pens
+         Multiple dashed lines?     - No
+         Variable Speed?            - No
+         plot size in mm?           - No
+
+      all the rest are default values, until you get
+
+         Write the plot to a file?  - Yes
+
+      then your normal default.
+
+2. Create a drawing
+
+3. Plot out the drawing to a file, e.g. TEST.PLT
+
+4. Shell out to DOS
+
+5. run PLT2PIC TEST
+
+6. When the plot file has been rasterised, pan and zoom round the image
+   to see if it's what you want.
+
+   hit I to get info. on the file and the size of PIC file that'll be created.
+   hit R to re-load the data with a new image width if needed.
+   hit S to save the image to a PIC file.
+   press <Esc> when done to exit.
+
+7. Exit back to AutoCAD.
+
+
+How It Works:
+The AutoCAD binary plot file contains purely vector information, i.e.
+loads of lines. All higher level objects, such as circles, hatching,
+text etc. are converted into vectors. This means that PLT2PIC will
+handle perspective views, hidden views and the like with no problems.
+
+The plot file is first scanned to determine the effective size of the
+image and it's aspect ratio. Any blank space around the image is
+ignored by offsetting the vectors, then a scale factor is calculated.
+
+Given an image width, the image height is calculated from the aspect
+ratio, and each vector is scaled and rasterised into the image. The more
+vectors you have in the plot file, the longer the rasterisation process
+will take, regardless of the image size.
+
+Once created, you can pan and zoom around it, or re-load it using a new
+image width, then save it as a PIC file. By default it uses the same
+name as the source file but with a .PIC extention. This can then be
+downloaded to a Psion.
+
+
+Limitations:
+This program will only view an image on a VGA screen (virtually
+obligatory for anyone running AutoCAD) due to the rather obscure video
+mode used.
+
+Multiple layers are not supported yet. If there is any interest, version
+2 will allow plotter pens 1 and 2 to be converted to the black and grey
+layers of a PIC.
+
+Depending on the detail in your plot file, you may not be able to
+resolve enough detail in the PIC. Try plotting a smaller area, or, if
+you are working with a schematic, re-arrange things to be closer
+together.
+
+The outputs of AutoCAD version 11 and 12 have been tested and work ok. It
+hasn't been tested on earlier versions but, assuming that the plot
+format is supported, you shouldn't have any problems.
+
+The program can be modified to work with pure vector outputs of other CAD
+packages, such as HP7475 format. If there is sufficient demand, I will
+modify the program. There are no plans to support DXF files at the
+moment.

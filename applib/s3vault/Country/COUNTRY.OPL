@@ -1,0 +1,177 @@
+PROC country:
+REM Compare exchange rates etc.
+REM Uses entries in data file Country
+REM Copyright Chris Moss, 1992
+REM Permission given to copy & use
+REM as long as this notice is kept.
+
+	global country$(5,15),value$(5,15), option%
+	global raw(5), oldv$(5,15), oldo%
+	global tag$(5,25), oldc$(15)
+	global subopt%,olds%, unit$(6,20),mult(6)
+open "\DAT\Country.dbf",A,name$,exch$,gnp$,area$,pop$
+busy "Checking currencies"
+country$(1) = "UK "
+country$(2) = "France"
+country$(3) = "Germany"
+country$(4) = "Belgium"
+country$(5) = "USA"
+option%=1
+setOpt:
+busy off
+do  REM main loop
+	oldo%=option% :oldc$=country$(1)
+	if doDialog: =0 :stop :endif
+	if option%<>oldo%
+		setOpt:
+	elseif option%=1
+		newVal:
+	endif
+until 0
+ENDP
+
+PROC doDialog:
+dinit
+dchoice option%," Comparisons", "Currency,Countries,Size,Population,Pop density,Av Income,GDP"
+if option%=1
+	dedit value$(1), tag$(1)
+	dedit value$(2), tag$(2)
+	dedit value$(3), tag$(3)
+	dedit value$(4), tag$(4)
+	dedit value$(5), tag$(5)
+else
+	dtext tag$(1),value$(1)
+	dtext tag$(2),value$(2)
+	dtext tag$(3),value$(3)
+	dtext tag$(4),value$(4)
+	dtext tag$(5),value$(5)
+endif
+	dtext "Change any item and hit", " <Enter>"
+	return dialog
+endP
+
+PROC setOpt:
+local v,i%
+if option%=2
+	option%=oldo%
+	newCtrys:
+	v=raw(1)
+else
+		i%=0 :while i%<5 :i%=i%+1
+			if setVal:(country$(i%),i%)=0 :stop
+			endif
+		endwh
+		if option%=1
+			v=1.0 
+		else v=raw(1)
+		endif
+endif
+setRatio:(v)
+endP
+
+PROC newVal:
+local i%
+rem onerr ignore
+i%=0 :while i%<5 :i%=i%+1
+	if value$(i%)<>oldv$(i%)
+		setRatio:(baseVal:(i%))
+		return
+	endif
+endWh
+return
+ignore:: value$(i%)=oldv$(i%)
+endP
+
+PROC setVal:(c$,n%)
+local t$(15)
+if getCtry:(c$)=0 :return 0 :endif
+country$(n%)=A.name$
+vector option%
+	exch,cont,area,pop,popd,gnppc,gnp
+endv
+exch:: raw(n%) = getVal:(A.exch$)
+	t$=mid$(A.exch$,loc(A.exch$," "),15)
+	goto cont
+area:: raw(n%) = getVal:(A.area$)
+	t$=fix$(raw(n%),0,6)+",000 km2"
+	goto cont
+pop:: raw(n%) = getVal:(A.pop$)
+	t$=fix$(raw(n%),0,6)+" m"
+	goto cont
+gnp:: raw(n%) = getVal:(A.gnp$)*getVal:(A.pop$)/1000.0
+	t$="bn$"+fix$(raw(n%),0,6)
+	goto cont
+gnppc:: raw(n%) = getVal:(A.gnp$)
+	t$="$"+fix$(raw(n%),0,6)
+	goto cont
+popd:: raw(n%) = getVal:(A.area$)
+   if raw(n%)<>0 
+		raw(n%)=getVal:(A.pop$)/raw(n%)
+	endif
+	t$=fix$(raw(n%)*1000.0,0,6)+"/km2"
+cont::
+	tag$(n%)=left$(country$(n%)+" "+t$,25)
+	return 1
+endp
+
+PROC setRatio:(v)
+local i%,w
+i%=0: while i%<5: i%=i%+1
+	if option%=1
+		value$(i%)=fix$(v*raw(i%),2,-15)
+	else
+		value$(i%)=fix$(raw(i%)/v*100,0,-8)+"%"
+	endif
+	oldv$(i%)=value$(i%)
+endWh
+endP
+
+PROC newCtrys:
+local c$(5,15), i%
+i%=0 :while i%<5 :i%=i%+1
+	c$(i%)=country$(i%)
+endwh
+dinit
+dText "Change any country","abbreviations ok"
+	dedit c$(1), "Country 1",15
+	dedit c$(2), "Country 2",15
+	dedit c$(3), "Country 3",15
+	dedit c$(4), "Country 4",15
+	dedit c$(5), "Country 5",15
+dText "","When finished hit <Enter>"
+if dialog
+	i%=0 :while i%<5 :i%=i%+1
+		if c$(i%)<>country$(i%)
+			setVal:(c$(i%),i%)
+		endif
+	endwh
+endif
+endP
+
+PROC getCtry:(c$)
+first
+while find(c$+"*")
+	if loc(A.name$,c$)=1
+		return 1
+	endif
+endwh
+Alert("Sorry, I don't know about ", c$)
+return 0
+endP
+
+PROC getVal:(s$)
+onerr e
+return val(left$(s$,loc(s$," ")-1))
+e:: return 0
+endP
+
+PROC baseVal:(n%)
+local p%
+onerr f
+p%=loc(value$(n%),",")
+if p%>0 and (n%)>0
+  return (val(left$(value$(n%),p%-1))+val(mid$(value$(n%),p%+1,10))/mult(n%))/raw(n%)
+else return val(value$(n%))/raw(n%)
+endif
+f:: return 1
+endP

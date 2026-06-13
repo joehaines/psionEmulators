@@ -1,0 +1,60 @@
+PROC cables:
+	Local r%,v%,s%,x$(5),f$(5),flc$(5),flc,c(6),c1$(5),c2$(5),c3$(5),c4$(5),c5$(5),c6$(5),c7$(5),c8$(5)
+	cls
+	rem gfont 12
+	rem gat 150,15
+	rem gprint "Motor Cable Selection"
+	rem gfont 5
+	rem gat 190,25
+	rem gprint "by Gordon Walker"
+	r%=9
+	v%=4
+	s%=1
+	f$="25A"
+	flc$="11A"
+	dial1::
+	x$=flc$
+	dINIT "Motor Details"
+	dPOSITION 1,0
+	dCHOICE r%,"Motor Rating:","0.37kW,0.55kW,0.75kW,1.1kW,1.5kW,2.2kW,3.0kW,4.0kW,5.5kW,7.5kW,11kW,15kW,18.5kW,22kW,30kW,37kW,45kW,55kW,75kW,90kW,110kW,132kW,150kW"
+	dCHOICE v%,"Supply Voltage:","220V,240V,380V,415V,440V,550V"
+	dCHOICE s%,"Starting Method:","DOL,Star-Delta"
+	dEDIT flc$,"Full Load Current :",5
+	dText "Fuse Size:",f$,$0
+	dTEXT "","Enter FLC=0 to Quit",$100
+	DIALOG
+	if flc$="0"
+	stop
+	elseif flc$<>x$
+	flc=val(flc$)
+	goto Fuses::
+	endif
+	open "\opd\flc.dat",A,c7$,c8$,c1$,c2$,c3$,c4$,c5$,c6$
+	position r%
+	c(1)=val(A.c1$):c(2)=val(A.c2$):c(3)=val(A.c3$):c(4)=val(A.c4$):c(5)=val(A.c5$):c(6)=val(A.c6$)
+	flc=c(v%)
+	if flc>430 and s%=1
+	giprint "Current Too High To Size Fuse"
+	endif
+	flc$=gen$(c(v%),5)+"A"
+	close
+	Fuses::
+	open "\opd\fuses.dat",A,c5$,c1$,c2$,c3$,c4$
+	position 1
+	do
+		if s%=1 and flc>=val(A.c1$) and flc<=val(A.c2$)
+		f$=A.c5$
+		elseif s%=2 and flc>=val(A.c3$) and flc<=val(A.c4$)
+		f$=A.c5$
+		endif
+		next
+	until EOF
+	close
+	print "FLC=";flc;"A  Fuse=";f$;
+	if s%=2
+	print " S/D"
+	elseif s%=1
+	print " DOL"
+	endif
+	goto dial1::
+ENDP

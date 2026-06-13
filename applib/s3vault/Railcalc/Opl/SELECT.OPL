@@ -1,0 +1,45 @@
+PROC select:
+	LOCAL text$(25),table$(128),ch%,hr,m,mn
+	LOCAL p%,last$(15),hr$(2),mn$(2)
+	LOCAL tm$(20),select$(128)
+		dINIT
+		dTEXT "","Outward  OR  Return",$302
+		dCHOICE ch%,"Table","Outward,Return"
+		DIALOG
+			IF ch%=1
+				table$="*.out"
+			ELSEIF ch%=2
+				table$="*.rtn"
+			ENDIF
+			dINIT
+			dTEXT "","Select Table",$302
+			dFILE table$,"Use Timetable",8
+			p%=DIALOG
+				IF p%=0
+					RETURN
+				ENDIF
+				IF EXIST(table$)
+				OPEN table$,A,nm$,idx$,ml,stop$,tabA,tabD
+					FIRST
+						hr=INT(A.tabD/3600)
+						m=A.tabD-hr*3600
+						mn=INT(m/60)
+						hr$=GEN$(hr,2)
+						mn$=GEN$(mn,2)
+						tm$="AT  ---  "+hr$+" : "+mn$
+					LAST
+						last$=A.nm$
+				dINIT
+				dTEXT "","Selected Timetable",$302
+				dTEXT "Leaves for",last$,$101
+				dTEXT "",tm$,$102
+				p%=DIALOG
+					IF p%=0
+						CLOSE
+						RETURN
+					ENDIF
+			CLOSE
+			select$=LEFT$(table$,LEN(table$)-4)+".sel"
+			RENAME table$,select$
+		ENDIF
+ENDP

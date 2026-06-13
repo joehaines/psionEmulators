@@ -1,0 +1,74 @@
+PROC tsmp:
+  global pcb%,buf%(500)
+  deldrv:
+  askrun:
+  loaddrv:
+  opench:
+  setmode:(-1)
+  main:
+  ioclose(pcb%)
+ENDP
+
+PROC deldrv:
+  local s$(4)
+  s$="SMP"
+  call($0885,addr(s$)+1,0,$dd01)
+ENDP
+
+PROC askrun:
+  if alert("SMP: deleted","Start sampling?","Exit","Continue")=1
+    stop
+  endif
+ENDP
+
+PROC loaddrv:
+  local off%(6),f$(130),r%
+  local ax%,bx%,cx%,dx%,si%,di%,fl%
+  f$=parse$("\sys$samp.LDD",cmd$(1),off%(1))
+  bx%=addr(f$)+1
+  ax%=$0600
+  fl%=os($85,addr(ax%))
+  ax%=ax% or $ff00
+  if (fl% and 1) and (ax% <> -32)
+    alert("Failed to load SYS$SAMP.LDD",err$(ax%))
+    stop
+  endif
+ENDP
+
+PROC opench:
+  local r%
+  r%=IOOPEN(pcb%,"SMP:",-1)
+  if r%
+    alert("Failed to open channel to SMP:",err$(r%))
+    stop
+  endif
+ENDP
+
+PROC setmode:(mo%)
+  IOW(pcb%,7,#mo%,#0)
+ENDP
+
+PROC main:
+  local p%,pend%,l%,alaw%,c%
+  c%=0
+  while 1
+    p%=addr(buf%(1))
+    l%=1000
+    IOW(pcb%,13,#p%,l%)
+    if c%=0
+      c%=1
+      continue
+    endif
+    pend%=p%+l%
+    while p%<pend%
+      alaw%=peekb(p%)
+      alaw%=(not alaw%) and $7f
+      if alaw%>64
+        print "Sound detected",c%
+        c%=c%+1
+        break
+      endif
+      p%=p%+1
+    endwh
+  endwh
+ENDP

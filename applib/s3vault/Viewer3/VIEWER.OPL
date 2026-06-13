@@ -1,0 +1,161 @@
+APP Viewer
+TYPE $9004
+ICON "m:\PIC\look.pic"
+PATH "\PIC\"
+EXT "PIC"
+ENDA
+
+PROC Main:
+GLOBAL w$(128),w2$(128),t$(2),a%(6)
+GLOBAL Key%,M%,Mod%,bord$(3),blakbit%,grey%
+GLOBAL Path$(128),bord%,greybit%
+GLOBAL x%,y%,w%,h%,wid%,stwin%
+Init:
+w$=CMD$(2)
+t$=CMD$(3)
+Event:
+DO
+a%(1)=0
+GETEVENT a%()
+IF a%(1)=$404
+	w$=GETCMD$
+	t$=LEFT$(w$,1)
+	w$=MID$(w$,2,128)
+	Event:
+ENDIF
+Key%=a%(1)
+M%=0
+Mod%=a%(2) AND $00FF
+IF Key%=290
+	If mod% and 4
+		statwin: rem toggle status window
+	else
+		lock on
+		mINIT
+		mCARD "File","Open File...",-%o,"Exit",%x
+		mCARD "Information","Picture Info",%i,"About Viewer",%a
+		mCARD "Options","Border "+bord$,%b
+		M% = MENU
+		lock off
+	endif
+ELSE
+	M%=Key%-512
+ENDIF
+IF Key%=291
+lock on
+dinit
+dtext "","Help: Viewer",$302
+dtext "","Surely no help required!?"
+dtext "","Just load pictures, shift"
+dtext "","them around with the cursor"
+dtext "","keys and that's it!"
+dialog :lock off
+ELSEIF key%=256 :y%=y%-50 :rem up
+ELSEIF key%=257 :y%=y%+50 rem down
+ELSEIF key%=259 :x%=x%-50 rem left
+ELSEIF key%=258 :x%=x%+50 rem right
+ELSEIF M%=%o :Openfile:
+ELSEIF M%=%i :info:
+ELSEIF M%=%a :about:
+ELSEIF M%=%x :stop
+ELSEIF M%=%b :border:
+ENDIF
+ggrey 2 :gcls
+gat x%,y%
+if grey% :ggrey 1 :gcopy greybit%,0,0,w%,h%,3 :endif
+ggrey 0 :gcopy blakbit%,0,0,w%,h%,3
+if bord% :gat x%-1,y%-1 :gborder 0,w%+2,h%+2 :endif
+UNTIL Key%=999
+ENDP
+
+PROC Event:
+IF t$="X"
+	stop
+ELSEIF t$="O"
+	loadfile:
+ENDIF
+ENDP
+
+PROC Openfile:
+w$=path$
+lock on
+dINIT "Open new file"
+dFILE w$,"File",1+2
+IF DIALOG=0 :lock off :return :endif
+lock off
+path$=w$
+loadfile:
+ENDP
+
+Proc loadfile:
+defaultwin 1
+grey%=0
+trap gclose blakbit%
+trap gclose greybit%
+SETNAME w$
+path$=w$
+onerr nogrey
+greybit%=gloadbit(w$,0,1) rem load grey first
+grey%=1 rem if error this line is skipped and grey% stays as 0
+nogrey::
+onerr off
+blakbit%=gloadbit(w$,0,0) rem load black
+w%=gwidth :h%=gheight
+if w%<416 :x%=((415-w%)/2)+1 :else :x%=1 :endif
+if h%<160 :y%=((159-h%)/2)+1 :else :y%=1 :endif
+guse 1
+Endp
+
+Proc info: rem picture information
+local inf$(16)
+if grey% :inf$="contains"
+else :inf$="does not contain" :endif
+lock on
+dinit "Picture Information"
+dtext "Width ž Height:",gen$(w%,5)+" ž "+gen$(h%,5)
+dtext "","Picture "+inf$+" a grey plane"
+dtext "","Viewer current point of origin:"
+dtext "     (x,y top left)",gen$(x%,5)+" , "+gen$(y%,5)
+dialog :lock off
+Endp
+
+Proc border: rem toggle border
+if bord%=0
+	bord%=1 :bord$="off"
+else
+	bord%=0 :bord$="on"
+endif
+endp
+
+Proc statwin: rem toggle status window
+stwin%=stwin%-1
+if stwin%=-1
+	stwin%=2
+	wid%=416
+elseif stwin%=1
+	wid%=448
+elseif stwin%=0
+	wid%=480
+endif
+statuswin on,stwin%
+gsetwin 0,0,wid%,160
+Endp
+
+Proc about: rem about Paint
+lock on
+dinit
+dTEXT "","Picture Viewer",$302
+dTEXT "","Freeware. Please hack source code!",$2
+dTEXT "","Julian C. Toler",2
+dTEXT "","April 1995",2
+dialog :lock off
+Endp
+
+PROC Init:
+bord$="off"
+bord%=1
+trap mkdir "M:\PIC\"
+path$="M:\PIC\*.PIC"
+stwin%=0
+statwin:
+ENDP

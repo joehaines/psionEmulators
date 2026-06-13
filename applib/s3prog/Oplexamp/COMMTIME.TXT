@@ -1,0 +1,172 @@
+
+� Area: [FIDO] PSION echo 컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+  Msg#: 11478                                        Date: 20 Aug 94  11:05
+  From: Andy Parkins                                 Read: Yes    Replied: No 
+    To: Neil Gove                                    Mark:                     
+  Subj: Psion S3 Comms
+컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+ -=> Quoting Andy Parkins to Neil Gove <=-
+
+ AP> Hello Neil,
+
+ AP> (14 Aug 94, Neil Gove wrote this to All)...
+ 
+ NG>        Does anyone out there have any advice regarding use of the S3 and
+ NG> 3Link from OPL.  I find the comms routines described in the manual very
+ NG> long winded and unsuited to my application.  I require a timeout on read
+ NG> and write commands to/from the comms port, like the old Organiser II
+ NG> Comms link had as standard.
+
+ AP> I had the same problem not long ago.  I evenutally had to write a
+ AP> comms module that I could loadm that behaved like the old Psion II
+ AP> serial commands: 
+ AP> PROC main:
+ AP> global handle%
+ AP> print "This is a library module"
+ AP> print "and cannot be used on its"
+ AP> print "own."
+ AP> get
+ AP> ENDP
+
+ AP> PROC linput$:(n%,t%)
+ AP> local ret%,str$(254),count%,temp$(1)
+ AP> count%=1
+ AP> do
+ AP> ret%=ioread(handle%,addr(temp$)+1,1)
+ AP> if ret%<0 :raise ret% :endif
+ AP> pokeb addr(temp$),ret%
+ AP> if temp$<>chr$(13) and temp$<>chr$(10)
+ AP> pokeb addr(str$)+count%,asc(temp$)
+ AP> pokeb addr(str$),count%
+ AP> count%=count%+1
+ AP> endif
+ AP> rem  at 1,8
+ AP> rem  print temp$;"(";asc(temp$);")"
+ AP> rem  print str$;
+ AP> until len(str$)=n% or count%>=254 or temp$=chr$(13)
+ AP> return str$
+ AP> ENDP
+
+ AP> PROC lset:(baud%,parity%,bits%,stop%,hand%)
+ AP> local nbaud%,nparity%,nhand%
+ AP> if baud%=50
+ AP> nbaud%=1
+ AP> elseif baud%=75
+ AP> nbaud%=2
+ AP> elseif baud%=110
+ AP> nbaud%=3
+ AP> elseif baud%=150
+ AP> nbaud%=5
+ AP> elseif baud%=300
+ AP> nbaud%=6
+ AP> elseif baud%=600
+ AP> nbaud%=7
+ AP> elseif baud%=1200
+ AP> nbaud%=8
+ AP> elseif baud%=2400
+ AP> nbaud%=11
+ AP> elseif baud%=4800
+ AP> nbaud%=13
+ AP> elseif baud%=9600
+ AP> nbaud%=15
+ AP> endif
+ AP> if parity%=0
+ AP> nparity%=0
+ AP> elseif parity%=1
+ AP> nparity%=2
+ AP> elseif parity%=2
+ AP> nparity%=1
+ AP> endif
+ AP> if hand%=0
+ AP> nhand%=4
+ AP> elseif hand%=1
+ AP> nhand%=7
+ AP> elseif hand%=2
+ AP> nhand%=0
+ AP> elseif hand%=3
+ AP> nhand%=3
+ AP> elseif hand%=4
+ AP> nhand%=12
+ AP> elseif hand%=5
+ AP> nhand%=15
+ AP> elseif hand%=6
+ AP> nhand%=8
+ AP> elseif hand%=7
+ AP> nhand%=11
+ AP> endif
+ AP> rsset:(nbaud%,nparity%,bits%,stop%,nhand%)
+ AP> ENDP
+
+ AP> PROC lprint:(str$)
+ AP> local out$(254),ret%
+ AP> out$=str$
+ AP> ret%=iowrite(handle%,addr(out$)+1,len(out$))
+ AP> if ret% :raise ret% :endif
+ AP> ENDP
+
+ AP> PROC lopen:
+ AP> local ret%
+ AP> ret%=ioopen(handle%,"TTY:A",$100)
+ AP> if ret%
+ AP> if ret%=-41
+ AP> print "Comms link not plugged in"
+ AP> print "or not available"
+ AP> return 0
+ AP> endif
+ AP> raise ret%
+ AP> endif
+ AP> return -1
+ AP> ENDP
+
+ AP> PROC lclose:
+ AP> local ret%
+ AP> ret%=ioclose(handle%)
+ AP> if ret% :raise ret% :endif
+ AP> ENDP
+
+
+ AP> PROC rsset:(baud%,parity%,data%,stop%,hand%)
+ AP> LOCAL frame%,srchar%(6),dummy%,err%
+ AP> frame%=data%-5
+ AP> if stop%=2 :frame%=frame% or 16 :endif
+ AP> if parity% :frame%=frame% or 32 :endif
+ AP> srchar%(1)=baud% or (baud%*256)
+ AP> srchar%(2)=frame% or (parity%*256)
+ AP> srchar%(3)=(hand% and 255) or $1100
+ AP> srchar%(4)=$13
+ AP> err%=iow(handle%,7,srchar%(1),dummy%)
+ AP> if err%<0 :raise err% :endif
+ AP> ENDP
+
+ AP> To use it you do must do the following in your program:
+
+ AP> PROC main:
+ AP> global handle%
+ AP> loadm("comms")
+ AP> lopen:
+ AP> ENDP
+
+ AP> Also, I've not got round to writing the timeout for lset:, it's easy
+ AP> enough just do something like: 
+ AP> proc timeout:(t%)
+ AP> local timeout%
+ AP> timeout%=datetosecs(year,month,day,hour,minute,second)+t%
+ AP> do
+ AP> print "Waiting for timeout...."
+ AP> until datetosecs(year,month,day,hour,minute,second) > timeout%
+ AP> endp
+
+ AP> I spent a long time getting this to work a lot like the old ones so
+ AP> I'd appreciate at least the credit for it in any programs you write
+ AP> with it. 
+ AP> Hope it's of use.
+
+ AP> Seeya
+
+
+ AP> Andy
+
+ AP> -!- FMail/386 0.98
+ AP>  ! Origin: StarLight BBS <14400bps> (2:250/223.2)
+
+

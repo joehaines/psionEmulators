@@ -1,0 +1,267 @@
+Reading from the serial port with a timeout (Opl)
+=================================================
+
+(An example of Psion-style asynchronous i/o and multiple event sources.)
+
+The following examples were developed on the S3a but would transfer
+with only slight changes to any other computer in the Sibo range. 
+(Eg the IOC keyword doesn't exist on the S3 and would have to be
+replaced with IOA.)
+
+Simple "synchronous" reading from the serial port
+-------------------------------------------------
+
+The following program is a cut-down version of that in Appendix C of
+the Opl Programming Manual.  It assumes the default baud rate and
+handshaking.  Eg go into Windows Terminal on the PC, and set the baud
+rate to 9600, and you'll be able to type characters that the program
+will receive.
+
+As you'll see, I've skipped all the bits about terminating mask, from
+the Programming Manual, that you'll have to put back in for any
+serious program of yours.  I've missed these bits out (also the call
+to rsset:) so as to concentrate on the feature of adding the timeout.
+
+Here's the first version of the program:
+
+    PROC ttyread:
+      local buf$(20),l%,a%,r%
+      a%=addr(buf$)
+      lopen("tty:a")
+      while 1
+        l%=20
+        r%=iow(-1,1,#(a%+1),l%)
+        if r% :raise r% :endif
+        pokeb a%,l%
+        print buf$
+      endwh
+    ENDP
+
+Note that you'll have to turn Remote Link off before this program is
+able to get past the LOPEN line.  Also be sure to plug in the 3-link
+cable.
+
+The problem with this program, of course, is that it hangs forever,
+if there are no characters received.  A timeout needs to be added in. 
+There are two ways this could be done:
+  1/ Via an enhancement to the Serial device driver ("TTY")
+  2/ By running a timer as well as the Serial port device driver.
+
+Approach 1/ would be possible (by means of using an attached device
+driver), but approach 2/ is *much* more powerful since it can easily
+be generalised to cope with yet more complications, such as the need
+to respond to keypresses from the user at the same time.
+
+The program with the timeout added:
+-----------------------------------
+
+    PROC ttyread:
+      local buf$(20),l%,a%
+      local th%,tstat%,t&
+      local sstat%
+      a%=addr(buf$)
+      lopen("tty:a")
+      l%=ioopen(th%,"TIM:",-1)
+      if l% :raise l% :endif
+      while 1
+        l%=20
+        ioc(-1,1,sstat%,#(a%+1),l%)     rem P_FREAD
+        t&=100
+        ioc(th%,1,tstat%,t&)            rem P_FRELATIVE
+        iowait
+        if sstat%<>-46
+          if sstat%<>0 :raise sstat% :endif
+          iow(th%,4,#0,#0)              rem P_FCANCEL
+          iowaitstat tstat%
+        elseif tstat%<>-46
+          iow(-1,4,#0,#0)               rem P_FCANCEL
+          iowaitstat sstat%
+          iow(-1,10,l%,#0)              rem P_FTEST
+          if l%
+            iow(-1,1,#(a%+1),l%)        rem P_FREAD
+          endif
+          print "Serial read timed out"
+        else
+          raise 1
+        endif
+        pokeb a%,l%
+        print buf$
+      endwh
+    ENDP
+
+Notes: LOPEN and IOOPEN compared
+--------------------------------
+
+The code
+    LOPEN("xxx")
+    ...
+    IOW(-1,...)
+
+is essentially the same as
+
+    r%=IOOPEN(sh%,"xxx",-1)
+    if r% :raise r%: endif
+    ...
+    IOW(sh%,...)
+
+Bearing this in mind, the calls
+    LOPEN("TTY:A")
+and
+    IOOPEN(th%,"TIM:",-1)
+
+can be seen as partners: one opens a channel to the serial device
+driver, and the other a channel to the timer device driver.
+
+As you'll see, Opl runtime "hides" the explicit channel handle, in
+the case of LOPEN, and supplies it automatically:
+    when an i/o handle of -1 is given by the program, or
+    when LPRINT is used, etc.
+
+Notes: IOW and IOC compared
+---------------------------
+
+The code
+    r%=iow(-1,1,#(a%+1),l%)
+    if r% :raise r% :endif
+
+in the first version of the program could have been converted to
+    ioc(-1,1,sstat%,#(a%+1),l%)     rem P_FREAD
+    iowait
+    if sstat%<>0 :raise sstat% :endif
+
+and would have worked exactly the same *in that program*.
+
+Internally, an IOW is just an IOC followed by waiting for a signal
+and for the given status word to be "completed".
+
+More precisely, the following would be equivalent to the above IOW in
+*all* programs:
+
+    ioc(-1,1,sstat%,#(a%+1),l%)     rem P_FREAD
+    iowaitstat sstat%
+    if sstat%<>0 :raise sstat% :endif
+
+The difference between IOWAITSTAT and IOWAIT:
+---------------------------------------------
+
+Your program waits ("hangs") inside a call to IOWAITSTAT SSTAT% until
+the i/o request associated with SSTAT% completes.
+
+Your program waits inside a call to IOWAIT until *any* outstanding
+i/o request in the application completes.
+
+So, if there are two outstanding requests at one time, and you don't
+know which will complete first, you must use IOWAIT instead of
+IOWAITSTAT.  (And since IOW implicitly uses IOWAITSTAT, this means
+you must use IOC - or IOA - instead of IOW, in all such cases.)
+
+Dealing with two event sources at the same time:
+------------------------------------------------
+
+In the critical part of this program, there are *two* outstanding
+requests at the same time, made by the following calls:
+
+    l%=20
+    ioc(-1,1,sstat%,#(a%+1),l%)     rem P_FREAD
+    t&=100
+    ioc(th%,1,tstat%,t&)            rem P_FRELATIVE
+
+The first "queues" a read from channel -1 (ie the serial port) for 20
+characters.  The second "queues" a timeout from channel th% (ie a
+timer) for 100 tenths of seconds (the time being passed as a long in
+tenths of seconds).
+
+Once both requests have been made, the program calls IOWAIT and gets
+put to bed until one or other event completes.
+
+The other side of IOWAIT
+------------------------
+
+After your program comes out of IOWAIT, you have to find which of the
+two events have completed.  You do this by looking at the values of
+the status words of each of the requests.
+
+In general, the status word records the "completion status" of an i/o
+request, which can be one of
+    -46 ("E_FILE_PENDING"): the event is still pending, or
+    another negative number: the event completed in error, or
+    a non-negative number: success of some kind or another.
+
+In these examples, "success" just means a status word with the value
+zero, though other i/o channels have multiple "success" states.
+
+In the above program, the two main branches after the IOWAIT give the
+cases when, respectively, the serial read has completed, and the
+timer has completed.
+
+The stray signal catcher:
+-------------------------
+
+As you can see, I have included a *third* branch, with a RAISE 1, to
+catch programming errors when an event completes but the program
+cannot find out what it is.  At Psion, this is known as a stray
+signal (and ROM code panics 143 when any OO program gets a stray
+signal).
+
+Stray signals are often caused by errors in *cancelling* outstanding
+requests - the subject of the following section.  Rearrange the above
+code for your own purposes and you may find yourself being bitten by
+the stray signal catcher.
+
+Cancelling outstanding event requests:
+--------------------------------------
+
+In the above program, after one serial read has successfully
+completed, another one is made, and accordingly, the timeout has to
+be reset.  This is done by cancelling the previous request, and then
+(at the top of the loop again) requeuing the new timer.
+
+Most device drivers (eg TIM:) take unkindly to having a second i/o
+request made on them, while the previous one remains outstanding. 
+This is regarded as evidence of a programming error, and you will be
+panicked with panic 73.
+
+You cancel an outstanding request using generic i/o service number 4,
+P_FCANCEL.  Then you have to IOWAITSTAT to "use up the signal".
+
+Note that, in Epoc, cancels always *precipitate* the completion of
+the original event, rather than *withdrawing* it.  There are good
+reasons for this - namely, you don't know whether the event has
+completed anyway, already.  In either case, the completion generates
+a signal, which you have to use up.
+
+Whenever an i/o event occurs
+----------------------------
+
+For clarity, let me emphasise that, whenever an i/o event occurs, two
+things happen:
+  1/ the application gets "signalled"
+  2/ the associated status word gets written to.
+
+(In the case of the event occurring via being precipitated with a
+cancel, the value -48 (E_FILE_CANCEL) is actually written to the
+status word, but this can be disregarded in most cases.)
+
+The meaning of being "signalled" is as follows: the operating system
+maintains a special so-called i/o semaphore on behalf of each
+application.  (You can see this displayed as one of the columns in SPY.)
+Whenever an application calls IOWAIT (or IOWAITSTAT), this value is
+decremented by one, and if it is negative, the application hangs
+until it becomes non-negative again - on account of some i/o event
+completing.  (Whenever an application is signalled, the i/o semaphore
+value is incremented.)
+
+Cancelling a serial read request
+--------------------------------
+
+The one remaining complication in the above program concerns the
+details of cancelling a serial read.  Bear in mind that *some*
+characters may have been received already, even though the total
+requested amount may not have been.  If this is of interest to your
+program, follow the P_FTEST and P_FREAD mechanism in the above
+program.  Consult the serial device driver documentation in the C SDK
+for some more details.
+
+These notes prepared
+--------------------
+By David Wood, Software Development, Psion, 9th November 1993.

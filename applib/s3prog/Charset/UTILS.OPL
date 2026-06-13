@@ -1,0 +1,51 @@
+REM +-----------------------+
+REM   Author      Jon Simpson   
+REM   Title               Utilities                
+REM   Version                 1.00
+REM   Date       18 April 1992
+REM   @CIX              jsimpsonb
+REM +-----------------------+
+
+PROC Utils:
+ AnyKey:
+ENDP
+
+REM Title      Add Author to header                 
+PROC AddAuth:
+LOCAL bitid% , winid%
+  winid%=gCREATE(180,60,57,17,1)
+  bitid%=gLOADBIT("jsname",0)
+  gUSE winid%
+  gCOPY bitid%,0,0,57,17,3
+  PAUSE -100
+	gCLOSE winid%
+	gCLOSE bitid%
+ENDP
+
+REM routine to prompt for any key
+PROC AnyKey:
+LOCAL w%,txt$(25)
+  txt$="Press Any Key To Continue"
+  w%=gTWIDTH(txt$)
+  gAT gWIDTH-w%,gHEIGHT-16
+	gPRINT txt$
+	GET
+	gAT gWIDTH-w%,gHEIGHT-16
+	gPRINT REPT$(" ",25)
+ENDP
+
+REM Routine to replace a character
+REM within a string at a position
+REM returns string value
+PROC ExChar$:( st$, ch$, pos%)
+	RETURN LEFT$(st$,pos%-1)+ch$+RIGHT$(st$,LEN(st$)-pos%)
+ENDP
+
+PROC Inc%:( value% )
+ RETURN value% + 1
+ENDP
+
+PROC Dec%:( value% )
+ RETURN value% - 1
+ENDP
+

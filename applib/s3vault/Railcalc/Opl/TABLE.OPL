@@ -1,0 +1,154 @@
+PROC table:
+	GLOBAL dest$(128),name$(20),ext$(4)
+	LOCAL file$(128),nu$(1),pk%,l%
+	LOCAL term$(7),retn$(128),p%
+	file$="*.rut"
+	nu$="1"
+	dINIT
+	dTEXT "","Select Route",$302
+	dFILE file$,"Route",8
+	dCHOICE pk%,"Direction","Outward,Return"
+	dEDIT nu$,"Timetable No."
+	p%=DIALOG
+		IF p%=0
+			RETURN
+		ENDIF
+		IF EXIST(file$)
+		OPEN file$,B,nm$,ml
+			IF pk%=1
+			ext$=".out"
+			ELSEIF pk%=2
+			ext$=".rtn"
+			ENDIF
+		dest$=LEFT$(file$,LEN(file$)-5)+nu$+ext$
+		ENDIF
+	dINIT
+	dTEXT "","Timetable Selected",$302
+	dFILE dest$,"Destination",9
+	p%=DIALOG
+		IF p%=0
+			RETURN
+		ENDIF
+		IF NOT EXIST(dest$)
+		CREATE dest$,A,nm$,idx$,ml,stop$,tabA,tabD,timA,timD
+		USE B
+		LAST
+		l%=LEN(B.nm$)-1
+		FIRST
+		term$=LEFT$(B.nm$,7)
+		IF ext$=".out"
+		LAST
+		name$=B.nm$
+		FIRST
+		ELSEIF ext$=".rtn"
+		FIRST
+		name$=B.nm$
+		LAST
+		ENDIF
+	detail:
+	calcpass:
+	dINIT
+	dTEXT "","No More Stations"
+	DIALOG
+	CLOSE
+		IF ext$=".rtn"
+		retn$=LEFT$(dest$,LEN(dest$)-(l%+5))+term$+nu$+".rtn"
+		RENAME dest$,retn$
+		ENDIF
+	USE B
+	CLOSE
+		ELSEIF EXIST(dest$)
+		dINIT
+		dTEXT "","Timetable with same",2
+		dTEXT "","DESTINATION  &  NUMBER",2
+		dTEXT "","already exists",2
+		dTEXT "","TRY  AGAIN",$102
+		DIALOG
+		ENDIF
+ENDP
+
+PROC detail:
+	LOCAL sx1&,sx2&,n%,ch%,pr%
+	LOCAL list$(16),idx
+	n%=0
+	list$="Stopping,Passing"
+		DO
+		sx1&=0
+		sx2&=0
+	dINIT
+	dTEXT "Timetable for",name$,$302
+	dTEXT "Details for",B.nm$,$101
+	dCHOICE ch%,"Whether stopping",list$
+	dTIME sx1&,"Departure time",0,0,86399
+	dTIME sx2&,"Arrival time",0,0,86399
+	dBUTTONS "ENTER",13,"Skip",32,"No more",-27
+	pr%=DIALOG
+		IF pr%=0
+			RETURN
+		ELSEIF pr%=32
+			GOTO skip
+		ELSEIF pr%=13
+			A.nm$=B.nm$
+				idx=idx+10
+			A.idx$=NUM$(idx,3)
+			A.ml=B.ml
+				IF ch%=1
+			A.stop$="Stopping"
+				ELSEIF ch%=2
+			A.stop$="Passing"
+				ENDIF
+			A.tabD=sx1&
+				IF sx2&=0
+			A.tabA=sx1&-45
+				ELSE
+			A.tabA=sx2&
+				ENDIF
+		USE A
+		APPEND
+			ENDIF
+		skip::
+		USE B
+	IF ext$=".out"
+		NEXT
+	ELSEIF ext$=".rtn"
+		BACK
+	ENDIF
+		n%=n%+1
+		UNTIL n%=COUNT
+	RETURN
+ENDP
+
+PROC calcpass:
+	LOCAL mi1,mi2,mpos,deptim,atim,timpos
+	LOCAL pos%,sch1$(7),sch2$(8)
+	sch1$="Passing"
+	USE A
+	FIRST
+	IF FIND(sch1$)
+	DO
+	IF A.tabD=0
+				pos%=POS
+				mpos=A.ml
+				BACK
+				mi1=A.ml
+				deptim=A.tabD
+				NEXT
+				sch2$="Stopping"
+				FIND(sch2$)
+				mi2=A.ml
+				atim=A.tabA
+				POSITION pos%
+		timpos=INTF(((mpos-mi1)*(atim-deptim)/(mi2-mi1))+deptim)
+		A.tabA=timpos
+		A.tabD=timpos
+		UPDATE
+		ENDIF
+			FIRST
+			FIND(sch1$)
+			UNTIL A.tabD<>0
+		ENDIF
+		sort:
+		RETURN
+ENDP
+
+

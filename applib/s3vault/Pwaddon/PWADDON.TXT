@@ -1,0 +1,405 @@
+Overview
+PsiWin uses installable file translators to support the translation of  native Psion 
+application files to and from Windows application file formats.  Installable file 
+translators are implemented as Windows 3.1 16-bit DLL's and delivered as .PXL 
+files in the PSIWIN\CONVERT directory.  Each translator's name and capabilities is 
+specified through it's "PSPD" resource.  One .PXL file implements translation 
+between one Psion native format and one Windows application format.
+
+To implement an installable translator you will need to:
+
+•	Become familiar with the Psion native format and corresponding Windows 
+application format to be exchanged
+•	Generate a "PSPD" resource to identify your translator to PsiWin
+•	Implement an XLInstall() function if your translator will be conditionally 
+installed, for example, only installed if MAPI is implemented.
+•	Implement an XLSelectApp() function to identify files that your translator can 
+import to Psion.
+•	Implement an XLSelectFormat() function to identify Psion files that your 
+translator can export to Windows.
+•	Implement an XLImport() function to translate a Windows file to a Psion format.
+•	Implement an XLExport() function to translate a Psion file to a Windows format.
+•	Implement an XLGetLastErrorMsg() function to report errors
+
+
+
+Filling out the "PSPD" resource
+The PSPD resource identifies an installable translator and describes the associated 
+Psion and Windows file formats.  It includes:
+
+Flags
+Flags indicate the functionality of the translator.  The 
+following flags are defined:
+
+0x0001	Use the XLInstall() function to sense if this 
+translator should be installed.
+0x0010	This translator can overwrite files on import 
+to Psion
+0x0020	This translator can append to files in import 
+to Psion
+0x0040	This translator can merge into files on 
+import to Psion (Not Supported)
+0x0100	This translator can overwrite files on export 
+from Psion
+0x0200	This translator can append to files in export 
+from Psion
+0x0400	This translator can merge into files on export 
+from Psion (Not Supported)
+
+All other flags are reserved for future use and should be 
+set to 0.
+
+Application Name
+(63 chars max)
+A string that names the Windows application format, 
+for example "Lotus 1-2-3 (*.WK1)"
+
+Application Class
+A string that names the class of format.  Class name is 
+used in the Windows format identification process to 
+identify formats that may be related.  A format class 
+name can take the format 
+<classname>:<subclassname>.  For example 
+"dBase:Act! 2.0"is the class name for the Act! 2.0 
+Names and Dates translators.  The "dBase:" indicates 
+that these are subclasses of the dBase format since in 
+fact Act! is a DBase based application.  In practice this 
+means that a file recognized as dBase will be 
+considered for recognition as Act! 2.0 Names or Dates.  
+It futher means that a file recognized as Act! 2.0 Names 
+is also recognized as Act! 2.0 dates since they have 
+identical class names.
+
+Application Extension
+A string to use in filtering candidate files by filename 
+extension.  Should be "*.xxx" where xxx is the 
+extension.
+
+Psion Application Name
+(31 chars max)
+The name of the Psion application supported by this 
+translator, for examle "Sheet" for the Psion 
+spreadsheet.
+
+Psion Directory
+The name of the directory where this Psion 
+application's documents are stored, for example 
+"\DAT\" for the Psion database.
+
+Psion Extension
+The filename extension for this Psion application's 
+documents, for example  "AGN" for the Psion agenda.
+
+
+
+
+Following is an example PSPD
+
+#define		PATH_INSTALL			0x0001
+#define		PATH_SELECT_APP			0x0002
+#define		PATH_SELECT_FORMAT		0x0004
+#define		PATH_IMPORT_REPLACE		0x0010
+#define		PATH_IMPORT_APPEND	 	0x0020
+#define		PATH_IMPORT_MERGE			0x0040
+#define		PATH_EXPORT_REPLACE		0x0100
+#define		PATH_EXPORT_APPEND		0x0200
+#define		PATH_EXPORT_MERGE			0x0400
+
+1	PSPD
+{
+	PATH_SELECT_APP | 
+	PATH_IMPORT_REPLACE | 
+	PATH_SELECT_FORMAT | 
+	PATH_EXPORT_REPLACE,
+	"Lotus 123 (*.WK1)\0Lotus WKS\0",
+	"*.WK1\0",
+	"Sheet\0",
+	"\\SPR\\\0",
+	"SPR\0"
+}
+
+XLInstall() function (Optional)
+
+int WINAPI XLImport(LPSTR lppspd)
+
+The optional XLInstall() function is called to allow a translator to sense if it should 
+appear as an available translator.  The function will only be called if bit 0x0001 is 
+set in the flags word in the "PDPD" resource.  XLInstall() is passed a read-only copy 
+of the "PSPD" resource.  It returns a possibly modified set of flags or zero to 
+indicate that the translator is not to be installed.
+
+Most translators will not need an XLInstall() function.  A trivial XLInstall function(), 
+one that simply returns the flags word verbatim from the "PSPD", will fail to install 
+if an imported .DLL is not present.
+
+The trivial XLInstall function is as follows:
+
+int WINAPI XLInstall(LPSTR lppspd)
+{
+	return *(int *) lppspd;
+}
+
+
+
+XLSelectApp() function (Required for Import to Psion)
+
+int WINAPI XLSelectApp(LPSTR filename)
+
+The XLSelectApp() function is called to sense if the file filename is in the 
+Windows application format supported by this translator.  This function should 
+examine the indicated file and return an identification code as follows:
+
+0	The file is not this application format
+1	The file is probably this application format.  This response is appropriate for 
+formats that may be indefinite such as Ascii text.
+2	This file is definitely this application format.
+3	This file is definitely this application format, but it cannot be translated 
+because it is password protected.
+
+XLSelectFormat() function (Required for Export from Psion)
+
+int WINAPI XLSelectFormat(LPSTR filename)
+
+The XLSelectFormat() function is called to sense if the file filename is in the Psion 
+application format supported by this translator.  This function should examine the 
+indicated file and return an identification code as follows:
+
+0	The file is not this Psion format
+1	This file is definitely this Psion format.
+-1	This file is definitely this Psion format, but it cannot be translated because it is 
+password protected.
+
+XLImport() function (Required for Import to Psion)
+
+BOOL WINAPI XLImport(XMINFO FAR *info, LPSTR sourceFile,
+				LPSTR resultFile, int xferMode,
+				XMSTATPROC statusRtn)
+
+The XLImport() function is called to translate the Windows application file 
+sourceFile to the Psion format file resultFile handling the transfer per the 
+xferMode requested.  The available transfer modes are as follows:
+
+	1	Overwrite
+	2	Append
+	4	Merge/Update (Not Supported)
+
+The XMINFO structure provides context information useful for the translator 
+including the current PsiWin username.
+
+During the translation, the statusRtn should be called regularly to report the 
+status of the translation as a percentage complete.  If the statusRtn returns 
+FALSE, then the translation should be cancelled.
+
+XLImport should return TRUE if sucessful and FALSE otherwise.  If the translation 
+fails, a suitable error message should be available through the 
+XLGetLastErrorMsg() function.
+
+
+XLExport() function (Required for Export from Psion)
+
+BOOL WINAPI XLExport(XMINFO FAR *info, LPSTR sourceFile,
+				LPSTR resultFile, int xferMode,
+				XMSTATPROC statusRtn)
+
+The XLExport() function is called to translate the Psion format file sourceFile to  
+the Windows application file resultFile handling the transfer per the xferMode 
+requested.  The available transfer modes are as follows:
+
+	1	Overwrite
+	2	Append
+	4	Merge/Update (Not Supported)
+
+The XMINFO structure provides context information useful for the translator 
+including the current PsiWin username.
+
+During the translation, the statusRtn should be called regularly to report the 
+status of the translation as a percentage complete.  If the statusRtn return FALSE, 
+then the translation should be cancelled.
+
+XLExport should return TRUE if sucessful and FALSE otherwise.  If the translation 
+fails, a suitable error message should be available through the 
+XMGetLastErrorMsg() function.
+
+XLGetLastErrorMsg() function (Required)
+
+int WINAPI XLGetLastErrorMsg(LPSTR msg, int nMsg)
+
+The XLGetLastErrorMsg() function is called following an unsuccessful translation 
+to obtain a suitable error message.  The error message should be placed in the 
+buffer msg for a maximum of nMsg characters, including the trailing "\0".
+
+
+
+PSIWINXL.H
+
+The pertinent definitions for a translator developer are found in the PSIWINXL.H 
+header file.  Following is a copy.
+
+/*	PSIWINXL.H	-	PsiWin External Translator API Definition	*/
+
+/*	Copyright DataViz, Inc, 1994 - All Rights Reserved.			*/
+
+/*	Revision History
+
+	09-09-94	Original - CAS
+
+*/
+
+#ifndef	_INC_PSIWINXL
+
+#define	_INC_PSIWINXL
+
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
+#include	<windows.h>
+
+//	PSPD Flag definitions
+
+#define		PATH_INSTALL			0x0001
+#define		PATH_SELECT_APP			0x0002
+#define		PATH_SELECT_FORMAT		0x0004
+#define		PATH_IMPORT_REPLACE		0x0010
+#define		PATH_IMPORT_APPEND	 	0x0020
+#define		PATH_IMPORT_MERGE		0x0040
+#define		PATH_EXPORT_REPLACE		0x0100
+#define		PATH_EXPORT_APPEND		0x0200
+#define		PATH_EXPORT_MERGE		0x0400
+#define		PATH_SYNCHRONIZE		0x1000
+#define		PATH_FROM_CLIPBOARD		0x0080
+#define		PATH_TO_CLIPBOARD		0x0800
+		
+#define		PATH_TO_PSION			0x0070
+#define		PATH_FROM_PSION			0x0700
+
+
+typedef struct tagXMINFO
+{
+	HWND		hwndHost;
+	HINSTANCE	hInstXM;
+	LPSTR		pszHostName;	// PsiWin User Name
+	char		wdrName[16];	// WDR for new Psion Files
+
+}	XMINFO, FAR *LPXMINFO;
+
+
+typedef	BOOL	(WINAPI *XMSTATPROC)(int);
+
+WORD WINAPI XLInstall(LPSTR lpPSPD);
+/*
+	This routine is called to conditionally install the translator.  It
+	returns the pathFlags WORD for this translation path or zero
+	if the translator is NOT to be installed.
+
+	lpPSPD points to the resource that describes this translator.
+*/
+
+int WINAPI	XLSelectApp(LPSTR fileName);
+/*
+	This routine answers whether the indicated file is the application
+	format exchanged by this translation path.
+
+	Returns:
+
+	0	The file is not this application format
+	1	The file may be this application format
+	2	The file is definitely this application format
+	3	The file is definitely this application format, but is
+		password protected
+*/
+
+int WINAPI	XLSelectFormat(LPSTR fileName);
+/*
+	This routine answers whether the indicated file is of the OEM 
+	format exchanged by this translation path.
+
+	Returns:
+
+	-1	The file is this OEM format, but is password protected
+	0	The file is not this OEM format
+	1	The file is definitely this OEM format
+*/
+
+BOOL WINAPI	XLImport(LPXMINFO xminfo, LPSTR sourceFile, LPSTR resultFile, WORD 
+xferMode,
+						XMSTATPROC statusRtn);
+/*
+	This routine imports from the sourceFile to the indicated resultFile
+	per the requested transfer mode.  The available transfer modes are
+
+	1 - Overwrite
+	2 - Append
+	4 - Merge/Update
+	8 - Synchronize
+
+	Translation status is reported as a percent complete by calling the
+	statusRtn.  A statusRtn return of TRUE indicates that the translation
+	should be cancelled.
+
+	Returns TRUE if the translation is sucessful, FALSE otherwise.
+*/
+
+BOOL WINAPI	XLExport(LPXMINFO xminfo, LPSTR sourceFile, LPSTR resultFile, WORD 
+xferMode,
+						XMSTATPROC statusRtn);
+/*
+	This routine exports from the sourceFile to the indicated resultFile
+	per the requested transfer mode.  The available transfer modes are
+
+	1 - Overwrite
+	2 - Append
+	4 - Merge/Update
+	8 - Synchronize
+
+	Translation status is reported as a percent complete by calling the
+	statusRtn.  A statusRtn return of TRUE indicates that the translation
+	should be cancelled.
+
+	Returns TRUE if the translation is sucessful, FALSE otherwise.
+*/
+
+int WINAPI	XLGetLastErrorMsg(LPSTR msg, int nMsg);
+/*
+	This routine copies the error message string associated with the 
+	last error to the indicated buffer transfering up to nMsg bytes
+	including the trailing '\0' character.
+
+	Returns the length of the string returned or 0 if there is no last
+	error.
+*/
+
+BOOL WINAPI	_export	XLCopy2ClipBoard(LPXMINFO info, LPSTR sourceFile);
+/*
+  	This routine xlates the sourcefile into RTF (or WKS ) format and TEXT format and
+  	then it copies them into CLIPBOARD.
+  	
+	Returns TRUE if the translation is sucessful, FALSE otherwise.
+*/
+                                                       
+BOOL WINAPI	_export	XLPasteFromClipBoard(LPXMINFO info, LPSTR targetFile);
+/* 
+	This routine pastes either the RTF (or WKS) or the TEXT data format of the 
+	CLIPBOARD into the targetFile.
+	
+	Returns TRUE if the translation is sucessful, FALSE otherwise.
+  	
+*/
+
+typedef	WORD (WINAPI *XLINSTALLPROC)(LPSTR);
+typedef int  (WINAPI *XLSELECTPROC)(LPSTR);
+typedef	BOOL (WINAPI *XLXLATEPROC)(LPXMINFO, LPSTR, LPSTR, int, XMSTATPROC);
+typedef	int  (WINAPI *XLERRORPROC)(LPSTR, int);
+typedef	BOOL (WINAPI *XLCOPYCLPPROC)(LPXMINFO, LPSTR);
+typedef BOOL (WINAPI *XLPASTECLPPROC)(LPXMINFO, LPSTR);
+
+typedef	int	 (WINAPI *XRSELECTPROC)(LPSTR, LPSTR);
+
+#ifdef __cplusplus
+	}
+#endif
+
+#endif	//	_INC_PSIWINXL 
+
+
+

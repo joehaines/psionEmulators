@@ -1,0 +1,326 @@
+---------------------------------------------------------------------------
+
+                             NewCron 1.1
+                     Copyright 1995 Stefan Radig
+
+---------------------------------------------------------------------------
+
+0. What's new
+
+Version 1.2
+Bugfixes:
+- A bug has been fixed which prevented NewCron from loading MacSys when
+  MacSys was not installed on the internal drive.
+Other changes:
+- Two compiler switches have been implemented to control the memory
+  consumption. ONEWND makes the program use only one window if defined.
+  GREY lets the program use greyscales. If GREY is defined and ONEWND is
+  not, the behaviour is as in version 1.1!
+  An overview of the approx. runtime memory needs:
+
+    GREY     ONEWND    Mem (KB)
+     x         o        45
+     o         o        40
+     x         x        31      (supplied configuration)
+     o         x        24
+     
+  The supplied binaries are compiled with ONEWND and GREY! If you want a
+  different configuration but are unable to compile, drop me a letter
+  stating the wanted configration and your e-mail address. I'll send it
+  to you.
+
+Version 1.1
+Bugfixes:
+- In the event screen, the event year was always the actual one.
+  This has been fixed.
+- The switch delay is now only active, if there is a switch off event
+- In version 1.0 it was impossible to switch the machine off, if NewCron
+  showed the message screen. This has been fixed.
+  
+Version 1.0
+New features:
+- A help is now available if the help file is installed.
+- Events may now be triggered when the S3a is switched off and/or on.
+- Settings which are not relevant for the actual event are printed in
+  grey.
+Other changes:
+- The sources now need OPP10f to be compiled. This is an OPL-preprocessor
+  by Andy Clarkson.
+- The language specific code has completely been moved to the file
+  newcron.oph. There are versions for german and english language.
+- The distribution format has been changed. See later for details.
+
+WARNING: Files of version 0.9 and lower may no longer be used!
+  
+Version 0.9
+New features:
+- A new menu option has been added. Now you are able to search for 
+  a message text (wildcards may be used).
+- A new menu option has been added which displays the copyright screen
+  for a while 
+- There is now an english and a german version.
+Bugfixes:
+- A bug has been fixed which led to an error if you inserted an entry
+  before copying or editing one. Now a copy event is executed simply
+  before you may insert something.
+  
+Version 0.8
+This version has been greatly enhanced. So much of the internal structure
+has changed.
+New features:
+- The scheduler may no longer be started manually. It's started, when
+  NewCron is started and finishes when NewCron finishes.
+- You can switch manually between the events and the message list via the 
+  diamond key.
+- You may edit entries while the scheduler is running. (Although it's 
+  stopped while you are looking at a dialog or menu.)
+- The time when an event occured is logged in the message list.
+Bugfixes:
+- Now all the 40 characters of a message may be displayed.
+
+Version 0.7
+New features:
+- Now a daily time interval can be given. Events that do not fall in this 
+  interval are ignored.
+Bugfixes:
+- A little bug in doevnt has been fixed. It was a wrong date comparison.
+
+WARNING: Files of version 0.6 may no longer be used!
+
+Version 0.6
+The first released version.
+
+---------------------------------------------------------------------------
+
+1. Intro
+
+This is NewCron 1.2, a scheduler program for the psion S3a. It may be used 
+to schedule repeated events. It uses a file for storing a list of events 
+each of which may trigger different actions.
+
+Features:
+- Number of events limited only by size of the used disk.
+- Triggers sounds, texts, macros and/or opl-programs.
+- Comfortable builtin editor for events running in parallel to the scheduler.
+- Switches the S3a on, if necessary.
+- Repetitions from seconds to years.
+- Day time intervall for active events
+- Events may be edited at each time and will be queued after you finished
+  editing.
+- A help screen is given, which holds a subset of this manual.
+  
+---------------------------------------------------------------------------
+
+2. Copying
+
+The program may be copied and changed according to the terms stated in the 
+file COPYING, which is the GNU General public license. If you make any changes 
+please send them - along with some documentation - to me. If I consider them 
+useful I will include them in the next version. Although you are allowed to,
+if would prefer if you would not post own versions. This would be very confusing.
+However if you do, give it a different name and/or state explicitly that it's 
+an 'unofficial' release.
+If you think, that the program is useful to you, don't send any donations but 
+please feel free to send your own programs (incl. keys, if shareware) to me.
+I would appreciate very much getting feedback from you!
+
+---------------------------------------------------------------------------
+
+3. Files
+
+The package consists of the following files in the following folders:
+
+newcron.txt - this manual
+copying.txt - the GNU General public license V2 which is to be applied
+/binaries/
+	/deutsch/
+		/app/
+			newcrong.opa - the german binary
+		/cron/
+			newcrong.rsc - the german help file
+	/english/
+		/app/
+			newcrone.opa - the english binary
+		/cron/
+			newcrone.rsc - the english help file
+/sources/
+	/opd/
+		newcrong.hlp - the source for the german help file
+		newcrone.hlp - the source for the english help file
+	/opp/
+		newcron.opp - the program source
+		newcron.oph - the language specific code
+	/pic/
+		newcron.pic - the icon for the opa
+		newcron2.pic - an alternative icon
+
+---------------------------------------------------------------------------
+
+4. Installation
+
+- Choose your language and go into the appropriate folder. Copy everything
+  in it to the correct folder on the internal drive. Install the .opa file
+  in the usual way. Then use it.
+  Example for the english version:
+  	- Create the folder /cron/
+		- Copy
+				/binaries/english/app/newcrone.opa to /app/newcrone.opa
+				/binaries/english/cron/newcrone.rsc to /cron/newcrone.rsc
+  	- Install it.
+  	
+---------------------------------------------------------------------------
+
+5. Using NewCron
+
+The program conforms as close as I could to the style used by the internal 
+applications. This includes the file list from the system screen, which may 
+be used to choose the actual file or create a new one. Even several copies 
+of NewCron may be active at the same time.
+
+Starting:
+  Start NewCron from the system screen selecting a file from the file list 
+  or creating a new one using the menu option. The program will display a 
+  copyright screen and then start to look for events past due. These will 
+  be replayed.
+  *** You may stop replaying them by pressing any key.
+  *** THIS WILL STOP THE SCHEDULER until you edit any event!
+  If you didn't press a key or - after pressing a key - edited an event, the 
+  scheduler will search for the next due - or passed due - event. This may 
+  take a while, especially if you didn't use it a long while.
+  When the next event has been found NewCron will display "Waiting for event #".
+
+Stepping around:
+  Step around with the arrow keys. Arrow-up goes to the first event, arrow-down 
+  to the last one. Arrow-right creates a new entry if you press it when looking 
+  at the last event. The events are not sorted and if you alter an event, it
+  will become the last one.
+
+Editing:
+  You may now edit, add and delete events. Note that the scheduler is not 
+  active, if either the menu or a dialog box is displayed. However it will 
+  replay past due events in the appropriate order after the menu/dialog has
+  been left.
+  Press enter to edit the event you are looking at. To change the fields 
+  <Repetition>, <Sound> or <Opl-Module> select them then press enter. This is 
+  annoying because it does not conform to the builtin app style. But it's a
+  big deal to change it to use <TAB>-Button-Options in a dialog from OPL and
+  so I don't know if it will be changed sometime.
+  The <active> switch may be used to switch between <not active>, <active>,
+  <triggered when S3a is switched on> and <triggered when S3a is switched off>.
+  However <switched off> means switched off manually not automatically!
+
+Using the menu:
+  The menu options may be selected by hotkeys, of course. But I didn't know 
+  a reason why you should be forced to press the PSION-key. (Does anyone know 
+  one???) So the plain keys will work, too. In addition the delete key will
+  delete an event, too.
+	Pressing the help key gives a help screen.
+	  
+The log screen:
+  Each event executed is logged in the message list although you will only be
+  able to look at the last 10 or so events. If a message is attached to the
+  event, NewCron will switch to foreground and will display the message list
+  when the event occurs. Otherwise it won't. You may manually switch between
+  the event-screen and log-screen using the diamond key. If you are looking
+  at the log screen, every key will bring you back to the event-screen.
+  NEW BEHAVIOUR: If compiled for reduced runtime memory then the log screen
+  is cleared everytime you switch to the event screen!
+
+Hints:
+- The order of events in the file - and with it the event numbers - will 
+  change deliberately. So always check, that you are looking at the right event!
+- Macros from Tom Dolbilin's MacSys may be used only if MacSys is installed.
+  Otherwise they are discarded without any special note!
+- The scheduler will execute due events if and only if it displays a message
+  "Waiting for event #" in the bottom left edge of the screen. If you expect
+  an event to be due in future and don't see this something has gone wrong!!!
+- When you edit an event, it will automatically switch to active state. Switch
+  back if this is undesired!
+
+---------------------------------------------------------------------------
+
+6. Changing the program
+
+If you want to change the help files you will need helpkit1.zip which is
+a help compiler written by Jezar. Follow the instructions given there for
+compiling the help file. Copy the .rsc file to the correct directory.
+
+If you want to edit the program or add a new language you will need opp10f
+or higher by Andy Clarkson. Unregistered versions will work.
+Copy the files in /sources/ to the appropriate folders. Choose one of the
+two .pic files and name it newcron.pic.
+All changes concerning the language should be done only in newcron.oph. I
+hope it works for every language, but I'm not sure. If not, contact me!
+Choose the target language by setting the switch LANG to the desired number.
+
+---------------------------------------------------------------------------
+
+7. Bugs, suggestions and questions
+
+I have not found any bugs (if I had I would have fixed them). If YOU find any 
+please send me a short description and I will fix. If you have suggestions and 
+you know how to implement them, then do it or tell me how. If you don't know 
+how then describe your suggestions and I will see, if I manage to implement them.
+  There is one disadvantage when triggering OPL modules: They are always started 
+in foreground. I don't know how to start a program in background.
+There is a way around this: Simply rename lauch: in launch1: and launch2: in
+launch:. Then the opl programs - which must be started with a procedure
+named 'main' will be started in the background. This has a different 
+disadvantage: The scheduler won't continue until the launched program has 
+finished. There is a way around this: Implement a server process for newcron. 
+This shouldn't be to hard and I will implement it if - but only if - there are 
+people asking for it. 
+  I would be very happy to get feedback of any kind to help improving the
+program!!! Also questions are welcome.
+  The newcron2.pic icon is a little joke because I am not at all an artist. If
+someone develops a reasonable icon please mail it to me. The newcron.pic
+is a more serious one and is taken from ibox.
+
+---------------------------------------------------------------------------
+
+8. Future developments
+
+Eventually I will change the application to use asynchrous menus/dialogs.
+This will bring the style closer to the style of the builtin applications
+and will allow to trigger events even while a menu/dialog box is displayed.
+This will only be done, if I get feedback from users who want this.
+
+---------------------------------------------------------------------------
+
+9. Credits
+
+The program was entirely written on my German 2MB S3a. It's the first program I
+have ever written on a psion machine.
+- I used the great package ST-Comms for storing on my ATARI ST. To every 
+  Atari_and_Psion User: Try it!!!
+- I got needed information from the psionics files at scr.doc.ic.ac.uk!
+  Thanks to Clive D.W. Feather.
+- I tried CRON2.0 by Paul Merriman then decided to write a new one but I got 
+  many ideas from it.
+- The program uses runmacro from the great macsys package by Tom Dolbilin.
+- The file lpcs.zip helped me developing version 0.8. I didn't know before how
+  to mix console events and io-events.
+- I use Andy Clarksons OPP. It's great!
+- Thanks to Jezar for the helpkit!
+
+---------------------------------------------------------------------------
+
+10. Disclaimer
+
+The program is not perfect. So try it at your own risc.
+There is no disclaimer about my awful english ;-) but feel free to send
+me corrections especially concerning the english version of the program.
+
+---------------------------------------------------------------------------
+
+11. My address
+
+Contact me over internet
+	radig@teles.de
+or over CompuServe
+	100753,3503@compuserve.com
+	
+---------------------------------------------------------------------------
+
+Enjoy! 10.4.1996 Stefan Radig
+

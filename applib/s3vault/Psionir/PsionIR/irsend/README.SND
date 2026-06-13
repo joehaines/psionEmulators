@@ -1,0 +1,143 @@
+                         IRSEND Read Me File
+                          Beta Version 0.2
+                             2/12/1997
+
+==============================================================================
+NOTE: The shareware version of IRSEND is limited to sending files of less than
+      2000 bytes. Please register to receive the full unlimited version.
+===============================================================================
+
+What does IRSEND do?
+  IRSEND allows you to send files (text or binary) from your PC to your Siena
+  or 3c using the native Psion IR protocol and IR Receive key on the keyboard.
+  No additional software is required on your Psion. Just follow the directions
+  in your Psion manual for receiving a file from another Psion. The IRSEND.COM
+  program allows your PC to mimic the Psion protocol.
+
+What doesn't IRSEND do?
+  IRSEND does not handle sending multiple files at one time. You also can not
+  overwrite an existing file. Sending the same name file as an existing
+  one results in a dialog box with the only option to rename or abort.
+
+How is the data protected?
+  Each data block transferred is protected by a 16 bit CRC check code
+  (x^0+x^5+x^12+x^16) and a 3 bit sequence number. Bad and missing blocks are
+  automatically resent until received correctly by the Psion. (Although this
+  early version may need some work in this area.)
+
+What baud rate is used to send the files?
+  The initial negotiations start at 9600 baud per the IRDA spec and then
+  go to 19,200 for the actual header and file transfer. If people experience
+  problems during the 19,200 phase I may produce a second version of IRSEND
+  that just stays at 9600 baud. Block size is fixed at 500 bytes.
+
+What IR hardware works with IRSEND?
+   Well, that's the purpose of this beta. You tell me and then I can post
+   the results and/or try to fix the problems.
+
+   I have not had much luck with external units since they need to be setup for
+   the baud rate and IRSEND does not do that yet. A single baud rate IRSEND
+   might get around that limitation for now.
+
+Where can I get the latest version?
+   A web site has been setup at:
+
+       http://www.geocities.com/SiliconValley/Lakes/3947
+
+   It has the latest version of IRSEND plus access to other Psion IR programs
+   and information about current and future plans.
+
+IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT
+==============================================================================
+It is highly recommended that you verify the accuracy of a few large files
+after doing your first IRSEND. The companion program IRSAVE can be used to
+transfer the same file back to your PC for comparision. If you have text files,
+open an editor and view the file, checking the beginning and end for
+correctness. If you have a binary compare program try comparing the copied
+version of a program with its original.
+==============================================================================
+                             DISCLAIMER
+Use this software at your own risk. I will not be held responsible for any
+damage to you, your machine and/or your information as a result of using
+IRSEND.
+==============================================================================
+
+Requirements:
+  PSION: Siena or 3c
+  PC   : x86 with IRDA compliant IR port
+  Operating System: DOS, Windows 3.1, WIN95 (MS-DOS mode only)
+
+Files in this package:
+  IRSEND.COM      Program that sends files to your Psion.
+  README.SND      This file.
+
+Installation:
+  Load IRSEND.COM on your PC.
+
+Running IRSEND.
+  Be sure to set the IR Link to run at HIGH power. From the system screen press
+  Psion-L select Infrared then Power setting to HIGH. Then type IRSEND
+  followed by the COM number for your IR port, the name of the file to be
+  sent and the Psion "save as" name. The Psion name should be complete
+  including "LOC::M:" for the internal drive or "LOC::A:" or "LOC::B:" for
+  your external drives. The path on the Psion will be created if it does
+  not exist. Your Psion does not allow overwriting the same file so
+  you must delete an old copy before sending a newer one with the same name.
+  If you try to send the same file name it will be received into a temporary
+  location and the user is prompted for a new name. If you find a way to
+  copy over a file please let me know how you did it.
+
+  If a file transfer gets hung up you can terminate the IRSEND by holding
+  down both shift keys on the PC. If after aborting your Psion IR send and
+  receive keys no long work just go to the System screen, select
+  Special/Communications, disable the IR link, and exit. Then go back and
+  reenable the IR link. This seems to do a complete reset of the IR Link.
+
+  Saved files will have the current date and time not the date and time of
+  the original file on your PC. Sorry, the Psion native protocol does not
+  include this information.
+
+  Syntax of IRSEND.COM:
+
+             irsend <IR port> <PC File Name> <full Psion file name> </t>
+
+    Examples:
+      irsend 2 test.opl loc::m:\opl\testnew.opl
+      irsend 3e8:9 test.opl loc::m:\opl\testnew.opl (custom IRQ )
+      irsend 1 d:\psion\app\chess.opa loc::m:\app\chess.opa /t (show trace data)
+
+Aborting the program:
+  To abort IRSEND on the PC just hold down both the left and right shift
+  keys for a few seconds.
+
+Improvements:
+  If you have any suggestions for improvements please email me with them.
+
+Registration:
+  If you find this program useful please register your copy. Registered users
+  will receive the full version that supports sending any size file.
+
+  Currently registration is only through the mail. Mail $10 (US currency only
+  please) to:
+
+    Jim Pollock
+    7194 Silver Lode Lane
+    San Jose, CA 95120-3340 USA
+
+  Be sure to include your email address and the version number of your
+  copy of IRSEND.
+
+Jim Pollock <jpollock@ix.netcom.com>
+
+History:
+   0.1  2/11/1997  First release
+   0.2  2/12/1997 -Improved retry for noisy Infrared links.
+                  -Skip statistics if program aborted by user.
+                  -When using comports 1,2,3, or 4 the interrupt level
+                   used is based on the I/O port value (ie 3E8=>IRQ4) not
+                   the comport number. Better for systems that have missing
+                   comports (ie 1 and 3 but not 2).
+                  -Have NOT been able to make it work with an external IR
+                   adapter under OS/2.
+===========================End of Readme======================================
+

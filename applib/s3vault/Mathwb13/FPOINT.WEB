@@ -1,0 +1,148 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss11</scrfont>
+<statwin>off</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N</rfmt>
+<rall>yes</rall>
+<starg></starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>5</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>5.00000</xmax>
+<xmin>-5.00000</xmin>
+<ymax>5.00000</ymax>
+<ymin>-5.00000</ymin>
+<xintrvls>5</xintrvls>
+<yintrvls>5</yintrvls>
+<xycells>home,home</xycells>
+<cell>
+<cname>Bugfix</cname>
+<text>Rule 6:  Each software review, inspection, or test step will find and remove 30 percent of the bugs that are present.</text>
+<val>0.30</val></cell>
+<cell>
+<cname>BugsLeft</cname>
+<text>Uses Rule 6 &amp;Bugfix to estimate the number of defects that will be shipped assuming &amp;TestRun test cycles.</text>
+<val>50.53071</val>
+<script>Defect!*pow(1-Bugfix,TestRun)</script></cell>
+<cell>
+<cname>Creep</cname>
+<text>Rule 3:  Creeping user requirements will grow at an average rate of 1 percent per month over the entire development schedule.
+
+Enter assumed monthly creep rate in the value field.</text>
+<val>0.01</val></cell>
+<cell>
+<cname>Critical_Creep</cname>
+<text>This cell computes the monthly creep rate (fractional change in requirements) for which the growth in requirements over the build time for the project equals the size of the original specification.</text>
+<val>0.06513</val>
+<script>exp(ln(2)/pow(fp, 0.4)) - 1</script></cell>
+<cell>
+<cname>Defect</cname>
+<text>Rule 5:  Raising the number of function points to the 1.25  (1.27) power predicts the approximate defect potential for new (enhancement) software projects.</text>
+<val>1788.85438</val>
+<script> pow(fp,1.25)
+</script></cell>
+<cell>
+<cname>Effort</cname>
+<text>Rule 10: Multiply software development schedules by number of personnel to predict the approximate number of months of staff effort.
+
+Commonly define a staff month as 22 working days with six productive hours each day, or 132 work hours per month</text>
+<val>29.29495</val>
+<script>Schedule!*Staffing!</script></cell>
+<cell>
+<cname>fp</cname>
+<text>Number of Function Points in the project.
+</text>
+<val>400.00000</val>
+<script>if (KDSI > 0) {
+  KDSI*1000/LOC_to_fpoint
+}</script></cell>
+<cell>
+<cname>Growth</cname>
+<text>Percentage Growth in Requirements by delivery for &amp;Creep rate</text>
+<val>11.55086</val>
+<script>100*(pow(1+Creep,Schedule!)-1)</script></cell>
+<cell>
+<cname>home</cname>
+<text>Software Estimating Rules of Thumb.
+This web generates a number of estimates for sizing software projects based on the function point model.  These are very rough estimates to be used with CAUTION.
+
+To use either: a) enter the number of thousands of lines of delivered source code &amp;KDSI; or b) set KDSI to 0 and enter the number of function points &amp;FP.  Then return to this home cell and execute.
+
+For more refined estimates consider varying the conversion from source lines to function points &amp;LOC_to_fpoint.   Or explore the creep rate parameter &amp;Creep.
+
+To investigate the number of Quality Control steps required vary the &amp;TestRun parameter.
+
+Kevin J. Northover
+Refs:  Capers Jones, IEEE Computer, March 1996, 116-118.
+Ted Lewis, IEEE Computer, August 1996, 13-15.
+</text>
+<script>out("1. Function Points        = ",fp!,"\n")
+out("2. Paper Deliverables  = ",paper!," pages, ",400*paper!," words\n")
+out("3. Fnct. Pts. Growth    = ",Growth!," percent by delivery \n")
+out("3a.  Critical Creep        = ",Critical_Creep!*100," percent\n")
+out("4. Test Cases               = ",test!,";  test runs = ",test!*4,"\n")
+out("5. Defect Potential      = ",Defect!,"\n")
+out("6. Defects Shipped      = ",BugsLeft!,"\n")
+out("7. Schedule (months)  = ",Schedule!,"\n")
+out("8. Build Staffing            = ",Staffing!,"\n")
+out("9. Maintenance Staff  = ",Maintenance!,"\n")
+out("9b. Years of Use          = ",Lifetime!,"\n")
+out("10. Total Effort            = ", Effort!,"\n")</script></cell>
+<cell>
+<cname>KDSI</cname>
+<text>Enter the estimated number of thousands of lines of delivered noncommentary logical source code statements in the value field of this cell.</text>
+<val>40</val></cell>
+<cell>
+<cname>Lifetime</cname>
+<text>Rule 9b:  Raising the function points total to the 0.25 power yields the approximate number of years the application will stay in use.</text>
+<val>4.47214</val>
+<script>pow(fp,0.25)</script></cell>
+<cell>
+<cname>LOC_to_fpoint</cname>
+<text>Rule 1:  One function point = 100 logical source code statements.
+This ratio can vary from >300 for assembler to &lt;20 for object oriented languages and program generators.  For procedural languages such as COBOL, C, Fortran, etc. 100 is a rough conversion factor.
+Enter the conversion factor to use in the value field.</text>
+<val>100</val></cell>
+<cell>
+<cname>Maintenance</cname>
+<text>Rule 9:  Dividing the number of function points by 500 predicts the approximate number of maintenance personnel required to keep the application updated.</text>
+<val>0.80000</val>
+<script>fp/500</script></cell>
+<cell>
+<cname>Paper</cname>
+<text>Rule 2:  Raising the number of function points to the 1.15 power predicts approximate page counts for paper documents associated with software projects.</text>
+<val>982.58242</val>
+<script>pow(fp,1.15)</script></cell>
+<cell>
+<cname>Schedule</cname>
+<text>Rule 7:  Raising the number of function points to the 0.4 power predicts the approximate development schedule in calendar months.</text>
+<val>10.98561</val>
+<script>pow(fp,0.4)</script></cell>
+<cell>
+<cname>Staffing</cname>
+<text>Rule 8:  Dividing the number of function points by 150 predicts the approximate number of personnel required for the application.</text>
+<val>2.66667</val>
+<script>fp/150</script></cell>
+<cell>
+<cname>Test</cname>
+<text>Rule 4:  Raising the number of function points to the 1.2 power predicts the approximate number of test cases created.</text>
+<val>1325.78161</val>
+<script>pow(fp,1.2)</script></cell>
+<cell>
+<cname>TestRun</cname>
+<text>Number of Test Cycles in development of system.  Includes Major Design Reviews, code inspections and various testing levels.</text>
+<val>10</val></cell></eof>

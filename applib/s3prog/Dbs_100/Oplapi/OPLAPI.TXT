@@ -1,0 +1,1138 @@
+                                CONTENTS
+
+
+1. INTRODUCTION
+
+ 1.1 The Database Server Objects
+  1.1.1 Database
+  1.1.2 Table
+  1.1.3 Index
+  1.1.4 View
+
+
+2. THE OPL CLIENT API
+
+ 2.1 The Server
+  2.1.1 Connection to the server
+  2.1.2 Disconnection from the server
+  2.1.3 Error number conversion
+  2.1.4 Obtaining the last error number
+  2.1.5 Setting the error mode the database server is running in
+  2.1.6 Obtaining the database server version
+  2.1.7 Changing the default path for temporary files
+
+ 2.2 Database
+  2.2.1 Opening a database
+  2.2.2 Closing a database
+  2.2.3 Obtaining the number of tables
+  2.2.4 Obtaining the name of a table
+
+ 2.3 Table
+  2.3.1 Creating a table
+  2.3.2 Opening a table
+  2.3.3 Deleting a table
+  2.3.4 Closing a table
+  2.3.5 Compressing a table
+  2.3.6 Obtaining a table's field count
+  2.3.7 Obtaining the definition of a field
+  2.3.8 Obtaining a table's index count
+  2.3.9 Obtaining the name of an index
+
+ 2.4 Index
+  2.4.1 Creating an index
+  2.4.2 Opening an index
+  2.4.3 Closing an index
+  2.4.4 Deleting an index
+  2.4.5 Rebuilding an index
+  2.4.6 Obtaining an index's definition
+
+ 2.5 TblView
+  2.5.1 Creating a tblview
+  2.5.2 Setting a view's current index
+  2.5.3 Seeking on an index
+  2.5.4 Adding a record to a sparse index
+  2.5.4 Removing a record from a sparse index
+
+ 2.6 DynaView
+  2.6.1 Creating a dynaview
+
+ 2.7 View
+  2.7.1 Closing a view
+  2.7.2 Cloning a view
+  2.7.3 Obtaining a record count
+  2.7.4 Finding a record
+  2.7.5 Moving around a view
+  2.7.6 Creating a bookmark
+  2.7.7 Obtaining the bookmark of the last modified record
+  2.7.8 Moving to a bookmark
+  2.7.9 Obtaining the size of a field
+  2.7.10 Obtaining the value of a field
+  2.7.11 Setting the value of a field
+  2.7.12 Obtaining the value of a long binary field
+  2.7.13 Appending to a long binary field
+  2.7.14 Clearing a long binary field
+  2.7.15 Appending a record
+  2.7.16 Editing a record
+  2.7.17 Updating a record
+  2.7.18 Cancelling an edit or append
+  2.7.19 Deleting a record
+
+
+3. SQL SUPPORT
+
+ 3.1 Find and DynaView Filters
+
+ 3.2 DynaView and Index Sort Order
+
+
+4. DATABASE SERVER ERROR NUMBERS
+
+
+5. DATABASE FORMATS
+
+ 5.1 Psion
+
+ 5.2 dBase III
+
+ 5.3 dBase IV
+
+ 5.4 Index tracking
+
+
+----------------------------------------------------------------------
+
+1. Introduction
+
+  The database server, SYS$DATA, is designed to allow easy manipulation of
+  database files from both C and OPL applications via a set of API function
+  calls.
+
+  Currently three database formats are supported:
+
+   * Psion: DBF table files with binary-tree PDX index files.
+
+   * dBase III: DBF table files with binary-tree NDX index files.
+
+   * dBase IV: DBF table files with binary-tree MDX and NDX index files.
+
+  The server allows several clients to access the same database files
+  simultaneously without having to know anything about each other.
+
+
+1.1 The Database Server Objects
+
+  The server provides 4 different `object' types: Database, Table, View and
+  Index.  A simple diagram showing their relationship to each other is
+  shown below
+
+                               ============
+                               = Database =
+                               ============
+                                     |
+                                 =========
+                                 = Table =
+                                 =========
+                                 /      \
+                                /        \
+                               /          \
+                        =========       ========
+                        = Index =       = View =
+                        =========       ========
+
+                  Fig.1.  Database server object diagram
+
+  Before any of the objects can be used, the application must first connect
+  to the database server by calling the DbsConnect function.  This will
+  start the database server process if it is not already running, and
+  initialise the application as a client.
+
+
+1.1.1 Database
+
+  A database must be opened or created before any tables can be opened.
+  All the supported database formats are directory based and so creating a
+  database will create the corresponding directory on the disk.  Similarly
+  opening a database will expect the specified directory to exist (even
+  though it won't necessarily contain any tables).
+
+
+1.1.2 Table
+
+  The server table provides a means of creating and opening table files
+  that exist in the database.  To actually access any data contained within
+  the table, a view must first be created.
+
+
+1.1.3 Index
+
+  An index provides a means of sorting the data which is contained within a
+  table.
+
+
+1.1.4 View
+
+  A view provides a means of accessing the data contained within the table.
+  The user can easily move around the table, search for records, and edit
+  the data through a view.
+
+  Two types of view are provided, a TblView and a DynaView.  A TblView
+  supports the use of an associated index which allows the records to be
+  viewed in a specified order, and fast binary searches to be performed
+  using the DbsTblViewSeek function.  A DynaView does not support indexes,
+  but does allow a filtered and ordered view of the records in the table to
+  be produced easily.
+
+  For example, given a table file which contains a user's address book
+  data, a TblView would allow the user to sort the records in alphabetical
+  order and quickly move to a particular person's entry.  A DynaView would
+  allow the user to selectively view only those people who lived in, say,
+  London.
+
+
+
+2. The OPL Client API
+
+  The OPL API exists as an OPL module called database.opo.  All the API
+  functions are defined as procedures in this module.  To make the
+  procedure names readable, #defines are provided to map a long function
+  name onto the short procedure name (this means that all function calls
+  are case sensitive).
+
+  The OPL programmer will need to #include the .oph header file which
+  defines the long function names and the database server flags, and issue
+  a LOADM statement to load the database module, before any API functions
+  can be called.  If using ODE, then they will also need to add the header
+  file, the .lex file and the database.opo module to their project.
+
+  Several functions require complex structures to be passed to the server,
+  these are implemented as a sequence of procedures similar to the way OPL
+  implements dialogs, menus, etc.
+
+  Any parameters which are passed back to the user (eg. the table handle
+  when a table is opened, or the count parameter when obtaining a record
+  count from a table) must be either LOCAL or GLOBAL variables.  This is
+  because the API needs to use the ADDR function to find their address, and
+  this can't be used on variables on the stack.
+
+  Field types that are supported by the server (though not necessarily by
+  all database formats) are:
+
+  DBS_TYPE_LOGICAL      0 is False, any other value is True.
+  DBS_TYPE_INT8         8-bit signed integer.
+  DBS_TYPE_UINT8        8-bit unsigned integer.
+  DBS_TYPE_INT16        16-bit signed integer.
+  DBS_TYPE_UINT16       16-bit unsigned integer.
+  DBS_TYPE_INT32        32-bit signed integer.
+  DBS_TYPE_UINT32       32-bit unsigned integer.
+  DBS_TYPE_DOUBLE       8-byte IEEE format floating point number.
+  DBS_TYPE_STRING       0-255 bytes in length. Maybe variable length
+                        if database supports it.
+  DBS_TYPE_DATE         Passed as two longs, days& and secs&.
+                        days& is days from 1/1/1900 and maybe
+                        negative for dates before 1900.
+                        secs& is seconds after midnight.
+  DBS_TYPE_LONGBINARY   Large binary object.
+
+
+
+2.1 The Server
+
+
+2.1.1 Connection to the server
+
+   DbsConnect(mode%)
+
+  Must be done before any other server requests are made.
+
+  mode% allows the client process to indicate to the server how it is to be
+  informed of errors.  If mode% is set to DBS_MODE_LEAVE, then the API will
+  RAISE any errors that occur, otherwise the API will return errors as a
+  negative error code.
+
+  DBS errors have negative error codes that start at -1000.  The OPL
+  RAISE command however can only cope with 8 bit error codes, so
+  whenever a DBS error occurs, the error nunber -127 is raised,
+  indicating that a DBS error has occured.  The DbsGetError function
+  can then be used to determine the actual DBS error.  If any EPOC
+  errors, for example 'File Not Found', are generated by the server, then
+  the corresponding EPOC error code (-33 in this case) will be raised,
+  and DbsGetError will also return -33.
+
+
+2.1.2 Disconnection from the server
+
+   DbsDisconnect
+
+  Disconnects the client from the server and shuts down the server if no
+  other clients are connected to it.  All databases opened by the client
+  must be closed before disconnection otherwise an E_DBS_OPEN error will be
+  returned and the client will remain connected.
+
+
+2.1.3 Error number conversion
+
+   DbsErrorString(errorno%,error$)
+
+  Converts the database server error number errorno% into an error message
+  in error$.  error$ must be at least 64 characters in length.
+
+
+2.1.4 Obtaining the last error number
+
+   DbsGetError
+
+  Returns the result of the last DBS function called, either 0 if it
+  was successful, or the negative error code if one was generated.
+
+
+2.1.5 Setting the error mode the database server is running in
+
+   DbsSetErrorMode(mode%)
+
+  mode% allows the client process to indicate to the server how it is to be
+  informed of errors.  If mode% is set to DBS_MODE_LEAVE, then the API will
+  RAISE any errors that occur, otherwise the API will return errors as a
+  negative error code.
+
+
+2.1.6 Obtaining the database server version
+
+   DbsVersion(version%,version$)
+
+  Returns the server version number as an integer and a string. version$
+  should be at least 8 characters in length.
+
+2.1.5 Changing the default path for temporary files
+
+   DbsSetTempDir(path$)
+
+  Sets the path that the database server uses to store its temporary
+  files in.  By default the root of M: is used.  The path must have
+  a trailing backslash (eg. "A:\TEMP\").
+
+
+
+2.2 Database
+
+
+2.2.1 Opening a database
+
+   DbsDatabaseOpen(hDBase%,format$,database$,flags%)
+
+  format$ is a string describing the database format.  If the format is an
+  empty string, Psion DBF format is assumed, otherwise the string must one
+  of `Psion', `dBase III', or `dBase IV', any other string
+  will result in an E_DBS_NOISAM error being generated, indicating that no
+  ISAM DYL was found for the format string i.e. the format is not
+  supported.
+
+  database$ is the database directory.  The database handle (required for
+  any further methods on the database) is returned in hDBase%.
+
+  flags% can specify any of DBS_CREATE, DBS_READONLY,  DBS_APPENDONLY,
+  DBS_LOCKREAD, DBS_LOCKWRITE and DBS_EXCLUSIVE.  If create is indicated,
+  then a new directory will be created for the database. The append-only
+  flag will restrict the user to being able to use only the following
+  functions on any views they create:
+
+   DbsViewAppendRecord
+   DbsViewCancelUpdate
+   DbsViewUpdateRecord
+   DbsViewLBinAppendChunk
+   DbsViewLBinAppendChunkByName
+   DbsViewSetField
+   DbsViewSetFieldByName
+
+  They will also be unable to delete any indexes or tables.
+
+  The exclusive flag prevents the database being opened by more than one
+  process at any time, the lockread flag forces any other clients to open
+  the database in append-only mode and the lockwrite flag forces any other
+  clients which open the database to open it in read-only mode.
+
+
+2.2.2 Closing a database
+
+   DbsDatabaseClose(hDBase%)
+
+  Close the database.  Do not use the database handle after this call.
+  There must be no open tables on the database otherwise the call will fail
+  with E_DBS_OPEN.
+
+
+2.2.3 Obtaining the number of tables
+
+   DbsDatabaseGetTableCount(hDBase%)
+
+  The function returns the number of tables in the database.
+
+
+2.2.4 Obtaining the name of a table
+
+   DbsDatabaseGetTableName(hDBase%,num%,name$)
+
+  Return the name of table number num% in name$.  The table names are only
+  refreshed from the database the first time this function is called or
+  when DbsDatabaseGetTableCount is called.  If tables have been deleted or
+  created since the last call to DbsDatabaseGetTableName then it is
+  possible that the server's list of tables will be out of date.  The
+  client should call DbsDatabaseGetTableCount first if they need to be
+  certain of obtaining the correct table name.
+
+
+
+2.3 Table
+
+
+2.3.1 Creating a table
+
+   DbsTableCreateInit(hBuffer%)
+   DbsTableCreateAddField(hBuffer%,type%,size%,attr%,name$)
+   DbsTableCreate(hBuffer%,hDBase%,hTable%,name$,flags%)
+
+  DbsTableCreateInit allocs a block of memory for the building of a
+  DBS_TABLEDEF structure and passes back a pointer, hBuffer%, to its start.
+
+  DbsTableCreateAddField then adds the details of a new field to the
+  buffer. For each field definition, name$ gives the name of the field up
+  to DBS_NAMESIZE bytes long, though the maximum length supported is
+  database dependent and over-long names are truncated.  type% gives the
+  field type, size% gives the size of the field - this is ignored for all
+  but text fields - and attributes% which indicate what the attributes of
+  the field are. This can be either/both of DBS_NOUPDATE or DBS_NOTNULL
+  which indicate whether once set, the value of a field can be altered or
+  not and whether records with a null (zero) value in the field can be
+  added to the table.
+
+  DbsTableCreate creates the table with name name$ and frees the buffer at
+  hBuffer%.  For directory-based databases the table name has a default
+  extension applied if no extension is given.  If flags% specifies
+  DBS_TEMPORARY then name$ is ignored and a unique name is used, the table
+  will be deleted automatically when closed.  flags% can also specify
+  DBS_EXCLUSIVE, DBS_APPENDONLY, DBS_LOCKREAD or DBS_LOCKWRITE.  These have
+  the same effect as for DbsDatabaseOpen except they only apply to the
+  table being opened.
+
+  The new table's handle is written back to hTable%.
+
+
+2.3.2 Opening a table
+
+   DbsTableOpen(hDBase%,hTable%,name$,flags%)
+
+  Open a table in a database with name name$.  The table name has a default
+  extension applied if no extension is given. flags% can specify
+  DBS_EXCLUSIVE, DBS_READONLY, DBS_APPENDONLY, DBS_LOCKREAD or
+  DBS_LOCKWRITE.  These have the same effect as for DbsDatabaseOpen except
+  they only apply to the table being opened.
+
+  The opened table handle is written back to hTable%.
+
+
+2.3.3 Deleting a table
+
+   DbsTableDelete(hTable%)
+
+  Delete a table from a database.  This will delete the data and any
+  associated indexes (not only the open ones).  It will also close and
+  delete any open views on the table.  This function will fail with
+  E_DBS_LOCKED if any other clients have the table open, to be sure that
+  this is not the case open the table with DBS_EXCLUSIVE set.
+
+
+2.3.4 Closing a table
+
+   DbsTableClose(hTable%)
+
+  Close the table.  Do not use the table handle after this call.  There
+  must be no open indexes, views on the table otherwise the call will fail
+  with E_DBS_OPEN.
+
+
+2.3.5 Compressing a table
+
+   DbsTableCompress(hDBase%,name$)
+
+  Compress the table.  The table must not be open by any clients, the
+  table to compress is specified by the handle of the database and
+  the table name rather than the usual table handle.  It will only
+  compress Psion tables.
+  
+  This function compresses the specified table using DbfCompress,
+  then rebuilds any indexes that exist on the table.
+
+
+2.3.5 Obtaining a table's field count
+
+   DbsTableGetFieldCount(hTable%)
+
+  The function returns the number of fields in the table.
+
+
+2.3.6 Obtaining the definition of a field
+
+   DbsTableGetFieldDef(hTable%,field%,name$,num%,type%,size%,attr%)
+   DbsTableGetFieldDefByName(hTable%,field$,name$,num%,type%,size%,attr%)
+
+  Reads the field definition in, splits it up into its component parts and
+  passes them back to the user.
+
+  name$ is the field name, num% is the field's ordinal number, size% is its
+  size in bytes (for variable length string fields and long binary fields
+  this is 0), attr% returns the field attributes (DBS_NOTNULL and
+  DBS_NOUPDATE).
+
+
+2.3.7 Obtaining a table's index count
+
+   DbsTableGetIndexCount(hTable%,count%)
+
+  The function returns the number of indexes on the table.
+
+
+2.3.8 Obtaining the name of an index
+
+   DbsTableGetIndexName(hTable%,num%,name$)
+
+  Returns the name of index number num% in name$.  The index names are only
+  refreshed from the table the first time this function is called or when
+  DbsTableGetIndexCount is called.  If indexes have been deleted or created
+  since the last call to DbsTableGetIndexName then it is possible that the
+  server's list of indexes will be out of date.  The client should call
+  DbsTableGetIndexCount first if they need to be certain of obtaining the
+  correct index name.
+
+
+
+2.4 Index
+
+
+2.4.1 Creating an index
+
+   DbsIndexCreateInit(hBuffer%)
+   DbsIndexCreateAddField(hBuffer%,field%,flags%,len%)
+   DbsIndexCreate(hBuffer%,hTable%,hIndex%,index$,flags%)
+
+   DbsIndexCreateText(hTable%,hIndex%,index$,flags%,def$)
+
+  Creates an index in an analogous way to the way DbsTableCreate creates a
+  table.
+
+  DbsIndexCreateInit initilises the buffer, then DbsIndexCreateAddField
+  adds each key field to the index in turn.  field% is the field's ordinal
+  number, flags% specifies either DBS_ASCEND or DBS_DESCEND and len% gives
+  the number of characters to use in the key for string fields - for other
+  field types its value is ignored.
+
+  DbsIndexCreate then creates the index and cleans up the buffer.  flags%
+  specifies any of DBS_TEMPORARY  or DBS_UNIQUE. If DBS_TEMPORARY is
+  specified, then the index name is ignored, and the index will be deleted
+  automatically when it is closed.  DBS_MANUAL can also be specified,
+  meaning that the index will not automatically be built on creation,
+  and will not automatically have records added to it when they are
+  appended to the table. To add a record to a manual index use the
+  DbsTblViewAddIndex() function.  Note that a manual index must be
+  opened with the DBS_MANUAL flag set every time it is opened, not just
+  when it is created. It is also possible to open an index which was
+  created without the DBS_MANUAL flag with it set to add/remove
+  records from it.
+
+  Alternatively DbsIndexCreateText creates the index using an SQL order by
+  clause in def$.  In this case DbsIndexCreateInit and DbsIndexCreateAddField
+  need not be used.
+
+
+2.4.2 Opening an index
+
+   DbsIndexOpen(hTable%,hIndex%,index$,flags%)
+
+  Open the index index$.  flags% may specify DBS_READONLY.  The handle is
+  written back to hIndex%.
+
+
+2.4.3 Closing an index
+
+   DbsIndexClose(hTable%,hIndex%)
+
+  Close the index with handle hIndex%.  Do not use the index handle after
+  this call.
+
+
+2.4.4 Deleting an index
+
+   DbsIndexDelete(hTable%,hIndex%)
+
+  Delete the index with handle hIndex%. Do not use the index handle after
+  this call.
+
+
+2.4.5 Rebuilding an index
+
+   DbsIndexRebuild(hTable%,hIndex%)
+
+  Rebuilds the index with handle hIndex% from the table.
+
+
+2.4.6 Obtaining an index's definition
+
+   DbsIndexGetKeyCount(hTable%,hIndex%,attrib%)
+   DbsIndexGetKeyDef(hTable%,hIndex%,num%,field%,flags%,len%)
+
+  DbsIndexGetKeyCount returns the number of keys in the index and the
+  passes back the index's attributes in attrib%.  DbsIndexGetKeyDef
+  returns the values of the DBS_KEYELEM structure for key number num% in
+  index hIndex%.
+
+
+
+
+2.5 TblView
+
+
+2.5.1 Creating a tblview
+
+   DbsTblViewCreate(hTable%,hTView%,flags%)
+
+  Create a TblView on the table.  flags% can specify DBS_READONLY in which
+  case records in the table can only be read and not written/created
+  through this view, or DBS_APPENDONLY in which records can only be
+  appended to the table, no existing records can be accessed.
+
+
+2.5.2 Setting a view's current index
+
+   DbsTblViewSetIndex(hTView%,hIndex%)
+
+  Sets the TblView's current index property to the index hIndex%, which
+  must previously have been opened using DbsIndexOpen. If hIndex% is 0,
+  then the current index is cleared, and all Move and Find methods will use
+  the underlying table order.
+
+
+2.5.3 Seeking on an index
+
+   DbsTblViewSeekInit(hBuffer%)
+
+   DbsTblViewSeekAddLogical(hBuffer%,value%)
+   DbsTblViewSeekAddInt8(hBuffer%,value%)
+   DbsTblViewSeekAddUInt8(hBuffer%,value%)
+   DbsTblViewSeekAddInt16(hBuffer%,value%)
+   DbsTblViewSeekAddInt32(hBuffer%,value&)
+   DbsTblViewSeekAddDouble(hBuffer%,value)
+   DbsTblViewSeekAddString(hBuffer%,value$)
+   DbsTblViewSeekAddDate(hBuffer%,days&,secs&)
+
+   DbsTblViewSeek(hBuffer%,hTView%,compare%)
+
+  Seek for a record on the current index. DbsTblViewSeekInit allocs and
+  clears a buffer which holds the DBS_SEEKDEF structure whilst it is being
+  built.  It passes back a pointer, hBuffer%,to the beginning of the
+  allocated cell. DbsTblViewSeekAdd... adds a key to the seek starting with
+  the first field in the index. No check is made to see if it is the same
+  type as the corresponding index field.  DbsTblViewSeek calls the seek
+  function in the database server, passing the previously built structure
+  to the server,  it then frees the buffer.  If any fields are the wrong
+  type this call could produce unpredictable results.
+
+  compare% indicates the comparison type used: one of DBS_COMP_EQUAL,
+  DBS_COMP_NOTEQ, DBS_COMP_LESS, DBS_COMP_LESSEQ, DBS_COMP_GREAT and
+  DBS_COMP_GREATEQ.  Sets the current record to the matching record and
+  returns 0 if a match is found. If not, leaves the current record as is,
+  and returns E_DBS_NOMATCH.
+
+
+2.5.4 Adding a record to a sparse index
+
+   DbsTblViewAddIndex(hTView%)
+
+  Add the current record to the current index.  The index must have
+  been created with the DBS_MANUAL flag set.
+
+
+2.5.5 Removing a record from a sparse index
+
+   DbsTblViewRemoveIndex(hTView%)
+
+  Remove the current record from the current index.  The index must have
+  been created with the DBS_MANUAL flag set.
+
+
+2.6 DynaView
+
+
+2.6.1 Creating a dynaview
+
+   DbsDynaViewCreateInit(hBuffer%)
+   DbsDynaViewCreateAddField(hBuffer%,field%,flags%,len%)
+   DbsDynaViewCreateOnTable(hBuffer%,hTable%,hDView%,filter$)
+   DbsDynaViewCreateOnRecSet(hBuffer%,hOldDView%,hDView%,filter$)
+
+   DbsDynaViewCreateOnTableText(hTable%,hDView%,filter$,sort$)
+   DbsDynaViewCreateOnRecSetText(hOldDView%,hDView%,filter$,sort$)
+
+  The first 2 procedures build up a DBS_KEYDEF structure as used by the
+  DbsIndexCreate procedure. DbsDynaViewCreateOnTable then creates the
+  dynaview using the order specified by the DBS_KEYDEF structure and the
+  filter in filter$, on the table with handle hTable%.
+  DbsDynaViewCreateOnRecSet does the same thing except using the dynaview
+  with handle hOldRset%.  If hBuffer% is 0 then the underlying
+  table/dynaview order is used, as with the corresponding C API function.
+
+  Alternatively, the Text functions may be used to specify the sort order
+  as an SQL order by clause rather than a DBS_KEYDEF structure.
+
+
+
+2.7 View
+
+
+2.7.1 Closing a view
+
+   DbsViewClose(hView%)
+
+  Close the view.  Do not use the view handle after this call.
+
+
+2.7.2 Cloning a view
+
+   DbsViewClone(hOldVw%,hNewVw%)
+
+  Clone a view.  This will produce a new View object identical to the old
+  view object.  For TblViews, this is no different to creating a new
+  TblView object using DbsTblViewCreate.  For DynaView objects things are
+  slightly different, records which are added to one DynaView object will
+  also be added to all clones of that DynaView object, similarly for
+  records which are deleted.  The cloned DynaView always contains exactly
+  the same records as the DynaView it was cloned from.  All cloned views
+  must be separately closed before the table can be closed.
+
+
+2.7.3 Obtaining a record count
+
+   DbsViewGetRecordCount(hView%,count&)
+
+  Get the number of records in a view.
+
+
+2.7.4 Finding a record
+
+   DbsViewFindFirst(hView%,search$)
+   DbsViewFindLast(hView%,search$)
+   DbsViewFindNext(hView%,search$)
+   DbsViewFindPrevious(hView%,search$)
+
+  Finds the first, last, next or previous record in the view which matches
+  the search criteria (see section 3) in search$ and makes it the current
+  record. Returns 0 if a match is found and makes the matching record the
+  current record, else returns E_DBS_NOMATCH and leaves the current record
+  undefined.  The view's current index is used to give the record order, or
+  if there is no current index, the underlying record order of the table is
+  used.
+
+
+2.7.5 Moving around a view
+
+   DbsViewMoveFirst(hView%)
+   DbsViewMoveLast(hView%)
+   DbsViewMoveNext(hView%)
+   DbsViewMovePrevious(hView%)
+
+  Move to the first, last, next or previous record in the view and make it
+  the current record.  Returns E_FILE_EOF if there are no more records in
+  the specified direction.  If the view is a TblView, then the current
+  index is used to give the record order, or if there is no current index,
+  the underlying record order of the table is used.
+
+
+2.7.6 Creating a bookmark
+
+   DbsViewGetBookmark(hView%,Bmark$)
+
+  Creates a bookmark at the current record in the view.  A bookmark can
+  only be used on the view from which it was created.
+
+  Bmark$ must be at least DBS_BOOKMARK_SIZE (8) characters in length.
+
+
+2.7.7 Obtaining the bookmark of the last modified record
+
+   DbsViewGetLastModified(hView%,Bmark$)
+
+  Returns the bookmark of the last modified record in the view, the last
+  modified record being the last record in the view to be either appended
+  or edited.
+
+
+2.7.8 Moving to a bookmark
+
+   DbsViewMoveBookmark(hView%,Bmark$)
+
+  Sets the view's current record to the record at the bookmark Bmark$.
+
+
+2.7.9 Obtaining the size of a field
+
+   DbsViewGetFieldSize(hView%,field%,size&)
+   DbsViewGetFieldSizeByName(hView%,field$,size&)
+
+  Returns the size of the field with ordinal number field%.  For non-
+  variable length fields (anything but variable length strings and long
+  binary fields), this will return the same size as given in the field
+  definition.
+
+
+2.7.10 Obtaining the value of a field
+
+   DbsViewGetFieldLogical(hView%,field%,value%)
+   DbsViewGetFieldInt8(hView%,field%,value%)
+   DbsViewGetFieldUInt8(hView%,field%,value%)
+   DbsViewGetFieldInt16(hView%,field%,value%)
+   DbsViewGetFieldInt32(hView%,field%,value&)
+   DbsViewGetFieldDouble(hView%,field%,value)
+   DbsViewGetFieldString(hView%,field%,value$)
+   DbsViewGetFieldDate(hView%,field%,days&,secs&)
+
+   DbsViewGetFieldLogicalByName(hView%,field$,value%)
+   DbsViewGetFieldInt8ByName(hView%,field$,value%)
+   DbsViewGetFieldUInt8ByName(hView%,field$,value%)
+   DbsViewGetFieldInt16ByName(hView%,field$,value%)
+   DbsViewGetFieldInt32ByName(hView%,field$,value&)
+   DbsViewGetFieldDoubleByName(hView%,field$,value)
+   DbsViewGetFieldStringByName(hView%,field$,value$)
+   DbsViewGetFieldDateByName(hView%,field$,days&,secs&)
+
+  These have to be split up in this way since the C API get field uses a
+  VOID* so it can cope with any type. OPL can't do that because it can't
+  automatically cope with the different types, strings have to converted to
+  BCS, and dates have to be converted from a DBS_DAYSEC structure to two
+  longs, days& and secs&.  For the GetFieldString functions, the string
+  variable passed to the function must not be part of an array, because the
+  function relies on OPLs string variable internal format to determine how
+  many characters to read.
+
+
+2.7.11 Setting the value of a field
+
+   DbsViewSetFieldLogical(hView%,field%,value%)
+   DbsViewSetFieldInt8(hView%,field%,value%)
+   DbsViewSetFieldUInt8(hView%,field%,value%)
+   DbsViewSetFieldInt16(hView%,field%,value%)
+   DbsViewSetFieldInt32(hView%,field%,value&)
+   DbsViewSetFieldDouble(hView%,field%,value)
+   DbsViewSetFieldString(hView%,field%,value$)
+   DbsViewSetFieldDate(hView%,field%,days&,secs&)
+
+   DbsViewSetFieldLogicalByName(hView%,field$,value%)
+   DbsViewSetFieldInt8ByName(hView%,field$,value%)
+   DbsViewSetFieldUInt8ByName(hView%,field$,value%)
+   DbsViewSetFieldInt16ByName(hView%,field$,value%)
+   DbsViewSetFieldInt32ByName(hView%,field$,value&)
+   DbsViewSetFieldDoubleByName(hView%,field$,value)
+   DbsViewSetFieldStringByName(hView%,field$,value$)
+   DbsViewSetFieldDateByName(hView%,field$,days&,secs&)
+
+  Again, these need to be split so that OPL can cope with the different
+  type conversions.  days& and secs& are the days and seconds since 12:00am
+  1/1/1900.
+
+
+2.7.12 Obtaining the value of a long binary field
+
+   DbsViewLBinGetChunk(hView%,field%,pBuffer%,len%,offset&)
+   DbsViewLBinGetChunkByName(hView%,field$,pBuffer%,len%,offset&)
+
+  pBuffer% points to a buffer, usually an alloced area of memory. len%
+  contains the number of bytes to read. As with the corresponding C API
+  function, the function returns the actual number of bytes read.
+
+
+2.7.13 Appending to a long binary field
+
+   DbsViewLBinAppendChunk(hView%,field%,pBuffer%,len%)
+   DbsViewLBinAppendChunkByName(hView%,field$,pBuffer%,len%)
+
+  pBuffer% points to a buffer containing the data to be appended to the
+  field.
+
+
+2.7.14 Clearing a long binary field
+
+   DbsViewLBinClear(hView%,field%)
+   DbsViewLBinClearByName(hView%,field$)
+
+  Clears the long binary field field, and sets its size to zero bytes.  No
+  changes are made to the actual record until it is updated using the
+  DbsViewUpdateRecord method.  Will return an error if used on any type of
+  field other than long binary.
+
+
+2.7.15 Appending a record
+
+   DbsViewAppendRecord(hView%)
+
+  Clear the record buffer ready for a new record to be created. Use the
+  DbsViewSetField method to set the value of the fields in the record, and
+  the DbsViewUpdateRecord method to save the new record.  Using any
+  function which changes the current record will lose the changes made in
+  the record buffer and cancel the Append operation.
+
+
+2.7.16 Editing a record
+
+   DbsViewEditRecord(hView%)
+
+  Read the current record into the record buffer ready for editing. Use the
+  DbsViewSetField method to change the value of the fields in the record,
+  and the DbsViewUpdateRecord method to save the changed record.  Using any
+  function which changes the current record will lose the changes made in
+  the record buffer and cancel the Edit operation.  Note that if another
+  client is already editing the record then this function will give an
+  E_DBS_LOCKED error.
+
+
+2.7.17 Updating a record
+
+   DbsViewUpdateRecord(hView%)
+
+  Update the table with the record in the record buffer.  Any open indexes
+  are automatically updated.  If for any reason the update fails (for
+  example a NOTNULL field contains a null value), then an error is
+  signalled and the record remains in append or edit mode to allow the
+  error to be corrected easily.
+
+
+2.7.18 Cancelling an edit or append
+
+   DbsViewCancelUpdate(hView%)
+
+  This will cancel any DbsViewAppendRecord or DbsViewEditRecord and lose
+  the changes which have been made in the record buffer.  The current
+  record will return to where it was prior to the append or edit being
+  started.  If there has been no append or edit, then this function will
+  have no effect.
+
+
+2.7.19 Deleting a record
+
+   DbsViewDeleteRecord(hView%)
+
+  Delete the current record from the table.  Any open indexes are
+  automatically updated.
+
+
+
+
+3. SQL Support
+
+
+3.1 Find and DynaView Filters
+
+  The database server provides limited SQL support for the declaration of
+  search expressions in a Find call and the DynaView filter in a
+  CreateDynaView call.  The expression corresponds to the WHERE clause in a
+  SQL statement, but only the following syntax is implemented:
+
+  search-condition    boolean-term [OR search-condition]
+
+  boolean-term        boolean-factor [AND boolean-term]
+
+  boolean-factor      [NOT] boolean-primary
+
+  boolean-primary     predicate | ( search-condition )
+
+  predicate           comparison-predicate | like-predicate
+
+  comparison-         field-identifier comparison-operator value
+  predicate           The type of the value must match the field type
+
+  like-predicate      field-identifier LIKE string-value
+                      The field must be of type DBS_TYPE_STRING
+
+  field-identifier    fieldname | [fieldname] | [#fieldnumber]
+
+  comparison-         = | <> | < | > | >= | <=
+  operator            When comparing logical fields only the = and <>
+                      operators have any effect, all other operators
+                      will give a type mismatch error.
+
+  value               string-value | numeric-value | logical-value|
+                      date-value
+
+  string-value        "{character}" | '{character}'
+                      "" embedded is interpreted as a ", ditto for '
+
+  numeric-value       number
+                      standard floating point and exponential formats
+                      supported
+
+  logical-value       number | YES | TRUE | NO | FALSE
+                      If a number, zero is FALSE, any other value is
+                      TRUE
+
+  date-value          #{character}#
+                      The contained string must in the form of a date
+                      followed by an optional time, with both date and
+                      time interpretable by PLIB/EPOC
+                      eg. #20/01/95 15:43# or #20/01/1995#
+
+
+3.2 DynaView and Index Sort Order
+
+  The database server allows the sort order of a DynaView to be specified
+  as text sort list with the same syntax as an SQL ORDER BY clause:
+
+  sort-list           sort-item | sort-list ',' sort-item
+
+  sort-item           field-identifier [ASC|DESC]
+
+  field-identifier    fieldname | [fieldname] | [#fieldnumber]
+
+
+
+
+4. Database Server Error Numbers
+
+  The server will return errors to the calling process either as a negative
+  integer value returned by the API function, or by leaving, depending on
+  the value of the error parameter to DbsConnect.  The following error
+  numbers are defined:
+
+ Number  #Define             Meaning
+
+ -1000   E_DBS_INVALID       The current record is invalid
+ -1001   E_DBS_OPEN          Index is already open.
+ -1002   E_DBS_INUPDATE      The current record is already being updated
+ -1003   E_DBS_NOUPDATE      An attempt was made to update a record
+                             before edit or append
+ -1004   E_DBS_NOINDEX       The specified index is not open / set
+ -1005   E_DBS_TYPE          The specified field type is not valid
+ -1006   E_DBS_CONVERT       Internal error - Invalid type conversion
+ -1007   E_DBS_FIELD         The field size specified in the table
+                             definition is too large
+ -1008   E_DBS_NAME          No such field name
+ -1009   E_DBS_LOCKED        The specified database, table, record etc.
+                             is locked by another client, or an attempt
+                             was made to update a NOUPDATE field.
+ -1010   E_DBS_NULL          An attempt was made to write a null value to
+                             a NOTNULL field
+ -1011   E_DBS_KEY           The key field size specified in the index
+                             definition was too large
+ -1012   E_DBS_DUP           A duplicate key was found in the index
+ -1013   E_DBS_BUFFER        Field is outside buffer
+ -1014   E_DBS_NOMATCH       No matching record was found
+ -1015   E_DBS_LBIN          Non-LBin operation on long binary field or
+                             vice versa
+ -1016   E_DBS_FIELDNAME     Invalid field name
+ -1020   E_DBS_SYNTAXERR     Syntax error in find, filter or sort
+                             expression
+ -1021   E_DBS_BRACKET       Missing bracket in find, filter or sort
+                             expression
+ -1022   E_DBS_NOFIELD       Field name/number was expected in find,
+                             filter or sort expression
+ -1023   E_DBS_MISMATCH      Type mismatch in find or filter expression
+ -1024   E_DBS_BADHANDLE     Object handle is corrupted
+ -1025   E_DBS_NOISAM        Requested ISAM format is not found
+ -1026   E_DBS_CONNECTED     Client is already connected to server
+ -1027   E_DBS_CANTLOCK      Can't lock database, table or index
+ -1028   E_DBS_BMARK         An invalid bookmark was specified
+ -1029   E_DBS_NUMBER        The specified field number does not exist
+ -1030   E_DBS_TOOMANYKEYS   Too many keys were given in the key
+                             definition
+ -1031   E_DBS_NOTCLOSED     An attempt was made to close an  object
+                             whilst other objects were still open on it
+ -1032   E_DBS_BADMESSAGE    Internal error - Unrecognised server message
+                             number
+
+
+
+
+5. Database Formats
+
+  Currently, the database server supports three formats - Psion, dBase III
+  and dBase IV - this section documents the differences between them.
+
+
+5.1 Psion
+
+  This is the default database format, if no database format is specified
+  when a database is opened or created, then this format is assumed.  Psion
+  databases support all database server field types, flags and functions
+  with the following exceptions: DbsViewMovePrevious, DbsViewFindPrevious, 
+  DbsViewMoveLast and DbsViewFindLast are not supported on TblViews
+  which have no current index set. The long binary field type is not
+  supported.
+
+
+5.2 dBase III
+
+  The dBase III database format is the most limited of the three supported
+  formats. The following restrictions apply upon their usage:
+
+  * When a table is created, all field types can be specified.  However,
+    the underlying table file does not support either DBS_TYPE_INT16 or
+    DBS_TYPE_INT32 fields, both of these field types are actually stored as
+    doubles.  Things will work fine whilst the table is still open after
+    creation, and both these field types can be both read and written to
+    the table, however, once the table is closed and reopened these fields
+    will appear to the server as DBS_TYPE_DOUBLE.
+
+  * DBS_TYPE_DATE fields only store the days part of the DBS_DAYSEC
+    structure, any time component is ignored.  The date must lie between
+    1st January 1900 and 31st December 2155.
+
+  * DBS_TYPE_STRING fields are fixed length with a maximum length of 254
+    characters.  When setting the value of a string field, the string is
+    either trucated or padded out with spaces.
+
+  * dBase field names can be a maximum of 10 characters in length (any
+    extra characters are truncated) and may only contain alphanumeric
+    characters and underscores.
+
+  * dBase III index files (.NDX files) only support indexing on one field,
+    and only in ascending order.  Indexes can't be created on a
+    DBS_TYPE_LOGICAL field.
+
+
+5.3 dBase IV
+
+  dBase IV tables still have all of the limitations of the dBase III
+  database format.
+
+  * The default index format also supports sorting in descending order.
+
+  * dBase IV supports both .MDX and .NDX index files. By default an index
+    is created as a tag in the production .MDX index file. To open or
+    create an index tag in a different .MDX file the index name should be
+    specified as <tag name>*<.mdx filename>. To open or create a dBase III
+    .NDX index file the index name should be <index name>.<ext>, note that
+    the file extension (default .NDX) must be specified, otherwise the
+    name is interpreted as a tag in the production index .MDX file.
+
+  * The DbsTableGetIndexName function returns index names in the above
+    `canonical' format.
+
+
+5.4 Index tracking
+
+  All three database formats track indexes using a text .INF file for each
+  table (similar to Visual Basic). This is used for the
+  DbsTableGetIndexCount, DbsTableGetIndexName functions and in the
+  process of deleting a table. To create a file for any existing
+  tables/indexes follow the example:
+
+  There is a dBase IV table \DBASE\ADDRESS.DBF with a production index file
+  \DBASE\ADDRESS.MDX and an extra index file \DBASE\INDEX\ADD_NAME.NDX, so
+  the file \DBASE\ADDRESS.INF will contain,
+
+  [dbase]
+  MDX1=ADDRESS
+  NDX1=INDEX\ADD_NAME
+
+  If there is more than one .NDX or .MDX file, use NDX2, NDX3, MDX2, etc...
+  as the keys in the .INF file. The entries are minimal, so paths and
+  extensions are only required if the file is not in the database directory
+  (in this case \DBASE\).
+
+  For Psion tables the .INF file should contain a section called [psion],
+  and the keys are PDX1, PDX2, etc...
+

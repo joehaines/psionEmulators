@@ -1,0 +1,176 @@
+info "Starting Mon_script v.2b"
+
+sendwait 40 "go cis:top","!" goto norep
+sendwait 40 "set paged off","!" goto norep
+sendwait 40 "set width 80","!" goto norep
+
+nexists "\cis\switch\log.on" goto palog1
+capture off
+palog1:
+
+nexists "\cis\switch\citynews.on" goto nocity
+
+! PA NEWS FINANCIAL
+
+sendwait 60 "go cis:citynews","!" goto norep
+send "6"
+
+info "Data to closing.txt...."
+capture "\cis\library\closing.txt"
+
+wait 40 (
+on reply "1 CLOS" goto li1
+on reply "2 CLOS" goto li2
+on reply "3 CLOS" goto li3
+on reply "4 CLOS" goto li4
+on reply "5 CLOS" goto li5
+on reply "6 CLOS" goto li6
+on reply "7 CLOS" goto li7)
+goto norep
+
+li1:
+wait 10
+drain
+sendwait 140 "1","!" goto norep
+goto endcty
+li2:
+wait 10
+drain
+sendwait 140 "2","!" goto norep
+goto endcty
+li3:
+wait 10
+drain
+sendwait 140 "3","!" goto norep
+goto endcty
+li4:
+wait 10
+drain
+sendwait 140 "4","!" goto norep
+goto endcty
+li5:
+wait 10
+drain
+sendwait 140 "5","!" goto norep
+goto endcty
+li6:
+wait 10
+drain
+sendwait 140 "6","!" goto norep
+goto endcty
+li7:
+wait 10
+drain
+sendwait 140 "7","!" goto norep
+goto endcty
+
+nocity:
+nexists "\cis\switch\glo_rep.on" goto end
+
+! GLOBAL REPORT
+
+setup (
+ data = 7
+ parity = even )
+send "go cis:grp-78"
+again0:
+wait 60 (
+
+on reply "Selection:" goto next
+on reply "!" goto again1)
+goto norep
+again1:
+send ""
+goto again0
+
+next:
+
+info "Data to glo_rep.txt...."
+capture "\cis\library\glo_rep.txt"
+
+exists "\cis\switch\glo_all.on" goto allrat
+
+nexists "\cis\switch\glo_mcu.on" goto lu1
+sendwait 100 "MCU/CRO/RAT","Selection:" goto norep
+lu1:
+nexists "\cis\switch\glo_sea.on" goto lu2
+sendwait 100 "SEA/CRO/RAT","Selection:" goto norep
+lu2:
+nexists "\cis\switch\glo_asi.on" goto lu3
+sendwait 100 "ASI/CRO/RAT","Selection:" goto norep
+lu3:
+nexists "\cis\switch\glo_asc.on" goto lu4
+sendwait 100 "ASC/CRO/RAT","Selection:" goto norep
+lu4:
+nexists "\cis\switch\glo_esc.on" goto lu5
+sendwait 100 "ESC/CRO/RAT","Selection:" goto norep
+lu5:
+nexists "\cis\switch\glo_cam.on" goto lu6
+sendwait 100 "CAM/CRO/RAT","Selection:" goto norep
+lu6:
+nexists "\cis\switch\glo_sam.on" goto lu7
+sendwait 100 "SAM/CRO/RAT","Selection:" goto norep
+lu7:
+nexists "\cis\switch\glo_eaf.on" goto lu8
+sendwait 100 "EAF/CRO/RAT","Selection:" goto norep
+lu8:
+nexists "\cis\switch\glo_saf.on" goto lu9
+sendwait 100 "SAF/CRO/RAT","Selection:" goto norep
+lu9:
+
+!  HERE YOU CAN REPEAT THE 3 PRECEDING
+!  LINES, REPLACING "glo_esc.on" BY ANY
+!  "glo_xxx.on", AND "ESC/CRO/RAT"
+!  BY THE CORRESPONDING "XXX/CRO/RAT",
+!  AND CREATING LABELS lu10, lu11,...
+
+goto endglo
+
+allrat:
+sendwait 100 "MCU/CRO/RAT","Selection:" goto norep
+sendwait 100 "SEA/CRO/RAT","Selection:" goto norep
+sendwait 100 "ASI/CRO/RAT","Selection:" goto norep
+sendwait 100 "ASC/CRO/RAT","Selection:" goto norep
+sendwait 100 "ESC/CRO/RAT","Selection:" goto norep
+sendwait 100 "CAM/CRO/RAT","Selection:" goto norep
+sendwait 100 "SAM/CRO/RAT","Selection:" goto norep
+sendwait 100 "EAF/CRO/RAT","Selection:" goto norep
+sendwait 100 "SAF/CRO/RAT","Selection:" goto norep
+
+! YOU CAN ADD SIMILAR LINES HERE FOR
+! MORE PAGES CALLED BY glo_all SWITCH
+
+endglo:
+sendwait 100 "EXIT","!" goto norep
+goto end
+
+endcty:
+sendwait 100 "exit","!" goto norep
+goto end
+
+norep:
+alert " No answer OR unexpected answer from CIS "
+
+end:
+capture off
+
+setup (
+ data = 8
+ parity = none )
+nexists "\cis\switch\log.on" goto palog2
+capture "\cis\archive\readcis.log",append
+palog2:
+
+nexists "m:\app\readcis\logoff.sco" goto loga
+call "m:\app\readcis\logoff.sco"
+loga:
+nexists "a:\app\readcis\logoff.sco" goto logb
+call "a:\app\readcis\logoff.sco"
+logb:
+nexists "b:\app\readcis\logoff.sco" goto nologoff
+call "b:\app\readcis\logoff.sco"
+
+nologoff:
+alert "Cannot find logoff - Script terminated"
+exit
+

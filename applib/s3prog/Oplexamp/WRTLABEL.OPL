@@ -1,0 +1,51 @@
+==========
+psion/opl #2248, from millar, 1237 chars, Sep 17 15:47 95
+Comment to 2244.
+----------
+Actually that's not right!  You can do it from "within" the OPD file, 
+here's how:
+
+After opening the file with CREATE or OPEN do this:
+
+proc WrtLabel:(info%, label$)
+
+/* odbinfo address, and a comma separated list of labels */
+/* info% is info%(1) returned from a call to odbinfo */
+
+
+        local len%, n%, addr%, NewLbl%, abslen%, m%, tmp$(255)
+        local ax%, bx%, cx%, dx%, si%, di%
+        
+        addr%=alloc(257)
+        if addr%=0
+                raise 10
+        endif
+        
+        NewLbl%=1
+        
+        while n%<=LEN(label$)
+                if MID$(label$, n%+1, 1)="," or n%=LEN(label$)
+                        poke$ uadd(addr%,4+len%),tmp$
+                        len%=len%+1+len(tmp$)
+                        tmp$=""
+                else
+                        tmp$=tmp$+mid$(label$, n%+1, 1)
+                endif
+                n%=n%+1
+        endwh
+        pokeb uadd(addr%,2),len%
+        pokeb uadd(addr%,3),$40
+        call($a1,0,len%+4,0,addr%,peekw(uadd(info%,8)))
+        ax%=$1800
+        bx%=peekw(info%)
+        cx%=len%+2
+        if os($D8, addr(ax%)) and 1
+                alert(err$(ax% or $ff00))
+                stop
+        endif
+endp
+
+
+Matt
+
+

@@ -1,0 +1,168 @@
+#define PREV_OPH
+
+/* AC: Note some bits commented out and
+   hard-coded to save memory */
+
+/*#ifndef HWIMMAN_OPH
+#include <sdk\hwimman>
+#endif
+
+#ifndef GATE_OPH
+#include <sdk\gate>
+#endif*/
+
+#ifndef DLGBOX_OPH
+#include <sdk\dlgbox>
+#endif
+
+/*#ifndef PRVPDR_OPH
+#include <sdk\prvpdr>
+#endif
+
+#ifndef PAGES_OPH
+#include <sdk\pages>
+#endif*/
+
+/* Property of prvinfo */
+
+STRUCT PRS_PRVINFO
+	NoPages%
+	FontHeight%
+	FontAscent%
+ENDS
+
+STRUCT PR_PRVINFO
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	prvinfo#(SIZEOF(PRS_PRVINFO))
+ENDS
+
+/* Constants for prvview */
+
+#define PVV_INTERPAGE_GAP 6
+#define PVV_TOP_GAP 4
+#define PVV_FOOTER_GAP 12
+#define PVV_PAGE_SHADOW 1
+#define PVV_SIDE_GAP 12
+#define PVV_PAGENO_DISP_GAP 60
+#define PVV_DISP_FACING 0
+#define PVV_DISP1 1
+#define PVV_DISP2 2
+#define PVV_DISP3 3
+#define PVV_DISP4 4
+#define PVV_MARGINS_ON 0x01
+#define PVV_PREVIEW_SET 0x80
+#define PVV_VIEW_MAX_PAGEVIEWS 4
+
+/* Types for prvview */
+
+STRUCT IN_PRVVIEW
+/*	Calls#(SIZEOF(PAGES_CALLS))*/
+	Calls#(8)
+	PrintMethod%
+	Spare1%
+	Spare2%
+ENDS
+
+STRUCT PVV_PAGE_DATA
+	Margins#(SIZEOF(P_RECT  ))
+	HeadTop%
+	HeadBot%
+	Border#(SIZEOF(P_RECT  ))
+	Footer#(SIZEOF(P_RECT  ))
+ENDS
+
+STRUCT PVV_PAGEVIEW_DATA
+	pArray%
+	NoPages%
+	FirstPage%
+	LastPage%
+	PageOffset%
+	PageNo%
+/*	Disp#(SIZEOF(PVV_DISPLAY))*/
+	Disp#(2)
+	UseGrey%
+	LeftOffset%
+	PageViewWidth%
+	Page#(SIZEOF(PVV_PAGE_DATA))
+	pBitRow%
+	pLastRow%
+	pRowRec%
+	PrvSegHandle%
+/*	Bmp#(SIZEOF(PRV_BITMAP))*/
+	Bmp#(12)
+ENDS
+
+/* Property of prvview */
+
+STRUCT PRS_PRVVIEW
+	pPages%
+	pPrvInfo%
+	pPageView%(PVV_VIEW_MAX_PAGEVIEWS)
+	pOldMenu%
+	pOldComman%
+	Started%
+	PrintMethod%
+	hdone%
+	mdone%
+	NoPageViews%
+	MaxNoPageViews%
+	ScrollArea#(SIZEOF(P_RECT  ))
+	Pv#(SIZEOF(PVV_PAGEVIEW_DATA))
+ENDS
+
+STRUCT PR_PRVVIEW
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	prvview#(SIZEOF(PRS_PRVVIEW))
+ENDS
+
+/* Types for prvpage */
+
+STRUCT IN_PRVPAGE
+	pPrvView%
+	Pos%
+	wid%
+ENDS
+
+/* Property of prvpage */
+
+STRUCT PRS_PRVPAGE
+	init#(SIZEOF(IN_PRVPAGE))
+ENDS
+
+STRUCT PR_PRVPAGE
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	prvpage#(SIZEOF(PRS_PRVPAGE))
+ENDS
+
+/* Property of prvcomm */
+
+STRUCT PRS_PRVCOMM
+	pPrvView%
+ENDS
+
+STRUCT PR_PRVCOMM
+	root#(SIZEOF(PRS_ROOT))
+	prvcomm#(SIZEOF(PRS_PRVCOMM))
+ENDS
+
+/* Property of prvjump_dlg */
+
+STRUCT PR_PRVJUMP_DLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+ENDS
+
+/* Property of prvoptions_dlg */
+
+STRUCT PR_PRVOPTIONS_DLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+ENDS

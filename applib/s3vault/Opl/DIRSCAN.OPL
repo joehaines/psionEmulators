@@ -1,0 +1,51 @@
+REM Source file - DIRSCAN.OPL
+
+REM A simple directory scanner.
+REM The calling program should have
+REM no knowledge of the DSloop:
+REM procedure, and should only use
+REM the DSscan: procedure.
+
+REM Written by Jezar at Psion, for
+REM The 1994 Psion Developers Conference
+
+
+PROC dummy:
+REM  (protects against being run)
+ENDP
+
+
+PROC DSscan:(base$,func$)
+	GLOBAL DSfunc$(7)
+	
+	ONERR done
+	DSfunc$=func$
+	DSloop:(base$)
+	RAISE 0
+done::
+	IF ERR
+		RAISE ERR
+	ENDIF
+ENDP
+
+
+PROC DSloop:(base$)
+	LOCAL fname$(130)
+	
+	fname$=DIR$(base$)
+	WHILE fname$<>""
+		IF EXIST(fname$)
+			IF @%(DSfunc$):(fname$)
+				RAISE 0
+			ENDIF
+			fname$=DIR$("")
+		ELSE
+			DSloop:("")
+			DSloop:(fname$+"\")
+			RETURN
+		ENDIF
+	ENDWH
+ENDP
+
+REM End of file
+

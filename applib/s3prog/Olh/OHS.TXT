@@ -1,0 +1,300 @@
+                          OPL Help System
+                            Version 2.0
+                  Copyright (c) Tom Dolbilin 1994
+
+
+Introduction
+============
+
+OPL Help System is intended to be used by OPL developers to create
+professionally-looking help screens in OPL programs. OPL Help
+System 2.0 includes two files HCP.OPO (version 1.2) and
+SYS$HELP.OPO (version 2.0).
+
+HCP.OPO is the help compiler. It reads in a text source file (TXT)
+and creates the help file (HLP).
+
+SYS$HELP.OPO is the help driver, which you call from within your
+program. It reads the help file and displays it on the screen. You
+have to include it in your distribution package. You can use the
+Help System in your own programs free of charge even if those
+programs are shareware or commercial. Source code for SYS$HELP.OPL
+is included.
+
+
+Usage Guidelines (IMPORTANT)
+============================
+
+OPL Help System was designed with limited disk space resources in
+mind. Therefore, it is strongly recommended that you follow a few
+simple rules if you decide to use it with you program:
+
+1.   You program should be able to run without SYS$HELP.OPO and/or
+     .HLP files installed. Give the user the freedom of discarding
+     Help if they don't need it.
+2.   Because SYS$HELP.OPO can be used by more than one program, it
+     should be put in a common directory, namely \OPO. Most people
+     already have this directory so they won't have to create it.
+     Because SYS$HELP.OPO starts with "SYS$", it will not appear
+     in the list under the RunOPL icon.
+3.   The source code is provided so that you can see how it works
+     before using it in your program. If you decide to alter it,
+     please rename it. You can, of course, embed SYS$HELP.OPO into
+     your main program file, but it's discouraged because of the
+     reason #1.
+
+
+Creating the Source File
+========================
+
+Source file is a plain text file. You can use the OPL editor or a
+Text alias for Word to create text files. The format of a help
+source file is very simple.
+
+Go to the System Screen and press the Help key. You will get the
+first-level help screen which has a TITLE "System screen" at the
+top and TOPICS listed below (Basics, Files, File selection, etc.)
+Selecting a topic and pressing Enter brings up the second-level
+help screen with help TEXT. The very first line in the source file
+must be the TITLE. The TOPICS and their TEXT must be enclosed by
+#BEGIN and #END lines as follows:
+
+------------8<------------
+System screen
+
+#Begin
+Basics
+Text which appears under Basics
+More text
+#End
+
+#Begin
+Files
+Create files with 'New file'
+
+Copy files with 'Copy file', but use
+ . . .
+#End
+------------8<------------
+
+A #BEGIN line must be immediately followed by TOPIC. All other
+lines, even blank ones, are counted as TEXT until #END is
+encountered. Anything between #END and next #BEGIN is ignored.
+TEXT must be at least one line long.
+
+S3a Word processor does not let you type in many special symbols
+(like arrows, for example). However, you can embed any ASCII
+character in your help file by typing a '#' followed by a three-
+digit code (add leading zeroes if necessary). Examples:
+
+          Format:             Appears in Help:
+          -------             ----------------
+          #065                A
+          #65                 #65
+          ##0978              #a8
+          #abc                #abc
+          #035END             #END
+          #035065             #065
+
+You can use this in both TOPICS and TEXT.
+
+You don't have to include the "About Help" topic. It will be added
+automatically at run-time. "Index" is currently unsupported.
+
+Do NOT use word wrap while creating the source file. Add a CR to
+the end of every line. A line cannot be longer than the screen can
+allow. If you edit in Word, you can judge the width more
+accurately by making the Status window narrow, font proportional,
+size next to largest (like in Help). Remember to account for the
+fact that TOPICS will appear in bold and may be preceded by
+"Help:"
+
+TEXT can have up to 128 lines. It will be scrolled if it does not
+fit vertically. The width of the help window is determined by the
+longest line in TEXT. It is a good idea to have more shorter lines
+than a few long ones, because a fair amount of memory can be saved
+by reducing the help window size (especially since it has a gray
+plane).
+
+You can optionally specify the target path where HLP file should
+be created. If specified, it must appear on the second line, like
+this:
+
+     Myapp
+     path=\app\myapp\
+
+
+Using SYS$HELP.OPO
+==================
+
+USAGE:
+
+     ret% = HELP%:( ptr% )
+
+PARAMETERS:
+
+     ptr% points to a structure consisting of a string and two
+words. Declare it in your program as follows:
+
+     LOCAL FNAME$(128), SCR%, POS% : REM order is important
+
+     FNAME$         - full name of the help file, eg,
+                    A:\APP\MYAPP\MYAPP.HLP
+                    Your program is responsible for making sure
+                    that the file exists
+     
+     SCR%           - Initial help screen to display. If scr% is
+                    0, the first-level screen (topic list) is
+                    displayed. If scr% is greater than 0, the
+                    second-level screen (help text) is displayed
+                    and scr% is the topic number. You can use this
+                    parameter to create context-sensitive help.
+     
+     POS%           If pos% is 0, no help is displayed, but FNAME$
+                    is set to the current version of Help System
+                    as a string, eg, "2.0". If pos% is non-zero,
+                    help is displayed normally. The actual value
+                    is currently ignored.
+     
+RETURN VALUE:
+     
+     ret%<0         - Error code
+     ret%=$404      - Your program has received an Exit message
+                    while Help was active.
+
+NOTES:
+- HELP%:() creates 2 windows so make sure you have 6 or less
+windows/bitmaps before calling it.
+- You can use LOCK ON/OFF before and after calling HELP%:() if you
+don't want the System to send an Exit message.
+- HELP%:() doesn't appear to contain any bugs, but no programmer
+can guarantee it.
+- You can run SYS$HELP.OPO as a program on its own, in which case
+you will be prompted to input the Help file name. Note that
+because its name starts with "SYS$", it will not show up on the
+system screen.
+
+EXAMPLE PROCEDURE:
+
+Here's a sample procedure that you can use to load help:
+
+-----------------8<------------------
+PROC help:( topic% )
+local hname$(40), ptr%, ret%
+local fname$(128), scr%, opt% : rem Keep together
+fname$ = "m:\app\finder\finder.hlp" : scr% = topic% : opt% = 1
+if not fexist:( addr( fname$ ) )
+     giprint "Help not found"
+     return
+endif
+hname$ = "m:\opo\sys$help.opo"
+if fexist:( addr( hname$) )
+     trap loadm hname$
+     if err
+          giprint err$( ret% )
+          return
+     endif
+else
+     giprint "Help not installed"
+     return
+endif
+ret% = help%:( addr( fname$ ) )
+trap unloadm hname$
+if ret% < 0
+     giprint err$( ret% )
+elseif ret% = $404
+     stop
+endif
+ENDP
+
+PROC fexist:( ptr% ) : rem Looks for a file on all local drives
+if exist( peek$( ptr% ) ) : return -1 : endif
+pokeb ptr% + 1, %a
+if exist( peek$( ptr% ) ) : return -1 : endif
+pokeb ptr% + 1, %b
+if exist( peek$( ptr% ) ) : return -1 : endif
+ENDP
+-----------------8<------------------
+
+
+HLP File Format
+===============
+
+HLP file is really an OPL database (ODB) file. Each record has two
+fields - 2-byte integer and string. The records can be of 3 types:
+TITLE, TOPIC and TEXT.
+TITLE record is the first record. It is followed by TOPIC records.
+Then come all TEXT records. The string field contains the text.
+The meaning of the associated integer depends on type of the
+record:
+
+Type                          Integer i%
+----                          ----------
+TITLE                         (i%/$200) - number of topics (128
+                              max)
+                              (i% and $1ff)  - width of "Help:
+                              "+TITLE in bold font or the widest
+                              TOPIC line in bold font, whichever's
+                              wider.
+
+TOPIC                         i%   - offset to the first record of
+                              this topic's TEXT (as a record #)
+
+TEXT                          (i%/$200) - number of lines of TEXT
+                              (128 max)
+                              (i% and $1ff)  - width of "Help:
+                              "+TOPIC in bold font or the widest
+                              TEXT line in normal font,
+                              whichever's wider. The integer is
+                              stored in the first TEXT record.
+
+Here's an example of what a Help file could contain:
+
+     Record #       Integer             String
+     --------       -------             ------
+     1              $370                Title
+     2              $5 ---------------\ Topic 1
+     3              $8 ---------\  |    Topic 2
+     4              $A ----\    |  |    Topic 3
+     5              $3DA   |    |  \--> Help text in topic 1
+     6                     |    |       Help text in topic 1
+     7                     |    |       Help text in topic 1
+     8              $2F4   |    \-------->   Help text in topic 2
+     9                     |            Help text in topic 2
+     10                    \------------->   Help text in topic 3
+     11             $1D9                Help text in topic 3
+
+
+Version history
+===============
+
+1.0  Jan 12, 1994
+
+ - The original public release
+
+
+1.1  Jan 14, 1994
+
+ - Fixed bug in SYS$HELP.OPO which sometimes caused a scrolling
+     window to redraw incorrectly when Psion-Ctrl-arrow key
+     combination was pressed.
+ - Corrected error in the 'HLP File Format' section of the
+     documentation
+     WAS: (i%/$100)  SHOULD BE: (i%/$200)
+ - Improved design of HCP.OPO
+
+
+2.0  Mar 10, 1994
+
+ - In a low memory situation (about 10K free), help will
+     automatically be displayed without gray borders
+ - If free memory is about 5K or less, help will switch to using
+     the built-in dialogs with simulated scrolling.
+ - You can specify the target path in the help source file.
+
+Disclaimer
+==========
+
+The author of this software is not responsible for any damage due
+to use of this program. This software is provided without warranty
+of any kind.

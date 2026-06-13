@@ -1,0 +1,59 @@
+rem -- Demo of running Taxi application from another OPL program.
+rem -- Based on code from Ben Clifford
+
+rem -- RunTaxi assumes Taxi.opa is on the B drive, easy to change.
+
+PROC main:
+	RunTaxi%:("New York", 1.0, 8.0, "Miles")
+ENDP
+
+PROC RunTaxi%:(city$, dist, speed, unit$)
+	rem -- output journey parameters.  Opens file on unit D
+
+	TRAP OPEN "\OPD\Hailtaxi.dbf",D,c$,d$,s$,u$
+	IF 0 = ERR
+		D.c$ = city$
+		D.d$ = FIX$(dist,2,8)
+		D.s$ = FIX$(speed,2,8)
+		D.u$ = unit$
+		TRAP APPEND
+	ENDIF
+	IF 0 = ERR
+		CLOSE
+		starta:( "rom::sys$prgo.img", "", "Taxi", "loc::b:\app\taxi.opa")
+		RETURN 1
+	ELSE
+		ALERT("Cannot output Taxi journey", ERR$(ERR))
+		RETURN 0
+	ENDIF
+ENDP
+
+PROC starta:(app$,dfn$,list$,afn$)
+rem -- starta: is used to start OPA applications/OPL code.
+rem -- app$    application name, for RunOPL "rom::sys$prgo.img"
+rem -- dfn$    file name, e.g loc::m:\WRD\scratch.wrd
+rem -- list$   icon name starts under e.g. "Word", "Text"
+rem -- afn$    application function name, 
+rem --         e.g. "loc::m:\app\macro.opa"
+  resume:(launch%:(upper$(app$),"O"+list$+chr$(0)+".MOR"+chr$(0)+upper$(dfn$)+chr$(0)+afn$+chr$(0)))
+ENDP
+
+PROC launch%:(app$,arg$)
+    LOCAL name$(128)
+    LOCAL cmdl$(128)
+    LOCAL pid%, ret%
+    name$=app$+CHR$(0)
+    cmdl$=arg$+CHR$(0)
+    ret%=CALL($0187,UADD(addr(name$),1),addr(cmdl$),0,0,addr(pid%))
+    IF ret%<0
+      ALERT(app$+" process failed",err$(ret%))
+      RETURN 0
+    ENDIF
+    RETURN pid%
+ENDP
+
+PROC resume:(pid%)
+    CALL($0688,pid%,0,0,0,0)
+ENDP
+
+

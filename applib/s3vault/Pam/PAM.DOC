@@ -1,0 +1,448 @@
+       Personal Accounts Manager (PAM) - User Guide for V1.1a
+
+
+Introduction
+------------
+PAM is a Personal Accounts Manager program for the Organiser 3. This
+version is an Alpha test version and some of the functions are not
+implemented. Those functions that are implemented have been tested
+over a period of time and are thought to be bug free and reliable.
+However, the author accepts no responsibility for any financial mis-
+management or losses resulting from the use of this program.   This
+release of the program is Public domain,  it may be freely copied or
+distributed providing the following conditions are met:
+
+  1)  In may not be sold or traded for financial or personal gain.
+     
+  2)  It must be copied complete including this document.
+     
+  3)  Its use is restricted to personal use,  it may not be used by
+      commercial organisations,  businesses, corporations or public
+      authorities.
+     
+  4)  The program code may not be modified in anyway.
+     
+
+History
+-------
+The Personal Account Manager was originally developed for the
+Organiser II,  the original 2 line version.    This was adopted by a
+number of friends and colleagues and much of the current
+functionality was developed as a result of their suggestions.   The
+program was enhanced to utilise the improved display of the 4 line
+versions of the Organiser II.   This version while retaining the core
+of the earlier versions is virtually a total re-write to utilise the
+very different user interface of the Series 3 and its ability to
+multi-task.   This version has greatly improved account review and
+modify facilities.
+
+
+Installation
+------------
+The LHA archive file,  self extracting,  contains three files;  this
+document,  the program itself (PAM.OPA) and the Icon (PAM.PIC).
+These should be copied into the \APP\ directory on the Organiser.
+The application should then be installed from the System screen using
+Install application.   When first used you will be prompted to
+configure the account settings,  see System - Config for details of
+account types and how to declare them.   At least one account must be
+configured to use the program.   Subsequently,  new accounts may be
+added or existing accounts re-configured without disturbing existing
+accounts,  using the System - Config option.
+
+
+Overview
+--------
+PAM supports up to 12 separate accounts.   Options are provided to
+credit monies to an account,  debit monies from an account,  transfer
+monies between accounts,  review the current and predicted month end
+balance for an account.   Review the current transactions entered for
+an account. Review the expired transactions for an account.   Modify
+or erase existing transactions with an option to include the value of
+erased transactions in either the running or temporary balances for
+the account.   It will also automatically update accounts for monthly
+standing orders.
+
+
+System considerations
+---------------------
+PAM is written in OPL and while the user interface has been written
+to match that of the standard applications the limitations of OPL
+mean that certain functions could not be implemented.   Primarily the
+Help key only works from the result space display.   PAM is a type 0
+application and can be left running permanently providing you are not
+short of system memory.   PAM conforms to the type 0 rules and will
+not inhibit auto switch off and can be closed from the System menu
+providing no menu or dialogue boxes are displayed within PAM itself.
+PAM itself requires 10K plus room for the accounts files.   The
+automatic update of Standing Order transactions occurs as soon as an
+Event is passed into the PAM window after the day has changed.   If
+PAM is the foreground window this update will occur shortly after
+midnight.   If PAM is a background window this will occur as soon as
+PAM is called to the foreground the update takes about 5 seconds.
+PAM creates two data files the main one holds the current
+transactions and is permanently open when PAM is running.   The peak
+size will depend on the maximum number of transactions entered.
+Since the majority of transactions will be deleted once an account
+statement is received this file will cycle in size between fairly
+well defined maximum and minimum sizes,  probably 2-8K.   The expired
+transaction account however,  will continue to grow slowly but
+steadily and requires manual intervention to clear it at regular
+intervals.
+
+
+Operation
+---------
+The following section describes each of the available transaction
+option.   These may be accessed either by pressing <Menu> then
+selecting the required option using the cursor movement keys or
+directly from the results display screen by using the 'accelerator
+key' option i.e.; Psion+<letter>.   Throughout this document Ò is
+used to indicate the Psion key.
+
+Unless otherwise stated the <Esc> key may be used to abort an
+operation at any time before it is completed.   While the menu or any
+dialogue box is displayed the automatic update is inhibited even if
+the PAM window is left in foreground.   To reduce the chances of this
+happening when using options which pause while presenting long
+duration displays i.e. when the 'Press a Key' message is showing on
+the top right of the screen,  the listing will restart automatically
+after 5 minutes.
+
+PAM may be left in background or closed for prolonged periods i.e.
+months,  without losing its ability to track transactions correctly
+however in may take some time to complete the automatic update when
+PAM is first selected under these conditions.   While this will not
+cause any loss of data it may mean that the automatic update has to
+make up for several days without update and this will extend the time
+
+
+Review - Account - ÒR
+---------------------
+This option will list all the active transactions currently entered
+for an account.   When selected you will be prompted to select an
+account and once this has been selected and <Enter> pressed the first
+seven transactions will be listed.   If there are more than seven
+transactions for the account a message 'Press a Key' will flash on
+the top right of the screen.   Pressing any key other than <Esc> will
+cause the next seven transactions to be listed.   This will repeat
+until all transaction for the account have been listed.   Each line
+of the display is a single transaction which is in the following
+format:
+
+    nn.nn dd/mm/yy type ac1 [di]  [ac2]  description
+    |     |        |    |   |     |      |
+    |     |        |    |   |     |      Description of transaction as
+    |     |        |    |   |     |      entered in the notes field.
+    |     |        |    |   |     |
+    |     |        |    |   |     Second account name, first 3 letters 
+    |     |        |    |   |     off, only present for transfer transactions.
+    |     |        |    |   |
+    |     |        |    |   Direction of flow of monies,  indicates which account is  the
+    |     |        |    |   source and which the destination,  only present for transfer
+    |     |        |    |   transactions.
+    |     |        |    |
+    |     |        |    First account name,  first 3 letters off, always present.
+    |     |        |
+    |     |        The transaction type ,  first 3 letters off, will be followed by the number of
+    |     |        months remaining for standing orders with a finite life.
+    |     |
+    |     Date  for which the transaction was recorded.
+    |
+    Transaction amount, +ve value for credits,  -ve values for debits.
+     
+
+Review - Archive - ÒA
+---------------------
+This option will list all expired transactions for a selected
+account.   Operation is the same as Review - Account, as is the
+display format.
+
+
+Review - Balance - ÒB
+---------------------
+You will be prompted to select which account.   Once selected the
+account balances are calculated based on the current transactions.
+Four balances will be displayed:
+
+     Current   The account balance at the current date.
+               
+     Month end The estimated month end balance based on the currently
+               entered transactions for the account.
+               
+     Temporary The current value of the temporary balance entry.
+               
+     Running   The current value of the running balance record.
+               
+
+Review - Overall - ÒO
+---------------------
+This option presents a quick summary of the current and month end
+balance for all accounts in the format:
+
+     Cu(rrent) Amount    Mn(Month end)  Value     Account name.
+     
+In the current implementation this option only works correctly for
+eight accounts or less as the scroll control has not been implement
+for this option.
+
+
+System - About - ÒI
+-------------------
+This will display the program name,  version,  date and other
+information.   This display is shown automatically the first time the
+program is initiated i.e. until the accounts data file has been
+created.
+
+
+System - Config - ÒF
+--------------------
+The configure option is used to declare accounts.   Up twelve
+accounts may be declared and the accounts may be either Current or
+Credit Account types:
+
+The accounts may be declared as either Credit or Current.   While
+this has not effect on the way they are processed it does alter what
+types of transaction are allowed.
+
+     Credit Accounts
+     ---------------
+     A credit account is the simpler of the two account types.   It
+     is primarily intended for Credit / Charge cards.   Transactions
+     originating in a credit account can only be of one type i.e.
+     credit card.
+     
+     Current Accounts
+     ----------------
+     A current account is primarily intended for standard current
+     accounts.   It supports four transaction types;  Cheque,  ATM
+     card,  Bank giro and Standing order.   Of these the first three
+     are convenience tags and have no other effects.   Standing order
+     is special in that this tag enables the automatic monthly update
+     of a transaction.   A Standing order will be processed on the
+     given date and it's date shifted on one month until either it
+     expires or is cancelled.
+     
+
+  Notes on Naming
+  ---------------
+  The account name may be up to eight characters but the following
+  should be considered when picking account names.   The first
+  letter of the account name can be used to select the account in
+  the dialogue boxes so each account will be easier to select if it
+  starts with a separate letter.   When display space is tight only
+  the first three letters of the account name is displayed so if
+  possible the first three letters should be meaningful.   Any
+  character may be used as part of the account name.
+  
+  Notes on re-configuring accounts
+  --------------------------------
+  Internally the accounts are identified by a number key based on
+  their position in the configuration table.   This means that re-
+  naming an account will rename all transaction associated with that
+  key this includes both those in the current transaction file and
+  those in the expired transaction file.   For this reason it is not
+  possible to move the position of an existing account within the
+  configuration table.
+  
+
+System - Exit - ÒX
+------------------
+This option will close the PAM program and associated data files.
+This will reduce the memory requirement by about 10k.   PAM may also
+be closed from the System menu using the delete key,  provided no
+menu or dialogue windows are open within PAM.   You must close PAM
+before your try to access the Pam.odb file with any other program.
+The Pamx.odb (archive file) is open only during automatic update and
+modify transaction operations.   You do not need to close PAM to
+access this file.
+
+
+System - Export - ÒP
+--------------------
+This function is not currently implemented.   It was intended that
+this function allow the expired transaction file to be down loaded
+via the Comms link to a PC or printer then clear the expired
+transaction file.   The question is in what format?   Currently
+Pamx.odb my be exported using the copy command via the Comms link.
+The Pamx.odb file may be deleted with the System File Delete command
+when it grows to large.
+
+
+System - Status (on/off) - ÒS
+-----------------------------
+This option turns on and off the status window on the right-hand side
+of the display.   Provided for compatibility with in-built
+applications.   Leaving it off has the advantage of leaving a larger
+display area.   The current version of the OS 1.77F allows the status
+window to be popped up for about 5 seconds pressing Ò<Menu>.
+
+
+Transaction - Credit - ÒC
+-------------------------
+The credit option is identical in operation to the Transaction  -
+Debit,  exception the entered amount is credit to and not debited
+from the selected account.   It  is entered in the same way.
+
+
+Transaction - Debit - ÒD
+------------------------
+When selected you will be asked which account.   Select an account
+either using the left / right cursor keys or the first letter of the
+account name.   You can view the account names in list form by
+pressing <Tab>.   Once the correct account is selected press <Enter>.
+
+If it is a credit account you will go directly to the transaction
+detail screen.   If it is a current account you will be prompt to
+select one of the four transaction types.   Once this has been
+selected you will be presented with the transaction screen.
+
+To move between lines on the transaction screen use the up / down
+cursor keys.   Do not press <Enter> until you have completed all the
+lines of the screen.   To abandon an entry press <Esc>.   A
+transaction must have a none zero value to be recorded.
+
+  Note:  This is a free format text field to describe the
+         transaction.   You may enter up to 80 characters but as
+         each character uses memory and the cumulative effect can be
+         significant so these descriptions should be as short as
+         would be meaningful to you.
+          
+  Date:  The date is initially set to the current date by default
+         but may be amended to match the actual date of the
+         transaction either in the past or future.
+          
+  Amount:This is the transaction value which must be entered as
+         positive value.   A zero value will cause the transaction
+         to be discarded.
+          
+  Months:This line is present only if the transaction is a Standing
+         order.   The number of months may be set to any value
+         between 0 and 120 (5 years).   The standing order will then
+         be processed until the specified number of months have
+         passed then expire.   The 0 months is a special case in
+         that it will continue until it is cancelled manually.
+          
+
+Transaction - Modify - ÒM
+-------------------------
+This option allows you to view each transaction for an account and if
+required modify or erase it.   When selected you will be prompted to
+select an account once selected the transaction detail screen is
+presented with the cursor on the Action line.   One  of the following
+actions may the be selected:
+
+  Next:  When select and <Enter> is press.   The displayed
+         transaction closed unchanged and the next transaction for
+         the account displayed.   This is the default action and
+         allows you to step through all the current transaction in
+         the account file.
+          
+  Erase: This option will cause the displayed transaction to be
+         erased when <Enter> is pressed.   The next transaction is
+         then displayed.   If you try to erase a Standing order you
+         will be asked to confirm the erasure.   The value of erased
+         transactions is summed.
+         
+  Modify:This option allows the existing entry to be modified.
+         While you may select and modify any of the displayed
+         details these changes are only saved if Modify is selected
+         before <Enter> is pressed.   You may only modify a single
+         transaction on each pass of Transaction - Modify.   The
+         value of a modified transaction is not summed.
+          
+If when the last transaction has been viewed the sum of the erased
+total is not zero you will be prompted as to what to do with this
+erased total:
+
+  None - <Esc> Selecting None causes the erased total to be
+               discarded.
+                
+  Tmp: - <Tab> Selecting TeMPorary causes the erased total to be
+               saved as a temporary balance for the account.   This
+               temporary balance is utilised by the Transaction -
+               Transfer option.   This option is normally used for
+               Credit accounts.
+                
+  Run: - <Enter>   Selecting Running balance causes the erased total
+                   to be summed into the accounts running balance.   This
+                   option is normally used for Current accounts.
+               
+Each transactions added to the account file is displayed as a single
+line summary on the background screen.   The format of this line is
+the same as the review options.   Each transaction deleted from the
+account file is displayed as single line summary struck through by a
+diagonal line.   Remember that if you erase or modify a transfer
+transaction you affect only the entry in the selected account.   The
+matching half in the other account needs to be erased or modified
+separately.
+
+
+Transaction - Transfer - ÒT
+---------------------------
+This option is basically the same as a debit from the source account
+and credit to the destination account.   You will prompted for the
+name of the source account and the transaction type.   You will then
+be prompted for the destination account,  this cannot be the same as
+the source account.   Once the destination account has been selected
+you will be presented with the transaction screen.   The entries on
+this are the same as for credit and debit with one exception.   If
+the destination account contains a temporary balance entry, see
+Transaction - Modify,  the value of this balance will be entered in
+the amount field.   This value may be overwritten with a new value is
+required.
+
+This option will actually generate two entries in the data file,  one
+debit and one credit,  this is to allow the two halves of the
+transfer to be erased separately but if you Modify,  see Transaction
+- Modify,  a transfer you must remember to Modify both entries.
+
+
+Notes on result display
+-----------------------
+The result display is the main program window in PAM and forms the
+backdrop to all other displays.   Unless PAM is exited this display
+will contain either the results of your last request or the result
+from the last automatic update which occurred.   To ensure that PAM
+updates at the soonest possible moment it is recommended that you
+return to the results display by completing any option before
+switching off your Organiser or leaving it for a prolonged period.
+You may switch PAM into background into background at any time e.g.
+to use the Calculator.
+
+
+Standing Orders
+---------------
+While a transaction type is tagged as Standing order this is to some
+extent a convenience name.   The primary function of this tag is to
+enable the automatic processing of transactions which occur on a
+given day each month.   This option may therefore be used for direct
+debits,  for constant amounts,  or any other transaction of this
+type.   It can also be used for a one off payment at a future date
+which want to be deleted automatically from the current transactions
+list.
+
+
+The way forward
+---------------
+While I find the program meet my personal most of my personal
+requirements I am always open to suggestions for enhancements.   A
+few that I am currently considering is the inclusion in the
+Transaction - Modify of basic calculator functions and the ability to
+export (or import) selected totals to (from) the Calculator memories.
+Inclusion of the ability to estimate interest on interest yielding
+current accounts.   Also the ability to calculated the interest
+payable on Credit accounts and the inclusion of a warning about the
+need to erase / modify the partner of a transfer transactions or
+possibly the option to amend it automatically after confirmation.
+
+R.Meatyard
+14 Northlands Road
+Adstock
+Buckingham
+MK18 2JH
+England
+CompuServe 100064,1200
+
+End...
+

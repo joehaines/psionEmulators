@@ -1,0 +1,186 @@
+WINSCDIR      = \epoc32\wins\c
+WINSSYSDIR    = $(WINSCDIR)\system
+WINSDEBDIR    = \Epoc32\Release\Wins\Deb
+MARMRELDIR    = \Epoc32\Release\Marm\Rel
+
+XJMAILDIR     = $(WINSCDIR)\documents\development\xjmail
+APPDIR        = $(WINSSYSDIR)\apps\xjmail
+PROJECTDIR    = \xjmail\xjmail
+DOCDIR        = $(PROJECTDIR)\doc
+OPLDIR        = $(PROJECTDIR)\OPL
+MAILHELPERDIR = \xjmail\opx
+JPPRINTDIR    = \jpprintopx\jpprintopx
+FILEFOLDERDIR = \filefolderopx\filefolderopx
+
+STDDOCS       = $(DOCDIR)\XJMail_jpn.txt $(DOCDIR)\XJMail_eng.txt \
+                $(DOCDIR)\install_jpn.txt $(DOCDIR)\install_eng.txt \
+                $(DOCDIR)\history.txt $(DOCDIR)\XJM_COPY.TXT \
+                $(DOCDIR)\XJM_COPY.ENG  $(DOCDIR)\xjm_hlp.txt \
+                $(DOCDIR)\xjm_hlp_eng.html $(DOCDIR)\folderselector.txt \
+                $(DOCDIR)\keymapping.txt
+
+MAKE          = nmake
+ZIP           = zip
+
+$(XJMAILDIR)\xjm_hlp.txt: $(DOCDIR)\xjm_hlp.txt 
+	 copy $(DOCDIR)\xjm_hlp.txt $(XJMAILDIR)\xjm_hlp.txt
+$(APPDIR)\xjm_hlp.txt: $(DOCDIR)\xjm_hlp.txt 
+	 copy $(DOCDIR)\xjm_hlp.txt $(APPDIR)\xjm_hlp.txt
+
+mailhelper.SIS: $(MAILHELPERDIR)\mailhelper.cpp \
+                $(MAILHELPERDIR)\mailhelper.h $(MAILHELPERDIR)\mailhelper.mmp \
+                $(MAILHELPERDIR)\mailhelper.pkg \
+                $(MAILHELPERDIR)\mailhelper.rkg \
+                $(WINSSYSDIR)\opl\mailhelper.oxh
+	 cd $(MAILHELPERDIR)
+	 call ebld  mailhelper marm rel
+	 copy mailhelper.sis $(PROJECTDIR)\mailhelper.sis
+	 cd $(PROJECTDIR)
+
+mailhelper_s.zip: $(WINSSYSDIR)\opl\mailhelper.oxh \
+                  $(MAILHELPERDIR)\mailhelper.cpp \
+                  $(MAILHELPERDIR)\mailhelper.h \
+                  $(MAILHELPERDIR)\mailhelper.rkg \
+                  $(MAILHELPERDIR)\mailhelper.pkg \
+                  $(MAILHELPERDIR)\mailhelper.mmp \
+                  $(MAILHELPERDIR)\mailhelper.oxh
+	copy $(WINSSYSDIR)\opl\mailhelper.oxh $(MAILHELPERDIR)
+	cd ..\..
+	$(ZIP) -uo $(PROJECTDIR)\mailhelper_s.zip \
+                $(MAILHELPERDIR)\mailhelper.cpp $(MAILHELPERDIR)\mailhelper.h \
+                $(MAILHELPERDIR)\mailhelper.rkg \
+                $(MAILHELPERDIR)\mailhelper.pkg \
+                $(MAILHELPERDIR)\mailhelper.mmp $(MAILHELPERDIR)\ebld.bat \
+                $(MAILHELPERDIR)\doebld.bat $(MAILHELPERDIR)\mailhelper.oxh
+	cd $(PROJECTDIR)
+
+mailhelper_w.zip: $(WINSDEBDIR)\z\system\opx\mailhelper.opx \
+                  $(WINSSYSDIR)\opl\mailhelper.oxh
+	cd %projectdir%
+	$(ZIP) -uo mailhelper_w.zip \$(WINSDEBDIR)\z\system\opx\mailhelper.opx \
+                $(WINSSYSDIR)\opl\mailhelper.oxh
+
+
+jpprintopx.SIS: $(JPPRINTDIR)\jpprintopx.cpp $(JPPRINTDIR)\jpprintopx.h \
+                $(JPPRINTDIR)\jpprintopx.mmp $(JPPRINTDIR)\jpprintopx.pkg \
+                $(JPPRINTDIR)\JapaneseFontCache.cpp \
+                $(JPPRINTDIR)\JapaneseFontCache.h \
+                $(JPPRINTDIR)\JapaneseFontCache.cpp $(JPPRINTDIR)\fontenum.h \
+                $(JPPRINTDIR)\CSjisLineRenderer.cpp \
+                $(JPPRINTDIR)\CSjisLineRenderer.cpp \
+                $(JPPRINTDIR)\CUniSjisLineRenderer.h \
+                $(JPPRINTDIR)\CKecSjisLineRenderer.cpp \
+                $(JPPRINTDIR)\CKecSjisLineRenderer.cpp 
+	 cd $(JPPRINTDIR)
+	 call pack
+	 copy jpprintopx.SIS $(PROJECTDIR)
+	 copy jpprint_w.zip $(PROJECTDIR)
+	 cd $(PROJECTDIR)
+
+filefolder.SIS: $(FILEFOLDERDIR)\ffstlb.cpp $(FILEFOLDERDIR)\ffstlb.h \
+                $(FILEFOLDERDIR)\filefolder.cpp $(FILEFOLDERDIR)\filefolder.h \
+                $(FILEFOLDERDIR)\filefolder.hrh \
+                $(FILEFOLDERDIR)\filefolder.rh \
+                $(FILEFOLDERDIR)\filefolder.mmp \
+                $(FILEFOLDERDIR)\filefolder.pkg \
+                $(FILEFOLDERDIR)\filefolder.rkg \
+                $(FILEFOLDERDIR)\filefolder.rss \
+                $(FILEFOLDERDIR)\foseldlg.cpp $(FILEFOLDERDIR)\foseldlg.h 
+	 cd $(FILEFOLDERDIR)
+	 call pack
+	 copy filefolder.SIS $(PROJECTDIR)
+	 copy filefolder_w.zip $(PROJECTDIR)
+	 cd $(PROJECTDIR)
+
+XJMail.sis: $(APPDIR)\xjmail.app   $(APPDIR)\xjmail.aif \
+            $(APPDIR)\xjmview.opo  $(APPDIR)\xjm_POP.opo \
+            $(APPDIR)\xjm_APOP.opo $(APPDIR)\xjm_smtp.opo \
+            $(APPDIR)\xjm_fdlg.opo $(APPDIR)\xjm_sock.opo \
+            $(APPDIR)\xjmbmps.mbm \
+            $(XJMAILDIR)\xjm_hlp.txt \
+            mailhelper.SIS jpprintopx.SIS filefolder.SIS \
+            cdescriptor.sis csocket.sis BUFFER.SIS SYSTINFO.SIS
+	cd $(PROJECTDIR)
+	makesis xjmail.pkg
+
+XJMail_w.sis: $(APPDIR)\xjmail.app   $(APPDIR)\xjmail.aif \
+            $(APPDIR)\xjmview.opo  $(APPDIR)\xjm_POP.opo \
+            $(APPDIR)\xjm_APOP.opo $(APPDIR)\xjm_smtp.opo \
+            $(APPDIR)\xjm_fdlg.opo $(APPDIR)\xjm_sock.opo \
+            $(APPDIR)\xjmbmps.mbm  $(XJMAILDIR)\xjm_hlp.txt
+	cd $(PROJECTDIR)
+	makesis xjmail_w.pkg
+
+latest_s.zip: $(XJMAILDIR)\xjmail $(XJMAILDIR)\xjmview  $(XJMAILDIR)\xjm_POP \
+              $(XJMAILDIR)\xjm_smtp $(XJMAILDIR)\xjm_sock \
+              $(XJMAILDIR)\xjm_fdlg $(XJMAILDIR)\xjm_SMTPA \
+              $(XJMAILDIR)\importer\importer_example \
+              $(XJMAILDIR)\AUTHTYPE.OPH \
+              $(XJMAILDIR)\appicons.mbm \
+              $(XJMAILDIR)\mbms\xjmbmps\xjmbmps.mbm \
+              $(STDDOCS) $(DOCDIR)\xjm_src.txt $(DOCDIR)\importer.txt \
+              MAKEFILE xjmail.pkg \
+              xjm_auth.zip fdlg_ndirnav.zip fdlg_ff.zip fdlg_std.zip \
+              mailhelper_s.zip
+	cd $(XJMAILDIR)
+        copy xjmail $(OPLDIR)
+        copy xjmview $(OPLDIR)
+        copy xjm_POP $(OPLDIR)
+        copy xjm_smtp $(OPLDIR)
+        copy xjm_SMTPA $(OPLDIR)
+        copy xjm_sock $(OPLDIR)
+        copy xjm_fdlg $(OPLDIR)
+        copy AUTHTYPE.OPH $(OPLDIR)
+        copy importer\importer_example $(OPLDIR)
+        copy appicons.mbm $(OPLDIR)
+        copy mbms\xjmbmps\xjmbmps.mbm $(OPLDIR)
+        cd \ 
+	zip -uo $(PROJECTDIR)\latest_s.zip $(OPLDIR)\xjmail \
+                $(OPLDIR)\xjmview  $(OPLDIR)\xjm_POP \
+                $(OPLDIR)\xjm_smtp $(OPLDIR)\xjm_SMTPA \
+                $(OPLDIR)\xjm_sock $(OPLDIR)\xjm_fdlg \
+                $(OPLDIR)\AUTHTYPE.OPH \
+                $(OPLDIR)\importer_example \
+                $(OPLDIR)\appicons.mbm  $(OPLDIR)\xjmbmps.mbm
+	zip -uo $(PROJECTDIR)\latest_s.zip $(STDDOCS) $(DOCDIR)\xjm_src.txt \
+                $(DOCDIR)\importer.txt
+	zip -uo $(PROJECTDIR)\latest_s.zip $(PROJECTDIR)\MAKEFILE \
+                $(PROJECTDIR)\xjmail.pkg $(PROJECTDIR)\xjm_auth.zip \
+                $(PROJECTDIR)\fdlg_ndirnav.zip $(PROJECTDIR)\fdlg_ff.zip \
+                $(PROJECTDIR)\fdlg_std.zip $(PROJECTDIR)\mailhelper_s.zip
+
+latest_b.zip: xjmail.sis xjm_auth.zip fdlg_ndirnav.zip fdlg_ff.zip \
+              fdlg_std.zip \
+              $(STDDOCS)
+	cd $(DOCDIR)
+	zip -uoj $(PROJECTDIR)\latest_b.zip $(STDDOCS)
+	cd $(PROJECTDIR)
+	zip -uoj latest_b.zip xjmail.sis xjm_auth.zip fdlg_ndirnav.zip \
+            fdlg_ff.zip fdlg_std.zip
+
+latest_w.zip: xjmail_w.sis mailhelper_w.zip jpprint_w.zip filefolder_w.zip \
+              xjm_auth.zip fdlg_ndirnav.zip fdlg_ff.zip fdlg_std.zip \
+              $(STDDOCS) $(DOCDIR)\WINS_INST.TXT
+	cd $(DOCDIR)
+	zip -uoj $(PROJECTDIR)\latest_w.zip $(STDDOCS) WINS_INST.TXT
+	cd $(PROJECTDIR)
+	zip -uoj latest_w.zip xjmail_w.sis mailhelper_w.zip jpprint_w.zip \
+                 filefolder_w.zip xjm_auth.zip fdlg_ndirnav.zip fdlg_ff.zip \
+                 fdlg_std.zip 
+
+ER3MSGSUITE.ZIP: $(XJMAILDIR)\importer\ER3MSGSUITE \
+                 $(XJMAILDIR)\importer\ER3MSGSUITE.opo \
+                 $(XJMAILDIR)\importer\ER3MSGSUITE.txt \
+                 $(DOCDIR)\importer.txt
+	cd $(PROJECTDIR)
+	zip -uoj ER3MSGSUITE.ZIP $(XJMAILDIR)\importer\ER3MSGSUITE \
+                 $(XJMAILDIR)\importer\ER3MSGSUITE.opo \
+                 $(XJMAILDIR)\importer\ER3MSGSUITE.txt \
+                 $(DOCDIR)\importer.txt
+
+
+ALL:
+	$(MAKE) latest_b.zip
+	$(MAKE) latest_s.zip
+	$(MAKE) latest_w.zip
+	$(MAKE) ER3MSGSUITE.ZIP

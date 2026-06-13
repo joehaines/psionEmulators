@@ -1,0 +1,57 @@
+#define TEXTWIN_OPH
+
+#ifndef LODGER_OPH
+#include <sdk\lodger>
+#endif
+
+#ifndef EDIT_OPH
+#include <sdk\edit>
+#endif
+
+/* Constants for textwin */
+
+#define PR_TEXTWIN_AL_LEFT 0x00
+#define PR_TEXTWIN_AL_RIGHT 0x01
+#define PR_TEXTWIN_AL_CENTRE 0x02
+#define PR_TEXTWIN_BOLD 0x04
+#define PR_TEXTWIN_BULLET 0x20
+#define PR_TEXTWIN_POPOUT 0x40
+#define PR_TEXTWIN_FLASHING 0x80
+#define IN_TEXTWIN_AL_LEFT PR_TEXTWIN_AL_LEFT
+#define IN_TEXTWIN_AL_RIGHT PR_TEXTWIN_AL_RIGHT
+#define IN_TEXTWIN_AL_CENTRE PR_TEXTWIN_AL_CENTRE
+#define IN_TEXTWIN_BOLD PR_TEXTWIN_BOLD
+#define IN_TEXTWIN_BULLET PR_TEXTWIN_BULLET
+#define IN_TEXTWIN_POPOUT PR_TEXTWIN_POPOUT
+#define SE_TEXTWIN_ALIGN (PR_TEXTWIN_AL_RIGHT|PR_TEXTWIN_AL_CENTRE)
+#define SE_TEXTWIN_BOLD PR_TEXTWIN_BOLD
+#define SE_TEXTWIN_TEXT 0x08
+#define SE_TEXTWIN_BULLET PR_TEXTWIN_BULLET
+
+/* Types for textwin */
+
+STRUCT N_TEXTWIN
+	state%
+	label#(1)
+ENDS
+
+STRUCT E_TEXTWIN
+	flags%
+	state%
+	buf%
+	len%
+ENDS
+
+/* Property of textwin */
+
+STRUCT PRS_TEXTWIN
+	label%
+	state%
+ENDS
+
+STRUCT PR_TEXTWIN
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	textwin#(SIZEOF(PRS_TEXTWIN))
+ENDS

@@ -1,0 +1,412 @@
+proc start:
+rem Dirdir: list filenames, filesize, date, time & attributes
+rem
+rem This program is PUBLIC DOMAIN.
+rem You may use this source code for whatever you like.
+rem Disclaimer: Use this program at your own risk.
+rem 
+rem Compuserve: Rolf Aeschbacher [100116,3357]
+rem E-Mail: 100116.3357@compuserve.com
+rem
+rem Use CTRL-S (Strg-S on German machines) to pause the output.
+rem
+rem Examples:
+rem - get all spreadsheet files: enter .spr at 'Match string'
+rem - contents of the WRD directory: enter \wrd\ at 'Match string'
+rem - get all read only files: match attributes, set 'Read Only' to yes,
+rem   the other three lines to 'Ignore'
+rem
+rem If you need a sorted list, select 'output to file',
+rem load that file into Word, select all lines, open a new spreadsheet,
+rem and use 'bring' to import the selected text.
+rem Then select the lines in the spreadsheet and use Sort to sort the lines.
+rem You can sort by filename, size, time, date and attributes.
+rem Sorting in the spreadsheet needs much RAM: With 220 KB free I was able
+rem to sort just over 300 filenames.
+rem Note: in the spreadsheet the backslash \ must not be at the beginning of
+rem a line because that would repeat the string to fill the field.
+rem
+global d$(128),outp%,outf$(100),srch%,search$(2,20),srch$(2,20),replm%
+global ver%,at%,size&,md&,sp&,dname$(128) :rem for finfo, do not change!
+global drive$(4,5), drive%,e%,ver$(6),at$(4),at%(4)
+global msize%,dsize1&,dsize2&,mdate%,ddat1&,ddat2&,disp%,mask$(16)
+global mtime%,dtime1&,dtime2&,mat%,disset%
+global j%,mo%,t%,std%,min%,sek%,tag%,all%
+ver$="1.1" :rem 23-Jan-1995
+giprint "Dirdir by Rolf Aeschbacher"
+trap cache 2000,7000 :rem speeds up the program but needs more RAM
+rem
+rem ***** defaults, may be changed *****
+disset%=2 :rem 1=full info, 2=no attributes
+ddat1&=days(day,month,year)
+ddat2&=ddat1&
+outf$="\wrd\dirdir.wrd" :rem for output to file
+srch$(1)="loc::m:\\"    :rem search for
+srch$(2)="'\\"          :rem replace by
+mask$=""                :rem default is no masking of filepaths
+drive%=2 :rem default drive is M
+rem **********
+rem
+drive$(1)="A" :drive$(2)="M" :drive$(3)="B" :drive$(4)="All"
+do
+	dirdir:
+until 0
+endp
+
+proc dirdir:
+local di$(100,128) :rem the 1st number is the max number of directories
+local r%,z%,zz%,p%,n%,e$(50),noyes$(6),space%,h%
+local sz&,fcount%,dd&,dats$(128),times$(20),t&,dates$(23)
+noyes$="No,Yes"
+z%=0 :rem number of dirs
+zz%=0 :rem total dirs
+p%=0 :rem pointer to di$()
+sz&=0 :rem cumulative filesize
+dinit "Dirdir v"+ver$+"  Options"
+dchoice drive%,"Scan Drive:",drive$(1)+","+drive$(2)+","+drive$(3)+","+drive$(4)
+dedit mask$,"Match string:"
+dchoice msize%,"Match a filesize?",noyes$
+dchoice mtime%,"Match a time?",noyes$
+dchoice mdate%,"Match a date?",noyes$
+dchoice mat%,"Match attributes?",noyes$
+dchoice srch%,"Search & Replace?",noyes$
+dchoice disp%,"Files:","Show & Count,Count only"
+r%=dialog
+if r%=0 :stop :endif
+if drive%=4 :all%=1 :drive%=1 :else all%=0 :endif
+if mdate%=2 or msize%=2 or mtime%=2
+	dinit "Match"
+	if msize%=2
+		dlong dsize1&,"Size from",0,9999999
+		dlong dsize2&,"Size to",0,9999999
+	endif
+	if mtime%=2
+		dtime dtime1&,"From time",1,0,86399
+		dtime dtime2&,"To time",1,0,86399
+	endif
+	if mdate%=2
+		ddate ddat1&,"From date",25567,50403
+		ddate ddat2&,"To date",25567,50403
+	endif
+	if dialog
+		if ddat1&>ddat2& :dd&=ddat1& :ddat1&=ddat2& :ddat2&=dd& :endif
+		if dsize1&>dsize2& :dd&=dsize1& :dsize1&=dsize2& :dsize2&=dd& :endif
+		if dtime1&>dtime2& :dd&=dtime1& :dtime1&=dtime2& :dtime2&=dd& :endif
+	else
+		mdate%=1 :msize%=1 :mtime%=1 
+	endif
+endif
+if mat%=2
+	dinit "Match file attributes"
+	dchoice at%(1),"Read Only",noyes$+",Ignore"
+	dchoice at%(2),"Modified",noyes$+",Ignore"
+	dchoice at%(3),"Hidden",noyes$+",Ignore"
+	dchoice at%(4),"System",noyes$+",Ignore"
+	if dialog :else mat%=1 :endif
+	at$=""
+	if mat%=2
+		if at%(1)=2 :at$="R" :else at$="." :endif
+		if at%(2)=2 :at$=at$+"M" :else at$=at$+"." :endif
+		if at%(3)=2 :at$=at$+"H" :else at$=at$+"." :endif
+		if at%(4)=2 :at$=at$+"S" :else at$=at$+"." :endif
+	endif
+endif
+if disp%=2 and (outp%>1 or srch%=2) :outp%=1 :srch%=1 :endif
+if srch%=2
+	dinit "Search & Replace in filenames"
+	dtext "","\09  Hex value of character (09=Tab)"
+	dtext "","\\   Search for a backslash"
+	dedit srch$(1),"Search for:"
+	dedit srch$(2),"Replace by:"
+	dchoice replm%,"Many replaces?",noyes$ :rem replace all occurrences or only the first in each filepath
+	r%=dialog
+	if r%=0
+		srch%=1 :rem cancel, no search & replace
+	else
+		prepare:
+	endif
+endif
+if disp%=1
+	dinit
+	dchoice disset%,"Output format:","Full,no attributes"
+	dchoice outp%,"Output to:","Screen,Printer,File"
+	if dialog :else stop :endif
+	if disset%=1 :space%=1 :else space%=1 :endif :rem always 1
+endif
+if outp%=2
+	trap lopen "PAR:A"
+	if err
+		e$=""
+		if err=-41 :e$="(Printer not connected)" :endif
+		e%=alert(err$(err),e$)
+		outp%=1 :rem output on screen only
+	endif
+elseif outp%=3
+	trap lopen outf$
+	if err
+		e$=""
+		e%=alert(err$(err),e$)
+		outp%=1 :rem output on screen only
+	endif
+endif
+mask$=upper$(mask$)
+screen 60,17,1,1
+cls
+n%=1
+if all%=0
+	print "Searching drive ";drive$(drive%) :n%=n%+1
+else
+	print "Searching all drives" :n%=n%+1
+endif
+if mask$>"" :print "Match string: ";mask$ : n%=n%+1 :endif
+if msize%=2 :print "Match filesize: ";dsize1&;" - ";dsize2& : n%=n%+1 :endif
+if mtime%=2
+	dd&=dtime1& :t&=dd&/3600 :dd&=dd&-t&*3600
+	times$=right$("0"+gen$(t&,2),2) :t&=dd&/60 :dd&=dd&-t&*60
+	times$=times$+":"+right$("0"+gen$(t&,2),2)+":"+right$("0"+gen$(dd&,2),2)
+	dd&=dtime2& :t&=dd&/3600 :dd&=dd&-t&*3600
+	times$=times$+" - "+right$("0"+gen$(t&,2),2) :t&=dd&/60 :dd&=dd&-t&*60
+	times$=times$+":"+right$("0"+gen$(t&,2),2)+":"+right$("0"+gen$(dd&,2),2)
+	print "Match time: ";times$ :n%=n%+1
+endif
+if mdate%=2
+	dates$=datecnv$:(ddat1&,ddat2&)
+	print "Match date: ";dates$ : n%=n%+1
+endif
+if mat%=2   :print "Match attributes: ";at$ :n%=n%+1 :endif
+if outp%>1
+	if all%=0
+		lprint "Searching drive ";drive$(drive%)
+	else
+		print "Searching all drives"
+	endif
+	if mask$>"" :lprint "Match string: ";mask$ :endif
+	if msize%=2 :lprint "Match filesize: ";dsize1&;" - ";dsize2& :endif
+	if mtime%=2 :lprint "Match time: ";times$ :endif
+	if mdate%=2 :lprint "Match date: ";dates$ :endif
+	if mat%=2   :lprint "Match attributes: ";at$ :endif
+endif
+screen 60,18-n%,1,n% :cls
+:
+zz%=1
+loop::
+z%=1 :p%=1
+di$(z%)=drive$(drive%)+":\"
+r%=ioopen(h%,di$(z%)+"dummy",$0)
+if r%=-62
+	print "- Drive "+drive$(drive%)+" not ready"
+else
+	if all%=0
+		busy "scanning",3
+	else
+		busy "scanning "+drive$(drive%),3
+	endif
+	while p%<=z%
+		d$=DIR$(di$(p%)) :p%=p%+1
+		WHILE d$<>""
+			dname$=d$+chr$(0)
+			call($887,addr(dname$)+1,addr(ver%),0,0,0)
+			if (at% and 16)=0
+				secstodate md&,j%,mo%,t%,std%,min%,sek%,tag%
+				dd&=days(t%,mo%,j%)
+				at$=""
+				if mat%=2 or disset%=1
+					if (at% and $1)=0 :at$="R" :else at$="." :endif
+					if (at% and $20)  :at$=at$+"M" :else at$=at$+"." :endif
+					if (at% and $2)   :at$=at$+"H" :else at$=at$+"." :endif
+					if (at% and $4)   :at$=at$+"S" :else at$=at$+"." :endif
+				endif
+				r%=1
+				if mtime%=2 or mdate%=2 or msize%=2 or mask$>""
+					r%=checkf%:(dd&)
+				endif
+				if r%=1 and mat%=2 :r%=chkatt%: :endif
+				if r%
+					if srch%=2
+						d$=replace$:(d$)
+					endif
+					if disset%=1
+						dats$=left$(d$+rept$(" ",35),30)
+					else
+						dats$=left$(d$+rept$(" ",35),35)
+					endif
+					dats$=dats$+right$("      "+gen$(size&,7),7)+rept$(" ",space%)+right$("00"+gen$(std%,2),2)+":"+right$("00"+gen$(min%,2),2)+":"+right$("00"+gen$(sek%,2),2)
+					dats$=dats$+rept$(" ",space%)+right$(gen$(j%,4),2)+"-"+right$("00"+gen$(mo%,2),2)+"-"+right$("00"+gen$(t%,2),2)
+					if disset%=1 :rem full info
+						dats$=dats$+" "+at$
+					endif
+					if disp%=1
+						PRINT right$(""+dats$,60);
+						if outp%=2
+							rem to printer
+							lprint dats$
+						endif
+						if outp%=3
+							rem to file
+							if disset%=1 :rem full output
+								lprint d$+chr$(9)+gen$(size&,7)+chr$(9)+ right$("00"+gen$(std%,2),2)+":"+right$("00"+gen$(min%,2),2)+":"+right$("00"+gen$(sek%,2),2)+chr$(9)+ right$(gen$(j%,4),2)+" "+right$("00"+gen$(mo%,2),2)+" "+right$("00"+gen$(t%,2),2)+chr$(9)+at$
+							else
+								lprint d$+chr$(9)+gen$(size&,7)+chr$(9)+ right$("00"+gen$(std%,2),2)+":"+right$("00"+gen$(min%,2),2)+":"+right$("00"+gen$(sek%,2),2)+chr$(9)+ right$(gen$(j%,4),2)+" "+right$("00"+gen$(mo%,2),2)+" "+right$("00"+gen$(t%,2),2)
+							endif
+						endif
+					endif
+					sz&=sz&+size& :fcount%=fcount%+1
+				endif
+			else
+				z%=z%+1
+				d$=d$+"\"
+				di$(z%)=d$
+			endif
+			d$=DIR$("")
+		endwh
+	endwh
+busy off
+endif
+zz%=zz%+z%-1 :rem total number of dirs
+if all%=1
+	drive%=drive%+1
+	if drive%<4
+		goto loop::
+	else
+		drive%=2
+	endif
+endif
+:
+print zz%-1,"directories scanned"
+if fcount%=1
+	print "Found: ",fcount%,"file, ",sz&,"bytes"
+else
+	print "Found: ",fcount%,"files, ",sz&,"bytes"
+endif
+if outp%>1
+	lprint zz%-1,"directories scanned"
+	if fcount%=1
+		lprint "Found: ",fcount%,"file, ",sz&,"bytes"
+	else
+		lprint "Found: ",fcount%,"files, ",sz&,"bytes"
+	endif
+	lclose
+	if outp%=3
+		print
+		print "The following file has been generated: ";outf$
+	endif
+endif
+GET
+endp
+
+proc checkf%:(d&)
+local r%,sec&
+r%=1
+if mdate%=2
+	if d&>=ddat1& and d&<=ddat2&
+	else
+		r%=0
+	endif
+endif
+if msize%=2
+	if size&>=dsize1& and size&<=dsize2&
+	else
+		r%=0
+	endif
+endif
+if mtime%=2
+	sec&=iabs(std%)*3600
+	sec&=sec&+min%*60+sek%
+	if sec&>=dtime1& and sec&<=dtime2&
+	else
+		r%=0
+	endif
+endif
+if loc(d$,mask$)
+else
+	r%=0
+endif
+return r%
+endp
+
+proc chkatt%:
+local t$(4),r%
+r%=1
+if at%(1)=3 or at%(2)=3 or at%(3)=3 or at%(4)=3
+	if at%(1)=1 and mid$(at$,1,1)<>"." :r%=0 :endif
+	if at%(1)=2 and mid$(at$,1,1)<>"R" :r%=0 :endif
+	if at%(2)=1 and mid$(at$,2,1)<>"." :r%=0 :endif
+	if at%(2)=2 and mid$(at$,2,1)<>"M" :r%=0 :endif
+	if at%(3)=1 and mid$(at$,3,1)<>"." :r%=0 :endif
+	if at%(3)=2 and mid$(at$,3,1)<>"H" :r%=0 :endif
+	if at%(4)=1 and mid$(at$,4,1)<>"." :r%=0 :endif
+	if at%(4)=2 and mid$(at$,4,1)<>"S" :r%=0 :endif
+else
+	if at%(1)=2 :t$="R" :else t$="." :endif
+	if at%(2)=2 :t$=t$+"M" :else t$=t$+"." :endif
+	if at%(3)=2 :t$=t$+"H" :else t$=t$+"." :endif
+	if at%(4)=2 :t$=t$+"S" :else t$=t$+"." :endif
+	if at$<>t$ :r%=0 :endif
+endif
+return r%
+endp
+
+proc prepare:
+rem for search & replace function
+local i%,j%,k%,c%,l%
+search$(1)=srch$(1)
+search$(2)=srch$(2)
+i%=0
+do
+	i%=i%+1
+	j%=1
+	do
+		l%=len(search$(i%))
+		if mid$(search$(i%),j%,1)="\"
+			if mid$(search$(i%),j%+1,1)="\"
+				search$(i%)=left$(search$(i%),j%-1)+mid$(search$(i%),j%+1,20)
+			else
+				c%=hex2dec%:(mid$(search$(i%),j%+1,2))
+				search$(i%)=left$(search$(i%),j%-1)+chr$(c%)+mid$(search$(i%),j%+3,20)
+			endif
+		endif
+		j%=j%+1
+	until j%>l%-1
+until i%=2
+endp
+
+proc hex2dec%:(s$)
+local i%,j%,n
+i%=len(s$)
+while(i%>0)
+	n=n+(loc("0123456789ABCDEF",mid$(s$,i%,1))-1)*16.0**j%
+	i%=i%-1
+	j%=j%+1
+endwh
+return intf(n+.5)
+endp
+
+proc replace$:(s$)
+local t$(255),l%,ll%,m%
+t$=s$
+ll%=len(search$(1))
+l%=loc(t$,search$(1))
+if l%
+	t$=left$(t$,l%-1)+search$(2)+mid$(t$,l%+ll%,255)
+endif
+if replm%=2
+	do
+		m%=loc(mid$(t$,l%+ll%,255),search$(1))
+		if m%
+			l%=m%+l%+ll%-1
+			t$=left$(t$,l%-1)+search$(2)+mid$(t$,l%+ll%,255)
+		endif
+	until m%=0
+endif
+return t$
+endp
+
+proc datecnv$:(a&,b&)
+local y%,m%,d%,x%,s$(23)
+secstodate (a&-25567)*3600*24,y%,m%,d%,x%,x%,x%,x%
+s$=gen$(y%,4)+"-"+right$("0"+gen$(m%,2),2)+"-"+right$("0"+gen$(d%,2),2)
+secstodate (b&-25567)*3600*24,y%,m%,d%,x%,x%,x%,x%
+s$=s$+" - "+gen$(y%,4)+"-"+right$("0"+gen$(m%,2),2)+"-"+right$("0"+gen$(d%,2),2)
+return s$
+endp
+

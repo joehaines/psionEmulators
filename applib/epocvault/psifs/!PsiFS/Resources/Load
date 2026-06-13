@@ -1,0 +1,26 @@
+|   File        : Load
+|   Date        : 11-Feb-00
+|   Author      : © A.Thoukydides, 1998, 1999, 2000
+|   Description : Script to perform common initialisation of PsiFS.
+
+| Special care needs to be taken over the C library
+Set PsiFS$CLibLoaded 1
+RMEnsure SharedCLibrary 0.00 Set PsiFS$CLibLoaded 0
+If PsiFS$CLibLoaded=1 Then RMEnsure SharedCLibrary 3.75 Error 0 You are already running a version of CLib which is too old. This application needs SharedCLibrary 3.75 or later.
+UnSet PsiFS$CLibLoaded
+
+| Ensure that the correct versions of system modules are loaded
+Run <PsiFS$Dir>.Resources.Ensure SharedCLibrary 3.75 CLib
+Run <PsiFS$Dir>.Resources.Ensure FPEmulator     2.70 FPEmulator
+
+| Check whether the block drivers have been seen
+If "<SerialDev$Path>" = "" Then Set SerialDev$Path <PsiFS$Dir>.Resources.
+
+| Load David Pilling's serial buffer
+RMEnsure SerialBuffer 1.00 Run <PsiFS$Dir>.Resources.SerialBuff
+
+| Load the PsiFS module
+Run <PsiFS$Dir>.Resources.PsiFS
+
+| Run the configuration script
+Run <PsiFS$Dir>.Configure

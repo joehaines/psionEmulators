@@ -1,0 +1,81 @@
+PT_7PLUS is a version of 7+ for the Psion Series 3 range of palmtop
+computers. Although 7plus is a valid name as a file, it is not a valid
+name for a process, because it doesn't start with an alphabetic
+character. Hence the name change.
+
+The program was ported on to the Psion Series 3 range of palmtops using
+the CLIB functions which provide ANSI compatibility. It is a very crude
+port, and probably has produced a significantly large image than would
+have happened using PLIB which is tailored to using more ROM routines.
+
+The program can run in two modes, interactive, and by a launch from
+another program. For interactive use, it should be placed in the \APP\
+directory, and installed using Psion-I. If you wish to launch requests
+to it, then of course it can be anywhere, but it makes sense to keep it
+in the \APP\ directory too.
+
+The MMI is crude using the ANSI I/O functions. HWIF is only used in the
+interactive version to input or select a file.
+
+However, the image can be launched by other processes and process the
+launch data. This is the main reason I have done this port. I did not
+want to re-write the code. I wanted something that worked, something that
+I could give back to BG1BBQ, something that other people could fix if a
+logic flaw turns up at a later date. I also wanted something I could
+integrate into my packet terminal software (PT) I have already written
+for the Series 3. Using the ANSI functions, and inter-process comms
+fits this requirement admirably.
+
+The following is a simple sample on how to launch 7+ from another program.
+
+--------------------------------------------------------------------------------
+#include <plib.h>
+#include <hwif.h>
+
+typedef struct
+    {
+    HANDLE  pid;                /* Our PID so 7+ can reply to us */
+    VOID    *poff;              /* Ptr to error code to be returned */
+    TEXT    *filename;          /* Ptr to supplied filename */
+    TEXT    *switches;          /* Ptr to optional switches */
+    } SEVENP;
+
+GLDEF_C VOID main()
+{
+    TEXT    filename[P_FNAMESIZE];
+    TEXT    switches[50];
+    SEVENP  cl;                 /* Command Line to launch 7+ */
+    HANDLE  sevenp_pid;         /* Process ID of 7+ application */
+    WORD    sevenp_stat=-1;     /* Status word for 7+ application */
+    INT     sevenp_result;      /* Error code returned from 7+ */
+
+    uCommonInit();
+
+    p_scpy(filename, "LOC::M:\\WRD\\TEST.WRD");
+    p_scpy(switches, "-sp 3 -k -y");
+
+    cl.pid=p_getpid();
+    cl.poff=&sevenp_result;
+    cl.filename=filename;
+    cl.switches=switches;
+                                /* Load the application and send command line */
+    if ((sevenp_pid=p_execc("LOC::M:\\APP\\PT\\PT_7PLUS.IMG",&cl,sizeof(cl)))<0) {
+        p_exit(sevenp_pid);
+    }
+                                /* Tell EPOC we need to know 7+ status */
+    p_logona(sevenp_pid, &sevenp_stat);
+    p_presume(sevenp_pid);      /* Change 7+ state from suspended to run */
+
+    p_iowait();                 /* Wait for something to happen, i.e. 7+ */
+
+    p_atos(filename,"PT_7Plus returned %d\n", sevenp_result);
+    p_printf(filename);
+    p_getch();
+    p_exit(0);
+}
+--------------------------------------------------------------------------------
+
+I hope this is of some help to someone.
+
+Mike Davies
+G7MCL

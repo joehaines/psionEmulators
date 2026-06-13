@@ -1,0 +1,403 @@
+                   Pocket Packet for the Psion Series 3a
+                   =====================================
+
+Description of Version 3.28
+
+PocPac is a split-screen packet TNC driver for the Psion Series 3a computer.
+It was originally written as an exercise in using OPL on the RS232 port, but
+has proved very useful as part of a portable packet outfit.  While the built
+in COMMS application works well with TNCs, PocPac provides the split-screen
+facility which is usual in PC packet programs.
+
+PocPac is written entirely in OPL.  This means it does not run quite as fast
+as it could, but is perfectly adequate for most packet radio applications.
+I have not tried it with 9600 baud packet, but I run the RS232 side of my
+KPC3 at 9600 all the time, any have not seen any data loss.
+
+PocPac is a free program, and can be circulated by any means.  Please keep
+all the files together in the original archive if you pass them on.
+
+
+Memory Requirements
+
+The program size is about 15k.
+The memory required to run PocPac depends on the size of scrollback buffer
+used, the approximate figures are:
+                      12 pages      41 kbytes
+                       6 pages      32 kbytes
+                       0 pages      23 kbytes
+When the buffer is being displayed, a further 10 kbytes is required.
+
+
+Installation.
+
+The following files should be unzipped from the archive:
+
+PP.OPA        The main program file
+PP.RSC        PocPac help file
+CAPTURE.ALS   A text editor alias for captured data
+UPLOAD.ALS    As above, but for editing .TXT files for transmission
+PP.PIC        An icon for incorporation in a .GRP file
+PP.TXT        This file
+PPCONF.OPO    Configuration file creator/editor
+PP.MAC        Sample macro file
+PPMAC.OPO     Macro file creator/editor
+
+* Copy PP.OPA into the \APP\ directory on drive A, B or M.
+
+* Create an \APP\POCPAC\ directory on the same drive, and copy PP.RSC and
+  PP.MAC into it.
+
+* The two .OPO files allow you to configure PocPac.  They should be
+  copied to an \OPO\ directory.  They are not used when PocPac is running,
+  and may be removed after configuration is completed.
+
+* PocPac is installed to the system screen in the usual way, Psion-I.
+
+* You can also copy the ALS files to an \APP\ directory and install them in 
+  the same way - the captured and send files will appear under the icons.
+  Note - these aliases assume your 'send' and capture directory is \PP\ on 
+  any drive.  See page 126 in the Psion 3a User Guide if you use other 
+  directories.  You can use PocPac, the .ALS files and, say 7plus (by 
+  Rovoreed) in a GROUP (see Psions User Guide).  You can use the PP.PIC
+  file as the group icon.
+
+* If you are updating your version of PocPac, the configuration file may
+  not be compatible.  It is best to delete this from the M:\DAT\
+  directory - it will be called PP.DBF or PP.CFG.
+
+You can now run PocPac for the first time.  It will create a new config
+file, M:\DAT\PP.DBF, and then exit.  You can now customise PP.DBF using
+the Psion DATA application, or with the program PPCONF.OPO which is
+included in the PocPac archive:
+
+Using DATA:
+Highlight PP under the DATA icon on the system screen, and press return.
+Some default values will already be filled in.  Press Psion-U and change
+them to the values you require.  Then press TAB to save the new 
+configuration, and Psion-K to compress the file.  Now press Psion-X to 
+save the file.  
+
+Using the configuration file editor, PPCONF.OPO:
+This can be placed in any \OPO\ directory, and it will appear under the
+RunOpl icon.  Highlight it and run it.  It is self explanatory, so needs
+no instructions (I hope!!).
+
+If you remove PP.DBF, a new one will be generated when you next run PocPac.
+
+The file structure (with example entries) is as below:
+
+BaudRate     9600
+Handshake    Rts/Cts
+WordLength   8
+Parity       None
+CapturePath  LOC::M:\PP\
+SendPath     LOC::M:\PP\
+QuickConnect GB7WIR
+Connect 1    G0HZK
+etc., to
+Connect 8    No Call
+ScrollPages  7
+FooterName   LOC::A:\APP\POCPAC\FOOTER.FUT
+WordWrap     68
+Font         Small
+PW Prompt    GB7QRZ-0>
+PW Table     abcdefghijk...........
+Sound        Yes
+Echo         No
+
+The baudrate can be chosen from 1200, 1800, 2000, 2400, 3600, 4800, 7200
+9600 and 19200.  I recommend 9600 with a normal 1200 baud TNC. The slower
+you go, the longer it takes for your typing to appear when the channel is
+busy, and you are just monitoring the traffic.  (My TNC won't go at 19200,
+so I haven't tried that speed).
+
+Handshake can be either Rts/Cts or Xon/Xoff.
+
+WordLength can be either 7 or 8.
+
+Parity can be None, Even, or Odd.  If 8 bit data is used, set parity to
+None.  For 7 bit data, all three choices are available.
+
+NOTE:  Rts/Cts, 8, and None are the best settings to use, especially if
+7plus files are to be handled.
+
+CapturePath is the directory you wish to capture data to.  The full path
+should be entered as in the example, ending with a backslash "\".  This
+path should preferably be on a RAM SSD or the internal drive.
+
+SendPath is the directory PocPac first looks in when you wish to send a file.
+This can be on any drive.  It can be the same as CapturePath if required.
+
+Quickconnect is the callsign of the BBS you normally use.  When Psion-B
+is pressed, PocPac issues a connect request to this call.  Up to 25 letters
+are allowed, e.g. GB7QRT v GB7QRV-1
+
+Connect 1 to Connect 8 are the callsigns of 8 stations which you can connect
+to using PocPac Psion-C command.  If you do not use all 8, you can leave the
+others blank.
+
+Scrollpages is the number of pages of scrollback buffer you wish to allow.
+0 (zero) disables scrollback if memory is low.  You can allocate up to 12
+pages of 17 lines - depending on memory available.  12 pages allows you to
+buffer 200 lines of text - normally enough!
+
+FooterName is the full name and path to a footer file you may wish to append
+to files you send.
+
+WordWrap is the minimum number of charcters on a type-ahead line before 
+PocPac will consider word-wrapping.  68 is OK for English users, those who
+send text in languages with longer words may need to reduce this!
+
+Font determines the font used for the receive window.  Set this to SMALL
+for 14 lines, or TINY for 18 lines.
+
+PW Prompt is the prompt sent by a F6FBB BBS when entering remote sysop
+mode.  This looks like  GB7QRZ-0>   followed by five numbers.  Enter the
+GB7QRZ-0> prompt here, up to 12 characters.
+
+PW Table is the string used to convert the numbers received above, to
+the letters to be sent to the BBS in reply.  The max string length is
+255 letters here (Note: PPCONF allows you to edit only 99 characters).
+If you use the F6FBB  "SYS" command, you should understand how it works!
+I believe that some BBSs use the same system for normal user access.
+
+Sound signifies whether a connect 'alarm' is sounded.  It can be Yes or No.
+
+Echo determines whether PocPac echoes input text to the main window.
+If you use "ECHO ON" on your TNC, set this value to No.  Set it to Yes
+if you normally use "ECHO OFF" on your TNC.
+
+
+When you are satisfied with the configuration set using DATA, you can
+rename M:\DAT\PP.DBF  to  M:\DAT\PP.CFG
+This will remove it from DATAs file list, but PocPac will still read it.
+You can edit it again by pressing TAB when DATA files are highlighted, and
+using the file selector to find PP.CFG.  You can also edit it with PPCONF.
+
+
+Macro file
+
+A new feature on this version is a simple macro facility.  This allows
+you to send short commands to your TNC or BBS.  It is activated by pressing
+the MENU key.
+
+The macro commands are stored in the \APP\POCPAC\PP.MAC file.  This is a
+standard Psion data file.  You can have up to 10 macros, each of up to
+15 characters, which are stored one per record.  To assist you in doing
+this, I have included a small utility, PPMAC.OPO, which can be copied to
+any \OPO\ directory.  This will find your macro file on any drive, or 
+create one on the M: internal drive if it cannot find a file.  The use of
+this is self-explanatory!
+
+The macros are included to simplify the sending of commonly used BBS
+commands, like  LS PSION, SB DEBATE @ GBR, or DX cluster commands.
+Let me know if they need to be longer than I have allowed!
+
+
+Using PocPac
+
+Highlight PocPac and press Enter.  If the 3-Link Serial lead is not plugged
+in, you will be told so!  Plug it in first!  Ensure that COMMS or any similar
+application has been closed down.
+If the LINK is running, it will be automatically closed by PocPac.  You will
+have to restart it next time you wish to copy files to your main computer.
+The 3-Link lead is normally connected to your TNC with a "null modem" type
+lead.  This reverses the TxD and RxD lines, also the Rts and Cts lines.
+Switch on your TNC and you should see the sign on message.  With some TNCs
+you may need to press Enter a few times.
+Set the TNC to "ECHO ON" if you wish to see your text echoed.  Note the use
+of the ECHO parameter in PP.DBF.
+
+PocPac does not send any line feeds to the TNC, which does not require them.
+Also it does not add them to incoming text.  Set "LFADD OFF" and "AUTOLF ON".
+Check that the TNC filters out incoming line feeds, you may need to set
+"LFSUP ON" to remove them.
+
+
+Type-ahead.
+
+PocPac uses a type-ahead buffer - text you type will appear in the lower
+window and will not be sent to the TNC unless you either press ENTER, or
+PocPac wordwraps.  Word wrap will occur when you press the space bar after
+68 letters have been typed.  This threshold can be altered if desired.
+If wordwrap occurs, a CR will be appended to the text sent to the TNC.  Some
+BBSs cannot handle long lines of text.
+If you press Control-C (for TNC Command Mode) this command bypasses the
+type-ahead and goes straight to the TNC.
+
+The last 5 lines sent (using ENTER) are saved, and can be recalled by 
+pressing Up or DownArrow.  They can be edited and sent again if required.
+
+Psion-Y deletes all you have typed on the current line.
+
+You can edit the current line using the arrow and delete keys - you can alter
+text anywhere in the current line.  HOME and END have their usual WP meaning.
+
+
+Scrollback.
+
+Press Pg Up to activate the scrollback windows.  You can then move between
+the pages using UpArrow and DownArrow (or Pg Up and Pg Dn).  Press ESC to 
+exit scrollback.  You can save the contents of the scrollback memory by
+pressing Psion-S while the scrollback window is visible.  This writes a new
+file each time, which will be found in the capture directory.  The name 
+will be nnSCRLBK.CAP, where initially nn=01.  If 01SCRLBK.CAP exists, then
+02SCRLBK.CAP will be used, and so on.  The lowest possible number will
+always be used.
+While you are viewing scrollback, you can still type into the type-ahead.
+All letter keys and editing keys still work, as does ENTER.  Thus you can
+view a list from a BBS and type the message numbers you wish to read.  When
+you press ENTER, the line is sent, but scrollback is still active.  Press
+ESC to return to the main window.
+If you leave scrollback active for 2 minutes without doing anything, it will
+cancel automatically.
+
+Note scrollback eats memory.  While the data structure is allocated when you
+run PocPac, opening the scrollback window uses more memory.  PocPac does NOT
+check if there is enough, and may crash if there isn't!  Sorry!  If you set
+the config file for more pages than memory can provide, scrollback will be
+disabled, and you will be told.  To check if you have enough, press UpArrow
+then the System button.  Press Psion-M at the system screen to see what is
+left.
+
+
+Sound, and Connect Status.
+
+If the 'Sound' field in the configuration file contains YES,  the 'Fanfare'
+alarm is sounded once when a connect is achieved.  The "OnLine" status
+message will also appear when connected (If you are using a low RS232
+baud rate, this may not always happen).  You may also get a beep if your
+TNC is set to send a BELL character (Ctrl-G, or ASCII 7).  My KPC3 V5.1
+doesn't do this even if RING is ON and FILTER is OFF, so I can't check
+this!  On a disconnect, status becomes "OffLine".
+You can substitute your own connect alarm for Psions fanfare.  Put the
+sound file, named PP.WVE, into any \WVE directory.
+
+
+Multitasking
+
+PocPac should continue to capture data while running in the background.
+The display will continue to update, even though you cannot see it.
+Except when sending a file or when a dialog is displayed, all system,
+keyboard, and serial IO handling is asynchronous.  Thus the program
+effectively becomes quiescent when nothing is happening.
+
+The Keys.
+
+The following functions are provided:
+
+Psion-T      Sets TNC time to Psion time (TNC must be in command mode)
+
+Psion-L      Captures incoming text to a file.  This is saved to the 
+             directory defined in CapturePath (see above).  If the directory
+             is missing, PocPac will try to make it.  The file name, the
+             current date (e.g. AUG12.CAP) is shown on the status line.
+             If the file is already present, it will be appended to.
+             This is a toggle.  A second press of Psion-L will stop text
+             being captured.
+
+Psion-S      Send a file with a .TXT extension.  The dialog which appears
+             allows selection of a file from the SendPath directory.  You
+             can press TAB to get the Psion file selector to send from a
+             different directory - Note only .TXT files will be shown.
+             You also have the option to terminate your file with /EX
+             or Ctrl-Z.  You can also add /ACK for remote acknowledgement
+             of receipt of PRIVATE MESSAGES (SP) - do *NOT* try this with
+             bulletins!  The footer described earlier can also be added.
+             Also a date stamp may be added.
+             
+Psion-A      As above, but file mask *.* is used to allow any file to be
+             selected.  The filename sent is shown on the status line during
+             sending.
+ 
+             
+Psion-M      Send multiple copies.  This facility, written by HB9VBC,
+             enables you to send copies of a file, already uploaded to
+             a BBS, to all the callsigns in a list.  The list is a
+             file created by the Psion DATA application.  Each record 
+             has two fields, the first contains a callsign, the second 
+             the home BBS of that station.  There is one record for each 
+             station on the list.  This file is normally held in the \DATA\ 
+             directory of the default drive, and has the normal .DBF 
+             extension.  On pressing Psion-M, you will see a dialog which
+             requests the number of the message on the BBS that you wish to 
+             copy.  A file selector enables you to choose the Data file
+             which contains the list.  You are asked to enter the "send copy"
+             command for your BBS (default sc), and the message terminator
+             (Control-Z or /EX) if the BBS requires this to close each copy
+             it makes.  You may abort this command by pressing Esc.
+             NOTE:  The BBS may send a prompt for every callsign it
+                    processes.  This may take a while!  
+
+Psion-B      Issue a connect command to the QuickConnect Callsign.
+
+Psion-C      Connect to one of eight stations configured.
+
+Psion-E      View or edit the captured file.  If file capture is active, it
+             will be closed first.
+             
+Psion-F      Sends the footer file, i.e. enables you to append your footer
+             and optional date stamp, to a message typed 'live' into a BBS.
+
+Psion-K      Kill editor.  If the editor was open, and you return to PocPac
+             without closing it (e.g. via Psion-System) the status line may
+             tell you the editor is still active.  If you re-open the 
+             capture file (Psion-L above) the editor will be closed first
+             automatically.
+
+Psion-P      Decodes the 5 numbers received from a BBS into a password,
+             and places them on the type-ahead line.  Press Enter to send
+             the password.
+
+Psion-V      Shows the version of PocPac, and how to contact the author.
+
+Psion-X      Closes down PocPac.
+
+Psion-Y      Deletes current type-ahead line.
+
+Psion-Z      Toggles between Small and Tiny font.  Alas it clears the screen
+             as well, but the scrollback buffer remains intact.
+             
+Help         Shows the help screens.
+
+Pg Up        Activates scrollback window.
+
+UpArrow &
+DownArrow    Recall last 5 lines sent to TNC.
+
+
+Status Line
+
+The status line gives some information about PocPac.  The first part of
+the line is used to display the capture file name, or the current file
+being sent.  The next box shows either "OnLine" or "OffLine", the former
+if you have connected to a station.  The next part shows the RS232 baud
+rate.  Then comes the RS232 settings: like 8N1R which means 8 bit word,
+No parity, 1 stop bit and Rts/Cts handshaking.  The number following W 
+in the next box is the column after which the word wrap can occur.  The
+number following P in the next box is the number of scrollback pages.
+Next is the Capture drive letter, e.g. A, followed by the bytes remaining
+on that drive.  Finally the current time, as set by the Psion clock.
+
+Registration
+
+There is no charge for using PocPac, but I would be grateful if users send
+me a message by packet, internet, or post, telling me that they are using
+the program.
+
+Thanks to  Daniel Pfund, HB9VBC @ HB9IAP.SROM.CHE.EU
+            for his "Send Copy" list generator.
+
+Registrations, bug reports, wishlists, etc. to:-
+
+Roger Muggleton, G0HZK @ GB7WIR.#42.GBR.EU
+       Internet: hzk@cix.co.uk
+       Post - I am Qthr.
+
+
+Whats New:  version 3.28  30th October '96
+
+Macro facility added.
+Date stamp facility on send file and send footer dialogs.
+Serial link detection changed to allow use on Series 3c (I hope).

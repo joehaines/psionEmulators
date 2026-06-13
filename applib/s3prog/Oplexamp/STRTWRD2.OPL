@@ -1,0 +1,46 @@
+==========
+Usenet/comp.sys.psion #14873, from Heinrich_Hiemesch@m2.maus.de, 1649 chars, Jul 30 22:4 95
+----------
+Article: 14873 of comp.sys.psion
+Path: cix.compulink.co.uk!zinc.compulink.co.uk!btnet!dispatch.news.demon.net!demon!tank.news.pipex.net!pipex!howland.reston.ans.net!swrinde!cs.utexas.edu!not-for-mail
+From: Heinrich_Hiemesch@m2.maus.de (Heinrich Hiemesch)
+Newsgroups: comp.sys.psion
+Subject: RE: Starting Word from OPL
+Date: 30 Jul 1995 22:04:44 -0500
+Organization: MausNet (Mitglied im IN e.V.)
+Lines: 30
+Sender: nobody@cs.utexas.edu
+Message-ID: <P21295@M2.maus.de>
+NNTP-Posting-Host: news.cs.utexas.edu
+
+Hi Mark,
+
+The following code will do it:
+
+PROC startwrd:
+    LOCAL pName$(40),cmdl$(128),pid%
+    pName$="ROM::WORD.APP"+CHR$(0)
+    cmdl$="OWord"+CHR$(0)+".WRD"+CHR$(0)+"????????.???"+CHR$(0)
+    IF CALL($0187,ADDR(pName$)+1,ADDR(cmdl$),0,0,ADDR(pid%))>=0
+        CALL($0688,pid%)
+    ENDIF
+ENDP
+
+The string "????????.???" should contain the path+filename of the file which
+shall be initially loaded by the WORD-application.
+
+Heinrich Hiemesch
+reply to heinrich_hiemesch@m2.maus.de
+not more than 64kB/d - thanks
+
+
+Mark wrote:
+MM>The subject says it - I would like to be able to start up either Word,
+MM>or any text viewer application from my OPL programs. I've written an
+MM>OPA that can search through multiple files in a directory for text
+MM>match (including 'text a' AND 'text b' etc.). I'd like to be able to
+MM>then start up word to view the files with matches (in an ideal world I
+MM>could start it up to go directly to the match string). I'd rather not
+MM>have to write an OPL viewer, as this would be re-inventing the wheel,
+MM>and take a lot of time as well. Am I being being too hopeful???
+

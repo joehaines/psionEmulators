@@ -1,0 +1,284 @@
+REM Battery-friendly Stopwatch Utility
+REM for Series 3.
+REM Rick Andrews April 92.
+
+
+PROC StopW:
+	GLOBAL gStart& REM Time of event start.
+	GLOBAL gPrevS& REM Secs elapsed in prev run.
+	GLOBAL gInit& REM Time of event restart.
+
+	GLOBAL gElapS& REM Total elapsed seconds.
+	GLOBAL gDesc$(30)
+	GLOBAL gTimeId%,gDescId%
+
+	LOCAL file$(128)
+	LOCAL k%,done%
+	LOCAL save% REM Store event?
+
+	LOCAL mode% REM 0-stop, 1-run.
+	LOCAL mode$(5) 
+
+REM Init the variables.
+	gDesc$="(no desc)"
+	mode%=1
+	done%=0 :save%=1
+	mode$="Stop"
+
+	CLS
+	gBORDER $202
+	gAT 170,3
+	gCLOCK ON,$25
+
+	gAT 178,73
+	gPRINT "Stopwatch"
+	gDescId%=gCREATE(3,6,165,25,1)
+	gBORDER $201
+	gAT 5,11 :gPRINT "Event:"
+	gAT 5,20 :gPRINT "Started at"
+
+	gTimeId%=gCREATE(20,33,135,40,1)
+	gBORDER $201
+
+	gAT 6,15 :gPRINT "Elapsed :"
+	gAT 6,31 :gPRINT "Lap time:"
+
+	gSTYLE 8 REM Double height.
+
+	File$="m:stopwdat"
+	GetDets:(File$)
+
+	gUSE gDescId%
+	gAT 38,11 :gPRINTB gDesc$,120
+	gAT 62,20 :gPRINT STime$:(gStart&)
+	gUSE gTimeId%
+
+REM Main loop.
+	DO
+		IF mode% REM Clock running?
+			gElapS&=(Now&:-gInit&)+gPrevS&
+			gAT 55,18 :gPRINTB ETime$:(gElapS&),75
+
+			PAUSE -18 REM Save battery.
+			k%=KEY
+		ELSE
+			k%=GET
+		ENDIF
+
+REM Menu or hot-key hit?
+		IF k%=$122 OR (k% AND $200)
+			IF k%=$122
+				mINIT
+				mCARD "Timer",mode$,%S,"Lap",%L
+				mCARD "Reset","Zero",%Z,"Kill",%K,"Exit",%X
+				mCARD "Event","Edit desc",%D
+				k%=MENU
+			ELSE
+				k%=k%-$200
+			ENDIF
+			k%=k% AND $FFDF REM Uppercase.
+
+REM Lap.
+			IF k%=%L
+				IF mode%
+					gAT 55,34
+					gPRINTB ETime$:(gElapS&),75
+				ENDIF
+
+REM Stop/Start.
+			ELSEIF k%=%S
+				IF mode%=0 REM Stopped.
+					Restart:
+					mode%=1
+					mode$="Stop"
+				ELSE REM Running.
+					Stop:
+					mode%=0
+					mode$="Start"
+				ENDIF
+
+REM Zero.
+			ELSEIF k%=%Z
+				IF mode%=0
+					Zero:
+				ENDIF
+
+REM Kill.
+			ELSEIF k%=%K
+				IF mode%=0
+					dINIT
+					dTEXT "","Delete Event and Exit",$202
+					dBUTTONS "No",%N,"Yes",%Y
+					IF DIALOG=%y
+						save%=0
+						done%=1
+					ENDIF
+				ENDIF
+
+REM Edit description.
+			ELSEIF k%=%D
+				EditDesc:
+
+REM Exit.
+			ELSEIF k%=%X
+				done%=1
+			ENDIF
+		ENDIF
+	UNTIL done%
+
+	TRAP DELETE file$
+
+REM Save details?
+	IF save%
+		Save:(file$)
+	ENDIF
+
+	gCLOSE gTimeId%
+	gCLOSE gDescId%
+	gCLOCK OFF
+ENDP
+
+
+PROC Restart:
+REM Restart the timer.
+	gInit&=Now&:
+	IF gStart&=0 REM After being zeroed?
+		gStart&=gInit&
+		gUSE gDescId%
+		gAT 62,20 :gPRINTB STime$:(gStart&),95
+		gUSE gTimeId%
+	ENDIF
+	gSTYLE 0
+	gAT 6,15 :gPRINTB "Elapsed",40
+	gSTYLE 8
+	GIPRINT "Started",1
+ENDP
+
+
+PROC Now&:
+REM Returns current time in seconds.
+	LOCAL a&,b&
+REM Have to do at least two readings
+REM in case the results clock over
+REM whilst being read. 
+	a&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+	DO
+		b&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+	UNTIL (ABS(b&-a&)<2)
+	RETURN b&
+ENDP
+
+
+PROC Stop:
+REM Stop the timer.
+	gSTYLE 0
+	gAT 6,15 :gPRINTB "Stopped",40
+	gSTYLE 8 
+	gPrevS&=gElapS&
+	GIPRINT "Stopped",1
+ENDP
+
+
+PROC Zero:
+REM Zero the timer.
+	gElapS&=0 :gPrevS&=0 :gStart&=0
+	gSTYLE 0
+	gAT 6,15 :gPRINTB "Zeroed",40
+	gSTYLE 8
+	gAT 55,18 :gPRINTB ETime$:(gElapS&),75
+	gAT 55,34 :gPRINTB " ",75
+	GIPRINT "Zeroed",1
+ENDP
+
+
+PROC STime$:(t&)
+REM Return formatted start time with date.
+	LOCAL date$(17)
+	LOCAL h%,mi%,s%,d%,mo%,y%,unused%
+	SECSTODATE t&,y%,mo%,d%,h%,mi%,s%,unused%
+	date$=Hms$:(h%,mi%,s%)+" "
+	date$=date$+RIGHT$("0"+GEN$(d%,2),2)+"/"
+	date$=date$+RIGHT$("0"+GEN$(mo%,2),2)+"/"
+	date$=date$+RIGHT$("0"+GEN$(y%-1900,2),2)
+	RETURN date$
+ENDP
+
+
+PROC ETime$:(t&)
+REM Return formatted elapsed time.
+	LOCAL time$(13)
+	LOCAL elap&
+	LOCAL eday%,ehour%,emin%,esec%
+
+	elap&=t&
+	eday%=elap&/86400
+	elap&=elap&-(eday%*86400.)
+	ehour%=elap&/3600
+	elap&=elap&-(ehour%*3600.)
+	emin%=elap&/60
+	elap&=elap&-(emin%*60.)
+	esec%=elap&
+
+	time$=Hms$:(ehour%,emin%,esec%)+" "
+	IF eday%>0
+		time$=time$+GEN$(eday%,3)+"d"
+	ENDIF
+	RETURN time$
+ENDP
+
+
+PROC Hms$:(h%,m%,s%)
+REM Return formatted hours,mins,seconds.
+	LOCAL t$(8)
+	t$=RIGHT$("0"+GEN$(h%,2),2)+":"
+	t$=t$+RIGHT$("0"+GEN$(m%,2),2)+":"
+	t$=t$+RIGHT$("0"+GEN$(s%,2),2)
+	RETURN t$
+ENDP
+
+
+PROC GetDets:(f$)
+REM Load timer details if they exist.
+	IF EXIST(f$)
+		GIPRINT "Loading details",1
+		OPEN f$,A,time&,desc$
+		gStart&=A.time&
+		gInit&=Now&:
+		gPrevS&=gInit&-gStart&
+		gDesc$=A.desc$
+		CLOSE
+	ELSE
+		gPrevS&=0
+		dINIT "Stopwatch"
+		dTEXT "","Press Enter",2
+		dTEXT "","to start",2 REM Centre.
+		DIALOG
+		gInit&=Now&:
+		gStart&=gInit&
+		GIPRINT "Clock started",1
+		EditDesc:
+	ENDIF
+
+ENDP
+
+
+PROC Save:(f$)
+REM Save the timer details.
+	CREATE f$,A,time&,desc$
+	A.time&=gStart&
+	A.desc$=gDesc$
+	APPEND
+	CLOSE
+	GIPRINT "Saved",1
+ENDP
+
+
+PROC EditDesc:
+REM Edit the description.
+	dINIT "Description"
+	dEDIT gDesc$,"Event",20
+	DIALOG
+	gUSE gDescId%
+	gAT 38,11 :gPRINTB gDesc$,120
+	gUSE gTimeId%
+ENDP

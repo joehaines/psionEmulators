@@ -1,0 +1,88 @@
+Subject: Re: Labels for OPL database files
+In-Reply-To: ye79@uk.co.gec-mrc's message of 28 Jun 94 11:18:33 GMT
+Message-ID: <RJC.94Jun29144821@daiches.cogsci.ed.ac.uk>
+Sender: usenet@cogsci.ed.ac.uk (C News Software)
+Nntp-Posting-Host: daiches
+Organization: Human Communication Research Centre, University of Edinburgh
+References: <4683@twix>
+Date: Wed, 29 Jun 1994 13:48:20 GMT
+Lines: 85
+
+
+I use the following two procedures to read and write the field
+names. d% is a number corresponding to the handle (1->A etc).
+
+The names are stored in a global array fldnm$(). 
+
+proc rdfldnm%:(d%)
+        local info%(4)
+        local d1%, d2%, d3%, d4%
+        local n%, i%, p%, e%
+        
+        odbinfo info%()
+        
+        d1%=$1700
+        d2%=peekw(info%(d%))
+        if os($d8, addr(d1%)) and 1
+                return -1
+        endif
+        
+        p%=uadd(peekw(uadd(info%(d%),8)),2)
+        
+        while (peekw(p%) and $f000)<>$4000
+                p%=uadd(p%,(peekw(p%) and $0fff)+2)
+        endwh
+        
+        e%=uadd(p%,(peekw(p%) and $0fff)+2)
+        p%=uadd(p%,2)
+        i%=1
+        while p%<e%
+                fldnm$(i%)=peek$(p%)
+                p%=uadd(p%,len(fldnm$(i%))+1)
+                i%=i%+1
+        endwh
+        return i%-1
+endp
+
+proc wtfldnm:(d%,n%)
+        local info%(4)
+        local d1%, d2%, d3%, d4%
+        local i%, p%, s%, l%, r%
+        
+        odbinfo info%()
+        
+        d1%=$1700
+        d2%=peekw(info%(d%))
+        if os($d8, addr(d1%)) and 1
+                raise 1
+        endif
+        
+        p%=uadd(peekw(uadd(info%(d%),8)),2)
+        
+        while (peekw(p%) and $f000)<>$4000
+                p%=uadd(p%,(peekw(p%) and $0fff)+2)
+        endwh
+        
+        s%=peekw(uadd(info%(d%),8))
+        r%=p%
+        p%=uadd(p%,2)
+        
+        i%=1 :l%=0
+        while i%<=n%
+                poke$ p%, fldnm$(i%)
+                p%=uadd(p%,len(fldnm$(i%))+1)
+                l%=l%+len(fldnm$(i%))+1
+                i%=i%+1
+        endwh
+        
+        pokew r%, $4000 or l%
+        
+        d1%=$1800
+        d2%=peekw(info%(d%))
+        d3%=p%-s%
+        
+        if os($d8, addr(d1%)) and 1
+                raise d1% or $ff00
+        endif
+        
+endp

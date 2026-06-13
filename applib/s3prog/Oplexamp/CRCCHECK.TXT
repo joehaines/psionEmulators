@@ -1,0 +1,186 @@
+==========
+palmtop/S19_Psion_Programming #183549, from Eric_Johnson, 4742 chars, 03-Dec-95  20:07:09
+Comment to 182292.
+----------
+Subject: checksum for PIC files
+Fm: Eric Johnson 100277,1206
+To: Peter Pollmann 100060,2177
+
+Dear Peter
+
+The attached OPL program shows how to calculate CRCs in the same way as the
+code in the Psion ROM. A C implementation would be far more elegant since it
+has better for such low level operations. However, doing it in OPL makes it
+simpler to compare to the Psion implementation.
+
+Besides, due to completely reorganising my system, none of my C compilers are
+currently in a usable state! If necessary, I could supply a C version.
+
+There are two versions of the routine. One processes the input one bit at a
+time, the other operates on bytes. This is faster but needs a lookup table. In
+a real implementation the lookup table would be specified as a list of
+constants but here it is generated to show where the values come from.
+
+If you need an explanation of the theory as to how and why the CRC works I can
+try and write something which does not get too mathematical. Anyway I hope
+this helps with your implementation.
+
+Eric Johnson
+
+==========================================================
+
+rem Demonstration program for CRC calculation
+rem Compares results of operating system GenCrc
+rem routine and two user versions. One uses a
+rem lookup table for efficiency.
+rem
+rem ebj 1.00    01Dec95
+rem *******************************************
+
+proc main:
+        local x%,buf$(32),p%,len%
+        global bufsbr$(16),bytesbr$(16)
+        global Tcrc%(256)
+        trap cache $1000,$1000
+
+        rem Initialiase test data
+        p%=addr(buf$)
+        pokew uadd(p%,0),$1234
+        pokew uadd(p%,2),$5678
+        pokew uadd(p%,4),$9abc
+        pokew uadd(p%,6),$def0
+        len%=256
+
+        rem Invoke Operating CRC function
+        bufsbr$="osCrc"
+        test:(p%,len%)
+
+        rem Invoke "slow" bit-orientated CRC
+        bufsbr$="myCrc"
+        bytesbr$="sCrcB"
+        test:(p%,len%)
+
+        rem Invoke "fast" byte-orientated CRC
+        rem This needs the lookup table Tcrc%()
+        GenTable:
+        bytesbr$="fCrcB"
+        test:(p%,len%)
+
+        rem Wait for user keypress to terminate
+        get
+endp
+
+rem Calculate CRC of buffer using routine
+rem with name bufsbr$.
+rem This is split into two parts to check it
+rem uses the previous result correctly
+proc test:(p%,len%)
+        local x%
+        local s%,m%,tim%
+        s%=second : m%=minute
+        x%=@%(bufsbr$):(0,p%,len%-1)
+        x%=@%(bufsbr$):(x%,uadd(p%,len%-1),1)
+  tim%=60*(minute-m%)+(second-s%)
+        print bufsbr$, hex$(x%), tim%, "sec"
+endp
+
+rem Operating system CRC
+proc osCrc%:(crc%,pbuf%,len%)
+        return call(&298b,0,len%,crc%,pbuf%,0)
+endp
+
+rem Bitwise exclusive-or
+proc xor%:(a%,b%)
+        return (a% and not b%) or (not a% and b%)
+endp
+
+rem Left shift by 1 bit
+proc shl%:(a%)
+        return uadd(a%,a%)
+endp
+
+rem Split a word into high and low bytes
+rem phi, plo are addresses of words for result
+proc split:(x%, phi%, plo%)
+        local d%
+        d%=x%
+        pokew plo%, peekb(addr(d%))
+        pokew phi%, peekb(uadd(addr(d%),1))
+endp
+
+rem Return a byte with the byte order swapped
+proc swap%:(in%)
+        local x%,p%
+        p%=uadd(addr(x%),1)
+        x%=in%
+        x%=peekb(p%)
+        pokeb p%, in% and $FF
+        return x%
+endp
+
+rem Calculate CRC of a buffer using User routine
+rem Uses the bytesbr$ routine to calculate the
+rem CRC of a single byte.
+proc myCrc%:(crc%,pbuf%,len%)
+        local x%,j%,p%
+        x%=crc%
+        rem  Loop over bytes in buffer
+        j%=0
+        p%=pbuf%
+        while j%<len%
+                x%=@%(bytesbr$):(x%,peekb(p%))
+                p%=uadd(p%,1)
+                j%=j%+1
+        endwh
+        return x%
+endp
+
+rem Slow CRC byte
+proc sCrcB%:(crc%,byte%)
+        local i%,b%,x%,s%
+        local poly%
+        poly%=$1021:   rem x^16+x^12+x^5+1
+        b%=byte%
+        x%=crc%
+        rem  Loop over bits in byte
+        i%=0
+        while i%<8
+                if (x% and $8000)
+                        s%=1
+                else
+                        s%=0
+                endif
+                if (b% and &80)
+                        s%=1-s%
+                endif
+                x%=shl%:(x%)
+                if s%=1
+                        x%=xor%:(x%,poly%)
+                endif
+                i%=i%+1
+                b%=shl%:(b%)
+        endwh
+        return x%
+endp
+
+rem Tcrc%() is a table containing the CRC of
+rem x in entry x
+proc GenTable:
+        local i%
+        i%=0
+        while i%<256
+                Tcrc%(i%+1)=osCrc%:(0,addr(i%),1)
+                i%=i%+1
+        endwh
+endp
+
+rem Fast CRC byte
+proc fCRCb%:(crc%,byte%)
+        local x1%,x0%
+        split:(crc%,addr(x1%),addr(x0%))
+        return xor%:(TCrc%(xor%:(x1%,byte%)+1),swap%:(x0%))
+endp
+
+There is 1 Reply.
+
+

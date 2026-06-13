@@ -1,0 +1,294 @@
+NOTES ON PRODUCING .WDR FILES FROM .WD SOURCE FILES
+===================================================
+
+    Read as much or as little of this document as you wish.
+    The .wdr system is very powerful and therefore takes some time to learn
+in all its details.  But individual users may be able to achieve their
+desired effects without understanding more than a fraction of what follows. 
+Try it and see.
+
+A gentle introduction to WDTRAN
+-------------------------------
+    The accompanying file General.wd is essentially the source for the
+built-in "General" printer driver.
+    Make a copy of this, as Learn.wd.
+    Edit the NAME line in the "TYPEFACE courier" section, changing "Mono"
+to "FontName".
+    Edit the NAME line in the "MODEL" section, changing "General" to
+"ModelName".
+    Then type "WDTRAN learn".  This should produce a file Learn.wdr.
+    Copy this file into a \wdr\ top-level directory on LOC:: on your
+Series3.
+    You'll find that "ModelName" appears in the "Select printer" choice
+list inside any Print Setup dialog you invoke.  And if you select this
+model, you'll find that "FontName" is the single allowed entry in any
+"Font" choice list (except of course for "Inherited" in some WP dialogs).
+    You have just created your own .wdr file.  Its functionality is
+identical to that of the built-in "General" printer model.
+    NB 1) The maximum allowed length for a font name is 20 characters.
+       2) The maximum allowed length for a model name is 24 characters.
+    Exceed these limits and you'll get a compilation error.
+
+Easier compiling
+----------------
+    If you are using Brief, set the environment variable BCWD as follows
+        set bcwd=!"wdtran.exe %s"
+so that you can compile using Alt-F10 and have Brief position you
+automatically to any syntax error.
+
+Comments
+--------
+    When WDTRAN encounters an "!" on a line (except within a quoted
+string), it disregards this and everything else on the line as a comment.
+    Blank lines are also ignored.
+    The block indentation scheme in .wd files is for convenience only.
+
+Font heights
+------------
+    In the above example, the height of the font was displayed in the
+dialogs as "12", meaning 12 points, where one point is 1/72 of an inch.
+    In .wd files, font height is specified in so-called "twips", which are
+TWentIeths of Points, so that 1 inch = 1440 twips.
+    The height you give for a font should of course match the height of the
+font as it is printed.
+
+Font widths
+-----------
+    Fonts come in two sorts - monospaced (in which all characters have 
+the same width), and proportional.  See below for more on proportional
+fonts.  In the above example, the font is monospaced, with a constant width
+per character of "1".  The units here are as specified by the "MIN_X"
+field of the "MODEL" definition.
+    "MIN_X" is the minimum movement the printer head can make in the
+x-direction.  In the above case, this is presumed to be 1/10 inch (144
+twips), ie the width of a standard character in a 10 cpi ("Characters
+Per Inch") font.
+
+Font command sequences
+----------------------
+    The above printer model only has one font.
+    In contrast, there are a large variety of fonts in the accompanying
+file Epson.wd.
+    For example, under "TYPEFACE pica_rx", there are two different fonts,
+one that is 12 point and 10 cpi, and one that is 16 point and 5 cpi.  Each
+of these has its own "COMMAND" sequence, which is what the software sends
+to the printer whenever it needs to select this font.
+    Inside command strings, numbers in angled brackets evidently translate
+into binary values.  Ie "<27>w" is the Escape character (ascii value 27)
+followed by a lower-case "w".
+
+Fonts and typefaces
+-------------------
+    Many different fonts differ from each other only in that they are
+essentially different sized versions of each other.  Such fonts can be
+grouped together into "typefaces".  Thus the two Epson fonts just mentioned
+are both in the "TYPEFACE pica_rx" section, whereas there are other
+fonts in eg the "TYPEFACE elite" and "TYPEFACE times" sections.
+    The user sees all the different fonts in any one typeface as being
+different "Heights" of the same "Font".  The common name of these fonts is
+given by the "NAME" field in the "TYPEFACE" section. Thus in the above
+example, the user would see a "Size 12" and a "Size 16" font, under the
+title "Pica".
+   The other restriction for placing fonts together in a typeface is that
+they must have the same set of "TRANSLATE"s and the same "TYPE" (see
+below for more details of these).
+
+Translates
+----------
+    The set of translates (if any) used by a font is as specified by the
+"TRANSLATE" field in the enclosing "TYPEFACE" definition.
+    The value of "TRANSLATE" must be a lower-case name which exactly
+matches the lower-case name of a "TRANSLATES" block within the same .wd
+file.
+    There can be more than one "TRANSLATES" block in any one .wd file.
+    Each "TRANSLATES" block in turn consists of one or more translations,
+such as
+        5:35
+to turn any characters with ascii value 5 into characters with ascii value
+35 (note that the Series3 font gives the telephone symbol as used in the
+Database the value of 5, so that you had better translate this to something
+your printer is more likely to be able to handle), or
+        156:"<27>R<3><35><27>R<0>"
+to intercept any œ symbols (ascii value 156) in output sent to the printer
+and replace them with the specified escape sequence.
+    Another type of use might be to convert the character "O with a slash
+through it" (Series3 ascii value 157) into the sequence 'O' followed by
+backspace followed by '/'.
+
+Other commands
+--------------
+    As well as the command strings to select various fonts, a .wd file
+contains commands to have the printer perform other functions.  These are
+defined in the "COMMANDS" block at the start of the .wd file.
+    These commands are by and large clearly named, eg "ITALIC_ON" and
+"ITALIC_OFF", "BOLD_ON" and "BOLD_OFF", and "SUPERSCRIPT_ON" and
+"SUPERSCRIPT_OFF".
+    If a printer cannot support a given feature, you can leave the
+corresponding command string null ("").  One possible exception is
+italic which, if not supported, could be implemented as an underline.
+    Note incidentally that it is possible for a printer which supports
+italic in one font not to support it in another font, and so on.  Again, a
+printer may support both italic and superscript, but not both at the same
+time.
+    You may find it particularly fruitful to experiment with these command
+strings - especially if your printer is one than is somehow an "enhanced"
+model of one that is "officially" supported by Psion.
+
+The preamble commands
+---------------------
+    The string of commands sent to the printer when printing starts are
+among the most important, as regards influencing the printed outcome.
+    The very first command the software sends the printer is the "RESET"
+command.  Then it sends a "FORM_LENGTH" command, and then the "PREAMBLE"
+command, before starting to print the document proper (together with
+headers and footers, etc).  At the very end, a "POSTAMBLE" command is sent.
+    The "POSTAMBLE" command may be needed to flush the printer buffer, and
+to restore the printer to its default settings.
+    The "PREAMBLE" command may have such drastic consequences as choosing
+the basic configuration of the printer (possibly overriding defaults set
+via dip switches).  "Consult your printer documentation for full details."
+    The units for the "FORM_LENGTH" command are ALWAYS 1/6 of an inch.
+
+Special characters in command strings
+-------------------------------------
+    The commands "MOVE_RIGHT", "MOVE_DOWN", and "FORM_LENGTH" are each used
+in conjunction with a value passed by the printer subsystem software.  For
+example, the commands are to set the form length TO A GIVEN VALUE, or to
+move the printer position right BY A GIVEN AMOUNT.  This value may either
+end up in the command string by a process of substitution, or it may result
+in the command being repeated as required:
+        if any of these commands is defined as starting off with an
+asterisk character ('*'), what is actually sent to the printer is the
+REMAINDER of the command string (ie minus the initial asterisk) REPEATED
+the specified number of times
+        if the string "%d" is contained within the command string, the
+specified value is converted the decimal representation and is substituted
+for the "%d" (like printf in the C programming language)
+        likewise the string "%c" means to substitute the specified value as
+a single byte (character), and "%w" means to substitute it as a pair of
+bytes (low byte first) - ie as a so-called "word".
+    For example, in many printer drivers "MOVE_DOWN" is defined as "*<10>",
+so that "MOVE_DOWN n" will be sent to the printer as n line feed characters
+(line feed is ascii 10).
+    Again, in the HP Laserjet III printer driver, "MOVE_DOWN" is defined as
+"<27>&a+%dV", so that "MOVE_DOWN 6" (say) will be sent to the printer as
+"<27>&a+6V".
+    This kind of substitution can also take place in the command strings to
+select various fonts.
+
+Checking what's actually being sent to your printer
+---------------------------------------------------
+    The technique of PRINTING TO FILE can be invaluable for debugging
+printer drivers.  Print to a file and then dump the contents - without the
+data going anywhere near a "real printer".
+
+Stop reading here
+-----------------
+    The remainder of this documentation is less likely to be immediately
+relevant to hackers of .wd files.
+
+The "TYPE" of a typeface
+------------------------
+    This has significance only when a document set up for one printer is
+subsequently printed on another printer.  Font "substitutions" have to be
+made - and these are done according to the values set for "TYPE".
+    The value of "TYPE" may also be used in some forms of RTF conversion.
+    There is a large list of allowed values of "TYPE".
+    In general, one of the monospaced typefaces of a printer should be
+assigned a TYPE of COURIER, meaning that this font should be substituted
+for any for which an exact TYPE match is impossible.
+    If a printer only supports one proportional typeface, this should be
+assigned a TYPE of TIMES_ROMAN, even though it may have a different name
+(eg "Proportional").
+    If a printer supports more than one proportional font then one with
+serifs (if available) should be assigned a TYPE of TIMES_ROMAN, and one
+without serifs (if available) should be assigned a TYPE of HELVETICA.
+
+More on MODELs
+--------------
+    A given .wd file can support more than one printer (or so-called
+"printer model").  There will be one MODEL block for each printer model
+in the file.  However, all the printer models in a given file have to share
+the same set of printer commands.
+    The notion of a "printer model" is essentially a device to cover more
+than one printer using the same data.
+    The line "LANDSCAPE_AVAILABLE" should be present in a MODEL declaration
+if the printer supports being put into landspace mode.  In this case, the
+"LANDSCAPE" command in the "COMMANDS" block will be non-null.
+
+MIN_X, MIN_Y, SKIP_X, and SKIP_Y
+--------------------------------
+    MIN_X and MIN_Y are the minimum possible horizontal and vertical
+movements of the printer head.
+    Movements right of the printer head are specified by the software in
+units of MIN_X.  Movements down are specified in units of MIN_Y.
+    MIN_X and MIN_Y are themselves specified in twips, unless the line
+"MIN_X_IS_DOTS_PER_INCH" is present in the declaration of the MODEL.
+    SKIP_X is subtracted from the first move right command in each line of
+text, to compensate for the fact that many printers cannot print at the
+left edge of the paper.
+    SKIP_Y is subtracted from the first move down command in each page, to
+compensate for the fact that many printers cannot print at the very top of
+the paper.
+
+Fonts have not one WIDTH but four
+---------------------------------
+    By default, it is assumed that the processes of bolding and italicising
+do not alter the widths of characters printed.
+    But this can be overridden by the presence of some keywords
+"WIDTH_BOLD", "WIDTH_ITALIC", and/or "WIDTH_BOLD_ITALIC" in the definition
+of a font.
+    The possible values taken by these keywords are the same as for plain
+"WIDTH".  Namely a single value for monospaced fonts, and a reference to a
+font width table for proportional fonts.
+    The way that you indicate that a font is proportional is to include 
+the keyword "PROPORTIONAL" in the enclosing TYPEFACE definition.
+    Incidentally, a keyword "SERIF" in a TYPEFACE definition is of limited
+significance, being used only for the purposes of some variants of RTF load
+and save of Word Processor documents.
+
+Scalable fonts
+--------------
+    Some printers support fonts in not just a few sizes but in a whole 
+scaleable range.  This is indicated by the keyword "SCALED" in the
+definition of a TYPEFACE.
+    In this case, there can only be one FONT section for the typeface.
+    "HEIGHT" actually means "minimum height", and the keywords "HEIGHT_MAX"
+and "HEIGHT_DELTA" should also be supplied, for such a font.
+
+Re-using font width tables
+--------------------------
+    Set the keyword "WIDTH_SCALE" in the "FONT" section for a proportional
+font, if the values in the indicated font width table are all to be
+multiplied by the given number before being used.
+    This allows font width tables to be re-used if the widths for one
+proportional font are just constant multiples of those in another (eg as
+would happen if double width is used).
+
+Compressed and uncompressed .wdr files
+--------------------------------------
+    The .wdr files output by WDTRAN are in standard UNCOMPRESSED format. 
+It is in fact possible to run another tool to compress these further.  The
+printer driver files in the rom of the Series3 are in this compressed form. 
+This partly explains any differences you may detect between files you can
+produce from .wd files and WDTRAN, on the one hand, and the files in the
+Series3 rom, on the other hand.
+
+The ultimate in refinements
+---------------------------
+    It is even possible to customise the behaviour of the printing
+subsystem more than just by providing DATA (ie the contents of .wdr files).
+Set a special flag in the .wd file and the printing subsystem software will
+look for a like-named .dyl file, which it will then invoke so that
+additional CODE will run (in the .dyl file).
+    This is in fact the way that the PostScript printer drivers work.
+    Documentation of the .dyl interface for printer drivers is COMPLETELY
+beyond the scope of this document.
+
+More documentation
+------------------
+    See some of the comments within the accompanying .wd files.
+
+These notes prepared
+--------------------
+    By DavidW on 21/4/92.

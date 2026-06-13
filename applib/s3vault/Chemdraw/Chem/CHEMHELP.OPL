@@ -1,0 +1,214 @@
+Proc top:
+dINIT
+dTEXT "","Help: ChemDraw",$302
+dTEXT "","This help program is designed to be called by selecting"
+dTEXT "","HELP from the program ""ChemDraw"". It should be placed"
+dTEXT "","in the same \CHEM directory as the file ""CHEMBASE.ODB""."
+dTEXT "","If help for this program is not required, CHEMHELP.OPO"
+dTEXT "","can be deleted to save memory/flashcard space."
+dTEXT "","Enter for help, Escape to quit.",$502
+if dialog :chemhelp: :endif
+stop
+Endp
+
+PROC chemhelp:
+local dummy%
+tophelp::
+dINIT
+dTEXT "","Help: ChemDraw",$302
+dTEXT "","˛General principles",$500
+dTEXT "","˛Menu options",$500
+dTEXT "","˛Catalogue feature",$500
+dTEXT "","˛Hints & techniques",$500
+dTEXT "","˛Special characters",$500
+dTEXT "","Hit escape to exit help",2
+vector DIALOG
+dummy,gen,menopt,cat,hints1,spec
+endv
+return
+dummy::
+
+gen::
+dINIT
+dTEXT "","Help: General Principles",$302
+dTEXT "","ChemDraw is a chemically orientated drawing package."
+dTEXT "","The main feature is a set of pre-drawn templates for"
+dTEXT "","adding rings and bonds.  The ability to cut, save and"
+dTEXT "","paste enables the user to build up a library of customised"
+dTEXT "","building blocks for future use and the catalogue feature"
+dTEXT "","allows these to be quickly searched, viewed and pasted."
+DIALOG
+goto tophelp
+
+menopt::
+dINIT
+dTEXT "","Help: Menu",$302
+dTEXT "","˛File",$500
+dTEXT "","˛Draw",$500
+dTEXT "","˛Erase",$500
+dTEXT "","˛Information",$500
+vector DIALOG
+dummy,filemen,draw1,eraze,info
+endv
+goto tophelp
+
+cat::
+dINIT
+dTEXT "","Help: Catalogue 1",$302
+dTEXT "","The catalogue functions acts like a database for"
+dTEXT "","your picture files. In fact it will load, catalogue and"
+dTEXT "","show any picture file you may wish to keep track of"
+dTEXT "","on any disk or directory.  If you delete a PIC file"
+dTEXT "","outside of the program, an info message will tell you"
+dTEXT "","that the picture file cannot be located."
+dTEXT "","more information on the catalogue function",$502
+if dialog=0 :goto tophelp :endif
+dINIT
+dTEXT "","Help: Catalogue 2",$302
+dTEXT "","Use Enter and Shift-Enter to scan forwards and back through"
+dTEXT "","the catalogue or use Psion-q to search for a name etc."
+dTEXT "","The catalogue file is called ""chembase.odb"" and may be viewed"
+dTEXT "","and edited like any other Psion Data file. It is located in"
+dTEXT "","the \CHEM\ directory. If viewed using the Psion Data application"
+dTEXT "","you will not see the pictures, just file names and descriptions."
+dialog
+goto cat
+
+filemen::
+dINIT
+dTEXT "","Help: File Menu",$302
+dTEXT "","˛Save",$500
+dTEXT "","˛Retrieve",$500
+dTEXT "","˛Exit",$500
+vector dialog
+dummy,files,filer,filex
+endv
+goto menopt
+
+files::
+dINIT
+dTEXT "","Help: File Save",$302
+dTEXT "","Provides a rubber band box to select area to save to file."
+dTEXT "","A (very) small cursor will be seen. This may be obscured"
+dTEXT "","by your drawing so move it around a bit until it is visible."
+dTEXT "","Press enter to set the top left corner of the save box,"
+dTEXT "","then drag out a box enclosing the area to be saved. Press"
+dTEXT "","enter again to complete the area selection."
+dialog
+goto filemen
+
+filer::
+dINIT
+dTEXT "","Help: File Retrieve",$302
+dTEXT "","Retrieve a PIC file and paste anywhere on the screen."
+dTEXT "","The picture does not have to be a chemical structure"
+dTEXT "","but it would seem logical to restrict the size of"
+dTEXT "","picture to an area similar to the work area of ChemDraw."
+dialog
+goto filemen
+
+filex::
+dINIT
+dTEXT "","Help: File Exit",$302
+dTEXT "","In Draw mode, Psion-x exits from the program."
+dTEXT "","In Catalogue mode, Psion-x returns you to Draw."
+dTEXT "","(to exit the program directly from catalogue mode"
+dTEXT "","hit Psion-shift-X. Beware, no file will be saved!)."
+DIALOG
+goto filemen
+
+draw1::
+dINIT
+dTEXT "","Help: Draw Menu 1",$302
+dTEXT "","Polygons:",$100
+dTEXT "","Benzene rings, cyclo-hexane, pentane, butane, & propane."
+dTEXT "","Bonds:",$100
+dTEXT "","Pre-formed bonds are available set at various angles."
+dTEXT "","Moieties:",$100
+dTEXT "","Common molecular sub-units, especially those needing subscripts."
+dTEXT "","more info on symbols, lines, text and brush",$502
+if dialog=0 :goto menopt :endif
+
+draw2::
+dinit
+dTEXT "","Help: Draw Menu 2",$302
+dTEXT "","Large symbols:",$100
+dTEXT "","A variety of large symbols such as brackets and arrows"
+dTEXT "","are available."
+dTEXT "","Line:",$100
+dTEXT "","Single or continuous lines may be drawn. Fix a point on a continuous"
+dTEXT "","line using the space bar.  Terminate a line by pressing Enter."
+dTEXT "","more info on text and brush",$502
+if dialog=0 :goto draw1 :endif
+dinit
+dTEXT "","Help: Draw Menu 3",$302
+dTEXT "","Text:",$100
+dTEXT "","Large, medium and small fonts are available in various styles."
+dTEXT "","Use small for subscripts etc. See Special character menu for"
+dTEXT "","codes for negative (Ó), degree (¯) and other symbols."
+dTEXT "","Brush:",$100
+dTEXT "","Hold Shift and move cursor to paint. Use +/- to increase/decrease"
+dTEXT "","Hit Escape to return to normal mode."
+dialog
+goto draw2
+
+eraze::
+dINIT
+dTEXT "","Help: Erase Menu",$302
+dTEXT "","Clear screen",$100
+dTEXT "","Beware, doesn't save anything!"
+dTEXT "","Eraser",$100
+dTEXT "","Provides a variable size square eraser for tidying up your"
+dTEXT "","pictures. Increase/decrease the size of the eraser by using"
+dTEXT "","+/- on the keyboard. Activate the eraser by holding down Shift"
+dTEXT "","and moving the cursor. Quit erase mode by pressing Escape."
+DIALOG
+goto menopt
+
+info::
+dINIT
+dTEXT "","Help: Information Menu",$302
+dTEXT "","Show coordinates:",$100
+dTEXT "","Provides x,y position information when pasting etc."
+dTEXT "","Help:",$100
+dTEXT "","This help system. If the file CHEMHELP.OPO is not found"
+dTEXT "","a polite message is shown (delete file if memory is short!)."
+dTEXT "","About:",$100
+dTEXT "","A brief advert for yours truly."
+DIALOG
+goto menopt
+
+hints1::
+dINIT
+dTEXT "","Help: Hints & Techniques 1",$302
+dTEXT "","For accelerated cursor movement - hold down Psion key."
+dTEXT "","Pasting objects - after selecting an object to paste"
+dTEXT "","it will appear on screen with the message ""Hit Enter"
+dTEXT "","to Paste"". You are free to move the object on the screen"
+dTEXT "","using the cursor or Psion-cursor keys before pasting."
+dTEXT "","more hints",$502
+if dialog=0 :goto tophelp :endif
+hints2::
+dINIT
+dTEXT "","Help: Hints & Techniques 2",$302
+dTEXT "","Heterocycles: add the hetero atom as text in opaque mode."
+dTEXT "","This will ensue it hides the underlying ring."
+dTEXT "","Lines: to draw a series of connected lines, after drawing"
+dTEXT "","each line, start the next without moving the cursor."
+dialog
+goto hints1
+
+spec::
+dINIT
+dTEXT "","Help: Special characters",$302
+dTEXT "","These can be entered using the text option"
+dtext "","and may be mixed with normal text. E.g."
+dtext "","for a Phenyl symbol ù, hold Control while"
+dtext "","typing 155. For OHÓ, type OH as normal then"
+dtext "","hold Control and type 238 for the minus sign."
+dTEXT "","Hit TAB on the next line for a list of codes:"
+dchoice dummy%,"Code list","Examples..,155 õ,157 ù,158 û,171 ´,172 ¨,243 Û,238 Ó,240 ,241 Ò,248 ¯,250 ˙,254 ˛,251 ˚,253 ˝,252 ¸,176 ∞,177 ±,178 ≤,219 €,245 ı,246 ˆ,207 œ,179 ≥,196 ƒ,192 ¿,191 ø,217 Ÿ,218 ⁄,186 ∫,205 Õ,187 ª,188 º,200 »,201 …"
+DIALOG
+goto tophelp
+ENDP
+

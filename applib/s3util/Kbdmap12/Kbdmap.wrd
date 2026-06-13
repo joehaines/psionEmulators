@@ -1,0 +1,400 @@
+                           KbdMap  v. 1.21F
+                           KbdEdit v. 1.20F
+                            June, 20, 1996
+                   Keyboard Layout Driver and Editor
+                Copyright (C) Saliy Konstantin, 1995-96
+                                   
+
+
+                             Introduction
+                             ------------
+  Psion Series 3/3a uses code page 850 which contains almost all  Latin
+based European letters, but on the  original English or US versions  to
+enter a symbol with code>128 the user  has to press more than one  key.
+This makes  fast typing  in French,  German etc  almost impossible.  Of
+course, there are local versions of Psion for most European  languages,
+but some people prefer to buy English one (the rumour is that they  are
+cheaper).
+
+  Even if you have a Psion with support for your language you may  wish
+to re-define keyboard: to simplify typing the "pipe" '|' character,  to
+provide a numeric keypad for intensive number work, or even to simulate
+a damaged button on the application bar.
+
+  With this package you can redefine any  of the 42 light grey keys  in
+normal state or in any valid  combination with Shift, Psion or  Control
+modifiers and can have  two layouts, e.g. standard  and for quick  text
+typing. Once  the  driver is  installed,  layouts can  be  switched  by
+pressing both Shift keys simultaneously.  The layout editor allows  you
+to edit keyboard maps, save them into files for future use or to change
+layouts currently in use by the driver.
+
+  For non-English users with English Psions there is an ability to load
+a country  information file  (usually ROM::SYS$CTRY.CFO)  from  another
+Psion. If you load  e.g. French .CFO file  on the English Psion  you'll
+have keyboard  layout  exactly  as  on the  French  Psion,  all  system
+messages in French and  default language will be  French too. It  means
+that any multilingual application (e.g. Psion Money) will use French in
+this case. This ability is also suitable for software developers --  to
+be sure that a program will work properly on any Psion.
+
+  Basic features:
+   - driver uses <8Kb of memory;
+   - it is fast - it substitutes  O/S keyboard maps and only waits  for
+     hot keys (2 Shifts);
+   - it  is  compatible  with  all  applications  because  it   doesn't
+     simulates key presses;
+   - keyboard editor is very easy to use - just run it and see!
+
+
+                          Driver Installation
+                          -------------------
+  There are a number of files in the package:
+    KBDMAP.APP              driver front end
+    KBDMAP\KBDMAP.BIN       layout switcher for Series 3a
+    or
+    KBDMAP\KBDMAP.BI3       layout switcher for Series 3
+    KBDMAP\KBDMAP.LDD       driver itself
+    KBDEDIT.APP             layout editor
+    KBDMAP.TXT              this file
+
+  You have  to  copy  them  (manually  -  sorry!)  into  any  (\APP  is
+recommended to simplify installation) directory of any disk. Series  3a
+users don't need KBDMAP.BI3 while Series 3 users don't need KBDMAP.BIN.
+
+  WARNING: the first 3 files must be in the same directory of the  same
+disk!
+
+  Then use Apps/Install from System screen to install two  applications
+- KbdMap and KbdEdit.
+
+  Select KbdMap and press Enter. You will be asked whether you want  to
+install driver -  press Enter  to answer Yes.  Answer No  (Esc) to  the
+question about custom  .CFO file (see  section below if  you need  this
+feature). Driver will be loaded into memory.
+
+  To remove driver  from memory,  select KbdMap  application and  press
+Enter. You will  be asked  whether you want  to remove  driver -  press
+Enter again to answer Yes. Driver will be unloaded from memory.
+
+  To check whether driver was loaded or not just try to press left  and
+right Shift keys  simultaneously. If beeps  are allowed  (Control/Sound
+from System screen)  you'll hear  beeps as  a signal  that layouts  are
+switched.
+
+  If you later create layout files with KbdEdit their names will appear
+under the KbdMap icon. Select  one of them to  load the driver and  use
+the selected layout.
+
+  Once the driver is  loaded into memory you  don't need to keep  first
+the first 3 files on your Psion unless you want to unload it.
+
+
+
+For version 1.0 users
+---------------------
+  Before installing the  new version you  should uninstall driver  from
+previous version  and delete  old files  to avoid  potential mixing  of
+files from previous  and new  versions. Your old  keyboard layouts  are
+fully compatible with the new version.
+
+  Please note that  some files  have now  been moved  into the  \KBDMAP
+subdirectory.
+
+
+
+Series 3 users
+--------------
+  KbdEdit.APP is fully compatible with Psion Series 3.
+
+  The keyboard driver is  also written to be  compatible with Series  3
+and has been tested.
+
+  KBDMAP.BIN file  (layout switcher)  was designed  for Series  3a  and
+Workabout only. You need KBDMAP.BI3 (do not rename it!) but it has  O/S
+version dependent code (detection of 2  Shifts) and was tested only  on
+v. 1.75F, 1.77F, 1.80F,  1.91F. The driver may  work correctly even  if
+you have  another  version -  I  check  against ROM  context,  not  O/S
+version. Try to run KBDMAP.APP. You will see an incompatibility message
+if KBDMAP.BI3 couldn't be run on your  computer - try to contact me  in
+this case.
+
+  If your Series 3  version not listed  above but you  find that it  is
+fully compatible please, let me know your version.
+
+  
+Workabout users
+---------------
+  This version is  fully compatible with  Workabout. To switch  layouts
+you should press Control and Psion keys because Workabout has no second
+Shift.
+
+  Workabout  has  built-in  ability  to  switch  between  two   layouts
+(standard and special). When KbdMap starts, it inherits current  layout
+or totally replaces it  with new one. If  you then switch to  alternate
+layout  using  Shell  or  command   processor  menu,  KbdMap  will   be
+temporarily disabled;  to enable  it again  just switch  layouts  using
+KbdMap hot  keys (Control+Psion).  To avoid  potential problems  it  is
+better not to use KbdMap and Workabout switchers at the same time.
+
+  Keyboard layout editor will show you S3/S3a QWERTY keyboard.
+
+  Workabout has no Diamond key so you must use the menu to select a map
+for editing.
+
+  Workabout has additional keyboard map -- for Psion+Shift combination.
+KbdEdit doesn't support it.
+
+
+
+Psion emulators
+---------------
+  Keyboard driver is incompatible with  emulators -- the emulator  will
+crash if you try to run it.
+
+  You can run keyboard layout editor under emulator and then use  these
+layouts on your Psion.
+
+
+
+Custom .CFO file
+----------------
+  There are a number of .CFO file format versions. For instance,  Psion
+S3/S3a and Workabout use different formats. This version supports  only
+.CFO files from S3a ROM.
+
+  Each .CFO  file has  3 parts:  country/language info,  keyboard  map,
+system messages. Before your  .CFO file loads you  will be asked  which
+parts you want to use.  Do not try to load  the keyboard map from  .CFO
+file on the S3  or Workabout! Even Control+Psion+Del  will not work  on
+the Workabout in this case.
+
+  The keyboard map  from .CFO  file will be  the primary  map and  your
+standard map will become secondary.
+
+  If you need KbdMap only to load .CFO file and do not want to use  the
+secondary keyboard layout you may prevent the switcher from loading and
+save 1Kb of memory.
+
+  If  you  rename  your  .CFO  file  to  KBDMAP.CFO  and  put  it  into
+\APP\KBDMAP directory it will  be loaded automatically without  prompt.
+On the S3a the whole file will be loaded, on the S3 and Workabout  only
+country info and messages.
+
+  I have .CFO  files for  English (US), English  (UK), French,  German,
+Swedish,  Hungarian,  Italian,   Spain,  Dutch,   Belgian  and   Danish
+languages. Just ask if you need one of them
+
+
+
+                        Layout editor (KbdEdit)
+                        -----------------------
+  The very first time you run the  driver both layouts are the same  as
+standard. You need to create and edit new layouts with KbdEdit.
+  The layout editor is a standalone application and doesn't require any
+other files from package; some functions, however, will be disabled  if
+the driver  was  not  loaded  into memory.  It  requires  40Kb  of  RAM
+available to run (in first 512K, of course, for 1Mb and 2Mb users).  By
+default, keyboard layout files are kept in \KBD\ directory and have the
+extension .KBD.
+
+  The keyboard  layout  editor  window  is  a  picture  of  your  Psion
+keyboard. Use arrow keys to  select a key for  editing (it is drawn  in
+pressed state).  On  the  Space  key  you  can  see  both  decimal  and
+hexadecimal values of the  current key. Control,  Psion and left  Shift
+states show you current map and right Shift state shows current layout.
+To change a value either enter a Control+3 digit combination (see  User
+Guide) or just press a key combination. To enter Psion+key  combination
+code you have  to disable  Hot keys  handling first.  To enter  special
+codes (Unused key, Contrast+/-, Application bar keys) use  Edit/Special
+key menu item.
+
+  You can edit 10 maps: normal, Shift, Control, Control+Shift and Psion
+for both primary and secondary layouts. To select map press Diamond key
+(not available for Workabout) or chose from Edit/Choose map menu.
+
+  There are two special  "flags" that may be  assigned to any key  (but
+usually from the numeric row on the Control map):
+
+   "dead" key - this key itself will  not produce a value but  modifies
+     meaning of the next key(s) press (e.g. for Control+3digits code or
+     for accented keys). This "flag" is marked as lock sign.
+   special Shift/Caps mode  - usually Caps  converts a  value from  the
+     current map to upper/lower case  (it depends on Shift state).  For
+     keys that are  marked with  arrow down  an alternate  map is  used
+     (normal when Shift is  pressed and Shift when  not). This flag  is
+     used e.g. for French AZERTY keyboard with reversed numeric row.
+  Remember that you always edit only a file, not current layout. To use
+a layout you must explicitly pass it to the driver.
+
+  Don't worry if you make mistakes  which cause your keyboard to  hang.
+The driver will never change values  for Esc, Enter, Menu, Tab,  Space,
+cursor arrows and  application bar  -- it's  enough just  to install  a
+driver's icon and  run it  to unload it  from memory  and thus  restore
+original keyboard maps.
+
+Menu commands:
+--------------
+  Please  remember  that  you  can  use  hot  keys  (i.  e.   Psion+key
+combination) instead of menu only if hot keys are enabled.
+
+   File/Open Psion+O - opens a layout file to edit.
+   File/Save Psion+S - saves current file.
+   File/Save As Psion+A - saves current layout to another file.
+   Edit/Choose map Psion+M - choose map/layout to edit.
+   Edit/Special key Psion+P - insert special key code (Unused key, OFF,
+     Contrast +/-, A1-A8 for application keys).
+   Edit/Hot keys off(on) Psion+H - switches between two choices: either
+     ability to enter  Psion+key codes or  to use hot  keys instead  of
+     menu browsing.
+   Edit/Toggle SHIFT Psion+T -  toggle flag (shown  as arrow down)  for
+     special Shift/Caps mode.
+   Edit/Toggle LOCK Psion+K  - toggle  "dead" key flag  (shown as  lock
+     symbol).
+   Special/Get from  driver Psion+G  - load  layout currently  used  by
+     driver.
+   Special/Send to driver Psion+D - makes the driver use the layout  in
+     the editor immediately.
+   Special/Help Psion+B or Help - About dialog.
+   Special/Legend Psion+L or Help - shows editor's legend.
+   Special/Exit Psion+X - exit from editor, changes will be lost.
+   Diamond/Setup Diamond  list  -  select layout  parts  which  can  be
+     selected by Diamond key.
+  Unlike other  document-related Psion  applications KbdEdit  will  not
+save files automatically: to  save your layout you  have to use one  of
+the File/Save,  File/Save  As,  Special/Send  to  driver  menu  options
+explicitly.
+
+Making an Application bar
+-------------------------
+  To make a fully functional application  bar from a set of other  keys
+you should assign the same value to a given key on the all maps of  the
+selected layout.
+
+  Workabout doesn't recognise application keys.
+
+
+
+                        Shareware Registration
+                        ----------------------
+  I'd like to make this program shareware. My experience shows that  it
+is almost impossible to send me money directly. So it can be registered
+either via CompuServe direct online registrations, or via collectors.
+
+  If you find  the price  too expensive (e.g.  you are  a student)  but
+still need this program and want to have support and receive all future
+versions just mail me.
+
+  Anyway this version  is neither encoded  nor crippled. So,  why be  a
+registered user in this case? For a number of reasons:
+
+   - to encourage me to support this product and write other programs
+   - you will receive all new versions (bug fixes, additional  features
+     if any) directly from me by e-mail
+   - money is  still valid  in our  world and  I need  it at  least  to
+     register shareware I need.
+  Please, send me e-mails about registration to <kis@ipmce.ru> with the
+subject line "KbdMap registration"  so that my mailer  can put them  to
+separate folder.
+
+CompuServe online registration (preffered)
+------------------------------------------
+  GO SWREG.  KbdMap registration  ID is  11980. If  you are  not a  CIS
+member,  you  can  ask  a  friend  to  register  KbdMap  for  you.  The
+registration fee is $25.
+
+Registration via collectors
+---------------------------
+  Send a cheque or  cash to a country,  suitable for you. Please,  make
+your cheque payable to the collector, not to me! Because people tend to
+change their addresses,  it is  better to ask  me if  address is  still
+valid.
+
+France
+------
+  Registration fee is 100 French francs. Send cheque or cash to
+
+     Philippe Lebreton
+     63b, Chemin de Cormeilles
+     F-78400 CHATOU
+     France
+     e-mail: lebreton.p@cgi.fr
+  
+United Kingdom
+--------------
+  Registration fee is 15 UK pounds. Send cheque or cash to
+
+     Felix Grant
+     14 Severn Avenue
+     Weston-s-Mare
+     BS23 4DQ, United Kingdom
+     e-mail: felixg@cix.compulink.co.uk
+
+Germany
+-------
+  Registration fee is 40 DM. Send cheque or cash to
+
+     PSIOlogic
+     Michael Baas
+     Taunusstrasse 4
+     D 63589 Linsengericht
+     Germany
+     e-mail:106044.2274@compuserve.com
+  
+
+                         Support and future versions
+                         ---------------------------
+  This program was tested as a part of Russian driver for more than six
+months. The version with  support for all maps  was also tested.  Major
+bugs were  fixed.  Of  course,  every  program  has  at  least  2  bugs
+(programmer's axiom). If you find  any -- please, e-mail me  regardless
+of whether you are a registered user or  not. If it will is a real  bug
+you will receive an  updated version (maybe with  new features and  new
+bugs).
+
+  If you have any suggestions, please feel free to send them to me.  If
+you decide that  some features would  be useful,   and others feel  the
+same way, I'll try to implement them.
+
+
+               If your language is not supported by Psion
+               ------------------------------------------
+  If your language
+   - has no more than 128 letters and
+   - they are not in cp850 and
+   - you read and write from left to right
+  it is possible to create a  package like the Russian driver for  your
+language. Because this is  a big job  it will be  done only if  several
+users are interested; it is better to contact your local official Psion
+distributors to tell them about me.
+
+  If you  already have  fonts for  your language  we can  arrange  this
+question.
+
+  Use of  KbdMap with  your own  fonts to  type Russian  characters  is
+prohibited. See How to reach me and call me to give more info on how to
+buy full Russian package.
+
+  Special note: according to our  agreement I must mention that  Polhit
+Ltd. has exclusive rights  to distribute the  driver, based on  KbdMap,
+for Polish language.
+
+                             How to reach me
+                             ---------------
+  E-mail Internet:<kis@ipmce.ru> or  CompuServe:106062,302. Please  use
+the subject line  "KbdMap registration"  if you want  to be  registered
+user or use the word "KbdMap" in your subject in all other cases.
+  Visit my home page <http://ourworld.compuserve.com/homepages/k_i_s/>.
+Latest versions of my programs are always there.
+
+
+                                History
+                                -------
+   Version 1.00F -  first  public release.  Support  only for  2  maps.
+     Doesn't work correctly on multilingual Psions (Swedish, Spain etc.
+     versions).
+   Version 1.10F - support for all  maps, custom .CFO files. Was  never
+     released.
+   Version 1.20F -  Workabout support  was added.  Should work  on  the
+     multilingual Psions too.
+   Version 1.21F - Minor bug fixed in the loader.

@@ -1,0 +1,90 @@
+> Can any help with my problem ? Basically, I want to be able to read and
+> write individual bytes to and from the serial port with no handshaking
+> fromwithin OPL for the Series 3. I need the input to be buffered also.
+> 
+READING FROM THE SERIAL PORT ON AN S3 (CLASSIC)
+===============================================
+
+(This info works for the S3a too; however it is already included, in
+the S3a Programming manual, in a form slightly better for the S3a.)
+
+Appendix C of the S3 Programming manual explains how to set up the port 
+(with an "rsset:" procedure) and then write to it.
+
+Having used the rsset: procedure, though, you can read from the serial 
+port with something like this:
+    ret%=IOW(-1,1,ADDR(buf$)+1,len%)
+
+However, you can also specify that one or more characters should be
+treated as terminating characters. (Without this, the read terminates
+only after reading exactly the number of bytes requested.)
+
+To do this, add a final "term&" parameter onto the "rsset" declaration:
+    PROC rsset:(baud%,parity%,data%,stop%,hand%,term&)
+and add in this line before the IOW line in rsset:
+    POKEL ADDR(srchar%(5)),term&
+
+When *writing* to the port, just pass 0 for term& - eg:
+  rsset:(8,0,8,1,0,&0)
+
+When *reading*, the 32 bits of "term&" control whether the
+corresponding ASCII character, from 1 to 31, should terminate the
+read. For example, to terminate on Control-Z, <CR> or <LF>, set
+bits 26, 10 and 13. In binary, this is:
+    0000 0100 0000 0000 0010 0100 0000 0000
+Converting to a long integer gives &04002400, the value to use.
+
+The terminating character itself is read into your buffer too,
+allowing your program to act differently according to its value.
+
+This example assumes that each line is a maximum of 255 characters and is 
+terminated by a <CR>, and that Control-Z marks the end of the data. It 
+calls rsset to receive at 2400 Baud without handshaking.
+
+PROC testread:
+  LOCAL ret%,pbuf%,buf$(255),end%,len%,pbf2%
+  PRINT "Test reading from serial port"
+  LOPEN "TTY:A"
+  LOADM "rsset"
+  REM this example receives at 2400 without h/shake
+  rsset:(11,0,8,1,0,&04002000) REM Control-Z or CR
+  pbuf%=ADDR(buf$)
+  IF pbuf%=$7FFF :pbf2%=$8000 :ELSE pbf2%=pbuf%+1 :ENDIF
+  DO
+    REM read max 255 bytes, after leading count byte
+    len%=255
+    ret%=IOW(-1,1,#pbf2%,len%)
+    POKEB pbuf%,len%
+    REM len% = length actually read, including terminator char
+    end%=LOC(buf$,CHR$(26)) REM non-zero for Control-Z
+    IF ret%<0 and ret%<>-43
+      BEEP 3,500
+      PRINT
+      PRINT "Serial read error: ";ERR$(ret%)
+    ENDIF
+    IF ret%<>-43         REM if received with terminator
+      POKEB pbuf%,len%-1 REM remove terminator
+      PRINT buf$         REM echo with CRLF
+    ELSE
+      PRINT buf$;        REM echo without CRLF
+    ENDIF
+  UNTIL end%
+  PRINT "End of session" :PAUSE -30 :KEY
+ENDP
+
+Notes:
+    - passing -1 as the first argument to I/O keywords means that
+the LOPEN handle is to be used.
+    - OPL strings have a leading byte giving the length of the rest
+of the string, so the data is read beyond this byte. The byte is then
+poked to the length that was read.)
+    - The "IF pBuf%=$7FFF..." line, which is used instead of using
+#pBuf%+1 in the IOW line, protects against an "Overflow" error
+which you'd get if ADDR(buf$) was &7FFF. (The S3a has a "UADD"
+instruction - unsigned add - to get round this.)
+
+Disclaimer: while I've made every effort to be accurate, and checked
+it works, I won't be held responsible for any damage caused. :-)
+
+Nick H
+at Psion plc, London

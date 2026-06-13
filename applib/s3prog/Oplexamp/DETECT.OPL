@@ -1,0 +1,49 @@
+==========
+psion/chatter #1959, from hzk, 1173 chars, Mar 17 19:35 95
+Comment to 1950.
+----------
+The way I use to detect a directory is as below:
+
+        PROC isdir%:(f$)
+                LOCAL fzts$(130),e%
+                LOCAL ver%,attrib%,size&,mdate&,spare&
+                fzts$=f$+chr$(0)
+                e%=CALL($887,ADDR(fzts$)+1,ADDR(ver%),0,0,0)
+                IF attrib% AND $10
+                        RETURN 1
+                ELSE
+                        RETURN 0
+                ENDIF 
+        ENDP
+
+Thus if you call:  
+       
+       ret%=isdir%:("LOC::M:\WRD")
+
+ret% will be set to 1 if the \WRD directory exists on drive M.
+As you can see from the variable names, this reads other file data
+also.  A similar useful function is:
+
+        PROC isit%:(f$)
+                LOCAL h%
+                IF IOOPEN(h%,f$,$30)
+                        RETURN 0
+                ELSE
+                        IOCLOSE(h%)
+                ENDIF
+                RETURN 1
+        ENDP
+
+This can detect the existance of an SSD or Serial 3-Link.
+Thus:
+        
+        ret%=isit%:("REM::C:\*.*")
+
+will return 1 only if the Serial 3-Link is properly connected to
+the Psion.
+
+I suppose this really should be in psion/opl!
+
+Roger.
+
+

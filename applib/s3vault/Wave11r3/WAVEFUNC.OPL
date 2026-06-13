@@ -1,0 +1,197 @@
+rem *** this contains all the special functions that
+rem *** can be performed on a range or an entire sample
+rem *** parameters:
+rem *** in%,out% are the file handles
+rem *** pos& is the current position in the in% file
+rem *** len& is the length we are meant to play with
+
+
+proc dblspd&:(in%,out%,pos&,len&)
+local n&,p%,ret%,fp&
+
+	n&=len& : fp&=pos& : ret%=1
+	
+	while n&>0 or ret%=0
+		ioseek(in%,1,fp&)
+		ret%=readbuf%:(in%,n&)
+		p%=0 : n&=n&-ret% : fp&=fp&+ret%
+		while p%<ret%/2
+			pokeb uadd(b%,p%),peekb(uadd(b%,p%*2))
+			p%=p%+1
+		endwh
+		dispprog:(fp&-pos&,len&)
+		iowrite(out%,b%,ret%/2)
+	endwh
+	
+	ioseek(in%,1,fp&)
+	
+	return len&/2
+endp
+
+proc hlfspd&:(in%,out%,pos&,len&)
+local n&,p%,ret%,fp&,outbuf%(1024),ob%
+
+	n&=len& : fp&=pos& : ret%=1
+
+	ob%=addr(outbuf%(1))
+	
+	while n&>0 or ret%=0
+		ioseek(in%,1,fp&)
+		ret%=readbuf%:(in%,n&)
+		p%=0 : n&=n&-ret% : fp&=fp&+ret%
+		while p%<ret%
+			pokeb uadd(ob%,p%*2),peekb(uadd(b%,p%))
+			pokeb uadd(ob%,p%*2+1),peekb(uadd(addr(ct%(1)),(et%(peekb(uadd(b%,p%+1))+1) + et%(peekb(uadd(b%,p%))+1)/2) and $1fff) )
+			p%=p%+1
+		endwh
+		dispprog:(fp&-pos&,len&)
+		iowrite(out%,ob%,ret%*2)
+	endwh
+	
+	ioseek(in%,1,fp&)
+	
+	return len&*2
+endp
+
+proc fade&:(in%,out%,pos&,len&)
+local n&,p%,ret%,fp&,i,v,a%,s%,e%
+
+	n&=len& : fp&=pos& : ret%=1 : s%=(pos&-32)/iadd
+	
+	v=flt(rperc1&) : i=(rperc2&-rperc1&)/flt(len&)
+	
+	while n&>0 or ret%=0
+		ioseek(in%,1,fp&)
+		ret%=readbuf%:(in%,n&)
+		p%=0 : n&=n&-ret% : fp&=fp&+ret%
+		while p%<ret%
+			a%=(et%(peekb(uadd(b%,p%))+1)*int(v))/100
+			if a%>4096 : a%=4095 : endif
+			if a%<-4095 : a%=-4095 : endif
+			pokeb uadd(b%,p%),peekb(uadd(addr(ct%(1)),(a% and $1fff)))
+			p%=p%+1 : v=v+i
+		endwh
+		dispprog:(fp&-pos&,len&)
+		iowrite(out%,b%,ret%)
+	endwh
+
+	ioseek(in%,1,fp&)
+	
+	return len&
+endp
+
+proc revrse&:(in%,out%,pos&,len&)
+local n&,p%,ret%,fp&,outbuf%(512),ob%
+
+	n&=len& : fp&=pos& : ret%=1
+
+	ob%=addr(outbuf%(1))
+	
+	if n&>1024 : fp&=fp&+n&-1024 : endif
+	
+	while n&>0 or ret%=0
+		ioseek(in%,1,fp&)
+		ret%=readbuf%:(in%,n&)
+		p%=0 : n&=n&-ret%
+		while p%<ret%
+			pokeb uadd(ob%,ret%-p%-1),peekb(uadd(b%,p%))
+			p%=p%+1
+		endwh
+		dispprog:((len&-(fp&-pos&))-pos&,len&)
+		iowrite(out%,ob%,ret%)
+		fp&=fp&-ret%
+	endwh
+	
+	fp&=pos&+len&
+	ioseek(in%,1,fp&)
+	
+	return len&
+endp
+
+
+proc phase&:(in%,out%,pos&,len&)
+local n&,p%,ret%,fp&
+
+	n&=len& : fp&=pos& : ret%=1
+	
+	while n&>0 or ret%=0
+		ioseek(in%,1,fp&)
+		ret%=readbuf%:(in%,n&)
+		p%=0 : n&=n&-ret% : fp&=fp&+ret%
+		while p%<ret%
+			pokeb uadd(b%,p%),peekb(uadd(b%,p%))
+		endwh
+		dispprog:(fp&-pos&,len&)
+		iowrite(out%,b%,ret%)
+	endwh
+
+	ioseek(in%,1,fp&)
+	
+	return len&
+endp
+
+proc filter&:(in%,out%,pos&,len&)
+local n&,p%,ret%,fp&,t%,to&,c%
+
+	n&=len& : fp&=pos& : ret%=1
+	
+	while n&>0 or ret%=0
+		ioseek(in%,1,fp&)
+		ret%=readbuf%:(in%,n&)
+		p%=0 : n&=n&-ret% : fp&=fp&+ret%
+		while p%<ret%
+			t%=0 : to&=0
+			while (p%+t%<ret%) and (t%<fillen&)
+				to&=to&+abs(et%(peekb(uadd(b%,p%+t%))+1))
+				t%=t%+1
+			endwh
+			to&=to&/t%
+			if to&<=filthr&		rem *** Threshold ***
+				c%=0
+				while c%<t%
+					pokeb uadd(b%,p%+c%),peekb(addr(ct%(1)))
+					c%=c%+1
+				endwh
+			endif
+			p%=p%+t%
+		endwh
+		dispprog:(fp&-pos&,len&)
+		iowrite(out%,b%,ret%)
+	endwh
+
+	ioseek(in%,1,fp&)
+	
+	return len&
+endp
+
+proc smooth&:(in%,out%,pos&,len&)
+local n&,p%,ret%,fp&,t%,to&,c%,a%,div,d%
+
+	n&=len& : fp&=pos& : ret%=1024
+
+	while n&>0 and ret%>fillen&
+		ioseek(in%,1,fp&)
+		ret%=readbuf%:(in%,n&)
+		p%=0 : n&=n&-(ret%-fillen&) : fp&=fp&+ret%-fillen&
+		while p%<ret%-fillen&
+			a%=et%(peekb(uadd(b%,p%))+1)
+			pokeb uadd(b%,p%),peekb(uadd(addr(ct%(1)),((a%+et%(peekb(uadd(b%,p%+fillen&))+1))/2) and $1fff))
+			p%=p%+1
+		endwh
+		dispprog:(fp&-pos&,len&)
+		iowrite(out%,b%,ret%-fillen&)
+	endwh
+	
+	while p%<ret%
+		a%=et%(peekb(uadd(b%,p%))+1)
+		pokeb uadd(b%,p%),peekb(uadd(addr(ct%(1)),(a%/2) and $1fff))
+		p%=p%+1
+	endwh
+	iowrite(out%,uadd(b%,p%-fillen&),fillen&)
+
+	ioseek(in%,1,fp&)
+	
+	return len&
+endp
+
+

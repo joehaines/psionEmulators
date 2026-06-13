@@ -1,0 +1,858 @@
+REM Test > autooff feature
+REM WHAT HAPPENS IF ALARM FIRES WHILST IN THE PROCESS
+REM OF CANCELLLING.
+rem if delta time< autooff time - psion wont go off
+rem if switched on by alarm and password disabled
+rem   and showinf = true then it should show owner
+rem   information. Does it?
+rem there should only be one test for alarmed:()
+REM ------------------------------------------
+REM 		Pason 4         for Psion 3/3a
+REM 		1 Nov 1994     by Steve Hawtin
+
+REM A routine to:
+REM   Turn the password on a regular intervals
+REM   Switch off alarm sounds
+REM   Switch off the remote link
+rem alarm sounds should come on even if pwd on
+
+REM The idea is that the first time the 
+REM Psion is turned on for the day you must 
+REM provide a password, the rest of the day
+REM the password is disabled.
+REM ------------------------------------------
+REM ¸ 1994 Steve Hawtin
+REM ¸ 1995-7 Andrew Lord
+REM
+REM This file may be freely distributed 
+REM provided that the file pason.txt is 
+REM included in the distribution
+REM ------------------------------------------
+REM	1 Dec 1995	Modified by Andrew Lord
+REM ------------------------------------------
+REM 	pason routine uses OS call to set/unset
+REM 	password rather than using macro system.
+REM 	This results in a smaller, more secure app
+REM
+REM 	Added "LOCK ON" so that backup routines
+REM 	don't fail tring to stop it.
+REM 	Changed to APP type 0
+
+REM ------------------------------------------
+REM	2 Jan 1996	Modified by Andrew Lord
+REM ------------------------------------------
+REM 	Switches machine off immediately
+REM 	Switches on alarms also
+REM   Bug fix - got out of sync if not switched on
+REM 	Neater message logging
+REM 	Validates password.
+REM 	Quick Password feature
+REM ------------------------------------------
+REM	1 Feb 1996	Modified by Andrew Lord
+REM ------------------------------------------
+REM 	Uses Event loop and timers
+REM 	Optionally switch off link
+REM 	Disabled <Shift-System> and <Psion-Esc>
+REM 	Smaller run time footprint - shrunk bitmap
+REM 	Only switches off if it was switched on
+REM 	less than 1 sec. ago.
+REM 	Password change mechanism. Its not perfect
+REM 	 press <enter> twice in quick sucession.
+REM ------------------------------------------
+REM	10 Feb 1996	Modified by Andrew Lord
+REM ------------------------------------------
+REM 	Removed quick password feature
+REM 	changed it to display owner information
+REM 	Added Hot-Key feature.
+REM ------------------------------------------
+REM 10 Apr 1996
+REM  Hotkey bug fixed - Holger Pfaff
+REM  Display dialog after password entry stopped
+REM ------------------------------------------
+REM 14 Apr 1996
+REM  Pason can now activate a given number of
+REM  minutes after Switch on OR at set times
+REM  If the Psion is already in use then it 
+REM  should delay activation.
+REM ------------------------------------------
+REM 14 May 1996
+REM Oops. There is no "On Event" for Series 3
+REM Machines.
+REM ------------------------------------------
+REM 26 May 1996
+REM Fixed async events that complete before 
+REM IOWAIT. This was causing Pason to miss some
+REM foreground events.Now buf% is zeroed BEFORE
+REM ioa call.
+REM Fixed incorrect display of next event time (again!)
+REM Because Pason may momentarily switch on the Psion
+REM This my intefere with various "Switch on Programs"
+REM some of these programs play a sound
+rem so Pason will switch off sound momentarily
+REM replaced ioa() with ioc()
+REM ------------------------------------------
+REM NOV 1996
+REM Redesigned configuration menu.
+REM Sienna compatible (emulator!)
+REM Check passwd off time > autooff time 
+REM ------------------------------------------
+REM JAN 97
+REM ------------------------------------------
+REM Rewrote - buggy event loop 
+REM Used a signal to determine whether Pason
+REM switched the psion on. Not perfect but much
+REM more accurate than the previous method.
+
+REM 	Wish list
+REM 		Stop "WORD" if a "sensitive" file is
+REM 			left open.
+REM ------------------------------------------
+REM ------------------------------------------
+
+app pason4e : type 0 :enda
+
+
+PROC main:
+	global ver$(10)
+	global deltatm&      REM Timer increment mode
+	global debug%
+	GLOBAL nextTim&    rem Next timer event
+	GLOBAL intrvl&     rem Seconds between each 
+	                   rem activation.
+	GLOBAL pwmode%
+	GLOBAL crypt%(9)   rem Encryption Data
+	GLOBAL passwd$(10) rem System password
+	GLOBAL alarm%
+	rem xx global owninf% 
+	global linkoff%,infaddr%
+	GLOBAL buf%(6)     rem General buffer
+	local  evbuf%(2)    rem event buffer
+	GLOBAL evstat%      rem Event Async return status
+	local dbgkey%       rem Debug toggle key
+	global keycode%     rem Hot key to set password
+	global keymod%      rem Modifiers for hot-key
+	local alarmh%,a1&(3)    rem alarm handle & data
+	global dalarmh%,a2&(3)  rem alarm handle & data
+	global wait4pw%      rem -1 if waiting for passwd
+	global dstate$(1)
+	global newuse&,olduse&,ontime&
+rem xx	global showing%      rem -1 if showing owner inf
+	global gid%,ghgt%,gwid%          rem window id
+	global unit%
+	global onsig%
+	REM-----------------------------
+	REM Get all "SWITCH ON" events
+	call($6c8d) : gupdate
+	ver$ = "4e"
+	debug% = 0
+	
+	call($138B)
+	
+	REM-----------------------------
+	REM Alarm data blocks
+	pwmode% = 1
+	alarm% = 2
+	linkoff% = 1
+	alarmh%=addr(a1&())  : REM Regular alarm
+	dalarmh%=addr(a2&()) : REM Delta alarm
+
+	alarmi:(alarmh%)
+	alarmi:(dalarmh%)
+	
+	unit% = 3600
+
+	log:("INIT")
+	REM-----------------------------
+	REM Make pason "busy"
+	lock on
+
+	REM-----------------------------
+	REM Trap PSION-ESC  (ESCAPE OFF!)
+	escape off
+
+	REM-----------------------------
+	REM Keycode and modifiers for PSION-CONTROL-P
+	keycode% = asc("p")+$200
+	keymod% = $0c
+	keycap:(1,keycode%,keymod%)
+
+	rem Toggle debug mode PSION/CTRL/SHIFT-D
+	dbgkey% = asc("d")+$200
+	keycap:(1,dbgkey%,keymod%)
+
+	
+	REM-----------------------------
+	rem make the screen very small
+	rem this saves about 10K runtime!
+	ghgt% = gheight
+	gwid% = gwidth
+	gsetwin 1,1,1,1
+	log:("PASON BEGIN!")
+	REM -- show dialog panel
+	crypt$:("I",passwd$)
+	if shDialog: = 0 : stop : endif
+
+	REM-----------------------------
+	
+	REM -- main loop
+	alarm&:(dalarmh%,deltatm&)
+	timeron:(alarmh%)
+	olduse& = runtime&:
+
+	agetev%:(addr(evstat%),addr(evbuf%()))
+	WHILE 1
+		iowait
+		log:("")
+		if evstat% <> -46
+			buf%(1)=evbuf%(1)
+			buf%(2)=evbuf%(2)
+			
+			log:("EVENT!"+hex$(buf%(1))+","+hex$(buf%(2))+","+num$(evstat%,3))
+			log:("onsig%="+num$(onsig%,3))
+			REM Read the next event as soon as possible
+			agetev%:(addr(evstat%),addr(evbuf%()))
+			
+			REM Async Event occured
+			
+			if buf%(1) = $401 rem foreground
+
+rem xx				if not showing% 
+					foregrnd:(0)
+rem xx				endif
+
+				if wait4pw%
+					REM The user has entered the password
+					log:("=== done waiting for password")
+					pason:(0,passwd$)
+					wait4pw%=0
+				endif
+
+			elseif buf%(1) = $403  rem switch on
+				rem if debug% : beep 3,400 : endif
+				newuse& = runtime&:
+				ontime& = max(0,newuse& - olduse&)
+				olduse& = newuse&
+				log:("previous ontime was "+num$(ontime&,5))
+
+				rem Return password on/off status
+				if call($318B)
+
+					rem First switch on after pason activation
+					rem wait til user enters password.
+					rem otherwise everything gets out of step
+					rem This should also cope with alarms
+					log:("=== waiting for password")
+					rem remove owner inf. screen if its present
+					rem xx showinf:(0)
+					foregrnd:(-1)
+					wait4pw% = -1
+					rem open agenda now
+					 
+				endif
+				onsig%=-1
+				iosignal
+
+			elseif (buf%(1)=keycode% and (buf%(2) and $ff)=keymod%)
+
+				REM HOT KEY
+				foregrnd:(-1)
+				mainmnu:(alarmh%,dalarmh%)
+				foregrnd:(0)
+
+			rem xx elseif ((buf%(1) > 26 and buf%(1) < $7f) or buf%(1)=$402) and showing%
+
+				rem xx REM Any button press should remove
+				rem xx REM the owner information screen.
+				rem xx showinf:(0)
+				rem xx foregrnd:(0)
+				
+			elseif buf%(1)=dbgkey% and (buf%(2) and $ff)=keymod%
+
+				REM CTRL+PSION+d toggle debug mode
+				debug% = 1 - debug%
+
+			endif
+
+		elseif alarmed%:(dalarmh%)
+
+			log:("DELTA ALARM!"+dstate$)
+			if onsig%
+				if dstate$="W"
+					dstate$="F"
+					alarm&:(dalarmh%,ontime&)
+				elseif dstate$="F"
+					pason:(-1,passwd$)
+					dstate$="D"
+				endif
+			else
+				redelta$:
+			endif
+
+			log:("dstate$ = "+dstate$)
+			smartoff:
+			
+		elseif alarmed%:(alarmh%)
+
+			log:("TIMER ALARM!")
+			if pwmode% = 2
+				pason:(-1,passwd$)
+			endif
+
+			if alarm%=2
+				rem Enable alarm sounds
+				soundon%:($4)
+			endif
+
+			if linkoff%=2
+				linkoff:
+			endif
+
+			smartoff:
+			timeron:(alarmh%)
+
+		elseif onsig%
+
+			log:("NOT ON BY PASON SIGNAL!")
+			rem xx showinf:(-1)
+
+			rem The other timers haven't kicked in so
+			rem We better restart the delta timer
+			redelta$:
+			log:("resetting onsig%")
+			onsig%=0
+			
+rem *************************
+rem Else the event is ignored
+rem *************************
+		endif
+
+	endwh
+
+ENDP
+proc mingap&:(tm&)
+	local aoff%
+	aoff%=call($178b)
+	if aoff% = -1
+		log:("Auto off disabled")
+		return tm&
+	else
+		log:("auto off in "+num$(aoff%,7)+" orig tm in "+num$(tm&,7))
+		return &0+max(&2+aoff%,tm&)
+	endif
+endp
+
+rem Re-schedule the delta alarm
+proc redelta$:
+	dstate$="W"
+	
+	alarm&:(dalarmh%,mingap&:(deltatm&))
+	olduse& = runtime&:
+	ontime& = 0
+	log:("reset on time to 0")
+endp
+
+rem ASYNC GETEVENT
+proc agetev%:(statptr%,bufptr%)
+	pokel bufptr%,0
+	pokew statptr%,0
+	ioc(-2,14,#statptr%,#bufptr%,#0)
+	ioyield
+endp
+
+rem xx proc showinf:(mode%)
+rem xx 	local inf$(255),i%
+rem xx 	if owninf%<>2
+rem xx 		return
+rem xx 	elseif mode%=showing% : rem NEW
+rem xx 		log:("Showinf ignored "+num$(showing%,2))
+rem xx 		rem We must force pason to the foregrnd
+rem xx 		rem in case it was switched on using
+rem xx 		rem The button bar. This has the effect
+rem xx 		rem of sending pason to the background
+rem xx 		rem whilst showing% <> 0. Normally
+rem xx 		rem we want pason to stop showing
+rem xx 		rem butwe don't want that for this case
+rem xx 		foregrnd:(mode%)
+rem xx 		return
+
+rem xx 	elseif mode%
+rem xx 			if not wait4pw%
+rem xx rem		if call($318B)
+
+rem xx 			log:("Showinf: on "+num$(call($318b),5))
+rem xx 			REM Get owner Information
+rem xx 			inf$ = "$WS_PW"+chr$(0)
+rem xx 			infaddr%=uadd(addr(inf$),1)
+rem xx 			call($258B,0,0,0,infaddr%,infaddr%)
+rem xx 			gid% = gcreate(0,0,gwid%,ghgt%,1)
+rem xx 			guse gid%
+rem xx 			gborder $303
+		
+rem xx 			gat 20,20 : gprint "Owner Information"
+rem xx 			i% = 1
+rem xx 			while i%<=4
+rem xx 				gat 20,20+i%*15 : gprint ownstr$:(infaddr%,-1+i%*4)
+rem xx 				i%=i%+1
+rem xx 			endwh
+rem xx 			foregrnd:(-1)
+rem xx 			showing% = mode%
+rem xx 			endif
+rem xx rem		endif
+rem xx 	else
+rem xx 		trap gclose gid%
+rem xx 		showing% = mode%
+rem xx 	endif
+rem xx endp
+
+proc smartoff:
+	if onsig% 
+		log:("smartoff: waiting for signal")
+		iowait
+		log:("smartoff: switching off")
+		off
+	else
+		log:("smartoff: - staying on")
+	endif
+	onsig%=0
+endp
+
+REM set a timer to wake up at next interval
+proc timeron:(alarmh%)
+	if alarm%=2 or linkoff%=2 or dstate$=""
+		rem Advance nextTim& to next switch on time
+		if intrvl& > 0
+			rem nextTim& = begTim&
+			while nextTim& <= now&:
+				nextTim& = nextTim& + intrvl&
+			endwh
+			alarm&:(alarmh%,mingap&:(nextTim&-now&:))
+		endif
+	endif
+endp
+
+rem Enable normal password security
+REM Change system password via pason.
+proc mainmnu:(alarmh%,dalarmh%)
+	local o$(8),n$(8),key%,k$(1)
+	while 1
+		dinit "PASON"+ver$+" - Password protected"
+		dxinput o$,"Password"
+		if dialog = 0
+			return
+		elseif o$ <> crypt$:("D",passwd$)
+			alert("Incorrect password")
+		else
+			break
+		endif
+	endwh
+	REM Main menu
+	minit
+	mcard "PASON"+ver$,"Configure",%c,"Change System Password",%p,"Change Hot-Key",%h,"Quit",%q
+	key% = menu
+	
+	REM Change Password
+	while key%=%p
+		dinit "Change System Password"
+		dxinput o$,"New password"
+		dxinput n$,"Confirm password"
+		if dialog = 0
+			break
+		elseif o$<>n$
+			alert("Password not confirmed")
+		elseif len(n$)<4
+			alert("Password too short")
+		else
+			REM set the new password
+			n$=crypt$:("E",n$)
+			setpwd%:(passwd$,n$)
+			passwd$ = n$
+			break
+		endif
+	endwh
+	
+	REM Hot Key
+	if key%=%h
+		dinit "PASON"+ver$+" Hot Key"
+		k$=chr$(keycode% and $FF) rem remove psion code
+ 		dedit k$,"Psion+Control+",1
+		if dialog 
+			keycap:(0,keycode%,keymod%)
+			keycode% = asc(k$)+$200 rem + psion code
+			keycap:(1,keycode%,keymod%)
+		endif
+		
+	elseif key%=%c
+
+		alarm&:(alarmh%,&0)
+		alarm&:(dalarmh%,&0)
+		nexttim& = nexttim&-(nexttim&/86400)*86400
+		maincfg:(0)
+		timeron:(alarmh%)
+		alarm&:(dalarmh%,deltatm&)
+		dstate$="W"
+
+	elseif key%=%q
+		pason:(-1,passwd$)
+		stop
+	endif
+endp
+
+REM Encryption using OS calls
+PROC crypt$:(mode$,pwd$)
+	local q$(9)
+	if mode$="I"
+		rem (I)NIT
+		q$=pwd$
+		call($348b,0,0,0,addr(q$),addr(crypt%()))
+	else
+		rem (E)NCRYPT or (D)ECRYPT
+		q$=pwd$
+		crypt%(9) = 0
+		call($358b - $100 * (mode$="E"),0,len(q$),0,addr(crypt%()),uadd(addr(q$),1))
+	endif
+	return q$
+endp
+
+rem The battery+mains time
+rem This is used to work out how long the 
+rem psion was on for. This can be used to 
+rem determine the after last switch off time
+rem without constantly polling.
+
+proc runtime&:
+	local buf%(5),bat&,ext&,ma&
+	call($228e,addr(buf%()))
+	return bat&/32+ext&/32
+endp
+
+PROC pason:(on%,pwd$)
+	REM using OS call $8B sub $30
+	REM Turn the password on
+
+	local ax%,bx%,cx%,dx%,si%,di%
+	local buf$(8)
+
+	buf$ = crypt$:("D",pwd$)
+
+	ax% = $3000 - on%
+
+	si% = addr(buf$)
+	IF (OS($8B,addr(ax%)) and 1 ) = 1
+		alert("Pason - Cant change pwd status",ERR$(ax% OR $FF00))
+		stop
+	ENDIF
+	log:("PASSWORD IS "+hex$(on%))
+ENDP
+
+PROC shDialog:
+	REM -- show the dialog panel to setup job params
+
+	if setpwd%:("CHK","")
+		alert("System password not set","Terminating")
+		return 0
+	endif
+
+
+	REM get the plaintext password required for
+	REM the os call.
+rem xx	owninf% = 1
+	deltatm& = 60*60
+	intrvl& = 24.0*unit%
+	return maincfg:(1)
+endp
+
+REM main configuration parameters.
+REM The system password should be enabled.
+proc maincfg:(first%)
+	local ret%,p$(35)
+	
+	p$="PASON"+ver$+" ¸ S.Hawtin/A.Lord"
+	if first%
+		dINIT p$
+		dtext "","PASON needs your current"
+		dtext "","system password to work"
+		dtext ""," "
+		dXINPUT passwd$,"Password"
+		if dialog 
+			passwd$ = crypt$:("E",passwd$)
+			ret% = setpwd%:("CHK",passwd$) <> 0 
+			if ret% = 0
+				alert("incorrect password","Terminating")
+			endif
+		endif
+	else
+		ret% = 1
+	endif
+
+	if ret%
+		dINIT p$
+		dtext "","Activate password regularly after"
+		dtext "","a given time OR a number of minutes"
+		dtext "","after the psion is switched off?"
+		dtext ""," "
+		dchoice pwmode%,"Password mode","after switch off,Regular intervals"
+		ret% = dialog
+	endif
+	if ret%
+	  if pwmode%=1
+			deltatm&=deltatm& / 60
+			dinit p$
+			dtext "","How many minutes after the psion is"
+			dtext "","switched off before password is "
+			dtext "","re-enabled ?"
+			dtext ""," "
+			dlong deltatm&,"minutes",1,1440
+		  ret% = dialog
+			deltatm&=deltatm& * 60
+			dstate$="W"
+	   else
+			deltatm& = 0
+			dstate$=""
+	  endif
+	endif
+
+rem xxrem xx	if ret%
+rem xx		dINIT p$
+rem xx		dtext "","Display owner information when the"
+rem xx		dtext "","Psion is first switched on ?"
+rem xx		dtext "","(if the password is not active)"
+rem xx		dtext ""," "
+rem xx		dchoice owninf%,"Show Owner Information","no,yes"
+rem xx  	ret%=dialog
+rem xx  endif
+
+	if ret%
+		dinit p$
+		dtext "","Do you want alarms enabled at "
+		dtext "","regular intervals?"
+		dtext ""," "
+		dchoice alarm%,"Switch on alarms","no,yes"
+		ret% = dialog
+	endif
+	if ret%
+		dinit p$
+		dtext "","Do you want the link disabled"
+		dtext "","at regular intervals?"
+		dtext ""," "
+		dchoice linkoff%,"Switch off Remote Link","no,yes"
+		ret% = dialog
+	endif
+	if ret%<>0 and ( pwmode%=2 or linkoff%=2 or alarm%=2)
+		intrvl&=intrvl&/unit%
+		if alarm% = 2
+			dinit "Regular intervals"
+		else
+			dinit "Regular intervals for alarm/link only"
+		endif
+		dtime nexttim&,"start time ",0,0,86399
+		dlong intrvl&,"interval (hrs)",1,24
+		ret% = dialog
+		intrvl&=intrvl&*unit%
+	endif
+
+
+	if ret%
+		if intrvl& > 0
+			if nexttim& = 0
+				nexttim& = nexttim& + 86400
+			endif
+			nexttim&=nexttim&+datetosecs(year,month,day,0,0,0)
+		endif
+		pason:(0,passwd$)
+	endif
+	foregrnd:(0)
+	RETURN ret%
+ENDP
+
+REM -- the time now in seconds
+PROC now&:
+	RETURN(DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND))
+ENDP
+
+REM -- write a timed log message
+PROC log:(mess$)
+	local lg%,l$(255),l%,f$(255),e%
+	f$="\opd\pasout.txt"
+	if exist(f$) and mess$="INIT"
+		delete f$
+		return
+	endif
+	l$=right$(datim$,8)+" "+mess$
+	if debug%
+		rem ioopen(lg%,f$,$0021-2*exist(f$))
+		if exist(f$)
+			e%=ioopen(lg%,f$,$0123)
+		else
+		e%=ioopen(lg%,f$,$0121)
+		endif
+		if e% : raise e% : endif
+		l%=addr(l$)
+		e%=iowrite(lg%,uadd(l%,1),peekb(l%))
+		if e% : raise e% : endif
+		e%=ioclose(lg%)
+		if e% : raise e% : endif
+	endif
+ENDP
+
+rem All sound off/on -> bit 15 set/unset
+rem alarm sounds on/off bit 2
+rem keys on/off     -> bit 0
+rem keys loud quite -> bit 3	rem beep on/off     -> bit 1
+rem beep loud/quite -> bit 4
+
+proc soundoff:
+ 	call($108b,call($0f8b) or $8000)
+endp
+
+proc soundon%:(flag%)
+	call($108b,(call($0f8b) and $7fff) or flag%)
+endp
+
+REM Change the system password from old$ to pwd$
+proc setpwd%:(old$,pwd$)
+	local reg%(6),o$(10),pw$(10)
+
+	pw$ = crypt$:("D",pwd$)
+
+	if old$="CHK"
+		reg%(1) = $2F00
+		reg%(5) = addr(pw$)
+	else
+		o$ = crypt$:("D",old$)
+		reg%(1) = $2E00
+		reg%(5) = addr(o$)
+		reg%(6) = addr(pw$)
+	endif
+	return ( os($8B,addr(reg%(1))) and 1 ) = 0
+endp
+
+
+proc ownstr$:(buf%,lenp%)
+	local tmp$(255),len%,from%
+	
+	len% = peekb(uadd(buf%,lenp%))
+	from% = buf% + peekb(uadd(buf%,lenp%+1))
+	pokeb addr(tmp$),len%
+	call($A1,0,len%,0,from%,uadd(addr(tmp$),1))
+	return tmp$
+endp
+
+rem switch off remote link.
+proc linkoff:
+	local name$(14),pattern$(20),pid%,name%,opid%
+	
+	name% = addr(name$)
+	pattern$ = "LINK.*"+chr$(0)
+	pid%=0
+	REM loop and kill all processes called "LINK.*"
+	do
+		buf%(1) = $0B00
+		buf%(2) = pid%
+		buf%(5) = uadd(name%,1)
+		buf%(6) = uadd(addr(pattern$),1)
+		if os($88,addr(buf%())) and 1
+			break
+		endif
+		rem Terminate the process
+		call($0D88,buf%(1))
+	until pid% = opid%
+endp
+
+proc foregrnd:(i%)
+	rem Send Pason to the foreground/background
+	log:("foreground "+num$(i%,2))
+	call($198D,100*(i%+1),0)
+	gupdate
+endp
+
+REM Capture/Release a PSION-CONTROL-<key> keycode
+proc keycap:(on%,code%,mod%)
+	buf%(1)=14+(on%<>0)
+	buf%(2)=code%
+	buf%(3)=mod%*$101
+	iow(-2,7,buf%(1),buf%(2))
+endp
+
+rem xproc beep%:(x%,y%)
+rem x	if debug% : beep x%,y% : endif
+rem xendp
+
+rem word 0 = io channel
+rem word 2 = status
+rem long 4 = due time
+rem byte 8 = true if pason thinks alarm still on
+rem            this is diff. to async status.
+ 
+proc alarmi:(i%)
+	pokel uadd(i%,4),0
+	pokeb uadd(i%,8),0
+endp
+
+rem True if it has alarmed
+rem test only succeeds once to prevent event loop
+rem getting confused.
+proc alarmed%:(tptr%)
+	local ptr%
+	ptr% = uadd(tptr%,2)
+	if peekw(ptr%) <> -46 and peekb(uadd(ptr%,6))=1
+		pokeb uadd(ptr%,6),0
+		return 1
+	else
+		return 0
+	endif
+endp
+
+rem alarm in secs% seconds
+proc alarm&:(tptr%,secs&)
+	local timsptr%,abstime&
+	local yr%,mo%,dy%,hr%,mn%,sc%,yd%
+	
+	if secs&<0
+		abstime& = 0
+	elseif secs&<>0
+		abstime&=secs&+now&:
+	endif
+	timsptr% = uadd(tptr%,2)
+
+	if peekw(tptr%) = 0 
+		REM Open channel timer
+		log:("opening timer "+hex$(tptr%))
+		ioopen(#tptr%,"TIM:",0)
+	endif
+
+	if peekw(timsptr%) = -46
+		REM stop current timer
+		log:("cancelling timer "+hex$(tptr%)) 
+		yr%=iow(peekw(tptr%),4,#0,#0)
+		if yr% : log:(err$(yr%)) : endif
+		
+		rem wait for the timer to complete. A signal
+		rem is still sent
+		iowait
+		while peekw(timsptr%) = -46
+			log:("event while waiting for cancel")
+			ioyield
+		endwh
+	elseif peekb(uadd(tptr%,6)) = 1
+		rem The timer has expired but the signal
+		rem has not been processed yet!
+		rem This was the big bug - it was a race
+		rem condition!
+		log:("Discarding timer"+hex$(tptr%))
+		iowait
+	endif
+
+	alarmi:(tptr%)
+
+	if abstime&<>0
+		REM start new timer
+		ioc(peekw(tptr%),2,#timsptr%,abstime&,abstime&)
+		pokel uadd(tptr%,4),abstime&
+		pokeb uadd(tptr%,8),1
+		ioyield
+		secstodate abstime&,yr%,mo%,dy%,hr%,mn%,sc%,yd%
+		log:("timer "+hex$(tptr%)+" at "+num$(hr%,2)+":"+num$(mn%,2)+":"+num$(sc%,2)+" in "+num$(abstime&-now&:,6)+" secs")
+	endif
+	return abstime&
+endp
+

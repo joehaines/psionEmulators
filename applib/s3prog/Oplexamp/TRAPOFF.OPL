@@ -1,0 +1,50 @@
+==========
+Usenet/comp.sys.psion #21996, from mbis@xs4all.nl, 1163 chars, Jan 8 14:4 96
+Comment to 21867.
+----------
+Article: 21996 of comp.sys.psion
+Path: cix.compulink.co.uk!news.compulink.co.uk!btnet!uunet!in2.uu.net!salliemae!newsfeed.internetmci.com!EU.net!sun4nl!xs4all!usenet
+From: mbis@xs4all.nl (mbis)
+Newsgroups: comp.sys.psion
+Subject: Re: Trap shutoff?
+Date: Mon, 08 Jan 1996 14:04:04 GMT
+Organization: XS4ALL, networking for the masses
+Lines: 31
+Message-ID: <4cr8bo$264@news.xs4all.nl>
+References: <4cpmd1$hkk@mn5.swip.net>
+Reply-To: mbis@xs4all.nl
+NNTP-Posting-Host: asd06-08.dial.xs4all.nl
+X-Newsreader: Forte Free Agent 1.0.82
+
+Arne Anka <mats.sparr@mailbox.swipnet.se> wrote:
+
+>Is it possible to write an OPL (OPA) that is running in the
+>background and goes active and does some action when i
+>turn my psion off?
+
+Yes, capture the OFF key with the following code:
+
+IF CALL($C58D, 8195, 3592) AND 255
+	ALERT("Error: can not capture OFF key")
+	STOP
+ENDIF
+
+In your event-loop an event with a keycode 8195 is generated:
+
+LOCAL	sysmsg%, keycode%, keymod%
+WHILE 1
+	IOA(-1,14,sysmsg%,keycode%,#0) rem wait for event
+	IOWAIT
+	...
+	IF sysmsg <> -46
+		...
+		IF keycode% = 8195
+			doSomething:
+		ENDIF
+		...
+	ENFIF
+	...
+ENDWH
+
+
+

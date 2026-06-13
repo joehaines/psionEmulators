@@ -1,0 +1,295 @@
+This is the real version; throw away the temporary version I posted recently.
+
+
+PSIONICS FILE - FILEIO
+======================
+Filing system IO interfaces
+Last modified 1994-09-16
+===========================
+
+This document describes the use of the IO interface for accessing the filing
+system. For general discussion on IO, see the Psionics file DEVICES.
+
+The filing system is a special device driver, called "FIL:". Whenever an open
+fails to locate a device, or if the name opened is not that of a device driver,
+the driver name "FIL:" is prefixed, and the open is retried. Thus the original
+name becomes the channel name. For file IO, the channel name is, or controls,
+the file name.
+
+An addition filing system called "TXT:" also exists. This is identical to
+"FIL:", and accesses the same files, except that all files are assumed to
+be text files (see below). There is no normal need to use "TXT:"; instead,
+use "FIL:" and open files with a format component of 2 (see below).
+
+
+Filing system organisation
+--------------------------
+
+The filing system is divided into one or more nodes. A node has a name ending
+with a double colon. The nodes most commonly met are:
+  "LOC::"  files in the internal ram and on attached SSDs and 3-Link pods
+  "REM::"  files accessed via the 3-Link (not the 3-Link pod itself)
+  "ROM::"  files in the internal rom
+
+A node may be monolithic, or may be divided into devices. The devices available
+and the format of their names depends on the node. For example:
+  LOC::  devices are usually "M:", "A:", "B:", and possibly "C:".
+  REM::  device names depend on the remote system
+  ROM::  monolithic
+Unless explicitly stated otherwise, the term device includes monolithic nodes.
+
+A node may be flat or hierarchical. In the former case, each device is a single
+directory which contains files. In the latter, each device has a directory
+hierarchy starting with a root directory; each directory can hold files and
+other directories.
+
+The format of file and directory names depends on the node. Various system
+calls (such as FilChangeDirectory) can be used to manipulate file names. The
+LOC:: node uses \ as a directory name terminator (the root directory is just
+called "\"), and allows both file and directory names to consist of up to 8
+characters, a dot, and then up to 3 characters. The ROM:: node is flat, and
+uses the same rules for file names.
+
+The full pathname of a file consists of the node, the device (if any), the path
+of directories (if any), and the filename, all joined with no intervening
+spaces. It is limited to 128 characters.
+
+The system has the concept of a current path. When any filename does not
+include a filing system, device, or directory, that of the current path is
+used. For example, if the current path is "LOC::A:\APP\", then the names
+"XXX\YYY", "REM::\QQQ", and "M:ZZZ" actually refer to "LOC::A:\APP\XXX\YYY",
+"REM::A:\QQQ", and "LOC::M:\APP\ZZZ".
+
+
+Opening files
+-------------
+
+There are two kinds of open: open for scanning, and open for access. These
+are both done with the IOOPEN keyword, but once the file is open, it is used
+in totally different ways.
+
+
+Opening for scanning
+--------------------
+
+A file is opened for scanning by specifying one of the following modes to
+IOOPEN:
+    $0030 = scan a directory
+    $0050 = scan a node
+    $0060 = scan all nodes
+    $0040 = format a device
+    $8040 = format a device in low density
+
+In each case, once the file is opened, it is scanned or formatted by making
+several calls to function 1 until one fails with error -36 (end of file).
+[Note: the IOREAD keyword should be equivalent to function 1. However, there
+have been reports of problems with using it.] Once a call fails, the handle
+should be closed. All these calls will ignore the length variable (argument 2).
+
+Scanning generates a list of names. There are three different scans that can
+be done:
+* Scan all nodes; the name opened is ignored (and so would normally be "FIL:"),
+  and a list of all the available nodes is returned.
+* Scan a node; the node is extracted from the name opened, and a list of all
+  devices on that node is returned.
+* Scan a directory; the name opened should either identify a directory (on
+  the LOC:: node, this is done by having it end with a backslash), or should
+  contain wildcards in the filename part. [If neither of these is true, only
+  the original name will normally be returned; "A:" counts as a directory for
+  these purposes.] A list of all names in the directory, or all matching names,
+  is returned.
+
+One member of the list is returned, as a cstr, by each call to function 1. The
+buffer (argument 1) should be at least 128 bytes long.
+
+
+Formatting is used to prepare a device to contain files and to erase any
+previous contents. If a device supports multiple densities, it can be formatted
+at normal or low density. The node and device part of the name identifies the
+device to format; the remainder, if any, specifies a new volume name for the
+device (otherwise the previous one is reused).
+
+The first call to function 1 will write a count into the first word of the
+buffer (argument 1); subsequent calls will ignore the buffer. This first call
+will not alter the device, and if the handle is closed immediately afterwards,
+nothing will happen. Otherwise, the count indicates the number of subsequent
+calls required to format the device. If the handle is closed before that number
+of calls has been made, the device will be left in an unusable state; it can
+be recovered by reformatting, but any information normally transferred to a
+reformatted device, such as the previous volume name or the unique serial
+number, will be lost.
+
+As an example, when formatting a 2Mb flash SSD, the format count was 513. This
+consisted of:
+* 256 calls which each wrote all zeroes to 8192 bytes of the card, starting
+  at address 0.
+* 8 blocks of 32 calls; the first call in each block restored 256 kbytes to
+  all $FF, and the other 31 did nothing.
+* A final call which restored the initial area of the card (serial number,
+  volume name, empty root directory, etc.).
+
+
+Opening for access
+------------------
+
+A file is opened for access in order to read or write the file. To open a file
+for access, the mode parameter to IOOPEN has the following value:
+    Bits 0 to 3: (service component)
+      0 = open an existing file
+      1 = create a new file
+      2 = replace an existing file
+      3 = open a file for appending only
+      4 = open a new file with an existing name
+    Bits 4 to 7: (format component)
+      0 = open a binary file for stream access
+      1 = open a binary file for text access
+      2 = open a text file for text access
+    Bit  8: allow writing
+    Bit  9: allow random access
+    Bit 10: allow shared access
+These individual components are now described.
+
+
+Service component
+-----------------
+
+The service component indicates what to do with the existing contents of the
+file. There are five possibilities:
+* 0 and 3 open an existing file, leaving the content unchanged. They differ
+  only in the setting of the current position (0 = start, 3 = end). If the
+  file does not exist, the open fails.
+* 1 and 2 will create the file if it does not exist; 1 will fail if the file
+  does already exist, while 2 will succeed. After opening, the file will
+  be empty (length 0), and so the current position will be at both the start
+  and end of the file.
+* 4 is equivalent to 1, but with a new file name. The file name passed is
+  examined to determine the directory, and a new file is created in that
+  directory; the resulting name overwrites the passed name. If the IOOPEN
+  keyword is used, the name parameter is replaced by ADDR(qstr), as explained
+  in the OPL manual. If the IoOpen system call is used, the name (a cstr) is
+  passed in the same way as for other modes, and will be overwritten; there
+  should thus be room for 128 bytes.
+
+
+Format component
+----------------
+
+There are two kinds of file: text and binary. A text file consists of a
+sequence of records, each ending with a newline character, while a binary
+file consists of arbitrary data, which is not broken into records.
+
+Each node has its own way of storing text and binary files. On some nodes,
+the two types are completely distinct. On others, text files are merely a way
+of interpreting binary files. This is the case for the LOC:: and ROM:: nodes.
+In either case, a record in a text file is limited to 256 bytes, and may not
+contain $0A, $0D, or $1A.
+
+In the LOC:: and ROM:: nodes, a text file obeys the following rules:
+* Each of the following sequences marks the end of a record:
+    $0A $0D $1A
+    $0A $1A
+    $0A
+    $0D $0A $1A
+    $0D $1A
+    $0D
+    $1A
+  In each case, the longest applicable sequence is used. These bytes are not
+  part of the record.
+* Anything after a $1A byte (including one in a record terminator) is ignored.
+
+The three access modes are used to determine the way the file is processed.
+* Mode 0 opens a binary file for binary access.
+* Mode 1 opens a text file for binary access.
+* Mode 2 opens a text file for text access.
+The meaning of each of these is discussed below, under reading and writing.
+If a node does not distinguish binary and text files, the contents of the file
+are treated in the way described above. If it does distinguish them, the open
+will fail if the file has the wrong type.
+
+
+Other opening flags
+-------------------
+
+If the "writing" flag is not set on opening, all attempts to alter the file
+will fail. This includes files created by the open function.
+
+If the "random access" flag is not set on opening, all attempts to set the
+current position (as opposed to altering it by reading and writing) will fail.
+
+If the "shared" flag is not set on opening, the file is locked, and no other
+process may open it until this one closes it. If the flag is set, the file
+is open for sharing; other processes may also open it for sharing, but none
+of the processes may alter to the file.
+
+
+Reading and writing
+-------------------
+
+
+When reading or writing a binary file, the requested data is transferred
+directly without change. Up to 16k can be read or written with one call. On
+a read, the length argument is changed to the actual number of bytes read. The
+data is read from or written at the current position, which is moved to the
+end of that data.
+
+When reading a text file as binary, the file is treated exactly as if each
+record were followed by $0D $0A; partial records can be read into the buffer,
+and the remaining portion will be retained until the next read.
+
+When writing a text file as binary, the following sequences of bytes are taken
+to mark the end of a record:
+    $0A $0D
+    $0A
+    $0D $0A
+    $0D
+Again, in each case the longest applicable sequence is used, and these bytes
+are not written as part of the record.
+
+In all other respects access to a text file as binary behaves the same as
+access to a binary file.
+
+When reading a text file as text, exactly one record is read from the file into
+the buffer; no explicit end-of-record marker is added. If the record is larger
+than the buffer, the trailing data is ignored and error -43 is returned. The
+length argument is changed to the number of bytes placed in the buffer. The
+record is read from the current position, which is moved to the start of the
+next record. Since text records are limited to 256 bytes, no more than that
+can ever be read.
+
+When writing a text file as text, the contents of the buffer are written as a
+single record at the end of the file, no matter what the current position. The
+current position is moved to the end of the file. Records are limited to 256
+bytes, and must not contain $0A, $0D, or $1A.
+
+When writing to a flash SSD, there is one special case: if the write is a
+single byte, and if every bit of that byte is left unchanged or changes from
+1 to 0 [equivalently, if (old AND new) = new], then the byte will be modified
+in situ. In all other cases, the old data will remain in place, but the file
+structure will be modified to skip it and point to the new data instead.
+
+
+Other IO functions
+------------------
+
+Function:   9
+Argument 1: unused
+Argument 2: unused
+
+Any buffered data is written to the file, and the file's modification date is
+updated if necessary. On the LOC:: node, the only buffering done for binary
+files is of the modification date of files on flash. Text files are buffered.
+
+
+Function:   11
+Argument 1: (long) new filesize
+Argument 2: unused
+
+If the file is shorter than the specified length, random data is appended to
+bring it to that length; the current position is unaltered. If it is longer,
+the file is truncated to that length, and the current position is set to the
+new end of file.
+-- 
+Clive D.W. Feather     | Santa Cruz Operation    | If you lie to the compiler,
+clive@sco.com          | Croxley Centre          | it will get its revenge.
+Phone: +44 1923 813541 | Hatters Lane, Watford   |   - Henry Spencer
+Fax:   +44 1923 813811 | WD1 8YN, United Kingdom | <= NOTE: NEW PHONE NUMBERS

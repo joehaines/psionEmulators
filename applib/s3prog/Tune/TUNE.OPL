@@ -1,0 +1,70 @@
+proc tune:
+ global notes1%(1000),notes2%(1000),file%,pos1%,pos2%
+ global len1%,len2%,n%,f,s1stat%
+
+ local ret%,snd%
+ pos1%=1
+ pos2%=1 
+ ret%=ioopen(snd%,"SND:",-1)
+ open "loc::m:\dat\tune.dbf",a,name$,t1$,t2$,t3$,b1$,b2$,b3$
+  
+ busy "Parsing treble"
+ tparse:(a.t1$)
+ if a.t2$<>"!"
+  tparse:(a.t2$)
+  if a.t3$<>"!"
+   tparse:(a.t3$)
+  endif
+ endif
+  
+ busy "Parsing bass"
+ bparse:(a.b1$)
+ if a.b2$<>"!"
+  bparse:(a.b2$)
+  if a.b3$<>"!"
+   bparse:(a.b3$)
+  endif
+ endif
+  
+ busy off
+ sound:(snd%)
+ ioclose(snd%)
+endp
+
+proc tparse:(p$)
+ local loop%,a$(255)
+ a$=p$
+ 
+ loop%=1
+  while loop%<len(a$)
+   n%=12+val(mid$(a$,loop%,2))
+   f=440*2**(n%/12.0)
+   notes1%(pos1%)=f
+   notes1%(pos1%+1)=15*val(mid$(a$,loop%+2,1))
+   pos1%=pos1%+2
+   loop%=loop%+3
+  endwh
+ len1%=len1%+(loop%)/3
+endp
+
+proc bparse:(a$)
+ local loop%
+ 
+ loop%=1
+  while loop%<len(a$)
+   n%=val(mid$(a$,loop%,2))
+   f=440*2**(n%/12.0)
+   notes2%(pos2%)=f
+   notes2%(pos2%+1)=15*val(mid$(a$,loop%+2,1))
+   pos2%=pos2%+2
+   loop%=loop%+3
+  endwh
+ len2%=len2%+(loop%)/3
+endp
+
+proc sound:(snd%)
+ busy "Playing music"
+ ioc(snd%,1,s1stat%,notes1%(),len1%)
+ iow(snd%,2,notes2%(),len2%)
+ iowaitstat s1stat%
+endp

@@ -1,0 +1,64 @@
+proc a:
+print "Psion-Esc to quit"
+print "try Menu key... or hotkeys"
+do
+	print chr$(kget%:);
+until 0
+endp
+
+PROC kget%:
+	LOCAL k%,h$(9),a$(5)
+	h$="NOSCIEFGD" REM our hot-keys
+	WHILE 1
+		k%=GET
+		IF k%=$122 REM Menu key
+			mINIT
+ 			mCARD "File","New",%N,"Open",%O,"Save",%S
+			mCARD "Edit","Copy",%C,"Insert",%I,"Eval",%E
+			mCARD "Search","First",%F,"Next",%G,"Previous",%D
+			k%=MENU
+			IF k% AND INTF(LOC(h$,CHR$(k%)))
+ 				a$="proc"+CHR$(k%)
+				@(a$): REM procn:, proco:, ...
+			ENDIF
+		ELSEIF k% AND $200 REM hot-key (PSION key used)
+			k%=(k%-$200) AND $FFDF REM Uppercase
+			k%=LOC(h$,CHR$(k%)) REM One of ours?
+			IF k%
+ 				a$="proc"+MID$(h$,k%,1)
+				@(a$): REM procn:, proco:, ...
+			ENDIF REM ignore other weird keypresses
+		ELSE REM some other key
+			RETURN k%
+		ENDIF
+	ENDWH
+ENDP
+
+
+PROC procn:
+print "!N!"
+ENDP
+PROC proco:
+print "!O!"
+ENDP
+PROC procs:
+print "!S!"
+ENDP
+PROC procc:
+print "!C!"
+ENDP
+PROC proci:
+print "!I!"
+ENDP
+PROC proce:
+print "!E!"
+ENDP
+PROC procf:
+print "!F!"
+ENDP
+PROC procg:
+print "!G!"
+ENDP
+PROC procd:
+print "!D!"
+ENDP

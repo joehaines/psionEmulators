@@ -1,0 +1,40 @@
+#define FilManager   $0087
+#define FilStatusDevice $0a00
+
+PROC DevType$:(s$)
+
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL flags%,err%,ret$(30)
+
+	LOCAL slot$(8),pslot%
+	LOCAL buff%(32),pbuff%
+
+
+	slot$  = "LOC::" + s$ + ":" + CHR$(0)
+	pslot% = ADDR(slot$) + 1
+	pbuff% = ADDR(buff%())
+
+	ax% = FilStatusDevice
+	bx% = pslot%
+	cx% = pbuff%
+
+	flags% = OS(FilManager,ADDR(ax%))
+
+	IF flags% AND 1				
+		err% = ax% OR $ff00			
+		ret$ = ERR$(err%)		
+	ELSE
+		IF (buff%(2) AND $07) = 3
+			ret$ = "Flash"
+		ELSEIF (buff%(2) AND $07) = 4
+			ret$ = "RAM"
+		ELSEIF (buff%(2) AND $07) = 5
+			ret$ = "ROM"
+		ELSE
+			ret$ = "Unknown"
+		ENDIF
+	ENDIF
+
+	RETURN ret$
+	
+ENDP

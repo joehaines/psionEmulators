@@ -1,0 +1,434 @@
+#include <opp\misc>
+#include <lib\browse.oph>
+LIBPROC Browse%:(Fn$,<FileBrowse*>Ptr%)
+	LOCAL ScrX%,ScrY%,tHigh%,Cnt%,Line$(80),ScrWid%,ScrHei%
+	LOCAL FmtPrc$(8),WinTit$(80),DiRec%(24),Gry%
+	LOCAL LastRec%,CurRec%,WinID%,XPos%,YPos%,Width%
+	LOCAL Height%,BorType%,BorFlag%,PrtPrc$(8)
+	LOCAL MaxItem%,TitDep%,Stat%,Fnt%
+	LOCAL MidPnt%,Pos%,i%(32),TxtLen%,POSi%,MCnt%
+	FmtPrc$	 = Ptr%->FormatProc$
+	PrtPrc$	 = Ptr%->PrintProc$
+	LastRec%	= Ptr%->LastRec%
+	CurRec%	 = Ptr%->CurrentRec%
+	WinID%		= Ptr%->WindowID%
+	XPos%		 = Ptr%->XPos%
+	YPos%		 = Ptr%->YPos%
+	Width%		= Ptr%->Width%
+	Height%	 = Ptr%->Height%
+	ScrX%			 = Ptr%->ScrollX%
+	ScrY%			 = Ptr%->ScrollY%
+	ScrWid%	 = Ptr%->ScrollWidth%
+	ScrHei%	 = Ptr%->ScrollHeight%
+	MaxItem%	= Ptr%->MaxItems%
+	Stat%			 = Ptr%->Stat%
+	Fnt%				= Ptr%->Font%
+	FOR(Cnt%,1,24,1)
+		DiRec%(Cnt%)		= Ptr%->DispRecs%(Cnt%)
+	ENDFOR
+	gFONT Fnt%
+	gINFO i%()
+	tHigh% = i%(3)+i%(4)
+	IF UPPER$(Fn$) = "INIT"	 /* Open window, read file, display */
+		LastRec%	= COUNT
+		Stat% = 1
+		WinId%=gCREATE(XPos%,YPos%,Width%,Height%,1,0)
+		gFONT Fnt%
+		gINFO i%()
+		tHigh% = i%(3)+i%(4)
+		/************* Store info to struct ****************/
+		ScrX%			 = 2
+		ScrWid%	 = gWIDTH
+		ScrY%			 = 0
+		ScrHei%	 = gHEIGHT
+		MaxItem%	= INT(ScrHei% / tHigh%)
+		IF LastRec% > 0
+			FIRST
+			CurRec%	 = 1
+		ELSE
+			CurRec%	 = 0
+			GOTO ScrEND::
+		ENDIF
+		/************ Read in file and format **************/
+		FIRST
+		Cnt% = 1
+		WHILE (Cnt% <= MaxItem%) AND NOT EOF
+			gAT ScrX%,ScrY%+(Cnt%*tHigh%)
+			Line$ = @$(FmtPrc$):
+			IF Line$ <> ""
+				@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,Cnt%,tHigh%,Line$)
+				DiRec%(Cnt%) = POS
+				Cnt%++
+			ENDIF
+			NEXT
+		ENDWH
+		gINFO i%()
+		gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+		gINVERT ScrWid%-6,tHigh%
+	ENDIF
+	IF UPPER$(Fn$) = "REDRAW"
+		gUSE WinID%
+		gSETWIN XPos%,YPos%,Width%,Height%
+		gFONT Fnt%
+		gINFO i%()
+		tHigh% = i%(3)+i%(4)
+		/************* Store info to struct ****************/
+		ScrX%			 = 2
+		ScrWid%	 = gWIDTH
+		ScrY%			 = 0
+		ScrHei%	 = gHEIGHT
+		MaxItem%	= INT(ScrHei% / tHigh%)
+		IF LastRec% > 0
+			FIRST
+		ELSE
+			CurRec%	 = 0
+			GOTO ScrEND::
+		ENDIF
+		/************ Read in file and format **************/
+		FIRST
+		Cnt% = 1
+		gAT ScrX%,ScrY%
+		WHILE (Cnt% <= MaxItem%) AND NOT EOF
+			gFILL ScrWid%,tHigh%+5,1
+			gAT ScrX%,ScrY%+(Cnt%*tHigh%)
+			Line$ = @$(FmtPrc$):
+			IF Line$ <> ""
+				@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,Cnt%,tHigh%,Line$)
+				DiRec%(Cnt%) = POS
+				Cnt%++
+			ENDIF
+			gMOVE 0,5
+			NEXT
+		ENDWH
+		gFILL ScrWid%,gHEIGHT-gY,1
+		POSITION CurRec%
+	ENDIF
+	IF UPPER$(Fn$) = "BAR"	/* Turn hilight bar on/off */
+		LastRec%	= COUNT
+		gUSE WinID%
+		IF Stat% = 1
+			IF LastRec% > 0
+				gINFO i%()
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+			Stat% = 0
+		ELSE
+			IF LastRec% > 0
+				gINFO i%()
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+			Stat% = 1
+		ENDIF	 
+	ENDIF
+	IF UPPER$(Fn$) = "CLOSE"	/* close window */
+		gCLOSE WinID%
+		RETURN 0
+	ENDIF
+	IF UPPER$(Fn$) = "UP"			 /* move record position up */
+		LastRec%	= COUNT
+		gUSE WinID%
+		IF DiRec%(CurRec%) = 1
+		ELSE
+			IF CurRec% = 1
+				/* scroll up file 1 place */
+				Line$ = ""
+				POSITION DiRec%(1)
+				WHILE Line$ = "" AND POS >= 1
+					BACK
+					Line$ = @$(FmtPrc$):
+				ENDWH
+				IF Line$ <> ""
+					Cnt% = MaxItem%
+					WHILE Cnt% >= 2
+						DiRec%(Cnt%)=DiRec%(Cnt%-1)
+						Cnt%--
+					ENDWH
+					DiRec%(1) = POS
+					IF Stat% = 1
+						gINFO i%()
+						gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+						gINVERT ScrWid%-6,tHigh%
+					ENDIF
+					gSCROLL 0,tHigh%,ScrX%,ScrY%,ScrWid%,ScrHei%
+					gAT ScrX%,ScrY%+(MaxItem%*tHigh%)
+					gFILL ScrWid%,gHEIGHT-gY,1
+					gAT ScrX%,ScrY%+tHigh%
+					@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,1,tHigh%,Line$)
+				ENDIF
+			ELSE
+				IF Stat% = 1
+					gINFO i%()
+					gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+					gINVERT ScrWid%-6,tHigh%
+				ENDIF
+				CurRec%--
+			ENDIF
+			IF Stat% = 1
+				gINFO i%()
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+		ENDIF
+	ENDIF
+	IF UPPER$(Fn$) = "DOWN"	 /* move record position down */
+		LastRec%	= COUNT
+		gUSE WinID%
+		IF CurRec% >= LastRec%
+		ELSE
+			IF CurRec% = MaxItem%
+				/* scroll down file 1 place */
+				Line$ = ""
+				POSITION DiRec%(MaxItem%)
+				WHILE Line$ = "" AND POS <= LastRec%
+					NEXT
+					Line$ = @$(FmtPrc$):
+				ENDWH
+				IF Line$ <> ""
+					FOR(Cnt%,1,MaxItem%-1,1)
+						DiRec%(Cnt%)=DiRec%(Cnt%+1)
+					ENDFOR
+					DiRec%(MaxItem%) = POS
+					IF Stat% = 1
+						gINFO i%()
+						gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+						gINVERT ScrWid%-6,tHigh%
+					ENDIF
+					gSCROLL 0,(tHigh%*-1),ScrX%,ScrY%,ScrWid%,(ScrHei%+2)
+					gAT ScrX%,ScrY%
+					gFILL ScrWid%,2,1
+					gAT ScrX%,ScrY%+(MaxItem%*tHigh%)
+					@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,MaxItem%,tHigh%,Line$)
+				ELSE
+					IF Stat% = 1
+						gINFO i%()
+						gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+						gINVERT ScrWid%-6,tHigh%
+					ENDIF
+				ENDIF
+			ELSE
+				IF Stat% = 1
+					gINFO i%()
+					gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+					gINVERT ScrWid%-6,tHigh%
+				ENDIF
+				CurRec%++
+			ENDIF
+			IF Stat% = 1
+				gINFO i%()
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+		ENDIF
+	ENDIF
+	IF UPPER$(Fn$) = "PAGEUP" /* move record pos up a screen */
+		LastRec%	= COUNT
+		gUSE WinID%
+		IF DiRec%(CurRec%) = 1
+			GIPRINT "Top of File"
+		ELSE
+			Line$ = ""
+			POSITION DiRec%(1)
+			Cnt% = MaxItem% : POSi% = POS
+			WHILE Cnt% >= 1 AND POSi% >= 1
+				Line$ = @$(FmtPrc$):
+				IF Line$ <> ""
+					DiRec%(Cnt%) = POS
+					POSi% = POS
+					IF POSi% = DiRec%(Cnt%+1)
+						POSi% = 0
+						CONTINUE
+					ENDIF
+					Cnt%--
+				ENDIF
+				BACK
+			ENDWH
+			IF Cnt% > 1
+				FIRST
+				Cnt% = 1
+				WHILE (Cnt% <= MaxItem%) AND NOT EOF
+					Line$ = @$(FmtPrc$):
+					IF Line$ <> ""
+						DiRec%(Cnt%) = POS
+						Cnt%++
+					ENDIF
+					NEXT
+				ENDWH
+			ENDIF
+			IF Stat% = 1
+				gINFO i%()
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+			gCLS
+			FOR(Cnt%,1,MaxItem%,1)
+				POSITION DiRec%(Cnt%)
+				gAT ScrX%,ScrY%+(Cnt%*tHigh%)
+				Line$ = @$(FmtPrc$):
+				@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,Cnt%,tHigh%,Line$)
+			ENDFOR
+			IF Stat% = 1
+				gINFO i%()
+				CurRec% = 1
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+		ENDIF
+	ENDIF
+	IF UPPER$(Fn$) = "PAGEDOWN" /* move record pos down a screen */
+		LastRec%	= COUNT
+		gUSE WinID%
+		IF DiRec%(CurRec%) = LastRec%
+			GIPRINT "Last Record"
+		ELSE
+			Line$ = ""
+			POSITION DiRec%(MaxItem%)
+			Cnt% = 1
+			WHILE Cnt% <= MaxItem% AND NOT EOF
+				Line$ = @$(FmtPrc$):
+				IF Line$ <> ""
+					DiRec%(Cnt%) = POS
+					Cnt%++
+				ENDIF
+				NEXT
+			ENDWH
+			IF Cnt% < MaxItem%	
+				LAST
+				Cnt% = MaxItem%
+				POSi% = POS
+				WHILE Cnt% >= 1 AND POSi% >= 1
+					Line$ = @$(FmtPrc$):
+					IF Line$ <> ""
+						DiRec%(Cnt%) = POS
+						POSi% = POS
+						IF POSi% = DiRec%(Cnt%+1)
+							POSi% = 0
+							CONTINUE
+						ENDIF
+						Cnt%--
+					ENDIF
+					BACK
+				ENDWH
+			ENDIF
+			IF Stat% = 1
+				gINFO i%()
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+			gCLS
+			FOR(Cnt%,1,MaxItem%,1)
+				POSITION DiRec%(Cnt%)
+				gAT ScrX%,ScrY%+(Cnt%*tHigh%)
+				Line$ = @$(FmtPrc$):
+				@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,Cnt%,tHigh%,Line$)
+			ENDFOR
+			IF Stat% = 1
+				CurRec% = MaxItem%
+				gINFO i%()
+				gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+				gINVERT ScrWid%-6,tHigh%
+			ENDIF
+		ENDIF
+	ENDIF
+	IF UPPER$(Fn$) = "TOP"		/* goto first rec */
+		gUSE WinID%
+		LastRec%	= COUNT
+		Cnt% = 1
+		IF Stat% = 1
+			gINFO i%()
+			gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+			gINVERT ScrWid%-6,tHigh%
+		ENDIF
+		gCLS
+		IF LastRec% > 0
+			FIRST
+			CurRec%	 = 1
+		ELSE
+			CurRec%	 = 0
+			GOTO ScrEND::
+		ENDIF
+		WHILE (Cnt% <= MaxItem%) AND NOT EOF
+			gAT ScrX%,ScrY%+(Cnt%*tHigh%)
+			Line$ = @$(FmtPrc$):
+			IF Line$ <> ""
+				@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,Cnt%,tHigh%,Line$)
+				DiRec%(Cnt%) = POS
+				Cnt%++
+			ENDIF
+			NEXT
+		ENDWH
+		IF Stat% = 1
+			CurRec% = 1
+			gINFO i%()
+			gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+			gINVERT ScrWid%-6,tHigh%
+		ENDIF
+	ENDIF
+	IF UPPER$(Fn$) = "BOTTOM" /* goto last rec */
+		LastRec%	= COUNT
+		gUSE WinID%
+		LAST
+		Cnt% = MaxItem%
+		POSi% = POS
+		WHILE Cnt% >= 1 AND POSi% >= 1
+			Line$ = @$(FmtPrc$):
+			IF Line$ <> ""
+				DiRec%(Cnt%) = POS
+				POSi% = POS
+				IF POSi% = DiRec%(Cnt%+1)
+					POSi% = 0
+					CONTINUE
+				ENDIF
+				Cnt%--
+			ENDIF
+			BACK
+		ENDWH
+		IF Stat% = 1
+			gINFO i%()
+			gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+			gINVERT ScrWid%-6,tHigh%
+		ENDIF
+		gCLS
+		FOR(Cnt%,1,MaxItem%,1)
+			POSITION DiRec%(Cnt%)
+			gAT ScrX%,ScrY%+(Cnt%*tHigh%)
+			Line$ = @$(FmtPrc$):
+			gPRINTB Line$,ScrWid%
+			@(PrtPrc$):(ScrWid%-10,ScrHei%,ScrX%,ScrY%,Cnt%,tHigh%,Line$)
+		ENDFOR
+		IF Stat% = 1
+			CurRec% = MaxItem%
+			gINFO i%()
+			gAT ScrX%-1,((ScrY%+(CurRec%*tHigh%))-tHigh%)+i%(4)+1
+			gINVERT ScrWid%-6,tHigh%
+		ENDIF
+	ENDIF
+	IF UPPER$(Fn$) = "GOTO"	 /* goto specific record */
+	ENDIF
+	/********* Copy Variables into Structure **********/
+	ScrEND::
+	LastRec%	= COUNT
+	Ptr%->LastRec%			= LastRec%
+	Ptr%->CurrentRec%			 = CurRec%
+	Ptr%->WindowID%		 = WinID%
+	Ptr%->ScrollX%			= ScrX%
+	Ptr%->ScrollY%			= ScrY%
+	Ptr%->ScrollWidth%			= ScrWid%
+	Ptr%->ScrollHeight% = ScrHei%
+	Ptr%->Font%						 = Fnt%
+	Ptr%->MaxItems%		 = MaxItem%
+	Ptr%->Stat%						 = Stat%
+	FOR(Cnt%,1,24,1)
+		Ptr%->DispRecs%(Cnt%)		= DiRec%(Cnt%)
+	ENDFOR
+	IF CurREC% > 0
+		RETURN DiRec%(CurRec%)
+	ELSE
+		RETURN 0
+	ENDIF
+ENDP
+LIBPROC kBrowse%:(<FileBrowse*>Ptr%)
+	FREEALLOC Ptr%
+ENDP
+

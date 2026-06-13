@@ -1,0 +1,216 @@
+SCANNING.TXT
+
+
+Scanning maps for use with MM3A.
+
+If you intend to scan printed maps you should ensure you are not
+breaching any copyright. Consult the details on your map and contact
+the copyright owner if you are in any doubt.
+
+Scanning a printed map, while simple in theory, contains a large
+number of variables that must be mastered in order to make the most
+of the limited resolution and colour of the Psion's display. In this
+document I will detail the procedures I have used during the
+development of MM3A. I use a Windows based PC for my scanning and so
+unfortunately cannot explain in detail how to use another computer
+for this process. Hopefully the stages I describe will be familiar
+enough that you can adapt them to your own environment. Also some of
+the tips mentioned here will apply to any platform. If you intend to
+use Paint Shop Pro then you should copy the file PSION.PAL to the
+directory you installed PSP in.
+
+
+1.	SELECTING A MAP.
+2.	SCANNING THE MAP.
+3.	IMAGE PROCESSING
+4.	RESAMPLING AND CROPPING
+5.	COLOUR REDUCTION
+6.	CONVERSION TO .PIC
+
+CHAPTER 1.	SELECTING A MAP.
+
+The first thing to bear in mind is that MM3A only works with
+Transverse Mercator projection maps. This map type is one who's
+projection results in the parallels and meridians forming a
+rectangular grid. Put simply if your map's grid lines are parallel
+with an edge of the map then the map is probably suitable. You will
+also need the Lat/Long or OSGB grid reference of the upper left and
+lower right corners. If you are using a UK map and your map doesn't
+have OSGB markings then all is not lost. Many maps are based around
+this format while not being marked as such. Attempt to correlate the
+grid lines on a OSGB map with your desired map, when you have
+established the relationship you should be able to make an accurate
+reading.  If you have several suitable maps from different sources
+you should consider the following when choosing your map. As the
+Psion's display is monochrome it makes sense to start with monochrome
+maps if possible. Pay attention also to the scale of the map, choose
+a scale appropriate to your intended use. 3 miles to the inch is a
+good scale for most driving needs whereas for hill walking a scale of
+3 inches to 1 mile would be better. You should also examine the
+smallest detail of your map that you wish to reproduce. Very tiny
+text on a map means you must scan at high resolutions to reproduce
+this, resulting in other map details depicted too large to be useful.
+If you are using colour maps you will find that some are better than
+others when converted to monochrome. There are too many combinations
+of map colours and monochrome conversion methods for me to lay down
+any hard and fast rules, experiment with different maps and note the
+results.
+---------------------------------------------------------------------
+
+
+2.	SCANNING THE MAP
+The following discussion only applies to users of Windows based PCs
+running Paint Shop Pro. If you aren't using a windows based PC then I
+apologise for not being able to provide specific instructions but
+hopefully you will recognise the processes I'm describing and apply
+them to your own setup. If you do achieve success then please email
+the details to me so that I can include them in the next release.
+
+If you are running Windows 3.1 then you will require Paint Shop Pro
+version 3.12 16 bit. Windows 95 or Windows NT users should obtain
+Paint Shop Pro version 4 or above. Paint Shop Pro is a very popular
+shareware paint program, versions can be obtained from most shareware
+libraries. If you have internet access you can download the latest
+version from www.windows95.com
+Paint Shop Pro is subsequently referred to as PSP.
+
+Most scanners come with some simple scanning software and a TWAIN
+driver. Either use your supplied software or PSP's 'File/Aquire' option
+and scan your map. If you can choose the scanning resolution then
+select the highest (most dots) your computer can comfortably handle.
+Ideally you should scan at 24 or 32 bit resolution to fully capture
+all of the detail present, be aware that this does result in a file 3
+or 4 times the size of a 256 colour image. Given the choice between a
+low resolution 24 bit picture or a high resolution 256 colour image I
+would recommend the high resolution 256 colour one. If you have a
+monochrome scanner then select the highest number of grey scales that
+your scanner provides, probably 256. If you are using a colour
+scanner then the software will probably have an option to scan in
+monochrome/grey scale. Experiment with this but it is my opinion that
+you are better off scanning in colour and carefully controlling the
+grey scale conversion yourself.
+
+When you have scanned your image the first thing to do is check the
+alignment. You need to ensure that your scanned lines are parallel
+with your window edges, one way of doing this is as follows. If you can
+see grid lines on your scan then reduce your image window size in PSP to
+about 1/8 of the screen. Next adjust the scroll bars until a grid
+line is aligned with some detail on the window such as the edge of
+the scroll bar. Then move the other scroll bar and ensure that the
+grid line remains a aligned with your reference. Selecting a
+magnified view may help during this process. If your lines are not
+parallel then you should move your map and rescan until you are happy
+with the alignment.
+---------------------------------------------------------------------
+
+
+3. IMAGE PROCESSING.
+
+Depending on the quality of the scanner and the maps, you may
+improve your scans by applying some image processing. You should
+experiment to determine what functions give best results although
+note that some effects will only be visible after you have produced a
+Psion .PIC file. Some functions also make the image look worse in
+colour although they will look better when on the Psion.
+I suggest you experiment with IMAGE/EDGE FILTERS/EDGE ENHANCE or
+IMAGE/NORMAL FILTERS/SHARPEN, (these options also have 'MORE'
+versions). Experiment with these, perhaps applying more than once.
+The goal here is to improve the legibility of the small details.
+
+4.	RESAMPLING AND CROPPING.
+
+When you are happy with your scan you need to select the area you
+will make your map from. The limitations of the Psion .PIC format
+govern the maximum size you can use. You need to ensure that the
+product of your horizontal and vertical pixel sizes is less than
+524288, (note that the WSPCX program will fail with sizes very close
+to this limit).  Some suggested sizes are: 512x512, 640x480, 800x600. 
+As the Psion's display is wider than it is tall, it makes sense to
+choose sizes with approximately the same aspect ratio.
+
+At this stage you can experiment with the IMAGE/RESAMPLE option;
+resampling your map to a smaller size will let you cover a larger
+area for a given pixel size, or you can keep the same area but occupy
+less disk space. The downside to this is that your maps may become
+harder to read, either they become too cluttered or you start to lose
+small details (fine text for example).
+When you have finished resampling you need to mark a selection and
+save this as a new picture.
+In PSP, select the 'dotted box' icon (define selection) and drag a
+box around the area of interest, keep an eye on the bottom of the PSP
+window as this gives a constant display of the size of the area
+defined. The display is of the form (x,y)->(x,y)=(w,h). The w and h
+figures are the ones to watch.
+Now select EDIT/COPY, followed by EDIT/PASTE/AS NEW IMAGE to
+produce a new image from your selected region.
+---------------------------------------------------------------------
+
+5.	COLOUR REDUCTION.
+
+Your picture now needs to be reduced to black, white and grey.
+Firstly you should convert your picture to a 256 level greyscale by
+using the COLORS/GREY SCALE option. You can also try separating the
+red, green and blue components to make a grey scale. Do this by
+selecting IMAGE/CHANNELS/SPLITTING, note that this feature is not
+available in PSP 3.12 Examine the split pictures and decide on the
+best, for me this is usually the green channel. Separating the
+colours this way is worthwhile if your scanner adds a small colour
+fringe around your 24 bit scans (some hand scanners suffer from
+this). Colour splitting is also good for removing or highlighting
+particular areas of your map, note how the colour of the roads varies
+from a conventional grey scale conversion.
+When you are happy with your grey scale, select COLORS/LOAD PALETTE,
+select NEAREST COLOR MATCHING and double click on PSION.PAL (supplied
+with MM3A). If you can't see the PSION.PAL file listed you should
+navigate your disk until you can. You should now have a black, white
+and grey picture, if you feel that you have lost some detail or the
+picture is too dark or light then select EDIT/UNDO. Now select
+COLORS/ADJUST/BRIGHTNESS CONTRAST and adjust the image. Usually I
+increase the contrast until all the areas between any detail are
+white and then adjust the brightness to avoid losing detail in the
+brightest regions. It is difficult to give any hard and fast rules,
+experiment with many settings and you will gradually develop a
+feeling for how to produce the best result. It is probably worth
+saving your grey scale picture before adjusting the brightness and
+contrast so you can start from the unprocessed picture each time. If
+you apply brightness and contrast changes too many times in
+succession you risk losing detail.
+Note that if you wish to generate a monochrome image (ie no grey
+plane) then select COLORS/DECREASE COLOR DEPTH and select 2 COLORS.
+Monochrome images are harder to read but will occupy half the disk
+space that a grey one would.
+---------------------------------------------------------------------
+
+6.	Conversion to .PIC
+
+To use the picture you have produced you need to convert to a .PIC
+file. If you use PSIWIN to copy files from your PC to your PSION then
+select FILE/SAVE AS and then change the "save as type" entry to
+"BMP-OS/2 or Windows Bitmap". Now change the "sub type" field to
+"Windows RLE Encoded" and select "save". You will be asked if you wish
+to decrease the colour depth to 256 colours, select "yes" and the file
+will be saved.
+When you use Psiwin to copy this to the Psion it should be
+automatically converted to a .PIC file. (Personally I don't use
+Psiwin so I welcome the experience of anyone who tries. If you have
+problems, try following the instructions below for non Psiwin users).
+
+If you don't use Psiwin you will need to save your selection as a .PCX
+file. Select FILE/SAVE AS and then change the "save as type" entry to
+"Zsoft Paintbrush". Now change the "sub type" field to "Version 2"
+and select "save". You will be asked if you wish to decrease the
+colour depth to 16 colours, select "yes" and the file will be saved.
+Next you will need to use the program WSPCX.EXE which is a Psion PLC
+program for DOS. This can be obtained from most collections of psion
+software. Run the program from DOS (or a dos box in Windows95 or
+Windows NT) with the command line:
+
+WSPCX -P filename.pcx
+
+This will produce a .PIC file which you should now copy onto your
+Psion using MCLINK, RFM or which ever program you normally use to
+copy files. I would suggest placing all your maps into a MM3A\MAPS
+directory. Having created your map you should add an entry to the
+MM3AMAPS.DBF file (see manual.txt for details).
+If WSPCX reports the error 'bitplane larger than 64k' then your file
+has too many pixels. You will have to resize or rescan your map.

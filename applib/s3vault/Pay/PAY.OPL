@@ -1,0 +1,81 @@
+Rem (c)1992 Pelican Software Inc.
+
+ App PayMe
+ icon "B:\opd\pay.pic"
+ Enda
+
+PROC pay:
+local hours,Reg,pay,tax,wek,win%,over,mult
+local w%,s%,s$(1)
+lock on
+giprint"(c)1992 Pelican Software Inc."
+beep 5,50
+win%=gcreate(0,0,85,80,0)
+w%=82
+hours=40
+pay=10
+mult=1.5
+top::
+dinit"Paycheck Calculator"
+dfloat hours,"Hours:",1,100
+dposition 1,0
+dfloat pay,"Hourly Wage:",1,100
+dfloat tax,"%Tax taken out:",0,50
+dfloat mult,"Overtime @:",1,3
+dchoice s%,"Symbol:","$,œ"
+if dialog
+ if s%=1
+  s$="$"
+ else
+  s$="œ"
+ endif
+ tax=(tax*.01)
+ over=pay*mult
+ if hours>40
+  reg=40
+ else reg=hours
+ endif
+wek=(reg*pay)+((hours-reg)*over)
+guse win%
+gvisible on
+gborder 1
+gat 1,12
+glineby 90,1
+gat 1,10
+gfont 2
+gprintb"- Info -",w%,3
+gfont 1
+gat 1,25
+gprintb"Average Wage",w%,3
+gat 1,35
+gprintb s$+fix$(wek/hours,2,12),w%,3
+gat 22,41
+glineby 40,1
+gat 1,55
+if s$="$"
+ gprintb"Tax rate",w%,3
+else
+ gprintb"Vat rate",w%,3
+endif
+gat 1,65
+gprintb fix$(tax*100,2,6)+"%",w%,3
+ Dinit"Paycheck Calculated"
+ if hours>=40
+  dtext"40 Hours",s$+fix$(40*pay,2,12)
+ else
+  dtext fix$(hours,2,12)+" Hours",s$+fix$(pay*hours,2,12)
+ endif
+ dposition 1,0
+if hours>40
+ dtext fix$(hours-40,2,12)+" hrs. Ot",s$+fix$((hours-40)*over,2,12)
+endif
+ dtext"Total Pay",s$+fix$(wek,2,12)
+ dtext"Tax",s$+fix$(wek*tax,2,12)
+ dtext"After taxes",s$+fix$((wek-(wek*tax)),2,12)
+ if dialog=0
+  return
+ endif
+ tax=tax*100
+ goto top
+endif
+ENDP

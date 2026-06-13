@@ -1,0 +1,126 @@
+/*
+This is the installed application translated for the S3. It simply executes
+the S3 or S3a app depending on which machine it is running on and terminates
+immediately.
+
+The S3 app executed is A:\APP\SUBPS3.OPA (translated for the S3) and the S3a
+app is A:\APP\SUBPS3A.OPA (translated for the S3a).
+
+Set the APP name here identical to that of the sub application.
+
+Set other APP...ENDA details here as required by sub-app, so forcing all shell
+messages received via GETCMD$ to go to the sub-app when this top-level process
+terminates. Note that the sub-apps are not installed, so they need to include
+ONLY the app name in the APP...ENDA construct.
+*/
+
+
+APP launch
+	path	"\dat"
+	ext	"dbf"
+	type	$1003
+ENDA
+
+
+PROC start:
+
+	LOCAL						lcd%
+	LOCAL						commnd$(255)
+	LOCAL						pid%
+
+	
+	lcd% = CALL($018b) and $ff		REM  Get LCD type (11 for S3a, 5 for S3)
+
+	REM  Set up command-line for OPAs as required by sys$prgo.img
+	REM  Here the sub-app is A:\APP\SUBPS3.OPA or A:\APP\SUBPS3A.OPA
+	
+	commnd$ = cmd$(3)+cmd$(5)+chr$(0)+cmd$(4)+chr$(0)+cmd$(2)+chr$(0)+"loc::a:\app\SUBPS3"
+
+	IF lcd% = 11
+		commnd$ = commnd$+"A"		REM  Execute S3a app
+	ENDIF
+
+	commnd$ = commnd$ + ".OPA" + chr$(0)
+	
+	pid% = execc%:("rom::sys$prgo",commnd$,-1)	REM  Execute in suspended state
+	
+	IF pid% < 0
+		RAISE pid%
+	ENDIF
+  
+	REM  Raise this app's priority for quick exit as soon as other proc resumed
+
+	SetPri%:(call($0088),191)		REM  INT $88, func $00 gets process id
+	Resum%:(pid%)						REM  Resume suspended sub-app
+	PAUSE 2								REM  Prevent SYSTEM screen from being displayed
+											REM  when this process exits
+
+ENDP
+
+
+PROC execc%:(name$, cmdline$, suspend%)
+
+	LOCAL						OSax%
+	LOCAL						OSbx%
+	LOCAL						OScx%
+	LOCAL						OSdx%
+	LOCAL						OSsi%
+	LOCAL						OSdi%
+	LOCAL						loccmd$(127)
+	LOCAL						img$(128)
+	LOCAL						pid%
+
+	loccmd$	=	cmdline$
+	img$		=	name$+chr$(0)
+	OSbx%		=	((addr(img$)+&1) and &0ffff) 
+	OScx%		=	addr(loccmd$) 
+	OSdi%		=	addr(pid%) 
+	OSax%		=	$0100
+	
+	IF OS($87, ADDR(OSax%)) AND 1		REM  O/S service FilExecute
+		return OSax% OR $ff00
+	ENDIF
+
+	IF suspend% = 0 
+		OSbx% = pid%
+		OSax% = $0600
+		OS($88, ADDR(OSax%))				REM  O/S service ProcResume
+	ENDIF
+
+	RETURN pid%
+
+ENDP
+
+
+PROC setpri%:(pid%,pri%)
+
+	LOCAL						OSax%
+	LOCAL						OSbx%
+	LOCAL						OScx%
+	LOCAL						OSdx%
+	LOCAL						OSsi%
+	LOCAL						OSdi%
+
+	OSbx% = pid%
+	OSax% = pri% OR $0300
+
+	OS($88, ADDR(OSax%))					REM  O/S service ProcSetPriority
+
+ENDP
+
+
+proc resum%:(pid%)
+
+	LOCAL						OSax%
+	LOCAL						OSbx%
+	LOCAL						OScx%
+	LOCAL						OSdx%
+	LOCAL						OSsi%
+	LOCAL						OSdi%
+
+	OSbx% = pid%
+	OSax% = $0600
+	
+	OS($88, ADDR(OSax%))					REM  O/S service ProcResume
+
+ENDP

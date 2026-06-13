@@ -1,0 +1,217 @@
+rem !!!     Program to convert MC400 diary to Seies 3 Agenda file    !!!
+
+rem ! Top level procedure
+proc mc2agn:
+	local dry$(130),agn$(130),off%(6),handle%,ret%,vb%
+
+	dry$="\dry\*.dry"
+	agn$="\agn\.agn"
+    dInit "MC Diary Conversion V1.0"
+    dFile dry$,"MC diary:",0 :rem selector
+    dFile agn$,"To Series 3 file:",49 :rem editor,query existing
+		vb%=1
+		dChoice vb%,"Verbose","No,Yes"
+    if dialog=0 :return :endif
+    agn$=parse$(agn$,"\agn\.agn",off%())
+    if off%(6)
+	    print "Wild cards not handled"
+		get
+	    return
+    endif
+	if (off%(5)-off%(4))=0
+		agn$=parse$(agn$,dry$,off%())
+	endif
+	print "Converting",dry$
+	print "        to",agn$;"..."
+	ret%=acreate%:(agn$)
+	if showErr%:(ret%)
+		return
+	endif
+	ret%=dOpen%:(dry$)
+	if showErr%:(ret%)
+		goto tidy1
+	endif
+	ret%=convMc%:(vb%-1)
+	if 	showErr%:(ret%)
+		goto tidy2
+	endif
+tidy2::
+	busy "Closing...",1,4
+	close   :rem close the MC diary
+tidy1::
+	busy "Closing...",1,4
+	close
+	busy off
+	if ret%
+		trap delete agn$
+	else
+		ret%=fixHead%:(agn$)
+		if ret%<0
+			print "Error fixing version in header"
+			showErr%:(ret%)
+		endif
+	endif
+	beep 5,200
+	print "Finished"
+	get
+endp
+
+rem ! Fix version numbers in header from $110f to $100f at offset $11 and $15
+proc fixHead%:(name$)
+	local h%,ret%,off&,oneZero%,p%
+
+	ret%=ioOpen(h%,name$,$0300)	:rem open for update and random access
+	if ret%<>0
+		return(ret%)
+	endif
+	off&=$11
+	ret%=ioSeek(h%,1,off&)
+	if ret%<0
+		goto closeIt
+	endif
+	oneZero%=$10
+	p%=addr(oneZero%)
+	ret%=ioWrite(h%,p%,1)
+	if ret%<0
+		goto closeIt
+	endif
+	off&=$15
+	ret%=ioSeek(h%,1,off&)
+	if ret%<0
+		goto closeIt
+	endif
+	ret%=ioWrite(h%,p%,1)
+closeIt::
+	ioclose(h%)
+	return ret%
+endp
+
+rem ! Convert logical B (MC diary) to logical A (Series 3 Agenda)
+proc convMc%:(vb%)
+	local address%,ret%,l%,i&,pre%,badDate%,d1980&,d2049&,d&
+
+	d1980&=days(1,1,1980)
+	d2049&=days(31,12,2049)
+	do
+		d&=b.i1%
+		if d&<0
+			d&=&10000+d&
+		endif
+		badDate%=(d&<d1980&) or (d&>d2049&)
+		if badDate% or vb%
+			print b.info$
+			gIPrint "Record "+num$(i&+1,8)
+			if badDate%
+				beep 5,100
+				print "WARNING: Record ignored",
+	            if d&<d1980&
+	                print "before 1980"
+	            else
+	                print "after 2049"
+	            endif
+				print "Press any key to continue..."
+				use b
+				next
+				get
+				continue
+			else
+				if key
+					get
+				endif
+			endif
+		endif
+		l%=len(b.info$)
+		if l%>64
+			print "Text length",l%,"exceeds 64 character maximum"
+			get
+		endif
+
+	    pre%=-1
+        if (b.i5% and 1)
+            pre%=1439-b.i4%
+        endif
+		use a
+        if b.i2% and $8000
+            aadd%:(b.i1%,b.i2% and $7fff,b.i3%,pre%,b.info$)
+        else
+            tadd%:(b.i1%,b.i2%,pre%,b.info$)
+        endif
+
+		i&=i&+1
+		if ret%<0
+			print "Error appending record",i&
+			showErr%:(ret%)
+		endif
+		use b
+		next
+	until eof
+endp
+
+proc showerr%:(err%)
+	if err%<0
+		print "Error",err%,err$(err%)
+		print "Press any key to continue..."
+		get
+		return(err%)
+	endif
+	return(0)
+endp
+
+rem ! Procedure to create a Series 3 agenda dbf file
+proc acreate%:(name$)
+    trap delete name$
+    trap create name$,a,i1%,i2%,i3%,i4%,info$
+    return(err)
+endp
+
+rem ! Procedure to open an MC400 diary dbf file
+proc dOpen%:(name$)
+
+	trap open name$,b,i1%,i2%,i3%,i4%,i5%,info$
+	return(err)
+endp
+
+rem ! Conversion subroutine to add a timed agenda entry
+proc aadd%:(dy%,tm%,dur%,pre%,i$)
+    rem dy% days since 1900
+    rem tm% minutes
+    rem dur%<(1440-tm%))
+    rem if pre%<0 then no alarm
+    rem len(i$)<=64
+
+    a.i1%=dy%
+    a.i2%=dur%*2
+    a.i3%=tm%
+    a.i4%=-1
+    if (pre%<0)
+    a.i2%=a.i2%+1
+    else
+    a.i4%=pre%
+    endif
+    a.info$=i$
+    trap append
+    return err
+endp
+
+rem ! Conversion subroutine to add an untimed agenda entry
+proc tadd%:(dy%,slot%,pre%,i$)
+    rem dy% days since 1900
+	rem slot% - notes key 0-N
+    rem if pre%<0 then no alarm
+    rem len(i$)<=64
+
+    a.i1%=dy%
+    a.i2%=0
+    a.i3%=($8000 or (slot%+1))
+    a.i4%=-1
+    if (pre%<0)
+    a.i2%=a.i2%+1
+    else
+    a.i4%=pre%
+    endif
+    a.info$=i$
+    trap append
+    return err
+endp
+
+

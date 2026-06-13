@@ -1,0 +1,51 @@
+APP Billmat3
+ TYPE 0
+ENDA
+
+PROC BILLMATE:
+GLOBAL A,B,C,D,A$(15),COUT,HRATE,VAT,VRATE,HRS,PARTS,SUB,TOT,HRSTOT,SUNDRIES
+START::
+VRATE=17.5 :REM VAT RATE
+HRATE=0    :REM HOURLY RATE
+HRS=.5     :REM INITIAL HOURS VALUE
+COUT=27.75 :REM INITIAL CALL OUT VALUE
+SUNDRIES=2.50 :REM INITIAL SUNDRIES VALUE
+DINIT "Enter bill information"
+DFLOAT COUT,"Labour.    œ18   or œ27.75",0,27.75
+rem DFLOAT HRS,"Labour in Hrs or parts of",0,99
+dfloat sundries,"Sundry parts",0,10
+DFLOAT A,"Price of parts",0,9999
+DFLOAT B,"Price of parts",0,9999
+DFLOAT D,"Price of parts",0,9999
+DFLOAT C,"Price of parts inc vat",0,9999
+DIALOG
+PARTS=A+B+D+(C>(VRATE)%)
+HRSTOT=HRS*HRATE
+SUB=HRSTOT+PARTS+SUNDRIES+COUT
+A$=FIX$( PARTS,2,10)
+PRINT"   Parts œ",A$
+PRINT"Sundries œ", SUNDRIES
+A$=FIX$( COUT,2,10)
+PRINT"Call out œ",A$
+rem PRINT"  Labour œ", HRSTOT
+PRINT"------------------"
+A$=FIX$( SUB,2,10)
+PRINT" Sub Tot œ",A$
+VAT=SUB*(VRATE)%
+A$=FIX$( VAT,2,10)
+PRINT"------------------"
+PRINT"     Vat œ",A$
+PRINT"------------------"
+TOT=SUB+VAT
+A$=FIX$( TOT,2,10)
+PRINT"   Total œ",A$
+DINIT "Do another bill ? "
+DPOSITION 1,0
+DBUTTONS "new Bill",%B
+IF DIALOG=%b
+GOTO START::
+ELSE
+STOP
+ENDIF
+	
+ENDP

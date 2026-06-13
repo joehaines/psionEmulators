@@ -1,0 +1,148 @@
+Configurating TCP/IP for Psion
+
+
+Introduction
+
+	InetCfg is a TCP/IP setup program using text cofiguration scripts. It is designed for Psion Workabout MX computers. 
+	The program uses two scripts. The first one has ICF extension and contains protocol setup, connection, serial port and dial-up information. The second one with ISC extension describes logging script. Setup files must have the same names, e.g. SETUP.ICF and SETUP.ISC, and must be placed in the \NET directory on any disk.
+
+
+Installation
+
+	Instalation requires an IBM PC compatible computer with Windows 3.1x/95 and a Psion 3Link cable. Connect Psion to your personal computer by means of the cable and switch remote communication on selecting the Remote link option on the Special  menu. From the diskette, run the programm PSISETUP, which will carry on the installation. First choose the file INETCFG.CTL. PSISETUP will try to connect with Psion. If the connection fails, press the Setup button and set a correct serial port and a baud rate. When the connection is established, select the disk on which InetCfg should be installed. Press OK to transfer all the files to the Psion. Thus, the installation is finished.
+	
+	Before running the programm for the first time, it must be installed into the System screen. To do this, select the Install option on the Apps menu and in the dialog box choose the INETCFG.APP file from the APP directory.
+
+
+Configuration scripts syntax
+
+	Each line of the script contains setup of one item and has a following form:
+		
+		item_name [=] item_value
+
+	Example:     Port = TTY:A 
+
+	Notes:									Example:
+
+It is not necessary to use '='						Port TTY:A
+
+Item names are case independent					porT = TTY:A
+CAUTION: Some item values are case dependent, e.g. password
+
+Strings may, but need not be writen in quotation marks			Port = "TTY:A"
+Quotation marks must be used when string containing semicolon, 
+space, tab or quotation marks is written
+Quotation marks within the string are doubled
+e.g. he"llo should be entered as "he""llo"
+
+The order of the items is not significant
+
+Symbols following semicolon are ignorred				Port TTY:A ;remark					
+
+ICF script
+
+Item_name:		Item_value:		Description:
+
+Protocol		{PPP|SLIP}		Protocol type used to connect to Internet.
+
+DNS			<IP address>		IP address of DNS server.
+
+Provider_name		<string[64]>		Name of Internet provider.
+Access_point		<string[64]>		Domicile of Internet provider.
+Access_number		<string[64]>		Access telephone number
+
+Login			<string[40]>		Login name.
+Password		<string[16]>		Login password.
+IP_address_type	{Dynamic|Static}	Defines, whether Psion IP address is 							dynamicly assigned from the server or it is 						static.
+IP_address		<IP address>		Static Psion IP address, if used
+
+Port			<string[9]>		This is the port the modem is on.
+Speed			{300|600|1200|2400	Serial port speed
+			|4800|9600|19200	
+			|38400|57600|115200}	
+
+DCD			{On|Off}		Serial line handshakes.
+DSR/DTR		{On|Off}
+RTS/CTS		{On|Off}
+XOn/XOff		{On|Off}
+
+Init_string		<string[127]>		Modem initialization string.
+Dial_string		<string[127]>		Dialing string.
+
+
+Example:
+
+Protocol	 	PPP
+DNS			111.222.333.444
+
+Provider_name	"IQ Net"
+Access_point	"Praha"
+Access_number	12345678
+
+Login		 	Demo
+Password	 	Heslo
+IP_address_type  	Dynamic
+
+Port = 		"TTY:C"
+Speed 		19200
+DCD =			Off
+DSR/DTR		On
+RTS/CTS		On
+XOn/XOff		Off
+
+Init_string 	AT&F 
+Dial_string 	ATDP
+
+
+
+ISC script
+
+Item_name:		Item_value:		Description:
+
+	TIMEOUT 		[1..999]			Timeout of the WAIT command. If the 								answer does not arrive, the script is 								terminated or repeated.
+	
+	ABORT		< retezec>		If the abort string is received during a WAIT, 							the script will be stopped (and potentially 							retried from the beginning). 
+							The string is case insensitive.
+
+	RETRY		[1..999]			Upon the first run of the script, this sets the 							number of times to retry the script upon 							failure because of a timeout or abort string.
+							It is ignored upon subsequent (retry) runs of 							the script.
+
+	SEND			STRING  < retezec>	This sends a string. 
+				STRING_CR < retezec> This sends a string followed by a carriage 							return.
+
+	SEND			ATTRIB <atribut>	This sends a attribute.
+				ATTRIB_CR <atribut>	This sends a attribute followed by a carriage 							return.
+
+Attributes are strings taken dynamically from the configuration sript ICF. The attribute values available are:
+ct14	Account login set by user
+ct15	Account password set by user
+ct25	Static IP address of host
+drv	Driver protocol type ("SLIP" or "PPP")
+dt3	DNS server IP address
+
+	SEND			INIT			This sends the modem initialisation string.
+				INIT_CR		This sends the modem initialisation string
+							followed by a carriage return.
+
+	SEND			DIAL			This sends the modem dial string.
+				DIAL_CR		This sends the modem dial string followed by 							a carriage return.
+
+	WAIT 			<retezec>		Waits for the specified string. The command 							can either timeout or stop if an abort string 							received - both cases will cause the 								connection to either retry or fail. 
+	
+	CONFIG		0			Open the network interface (SLIP or PPP 							driver). No further script commands are 							allowed after this has been issued.
+
+	GETIP						Retrieve the local static IP address from the 							service provider. This is normally only 								required by dynamic SLIP connection. 
+Example:
+
+TIMEOUT 25	;stop WAIT commands after 25 seconds
+ABORT error	;stop WAIT commands after receiving 'error' string
+RETRY 3	;if not successful, repeate the script up to 3 times
+SEND INIT_CR	;send the modem initialisation string
+WAIT OK	;wait for the 'OK' string
+SEND DIAL_CR	;send the modem dial string
+WAIT ogin:	;wait for the 'ogin' string
+SEND ATTRIB_CR ct14	;send login name
+WAIT assword:	;wait for the 'assword' string
+SEND ATTRIB_CR ct15	;send login password
+CONFIG 0	;open the network connection
+

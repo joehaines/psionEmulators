@@ -1,0 +1,763 @@
+ 
+REM You have a royalty free right to use
+REM this software in any way that you
+REM see fit, provided that you agree that
+REM neither Jezar nor Psion will be held
+REM responsible for the consequences of your
+REM doing so. This software is free and
+REM unsupported, so you must treat it as having
+REM no warranties whatsoever.
+REM
+REM That having been said, I have done my utmost
+REM to ensure that the supplied code is bug free,
+REM but again - no guarantees can be made.
+REM
+REM This software is for the Psion Series 3a
+REM It should also function correctly on the
+REM WorkAbout, although I have not tested this.
+REM
+REM Use "outline" in Program editor to see which
+REM procedures you can directly use in this file.
+REM 
+REM This program demonstrates how to launch menus
+REM and dialogs asynchronously in OPL. This allows
+REM your program to be completely responsive to
+REM all messages at all times, so users can
+REM close your application from the system screen
+REM even when a menu is showing, etc.
+REM 
+REM It also shows how you can have nested
+REM dialogs to any level, and how you can use
+REM alternative UI elements such as a DONEWN
+REM within your dialog boxes.
+REM 
+REM To use this material effectively, you need
+REM a strong understanding of how event driven
+REM software works. In addition, you must remember
+REM that after trapping normal keypresses that
+REM are not destined for a dialog or menu, you
+REM must return 1 to eat the key, or the wserv
+REM object will try to send it to a non-existant
+REM client window which will give you "Exit 55"
+REM
+REM Alternatively, you could create a win instance
+REM (or subclass) and poke its handle in like this:
+REM POKEW UADD(PEEKW($12),$22),mywin%
+REM which is the location of wserv->wserv.cli
+REM and that would "soak up" the keypress whilst
+REM using only 8 bytes of memory.
+REM 
+REM Other potential errors you may encounter
+REM if you try to modify this code are:
+REM
+REM "Exit 111" - wserv read outstanding.
+REM Most likely the console has been turned
+REM back on accidently by using normal
+REM MENU and DIALOG commands interspersed
+REM with these routines.
+REM
+REM "Exit 48" - invalid method
+REM You have probably used a positive number
+REM for the exit buttons on a gauge. All
+REM buttons on a gauge-equipped dialog must
+REM be negative.
+REM 
+REM Further information on these subjects is 
+REM contained in Volume Four of the Psion C SDK.
+REM
+REM I hope this will be of use to you!
+REM 
+REM Good luck,
+REM Regards,
+REM Jezar
+REM Tue 18 Apr 1995
+
+PROC mpStart%:
+REM  Main program starting point
+	
+	GLOBAL LHwim%,LOlib%
+	TRAP CACHE $800,$2000
+	
+	mpSetup%:
+	mpMain%:
+ENDP
+
+REM ----------------------------------------
+REM The hook procs below, are near the
+REM front of this source file for speed in OPL
+
+PROC hpWserv%:             REM Hook wserv event
+REM  Hook point for events read by the window
+REM  server. You get these before the relevant
+REM  entity (menu/dialog/help) does.
+REM  Return 0 to allow the dispatch of the
+REM  event, or return/raise any errors instead.
+	
+	LOCAL type%,handle%,dummy%,keyk%,modk%
+	
+	REM Copy the details of the event.
+	REM We copy 9 bytes because we are
+	REM not interested in key repeats
+	REM (which would be the upper byte of modk%)
+	CALL($a1,0,9,0,UADD(PEEKW($12),12),ADDR(type%))
+	
+	REM In this example, we allow the user to
+	REM turn off all the debugging messages below
+	IF PEEKW($30)=0
+		RETURN
+	ENDIF
+	
+	REM Jump according to what type it is.
+	REM Tables translate very efficiently in OPL
+	VECTOR type%
+		Kpress, Mouse,   Redraw,  Unknown, Backg
+		Foreg,  Rubber,  User,    Active,  Unknown
+		Cancel, Kstate,  RubInit, DeIcon,  Attach
+		Detach, Command, TaskKey, TskUpdt, PowrOn
+		Esc,    NewDate
+	ENDV
+	
+	REM (example code follows)
+	
+REM Did you know that labels use 
+REM literally *no* code in OPL?
+Unknown::
+Rubber::  
+Active::  
+Kstate::  
+RubInit:: 
+DeIcon::  
+Attach::
+Detach:: 
+TskUpdt:: 
+Esc:: 
+	PRINT "Unknown event",type%
+	GOTO Common
+TaskKey:: 
+	PRINT "An application button was pressed"
+	PRINT "(?? normally the system screen traps these)"
+	GOTO Common
+User::    
+	PRINT "Custom message"
+	PRINT "Who said that?"
+	GOTO Common
+Redraw::  
+	PRINT "Redraw message for win (0x";HEX$(handle%);")"
+	GOTO Common
+Backg::
+	PRINT "Application sent to background"
+	GOTO Common
+Foreg::  
+	PRINT "Application brought to foreground"
+	GOTO Common
+Cancel:: 
+	PRINT "Message cancelled"
+	PRINT "(sorry to bother you)"
+	GOTO Common
+Mouse::   
+	PRINT "You appear to have received"
+	PRINT "a mouse event. Most interesting..."
+	GOTO Common
+Command:: 
+	PRINT "Message from system screen:"
+	PRINT GETCMD$
+	GOTO Common
+PowrOn::
+	PRINT "Machine switched on with me visible"
+	GOTO Common
+NewDate::
+	PRINT "The date has changed"
+	GOTO Common
+Kpress:: 
+	PRINT "Keypress",keyk%,
+	IF keyk%>31 AND keyk%<127
+		PRINT "(""";CHR$(keyk%);""")"
+	ENDIF
+	PRINT "Modifiers 0x";HEX$(modk%)
+	GOTO Common
+REM End of vectored OPL code
+	
+Common::
+	REM Common stuff would go here.
+	PRINT "-----------------------------"
+	
+ENDP
+
+PROC hpRun%:(htask%)       REM Hook task run
+REM  Hook point for a task about to run
+REM  Return >0 to prevent the object's run
+REM  or <0 for errors (or RAISE them)
+	
+	REM (example code follows)
+	
+	REM For our example progress gauge:
+	IF htask%=PEEKW($34)
+		exPgRun%:(htask%)
+	ENDIF
+ENDP
+
+PROC hpAbRun%:(htask%)     REM Hook task clean
+REM  Hook point for a tasks cleanup
+REM  (The error code is stored in ERR)
+REM  Return zero to allow the objects cleanup
+	
+	REM (example code follows)
+	PRINT "An object is aborting (0x";HEX$(htask%);")"
+ENDP
+
+REM ----------------------------------------
+
+
+
+
+PROC amStart%:             REM Start appman
+REM  Start the basic loop to get a message 
+REM  from the server. May be called recursively 
+REM  for modal interaction.
+	
+	LOCAL amclean%,amqnext%,amstop%,amself%
+	LOCAL stop%,ret%,abret%,wserv%,menubar%
+	LOCAL pt%,aoisact%,donestp%
+	LOCAL htask%,waotask%
+	
+	amself%  = PEEKW($14)
+	amclean% = UADD(amself%,4)
+	amqnext% = UADD(amself%,14)
+	amstop%  = UADD(amself%,18)
+	wserv%   = PEEKW($12)
+	menubar% = UADD(wserv%,$20)
+	
+	REM The waotask object eats 
+	REM OPL signals under XWIM
+	REM Seeing as this *is* OPL we 
+	REM will prevent it from running in
+	REM just this OPL version of am_start
+	waotask% = PEEKW(UADD(PEEKW($38),4))
+	
+	REM Increment appman.stop
+	POKEW amstop%,PEEKW(amstop%)+1
+	stop%=PEEKW(amstop%)
+	
+	REM Set the cleanup level
+	IF PEEKW(amclean%)
+		SEND(PEEKW(amclean%),29,#stop%)
+	ENDIF
+	
+	REM We are about to queue a wserv read
+	REM so we *must* turn off the console
+	cnOff%:(1)
+	
+	DO
+		REM Wait for event
+		SEND(amself%,5)
+		
+		REM Find a task to run
+		pt%=amqnext% REM Task queue head
+		WHILE 1
+			abret%=0
+			
+			REM Find next task
+			pt%=PEEKW(pt%)
+			IF pt%=amqnext%
+				ALERT("Stray signal death")
+				STOP
+			ENDIF
+			
+			REM See if task is qualified to run
+			REM (remember to ignore waotask)
+			htask%=USUB(pt%,4)
+			aoisact%=UADD(htask%,9)
+			IF PEEKB(aoisact%)=0 OR PEEKW(UADD(htask%,12))=-46 OR htask%=waotask%
+				CONTINUE  REM Don't run it
+			ENDIF
+			
+			REM Run the task
+			ONERR Fail
+			POKEB aoisact%,0     REM Disable before run
+			IF htask%=wserv%
+				ret%=hpWserv%:     REM Window server event
+			ELSE
+				ret%=hpRun%:(htask%) REM Other event
+			ENDIF
+			IF ret%=0
+				CALL($0dd6,0,0,0)  REM Enable ws leaves
+				ret%=ENTERSEND(htask%,5)
+				CALL($0dd6,0,0,1)  REM Disable ws leaves
+				IF ret%=0          REM Unused, so we
+					POKEB aoisact%,1 REM re-enable and
+					CONTINUE         REM look for another
+				ENDIF
+			ENDIF
+			RAISE ret%           REM Ensure ERR is set
+			
+		Fail::
+			REM Task failed somehow
+			ONERR BadErr
+			IF ERR>0
+				BREAK              REM No cleanup requested
+			ENDIF
+			
+			REM Do an amstop if there's a menu
+			IF PEEKW(menubar%)
+				POKEW amstop%,stop%-1
+				REM Ensure menu returns zero
+				POKEW UADD(PEEKW($38),12),0
+				donestp%=1
+			ENDIF
+			
+			REM Run objects cleanup
+			ret%=hpAbRun%:(htask%)
+			IF ret%=0
+				CALL($0dd6,0,0,0)  REM Enable ws leaves
+				ret%=ENTERSEND0(amself%,11,#ERR,#htask%)
+				CALL($0dd6,0,0,1)  REM Disable ws leaves
+			ENDIF
+			RAISE ret%   REM Ensure ERR is set
+			
+		BadErr::
+			REM Cleanup failed
+			ONERR OFF
+			abret%=ERR
+			
+			REM Do amstop (if not done already)
+			IF abret%<>0 AND donestp%=0
+				POKEW amstop%,stop%-1
+			ENDIF
+			BREAK
+		ENDWH
+	UNTIL PEEKW(amstop%)<>stop%
+	
+	ONERR OFF
+	REM Clean up this level
+	REM and set to previous level
+	IF PEEKW(amclean%)
+		SEND(PEEKW(amclean%),28)
+		SEND(PEEKW(amclean%),29,#(stop%-1))
+	ENDIF
+	
+	REM We now propogate all errors (even +ve)
+	IF abret%
+		RAISE abret%
+	ENDIF
+ENDP
+
+
+PROC wsMenu%:              REM Launch a menu
+REM  This is the top-level function which 
+REM  you use to launch menus asynchronously
+	
+	LOCAL wmenu%,nmenus%,pmenu%,ret%,gate%
+	
+	wmenu%=PEEKW(UADD(PEEKW($12),32))
+	IF wmenu%=0
+		RAISE -85
+	ENDIF
+	
+	ret%=wsDoIt%:(wmenu%)
+	
+	REM Free menu cards
+	gate%=PEEKW($38)
+	nmenus%=UADD(gate%,72)
+	WHILE PEEKW(nmenus%)
+		POKEW nmenus%,PEEKW(nmenus%)-1
+		SEND(PEEKW(UADD(PEEKW(UADD(gate%,74)),2*PEEKW(nmenus%))),0)
+	ENDWH
+	
+	IF PEEKW(UADD(gate%,70))=0 AND ret%>0
+		ret%=ASC(LOWER$(CHR$(ret%)))
+	ENDIF
+	
+	RETURN ret%
+ENDP
+
+
+PROC wsDial%:              REM Launch a dialog
+REM  This is the top-level function which 
+REM  you use to launch dialogs asynchronously
+	
+	LOCAL wdial%,winflg%,ret%
+	
+	wdial%=PEEKW(UADD(PEEKW($12),$1e))
+	IF wdial%=0
+		RAISE -85
+	ENDIF
+	
+	ret%=ENTERSEND(wdial%,27) REM Set size
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Set PW_WIN_INITIALISED, which allows
+	REM the dialog to self destruct properly
+	winflg%=UADD(wdial%,6)
+	POKEW winflg%,(PEEKW(winflg%) OR $0800)
+	
+	REM Launch, and return as per "DIALOG"
+	RETURN wsDoIt%:(wdial%)
+ENDP
+
+
+PROC wsOnTop%:(func$)      REM Nest a dialog
+REM  Place a new dialog on top of an existing one
+REM
+REM  This function harness exists because
+REM  otherwise OPL will kill off our
+REM  dialog AND do an amstop!
+REM
+REM  You have now idea how many hours it
+REM  took me to discover what OPL was up to....
+	
+	LOCAL ret%,pdial%,olddial%,dialret%
+	
+	pdial%=UADD(PEEKW($12),$1e)
+	olddial%=PEEKW(pdial%)
+	
+	REM Deemphasise existing dialog
+	CALL($0dd6,0,0,0)  REM Enable ws leaves
+	ret%=ENTERSEND0(olddial%,8,#0)
+	CALL($0dd6,0,0,1)  REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Prevent old dialog from being
+	REM destroyed by the dINIT in @%(func$):
+	POKEW pdial%,0
+	POKEW $36,0
+	
+	REM Call user function
+	ONERR Clean
+	dialret%=@%(func$):
+	RAISE 0
+	
+Clean::
+	ONERR OFF
+	
+	REM Replace old dialog
+	POKEW $36,olddial%
+	POKEW pdial%,olddial%
+	
+	REM Emphasise original dialog
+	CALL($0dd6,0,0,0)  REM Enable ws leaves
+	ret%=ENTERSEND0(olddial%,8,#1)
+	CALL($0dd6,0,0,1)  REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Report any error in user function
+	IF ERR
+		RAISE ERR
+	ENDIF
+	
+	RETURN dialret%
+ENDP
+
+
+PROC wsDoIt%:(Item%)       REM (private)
+REM  This procedure is invoked by
+REM  wsMenu% and wsDial%.
+	
+	LOCAL ret%
+	
+	REM Make item visible and emphasised
+	CALL($0dd6,0,0,0) REM Enable ws leaves
+	ret%=ENTERSEND(Item%,7,#3)
+	IF ret%=0
+		ret%=ENTERSEND0(Item%,8,#1)
+	ENDIF
+	CALL($0dd6,0,0,1) REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Start application manager
+	amStart%:
+	REM Clear any left over message
+	gIPRINT "" 
+	
+	REM Return as per MENU or DIALOG
+	RETURN PEEKW(UADD(PEEKW($38),12))
+ENDP
+
+
+PROC cnOff%:(State%)       REM Console reads off/on
+REM  Enable/disable console window server reads
+REM
+REM  WARNING! - Without reads, the functions
+REM  TESTEVENT, GET, GET$, KEY, KEY$
+REM  KMOD, GETEVENT, EDIT, INPUT, PAUSE
+REM  will *not* work anymore (General failure)
+REM  You MUST turn reads back on to use those
+REM  functions!
+	
+	LOCAL func%,c%
+	
+	REM Ensure no wserv read outstanding
+	IF State%=0
+		SEND(PEEKW($12),2)
+	ENDIF
+	
+	c%=State%
+	func%=18
+	IOW(-2,7,func%,c%)
+ENDP
+
+
+PROC dDONEWN%:(maximum&)   REM Progress box
+REM  A "progress gauge" for a dialog.
+REM  Your dialog must be launched asynchronously
+REM  if you intend to update the display!
+REM  maximum& represents your "100% full" value.
+	
+	LOCAL ret%
+	
+	REM The following LOCAL data is ALL used
+	REM (it is taken to be a memory block)
+	REM and it must be kept in order:
+	
+	REM AD_DLGBOX struct:
+	LOCAL dlgflg%,class%   REM (includes NULL prompt)
+	
+	REM SE_GAUGE struct:   REM Unitialised for DONEWN
+	LOCAL size1%,size2%,size3%,size4%
+	LOCAL colr1n2%,colr3n4%
+	
+	REM SE_DONEWN struct:
+	LOCAL flags%,val&,range&
+	
+	REM Check that a dialog is being built
+	IF PEEKW($36)=0
+		RAISE -85        REM Structure fault
+	ENDIF
+	
+	REM Ask dialog box to add this item
+	class%=25          REM C_DONEWN
+	range&=maximum&
+	ret%=ENTERSEND(PEEKW($36),26,dlgflg%)
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Set the *relative* range of 
+	REM the progress box (the 100% value)
+	REM (note the *physical* size of gauges is fixed)
+	flags%=1 REM (SE_DONEWN_RANGE)
+	CALL($0dd6,0,0,0)  REM Enable ws leaves
+	REM Tell the dialog box to set its first item
+	ret%=ENTERSEND0(PEEKW($36),10,#1,flags%)
+	CALL($0dd6,0,0,1)  REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+ENDP
+
+
+PROC dDWSET%:(itm%,value&) REM Set the progress
+REM  Update a progress box on a dialog
+REM  You must correctly state which item
+REM  on the dialog box the gauge is.
+	
+	LOCAL ret%
+	
+	REM This LOCAL data is ALL used!
+	REM SE_DONEWN struct:
+	LOCAL flags%,val&,range&
+	
+	REM Check that the dialog box exists
+	IF PEEKW($36)=0
+		RAISE -85
+	ENDIF
+	
+	REM To always increase a gauge by 1 you could
+	REM use flags%=4 (SE_DONEWN_INCREMENT)
+	REM but this procedure is more general.
+	flags%=2      REM (SE_DONEWN_VALUE)
+	val&=value&   REM The amount to increment by
+	CALL($0dd6,0,0,0)  REM Enable ws leaves
+	REM Tell the dialog box to set item
+	ret%=ENTERSEND0(PEEKW($36),10,#itm%,flags%)
+	CALL($0dd6,0,0,1)  REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+ENDP
+
+
+PROC mpSetup%:             REM ------------------
+REM  Here we store the handles of
+REM  OLIB and HWIM as they are useful
+	
+	LOCAL ret%
+	
+	ret%=FINDLIB(LOlib%,"olib.dyl")
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	ret%=FINDLIB(LHwim%,"hwim.dyl")
+	IF ret%
+		RAISE ret%
+	ENDIF
+ENDP
+
+
+REM ----------------------------------------
+
+PROC mpMain%:              REM Example program
+REM  Example of asynchronous menu/dialog/gauge
+REM  Replace this code with whatever
+REM  your program needs to do to get going.
+	
+	exIntro%:
+	exMenu%:
+	exDlg%:
+	exPrgrs%:
+	
+	REM Always re-enable the console if you want
+	REM to use it afterwards (like the GET below)
+	cnOff%:(0)
+	
+	PRINT "All done! - press Esc"
+	WHILE GET<>27
+	ENDWH
+ENDP
+
+
+PROC exDlg%:               REM Example dialog
+REM  Example asynchronous dialog
+	
+	LOCAL n$(130),date&,ret%
+	
+	n$="\OPL\"
+	date&=DAYS(17,4,1995)
+	dINIT "Example dialog"
+	dDATE date&,"Set date",DAYS(1,1,1980),DAYS(31,12,2049)
+	dFILE n$,"File:",0
+	ret%=wsDial%:
+	
+	IF ret%
+		gIPRINT "Dialog returned: "+GEN$(ret%,2)
+		BEEP 5,320
+	ENDIF
+ENDP
+
+
+PROC exMenu%:              REM Example menu
+REM  Example asynchronous menu
+	
+	LOCAL ret%
+	
+	gIPRINT "Example menu"
+	
+	mINIT
+	mCARD "File","New file",%n,"Open file",%o,"Save as",%a,"Save as template",%d,"Merge in",%m
+	mCARD "Project","Add files",%e,"Insert",%i,"Copy",-%c,"Edit source",%m
+	mCARD "Prog","Build",%b,"Statistics",-%s,"Translate module",%t
+	mCARD "Special","About",-%w,"Set preferences",%q,"Zoom in",%z,"Zoom out",-%Z,"Exit",%x
+	ret%=wsMenu%:
+	
+	IF ret%
+		gIPRINT "Menu selection="""+CHR$(ret%)+""""
+		BEEP 5,320
+	ENDIF
+ENDP
+
+
+PROC exPrgrs%:             REM Example gauge
+REM  Example of a "progress gauge"
+	
+	LOCAL timer%,ret%
+	
+	REM Make a timer object
+	timer%=NEWOBJH(LOlib%,41)     REM Create timer
+	IF timer%=0
+		RAISE -10   REM (no memory)
+	ENDIF
+	
+	ret%=ENTERSEND0(timer%,1)     REM Init timer
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	SEND(PEEKW($14),4,#timer%)    REM Add timer task
+	SEND(timer%,4,#1,#0)          REM Queue timer
+	
+	REM You shouldn't reference globals in
+	REM hpRun%: (for speed), so store in statics:
+	POKEW $34,timer%
+	POKEW $32,$64   REM We'll use 100 for maximum
+	
+	dINIT "Example progress gauge"
+	dDONEWN%:(&64)
+	dBUTTONS "Cancel",-27,"Wow!",-13
+	ret%=wsDial%:
+	
+	SEND(timer%,0)     REM Kill timer (important!)
+	
+	IF ret%=-1
+		gIPRINT "Gauge operation completed"
+		BEEP 5,320
+	ELSEIF ret%
+		gIPRINT "Gauge returned: "+GEN$(ret%,2)
+		BEEP 5,320
+	ENDIF
+ENDP
+
+
+PROC exPgRun%:(self%)      REM Example gauge update
+REM  Example code.
+REM  Update our example progress gauge
+	
+	LOCAL count%
+	
+	count%=PEEKW($32)       REM our counter
+	
+	IF count%=0             REM Have we finished?
+		SEND(PEEKW($36),0)    REM Cancel the dialog
+		REM If you destroy a dialog, then
+		REM you *must* set the return code for OPL
+		REM I'll use (-1) for "Gauge operation done"
+		POKEW UADD(PEEKW($38),12),-1
+		RETURN 
+	ENDIF
+	
+	REM Decrement count
+	POKEW $32,count%-1 
+	
+	REM My little surprise
+	IF count%=50
+		wsOnTop%:("exOnTop")
+	ENDIF
+	
+	dDWSET%:(1,INT(100-count%))
+	
+	REM Queue the timer for one unit
+	SEND(self%,4,#1,#0)
+ENDP
+
+
+PROC exOnTop%:             REM Example dialog nest
+REM  Example of a nested dialog.
+	
+	dINIT "Impressive isn't it?"
+	dBUTTONS "Indeed",-27
+	RETURN wsDial%:
+ENDP
+
+
+PROC exIntro%:             REM Example intro screen
+REM  Introductory text
+	
+	dINIT "OPL subclass of APPMAN"
+	dTEXT "","This program shows how to launch",2
+	dTEXT "","Menus, Dialogs and Gauges in an asynchronous way.",2
+	dTEXT "","Debugging slows it down, but is interesting.",2
+	dTEXT "","Do you want to show the debugging messages?",2
+	dBUTTONS "No",-%n,"Yes",%y
+	POKEW $30,DIALOG=%y
+ENDP
+
+
+REM End of file
+

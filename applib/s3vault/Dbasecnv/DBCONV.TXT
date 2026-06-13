@@ -1,0 +1,58 @@
+dBase Convert 2.0 - User Guide
+
+Program enable to convert data between PSION Series 3/3a data file format and dBASE-like databases. PSION Series 3 Agenda files can be also converted to dBASE format.
+
+We will use following shortcuts for each type of file:
+DBF		...dBASE compatibile file format
+S3		... Series 3 database file
+AGN		... Series 3 Agenda file
+ODB		... data files on Series 3 (produced by OPL or C program) - see the Series 3 Programming Guide.
+
+Instalation
+Simply copy the conv.exe file to the hard disk or run the program directly from floppy disk. Program run on any PC from AT286, 640K - but if you have more memory (expanded or extended) program will work quickly.
+
+Runnig dB Convert
+You can run the program from the MS-DOS command line or include it to batch file. dB Convert has 6 parameters, but the last two have sense only with Czech language - so you can omitt them. The syntax is:
+
+prompt>CONV source[.ext] destination.ext [D=xxx] [T=xxx]
+
+source.ext		the "source" data file. If you don't include the extension to the file name, extension ".DBF" is added.
+
+destination.ext	"output" file. Destination file format is derived from the extension:
+DBF			Series 3 Data file
+ODB			OPL (C) data file
+AGN			Agenda file
+without ext.	dBase file
+
+D=			number of decimal places (when numbers are converted between ODB and dBase). This is because dBase store numbers internally as a strings and Series 3 as a "real" numbers (in binary format).
+
+T=			max. length of string field (in dBase file). This parameter is necessary if you want save the space in dBase file. This is because the serious difference between dBase (fixed filed length) and Series 3 (variable field length) file structure. When the S3 file is converted to dBase and you don't fill the T= parameter, DB Convert simply find the longest string in the each field and according this values create the dBase file. If you have for example in the first field in S3 file 100 string with length less then 30 characters and only one with length 100 characters, the with of the appropriate field in dBase file is set to 100 - and you get the file fill of "spaces".
+
+If you don't include the T= and D= parameters to the command line, the default values are used:
+T=254
+D=4
+
+Examples:
+CONV data.dbf adress	convert S3 Data file to dBase - Adress.dbf
+CONV price plist.dbf 	dBase "price.dbf" to S3  "plist.dbf"
+CONV store mystore.odb	dBase "store.dbf" to "mystore.odb" (OPL data)
+CONV agenda.agn backup	Agenda file to dBase (backup.dbf)
+
+Series 3 files
+Labels form Series 3 data file are used as a dBase filed names. If the field on S3 is without label, the dBase field is named #1,#2 etc. During the dBase to S3 conversion only the names of fileds 1..32 are used, next fields become to "unnamed". Remeber that the record length on S3 is limeted to 4096 bytes - so the dBase record can't be longer.
+
+ODB files
+In the ODB file the fields haven't names (labels) - so the fields in the output dBase file will have names #1,#2... If you convert the dBase file to ODB, the field names are ignored.
+
+Field type
+ODB				dBase
+string			char
+integer			numeric, 0 dec.places
+long				numeric, 0 places
+double			numeric
+
+The decision between integer and long number format is made according number of digits and maximum value of number field in dBase. If the number of digits is less then 6, the output format is always INTEGER. Otherwise the range of integer numbers (-32768 to 32767) will be checked during the conversion and if is "overflow", the filed is set to LONG.
+
+Agenda 
+You can convert only the Series 3 (not 3a) Agenda files to dBase (the direction from dBase to S3 isn't possible). Field names in dBase file are set to DATE,TIME,PRIORITY, REPEAT and NOTE (all of the are strings).
+

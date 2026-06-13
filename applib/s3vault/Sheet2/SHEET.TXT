@@ -1,0 +1,235 @@
+Sheet v2.0
+==========
+
+New features in version 2.0
+---------------------------
+   Sheet version 2.0 uses a slightly different file layout to increase the speed of screen scrolling, printing and drawing graphs; as well as allowing more formating options. File size will typically increase about 25%, but a speed increase of about 40% should be realised.
+   The old method of loading applications, such as Graph, has been taken out. Now Sheet comes in modules, only those necessary are installed and are directly accessible from the menu. This approach saves on application disk space and also on run time memory allocation. A sheet still uses only 17K to run, yet many more features are available.
+   Additions to the core Sheet module include:
+   - A Save & Revert option
+   - A date order display option
+   - More date layouts
+   - Left, centred and right justification of text and numbers within cells
+   - Live cell linking between Sheets
+   - An always recalculate option for formulae
+   - Improved cell entry and editing
+   - Upper case cell references are offset when copied but lower case are not (like the $ in Lotus 123)
+   - Font styles for numbers
+   Improvements have been made to the Graph module, such as line styles, bar fill patterns, graph key and a seperate scatter graph.
+   A Bring module has been included to merge in cells from different sheets.
+   All the known bugs from the previous version have been fixed.
+
+About Sheet v2.0
+----------------
+    Sheet is shareware and may be distributed to third parties in its complete unregistered form (i.e. Sheet without its modules), but may not be sold. To register Sheet v2.0 and receive the Graph, Print, Bring, Search and DIF modules; plus updates when they become available, please send a cheque, cash or postal order for 10 Pounds Sterling or 20 U.S. Dollars to either address at the end of this document.
+    Note: This document refers to the complete registered version of Sheet v2.0. The version available on Compuserve does not include any of the Sheet modules and their associated files. This should be considered when reading the rest of the document.
+
+Installing Sheet
+----------------
+   The files included in this package are as follows:
+	Sheet.opa
+	Sheet.hlp
+	sGraph.opo
+	GraphPat.pic
+	GraphPie.pic
+	Graph.hlp
+	sPrint.opo
+	sBring.opo
+	sDIF.opo
+	sSearch.opo
+	Example.s02
+	Example.g02
+	Sheet.txt
+	SheetCnv.opo
+	Minstall
+	Finstall
+   Sheet.opa should be installed in the \APP\ directory on any drive. On the same drive in a directory called \SHEET\ should go the help (.hlp) files if needed and the modules (.opo) as required - see modules section below.
+   The example Sheet (.s02) can go in the \SHEET\ directory on any drive. If you create a graph, a file Example.g02 is created in the same directory; printing also creates a setup file called Example.p02. The .g02 and .p02 setup files are created automatically whenever the function is first used.
+   The two files Minstall and Finstall are included for use with MCLink. When running the remote link on your Series 3 and MCLINK on your PC, type @MINSTALL at the $ prompt to install Sheet onto the internal drive on your Series 3. Minstall performs the minimum installation (only Sheet.opa, Sheet.hlp, Example.s02 and SheetCnv.opo). Finstall copies all the Sheet programs and files. You can edit Minstall and Finstall to install to a different drive on the Series 3.
+   Each open sheet initially uses 17K of memory. Depending on what editing you do in the sheet, more memory may be allocated. A graph may temporarily use an extra 8K for example, but this will be released after viewing the graph.
+
+   The Sheet application by itself does not give access to all the menu options to save on memory. However it comes with several modules: sGraph.opo, sPrint.opo, sBring.opo, sSearch.opo and sDIF.opo. These give access to the following menu options
+	sGraph:  Graph
+	sPrint:  Print, Print Setup
+	sBring:  Bring
+	sSearch: Find, Find Again, Replace
+	sDIF:    Import to DIF, Export from DIF
+   You only need install those modules that you need. They can be removed or added at any time. They must be installed in the \SHEET\ directory on the same drive as the Sheet application. The Graph module also requires the two files GraphPie.pic and GraphPat.pic to be installed with it, optionally the file Graph.hlp may be installed with them.
+   If the modules are installed, the menu options will work like the others; if not, a message dialog displays the drive and directory the module should be in.
+
+Upgrading from Sheet v1.0 or v1.1
+---------------------------------
+   Sheet v2.0 uses a different file format then previous versions. A conversion program is included in the package to update existing sheets to the new version. The program called SheetCnv.opo, can be copied into the \OPO\ directory on any drive and should appear under the RunOpl icon on the System screen.
+   Run the program by selecting its name and pressing Enter. A dialog appears requesting the name of the Sheet to convert. There is also an option to keep or delete the old version, though it is best to make backups of all the old sheets beforehand.
+   Before working with the newly converted Sheet, it is best to recalculate it. After recalculation a significant speed improvement should be noticed when scrolling the screen.
+
+Using Sheet v2.0
+================
+
+Opening a Sheet
+---------------
+   To open an existing sheet, select any name under the Sheet icon on the System screen and press Enter. The sheet will be opened while briefly displaying the copyright dialog. Multiple sheets may be open together; to do this press the System button to return to the System screen, select another sheet name and press Enter (Shift+Enter is not necessary).
+   Alternatively you can open a sheet from within the application. Choose Open from the File menu and the sheet you select will be opened, replacing the current one in memory.
+   Warning: it is possible to have the same sheet open more than once (though not easy), therefore I recommend using the System screen to open files.
+
+Creating a New Sheet
+------------------
+   Creating a new sheet can also be done from either the System screen or within the application. Select New file from the File menu, key in a name and select a drive. From the System screen the new blank sheet will be created. From within the application, the current sheet will be closed and the new sheet will become current.
+   Warning: Although sheets may reside on any drive, it is not recommended they be on Flash SSDs, since the Compress procedure that is used in many of the Sheet functions will not release space on the SSD and therefore Sheet files may quickly grow to a large size.
+
+Keyboard
+--------
+   Arrow keys - move the cursor 1 cell at a time
+   Shift+Arrow keys or Control+Arrow keys - move the cursor a page at a time
+   Home - moves the cursor to cell A1
+   End - moves the cursor to cell Z99
+   Enter - edit current cell or finish copy operation
+   dot (.) - begin selection
+   Esc - cancel selection or copy operation
+   Menu - display main menu
+   Help - display help menu
+   0 to 9 or minus (-) - begin entering a value
+   Plus (+) - begin entering a formula
+   A to Z or single quote (') - begin entering a label
+
+Cell Types
+----------
+   Label - text beginning with a single quote (')
+	'This is a Label
+   Number - any single numeric value
+	3.75
+   Formula - begins with a plus (+) and can include any Opl numeric function, cell reference, cell reference from a different sheet, list functions on cell arrays
+	+3.75*2.6
+	+3.75*SIN(2.6)
+	+3.75*A5
+	+Expenses:A10*Currency:C5
+	+MAX(A1..B5)
+	+SUM(Expenses:A1..B5)
+
+Cell References
+---------------
+   A character followed by a 1 or 2 digit number (e.g. A2, b45, Example:B2). Upper case cell references will be offset when copying the cell or inserting/deleting rows/columns. Lower case cell references are not affected. Calculation of a formula including cell references is recursive.
+   The calculation is performed only once when entered in unless the format option Always Recalculate is set to Yes, or the whole sheet is recalculated. Also after editing a formula it will be recalculated.
+
+Cell Entry
+----------
+   With the cursor highlighting the cell to enter, begin typing in the label, value or formula. When you start typing, a dialog box appears. In this you can use all the usual keys to edit as you type. Press Enter to accept or Escape to cancel the entry. Upto 255 characters may be entered into a cell.
+   To edit a cell with data already in, just highlight the cell and press Enter. Then edit the data as before.
+
+Selecting a Range of Cells
+--------------------------
+   Certain functions such as Format, Style, Justify, Copy, Erase, Set X or Y range and Print can be applied to one cell or a range of cells. To select a range of cells, move the cursor to any corner of the range and press the dot (.) key. This cell is now anchored as is indicated in the top left of the screen. Move the cursor to the opposite corner of the range, using the arrow keys or the Goto menu options. You will see the range highlighted. Next perform one of the above functions from the menu. To cancel the selection press the Escape key.
+
+Format
+------
+   Numbers can be displayed in several formats - Fixed for a fixed number of decimal places; Scientific for a fixed number of decimal places with an exponent; and Date.
+   Dates in Sheet must be entered in ddmmyyyy format (e.g. 31011993), but can be displayed in many different formats. The Preferences option on the Special menu specifies the order to display the date in (DMY, MDY or YMD) and Format can change the date layout.
+   Normally a formula is recalculated only when the cell is edited or Recalculate is selected from the Special menu. However, there is a Format option to always recalculate whenever the cell is redisplayed, i.e. when opening the sheet, paging to the portion of the sheet where the cell is, etc. This option is set to No by default, but on the Example sheet, the cell with the date formula is set to Yes so that it is always current. Always recalculate is also useful for cells linked from other sheets, to keep the link current.
+
+Justify and Style
+-----------------
+   Text and numbers may be justified and displayed in combinations of several different styles. Justification will only work if the length of the cell as displayed is less than the width of the cell (i.e. 8). Printed output will also be justified. Any combination of styles can be set for a range of cells in one pass.
+
+Copy
+----
+   You can copy a single cell to a range of cells, or duplicate a range of cells. All the formating, justification and styling is copied with the cell(s). If cells being copied contain any formulae, then the cell references in the formulae will be offset in relation to the new location, but only if the cell references are in upper case. E.g.
+	     A      B      C		     A      B      C
+	1 [+B2+5] ----> [+D2+5]		1 [+b2+5] ----> [+b2+5]
+
+Erase
+-----
+   Erase will delete the current cell or selection of cells, but will verify before doing so.
+
+Goto Cell
+---------
+   Will prompt for a cell location and will move the cursor to that cell, displaying it in the centre of the screen.
+
+Insert Rows/Cols
+----------------
+   Will prompt for a row number or a column letter and the number of blank rows/columns to insert.
+
+Delete Rows/Cols
+----------------
+   Displays the same prompts as for Insert Rows/Cols.
+
+Freeze Rows/Cols
+----------------
+   Also the same prompts as for Insert Rows/Cols. This option displays from 1 to 3 rows of data at the top of the screen or 1 to 3 columns of data at the left of the screen. This is useful for displaying column or row headings while paging through the sheet. To unfreeze, set the number of rows or columns to freeze to zero.
+
+Goto End
+--------
+   Will move the cursor to the last cell containing data in the current row, column or in the sheet. Useful when selecting a whole row or column of data.
+
+Preferences
+-----------
+   The first item in Preferences is used to select whether the editing of a sheet should be done live, or whether there should be a Save and Revert option. The Save and Revert option will use more disk space. This option also creates an extra menu, Edit, for the Save and Revert procedures.
+   The second item sets the order that dates are displayed. All dates must be entered in DMY order but may be displayed in either DMY,MDY or YMD order. The change only takes effect for newly entered dates. Existing dates can be changed to the new order by choosing Format from the Cells menu, specify the date format and press Enter.
+   The settings in Preferences are saved with the sheet.
+
+Recalculate
+-----------
+   This menu option will recalculate the current selection of cells, or the whole sheet if no cells are selected. Recalculate first clears all formula results from the sheet, then calculates them starting from the top-left of the sheet, moving down each column before going to the next column to the right.
+   Circular references (e.g. +A1+B1 in cell A1) will return an error in the cell. Calculation of formulae containing cell references is recursive, each level of recursion allocating a small amount of memory.
+
+Compress
+--------
+   Compress erases unused records in the Sheet file and releases the memory used by them. A few functions such as Recalculate and Exit use this procedure automatically, but it may be beneficial after a lot of cell editing, formating, justifying or styling. This is necessary due to the file handling capabilities in OPL; see Compressing your database in the User Guide for more information.
+
+About
+-----
+   About displays the copyright dialog shown when a sheet is opened, but also includes the amount of free disk space on the current drive.
+
+Exiting a Sheet
+---------------
+   Selecting Exit from the Special menu will compress and exit the current sheet, returning to the System screen. If you use the delete key from the System screen to close a Sheet, it will force itself into the foreground and compress before closing.
+   Using the menu selection Kill App from the System screen may cause unpredictable results in the Sheet file, possibly rendering it unusable. If it is necessary to use this option as a last resort, copy the open sheet first to make a backup. (Copying will only work if the sheet is not busy)
+
+Graphs
+------
+   The Graph option on the Sheet menu will bring up another menu, allowing the creation of graphs of various types. To create a graph, the x-axis will first need to be defined. To do this, select a range of cells in the sheet that will make up the x-axis, then choose Set X Axis from the Axes menu. Upto 79 graphs can now be built on this axis - select another range of cells in the sheet and choose Set Y Axis from the Axes menu. In this dialog box, you can redefine an existing y-range or create a new one using your cell selection.
+   On the Axes menu, you can also choose to view one of the axes' selection of cells. This is useful for redefing the current axis. The axis ranges and other setup information is automatically saved in a file with the same name as the sheet but with a .g02 extension.
+   The type of graph can be set from the option on the Graph menu. The following types are available:
+	Line - A line graph with the x-axis used for equally spaced labels
+	Bar - A bar graph for a single range
+	Pie - A 3D pie chart for displaying a single range
+	Stacked Bar - A bar graph for displaying multiple ranges on top of each other
+	X/Y - A line graph with the x-axis used as a scale
+	Scatter - A symbol graph with the x-axis used as a scale
+   The option Remove on the Graph menu enables a predefined y-range to be removed from the set. All higher graph numbers are reduced by 1.
+   The Graph menu option Help displays the help menu for the graph module, which is seperate from the rest of the Sheet help.
+   Finally the View option on the Graph menu displays the graph of the selected y-range(s). On this screen press any key to bring up the Action menu. From this menu you can display the key to the graph, save the picture of the graph to a Psion bitmap file (.pic) or return to the sheet.
+
+Bring
+-----
+   Bring enables a range of cells from another sheet to be merged into the current one at the cursor position. Specify the sheet name and the range of cells to bring. The sheet may be open or closed. Formulae may be brought in as their resulting values, as shown in their cells, or in their original form.
+   Bring actually copies cells into the current sheet, whereas linking does not.
+
+Exporting and Importing DIF Files
+---------------------------------
+   A Data Interchange File is a common file layout used for communicating between different spreadsheet applications. An exported file from Sheet in this format can be used in applications such as Lotus 123, Microsoft Excel and other speadsheet programs, either directly or via a supplied translation program.
+   Importing a DIF file will replace the contents of the current sheet, so create a new sheet if necessary. Once the DIF file has been imported, use the Search and Replace procedures to convert any special characters.
+   When exporting a Sheet file, you are given the choice of whether to export the formulae as they are entered into the cell, or as the value that is displayed in the cell.
+
+Printing
+--------
+   Before a Sheet can be printed, some printer setup information needs to be supplied. This is done from the Print Setup option on the Special menu. The Print Setup dialog is similar to the one on the System screen's Special menu.
+   Once the printer has been setup, select Print from the File menu. The range to print will be the current selection of cells, or the whole sheet if no selection has been made. This may be changed. The sheet name may be added to the printout as a title, and page numbers may be included at the base of each page.
+   Printing will only be correctly justified if a monospaced font is selected on the printer. Sheet bases its calculations of page width, length, margins etc on a 10 cpi, 6 lpi (12 point) font, such as Courier. Different sized fonts may not fit the page correctly.
+   If printing does not start after a few seconds, there may be a communications problem. Check all the cable connections. If using the serial link, make sure the Remote link is off and try setting the Handshaking to None.
+
+Search and Replace
+------------------
+   The Search and Replace procedures can be found on their own menu called Search. The Search scans through cell contents begining from the current position, moving along the row to the right, before searching the next row down. When the end of the sheet is reached, the search continues from the top left corner until reaching the current position again.
+   If the specified string is found, the cell containing the string becomes current. Find Again will continue the search from the new position.
+   Replace will search for the specified string and if found will prompt the user whether to end the search; replace the string with the new one; skip the current occurrence or replace all the occurrences of the string in the sheet with the new one.
+   The string to find may be upto 32 characters long. The search will include the single quote begining labels and the plus begining formulae, and they can also be replaced.
+
+Finally
+-------
+   Any suggestions, comments or information are most welcome. Correspond to either of the following addresses:
+	Andrew Greasley			Andrew Greasley
+	'Fir Trees',			PO Box 2762
+	Cloves Hill,			Albertville,
+	Morley,				AL 35950
+	Derbyshire. DE7 6DH		USA
+	England.

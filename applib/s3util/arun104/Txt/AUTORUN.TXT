@@ -1,0 +1,200 @@
+AutoRun
+
+Overview
+
+AutoRun is a program to start (and stop) other
+programs.  Whenever the Psion is switched on,
+Autorun will read a control file and perform
+the defined actions.  These may depend on the
+day and time, and sophisticated rules can be
+built up to tailor the 
+
+
+Installation
+
+The following files should be copied onto your
+system :
+
+\opo\autorun.opo
+\dat\autorun.dbf   [can be placed in \opd instead]
+\txt\autorun.txt   [this file, optional]
+
+Data and program files can be placed on any disk.
+
+For a full installation, with PsiWin just drag
+the whole directory structure across to the
+root directory of the psion, or you can use
+PsiZip to extract all files from the zip file
+in the root directory.
+
+Startup Autorun using the Run-OPL icon.
+
+
+Upgrading from previous versions
+
+If you have AutoRun 1.03, you can either replace
+the autorun.dbf file, or manually edit your
+existing one.  In the latter case, you'll need
+to add a single line (with label LastRun) between
+the existing alias and notes fields.  You will
+also have to edit any record with notes, to add
+a corresponding empty line at that point
+within the data.
+
+From versions prior to 1.03 it is best to start
+from scratch.
+
+The file m:\opd\autorun.dat is no longer used
+and may be deleted.
+
+
+Control File Format
+
+The control file is a simply a data file (ie a
+file which can be editted using data).  This file
+(autorun.dbf) may be located in either /dat/ or
+/opd/ on any drive.  The former allows you to edit
+it from the system screen, the latter hides it -
+autorun itself can be used to edit it.
+
+
+The control file fields :
+
+Name: Name of the process to be started.
+  This should be capitalised (ie all but initial
+  letter in lower case) to ensure any assigned
+  hot-keys work (to switch to that application.)
+
+Program: Full path of program to execute.
+  This field may contain variables as
+  documented below.
+
+Filename: Full path of the datafile to load.
+  This field may contain variables as
+  documented below.
+
+There can be multiple records with the same Name
+and Program, and different Filenames to allow
+you to load different files for editting.  AutoRun
+will recognise which ones are already running and
+which one are not.
+
+Action:
+  Start - Start a process on power-up (in
+          the background)
+  Stop  - Stop a process if it is running
+          Beware when stopping processes that
+          they are killed - and this should
+          only be used if you are confident that
+          there will be no data loss.
+  Fore  - Start (if not already) and put it
+          in the foreground.
+  Auto  - This will start the process if the
+          current time falls within the time field
+          definition (see below).  Otherwise, if
+          the process is running it will be
+          stopped. Note the warning given in the
+          Stop action, above.
+
+It only makes sense to have one entry with a Fore
+action (if any) at any particular time.  You could
+have, for instance, different fore actions for
+night and day.  The Auto action enables you to
+consolidate mutiple start and stop actions
+in required in previous versions of AutoRun.
+
+When: (this deals with days only, not times)
+  Always   - Every time Psion is powered up
+             In fact this is the default, and
+             can be left blank.
+  Work     - on a work day (as defined in Time)
+  Not Work - not on a work day
+  Mon,Tue..- on these days only. (Cannot be
+             mixed with 'Work' and 'Not Work'.)
+  Once     - Just once on the chosen days. 'Once'
+             may be specified along side any other
+             'when' option.
+  Never    - To disable an entry.
+
+Times: hh:mm-hh:mm
+  The record is valid only between the specified
+  times - which must be in the format above.
+  One of the times may also be omitted
+  (eg "-20:30" means before 2030).  If this field
+  is blank, the record is active at all times
+  of the day.
+
+  For Auto records, the Start action is performed
+  if the current time falls within the times
+  specified, and the Stop action is performed
+  outside those times.
+
+Alias:
+  Permits alias information to be supplied to
+  the program - useful for all sorts of reasons.
+  eg J is used to tell data to use the Jotter
+  format on a 3c.
+
+
+Variables
+
+The Program and Filename fields permit variables
+(or "macroes") to be used, which are automatically
+expanded by Autorun. This allows you to execute
+different programs each day, for instance, with
+a single AutoRun definition record ... or to
+execute a program with different filenames. (eg
+a different timesheet each week.)
+
+Valid macroes are as follows :
+  %yr - 4 digit year
+  %yy - 2 digit year
+  %mm - 2 digit month
+  %dd - 2 digit day of month
+  %hh - 2 digit hour
+  %ii - 2 digit minute
+  %ss - 2 digit second
+  %mn - 3 char month
+  %dw - 1 digit day of week
+  %dy - 3 char day of week
+  %wk - 2 digit week of year
+
+See the supplied data file for examples of valid
+entries.
+
+
+Advanced Uses of AutoRun:
+
+It is possible to perform more elaborate
+processing to select filenames, for instance,
+by invoking a wrapper program, which in turn
+starts the required OPO, OPA or APP with the
+appropriate parameters.  An example piece of
+OPL source is included, ARLAUNCH, which does
+just that.  Further notes are included within
+that example code.
+
+Beware, however, that the name specified in
+the control file should correspond to the name
+of the real process, not the wrapper, if
+AutoRun is to successfully recognise that the
+program is already running.
+
+
+Registration
+
+Autorun is shareware.  If you like it, and find
+it useful, please send a donation of any
+amount you feel fit to the address below.
+
+Thanks for supporting the product :
+
+Mike Smith
+118 Leake Road
+Gotham
+Nottingham
+NG11 0JN
+
+mike@boink.demon.co.uk
+http://www.boink.demon.co.uk/
+

@@ -1,0 +1,235 @@
+SPY Guide
+----------
+
+License
+-------
+
+This program is shareware. SPY is copyright (C) Berthold Daum.
+
+Note: The unregistered version is slightly crippled.
+      You cannot alter file contents until the registration number
+      has been entered.
+
+
+Registration
+------------
+					
+Please use ORDER.FRM.
+The registration fee is A$19.95 plus postage and handling.
+
+ Shipping & Handling Fees:  nil
+
+Please send your registration to:
+
+            Berthold Daum
+            lichtbild pty ltd
+            21 Margate St.
+            LPO Box 6011
+            Cromer, Vic 3193
+            Australia
+
+            CompuServe 100026,3365
+            INTERNET: 100026.3365@compuserve.com
+            HomePage: http://ourworld.compuserve.com/homepages/lichtbild
+            fax: +61-3-9584 9638
+
+or you can register via CompuServe (US$19.95) GO SWREG.
+
+
+ Author:            Berthold Daum
+ CompuServe ID:     [100026,3365]
+
+ Program Title:     Spy V1.3 Memory and File Spy
+ Program name:      S3aSpy.ZIP
+ Registration ID:   9905
+
+ Fee (US$):         19.95
+
+ Shipping & Handling Fees:  nil
+We supply you with a registration number via e-mail or by mail.
+
+
+
+Entering the registration number
+--------------------------------
+
+   Press MENU, / , ENTER, ENTER,
+   then enter name and the registration number.
+
+   Note: The entered name must be part of the machines owner name.
+         The registration number must be issued on the entered name.
+
+
+Purpose:
+--------
+Spy is used to analyse and modify the content of PSION S3a
+application segments and to analyse and modify PSION S3a files.
+
+
+Platforms:
+----------
+Spy runs on PSION S3a or ACORN PocketBook II.
+It also runs on a PC under the S3a-emulator up to a screen size
+of 640x400.
+
+
+Further product information:
+----------------------------
+
+We also sell a S3a-toolbox, consisting of
+- this SPY program,
+- a powerful OPL decompiler
+- a runtime license for the Morpheus alarm and help system
+  (including a help compiler)
+- a runtime license for 3setup, an automated application installer
+
+see ORDER.FRM for details
+
+
+Installation:
+-------------
+
+Copy SPY.OPA and DUMP.ALS to an \APP\ directory on any local drive.
+
+Copy ABOUT.OPA to the directory \APP\COMMON\ on the same drive.
+
+(Create this directory if it does not exist)
+
+Install Spy.opa to the system screen.
+Install Dump.als to the system screen.
+
+
+How to use:
+-----------
+
+Invoke Spy.
+
+Select Memory to look into Application segments.
+
+Select File to look into files.
+
+Select the output format (you can change this in interactive mode)
+
+Select the mode
+
+- Interactive mode
+  Data is shown on the screen. You can browse around and apply patches.
+  See below for details.
+
+- Dump mode
+  A specified area is dumped to a file. You can analyse the files later
+  with an editor.
+  (You are able to write dumps to a file from the interactive mode, too)
+
+  Specify an offset and length in kilobytes.
+
+  Select an output file. By default the file is set to
+  M:\WRD\SPIED.DMP. You may want to direct the output to a remote
+  computer.
+   Note: SPY-Files are more than 5 times larger than the original file.
+   The inbuilt WORD-application can only process files less then 32kb. To
+   view larger dumps, you have to transfer the file to a host computer and
+   view it with a text editor. Or you could use a reader program.
+   Spy files are plain ASCII files.
+
+
+If you are spying a file, the next dialog box will ask for the input file name.
+Initially the file selector is positioned to the internal ROM-drive.
+Press TAB to navigate to any other file.
+
+If you are spying memory, the dialogue box gives you instructions how to
+continue. Press ENTER to acknowledge. Spy moves to the background.
+
+Now invoke (or reactivate) the application you want to spy on.
+When the application is in the foreground perform the functions of your
+choice to bring the application to the desired state.
+Then press PSION-CONTROL-TAB.
+Spy will display the content of the segment beginning at address 0.
+
+You can go back and forth from your application to spy.
+When SPY comes to the foreground it will refresh the screen content.
+It will display all bytes that have changed since the last time
+emphasised.
+
+  Note: If you want to observe the contents of a variable or memory area, you
+  have to know the address of that variable first. You get this by
+  inserting PRINT ADDR(variable_name) into your application.
+
+Use the cursor keys to navigate.
+
+A set of functions allows to navigate to specified addresses:
+
+PSION * sets the current cursor position as the top position
+    of the screen.
+PSION-J or ENTER goes to the highlighted word address.
+PSION-W or TAB increments the current address by 2 plus the content
+	of the word at the current address
+PSION-N does the same but assumes the 4 highorder bits of the word to be zero.
+	(Useful for scanning through DATA files)
+PSION-B increments the current address by 1 plus the content of the
+    byte at the current address
+
+  In any case SPY will prompt the user with the new address for
+  confirmation or modification.
+  If the value in the address field starts with + or -, SPy will not
+  use the absolute value of the address field but add it to the
+  current address.
+    
+PSION-R returns to the previous position
+PSION-D writes memory area as dump to a file
+
+PSION-F asks for a search string. It will scan the data
+  for the search string starting at the cursor position and
+  will position to the first occurence found.
+
+PSION-G will continue searching.
+
+PSION-Shift-B
+  Byte.
+  Modifies the specified address with the specified value in length 1.
+PSION-Shift-S
+  ShortInt.
+  Modifies the specified address with the specified value in length 2.
+PSION-Shift-L
+  LongInt.
+  Modifies the specified address with the specified value in length 4.
+PSION-Shift-D
+  Date.
+  Modifies the specified address with the specified value in length 4.
+PSION-Shift-T
+  Time.
+  Modifies the specified address with the specified value in length 4.
+PSION-Shift-F
+  Floating point.
+  Modifies the specified address with the specified value in length 8.
+PSION-Shift-O
+  OPL-String.
+  Modifies the specified address with the specified string prefixed
+  with a length byte.
+PSION-Shift-C
+  Modifies the specified address with the specified string suffixed
+  with a zero byte.
+
+  Note: When you spy on a file and the file is read only, the above
+        patch functions will not work.
+
+HELP calls help.
+
+Entering numeric values:
+
+  You can enter arithmetic expressions (decimal, hexadecimal, or mixed)
+  You can use &,$,x as prefix for hexadecimal Values.
+  The character % followed by any other character evaluates
+  the character code of this character.
+
+Entering string values:
+  Strings can contain escape sequences.
+  An escape sequence consists of the escape character (default "\")
+  and a decimal or hexadecimal constant of length 3.
+  Example: \x0d  or \013
+  Double escape characters are interpreted as one escape character.
+
+End of document
+
+
+

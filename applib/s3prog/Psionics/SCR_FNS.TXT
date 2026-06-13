@@ -1,0 +1,255 @@
+SCRPRN : Current Status
+=======================
+
+Early Beta
+
+SCRPRN : General Description
+============================
+
+WDR printing is problematic for OPL programmers because the approach
+provided by the C_LPRINTER class assumes that print elements are supplied
+via a call-back function.
+
+This means that OPL based approaches must have, to all intents and purposes
+created some persistent data set that represents the complete print job
+before printing begins. The O_PRINTER class proviides an example of this
+but its scope is limited by both the range of print controls that it offers
+and in that the print job definition is contained in an in memory array.
+
+SCRPRN.DYL provides 3 areas of function:
+
+1/ For completeness & convenience - access to the Print Setup and Printer
+   Device setup dialogs via the appropriate calls to a WSERV instance.
+
+2/ Comprehensive access to functions sensing the various properties of the
+   PRINTER, PAGES and WDR Model set by default and varied by (1) above.
+
+3/ Invocation of Print or Print Preview operations for which the print job
+   is specified in a "Print Script File" which contains CRLF delimited
+   text records that can be created by OPL (or indeed an editor). The
+   choice of this format is informed by the desire for simplicity and
+   readability (by a developer) at the expense of compactness. Binary file
+   or external memory segment options would be trivial if required.
+
+   The repertoire of the print script file is described below.
+
+SCRPRN : Print Script Functions
+===============================
+
+SCRPRN provides support for WDR printing from OPL and includes control
+of fonts, indents, linespacing for both paragraph *and* column text.
+
+The commands are described below. The parameters they take are shown as
+<param1>,<param2>. None are optional and the must be delimited by a
+comma. If the script interpreter detects an error, it will stop, at
+that point and print the command that gave the error as the last line
+of the print job. All measurements are in twips. Numeric parameters are
+expressed as ascii text that must be interpretable as a number.
+
+.IN<fl>,<sl>,<vs>
+
+   Set indents and line spacing. <fl> is the indent from the left
+   margin for the start of a new line. <sl> is the indent from the left
+   margin that will be used for any auto-wrapped lines if the text
+   supplied in the .TX command is > the body width. <vs> is the
+   additional vertical spacing by which the print head moves when
+   moving to a new line. The print head is automatically moved by the
+   current font height.
+
+   These settings are preserved until changed by a subsequent call to
+   the .IN command.
+
+   The indent settings are ignored when printing columns but the
+   vertical spacing still applies.
+
+.FS<tf>,<fh>,<st>
+
+   Sets the typeface, font height and style for subsequent printing.
+   <tf> is a MS/RTF typeface number. <fh> is the font height in twips
+   and <st> is a combination of the style flags:
+
+    WDR_STYLE_NORMAL    0x0000
+    WDR_STYLE_UNDERLINE 0x0001
+    WDR_STYLE_BOLD      0x0002
+    WDR_STYLE_ITALIC    0x0004
+    WDR_STYLE_SUPER     0x0008
+    WDR_STYLE_SUB       0x0010
+
+   If the printer doesn't support the typeface/height requested, the
+   nearest match will be used.
+
+   These settings are preserved until changed by a subsequent call to
+   the .FS command or the default font is restored using the .FO
+   command.
+
+.FO
+
+   Restore the default printer font
+
+   The default settings persist until changed by a subsequent call to
+   the .FS command.
+
+.DC<wd>,<gp>,<al>
+
+   Add a column definition. Columns are added sequentially. Thus the 1st
+   .DC command in the script or following a call to the .CC (clear
+   columns) command defines the 1st column, the 2nd .DC defines the
+   second column and so on. The 1st column always begins at the left
+   margin.
+
+   <wd> is the width of the column in twips. <gp> defines a gap in
+   twips between the left and right column boundaries and the column
+   print area. <al> defines the column alignment 0 - Left, 1 - Centre
+   and 2 - Right aligned.
+
+   Columns look like this:
+
+   Left margin
+   |
+   |<------Width of Column 1------>|<------Width of Column 2------>|...
+   |<-gap-><--column text--><-gap->|<-gap-><--column text--><-gap->|...
+
+   If you define a column that goes beyond the right margin ie outside
+   the page body area, an error is generated.
+
+   These settings are preserved until varied with a .CC command
+   followed by a further set of .DC commands.
+
+.CC
+
+   Clears all column definitions.
+
+.NP
+
+   New page. Causes the result of the next .TX or .PC command to be put
+   at the top of a new page.
+
+.RI<rm>
+
+   Move right. Causes the next print element only to be indented by
+   <rm> twips. Is overridden by movement control associated with column
+   printing.
+
+.ST<text>
+
+   Store text for long paragraph printing. The text is appended
+   to an internal buffer that will be sent to the printer on next call
+   to the .TX<text> command. The <text> in the .TX command is also
+   appended before printing.
+
+   The buffer size is incremented in units of 512 bytes whenever there
+   is insufficient space to append new text. If there is insufficient
+   memory to grow the allocated cell. An error is generated.
+
+   When a .TX command is processed, the buffer is cleared *but* the
+   space allocated is preserved. Thus if an application uses the .ST
+   command to produce an abnormally large paragraph as compared to
+   other paragraphs in the document, it can call the .FT command
+   which simply frees the buffer so that it will be reallocated at
+   the default size (512 bytes) the next time a .ST or .TX call is
+   made.
+
+   The buffer is automatically freed when the C_SCRPRINTER object is
+   destoyed as part of the C_SCRPR O_SCP_DOPRINT method.
+
+   Column printing ignores the .ST/.TX buffer.
+
+.FT
+
+   As described above simply frees a .ST buffer so that it will return
+   to the default size the next time it's needed.
+
+.TX<text>
+
+   Append the <text> to any previously set into the buffer with the
+  .ST command and print it starting on a new line (and page if requested)
+   applying auto-wrap as required.
+
+   If the previous print element was column text via the .PC command,
+   columns mode is exited so any subsequent .PC command will start at
+   column 1.
+
+.PC<text>
+
+   Print the <text> in the next column.
+
+   If no columns are defined, generate an error.
+
+   If we were previously in .TX mode, start column mode and the print
+   the text in column 1.
+
+   If the "next column" is greater than the number of columns defined,
+   start a new line and print in column 1.
+
+   Otherwise print in the next column to the right of the last one.
+
+   Text in column mode is clipped to fit the column text area described
+   above. Clipping is from the right for left aligned columns, from the
+   left for right aligned columns and alternatively right, then left
+   for centre aligned columns. Text lost through clipping is discarded.
+
+SCRPRN : Example Script for HPLJ3
+=================================
+
+.TXHere's some text in the default font that would wrap normally.
+.IN720,1440,0
+.TX
+.STHere's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST Here's some hanging indent text. That demos the .ST command.
+.ST It'll all be flushed to the printer by the next .TX command
+.TX ie here! We then do a .FT to reset the buffer size.
+.FT
+.IN0,0,240
+.TXHere's some text that shows double spacing with no indenting.
+.TXHere's some text that shows double spacing with no indenting.
+.TXHere's some text that shows double spacing with no indenting.
+.IN0,0,0
+.FS24,480,2
+.STNow here's single spaced Font 24 in 24 point bold (or the nearest match).
+.ST Now here's single spaced Font 24 in 24 point bold (or the nearest match).
+.TX Now here's single spaced Font 24 in 24 point bold (or the nearest match).
+.FO
+.NP
+.TXHere we go with the columns on a new page with 1.5pt line spacing
+.TXWatch the text clip as the font grows....
+.IN0,0,30
+.DC2760,180,0
+.DC2760,180,1
+.DC2760,180,2
+.FS8,160,0
+.PCLeft Aligned Text
+.PCCentre Aligned Text
+.PCRight Aligned Text
+.FS8,240,2
+.PCLeft Aligned Text
+.PCCentre Aligned Text
+.PCRight Aligned Text
+.FS8,360,6
+.PCLeft Aligned Text
+.PCCentre Aligned Text
+.PCRight Aligned Text
+.FS8,480,6
+.PCLeft Aligned Text
+.PCCentre Aligned Text
+.PCRight Aligned Text
+.FO
+.CC
+.IN0,0,60
+.TXNow here's some new columns - just how you want it for a report!
+.DC5520,180,0
+.DC2760,180,2
+.PCHere's line item 1
+.PC$15,00.00
+.PCHere's line item 2
+.PC$25,00.00
+.PCHere's line item 3
+.PC$35,00.00
+.CC
+.TXThats all folks

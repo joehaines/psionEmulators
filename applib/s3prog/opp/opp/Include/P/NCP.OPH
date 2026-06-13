@@ -1,0 +1,137 @@
+#define P_NCP_OPH
+
+/* AC:Added these includes, which were missing */
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#ifndef P_LLMAC_OPH
+#include <p\llmac>
+#endif
+
+#define NCLINK_VERSION_NUMBER 3
+#define NCLINK_MINOR_VERNO 1
+
+STRUCT P_NCP
+	pcb%
+	handler%
+	Install%
+	Remove%
+	WaitHandler%
+	name#(16)
+ENDS
+
+/* Informational data obtained by supervisory reads */
+
+#define PHYS_LINK_FAILED    0    /* Link layer has failed*/ 
+#define PHYS_CONNECT_FAILED   1    /* Waiting for connection failed */ 
+#define PHYS_CHARS_FAILED    2    /* Setting serial characteristics failed */ 
+#define PHYS_INIT_FAILED    3    /* Initialization of modem failed */ 
+#define PHYS_DIAL_FAILED    4    /* Dialling phone number failed */ 
+#define PHYS_MDMCONFIG_FAILED  5    /* additional modem config failed */ 
+#define PHYS_PHYS_LINK_ESTABLISHED 6  /* A physical link established */ 
+#define PHYS_WAITING_FOR_CALL  7    /* Physical layer waiting for call */ 
+#define PHYS_DIALLING_NUMBER  8    /* Physical layer dialling */ 
+#define PHYS_CONFIGURING_MODEM 9    /* configuring modem */ 
+#define PHYS_NCP_LINK_ESTAB_OK 10    /* Ncp link established OK */ 
+#define PHYS_NCP_LINK_ESTAB_NEW_NCP 11 /* Talking to different Ncp */ 
+#define PHYS_NCP_LINK_ESTAB_INVALID_VER 12 /* Remote NCP is V1.0 !!*/ 
+#define PHYS_NCP_LINK_END 13      /* remote NCP is terminating */ 
+#define PHYS_SERCONFIG_FAILED  14   /* serial port not there */ 
+
+/* type of message to add to the queue */
+
+#define NCONT_MSG_SEND 0  /* controller */ 
+#define NUSER_MSG_SEND 1  /* users */ 
+#define NEXPEDIATED_MSG_SEND 2 /* expediated */ 
+
+/* NUCB flags defines */
+
+#define NUFLAG_WRITE_HELD      0x01
+#define NUFLAG_WRITE_OUTSTANDING  0x02
+#define NUFLAG_CONNECT_REQUEST   0x08
+#define NUFLAG_DISCONNECTED     0x10
+#define NUFLAG_ALLOCATED      0x20
+#define NUFLAG_CHANNEL_CLOSED    0x40
+#define NUFLAG_DISCONNECT_REQUEST  0x80
+#define NUFLAG_TEMPDISC       0x100
+#define NUFLAG_NO_CONNECTION    (NUFLAG_TEMPDISC|NUFLAG_DISCONNECTED)
+#define NC_VERSION_NUMBER  2    /* were version 2 */ 
+#define NC_MAX_USERCB    8    /* Max number of connected users */ 
+#define NC_MSG_SIZE     8    /* Max inter controller msg size */ 
+
+STRUCT NUDATA
+	pnudata%
+	reclen%
+	recbuf#(1)
+ENDS
+
+STRUCT NUCB
+	icb#(SIZEOF(P_ICB))
+	flags%
+	read#(SIZEOF(P_RQPKT))
+	write#(SIZEOF(P_RQPKT))
+	super#(SIZEOF(P_RQPKT))
+	pncp%
+	localchanid#
+	remotechanid#
+	pncb%
+	handler%
+	pnudata%
+	nclen%
+	ncbuf#(NC_MSG_SIZE)
+	recvbytes%
+	xmitbytes%
+	recvK&
+	xmitK&
+ENDS
+
+/* Inter controller message types */
+
+#define NCON_MSG_DATA_XOFF     1
+#define NCON_MSG_DATA_XON      2
+#define NCON_MSG_CONNECT_TO_SERVER 3
+#define NCON_MSG_CONNECT_RESPONSE  4
+#define NCON_MSG_CHANNEL_CLOSED   5
+#define NCON_MSG_NCP_INFO      6    /* MUST BE 6 for older versions*/ 
+#define NCON_MSG_CHANNEL_DISCONNECT 7
+#define NCON_MSG_NCP_END      8
+
+/* Inter Network user message types */
+
+#define NU_MSG_WRITECOMPLETE    1
+#define NU_MSG_WRITEPARTIAL     2
+#define NC_LINK_ACTIVE   0x01
+#define NC_READ_QUEUED   0x02
+#define NC_WRITE_QUEUED   0x04
+#define NC_TERMINATING   0x08
+#define NC_OWNER_CLOSE_REQUEST 0x10
+#define CONNECT_STATE_0 0
+#define CONNECT_STATE_1 1
+#define CONNECT_STATE_2 2
+
+STRUCT NCB
+	flags%
+	ctrlmsgqueue%
+	ctrllastxmit%
+	usermsgqueue%
+	userlastxmit%
+	maxfrmsize%
+	wstat%
+	rstat%
+	wlen%
+	rlen%
+	handler%
+	plcb%
+	connected%
+	remotencpver%
+	startdate&
+	remotestartdate&
+	expediatedlen%
+	expediatedbuf#(NC_MSG_SIZE)
+	lastnucb%
+	rbuf#(P_MAXILEN)
+	wbuf#(P_MAXILEN)
+	usertable#(OPPEVAL(SIZEOF(NUCB)*NC_MAX_USERCB))
+ENDS

@@ -1,0 +1,63 @@
+REM This code is from Psion for the most part, although I modified it to
+REM allow embedding of multiple images into a single Opa. To do it you'll
+REM a drawing program on the Psion, or Pcx compatible drawing program on
+REM an Ibm compatible. You can then convert the Pcx file using Wspcx.exe
+REM which can be found on the Psion forum (Lib 7) on Compuserve.
+REM This example will read it's own header to parse out the PIC information
+REM at the top of the file. The ss% loop assumes 5 Images in the Opa file.
+REM You can of course change this to include as many Pic's as you want.
+REM The main benefit is to be able to include all graphic files that are
+REM used in an application in the App file itself. The show.opa file is an
+REM example of how to do this.
+REM Note: the way I move through the pic to get the next image, the actual
+REM images are butting up together. There is not even a blank pixel in
+REM between images. The format should have the icon for the Opa in the
+REM upper left hand corner like any normal app. This way the S3 will gets
+REM it's icon from the same place it always does. The embedded images are
+REM directly below the icon.
+REM -----------------------------------------------------------------------
+REM -------------------- Code by Psion Plc --------------------------------
+REM -----------------------------------------------------------------------
+REM ------------------------  Comments  -----------------------------------
+REM -------------------- Pelican Software Inc. ----------------------------
+REM -----------------------------------------------------------------------
+
+App PicShow
+icon "B:\Pic\Show.pic"                           REM load the pic file
+Enda
+
+PROC opapic:
+    local id%,wi%,ht%
+    local f$(128),buf%(100)
+    local h%,l%,o%,ss%
+ss%=1
+     top::
+     f$=cmd$(1)
+        l%=ioopen(h%,f$,$400)                    REM Open this opa, sharing mode
+        if l% :goto cl2 :endif
+        l%=ioread(h%,addr(buf%(1)),200)          REM read file, dump 200 bytes into buffer
+        if l%<=140 :goto cl :endif               REM at least 140 bytes
+        if buf%(1)<>%O+(%P*256) :goto cl :endif  REM if top of file<>OPLO, quit
+        if buf%(2)<>%L+(%O*256) :goto cl :endif
+        o%=23+(buf%(11) and $ff)
+        l%=peekw(addr(buf%(1))+o%)               REM look for PIC stamp
+        if l%<>%P+(%I*256) :goto cl :endif       REM identify PI from "PIC"
+        if l%=0 :goto cl :endif
+        call($5f8d,1,o%,0,0,0)                   REM Wserve Opcode
+cl::    ioclose(h%)                              REM close file
+cl2::   onerr t
+        id%=gLoadBit(f$)                         REM load image
+        wi%=gWidth :ht%=gHeight                  REM get width and heighth
+        gUse 1                                   REM use main window
+        if ss%=1                                 REM If reading 1st first image
+        gMove 0,-25                              REM set window position
+        else                                     REM else move position inside graphic
+        gMove 0,-80
+        endif
+        ss%=ss%+1 :gFill 240,80,1                REM increment counter, clear graphic
+        gCopy id%,0,0,wi%,ht%,3                  REM draw new graphic
+        get
+        gClose id%
+if ss%<5 :goto top :endif                        REM if all graphics not viewed
+t::     onerr off                                REM goto top to get next graphic
+ENDP

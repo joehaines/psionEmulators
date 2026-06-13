@@ -1,0 +1,78 @@
+
+� Area: [FIDO] PSION echo 컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+  Msg#: 6987                                         Date: 05-08-93  15:18
+  From: Bj봱n Felten                                 Read: Yes    Replied: No 
+    To: Derek O'Harrow                               Mark:                     
+  Subj: Battery Check/AC Adapter
+컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+I know that many of you are interested in how to use OPL's OS function on the
+S3, so here's an attempt to achieve what you want.
+
+    *WARNING* This has not been tested on an S3; I write it down manually here
+and now. If smoke is coming out of the machine while testing this program --
+don't panic, just put the machine in the kitchen sink or anything similar... :)
+
+   Here we go...
+
+                           - = * = -
+
+proc osdemo:
+global ax%, bx%, cx%, dx%, si%, di%
+global regs%
+global mbatt%, lbatt%, mains%
+global supply%
+
+regs%=addr(ax%)
+supply%=addr(mbatt%)
+
+supply:
+get
+
+swoff:(-1)     :REM Setting swoff time to -1 means no auto swoff
+print "Auto switch-off disabled"
+get
+
+swoff:(300)    :REM Restore to default value
+print "Auto switch-off ensabled"
+get
+
+endp
+
+
+proc supply:
+
+ax%=$1100      :REM os$get_supply is os-call $8e sub $11
+bx%=supply%    :REM supply struct
+os($8e, regs%)
+
+print "Main battery:",mbatt%;"mV"
+print "Lithium battery:",lbatt%;"mV"
+print "Mains supply:",
+if mains%<0
+ print "Unknown. SSD door open?"
+elseif mains%=0
+ print "No mains adapter present."
+elseif mains%=1
+ print "Mains adapter present."
+else
+ print "Ouch! How did you get here?!?"
+endif
+endp
+
+proc swoff:(t%)
+
+ax%=$1800      :REM os$set_swoff is os-call $8b sub $18
+bx%=t%         :REM new swoff time
+os($8b, regs%)
+
+ax%=$1700      :REM os$get_swoff is os-call $8b sub $17
+os($8b, regs%)
+print "Switch off time now is:",ax%;"s"
+
+endp
+
+
+
+-!-
+ ! Origin: -=P=I=X=- / Psion Info Xchange (+46-31-960447) (2:203/208)
+

@@ -1,0 +1,333 @@
+                   MINESWEEPER for the Psion Series 3
+                   ==================================
+
+                              VERSION 1.2
+                              ===========
+
+                  Copyright Chris Hennings - July 1992
+
+                  Email: chennings@cix.compulink.co.uk
+                         100010.511@compuserve.com
+
+                  Voice: UK 01-856-8643 (Home)
+                         UK 0322-23488 x2440 (Work)
+
+                  Home : 45, Kenilworth Gardens,
+                         Shooters Hill,
+                         London, SE18 3JB
+                         United Kingdom
+
+===========================================================================
+
+Changes in Minesweeper Version 1.2 (Notes for Upgraders)
+
+     Minesweeper v1.2 provides improvements to playability especially
+     for scrolling window games and is substantially more battery
+     friendly, there's also a minor bug fix.  In detail ...
+
+     * Support files & Installation - If you are upgrading from v1.1 you
+       need only download and replace Mines.opo in the \OPO directory or
+       where ever.  New users or upgraders from v1.0 should place
+       Mines.opo in the \OPO directory and the 2 support files Mines.pic
+       and Mines.fon in the \OPD directory ON THE SAME DRIVE as
+       Mines.opo.
+
+     * Navigation - holding down the PSION key in conjunction with the
+       cursor keys now enables you to move directly to the first/last
+       row/column of the grid.
+
+     * Scrolling Windows - The Smiley icon now displays pointers
+       indicating in which direction the window can scroll over the grid
+       - should help to avoid false tests/marks due to forgetting about
+       cells offscreen.
+
+     * Incorrect display of X (showing wrongly placed flags in endgame)
+       when using the small font is now fixed.
+
+     * Gametime display and keyboard actions are now handled by
+       asynchronous form of GETEVENT and TIMERS.  This means that the
+       prog no longer burns round a TESTEVENT loop which used to waste
+       cycles and your battery.
+
+     * Manual Poweroff & Gametime - The Setup dialog now allows the
+       purists among you to capture the manual poweroff key PSION-1 to
+       ensure that the gametime is always corrctly handled if you switch
+       off with Minesweeper in the foreground.
+
+     With respect to the last 2 items, see also item (b) in the section
+     titled PSION Series3 Specific Features / Design Issues in the main
+     documentation below.  In particular credit here is due to David
+     Wood of PSION UK.
+
+     Thanks again to everyone on CIX and CIS for their comments.  As
+     always keep them coming and have fun.  Unless I get reports of bugs
+     to fix, I feel Minesweeper now does about everything it can.  So
+     what else would you like to see?  Card games? -  I guess a .FON
+     file of a 52 card pack would be useful for anyone attempting to do
+     this.  Is anyone going to do an agenda to/from delimitted text
+     converter?  A time recording/billing app might be interesting for
+     S3 users who like me do a lot of project/client oriented work - why
+     not let me know what you think (or if you're already doing it)!
+
+     Cheers,
+     Chris    7th July, 1992
+
+===========================================================================
+
+Changes in Minesweeper Version 1.1 (Notes for Upgraders)
+
+     Since releasing version 1.0 of Minesweeper, I've actually had a bit
+     of time to play the game, this and the feedback from CIX/CIS has
+     led to version 1.1 which is actually a fairly major upgrade.  Junk
+     version 1 and use version 1.1, you won't regret it.  Heres why ...
+
+     *  Support files & Installation - The big and small fonts
+        previously contained in .PIC files are now contained in
+        MINES.FON (Thanks to DavidW of PSION on CIX for posting the font
+        compiler) this seems to give a speed improvement and reduces
+        code size.  The icons are contained in MINES.PIC and these 2
+        support files should be installed in the \OPD\ directory on the
+        same drive as MINES.OPO.
+
+     *  Game Setup - The mine field can be any size up to 32x32 in either
+        font.  If the field is > 20x7 (Big font) or 25x9 (Small font)
+        the window will scroll over the larger field.  Note that for a
+        given size of field, the small font require less memory.  Note
+        also that for games involving scrolling, the SETUP dialog allows
+        you to choose whether just the window or the whole field is to
+        be scanned during autoclear (ie when a cell is found with 0
+        neighbouring mines).  I leave this set to window only as it can
+        take some time to clear a big grid and nothing seems to happen
+        while cells are being cleared outside the window.  Note that if
+        you play with a scrolling game ... remember to scroll to make
+        sure all the relevant area is shown before testing/marking a
+        cell (obvious I know but I caught myself out a couple of times).
+
+     *  Game startup has been improved by (a) a massive increase in the
+        speed with which the field is drawn and (b) the mines are
+        scattered only after a cell has been tested/marked.  This means
+        you don't die on your first test.  I've also fixed a bug which
+        meant the initial number of mines was not shown for new games
+        involving a change of font.
+
+     *  The mine field now has gridlines making it much easier to see
+        neighbours and increases playability.
+
+     *  Cells marked with a ? can now be tested and are properly handled
+        by the autoclear routine.
+
+     *  The game time is now shown in seconds (a la MS-Windows) which
+        reduces code and improves responsiveness.  I've also fixed a bug
+        which meant that game time did not handle the event of a manual
+        (PSION-1) poweroff.  Game time is frozen immediately if the game
+        moves to the background (you can trap this event with GETEVENT)
+        but if you do a manual poweroff, game time at the next poweron
+        will be increased by up the game timeout period.
+
+     *  The End Game - I've fixed the bug which meant that you could win
+        game by simply marking every cell (ooops).  You now have to mark
+        all the cells containing mines (and ONLY those cells) to win.
+        Previously, when you lost, cells not containing a mine that you
+        had incorrectly marked with a flag were shown as exploding mines
+        along with the cell you trod on to die.  This clearly was a bit
+        confusing (well wrong actually) and these cells are now shown
+        with a big X to mark your error.  Wins are now signalled by 3
+        rising tones and deaths by 3 falling tones.  I'd really like to
+        provide cheers and explosions to be played throught the
+        loudspeaker via the LDD supplied in SNDFRC.ZIP (Thanks again
+        David) or even a bit of the death march / Beethovens 9th but
+        I've no idea how to digitise and am totally un-musical ... Any
+        offers?
+
+     *  Lastly, I've left in a feature I used for testing - a cheat key
+        which sounds a high tone if the current cell contains a mine.
+        For the cryptic minded, the key sounds a bit like "a personal
+        computer floating offshore".
+
+     Thanks again to everyone on CIX and CIS for their comments.  As
+     always keep them coming and have fun.
+
+     Cheers,
+     Chris    20th June, 1992
+
+===========================================================================
+
+                     MINESWEEPER v1.1 DOCUMENTATION
+                     ==============================
+
+Introduction & Conditions of Use
+
+     Minesweeper is based on the game supplied with Windows v3.1.  It's
+     a fairly close copy but don't expect mouse support.
+
+     Minesweeper is my 2nd S3 app (you may have seen CHARSET.ZIP my full
+     screen ascii table) and I'd like to recognise the high quality of
+     the debate in the CIX Psion,Series3 conference which I've found
+     very useful (see discussion of timeout/power off below).
+
+     You may use Minesweeper completely free of charge, however, I will
+     accept no liability arising from such use.
+
+     You may distribute Minesweeper provided no charge is made other
+     than for distribution and all the files included in MINES32.ZIP are
+     distributed unchanged.
+
+     If you enjoy Minesweeper and want to make a contribution ...
+
+        a) Let me know what you think of it.
+        b) Write something else for the Series3 and post to CIX/CIS.
+        c) Remember to buy me a drink if we should ever meet.
+        d) If you're really desperate, I won't be offended by money :-)
+           5 UK pounds or more gets you a binmail of the source code.
+
+Installation
+
+     Simply copy the program file MINES.OPO to your \OPO directory and
+     the 2 support files MINES.PIC and MINES.FON to the \OPD directory
+     on the same drive.  Any drive should do.  MINES.OPO looks for its
+     support files in the \OPD directory on the same drive from which it
+     was executed.
+
+Objective (For those unfamiliar with the game)
+
+     You must try to clear mines from a minefield represented by a grid
+     made up of rows and columns.  A status window shows the number of
+     mines remaining, your playing time and other status information.
+     You play by testing cells within the grid.  If the cell contains a
+     mine - that's it your dead.  If the cell does not contain a mine,
+     the cell is cleared and displays the number of mines in
+     neighbouring cells which enables you to deduce their locations.
+     When you think you know the location of a mine you can mark that
+     cell and the number of mines remaining is reduced.
+
+     You can customise the game in terms of grid size and number of
+     mines.  Try to reduce your time to clear a given setup.  Why not
+     let us know your best scores?
+
+Keyboard & Display
+
+     Untested cells are dark.  Tested cells with no neighbouring mines
+     are shaded.  Marked cells are shown by a flag.  You can also mark a
+     cell with a question mark while you're working things out.
+
+     When you die, any undiscovered mines are shown as (surprisingly
+     enough) mines.  The mine that killed you is shown as an exploding
+     mine and any incorrectly marked cells are shown with a big X.
+
+     The status window shows the number of remaining mines, your playing
+     time and the icon shows other status information.
+
+     Use the up/down/left/right keys to navigate around the grid.  If
+     the grid is bigger than the window.  The grid will scroll. If you
+     are at the edge of the grid, a beep will sound. Use SPACE to toggle
+     marking for a cell you think contains a mine. Use ENTER to test a
+     cell.
+
+     Both the HELP and MENU keys are active. Menus give access to the
+     following features which can also be called by their hotkeys.
+
+     PSION-N  Starts a new game with the current setup
+     PSION-S  Starts a new game and allows you to customise the setup
+     PSION-P  Pauses the game and stops the clock.
+     PSION-T  Sets the timeout in seconds before the game is
+              automatically paused.
+     PSION-H  Gives online help
+     PSION-A  Gives program information
+     PSION-X  Exits Minesweeper
+
+PSION Series3 Specific Features / Design Issues
+
+     a) Screen Size - We're not dealing with VGA here.  The screen will
+        show up to 20 columns by 7 rows using the big font and 25x9
+        using the small font.  Grids can be up to 32x32 in either font
+        and larger sizes with involve the window scrolling over the
+        grid.  The default game is 24 mines in a 20x7 (big) grid.  The
+        characters for both fonts are contained in MINES.FON
+
+        The Setup (PSION-S) dialog controls these setting and also
+        allows you to fix whether the auto clearing of cells with 0
+        neighbouring mines should apply to the whole grid or be limited
+        to the area displayed in the window.
+
+     b) Timeout/Poweroff - With version 1.2 Minesweeper uses an
+        asynchronous form of GETEVENT together with a asynchronous TIMER
+        to give realtime updating of the elapsed time displayed in the
+        status window.  This technique is demonstrated in the file
+        GETEVA.ZIP posted to the CIX Psion,series3 conference by David
+        Wood of Psion UK this is much more battery friendly than the
+        previous burning round a TESTEVENT loop BIG THANKS to DW.  This
+        process still will not to the sysnull: process which triggers
+        the S3 poweroff routine.  The timeout feature handles this by
+        putting Minesweeper into pause mode which stops the clock and
+        puts up a dialog box if no events have occurred within the
+        timeout period.
+
+	The default timeout period is 60 seconds which should be less
+        than most peoples poweroff time (mine is 5 minutes).  If your
+        poweroff time is less ... remember to do a PSION-T after
+        Minesweeper loads.
+
+        Calling menus, the help system, sending Minesweeper to the
+        background or manually calling pause mode (PSION-P) all stop the
+        clock and therefore will not get in the way of a auto poweroff.
+
+        The only event which can't directly trapped by the GETEVENT
+        technique is a manual poweroff (PSION-1) while Minesweeper is in
+        the foreground which means that depending exactly where the prog
+        is in the loop, gametime may or may not be correctly
+        stopped/started.  To handle this you can optionally via the
+        setup screen cause Minesweeper to capture the PSION-1 key using
+        a call($c58d,$2003,0,0,0,0).  When this is in effect pressing
+        the PSION-1 key will simply stop the clock, stop capturing
+        PSION-1 and issue an OFF command to switch the S3 off.  The next
+        time the clock is switched on by poweron, the key capturing
+        begins again.  With this option in effect, PSION-1 is captured
+        ONLY while the timer is on, so will not take place when menus,
+        help or pause mode are in force or if Minesweeper has been moved
+        to the background - so it's not too invasive.  Only one app can
+        be capturing a given key at any one time so if you try to run
+        Minesweeper with this option when another prog is already
+        capturing PSION-1 you will get a dialog telling you that the
+        option is not available.  At the end of the day I guess we don't
+        have to be too worried by the accuracy of gametime but I really
+        wanted to be able to crack this problem for it's own sake.  And
+        you can probably guess who did it - More BIG THANKS to DW again.
+        By default poweroff capturing is switched off and I guess most
+        of us will leave it that way.
+
+     c) Low Memory - If you test a cell which has 0 neighbouring mines,
+        all neighbours are safe to test.  Minesweeper will do this
+        automatically for you using recursive calls to the test routine.
+        Recursion uses additional memory.  This should not be a problem
+        in most realistically challenging combinations of rows, columns
+        and mines.  However, few mines in a big grid may result in
+        several levels of recursion which may become a problem if you
+        have <12k free memory.  Minesweeper handles this by backing out
+        of the recursion leaving some areas which are logically possible
+        to clear uncleared and you have to do them yourself.  As I say,
+        I don't really expect this to be a problem, for example 15 mines
+        in a 30x12 grid with only 6k free memory still gives 80-90%
+        clearup.  Minesweeper itself requires about 25k and I guess if
+        your running with <30k free you're either about to buy more disk
+        or you've got more important things to do than play Minesweeper
+        :-)
+
+     d) Support files - As noted above, the big and small character sets
+        are contained in the .fon file.  The other file MINES.PIC
+        contains the various icons used in the status window.  Those
+        with bit editors might like to improve on my art work ... if you
+        come up with a real goodie why not share it.
+
+        I considered implementing an .ini file to save and restore your
+        preferred game setup and a high score table but for now I
+        decided that these wouldn't add all that much particularly given
+        the need to handle elegantly / avoid problems for those such as
+        myself who intend to run Minesweeper from a FLASH card.  Let me
+        know if you think this is a big weakness.  Someone could always
+        start a highscore thread :-)
+
+Conclusion
+
+     That's all folks ... Have fun!
+
+     Chris

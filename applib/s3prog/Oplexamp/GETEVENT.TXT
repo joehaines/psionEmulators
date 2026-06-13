@@ -1,0 +1,232 @@
+==========
+psion/opl #1306, from salex, 709 chars, Aug  3 08:37 94
+Comments. 
+----------
+TITLE: Getevent?
+I have written a program that displays the contents of several 
+directories on the screen (amongst other things). What I would like 
+to do is force it to re-read the directories when a new file is added 
+from outside the  program, ie Comms downloads a file and the OPl
+programs then refreshes the screen. I think I am asking to much but
+as a compromise I would like to refresh the screen when the program
+is brought to the foreground. I thought that GETEVENT would do this
+but I can't get it to work.
+
+Does GETEVENT get any event or only those to do with the program it 
+is used in? 
+
+As you can see, this multi tasking stuff is a bit beyond me.
+Any help would be greatly appreciated.
+
+David
+
+==========
+psion/opl #1309, from jezar, 169 chars, Aug  3 09:22 94
+Comment to 1306. More refs to 1306.
+----------
+
+GETEVENT won't help I'm afraid. What you need is the locchanged
+service. I'll upload a little OPL demo program at lunchtime
+to demonstrate its use.
+
+Jeremy W (Jezar)  
+
+==========
+psion/opl #1310, from dw2, 239 chars, Aug  3 10:40 94
+Comment to 1306. 
+----------
+I don't see why you can't get FOREGROUND events using GETEVENT and then 
+recalculate the filelists on that basis.
+
+You'll only get these events when *your* program comes to foreground, 
+but that's all you want, isn't it?
+
+Regards, DavidW
+
+
+==========
+psion/opl #1313, from salex, 278 chars, Aug  3 16:05 94
+Comment to 1310. 
+----------
+David,
+ 
+Yes that would do.
+Can you, in very simple terms tell me how, because I have tried and
+nothing happens when the program comes to the foreground.
+What I have done is put the GETEVENT after the comms app is launched
+so shouldnt it wait there until an event occurs?
+David
+
+==========
+psion/opl #1311, from jezar, 711 chars, Aug  3 13:41 94
+Comment to 1306. Comments. 
+----------
+
+And here it is. This proglet beeps if a new file is
+created or deleted etc.
+
+PROC LChange:
+CALL($1487,1)
+
+WHILE 1
+PAUSE 20
+IF CALL($1487,1)
+BEEP 5,300
+ENDIF
+ENDWH
+ENDP
+
+Notice that it is (unfortunately) necessary to poll this
+function to get a result. Therefore you shouldn't go round
+continuously, but wait on a timer (one second in this very
+simple example), or just take a peek now and then.
+
+The value "1" in the call is a bitmask for a monitor
+channel. The first call always returns TRUE so that's why
+it is outside the loop. Each subsequent call tells you if
+the filesystem changed since the previous call. You may
+use bits 1 to 8 for this, the ones higher up are used
+by the system.
+
+Jeremy W (Jezar)  
+
+==========
+psion/opl #1314, from salex, 109 chars, Aug  3 16:05 94
+Comment to 1311. 
+----------
+Thanks Jeremy,
+ 
+I'll try it out while waiting for the dentist tonight!
+ 
+Palmtops are wonderfull.
+ 
+David
+ 
+
+==========
+psion/opl #1306, from salex, 709 chars, Aug  3 08:37 94
+Comments. 
+----------
+TITLE: Getevent?
+I have written a program that displays the contents of several 
+directories on the screen (amongst other things). What I would like 
+to do is force it to re-read the directories when a new file is added 
+from outside the  program, ie Comms downloads a file and the OPl
+programs then refreshes the screen. I think I am asking to much but
+as a compromise I would like to refresh the screen when the program
+is brought to the foreground. I thought that GETEVENT would do this
+but I can't get it to work.
+
+Does GETEVENT get any event or only those to do with the program it 
+is used in? 
+
+As you can see, this multi tasking stuff is a bit beyond me.
+Any help would be greatly appreciated.
+
+David
+
+==========
+psion/opl #1306, from salex, 709 chars, Aug  3 08:37 94
+Comments. 
+----------
+TITLE: Getevent?
+I have written a program that displays the contents of several 
+directories on the screen (amongst other things). What I would like 
+to do is force it to re-read the directories when a new file is added 
+from outside the  program, ie Comms downloads a file and the OPl
+programs then refreshes the screen. I think I am asking to much but
+as a compromise I would like to refresh the screen when the program
+is brought to the foreground. I thought that GETEVENT would do this
+but I can't get it to work.
+
+Does GETEVENT get any event or only those to do with the program it 
+is used in? 
+
+As you can see, this multi tasking stuff is a bit beyond me.
+Any help would be greatly appreciated.
+
+David
+
+==========
+psion/opl #1309, from jezar, 169 chars, Aug  3 09:22 94
+Comment to 1306. More refs to 1306.
+----------
+
+GETEVENT won't help I'm afraid. What you need is the locchanged
+service. I'll upload a little OPL demo program at lunchtime
+to demonstrate its use.
+
+Jeremy W (Jezar)  
+
+==========
+psion/opl #1310, from dw2, 239 chars, Aug  3 10:40 94
+Comment to 1306. 
+----------
+I don't see why you can't get FOREGROUND events using GETEVENT and then 
+recalculate the filelists on that basis.
+
+You'll only get these events when *your* program comes to foreground, 
+but that's all you want, isn't it?
+
+Regards, DavidW
+
+
+==========
+psion/opl #1313, from salex, 278 chars, Aug  3 16:05 94
+Comment to 1310. 
+----------
+David,
+ 
+Yes that would do.
+Can you, in very simple terms tell me how, because I have tried and
+nothing happens when the program comes to the foreground.
+What I have done is put the GETEVENT after the comms app is launched
+so shouldnt it wait there until an event occurs?
+David
+
+==========
+psion/opl #1311, from jezar, 711 chars, Aug  3 13:41 94
+Comment to 1306. Comments. 
+----------
+
+And here it is. This proglet beeps if a new file is
+created or deleted etc.
+
+PROC LChange:
+CALL($1487,1)
+
+WHILE 1
+PAUSE 20
+IF CALL($1487,1)
+BEEP 5,300
+ENDIF
+ENDWH
+ENDP
+
+Notice that it is (unfortunately) necessary to poll this
+function to get a result. Therefore you shouldn't go round
+continuously, but wait on a timer (one second in this very
+simple example), or just take a peek now and then.
+
+The value "1" in the call is a bitmask for a monitor
+channel. The first call always returns TRUE so that's why
+it is outside the loop. Each subsequent call tells you if
+the filesystem changed since the previous call. You may
+use bits 1 to 8 for this, the ones higher up are used
+by the system.
+
+Jeremy W (Jezar)  
+
+==========
+psion/opl #1314, from salex, 109 chars, Aug  3 16:05 94
+Comment to 1311. 
+----------
+Thanks Jeremy,
+ 
+I'll try it out while waiting for the dentist tonight!
+ 
+Palmtops are wonderfull.
+ 
+David
+ 
+

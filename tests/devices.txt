@@ -1,0 +1,89 @@
+# Devices to validate via scripts/test-boot.sh. One device per line.
+# Format: id|rom-filename|boot-seconds|min-variance
+#
+# Add a device here once it has a working factory in core/device_registry.cpp
+# AND boots cleanly through the harness. Every entry is exercised in CI.
+#
+# min-variance = minimum pixel variance after the boot window; 5mx real boot
+# sits at ~2000, anything under ~100 means the LCD never lit up.
+#
+# --min-mdrive-subdirs N: require RAMDRIVE volume label AND at least N FAT16
+# subdirectory entries in RAM after the boot window.  N=0 just checks for the
+# label (SIBO EFS devices: Series 3/3a/3c-era kernels v1-v4 create app dirs
+# lazily on first app launch, not at cold-format).  N=5 for EPOC16 v5+/v6
+# devices (series3c, series3mx) that pre-create WLD/SPR/DAT/WRD/AGN at
+# cold-format time.  ARM/EPOC32 devices omit this flag (different RAM layout).
+#
+# Notes on intentionally-omitted entries: (none currently)
+5mx       | 5mx_v1.05(260)_eng.bin          | 35 | 200
+5mxpro    | 5mxPRO_v1.05(319)_patch_eng.bin | 35 | 200
+# 5mxpro_blboot: the flow the WEB app actually uses — boot the 128 KB
+# bootloader flash with a FAT16 CF card carrying SYS$ROM.BIN attached; the
+# bootloader loads the OS off the card, hands off, and the OS re-mounts the
+# same card as D: during its own boot. Regression gate for the CF
+# direct-invoke accelerator: invoking the retry callback from IRQ32 mode
+# during this boot-time mount wedged the kernel before the desktop painted
+# (caught 2026-06-12; fixed by the UND32/USR mode gate in windermere.cpp).
+# The 16 MB card image is synthesised on first run by test-boot.sh.
+5mxpro_blboot | 5mxPRO_BL_v1.09_ger.bin     |  2 | 200 | --card-path tests/cards/5mxpro-osboot.img --post-attach-seconds 75 | 5mxpro
+mc218     | MC218_v1.05(259)_eng.bin        | 35 | 200
+revo      | Revo_v1.06(390)_eng.bin         | 35 | 200
+series3   | series3_v1.91f_eng.bin          |  3 | 50  | --min-mdrive-subdirs 0
+pocketbk  | acorn_pocketBook_II.bin         |  8 | 200 | --min-mdrive-subdirs 0
+series3c  | series3c_v5.20f_eng.bin         | 40 | 200 | --min-mdrive-subdirs 5
+siena     | siena_v4.20f_eng.bin            | 30 | 200 | --min-mdrive-subdirs 0
+series3a  | series3a_v3.40f_eng.bin         | 30 | 500 | --min-mdrive-subdirs 5
+pocketbk2 | pb2_v1.30f_acn.bin              | 20 | 200 | --min-mdrive-subdirs 2
+series3mx | series3mx_v6.16f_eng.bin        | 10 | 200 | --min-mdrive-subdirs 5
+# series5: now reaches the boot splash painter (variance ~6900,
+# 11 distinct pixel values). The previous all-black baseline was due
+# to two compounding bugs: raiseException not setting the I-bit on
+# SWI/Undef/Abort entries, plus an overzealous HAL-vtable
+# stack-overlap workaround that dropped legitimate IRQ stack pushes.
+# Both fixed; bootstrap-NThread shadow now default-disabled (the
+# shadow was a downstream workaround for the I-bit bug). Set
+# PSION_S5_SHADOW=1 to re-enable the legacy path for historical
+# comparisons. See core/series5.h "2026-05-11 RESOLVED" notes.
+series5      | series5_v1.01(144)_eng.bin      | 35 | 1000
+series7   | series7_v1.05(254)_b756_eng.bin | 30 | 1000
+mc400     | MC400_V1.26F.bin                | 10 | 200 | --min-mdrive-subdirs 0
+osaris    | Osaris_v1.02(209)_eng.bin       | 35 | 200
+#
+# (After the V30Variant::I8086 + cycle-scaling + cold-boot RAM-fill +
+# RAM-mirror-removal fixes the MC400 boot ROM now passes its RAM POST,
+# enables the LCD, and renders the boot splash banner + box on the
+# 640x400 panel. Variance ~309 is well above the 200-pixel threshold.)
+#
+workabout    | workabout_w1_v2.40f_eng.bin    | 10 | 200 | --min-mdrive-subdirs 0
+workaboutmx  | workaboutMX_v7.20f_eng.bin     | 10 | 200 | --min-mdrive-subdirs 0
+#
+# netbook: the v0.11 YModem bootloader image.  Real netBook hardware
+# ships this 2 MB image in on-board flash and loads D:\OS.IMG from a
+# CF card to boot.  We default to the bootloader so cold boot shows
+# the familiar "insert CF" splash; the frontend's "Insert CF card
+# containing OS" button triggers the host-side OS handoff in
+# core/sa1100.cpp::netBookLoadOsFromCard.  Splash variance settles at
+# ~5125 with 16 unique pixel values within 3 sim seconds.
+netbook   | netBook_BL_v011_eng.bin         |  3 | 1000
+
+# netbook_full: the v0.11 YModem bootloader + the actual netBook EPOC R5
+# OS image attached as a CF card.  netBookLoadOsFromCard (in
+# core/sa1100.cpp) does the bootloader -> OS handoff on attach: scans
+# the CF for the "EPOCARM ROM" magic, strips the 256-byte header, copies
+# the body to RAM bank 1 at PA 0xC8000000, disables the MMU, sets the
+# boot-arg registers and jumps to 0xC8000000.  The OS then runs through
+# its own cold boot.  In 93 sim-sec we see ETest.exe + WSERV reach
+# their hot loops, OSMR1 ticks fire 17k+ times, and the LCD draws the
+# Psion desktop with the clock ticking once a minute.
+# Variance 5187, 14 unique pixel values, animation across ~3-4 frame
+# hashes over the post-attach window.
+netbook_full | netBook_BL_v011_eng.bin       |  3 | 5000 | --card-path roms/netbook_os.img --post-attach-seconds 90 | netbook
+
+# Organiser II — boots to the LZ cold-boot splash within 3 sim-seconds.
+# Variance 535 (text on row 1 = "SIZING PACK D:", row 2 = "PLEASE WAIT")
+# from a cold start. The OS is waiting on the datapak read protocol
+# (which we don't model yet) so it stays on the SIZING screen
+# indefinitely — that's still a passing CI gate, since the screen
+# content is stable and the variance threshold catches a regression
+# that drops back to blank.
+organiser2 | OrganiserII.rom                 |  5 | 200

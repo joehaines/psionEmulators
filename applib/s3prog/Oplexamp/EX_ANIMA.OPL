@@ -1,0 +1,39 @@
+PROC animate:
+LOCAL id%(5),i%,j%,s$(5,5),w%,h%
+print "This version uses the Psion logo"
+print "ALERT: makes 5 .pic files" :get :cls
+i%=gloadbit("rom::logo.pic")
+gat 0,0
+gsavebit "one.pic",15,28
+gat 16,0
+gsavebit "two.pic",14,28
+gat 31,0
+gsavebit "three.pic",10,28
+gat 42,0
+gsavebit "four.pic",16,28
+gat 59,0
+gsavebit "five.pic",15,28
+gCLOSE i%
+w%=16 :h%=28 REM example width and height
+s$(1)="one" :s$(2)="two" :s$(3)="three"
+s$(4)="four" :s$(5)="five"
+j%=1
+WHILE j%<6
+	i%=gLOADBIT(s$(j%))
+	id%(j%)=gCREATE(0,0,w%,h%,0)
+	gCOPY i%,0,0,w%,h%,3
+	gCLOSE i%
+	j%=j%+1
+ENDWH
+i%=0 :gorder 1,9
+DO
+	j%=(i%-5*(i%/5))+1 REM (i% MOD 5)+1
+	gVISIBLE OFF REM previous window
+	gUSE id%(j%) REM new window
+	gSETWIN i%,20 REM position it
+	gORDER id%(j%),1 REM make foreground
+	gVISIBLE ON REM make visible
+	i%=i%+1
+	PAUSE 2
+UNTIL KEY OR (i%>(240-w%)) REM screen edge
+ENDP

@@ -1,0 +1,37 @@
+From Rod Urquart, not for distribution. It is supposed to allow PIC storage
+inside an OPA
+
+PROC Xtract%:(number%)
+LOCAL id%,wi%,ht%
+LOCAL f$(128),buf%(100)
+LOCAL h%,l%,o%
+f$=cmd$(1)
+l%=IOOPEN(h%,f$,$400)
+IF l%
+GOTO c2
+ENDIF
+l%=IOREAD(h%,ADDR(buf%(1)),200)
+IF l%<=140
+GOTO c1
+ENDIF
+IF buf%(1)<>%O+(%P*256)
+GOTO c1
+ENDIF
+IF buf%(2)<>%L+(%O*256)
+GOTO c1
+ENDIF
+o%=23+(buf%(11) AND $ff)
+l%=PEEKW(ADDR(buf%(1))+o%)
+IF l%<>%P+(%I*256)
+GOTO c1
+ENDIF
+IF l%=0
+GOTO c1
+ENDIF
+CALL($5f8d,1,o%,0,0,0)
+c1::
+IOCLOSE(h%)
+c2::
+id%=gLOADBIT(f$,0,number%)
+RETURN id%
+ENDP

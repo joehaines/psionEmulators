@@ -1,0 +1,783 @@
+PROC listpat:
+REM  Program to Print a List of Patients from a Data File.
+REM  Compatible with Psion Series 3a & 3c.  (Not Series 3).
+
+REM  *** Written by Dr Jason Wolfe ***
+REM  Copyright ¸ Jason Wolfe June 1998   Version 1.42
+REM  Contact me by E-mail at jwolfe@clara.net
+REM  Updates are available on-line at http://www.jwolfe.clara.net
+
+REM  This Program is distributed as 'Shareware' - This means it may be
+REM  Freely Copied and Distributed.  However if you find the Program
+REM  Useful, you are REQUIRED to Register yourself as a user of the
+REM  Program, and INVITED to contribute an appropriate Registration Fee.
+REM  The Registration Fee is not compulsory and is basically what you
+REM  think the program is worth.  Registration entitles you to Free 
+REM  Technical Support and Upgrades.  Please DO contact me to register,
+REM  even if you do not intend paying, as I am anxious to find out how
+REM  many people are out there using my programs.
+
+REM  For instructions on using the program, see the associated help file.
+
+REM  You may not Change Any Part of this Program or Use Any Part of it
+REM  in Any Other Products without my express permission.  The program
+REM  must be distributed in its entirety, with the 'help' file and 'dummy'
+REM  files included.  This Program is Not Public Domain.
+
+REM  (You can of course change the program variables relating to the 
+REM  Filename, Wards, Search Dates, Consultants, and various Printer 
+REM  Formatting Defaults)
+
+
+REM  Declares all the variables
+GLOBAL found%,printer%,display%,list%,wardnum%,rmargin%,rpos%,lpos%
+GLOBAL begin%,end%,return%,space%,count%,cnt%,yes%,more%,tot%,admipos%
+GLOBAL cons1$(15),cons2$(15),cons3$(15),cons4$(15),cons5$(15)
+GLOBAL cons1%,cons2%,cons3%,cons4%,cons5%,cons$(75)
+GLOBAL cons1nm%,cons2nm%,cons3nm%,cons4nm%,cons5nm%
+GLOBAL day%,day1%,day2%,month%,month1%,month2%,year%,year1%,year2%
+GLOBAL namelen%,bedlen%,conslen%,hosplen%,doblen%,doalen%,dodlen%
+GLOBAL file$(128),details$(255),buff$(255),date1$(15),date2$(15)
+GLOBAL string$(15),string2$(15),admissn$(5),admis2$(5),title$(120)
+GLOBAL ward$(40,30),ward$(30),xward$(30),spc$(20),char$(5),doda$(1)
+GLOBAL dot%(4),wardpos%,datepos%,wait%,psion%,A$(2),B$(2)
+FONT 5,0
+
+ONERR error
+
+REM ************************************************************************
+
+REM  The name of the data file which contains the Patients
+file$="Dummy"
+
+REM  Adds the File Suffix and Sets the Default Location where Files are Found.
+REM  Only change the Default Path if you know how - Consult the Manual.
+file$=file$+".dbf"
+SETPATH "M:\Dat\"
+
+REM  Here Follows the List of Wards:
+REM  To Change the Wards, delete what is between the quotes and add the
+REM    appropriate new name of the ward.  Add or delete extra lines as
+REM    is necessary.  The number in Brackets should go up sequentially.
+REM    The Order of Wards here is the Order of Wards which will be Printed.
+ward$(1)="Fleming"
+ward$(2)="Locke"
+ward$(3)="Harvey"
+ward$(4)="Nicholas"
+ward$(5)="Fraser"
+ward$(6)="Charnley"
+ward$(7)="Hunt"
+ward$(8)="Ray"
+ward$(9)="Lister"
+ward$(10)="Penn"
+ward$(11)="ITU"
+ward$(12)="ICU"
+ward$(13)="Bevan"
+ward$(14)="Gibberd"
+ward$(15)="Saunders"
+ward$(16)="Nightingale"
+ward$(17)="WilliamsDay"
+ward$(18)="Labour"
+ward$(19)="SCBU"
+ward$(20)="Harold"
+ward$(21)="Psychi"
+ward$(22)="CCU"
+ward$(23)="A&E"
+ward$(24)="OPD"
+ward$(25)="Admissions"
+ward$(26)="Daycase"
+ward$(27)="Unknown"
+ward$(28)="TCI"
+ward$(29)="Other"
+ward$(30)="Review"
+
+REM  The names of up to five consultants
+REM  If there are less than 5 consultants, leave the entry 'null'
+REM  (Eg : cons5$="")
+cons1$="Forster"
+cons2$="Barrie"
+cons3$="Oxley"
+cons4$="Ambe"
+cons5$=""
+
+REM  The Start Date & End Date Defaults
+date1$="10.12.94"
+date2$="31.2.95"
+
+REM  The Default Printer
+REM  General = 1,  Epson = 2,  Hewlett Packard = 3,  To File = 4
+printer%=2
+
+REM ***********************************************************************
+
+REM  Tests to see which Psion Machine is running this Program
+REM  1 = Series 3,  2 = Series 3a,  3 = Series 3c
+IF EXIST ("rom::files.app") :psion%=3
+	ELSEIF EXIST ("rom::SYS$NORM.FON") :psion%=1
+	ELSE :psion%=2
+ENDIF
+
+REM  The positions of the Ward & Date Labels in the Data File.
+wardpos%=3
+datepos%=6
+
+REM  The Maximum Width (in characters) allowed for each Column.
+namelen%=18
+bedlen%=3
+conslen%=8
+hosplen%=7
+doblen%=8
+doalen%=10
+dodlen%=10
+
+dINIT "Patient Listing Program   ¸ Jason Wolfe  June 1998  v1.42"
+dFILE file$,"Filename :",0
+dCHOICE list%,"List by","Ward,Order of Data File (Simple),Order of Data File (Full Audit),Date of Admission,Date of Discharge"
+dEDIT date1$,"Start Date",8
+dEDIT date2$,"End Date",8
+dCHOICE printer%,"Printer Driver","General,Epson,Hewlett Packard,To  File"
+GIPRINT "For explanatory notes see the associated 'Help' file",1
+DIALOG
+
+REM Defines right & left margins & printing format depending on the printer.
+
+IF printer%=1 :rmargin%=78 :display%=2 :ENDIF
+IF printer%=2 :rmargin%=132 :display%=1 :ENDIF
+IF printer%=3 :rmargin%=140 :display%=1 :ENDIF
+IF printer%=4 :rmargin%=78 :display%=2 :ENDIF
+IF list%=1 AND display%=1 :lpos%=namelen%+bedlen%+conslen%+hosplen%+doblen%+doalen%+5 :ENDIF
+IF list%=2 AND display%=1 :lpos%=namelen%+conslen%+hosplen%+doblen%+doalen%+4 :ENDIF
+IF list%>2 AND display%=1 :lpos%=namelen%+conslen%+hosplen%+doblen%+doalen%+dodlen%+4 :ENDIF
+IF list%=1 AND display%=2 :lpos%=namelen%+bedlen%+conslen%+3 :ENDIF
+IF list%>1 AND display%=2 :lpos%=namelen%+conslen%+2 :ENDIF
+
+REM  String Analysis of Date1$ & Date2$
+IF list%=4 OR list%=5
+	begin%=0:count%=1
+	DO
+		begin%=begin%+1
+		char$=MID$(date1$,begin%,1)
+		IF char$="." AND count%=1 :dot%(1)=begin% :count%=count%+1 :ENDIF
+		IF char$="." AND count%=2 :dot%(2)=begin% :count%=count%+1 :ENDIF
+	UNTIL begin%>=LEN(date1$)
+	begin%=0
+	DO
+		begin%=begin%+1
+		char$=MID$(date2$,begin%,1)
+		IF char$="." AND count%=3 :dot%(3)=begin% :count%=count%+1 :ENDIF
+		IF char$="." AND count%=4 :dot%(4)=begin% :count%=count%+1 :ENDIF
+	UNTIL begin%>=LEN(date2$)
+	day1%=VAL(LEFT$(date1$,dot%(1)-1))
+	day2%=VAL(LEFT$(date2$,dot%(3)-1))
+	month1%=VAL(MID$(date1$,dot%(1)+1,dot%(2)-dot%(1)+2))
+	month2%=VAL(MID$(date2$,dot%(3)+1,dot%(4)-dot%(3)+2))
+	year1%=VAL(RIGHT$(date1$,2))
+	year2%=VAL(RIGHT$(date2$,2))
+ENDIF
+
+REM  Whether to Sort by DOA or DOD
+IF list%=4 :doda$="A" :buff$="Admitted" :ENDIF
+IF list%=5 :doda$="H" :buff$="Discharged" ::ENDIF
+
+REM  Open the file for access.
+OPENR file$,A,name$,hosp$,ward$,dob$,cons$,dates$,diag$,notes1$,notes2$,notes3$,notes4$,notes5$,notes6$,notes7$,notes8$,notes9$,notes10$,notes11$,notes12$,notes13$,notes14$,notes15$,notes16$
+
+REM  Tests to see if a printer is connected.
+IF psion%=2
+	TRAP LOPEN "PAR:A"
+	IF ERR=-41 AND printer%<>4 :printer%=0 :ENDIF
+ENDIF
+IF psion%=3
+	LOPEN "tty:a" :rsset:(16,0,8,1,$1D,&0)
+	IF printer%=0 OR printer%=4 :PAUSE 2 :LCLOSE :ENDIF
+ENDIF
+IF printer%=4 :LOPEN "\P.lis" :ENDIF
+
+REM  Reference List of Printer Codes & Printer Formating Presets
+IF printer%=2 :REM Epson
+	LPRINT CHR$(27);CHR$(120);CHR$(0); REM Draft (Necessary in Epson LX & FX Printers, but not others)
+	LPRINT CHR$(27);CHR$(65);CHR$(10); REM n/72 inch line spacing
+	LPRINT CHR$(27);CHR$(81);CHR$(157); REM Right Margin  (102+55)
+ENDIF
+
+IF printer%=3 :REM Hewlett Packard
+	REM  LPRINT CHR$(27);"&k0G";CHR$(27);"&l0o6d0"; REM Start of Text Job
+	REM  LPRINT CHR$(27);"E" REM End of Text Job
+	REM  LPRINT CHR$(27);"&13H" REM Form Feed
+ENDIF
+
+REM  Redefines file$ for use in the Title.
+file$=MID$(file$,9,LEN(file$)-12)
+
+REM  Prints Title
+IF list%=1 :title$="Patient List on "+DATIM$ :ENDIF
+IF list%=2 :title$="List of Patients in the Data File : "+file$ :ENDIF
+IF list%=3 :title$="Full Audited List of Patients in the Data File : "+file$ :ENDIF
+IF list%=4 :title$="Patients in Data File "+file$+" "+buff$+" between "+date1$+" and "+date2$ :ENDIF
+IF list%=5 :title$="Patients in Data File "+file$+" "+buff$+" between "+date1$+" and "+date2$ :ENDIF
+
+STYLE 2
+PRINT title$ :PRINT
+STYLE 0
+
+IF printer%=2
+	LPRINT CHR$(27);CHR$(45);CHR$(1); :REM Underlining On
+	LPRINT CHR$(27);CHR$(69); :REM Select Emphasized
+	LPRINT title$ :LPRINT
+	LPRINT CHR$(27);CHR$(70); :REM Cancel Emphasized
+	LPRINT CHR$(27);CHR$(45);CHR$(0); :REM Underlining Off
+	LPRINT CHR$(15); REM Condensed
+ENDIF
+
+IF printer%=3
+	IF list%=1 :LPRINT CHR$(27);"(s6H"; :ENDIF :REM Expanded
+	LPRINT CHR$(27);"&d0D"; REM Underline On
+	LPRINT CHR$(27);"(s+3B"; REM Bold on
+	LPRINT title$ :LPRINT
+	LPRINT CHR$(27);"(s0B"; REM Bold Off
+	LPRINT CHR$(27);"&d@"; REM Underline Off
+	LPRINT CHR$(27);"(s17H"; REM Condensed
+
+ENDIF
+IF printer%=1 OR printer%=4
+	IF list%=1 :LPRINT title$; :ENDIF
+	IF list%>1 :LPRINT title$ :LPRINT :ENDIF
+ENDIF
+
+IF list%=1
+	REM  Finds out how many wards there are the Check
+	DO
+		wardnum%=wardnum%+1
+	UNTIL ward$(wardnum%)=""
+	wardnum%=wardnum%-1
+
+	REM  Outer Loop Ward Counter.
+	count%=1
+	WHILE count% <= wardnum%
+		REM  Tests if ward has patients on it, & Prints it out if it does.
+		ward$=ward$(count%)+"*"
+		found%=FINDFIELD(ward$,wardpos%,1,3)
+		IF found%=0 :GOTO outloop2:: :ENDIF
+		xward$=ward$(count%)+" Ward"
+
+		REM  Ward Aliases
+		IF xward$= "TCI Ward" :xward$= "Patients To Come In" :ENDIF
+		IF xward$= "ITU Ward" :xward$= "Intensive Care Unit" :ENDIF
+		IF xward$= "ICU Ward" :xward$= "Intensive Care Unit" :ENDIF
+		IF xward$= "OPD Ward" :xward$= "Outpatients Department" :ENDIF
+		IF xward$= "A&E Ward" :xward$= "Accident & Emergency" :ENDIF
+		IF xward$= "CCU Ward" :xward$= "Coronary Care Unit" :ENDIF
+		IF xward$= "SCBU Ward" :xward$= "Special Care Baby Unit" :ENDIF
+		IF xward$= "Admissions Ward" :xward$= "Admissions Unit" :ENDIF
+		IF xward$= "Daycase Ward" :xward$= "Daycase Unit" :ENDIF
+		IF xward$= "Review Ward" :xward$= "Patients to Review" :ENDIF
+		IF xward$= "Other Ward" :xward$= "Patients on Other Wards" :ENDIF
+		IF xward$= "Unknown Ward" :xward$= "Unknown Location" :ENDIF
+
+		PRINT :IF printer% :LPRINT :LPRINT :ENDIF
+		STYLE 2
+		PRINT xward$
+		STYLE 0
+		IF printer%=2
+			LPRINT CHR$(27);CHR$(87);CHR$(1); REM Select Double Width
+			LPRINT CHR$(27);CHR$(45);CHR$(1); :REM Underlining On
+			LPRINT CHR$(27);CHR$(69); :REM Select Emphasized
+			LPRINT xward$;
+			LPRINT CHR$(27);CHR$(45);CHR$(0); :REM Underlining Off
+			LPRINT CHR$(27);CHR$(70) :REM Cancel Emphasized
+			LPRINT CHR$(27);CHR$(87);CHR$(0); REM Cancel Double Width
+			LPRINT CHR$(15); REM Condensed
+		ENDIF
+		IF printer%=3
+			LPRINT CHR$(27);"(s6H"; REM Expanded
+			LPRINT CHR$(27);"&d0D"; REM Underline On
+			LPRINT CHR$(27);"(s+3B"; REM Bold on
+			LPRINT xward$
+			LPRINT CHR$(27);"(s0B"; REM Bold Off
+			LPRINT CHR$(27);"&d@"; REM Underline Off
+			LPRINT CHR$(27);"(s17H"; REM Condensed
+		ENDIF
+		IF printer%=1 OR printer%=4
+			LPRINT "** ";xward$;" **"
+		ENDIF
+
+		REM  Inner Loop - Finds a patient on a ward and then prints it out.
+		DO
+			found%=FINDFIELD(ward$,wardpos%,1,1)
+			POSITION found%
+			IF found%=0 :GOTO outloop1:: :ENDIF
+			line:
+			NEXT
+			A$=KEY$
+			IF A$ <>"" AND A$<>" " :BUSY "Press a key...",1,20 :DO :B$=KEY$ :UNTIL B$ <>"" :BUSY OFF :ENDIF
+			IF A$=" " OR B$=" " :wait%=1 :ENDIF
+		UNTIL EOF AND count%=wardnum%
+
+		outloop1::
+		IF wait%
+			BUSY "Press a key...",1,20
+			A$=GET$
+			BUSY OFF
+			wait%=0
+			IF ASC(A$) >= 49 AND ASC(A$) <= 57 :count%=VAL(A$)-1 :ENDIF
+			IF A$=" ":wait%=1 :ENDIF
+			A$="" :B$=""
+		ENDIF
+		outloop2::
+		count%=count%+1
+	ENDWH
+	IF printer%=3 :LPRINT CHR$(27);"&13H" :ENDIF REM Form Feed
+ENDIF
+
+IF list%=2 OR list%=3
+	DO
+		line:
+		NEXT
+		IF KEY$ <>"" :DO :UNTIL KEY$ <>"" :ENDIF
+	UNTIL EOF
+	IF printer%=3 :LPRINT CHR$(27);"&13H" :ENDIF REM Form Feed
+ENDIF
+
+IF list%=4 OR list%=5
+	REM  Triple Nested Loop - Counters for Day, Month & Year.
+	day%=day1% :month%=month1% :year%=year1%
+	DO
+	DO
+	DO
+	DO
+		string$="*"+doda$+NUM$(day%,2)+"."+NUM$(month%,2)+"."+NUM$(year%,2)+"*"
+		string2$=doda$+NUM$(day%,2)+"."+NUM$(month%,2)+"."+NUM$(year%,2)
+
+		DO
+			found%=FINDFIELD(string$,datepos%,1,1)
+			POSITION found%
+			IF found%=0 :GOTO outloop3:: :ENDIF
+			line:
+			NEXT
+			IF KEY$ <>"" :DO :UNTIL KEY$ <>"" :ENDIF
+		UNTIL EOF
+
+		outloop3::
+		IF day%=day2% AND month%=month2% AND year%=year2% :GOTO out:: :ENDIF
+
+		day%=day%+1
+	UNTIL day%=32
+	day%=1 :month%=month%+1
+	UNTIL month%=13
+	month%=1 :year%=year%+1
+	UNTIL year%=year2%
+	UNTIL day%=day2% AND month%=month2% AND year%=year2%
+ENDIF
+
+out::
+
+REM  Prints the Number of Patients under each Consultant and the Total.
+PRINT :PRINT :IF printer% :LPRINT :LPRINT :ENDIF
+PRINT "Number of ",cons1$," Patients : ",NUM$(cons1nm%,3)
+IF cons2$<>"" :PRINT "Number of ",cons2$,"  Patients : ",NUM$(cons2nm%,3) :ENDIF
+IF cons3$<>"" :PRINT "Number of ",cons3$,"  Patients : ",NUM$(cons3nm%,3) :ENDIF
+IF cons4$<>"" :PRINT "Number of ",cons4$,"  Patients : ",NUM$(cons4nm%,3) :ENDIF
+IF cons5$<>"" :PRINT "Number of ",cons5$,"  Patients : ",NUM$(cons5nm%,3) :ENDIF
+PRINT "Total Number of Patients   : ",NUM$(tot%,3)
+
+IF printer%=2
+	LPRINT CHR$(18);CHR$(27);CHR$(120);CHR$(1); REM Select NLQ
+ENDIF
+IF printer%=3
+	LPRINT CHR$(27);"(s10H"; REM Normal Print Width
+ENDIF
+IF printer%
+	LPRINT "Number of ";cons1$;" Patients : ";cons1nm%
+	IF cons2$<>"" :LPRINT "Number of ";cons2$;" Patients  : ";cons2nm% :ENDIF
+	IF cons3$<>"" :LPRINT "Number of ";cons3$;" Patients  : ";cons3nm% :ENDIF
+	IF cons4$<>"" :LPRINT "Number of ";cons4$;" Patients  : ";cons4nm% :ENDIF
+	IF cons5$<>"" :LPRINT "Number of ";cons5$;" Patients  : ";cons5nm% :ENDIF
+		LPRINT "Total Number of Patients : ";tot%
+	IF printer%=3 :LPRINT CHR$(27);"&13H" :ENDIF REM Form Feed
+	PAUSE 2
+	LCLOSE
+ENDIF
+
+GET
+
+error::
+ONERR OFF
+
+IF ERR AND ERR<>-41
+	PRINT :PRINT
+	PRINT "Error Details";REPT$(" ",9);":    ";ERR$(ERR),"(";ERR;")"
+	IF ERR<>-43 AND ERR<>-40 AND ERR<>-44 AND ERR<>-112
+		PRINT :PRINT "Associated with the entry : ";A.name$ :PRINT
+		PRINT :PRINT "Check this Database entry for layout errors."
+	ENDIF
+	IF ERR=-40
+		PRINT
+		PRINT "The file you requested is already in use by another application."
+		PRINT
+		PRINT "Close the Data file and then re-run this program."
+		PRINT
+		PRINT
+		PRINT "The other cause of this error is on a Psion Series 3c if"
+		PRINT "Communications (on the System screen) is set to 'Link Cable'"
+		PRINT "Please reset the Communications option to 'Psion IR' or 'None'."
+		PRINT "See the help file for more information."
+		PRINT
+		PRINT
+		PRINT "Press any key to continue..."
+	ENDIF
+	IF ERR=-112
+		PRINT
+		PRINT "Any single line in a Psion Database cannot be more than 256 bytes (characters)"
+		PRINT "long.  Standard OPL routines do not allow access to records longer than this."
+		PRINT :PRINT "The error is associated with the record : ";A.name$
+		PRINT :PRINT "Go back to the 'Data' application, find this particular entry and shorten it."
+		PRINT :PRINT :PRINT "See the Help file for more details."
+		PRINT :PRINT "Press any key to continue..."
+	ENDIF
+	IF ERR=-43
+		PRINT :PRINT
+		PRINT "Database entries must not be longer than 1K long per record."
+		PRINT "Check through the Data File and shorten the offending record."
+		PRINT
+		PRINT "I'm sorry I can't tell you which entry is too long but I am limited"
+		PRINT "by this operating system which doesn't even allow me to open the file"
+		PRINT "for access if one or more of the records is longer than 1 Kilobyte !"
+		PRINT
+		PRINT "You will just have to check all through the data file yourself"
+		PRINT "and shorten the appropriate record when you find it."
+		PRINT
+		PRINT "Press any key to continue..."
+	ENDIF
+	GET
+ENDIF
+
+ENDP
+
+
+PROC line:
+strtline::
+tot%=tot%+1
+
+REM  Prints Name
+IF A.name$="" :A.name$="?" :ENDIF
+PRINT LEFT$(A.name$,namelen%);
+IF printer% :LPRINT LEFT$(A.name$,namelen%); :ENDIF
+spc$=REPT$(" ",(namelen%+1)-LEN(LEFT$(A.name$,namelen%)))
+PRINT spc$;	 :IF printer% :LPRINT spc$; :ENDIF
+
+REM  Prints Bed Number
+IF list%=1
+	space%=LOC(A.ward$," ")
+	IF space%
+		PRINT MID$(A.ward$,space%+1,bedlen%);
+		IF printer% :LPRINT MID$(A.ward$,space%+1,bedlen%); :ENDIF
+		spc$=REPT$(" ",(bedlen%+1)-LEN(MID$(A.ward$,space%+1,bedlen%)))
+	ENDIF
+	IF space%=0 :spc$="    " :ENDIF
+	PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+ENDIF
+
+REM  Prints Consultant
+IF A.cons$="" :A.cons$="?" :ENDIF
+cons1%=LOC(A.cons$,cons1$)
+IF cons2$<>"" :cons2%=LOC(A.cons$,cons2$) :ENDIF
+IF cons3$<>"" :cons3%=LOC(A.cons$,cons3$) :ENDIF
+IF cons4$<>"" :cons4%=LOC(A.cons$,cons4$) :ENDIF
+IF cons5$<>"" :cons5%=LOC(A.cons$,cons5$) :ENDIF
+cons$=""
+IF cons1% :cons$=cons1$ :cons1nm%=cons1nm%+1 :ENDIF
+IF cons2% AND cons2$<>"" :cons$=cons2$ :cons2nm%=cons2nm%+1 :ENDIF
+IF cons3% AND cons3$<>"" :cons$=cons3$ :cons3nm%=cons3nm%+1 :ENDIF
+IF cons4% AND cons4$<>"" :cons$=cons4$ :cons4nm%=cons4nm%+1 :ENDIF
+IF cons5% AND cons5$<>"" :cons$=cons5$ :cons5nm%=cons5nm%+1 :ENDIF
+IF cons1%=0 AND cons2%=0 AND cons3%=0 AND cons4%=0 AND cons5%=0 :cons$=A.cons$ :ENDIF
+PRINT LEFT$(cons$,conslen%);
+IF printer% :LPRINT LEFT$(cons$,conslen%); :ENDIF
+spc$=REPT$(" ",(conslen%+1)-LEN(LEFT$(cons$,conslen%)))
+PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+REM  Prints Hospital Number
+IF A.hosp$="" :A.hosp$="?" :ENDIF
+PRINT LEFT$(A.hosp$,hosplen%);
+IF printer% :LPRINT LEFT$(A.hosp$,hosplen%); :ENDIF
+spc$=REPT$(" ",(hosplen%+1)-LEN(LEFT$(A.hosp$,hosplen%)))
+PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+REM  Prints Date of Birth
+IF A.dob$="" :A.dob$="?" :ENDIF
+space%=LOC(A.dob$," ")
+IF space%=0 :space%=doblen% :ENDIF
+PRINT LEFT$(A.dob$,space%);
+IF printer% :LPRINT LEFT$(A.dob$,space%); :ENDIF
+spc$=REPT$(" ",(doblen%+1)-LEN(LEFT$(A.dob$,space%)))
+PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+REM  If list% is 1 or 2 then Finds the most recent admission.
+IF list%=1 OR list%=2
+	return%=LOC(A.dates$,CHR$(21))
+	begin%=1 :admissn$="1. "
+	IF return%
+		begin%=LEN(A.dates$)
+		DO
+			begin%=begin%-1
+		UNTIL MID$(A.dates$,begin%,1)=CHR$(21)
+		begin%=begin%+1 :admissn$=MID$(A.dates$,begin%,3)
+	ENDIF
+ENDIF
+
+REM  If list% is 3 then finds the admission dates in sequential order.
+IF list%=3
+	return%=LOC(A.dates$,CHR$(21))
+	IF return%=0 :admissn$="1. " :ENDIF
+	IF return%
+		begin%=admipos%
+		IF admipos%<>0
+			DO
+				begin%=begin%+1
+			UNTIL MID$(A.dates$,begin%,1)=CHR$(21)
+		ENDIF
+		begin%=begin%+1
+		admissn$=MID$(A.dates$,begin%,3)
+		end%=begin%
+		DO
+			end%=end%+1
+		UNTIL end%>=LEN(A.dates$) OR MID$(A.dates$,end%,1)=CHR$(21)
+		IF end%=LEN(A.dates$) :more%=0 :admis2$="" :ENDIF
+		IF MID$(A.dates$,end%,1)=CHR$(21)
+			more%=1 :admipos%=end%-1 :admis2$=MID$(A.dates$,end%+1,3)
+		ENDIF
+	ENDIF
+ENDIF
+
+REM  If list% is 4 or 5 then defines 'admissn$' - The appropriate admission.
+IF list%=4 OR list%=5
+	begin%=LOC(A.dates$,string2$)
+	DO
+		IF begin% >1 :begin%=begin%-1 :ENDIF
+	UNTIL begin%=1 OR MID$(A.dates$,begin%,1)=CHR$(21)
+	IF begin%=1 :admissn$="1. " :ENDIF
+	IF begin% > 1 :begin%=begin%+1 :admissn$=MID$(A.dates$,begin%,3) :ENDIF
+	end%=begin%
+	DO
+		end%=end%+1
+	UNTIL end%>=LEN(A.dates$) OR MID$(A.dates$,end%,1)=CHR$(21)
+	IF end%=LEN(A.dates$) :admis2$="" :ENDIF
+	IF MID$(A.dates$,end%,1)=CHR$(21) :admis2$=MID$(A.dates$,end%+1,3) :ENDIF
+ENDIF
+
+REM  Prints out the Date of Admission.
+IF A.dates$="" :A.dates$="A?  -  H?" :ENDIF
+begin%=LOC(A.dates$,admissn$)
+IF admissn$="1. " :begin%=0 :ENDIF
+DO
+	begin%=begin%+1
+UNTIL MID$(A.dates$,begin%,1)="A" OR begin% >= LEN(A.dates$)
+end%=begin%
+DO
+	end%=end%+1
+UNTIL MID$(A.dates$,end%,1)=" " OR end% >= LEN(A.dates$)
+IF end% > LEN(A.dates$) :end%=LEN(A.dates$) :ENDIF
+PRINT MID$(A.dates$,begin%,end%-begin%);
+IF printer% :LPRINT MID$(A.dates$,begin%,end%-begin%); :ENDIF
+spc$=REPT$(" ",(doalen%+1)-(end%-begin%+1))
+PRINT spc$; :IF printer% :LPRINT spc$; :ENDIF
+
+REM  Prints out the Date of Discharge.
+IF list%>2
+	DO
+		begin%=begin%+1
+		char$=MID$(A.dates$,begin%,1)
+	UNTIL char$="H" OR char$=CHR$(21) OR begin% >= LEN(A.dates$)
+	IF begin% > LEN(A.dates$) :begin%=LEN(A.dates$) :ENDIF
+	end%=begin%
+	DO
+		end%=end%+1
+		char$= MID$(A.dates$,end%,1)
+	UNTIL char$=" " OR char$=CHR$(21) OR end% > LEN(A.dates$)
+	PRINT MID$(A.dates$,begin%,end%-begin%);
+	IF printer% :LPRINT MID$(A.dates$,begin%,end%-begin%); :ENDIF
+	spc$=REPT$(" ",(dodlen%+1)-(end%-begin%+1))
+	PRINT spc$; :IF printer% : LPRINT spc$; :ENDIF
+ENDIF
+
+REM  Prints out the appropriate Diagnosis.
+IF A.diag$="" :A.diag$="?" :ENDIF
+begin%=LOC(A.diag$,admissn$)
+IF begin%=0 :begin%=1 :ENDIF
+end%=LOC(A.diag$,admis2$)-1
+IF end%=0 :end%=255 :ENDIF
+buff$=""
+IF list%=1 :rpos%=namelen%+bedlen%+conslen%+hosplen%+doblen%+doalen%+6 :ENDIF
+IF list%=2 :rpos%=namelen%+conslen%+hosplen%+doblen%+doalen%+5 :ENDIF
+IF list%>2 :rpos%=namelen%+conslen%+hosplen%+doblen%+doalen%+dodlen%+6 :ENDIF
+details$=MID$(A.diag$,begin%,end%-begin%)
+IF display%=1 :PRINT LEFT$(details$,80-rpos%) :ENDIF
+print:
+
+REM  Prints the first 16 lines of Notes
+yes%=0
+IF A.notes1$ <> ""
+	details$="  ["+A.notes1$ :yes%=1 :print:
+ENDIF
+IF A.notes2$ <> ""
+	details$="  "+A.notes2$ :yes%=1 :print:
+ENDIF
+IF A.notes3$ <> ""
+	details$="  "+A.notes3$ :yes%=1 :print:
+ENDIF
+IF A.notes4$ <> ""
+	details$="  "+A.notes4$ :yes%=1 :print:
+ENDIF
+IF A.notes5$ <> ""
+	details$="  "+A.notes5$ :yes%=1 :print:
+ENDIF
+IF A.notes6$ <> ""
+	details$="  "+A.notes6$ :yes%=1 :print:
+ENDIF
+IF A.notes7$ <> ""
+	details$="  "+A.notes7$ :yes%=1 :print:
+ENDIF
+IF A.notes8$ <> ""
+	details$="  "+A.notes8$ :yes%=1 :print:
+ENDIF
+IF A.notes9$ <> ""
+	details$="  "+A.notes9$ :yes%=1 :print:
+ENDIF
+IF A.notes10$ <> ""
+	details$="  "+A.notes10$ :yes%=1 :print:
+ENDIF
+IF A.notes11$ <> ""
+	details$="  "+A.notes11$ :yes%=1 :print:
+ENDIF
+IF A.notes12$ <> ""
+	details$="  "+A.notes12$ :yes%=1 :print:
+ENDIF
+IF A.notes13$ <> ""
+	details$="  "+A.notes13$ :yes%=1 :print:
+ENDIF
+IF A.notes14$ <> ""
+	details$="  "+A.notes14$ :yes%=1 :print:
+ENDIF
+IF A.notes15$ <> ""
+	details$="  "+A.notes15$ :yes%=1 :print:
+ENDIF
+IF A.notes16$ <> ""
+	details$="  "+A.notes16$ :yes%=1 :print:
+ENDIF
+IF yes% :details$="]" :print: :ENDIF
+
+REM  IF there is extra info on the Consultant Line, this is Printed.
+space%=LOC(A.cons$," ")
+IF space% :details$="  ["+A.cons$+"]" :print: :ENDIF
+
+REM  If there is an Open Bracket '(' on the Dates Line, this is Noted.
+begin%=LOC(A.dates$,admissn$) :yes%=0
+IF admissn$="1. " :begin%=1 :ENDIF
+DO
+	begin%=begin%+1
+	char$=MID$(A.dates$,begin%,1)
+	IF char$="(" :yes%=1 :ENDIF
+UNTIL char$="(" OR char$=CHR$(21) OR begin% >= LEN(A.dates$)
+
+REM  Prints out the extra information after the '(' on the Dates Line.
+IF yes%
+	begin%=LOC(A.dates$,admissn$)
+	IF admissn$="1. " :begin%=1 :ENDIF
+	DO
+		begin%=begin%+1
+	UNTIL MID$(A.dates$,begin%,1)="("
+	begin%=begin%+1 :end%=begin%
+	DO
+		end%=end%+1
+	UNTIL MID$(A.dates$,end%,1)=")" OR end%>= LEN(A.dates$)
+	IF end% > LEN(A.dates$) :end%=LEN(A.dates$) :ENDIF
+	details$="  ["+MID$(A.dates$,begin%,end%-begin%)
+
+	REM  Prints out the appropriate Date relating to the '(' on the Dates Line.
+	begin%=LOC(A.dates$,admissn$)
+	IF admissn$="1. " :begin%=1 :ENDIF
+	DO
+		begin%=begin%+1
+	UNTIL MID$(A.dates$,begin%,1)="H"
+	end%=begin%
+	DO
+		end%=end%+1
+	UNTIL MID$(A.dates$,end%,1)=" "
+	end%=end%-1
+	details$=details$+" "+MID$(A.dates$,begin%,end%-begin%)+"]"
+	print:
+ENDIF
+
+REM  If the Patient has died - prints out the Date of Death.
+begin%=LOC(A.dates$,"RIP H")
+end%=begin%  :end%=end%+4
+IF begin%
+	DO
+		end%=end%+1
+	UNTIL MID$(A.dates$,end%,1)=" " OR end% >= LEN(A.dates$)
+	IF end%=LEN(A.dates$) :end%=end%+1 :ENDIF
+	details$="  ["+MID$(A.dates$,begin%,end%-begin%)+"]"
+	print:
+ENDIF
+
+IF display%=2 :PRINT :ENDIF
+IF printer% :LPRINT :ENDIF
+
+IF more% :GOTO strtline:: :ELSE admipos%=0 :ENDIF
+ENDP
+
+
+REM  Standard Printing Routine.
+PROC print:
+IF printer% OR display%=2
+	cnt%=0
+	DO
+		cnt%=cnt%+1 :rpos%=rpos%+1
+		REM  Filters out all CHR$(21) & '#' Characters.
+		IF MID$(details$,cnt%,1)=CHR$(21)
+			details$=LEFT$(details$,cnt%-1)+" "+MID$(details$,cnt%+1,255)
+		ELSEIF MID$(details$,cnt%,1)=CHR$(35)
+			details$=LEFT$(details$,cnt%-1)+"*"+MID$(details$,cnt%+1,255)
+		ENDIF
+		REM  Establishes a One Line Buffer & Prints it out when Buffer is full.
+		buff$=buff$+MID$(details$,cnt%,1)
+	IF cnt% >= LEN(details$)
+		IF LEFT$(buff$,1)=" " :buff$=RIGHT$(buff$,LEN(buff$)-1) :ENDIF
+		IF display%=2 :PRINT buff$; :ENDIF
+		IF printer% :LPRINT buff$; :ENDIF
+		buff$="" :GOTO exit
+	ELSEIF rpos% >= rmargin%-10 AND MID$(details$,cnt%,1)=" "
+		IF LEFT$(buff$,1)=" " :buff$=RIGHT$(buff$,LEN(buff$)-1) :ENDIF
+		IF display%=2 :PRINT buff$ :PRINT REPT$(" ",lpos%); :rpos%=lpos% :ENDIF
+		IF printer% :LPRINT buff$ :LPRINT REPT$(" ",lpos%); :rpos%=lpos%  :ENDIF
+		buff$="" :GOTO exit
+	ELSEIF rpos%=rmargin%
+		IF LEFT$(buff$,1)=" " :buff$=RIGHT$(buff$,LEN(buff$)-1) :ENDIF
+		IF display%=2 :PRINT buff$ :PRINT REPT$(" ",lpos%); :rpos%=lpos% :ENDIF
+		IF printer% :LPRINT buff$ :LPRINT REPT$(" ",lpos%); :rpos%=lpos%  :ENDIF
+		buff$="" :GOTO exit
+		ENDIF
+		exit::
+	UNTIL cnt% >= LEN(details$)
+ENDIF
+ENDP
+
+PROC rsset:(baud%,parity%,data%,stop%,hand%,term&)
+	LOCAL frame%,srchar%(6),dummy%,err%
+	frame%=data%-5
+	IF stop%=2 :frame%=frame% OR 16 :ENDIF
+	IF parity% :frame%=frame% OR 32 :ENDIF
+	srchar%(1)=baud% OR (baud%*256)
+	srchar%(2)=frame% OR (parity%*256)
+	srchar%(3)=(hand% AND 255) OR $1100
+	srchar%(4)=$13
+	POKEL ADDR(srchar%(5)),term&
+	err%=IOW(-1,7,srchar%(1),dummy%)
+	IF err%=203
+	REM Printer not connected / Line Failure
+		err%=0
+		IF printer%<>4 :printer%=0 :ENDIF
+	ENDIF
+	IF err% :RAISE err% :ENDIF
+ENDP
+

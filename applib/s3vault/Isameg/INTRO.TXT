@@ -1,0 +1,656 @@
+
+
+CHAPTER 1
+
+
+
+.C.1 INTRODUCTION
+
+
+
+
+
+
+
+
+.c.:Overview
+
+This manual describes the Indexed Sequential Access Method
+(ISAM) dynamic library for SIBO machines (HC, S3, S3a and
+MC).
+
+The ISAM library provides a powerful set of functions for
+rapid and efficient access of Database files (DBF files).
+Such files consist of multiple records containing one or
+more structured fields. They can be created, maintained and
+accessed from OPL programs and database applications on the
+HC, S3, S3a and MC (see the Database Files chapter of the
+PLIB Reference manual).
+
+The ISAM library uses B-tree index files to provide rapid
+and efficient indexed and sequential access to DBF files. It
+is the most widely used form of index file simply because it
+is the most efficient general method of accessing database
+files. In brief, B-tree index files minimise the number of
+disk accesses per retrieval - manipulating data already in
+memory is much faster than accessing the disk - whilst
+ensuring a well balanced index i.e. no one retrieval
+requires an inordinately large number of disk accesses (for
+details see for example Structures, by Michael J.Folk and
+Bill Zoellick, published by Addison-Wesley Publishing
+Company).
+
+.c.::The ISAM library
+The ISAM library functions provide the following:
+
+  þ  Fast record retrieval on a key. For example a DBF file
+     can be searched for all records containing the key
+     "Smith".
+
+  þ  Very little degradation of the speed of retrieval as
+     the number of records increases - even large DBF files
+     can be manipulated with relative ease.
+
+  þ  Sequential access to records that are ordered by the
+     key (that is, next, back, first and last). For example
+     a record with key "Smalley" that precedes a current
+     record with key "Smith" can be rapidly found using the
+     O_IS_IBACK function.
+
+
+
+                                                           1
+
+ISAM REFERENCE
+
+  þ  The ability to see a selection of the records in the
+     file (by constructing a selective or sparse index). For
+     example all records containing the key "Smith" can be
+     viewed.
+
+  þ  Access to record fields with automatic conversion from
+     numbers to text (and vice-versa) if required.
+
+  þ  The ability to make powerful key definitions that
+     facilitate access ordered on combinations of up to
+     eight fields. For example all records with key fields
+     "Smith" and "Slough" can be found with "Smith" given
+     the higher priority.
+
+  þ  The opening of up to 31 index files for a DBF file at
+     any one time. For example, a DBF file containing
+     customer details can have two indexes, one for
+     searching on customer occupation and related details
+     and the other for searching on customer location and
+     related details.
+
+  þ  The adding, erasing, and updating of records with the
+     appropriate updating of all associated index files
+     carried out automatically thus greatly facilitating the
+     task of maintaining an index.
+
+
+
+.c.:DBF files
+
+.c.::Fields
+The following field types are available:
+
+  BYTE, UBYTE, WORD, UWORD, LONG, ULONG, DOUBLE, STRING.
+
+However, if compatibility with existing OPL or PLIB DBF
+functions is required, the field types must be restricted
+to:
+
+  WORD, LONG, DOUBLE, STRING
+
+.c.::Number of records
+The maximum number of records that can be handled by the
+PLIB DBF functions is 65534.
+
+However, in ISAM the maximum is 2147483647.
+
+
+
+.c.:B-tree index files
+
+The ISAM library uses B-tree index files to provide much
+more powerful indexed and sequential access to DBF files
+than would otherwise be possible.
+
+In general B-tree index files should not be constructed or
+maintained on a Flash SSD. There is however no reason not to
+read an index file from Flash SSD.
+
+
+
+
+2
+
+                                              1 INTRODUCTION
+
+.c.::Block buffering
+B-tree index files are block structured files having a block
+size of ISAM_BLOCK_SIZE (512) bytes (in the literature these
+blocks are sometimes referred to as pages - the terms are
+interchangeable).
+
+Index files are read using a least-recently-used (LRU) block
+buffering scheme - blocks that are repeatedly accessed are
+kept in memory (typically these are blocks near the root of
+the B-tree index). LRU block buffering has such an impact on
+the performance of the B-tree algorithm that it is not
+reasonable to do without it.
+
+The ISAM library implements a fixed-size LRU block pool per
+process regardless of the number of open index files. The
+size is fixed by calling the ISAM function O_IS_INIT and
+specifying zero causes the default of 20 blocks (10K bytes)
+to be used. If more than one ISAM object is created, the
+same block pool is used; if a new size is specified in
+O_IS_INIT, it is ignored if there are any index files still
+open. The new size is used once all of the original index
+files are closed.
+
+The LRU block pool is implemented in an external memory
+segment and does not, therefore, detract from the process
+data segment. The segment name will be BLK$nnnn.BLK where
+nnnn is the process ID in hex.
+
+.c.::Key description
+A key consists of up to eight fields with the constituent
+fields prioritised according to their order - the first
+having the highest priority - subject to an overall maximum
+key size of 64 bytes. For example, keys can be constructed
+from eight DOUBLE fields or, as a further example, the first
+63 characters of a single text field (stored as a leading
+byte count string).
+
+The field types: BYTE, UBYTE, WORD, UWORD, LONG, ULONG and
+DOUBLE are compared numerically whereas STRING fields are
+compared lexically using a given number of characters at a
+given offset from the start. The comparison is subject to a
+programmer defined collation table.
+
+The specification of the key is stored in the header of the
+B-tree index file and the structure is defined by
+ISAM_KEYDEF:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                           3
+
+ISAM REFERENCE
+
+  typedef struct
+     {
+     WORD field;         /* Field number for key */
+     UBYTE type;         /* Type of field in key */
+     UBYTE flags;        /* ISAM_FIELDFLAG_ASCEND or
+  ISAM_FIELDFLAG_DESCEND */
+     UBYTE offset;       /* Offset for start of comparison
+  */
+     UBYTE len;          /* Number of characters to compare
+  */
+     WORD convert;       /* Convert flag or collate table */
+  } ISAM_KEY_FIELD;
+  
+  typedef struct
+     {
+     WORD nKeyFields;    /* Number of key fields
+  following... */
+     ISAM_KEY_FIELD keyField[ISAM_MAX_KEYFIELDS];
+     } ISAM_KEYDEF;
+
+The convert field can take one of the following values:
+
+  ISAM_CONVERT_NOFOLD
+  ISAM_CONVERT_FOLD
+  ISAM_CONVERT_UPPER
+  ISAM_CONVERT_LOWER
+
+which range from 0 - 3, or it can be the address of a user
+defined 256 byte collate table.
+
+The priority for the field comparisons is the order they are
+specified with the first one having highest priority.
+
+.c.::Size of B-tree files
+The size of a B-tree file depends upon the key size;
+therefore, it is good practice to keep the key as compact as
+possible. A worst-case B-tree file is only 50% full so the
+maximum size of a B-tree file is approximately:
+
+  2*(number of records)*(key length + 6)
+
+For example, an index file with an eight byte key for a 1000
+record file would require approximately 28K bytes of
+storage.
+
+However, under typical use, a B-tree will be approximately
+67% full and with the ISAM_MINIMISE flag set (see the
+O_IS_IFLAGS function) this is increased to approximately
+86%. Note also that B-trees built from sorted data using
+O_IS_IQBUILD or O_IS_IQADD are significantly more compact,
+typically 98% or over for large numbers of records.
+
+
+
+.c.:Interface to the ISAM library
+
+The ISAM library is written using object-oriented
+programming (OOP). A class hierarchy has been implemented
+such that OOP programmers can subclass the library to handle
+
+
+
+4
+
+                                              1 INTRODUCTION
+
+record files other than DBF files and to use index files
+other than B-tree files.
+
+Most of the ISAM functions can be called using conventional
+C (using the PLIB p_send or p_entersend functions) and the
+library is compatible with any combination of CLIB and PLIB
+libraries.
+
+The rest of this section describes how to use the ISAM
+library from conventional C. In any program using ISAM, the
+following steps will be involved:
+
+  þ  Load the ISAM DYL.
+
+  þ  Create an ISAM object
+
+  þ  Call the ISAM functions
+
+  þ  Destroy the ISAM object
+
+.c.::Loading the DYL
+The ISAM library is supplied as one file ISAM.DYL. Before
+any ISAM functions can be called, this must be loaded. This
+will get a category handle which is needed for an ISAM
+object to be created. The loading must be done in one of two
+ways depending on whether it has been linked into a multiple
+DYL file (normally an executable) or not.
+
+  þ  If not linked to a multiple DYL file, the PLIB function
+     p_loadlib must be used, for example:
+     
+     HANDLE isamCat;
+     
+     p_loadlib("ISAM.DYL",&isamCat,TRUE);
+     
+     will load ISAM.DYL from the current directory and write
+     the category handle to isamCat.
+
+  þ  If linked to a multiple DYL, the two PLIB functions
+     p_openlib and p_loadfilelib must be used, for example,
+     if ISAM.DYL has been linked as the first DYL in an
+     executable:
+     
+     HANDLE isamCat;
+     VOID *chan;
+     
+     chan=NULL;
+     if (p_openlib(&chan,DatCommandPtr)==0)
+          p_loadfilelib(chan,0,&isamCat,TRUE);
+     p_close(chan);
+     
+     will load ISAM.DYL from the current executable and
+     write the category handle to isamCat.
+
+.c.::Creating an ISAM object
+Once the ISAM library has been loaded, an ISAM object can be
+created. The class of the object required is defined in
+isam.g as C_BTDBF, which is an ISAM object using B-trees to
+
+
+
+
+                                                           5
+
+ISAM REFERENCE
+
+access DBF files (ISAM may be subclassed to produce objects
+accessing other types of file).
+
+The PLIB functions p_newlibh or f_newlibh can be used to
+create the object, for example:
+
+  VOID *pIsam;
+  
+  pIsam=p_newlibh(isamCat,C_BTDBF);
+
+Since there is always some initialisation to be carried out,
+it is generally more convenient to use the PLIB function
+f_newlibhsend, for example:
+
+  VOID *pIsam;
+  
+  pIsam=f_newlibhsend(isamCat,C_BTDBF,O_IS_INIT,4096,0);
+
+will create an ISAM object and then call the function
+O_IS_INIT to initialise a record buffer of 4096 bytes and
+the default index buffer (see the ISAM Functions chapter for
+the details of the O_IS_INIT function).
+
+.c.::Calling ISAM functions
+The ISAM functions are called by sending a message to an
+ISAM object using the PLIB functions p_send or p_entersend.
+The messages are defined in isam.g and take the form
+O_IS_XXX where XXX is the name of the function. Since all
+ISAM functions which can fail return zero for success or
+leave with a negative error number, p_entersend can easily
+be used to catch the error or p_send can be used if the
+error handling is done at a higher level. For example:
+
+  INT c;
+  
+  if
+  ((c=p_entersend4(pIsam,O_IS_DOPEN,"TEST.DBF",P_FOPEN))<0)
+     p_printf("Open data file failed with error %d",c);
+
+catches the error whereas:
+
+  p_send4(pIsam,O_IS_DOPEN,"TEST.DBF",P_FOPEN);
+
+passes any error to a higher level.
+
+.c.::Destroying the ISAM object
+The ISAM function O_IS_DESTROY will close the data file and
+all open index files and free all memory used and does not
+leave or return errors. However, since data is buffered, it
+could fail. Carefully written applications should therefore
+make sure that all data has been flushed and any error dealt
+with before calling O_IS_DESTROY. The functions O_IS_DFLUSH
+and O_IS_IFLUSH must be used.
+
+.c.::Typical use
+There are many ISAM functions available; here is a sample in
+the order that they are typically used:
+
+
+
+
+
+6
+
+                                              1 INTRODUCTION
+
+  þ  Create and initialise an ISAM object, use PLIB function
+     f_newlibhsend.
+
+  þ  Set the field definition for the data file, use
+     O_IS_SET_FIELDDEF.
+
+  þ  Open or create a data file, use O_IS_DOPEN.
+
+  þ  Set the key definition for an index file, use
+     O_IS_SET_KEYDEF.
+
+  þ  Open or create one or more index files, use O_IS_IOPEN.
+
+  þ  Build an index file, use O_IS_IBUILD.
+
+  þ  Add or erase records, use O_IS_ADD or O_IS_ERASE.
+
+  þ  Access ordered data with keys, use O_IS_IFIND or
+     O_IS_INEXT etc.
+
+  þ  Flush buffers, use O_IS_DFLUSH and O_IS_IFLUSH.
+
+  þ  Destroy the ISAM object, use O_IS_DESTROY.
+
+.c.:Example programs
+Note that the following two examples do not include complete
+error handling.
+
+.c.::Building a complete (dense) index
+This program creates a DBF file called EXAMPLE.DBF with one
+field of type LONG and appends 100 random numbers to it. It
+then creates and builds an index file called EX1.BTX of
+these numbers in ascending order.
+
+Note that in the argument list for the setFieldDef and
+setKeyDef subroutines, the TopSpeed C compiler understands
+the three dots to indicate an undefined number of arguments
+of undefined type.
+
+  #include <p_std.h>
+  #include <p_file.h>
+  #include <p_sys.h>
+  
+  #include <epoc.h>
+  #include <isam.g>
+  
+  GLREF_C TEXT *DatCommandPtr;
+  
+  LOCAL_C HANDLE isamCat;
+  LOCAL_C VOID *pIsam;
+  
+  LOCAL_C VOID pErr(UBYTE *mess,INT err)
+      {
+      UBYTE buf[E_MAX_ERROR_TEXT_SIZE];
+  
+      p_errs(&buf[0],err);
+      p_printf("%s failed - %s",mess,&buf[0]);
+      p_getch();
+      p_exit(TRUE);
+
+
+
+                                                           7
+
+ISAM REFERENCE
+
+      }
+  
+  LOCAL_C VOID loadIsam(VOID)
+      {
+      INT c;
+      TEXT dylname[P_FNAMESIZE];
+  
+      p_fparse("ISAM.DYL",&dylname[0],NULL);
+      if ((c=p_loadlib(&dylname[0],,&isamCat,TRUE))<0)
+          pErr("Load ISAM.DYL",c);
+      }
+  
+  LOCAL_C VOID createIsam(VOID)
+      {
+  
+      pIsam=f_newlibhsend(isamCat,C_BTDBF,O_IS_INIT,4096,0);
+      }
+  
+  LOCAL_C VOID setFieldDef(INT nFields,...)
+      {
+  
+      p_send4(pIsam,O_IS_SET_FIELDDEF,nFields,&nFields+1);
+      }
+  
+  LOCAL_C VOID setKeyDef(INT nKeyFields,...)
+      {
+  
+  
+  p_send4(pIsam,O_IS_SET_KEYDEF,nKeyFields,&nKeyFields+1);
+      }
+  
+  LOCAL_C VOID openData(TEXT *name,UINT mode)
+      {
+      INT c;
+  
+      if ((c=p_entersend4(pIsam,O_IS_DOPEN,name,mode))<0)
+          pErr("Open data file",c);
+      }
+  
+  LOCAL_C INT openIndex(TEXT *name,UINT mode)
+      {
+      INT c;
+  
+      if ((c=p_entersend4(pIsam,O_IS_IOPEN,name,mode))<0)
+          pErr("Open index file",c);
+      return(c);
+      }
+  
+  GLDEF_C VOID main(VOID)
+      {
+      ULONG seed;
+      LONG l;
+      INT nRecords;
+      INT indexId;
+      INT i;
+  
+      loadIsam();
+      createIsam();
+      setFieldDef(1,ISAM_FIELDTYPE_LONG);
+
+
+
+8
+
+                                              1 INTRODUCTION
+
+      openData("EXAMPLE.DBF",P_FREPLACE|P_FUPDATE);
+      seed=0L;
+      nRecords=100;
+  
+      p_printf("Generating %u records",nRecords);
+      for (i=0;i<nRecords;i++)
+          {
+          l=p_randl(&seed);
+  
+  p_send5(pIsam,O_IS_PUT_FIELD,0,&l,ISAM_FIELDTYPE_LONG);
+          p_send2(pIsam,O_IS_ADD);
+          }
+  
+      p_printf("Building index");
+  
+  setKeyDef(1,0,ISAM_FIELDTYPE_LONG,ISAM_FIELDFLAG_ASCEND);
+      indexId=openIndex("EX1.BTX",P_FREPLACE|P_FUPDATE);
+      p_send3(pIsam,O_IS_IBUILD,indexId);
+  
+      p_printf("Sorted data:");
+      p_send3(pIsam,O_IS_IFIRST,indexId);
+      for (i=0;i<nRecords;i++)
+          {
+  
+  p_send5(pIsam,O_IS_GET_FIELD,0,&l,ISAM_FIELDTYPE_LONG);
+          p_printf("%ld",l);
+          p_send3(pIsam,O_IS_INEXT,indexId);
+          }
+      p_send2(pIsam,O_IS_DESTROY);
+      p_getch();
+      p_exit(0);
+      }
+
+.c.::Building a selective (sparse) index
+The following routine opens the DBF file called EXAMPLE.DBF
+which was created in the previous example. It then creates
+and builds an index file called EX2.BTX of those numbers
+which are divisible by ten in ascending order.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                           9
+
+ISAM REFERENCE
+
+  LOCAL_C VOID div10(VOID)
+      {
+      LONG l;
+      INT indexId;
+      INT eof;
+  
+      createIsam();
+      openData("EXAMPLE.DBF",P_FOPEN);
+      p_printf("Build index of numbers divisible by 10");
+  
+  setKeyDef(1,0,ISAM_FIELDTYPE_LONG,ISAM_FIELDFLAG_ASCEND);
+      indexId=openIndex("EX2.BTX",P_FREPLACE|P_FUPDATE);
+      eof=p_send2(pIsam,O_IS_DFIRST);
+      while (eof==FALSE)
+          {
+  
+  p_send5(pIsam,O_IS_GET_FIELD,0,&l,ISAM_FIELDTYPE_LONG);
+          if ((l%10)==0)
+              p_send3(pIsam,O_IS_IADD,indexId);
+          eof=p_send2(pIsam,O_IS_DNEXT);
+          }
+      p_printf("Sorted data:");
+      eof=p_send3(pIsam,O_IS_IFIRST,indexId);
+      while (eof==FALSE)
+          {
+  
+  p_send5(pIsam,O_IS_GET_FIELD,0,&l,ISAM_FIELDTYPE_LONG);
+          p_printf("%ld",l);
+          eof=p_send3(pIsam,O_IS_INEXT,indexId);
+          }
+      p_send2(pIsam,O_IS_DESTROY);
+      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+10

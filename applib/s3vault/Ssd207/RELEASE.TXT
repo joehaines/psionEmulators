@@ -1,0 +1,90 @@
+			8th. November 1993 FmFs V2.00F
+ ==============================================================================
+
+1). Completely re-written the device drivers, the redirector and the
+    Flash Memory File System into C++. Released for the first time.
+
+
+			9th. November 1993 FmFs V2.01F
+ ==============================================================================
+
+1). pformat was'nt coping with OEM info at all well. Fixed.
+
+2)  After a hard format pformat was'nt providing any OEM info. This
+    appears to cause some confusion to the EPOC flash PDDs. We now
+    provide the standard OEM info that the test equipment provides
+    which is "PSION1.0". Fixed.
+
+3). On various packs it would appear that after a format on EPOC machines
+    the root directory could be allocated with a good primary pointer
+    which had the value FNULL. While strictly illegal this is something
+    we must live with. However we only allow it in the root directory.
+
+4). When FMFS was de-installed then the first access to the drive
+    would not report media-changed. Made FMFS call the RAM device
+    driver private entry point to do the right thing. Fixed.
+
+5). The device drivers were'nt doing the intelligent thing for the
+    IOCTL read functions, i.e. obeying the requested read length.
+
+6). The flash device driver had no signature in its IOCTL read data
+    block. Fixed.
+
+7). Moved some code to the temporary section to save a bit more
+    space. Fixed.
+
+8). Changed FMFS to chain the get assign function so that we stop
+    stealing the network names from LANMAN. Fixed.
+
+9). The Topspeed environment just steals any interrupt at 0x60 which
+    is very naughty. However we just look from 0x61. Fixed.
+
+			17th. November 1993 FmFs V2.02F
+ ==============================================================================
+
+1). Added the support for HCDOS.
+
+			19th. November 1993 FmFs V2.03F
+ ==============================================================================
+
+1). After formatting on the Series3 the ROOT directory has its
+    valid primary status bit set but has a FNULL primary pointer.
+    The fix for this was'nt quite implemented correctly. Fixed.
+
+			6th. December 1993 FmFs V2.05F
+ ==============================================================================
+
+1). Fixed more network interactions.
+
+2). Added some more HCDOS support.
+
+			20th. December 1993 FmFs V2.06F
+ ==============================================================================
+
+1). Added the printout of the jumper settings to SSDDRV.EXE
+
+			3rd. February 1994 FmFs V2.07F
+ ==============================================================================
+
+1). Fixed a bug in reading volume labels.
+
+2). Changed pformat.exe so that /n meant no prompting.
+
+3). Fixed media_check in ram device driver.
+
+4). Added 1stdrv.exe to the releaseables.
+
+5). Added a lock to the device drivers so that when running in multiple
+    DOS boxes PFORMAT could block access by DOS. Also added claim DOS
+    critical sections around the entry points. This has upped the
+    version number of the Flash device driver to 3.
+
+6). Fixed a bug in PFORMAT which was'nt clearing all the root directory
+    sectors on RAM SSDs when the /Q switch was given.
+
+7). Fixed a bug in PFORMAT which was'nt writing out the first three bytes
+    of the boot record correctly.
+
+8). Added the ability to pass a command line to command.com with FMFS S
+    <command>
+

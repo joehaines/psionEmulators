@@ -1,0 +1,179 @@
+SAVEMAIL HISTORY & UPGRADING INSTRUCTIONS
+------------------
+v 1.00 * first public release
+v 1.10 * "internationalized" version, should work with any language
+         of the Psion S5 and MsgSuite 1.52
+v 1.11 * fixed a bug when the date format was 12 hours am/pm
+v 1.12 * fixed a bug that caused the date string to be copied into the
+         title when the subject was particularly long
+v 1.13 * fixed a bug that sometimes prevented the "from" field from
+         being copied; no more "display switching" between Email and
+         the Data file during the copy & paste procedures (saves time and
+         batteries...)
+v 1.20 * all the message fields are now copied in one single step, then
+         pasted all together to the Data file (saves time);
+       * rewritten the date format procedure (now much faster);
+       * to prevent a "compressing file to save memory" routine from
+         interfering with the correct timing of the macro, the Data file is
+         now always opened at the beginning of SaveMail
+v 1.21 * CC and BCC fields, if present in the original MsgSuite message,
+         are simply ignored and no more pasted to the wrong place (the title
+         field) of the MailBox Data file
+v 2.00 * CC and BCC fields, if present, are now correctly stored to a new
+         field (CC/BCC) in the Mailbox Data file; see UPGRADING below
+       * fixed a bug that made the macro crash when trying to copy a field
+         (other than body) with more than 250 characters; see KNOWN ISSUES
+v 2.10 * no more headaches while struggling with the opl code to adapt it
+         to your folders, CF cards etc. and re-translating the whole! Now the
+         macro is supplied in a ready-to-go SaveMail.opo file and a complete
+         setup process will guide you the first time you launch SaveMail;
+       * added the option of using multiple Data files to store different
+         kinds of messages (see UPGRADING below);
+       * added the option of automatically archiving a group of messages
+         and deleting them from Email, if necessary;
+       * now SaveMail detects your DATE FORMAT from the System settings
+         and works correctly according to them (no more problems for the
+         American MM/DD/YYYY format!).
+v 2.11 * added the option to create a NEW Data file from within the macro;
+       * the SaveMail.ini file (which contains your setup details) is now
+         stored to the "C:\System\" folder to prevent a "Syntax error" if any
+         "illegal" character (e.g. space) is contained in the path of the
+         macros folder (if you want to keep the .ini file saved with v2.10,
+         simply move it from your macros folder to the new location, otherwise
+         delete it);
+       * now fully compatible with Geofox machines (no need to modify the
+         code and retranslate, just use the supplied SaveMail.opo file);
+       * added a report window after a successful archiving of more messages;
+       * now SaveMail, if run as a standalone app, doesn't crash but informs
+         the user that it has to be launched through Macro5.
+v 2.12 * due to an oversight on my side, all the "preformatted" Data
+         files shipped with the previous releases of SaveMail had the FIND
+         facility disabled; the new SaveMail.box of this release fixes the
+         problem, but if you have previous Data files, simply open them,
+         choose Menu/Tools/Find by label... and tick all the labels you want
+         to include in your search (the more labels you select, the slower
+         will be the search, especially with big Data files);
+       * added a progress report after each message of a group is successfully
+         stored (e.g. "Message 2 of 8 stored");
+       * minor changes to some dialog windows.
+v 2.20 * fixed a bug that made the macro crash when archiving messages
+         with an empty "TO" field (e.g. the Psion.life mailing list from Psion)
+       * now the SaveMail Setup may be relaunched from within the macro,
+         in the target data file window (if enabled).
+v 2.30 * easier setup: now SaveMail automatically detects the version of
+         Macro5 you have installed on your machine;
+       * rewritten the procedure to test if SaveMail is launched as a macro;
+       * added a warning window when the "auto-delete" option is selected;
+       * now works on the 5mx, with some limitations;
+v 2.40 * added the option of storing the messages to a "plain" Word file;
+       * added an icon (SaveMail.ico) for the graphic panels of Macro5 v2.40;
+       * in the setup procedure, added the option of changing the "Yes button
+         keystroke" of the Email app if SaveMail fails to detect the right one
+         (may happen if the language of your S5 differs from the one of Email)
+v 2.41 * for 5mx users only: solved a problem due to the Email program
+         which deletes the From field from any stored "Sent" message (moved
+         from the "Sent" folder to any other user-defined folder)
+       * should work with any language of the 5mx and 5mx-pro (feedback is
+         welcome, as I can only work on the Epoc R5 PC Emulator...)
+v 2.42 * for 5mx users only: now the macro lets you specify a Date and Time
+         which will be put in the Time field of any stored message
+       * for 5mx users only: the "auto-delete" option has been re-enabled, as
+         the above option allows you a better handling of each message
+v 2.50 * from this version onwards there are two different macros for Epoc
+         Release 3 (Psion S5 and Geofox) and Release 5 (Psion S5mx etc.)
+       * Macro5 v2.37 is no more supported, so check if v2.40 is installed
+       * solved the problem with the dates: by using the "Reply to" option, the
+         macro can get the right time and date of a message; doesn't work with
+         Sent messages moved from the original Sent folder, which are given
+         the time and date of the storing process, marked with (*) - see below
+       * no more crashes when the macro finds a FAX: now such messages
+         are simply ignored (SaveMail can't deal with them) and never deleted
+       * found a better way to get the "Yes button keystroke": no more need
+         to ask for it in the Setup procedure
+v 2.51 * easier setup: no need to specify the System shortcuts, now the
+         procedure simply suggests a choice of machines/languages
+       * fixed some problems with the German 5mx-pro (Find window in
+         Email not working and AdjustDate routine fooled by month names
+         in English instead of German...)
+       * by using the "Reply to" option, the storing of a message to a Psion
+         Word file is accomplished in one single step (much faster)
+       * improved the handling of messages stored to a Psion Word file: the
+         wbox extension has been eliminated, so any Word file can be selected
+         as a target file; now the cursor is always left at the beginning of the
+         file when the storing procedure ends; if you select an existing Word
+         file, now the macro opens it in background (faster)
+v 2.60 * now the macro correctly handles any attachments it finds, puts their
+         names to the target file and copies them to a user defined folder
+       * for the above new functionality, the MailBox Data files have a new
+         field to store the attachment(s) name (and path); Data files from
+         any previous release have to be manually updated to be used with v2.60,
+         see below the UPGRADING notes!
+       * CC and BCC fields, if present, now are correctly identified and copied
+         to the appropriate field in the target file
+       * added an option to automatically close the target file at the end of
+         the storing procedure
+v 2.61 * now works with the Italian 5mx
+       * fixed a bug that made the macro crash when opening big Data files
+v 2.62 * added the option to filter attachments: now you can select up to 4
+         default names of attachments that will be always filtered by the macro,
+         and so won't be saved to disk (e.g. "attachment" or "winmail.dat)
+       * added the option to modify the macro speed (by increasing or decreasing
+         the "Pause value" in the setup) in order to adapt it to different processor
+         clock and different media support (Data files and Email messages stored
+         to RAM are much more faster to be opened than the ones stored to a CF Card
+         or to an IBM Microdrive)
+       * fixed a bug that prevented the macro from storing the correct date if the
+         date field was broken into two lines (e.g. using large fonts in Email)
+v 3.00 * SaveMail has become a "real" program (but still uses Macro5 libraries)!
+         Easier installation through a standard sis file: now you can launch it
+         via the Extras bar, or use it as usual via a Macro5 shortcut
+       * added a "right" keystroke to move to the messages window in Email if
+         you forget the cursor in the folders window
+       * added the support to the German Ericsson MC218
+       * fixed a bug when opening the Data target file for the first time
+
+UPGRADING from v2.51
+------------------
+From v2.60 the MailBox Data file structure has changed, to make place to
+the new Attachment(s) field: if you create a new target Data file from
+the macro itself, this file will be of the new type; if you want to update
+any previous Data file to the new structure (essential if you want to continue
+using them with v2.60), just follow the instructions below:
+
+- open your old MailBox Data file
+- select Menu/Tools/Change labels...
+- select ADD...
+- in the "label" field write: Attachment(s)
+- in the "data type" select: TEXT
+- put 250 in the No. characters field
+- choose OK two times
+- select Menu/Tools/Label preferences...
+- with the down arrow highlight Attachment(s)
+- choose the "Move Up" button
+- now you should have the Attachment(s) label positioned above the Body one
+- choose OK
+
+UPGRADING from v2.00 to v2.10
+------------------
+If you already have a MailBox Data file from v2.00, simply RENAME it
+in order to add the ".box" EXTENSION (e.g. in system screen highlight the
+MailBox file, select Menu/File/Rename and change the name to Mail.box)
+
+UPGRADING from v1.xx to v2.00
+------------------
+The new Mail.box Data file you find in the savemail.zip file has been
+modified to make place for the CC/BCC field; if you already have a
+MailBox Data file from previous versions of SaveMail, you have to
+modify it in order to create this new field:
+* open your old MailBox Data file
+* select Menu/Tools/Change labels...
+* select ADD...
+* in the "label" field write: CC/BCC
+* in the "data type" select: MEMO
+* choose OK two times
+* select Menu/Tools/Label preferences...
+* with the down arrow highlight CC/BCC
+* choose the "Move Up" button
+* now you should have the CC/BCC label positioned between TO and Body
+* choose OK
+* now your Data file is upgraded to SaveMail v2.xx

@@ -1,0 +1,145 @@
+REM APPLICATION FRAMEWORK FOR PSION SERIES 3. TEST APPLICATION     (v24Oct92)
+REM ==========================================================
+REM By: John Hind. (Full documentation in FRAME.TXT)
+
+REM Un-comment this block to compile to OPA rather than OPO:
+REM APP fTest
+REM  TYPE 3
+REM  PATH "\OPL"
+REM  EXT "OPL"
+REM ENDA
+
+PROC fTest:
+ GLOBAL m1%,m2%,m3%
+ m1%=$0337                           REM Mask with timers disabled
+ m2%=$0377                           REM Mask with Seconds Timer
+ m3%=$03B7                           REM Mask with Minutes Timer
+
+ LOADM "FRAME.OPO"                   REM Load the Application Framework code
+ CLS                                 REM Clear screen to show messages
+ PRINT "Application Framework Test"
+ fAutoOff:                           REM Allow automatic switch-off
+ fRun:(m1%,"XMSOCADU")               REM Run application
+ENDP
+
+PROC aOpen%:                         REM Callback for file opening
+ PRINT "aOpen",fParm%,fParm$
+ RETURN 0
+ENDP
+
+PROC aCreate%:                       REM Callback for file creation
+ PRINT "aCreate",fParm%,fParm$
+ RETURN 0
+ENDP
+
+PROC aClose%:                        REM Calback for file closing
+ PRINT "aClose",fParm%,fParm$
+ RETURN 0
+ENDP
+
+PROC aError%:(e%)                    REM Callback for handling errors
+ PRINT "aError",e%,fParm$
+ RETURN 0
+ENDP
+
+PROC aHkX%:                          REM Callback to exit application on PSION-X
+ RETURN 100                          REM "Exit from application" message
+ENDP
+
+PROC aHkS%:                          REM Callback to start seconds timer on PSION-S
+ fParm%=m2%
+ RETURN 129                          REM "Change message mask" message
+ENDP
+
+PROC aHkO%:                          REM Callback to stop timers on PSION-O
+ fParm%=m1%
+ RETURN 129                          REM "Change message mask" message
+ENDP
+
+PROC aHkM%:                          REM Callback to start minutes timer on PSION-M
+ fParm%=m3%
+ RETURN 129                          REM "Change message mask" message
+ENDP
+
+PROC aHkC%:                          REM Callback to clear screen on PSION-C
+ CLS
+ PRINT "Application Framework Test"
+ RETURN 0
+ENDP
+
+PROC aHkD%:                          REM Callback to raise a system error on PSION-D
+ RETURN 1/0
+ENDP
+
+PROC aHkU%:                          REM Callback to raise an application error on PSION-U
+ fParm$="Application error"
+ RETURN -10                          REM Application defined error message
+ENDP
+
+PROC aHkA%:                          REM Callback to bring up an Alert Box on PSION-A
+ fLock:
+  ALERT("Alert Box")
+ fUnlock:
+ RETURN 0
+ENDP
+
+PROC aMh5%:                          REM Callback for "Printable key pressed" message
+ Print "Printkey",fParm%,fParm$,fKmod%
+ RETURN 0
+ENDP
+
+PROC aMh6%:                          REM Callback for "Special key pressed" message
+ Print "Specialkey",fParm%,fKmod%
+ RETURN 0
+ENDP
+
+PROC aMh9%:                          REM Callback for "Menu key pressed" message
+ LOCAL k%
+ 
+ mINIT                               REM Create menu system
+ mCARD "Timer","Secs",%S,"Mins",%M,"Off",%O
+ mCARD "Dialogue","Alert",%A
+ mCARD "Error","Divide by zero",%D,"User defined",%U
+ mCARD "Control","Cls",%C,"Exit",%X
+ fLock:
+  k%=MENU                            REM Show menu (NOTE the fLock: and fUnlock:)
+ fUnLock:
+ IF k%=0                             REM Menu aborted by user
+  RETURN 0                           REM Return null command
+ ELSE
+  fParm%=k%                          REM Parameter for "Hotkey pressed" message
+  RETURN 4                           REM "Hotkey pressed" message
+ ENDIF
+ENDP
+
+PROC aMh10%:                         REM Callback for "Help key pressed" message
+ Print "Help"
+ RETURN 0
+ENDP
+
+PROC aMh1%:                          REM Callback for "Application moved to foreground" message
+ Print "FOREGROUND"
+ RETURN 0
+ENDP
+
+PROC aMh2%:                          REM Callback for "Application moved to background" message
+ Print "BACKGROUND"
+ RETURN 0
+ENDP
+
+PROC aMh3%:                          REM Callback for "Machine switched on" message
+ Print "SWITCHON"
+ RETURN 0
+ENDP
+
+PROC aMh7%:                          REM Callback for "Seconds timer expired" message
+ BEEP 5,300
+ RETURN 0
+ENDP
+
+PROC aMh8%:                          REM Callback for "Minutes timer expired" message
+ PRINT "MinTimer Elapsed:",fParm%,"Seconds:",SECOND
+ RETURN 0
+ENDP
+
+REM End of Source Code.

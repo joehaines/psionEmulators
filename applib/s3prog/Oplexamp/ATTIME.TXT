@@ -1,0 +1,36 @@
+> Does anyone know how to switch a 3A on at a certain time from OPL ?
+
+The simplest approach is to use the Operating System service 
+TimWaitAbsolute (call($0c89)).  This sleeps the current process (ie your 
+Opl program) until the time specified in CX:DX.  When that time arrives, 
+the machine is switched on again, if need be, to let your program 
+continue.
+
+Here's an example that uses TimWaitAbsolute.  It prints out "Waiting", 
+and then two minutes later, switches the machine on (if need be) and 
+prints "Done".
+
+In this example, I use TimGetSystemTime (call($0289)) to get the current 
+system time, into AX:BX.  The actual code below contains some messy 
+conversions, to try to avoid overflow in the low word in adding on 120, 
+but don't let this cause you to miss the essential simplicity of what the 
+code is doing.
+
+  PROC twomins:
+    local ax%,bx%,cx%,dx%,si%,di%
+    local t&,a%
+    ax%=$200
+    os($89,addr(ax%))
+    t&=ax%*&10000 + bx%
+    t&=t& + 120
+    a%=addr(t&)
+    print "Waiting"
+    call($0c89,0,peekw(a%+2),peekw(a%))
+    print "Finished waiting"
+    get
+  ENDP
+
+If you want to be able to do something else in your program, as well as 
+waiting for the absolute time, you need to use the TIM: device driver.
+
+Regards, DavidW

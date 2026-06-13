@@ -1,0 +1,35 @@
+PSIONICS FILE - RESOURCE.FMT
+============================
+Format of Resource files
+Last modified 1994-03-28
+========================
+
+Resource files are uses to hold information for a program which does not
+need to be held in the program itself. Two reasons for doing this are:
+- the contents of the resource file do not take up process memory when
+  not being used;
+- the resource file can be changed on a per-language basis without changing
+  the rest of the program.
+
+A resource file may be standard or compressed. This description only applies
+to standard files. The format of a standard file is:
+
+  Offset  0 (word): offset of index table
+  Offset  2 (word): length in bytes of index table
+
+The index table is an array of words, giving the offsets of each resource in
+order. By convention resources are numbered from 1 upwards. If the table holds
+T entries, there are T-1 resources (1 to T-1); entry N is the offset of the
+end of resource N-1 as well as the offset of resource N, and entry T is the
+offset of resource T-1, and so should equal offset 0 of the file.
+
+For example, if a resource file contains two resources of length A and B
+respectively, the file contains:
+
+    Offset 0 (word)    : A+B+4
+    Offset 2 (word)    : 6
+    Offset 4 to A+3    : value of resource 1
+    Offset A+4 to A+B+3: value of resource 2
+    Offset A+B+4 (word): 4
+    Offset A+B+6 (word): A+4
+    Offset A+B+8 (word): A+B+4

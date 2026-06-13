@@ -1,0 +1,111 @@
+proc choptxt:
+	local written%,devname$(128)
+	local c%,buffer$(255),type%,g%
+	local ret%,ret2%,handle%,name$(128),opnmode%,length%
+	local write%,wrtname$(130),wrtmode%,wrt%,wrtlen%
+	screen 40,9
+	
+	name$="LOC::M:\SCRATCH.TXT"
+	print "Edit file name to chop" :edit name$
+	opnmode%=$0000 or $0020
+	ret%=IOOPEN(handle%,name$,opnmode%)
+	if ret%<0 :showerr:(ret%) :get :stop :endif
+
+	wrt%=1
+	wrtname$="LOC::M"
+	print "Edit DRIVE to write new file(s) to"
+	edit wrtname$
+	wrtname$=wrtname$+":\WRD"
+	print "Edit DIRECTORY to write new file(s) to"
+	edit wrtname$
+	wrtname$=wrtname$+"\CHOP"+gen$(wrt%,4)+".TXT"
+	onerr error::
+	if exist (wrtname$)
+		cls :at 8,2 :print "WARNING CHOP FILES EXIST"
+		at 8,3 :print "THEY WILL BE OVERWRITTEN"
+		at 8,5 :print "Press"
+		at 8,6 :print "On/Esc to abandon"
+		at 8,7 :print "Enter to continue"
+		while 1
+			g%=get
+			if g%=27
+				ret%=IOCLOSE(handle%)
+				if ret%<0 :showerr:(ret%) :endif
+				stop
+			elseif g%=13 :cls :break
+			endif
+		endwh
+	endif
+	error::
+	onerr off :cls
+	wrtmode%=$0002 or $0020 OR $0100
+	ret%=IOOPEN(write%,wrtname$,wrtmode%)
+	if ret%<0 :showerr:(ret%) :get :stop :endif
+	devname$=left$(wrtname$,7)
+
+	cls
+	WHILE 1
+		ret%=IOREAD(handle%,addr(buffer$)+1,255)
+		if ret%<0
+			if ret%<>-36 :showerr:(ret%) :endif
+			break
+		else
+			pokeb addr(buffer$),ret%
+		endif
+			
+		length%=length%+ret%+2
+		
+		at 1,9 :print "Bytes Free:",gen$(dskinfo&:(devname$),-7)
+		if DSKINFO&:(devname$)<ret%+2 :beep 5,300 :showerr:(-37) :break :endif
+
+		ret2%=IOWRITE(write%,addr(buffer$)+1,ret%)
+		if ret2%<0 :showerr:(ret2%)
+			break
+		else
+			written%=written%+ret%+2
+		endif
+		if wrt%<8 :at 1,wrt% :else at 1,7 :endif
+		print wrtname$,gen$(length%,-6)
+		at 23,9 :print gen$(written%,-6),"Written"
+		
+		if length%>15000 :length%=0
+			ret%=IOCLOSE(write%)
+			if ret%<0 :showerr:(ret%) :break :endif
+			wrtname$=left$(wrtname$,len(wrtname$)-(len(gen$(wrt%,4))+4))
+			wrt%=wrt%+1
+			wrtname$=wrtname$+gen$(wrt%,4)+".TXT"
+			ret%=IOOPEN(write%,wrtname$,wrtmode%)
+			if ret%<0 :showerr:(ret%) :break :endif
+		endif
+	ENDWH
+	
+	ret%=IOCLOSE(handle%)
+	if ret%<0 :showerr:(ret%) :endif
+	ret%=IOCLOSE(write%)
+	if ret%<0 :showerr:(ret%) :endif
+	at 1,9 :print "** Files  Closed **"
+	get
+endp
+	
+proc showerr:(val%)
+	local e$(100)
+	e$="error "+gen$(val%,3)+" "+err$(val%)
+	at 1,8 :print rept$(" ",(40-len(e$))/2);e$
+endp
+
+PROC DSKINFO&:(devname$)
+	local vers%,media%,remov%,size&,freee&,name%(16),spare%(9) REM DO NOT CHANGE THESE
+	local dzts$(130) :rem ZTS version of devname$
+	local e% :rem error from FilStatusDevice
+	local a%,m%,m$(15)
+
+	dzts$=devname$+chr$(0) :rem ZTS version of devname$
+
+	e%=call($0a87,addr(dzts$)+1,addr(vers%),0,0,0) REM FilStatusDevice
+	if e%
+		showerr:(e%)
+		return 0
+	else
+		return freee&
+	endif
+ENDP

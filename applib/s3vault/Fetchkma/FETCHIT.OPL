@@ -1,0 +1,14 @@
+PROC fetchit:
+    GLOBAL lpcHand%,lpoHand%
+    LOCAL buf$(32)
+    LOADM "KMACLIB"
+    CALL($198d,100,0)
+    lpOpen:
+    lpWrite:(%f,"")
+    lpSend:(32,ADDR(buf$)+1,24,0)
+    POKEB ADDR(buf$),25
+    POKEB ADDR(buf$),LOC(buf$,chr$(0))-1
+    buf$=buf$+chr$(13)+chr$(0)
+    lpSend:(4,ADDR(buf$)+1,0,0)
+    lpClose:
+ENDP

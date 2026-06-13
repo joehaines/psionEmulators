@@ -1,0 +1,138 @@
+                                JBSortB
+                             Version 1.0
+                           (c)JBSoft 1995/6
+
+                                  Ё
+                                  цд©
+                                юбады
+                                 юд©
+                                 дды
+
+JBSortB is a utility to sort Data files by ASCII in the background or
+the foreground. It will, in fact, sort any database files created with
+Data or by the Psion OPL CREATE command. It works on both the S3 and
+S3a.
+
+The program can be installed anywhere you wish on your Psion but you
+will need to specify the complete path regardless when running the
+application (the example OPL file assumes that JBSORTB.IMG is in an
+\APP\ directory).
+
+If you prefer to use an \IMG\ directory then, to stop the application
+appearing under the RunIMG icon, rename it to SYS$JBST.IMG and alter
+the OPL code accordingly. If programmers intend to use the program
+please distribute it as JBSORTB.IMG so that multiple versions don't
+appear to fill up people's disks.
+
+The code is started from an OPL translated file (an example is
+included in the Zip rather than appended to this document). Unlike
+JBSort, the three fields to sort on can be configured on startup and,
+as there is no user interface once started, the program can run in the
+background or the foreground - you can either wait for the sort to
+finish before continuing or continue whilst the sort progresses.
+
+To define whether the program works in the foreground or background
+the header character needs to be changed to 'O' for background and 'F'
+for foreground - if programmers don't wish the filename being sorted
+to display when in the foreground then use 'M'. The enclosed OPL file
+should show you all the alternatives available.
+
+There is extensive checking for memory availability and, should the
+program fail for lack of memory at any time, the system should be
+cleared of any temporary files made by the application at the time of
+the failure. The maximum memory for sorting purposes will occur when
+the program is run in the background as the screen setup does require
+some additional memory.
+
+The program will sort in ascending order using the specified fields as
+the key fields in the order in which they are given in the command
+line - the sort will over-write the existing file. The direction of
+the sort (ascending) is not user-definable and the completed sort will
+always over-write the existing file - if you need either of those
+alternatives to be changed then JBSort will do it for you.
+
+The program works by creating a string (made up of the three field
+choices in order) for each record along with the position of the
+record in the file. This string is then sorted and the result is then
+written in the appropriate order to another file. Assuming that
+another file has not been specified for the result, the original file
+is then deleted and the new file renamed to that of the original.
+
+To enable large data files to be sorted I have included a fall-back
+procedure that is hierarchical and works in the following order:-
+
+     1. As specified.
+     2. Limit length of each field to 8 characters.
+     3. Reduce by one the number of fields to be sorted.
+     4. Repeat 3 until only one field is left - if it still fails then
+        the program fails.
+
+Obviously, the further down the tree the program has to go, the longer
+it will take to complete its task.
+
+Should the program fail at some point in the procedure then there
+should be no lasting damage as the last thing the program does is
+delete the original and substitute the new file, prior to that, the
+original file is not altered in any way. If the option to over-write
+was chosen and the program fails, there may be a file called JBZZ.DBF
+created. This can be deleted with no problems (this is the file that
+is renamed as the last action of the program).
+
+Limitations
+-----------
+The main limitation to my program is the 64k limit on data in any
+program (this 64k limit does not refer to the database size but the
+amount of data that an application can have). The actual sort takes
+place in memory and so there is a great deal of data temporarily held
+there. The probable limit to the size of the database is going to be
+around 5,000 entries but this is purely theoretical and could be
+wildly out. If you come across a database whose sort fails through
+lack of memory I would be grateful of that information along with the
+number of records (and type of fields being sorted) so that I can
+update this section of the 'manual'.
+
+Sort is limited to 3 fields at present (again, this could be increased
+given the necessity).
+
+The program requires sufficient space on the drive to create a
+duplicate file of the same length as the first file. The program
+checks for this availability and, if there is insufficient memory
+available, the program will fail. The program will also fail if there
+is insufficient RAM in which to run. As a guide, the program itself
+requires around 60k but this is variable and is somewhat related to
+the size of the file being sorted - it is impossible to give accurate
+figures due to variability of the files being sorted.
+
+Contact
+-------
+John Boyce
+CompuServe: 100014,1240
+CIX/Internet: jboyce@cix.compulink.co.uk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Release Information
+===================
+Version   Information
+---------------------
+1.0       First release to the public domain.
+

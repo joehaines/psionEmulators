@@ -1,0 +1,26 @@
+#ifndef OS_CONV_OPH
+#define OS_CONV_OPH
+
+#include <os\call>
+
+#define ConvManager		$8A
+
+#define ConvArgumentsToBuffer	$0400
+#define ConvFloatToBuffer	$0900
+#define ConvIntToBuffer		$0200
+#define ConvLongIntToBuffer	$0300
+#define ConvStringToFloat	$0A00
+#define ConvStringToInt		$0700
+#define ConvStringToLongInt	$0800
+#define ConvStringToUnsignedInt	$0500
+#define ConvStringToUnsignedLongInt	$0600
+#define ConvUnsignedIntToBuffer	$0000
+#define ConvUnsignedLongIntToBuffer	$0100
+
+#define CONVARGSTOBUF(buf,format,args)	BX=args :SI=format :DI=buf :OSSUB(ConvManager,ConvArgumentsToBuffer)
+
+/* Here is SPRINTF which behaves a bit like the C version */
+
+#define SPRINTF(buf,format,args)	CONVARGSTOBUF(uadd(addr(buf),1),uadd(addr(format),1),addr(args)) :pokeb addr(buf),AX
+
+#endif

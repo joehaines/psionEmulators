@@ -1,0 +1,153 @@
+REM PIC-to-OPL Utility for S3.
+REM Rick Andrews Nov 92
+
+APP PicToOpl
+ICON "\PIC\PICTOOPL"
+TYPE 0
+ENDA
+
+PROC PicToOpl:
+GLOBAL rm$(4),q$(1)
+GLOBAL id%
+LOCAL picfile$(128),pbase$(8)
+LOCAL oplfile$(128),obase$(8)
+
+rm$="REM"+CHR$(32) REM Comment!
+q$=CHR$(34) REM Double quote.
+
+picfile$=GetPic$:
+IF picfile$=""
+RETURN
+ENDIF
+
+pbase$=Base$:(picfile$)
+oplfile$=GetOpl$:(pbase$)
+IF oplfile$=""
+RETURN
+ENDIF
+
+obase$=Base$:(oplfile$)
+Convert:(pbase$,obase$)
+gCLOSE id% :LCLOSE
+ENDP
+
+PROC GetPIC$:
+REM Get filename of pic & load it
+LOCAL file$(128)
+file$="\PIC\*.PIC"
+DO
+dINIT
+dTEXT "","Pic to OPL converter",$102
+dTEXT "","Choose bitmap to convert",2
+dTEXT "","to OPL program file",$202
+dFILE file$,"File:",0
+IF DIALOG=0
+RETURN ""
+ELSE
+id%=gLOADBIT(file$)
+IF gWIDTH>244
+ALERT("This bitmap is "+GEN$(gWIDTH,4)+" pixels wide.","Maximum width is 244. Please reselect.")
+gCLOSE id%
+ELSE
+RETURN file$
+ENDIF
+ENDIF
+UNTIL 0
+ENDP
+
+PROC GetOPL$:(f$)
+REM Get opl filename & create it.
+LOCAL file$(128)
+file$="\OPL\"
+file$=file$+LEFT$("PIC"+f$,8)
+file$=file$+".OPL"
+DO
+dINIT ""
+dTEXT "","Name of OPL program",2
+dTEXT "","to generate",$202
+REM Use edit box with query.
+dFILE file$,"File:",1+16
+IF DIALOG=0
+RETURN ""
+ELSE
+IF EXIST(file$)
+TRAP DELETE file$
+IF ERR
+ALERT (ERR$(ERR))
+CONTINUE
+ENDIF
+ENDIF
+TRAP LOPEN file$
+IF ERR
+ALERT (ERR$(ERR))
+CONTINUE
+ENDIF
+RETURN file$
+ENDIF
+UNTIL 0
+ENDP
+
+PROC Convert:(pic$,opl$)
+REM Convert bitmap to Ascii.
+LOCAL x%,y%
+LOCAL line%(1)
+BUSY "Busy"
+AddHead:(opl$)
+y%=0
+DO
+x%=0
+LPRINT "p$(";
+LPRINT RIGHT$("00"+GEN$(y%+1,3),3);
+LPRINT ")="+q$;
+DO
+gPEEKLINE id%,x%,y%,line%(),1
+IF line%(1) AND 1
+LPRINT "*";
+ELSE
+LPRINT "-";
+ENDIF
+x%=x%+1
+UNTIL x%=gWIDTH
+LPRINT q$
+y%=y%+1
+UNTIL y%=gHEIGHT
+AddTail:(pic$)
+BUSY OFF
+ENDP
+
+PROC AddHead:(opl$)
+LPRINT "PROC "+opl$+":"
+LPRINT rm$+"Produced by PICtoOPL.OPL"
+LPRINT rm$+"IPSO FACTO Vol VI No. 9 - Nov 92"
+LPRINT rm$+DATIM$
+LPRINT "LOCAL x%,y%"
+LPRINT "LOCAL p$(";
+LPRINT gHEIGHT;",";gWIDTH;")"
+LPRINT
+LPRINT "gCREATE(0,0,";
+LPRINT gWIDTH;",";gHEIGHT;",1)"
+ENDP
+
+PROC AddTail:(pic$)
+LPRINT
+LPRINT "y%=0"
+LPRINT "DO :gAT 0,y% :x%=1 :DO"
+LPRINT "IF MID$(p$(y%+1),x%,1)=";
+LPRINT q$+"*"+q$
+LPRINT "gLINEBY 1,0"
+LPRINT "ELSE"
+LPRINT "gMOVE 1,0"
+LPRINT "ENDIF"
+LPRINT "x%=x%+1:UNTIL x%>gWIDTH"
+LPRINT "y%=y%+1:UNTIL y%=gHEIGHT"
+LPRINT "gSAVEBIT",q$+"\PIC\";
+LPRINT pic$+q$
+LPRINT "ENDP"
+ENDP
+
+PROC Base$:(p$)
+REM Get name of file from path.
+LOCAL a$(128),f%(6)
+a$=PARSE$(p$,"",f%())
+RETURN MID$(a$,f%(4),f%(5)-f%(4))
+ENDP

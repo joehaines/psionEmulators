@@ -1,0 +1,184 @@
+OPLLPC.TXT, accessing LPC functionality from OPL
+================================================
+
+Most of the macro playback facilities available in KMAC are also
+available to Opl programs.  Opl programs can enhance these KMAC
+facilities in numerous ways, limited only by the ingenuity of the
+programmer.
+
+A first example of calling LPC from Opl
+---------------------------------------
+You will need:
+    a copy of LPC.DYL in a \DYL\ directory
+    a copy of KMACLIB.OPO in an \OPO\ directory.
+
+Then type the following lines into an Opl program, say TKMACLIB.OPL:
+
+    PROC tkmaclib:
+      GLOBAL lpcHand%,lpoHand%
+      LOCAL pname$(64)
+      LOCAL ret%
+      LOADM "kmaclib"
+      lpOpen:
+      WHILE 1
+        dInit "Goto process"
+        dEdit pname$, "Process name", 20
+        IF dialog=0 :BREAK :ENDIF
+        ret%=lpWrite:(%g,pname$)
+        IF ret%=-33
+          gIPRINT "No such process"
+        ELSEIF ret%<0
+          gIPRINT err$(ret%)
+        ELSE
+          lpWrite:(%F,"")
+          lpWrite:(%I,"Hello "+pname$)
+          lpWrite:(%P,"20")
+          lpWrite:(%B,"")
+        ENDIF
+      ENDWH
+      lpClose:
+    ENDP
+
+Translate and run this program and see what it does.
+
+Essentially, the user supplies the name of a process to go to.  This
+could be "SYSTEM" or "Data.dbf" or whatever.  Then a sequence of 5
+lpWrite: commands issue equivalents of the following KMAC commands:
+
+   g - to go to the named process, if possible
+   F - to make that process foreground
+   I - to display an information message in that process
+   P - to pause (in this case, for 2 seconds)
+   B - to send that process into background again.
+
+The Opl program handles any error from the "g" command.
+
+KMAC commands not allowed in Opl programs
+-----------------------------------------
+Not all KMAC commands make sense in Opl programs - for example the
+"s" single stepping commands, or the "r" return command.
+
+The way to tell if a KMAC command can be used in an lpWrite:
+statement in an Opl program is to consult the "Level" field for that
+command in the KMAC.DBF syntax database.  Any command whose "Level"
+includes "KMAC" explicitly CANNOT be used inside an Opl program.
+
+Thus the following are excluded:
+    d, e, l, m, q, r, x, s, and h
+    J and j - though these can be duplicated using lpSend:
+    N and Q - though an Opl program can run dialogs of its own!
+
+Armed with the above information, anyone familiar with both
+    the Opl language, and
+    KMAC commands
+should be able to create many Opl programs that contain LPC commands.
+
+Launching an Opl program from KMAC
+----------------------------------
+An Opl program can be started from KMAC (as part of a normal macro)
+by means of the "o" command.  This takes as parameter the name of the
+.OPO program to run.  See EGKMA.TXT for an example.
+
+If you wish to delay your KMAC macro until the Opl program completes,
+follow the "o" command with a "w" command on the following line.
+
+Note that an Opl program does not "inherit" any setting from the .KMA
+macro that launched it.  In particular, it starts in a state in which
+it is not attached to any application, and it needs to attach to an
+application, by one means or another, before issuing any lpWrite: or
+lpSend: instructions that would communicate with an attached process.
+
+Using KMACLIB.OPO
+-----------------
+The above .OPL program relies on KMACLIB.OPO to encapsulate access to
+LPC for it.  See the file KMACLIB.OPL for the source to the
+procedures lpOpen:, lpWrite:, lpSend:, and lpClose:. 
+
+Note that any Opl program that relies upon KMACLIB.OPO must declare
+the GLOBAL variables lpcHand% and lpoHand% - to take, respectively,
+the handle of the LPC.DYL category, and the handle of the created
+LPCON class instance.
+
+Using lpSend:
+-------------
+See EGKMA.TXT for an example of using lpSend: to good effect.
+
+Whereas lpWrite: always in fact uses the LPC_ACTION method of the
+LPCON class in LPC, lpSend: allows access to any of the (more than
+40) different methods of LPCON.  Incidentally, whereas the LPC_ACTION
+method is guaranteed never to "leave", the other methods of LPCON
+invariably DO "leave" on error - which is why lpWrite: uses the Opl
+SEND keyword, whereas lpSend: has to use the ENTERSEND keyword.
+
+In order to use lpSend:, you need to know the method numbers of the
+LPCON class in LPC, as well as the parameters to these methods.  To
+find out about these, you ought to consult the source code for
+LPC.DYL (available separately).
+
+Summary of methods of LPCON class
+---------------------------------
+In summary terms, here are the method numbers of the various methods,
+together with brief comments on the workings of these methods:
+
+(the following is effectively an extract from the category definition
+file, LPC.CAT)
+
+0  LPC_DESTROY         Free buffers then root_destroy
+1  LPC_INIT            Set user status word, if any
+! next group of methods are asynchronous
+2  LPC_ACTION          Interpret command and act on it
+3  LPC_KEY             Send key with modifier
+4  LPC_STRING          Send string of keys
+5  LPC_PAUSE           Pause (in client) for specified time
+6  LPC_MESSAGE         Cause message to be displayed
+7  LPC_DISP_MENU       Display menu at given position
+8  LPC_CLIENT_POS      Move process to specified client position
+9  LPC_GROUND_STATE    Bring application to ground state
+10 LPC_ALLCOUNT        Alloc count in attached process
+11 LPC_SELF_CHECK      Self test attached process
+12 LPC_DIALOG          Run remote dialog
+13 LPC_GET_KEY         Get next key press to record
+14 LPC_EXEC            Execute program and attach to it
+15 LPC_WAIT            Wait for completion of last img/opl launched
+16 LPC_BRING_SEND      Bring data then send it as a string
+17 LPC_NAME_SEND       Format name then send it as a string
+! next group are synchronous but have async interfaces via lpc_action
+18 LPC_STORE_PID       Store current pid for later use
+19 LPC_RESTORE_PID     Restore current pid from earlier use
+20 LPC_ATTACH          Try to attach to specified process
+21 LPC_ATTACH_FORE     Attach to foreground process
+22 LPC_ATTACH_FNAME    Try to attach to process specified by file
+23 LPC_ZAP             Kill all specified processes
+24 LPC_KILL            Kill attached process
+25 LPC_TERMINATE       Terminate attached process
+26 LPC_CLOSEDOWN       Closedown message to attached process
+27 LPC_EXEC_IMG        Execute image program
+28 LPC_EXEC_OPL        Execute Opl program
+29 LPC_HOOK_DYL        Application should launch and hook DYL
+30 LPC_CONVERT         Convert selected stored characters to zero
+31 LPC_BEEP            Beep (as in Opl)
+! next group of methods are synchronous set or sense methods
+32 LPC_BRING           Sense link paste data
+33 LPC_RECORD          Turn recording state on or off
+34 LPC_YIELD           Yield CPU to any other processes that need it
+35 LPC_SET_PID         Set attached pid
+36 LPC_SENSE_PID       Sense attached pid
+37 LPC_SENSE_NAME      Sense formatted name of process
+38 LPC_TEST_PID        Test whether could attach to given pid
+39 LPC_STORE           Store text buffer for later use
+40 LPC_PROCESS_INFO    Return menu/dialog/locked/filter/busy/start state
+41 LPC_COUNT_DIALOGS   Return count of dialogs
+42 LPC_SENSE_IOSEM     Return value of io semaphore
+43 LPC_SENSE_AMSTART   Return value of appman.start
+44 LPC_CANCEL          Cancel current activity
+
+Synchronous and asynchronous access to LPC
+------------------------------------------
+You may notice that the lpc_init method takes a parameter that
+indicates whether access to LPC is going to be synchronous (if this
+parameter is NULL) or asynchronous (in which case this parameter is
+the address of a status word to be signalled when the message
+completes).
+
+By design, access to LPC from KMAC is asynchronous, but access to LPC
+from Opl is expected to be synchronous.

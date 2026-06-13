@@ -1,0 +1,200 @@
+rem BeepOff2
+rem Original by David Wood
+rem Options by jezar@cix
+
+PROC beepoff2:
+  global timh%,timstat%
+  global k%(2),kstat%
+  global bon%,boff%,hotk%,dapp$(15)
+  local timoff%
+
+  gBorder 0
+  if options%:=0
+    stop
+  endif
+
+  win2frnt:("sys$shll.*")
+  Print
+  Print "  BeepOff2 is running..."
+  gBorder 0
+  busy chr$(2)+"-Esc to stop"
+  call($138b)  rem GenMarkNonActive
+  ioopen(timh%,"TIM:",-1)
+  if (call($c58d,$2003,$e08) and $ff)  rem wCaptureKey
+    alert("Couldn't capture off key")
+    stop
+  endif
+  if hotk%
+    call($458d,hotk%,$404,0,0,0)
+  endif
+  
+  quekey:
+  quetim:
+  while 1
+    iowait
+    if kstat%<>-46   rem Key was pressed
+      if k%(1)=$2003
+        DoOff:
+      elseif k%(1)=hotk% and hotk%
+      	win2frnt:("sys$shll.*")
+      endif
+      quekey:
+    elseif timstat%<>-46  rem Timer expired
+      timoff%=timelft%:
+      if timoff%>=0 and timoff%<=3
+        DoOff:
+      endif
+      quetim:
+    else
+      alert("Stray signal","Programming error")
+      stop
+    endif
+  endwh
+ENDP
+
+PROC quekey:
+  keya(kstat%,k%(1))
+ENDP
+
+PROC quetim:
+rem Queue timer so it goes off 2 seconds before auto-off
+rem or after another 12 seconds, whichever is sooner
+  local t&,t%
+  t%=timelft%:
+  if t%<0
+    t%=12
+  elseif t%>12
+    t%=12
+  elseif t%>2
+    t%=t%-2
+  endif
+  t&=int(t%)*10
+  ioa(timh%,1,timstat%,t&,#0)
+ENDP
+
+PROC timelft%:
+rem returns seconds to go before autoswitchoff
+rem returns -1 if not going to autoswitchoff
+  local gooff%,timeoff%   rem keep together
+  if notifm%:
+    return -1
+  endif
+  call($078b,0,4,0,$40a,addr(gooff%)) rem GenGetOsData
+  if gooff%<0
+    return -1
+  else
+    return(timeoff%)
+  endif
+ENDP
+
+PROC notifm%:
+rem returns TRUE if won't switch off, because "on external power"
+  if (peekb(peekw($18)+13) and $f) <2
+    return 0  rem not S3a
+  elseif (call($388b) and $ff) <>1  rem GenGetAutoMains
+    return 0
+  else
+    return(mainsin%:)
+  endif
+ENDP
+
+PROC mainsin%:
+rem returns TRUE if mains is plugged in
+  local esup%(3)
+  call($118e,addr(esup%(1)))  rem HwGetSupplyStatus
+  return esup%(3)
+ENDP
+
+PROC dobeep:
+  call($328b)  rem GenTickle - reset inactivity counter
+  rem prevents switching off half way through the beeps
+  beep 1,300
+  beep 1,400
+  beep 1,500
+ENDP
+
+PROC win2frnt:(proc$)
+	local ax%,bx%,cx%,dx%,si%,di%
+	local name$(14)
+	
+	name$=proc$+chr$(0)
+	ax%=$0100
+	bx%=Addr(name$)+1
+	Os($88,Addr(ax%))
+	Call($198d,0,ax%,0,0,0)
+	Key
+ENDP
+
+
+PROC options%:
+	local retval%,hot%,dapp%
+	
+	rem Dialog defaults here:
+	bon%=2  rem beeps off
+	boff%=2
+	dapp%=6 rem my preference
+	hot%=2  rem cntl-z
+	
+	dInit
+	dText "","BeepOff2 options:",$202
+	dChoice bon%,"Beep at on","Yes,No"
+	dChoice boff%,"Beep at off","Yes,No"
+	dChoice hot%,"System hotkey","None,Cntl-z,Cntl-x"
+	dChoice dapp%,"Default application","None,System,Data,Word,Agenda,Time,World,Calc"
+	retval%=dialog
+	
+	if hot%=2
+		hotk%=26
+	elseif hot%=3
+		hotk%=24
+	endif
+	
+	if dapp%=2
+		dapp$="sys$shll.*"
+	elseif dapp%=3
+		dapp$="Data.*"
+	elseif dapp%=4
+		dapp$="Word.*"
+	elseif dapp%=5
+		dapp$="Agenda.*"
+	elseif dapp%=6
+		dapp$="Time.*"
+	elseif dapp%=7
+		dapp$="World.*"
+	elseif dapp%=8
+		dapp$="Calc.*"
+	endif
+	
+	bon%=2-bon%
+	boff%=2-boff%
+	
+	return retval%
+ENDP
+
+proc DoOff:
+	PreOff:
+	OFF
+	PostOff:
+endp
+
+proc PreOff:
+	if boff%
+		dobeep:
+	endif
+	
+	rem Moving the default app to
+	rem the front prior to switch
+	rem off, improves performance
+	rem over doing it after switch
+	rem on.
+	if not (dapp$="")
+		win2frnt:(dapp$)
+	endif
+endp
+
+proc PostOff:
+	if bon%
+		dobeep:
+	endif
+endp
+

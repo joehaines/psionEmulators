@@ -1,0 +1,81 @@
+Psion Scheduler
+
+
+Introduction
+	
+	Psion Scheduler is intended for running programms in a given time. It maintains a list of programms and times when they should be run. Psion Scheduler checks return values of the programms and ensures repeating if necessary.
+The program is intended for Psion Series 3a/c or Psion Workabout computers.
+
+Installation
+Instalation requires an IBM PC compatible computer with Windows 3.1x/95 and a Psion 3Link cable. Connect Psion to your personal computer by means of the cable and switch remote communication on selecting the Remote link option on the Special  menu. From the diskette, run the programm PSISETUP, which will carry on the installation. First choose the file SCHEDULE.CTL. PSISETUP will try to connect with Psion. If the connection fails, press the Setup button and set a correct serial port and a baud rate. When the connection is established, select the disk on which Scheduler should be installed. Press OK to transfer all the files to the Psion. Thus, the installation is finished.
+	
+Before running the programm for the first time, it must be installed into the System screen. To do this, select the Install option on the Apps menu and in the dialog box choose the SCHEDULE.APP file from the APP directory.
+
+
+Description
+When running Psion Scheduler, up to ten requests to run applications can be entered. Each request includes following items:
+
+* 	name of the application including path
+* 	name of the file passed as parameter
+* 	number of attempts to run the application
+* 	starting time 
+* 	date
+* 	interval between individual attempts
+
+Note: Starting point of the interval is the termination of previous attempt.
+
+Requests are displayed in a list, sorted according to time and date. In addition to all entered items, the state of the request is displayed:
+
+* 	Ready		- reqest is ready to run
+* 	Late		- request was entered after the starting time
+* 	Error		- all attempts to run the programm failed
+* 	Finished	- task was performed successfully
+* 	Running	- the task is being performed
+
+
+	Psion Schduler is a file application, i.e. after terminating of the Scheduler all requests are saved into a file and after running the Scheduler they are read from the file passed as parameter. If you run the Scheduler from the system screen, the name of the file where the cursor is located is used as parameter. Files containing requests have a SHL extension and are saved in the \SHL directory.
+ 
+
+New request
+
+	After selecting Add request  (Psion-A or Shift-Enter) a dialog window enabling you to enter all the neccessary items is displayed. Pressing Enter adds new request to the list and sets automatically the state of the request.
+
+
+Editing a request
+
+	To edit a request, place the cursor on it using arrow keys and press Enter. You can also use the shortcut Psion-E or the menu item Edit request. The same dialog window as when entering a new request is displayed and the items can be changed.
+
+
+Deleting a request
+
+	A request can be deleted using the Del or Psion-D keys. Then menu item Delete request is also available.
+
+	Note: The request cannot be deleted or edited when it is being run.
+
+
+Performing a request
+	
+	At the desired time the requested application is automatically run. If the run is successful (return code 0), the state of the request is set to Finished. If the application failes (return code <> 0), the programm is put back into the list of requests. After performing the entered number of unsuccessful attempts, the state of the request is set to Error. 
+
+
+Exiting
+
+	To terminate the Psion Scheduler, select the menu item Exit or use the shortcut Psion-X. By doing this you cancel all the requests.
+
+
+
+Format of the file
+
+	The requests are saved in the text file, each line of the file contains one request. The syntax of the lines is as following:
+ 
+<programm_name>,<parameter>,<hh:mm>,<dd.mm.yy>,<interval_in _min>,<number_of _attempts>
+
+
+	Example:
+
+On February 22 1998 at 23:15 the programm FTP should be run with batch file DEMO.FTP passed as a parameter. The batch file is located at an internal disk in \FTP directory. If the task fails (connection is not established or interupted), repeat it after 10 minutes. Perform up to 5 attempts.
+
+The line in the file corresponding this request will look as follows:
+
+M:\APP\FTP.APP,M:\FTP\DEMO.FTP,23:15,22.2.1998,10,5
+

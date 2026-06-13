@@ -1,0 +1,31 @@
+PROC devlist:
+	local nh%,dh%
+	local dev$(128)
+	local ret%
+	ioopen(nh%,"FIL:",$60)
+	while 1
+		ret%=iow(nh%,1,#addr(dev$)+1,#0)
+		if ret% :break :endif
+		patchlen:(addr(dev$))
+		print "Filing system:",dev$
+		get
+		ret%=ioopen(dh%,dev$,$50)
+		if ret%
+			print "  No devices supported"
+			continue
+		endif
+		while 1
+			ret%=iow(dh%,1,#addr(dev$)+1,#0)
+			if ret% :break :endif
+			patchlen:(addr(dev$))
+			print "  Device:",dev$
+		endwh
+		ioclose(dh%)
+	endwh
+	ioclose(nh%)
+	get
+ENDP
+
+PROC patchlen:(a%)
+	pokeb a%,call($b9,0,0,0,0,a%+1)
+ENDP

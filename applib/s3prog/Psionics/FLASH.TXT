@@ -1,0 +1,223 @@
+PSIONICS FILE - FLASH
+=====================
+Format of Flash SSD cards and ROMs
+Last modified 1994-09-12
+==================================
+
+This file describes information about the structure of existing types of
+Flash cards. It does not apply to RAM cards, and might not apply to new types
+of SSDs that may become available in the future. It does, however, appear to
+apply to the ROM in the 3-Link pod and the SSD ROM used to ship the
+Spreadsheet.
+
+The term "erased flash card" is one that was partially formatted, after which
+the format was stopped, and then reformatted. This causes the contents of the
+start of the flash card, which is normally preserved by the formatting process
+(see Psionics file FILEIO) to be lost.
+
+All "trip" values are offsets from the start of the card. The term "NULL"
+means the value $FFFFFF.
+
+The flash card always begins with:
+  Offset  0 (word): $F1A5 ('Flas')
+  Offset  2 (long): unique ID of SSD
+  Offset  6 (word): unknown @only ever seen 1@
+  Offset  8 (trip): unknown @only ever seen 1@
+  Offset 11 (trip): pointer to the root directory entry
+  Offset 14 to  21: volume name
+  Offset 22 to  24: volume extension
+  Offset 25 (long): count of times flash card has been formatted, or
+                    $FFFFFFFF for ROMs
+It then continues with either:
+  Offset 29 (word): size of the card in 256 byte units (i.e. $1000 = 1Mb)
+  Offset 31 (word): unknown @only ever seen $FFFF@
+  Offset 33 onward: identity string
+Or:
+  Offset 29 onward: identity string
+The first form is seen on flash cards, and the second on ROMs and erased flash
+cards.
+
+The unique ID is placed there when the SSD is first created, and is preserved
+even when the SSD is formatted. There is no obvious pattern to the ID's.
+Note that different 3-Link pods have different unique IDs.
+
+If the first byte of the volume name is 00, the volume name is not in
+offsets 14 to 24, but is instead found in a special file record within the
+root directory.
+
+The identity string is terminated by a zero byte or a $FF byte. The identity
+strings seen to date are:
+    "PSION 1.0 01/80"
+    "PSION 1.0 06/80"
+    "PSION 1.0"
+    "Copyright (c) Psion Plc 1991"
+The first two were seen on flash cards, the third on an erased flash card,
+and the last on both the 3-Link pod ROM and the spreadsheet SSD ROM.
+
+
+The rest of the flash card is divided into records (unused portions of the
+card are full of $FF bytes).
+
+The root directory entry is a filing system record. The directory name is
+"ROOT.".
+
+Filing system records represent entries in directories: other directories,
+files, and volume names. A filing system record is 31 bytes if it represents
+a file, and 26 bytes otherwise:
+
+  Offset  0 (trip): pointer to the next entry in same directory
+  Offset  3 to  10: entry name
+  Offset 11 to  13: entry extension
+  Offset 14 (byte): flags
+  Offset 15 (trip): pointer to first entry record
+  Offset 18 (trip): pointer to alternate record
+  Offset 21 (byte): entry properties
+  Offset 22 (word): time code
+  Offset 24 (word): date code
+  Offset 26 (trip): (file only) pointer to start of first data record
+  Offset 29 (word): (file only) length of first data record
+
+The flags are as follows:
+  Bit 0: 1 = entry still valid, 0 = entry deleted
+  Bit 1: 1 = properties, time, and date valid
+  Bit 2: 1 = file or volume name, 0 = directory
+  Bit 3: 1 = no entry record (so NULL at offset 15)
+  Bit 4: 1 = no alternate record (so NULL at offset 18)
+  Bit 5: 1 = no more entries in same directory (so NULL at offset 0)
+  Bit 6: all entries seen so far have this bit set to 1
+  Bit 7: all entries seen so far have this bit set to 1
+
+The first entry record is:
+  for files:        first continuation record of file; if the pointer is NULL,
+                    the file only contains one data record
+  for directories:  filing system record of first directory entry; if the
+                    pointer is NULL, the directory is empty
+  for volume names: all entries seen so far have a NULL pointer
+
+If the alternate record exists, then most of the data in the record pointing
+to the alternate record should be ignored, and replaced by the corresponding
+data in the alternate record. The alternate record is:
+  for files:        a continuation record; ignore the first entry record
+                    and the data record in the original record
+  for directories:  alternate records are not used
+  for volume names: alternate records are not used
+
+The entry properties are:
+  Bit 0: 1 = read-only file
+  Bit 1: 1 = hidden file
+  Bit 2: 1 = system file
+  Bit 3: 1 = is a volume name
+  Bit 4: 1 = directory
+  Bit 5: 1 = modified
+
+The time code is: $800 * hour + $20 * minute + second / 2.
+The date code is: $200 * (year - 1980) + $20 * month + date.
+
+A file is represented by a linked list of records. The first record is the
+filing system record, or its alternate, and the remaining records are all
+continuation records. A continuation record is 17 bytes:
+
+  Offset  0 (byte): flags (as above)
+  Offset  1 (trip): pointer to next continuation record
+  Offset  4 (trip): pointer to alternate continuation record
+  Offset  7 (trip): pointer to data record
+  Offset 10 (word): length of data record, or $FFFF if it is unknown and the
+                    file is still open
+  Offset 12 (byte): entry properties
+  Offset 13 (word): time code
+  Offset 15 (word): date code
+
+Note that bits 5, 2, and 0 of the flags will always be set, and that bits 4
+and 3 refer to offsets 1 and 4 respectively. In addition, it is possible for
+bit 3 to be clear but for there to be no next continuation record.
+
+To examine all the data in a file, start at the filing system record, and then
+proceed as follows for each record in turn:
+    If flag bit 4 is set, go to the alternate record and repeat this step.
+    Otherwise the next part of the file is given by the data pointer and length
+    within this record.
+    After using the data: if flag bit 3 is clear and the next continuation
+    record pointer is not null, go to that record, starting by examining flag
+    bit 4. Otherwise the end of file has been reached.
+
+As files are modified, the records on the flash card become out of date.
+For example, data that has been overwritten will remain on the card. In
+particular, the properties, time, and date bytes of records will remain even
+when they are not valid (as indicated by flag bit 1). Also note that a
+change to a file may cause several continuation records to be written at the
+same time. In these circumstances, only one of these will have the correct
+properties, time, and date, and the others will be written without them, and
+with some other record overlapping these 5 bytes.
+
+
+Reading flash cards
+-------------------
+
+On later versions of EPOC, flash cards can be read with FilLocReadPDD (see
+Psionics file SYSCALLS). If this is not available, the following code can be
+used to read flash cards. The left four columns give individual bytes; the
+right column is the bytes reorganized as long words.
+
+  EB  3A  55  E8   E8553AEB
+  95  00  83  EC   EC830095
+  0E  8B  F4  8D   8DF48B0E
+  7E  28  BA  21   21BA287E
+  DD  2B  DB  B4   B4DB2BDD
+  0A  CD  85  83   8385CD0A
+  C4  0E  8B  D8   D88B0EC4
+  B4  02  CD  85   85CD02B4
+  89  46  00  89   89004689
+  5E  02  CD  8F   8FCD025E
+  8C  46  32  B4   B432468C
+  00  CD  88  80   8088CD00
+  E4  0F  89  46   46890FE4
+  30  9C  FA  1E   1EFA9C30
+  07  9D  5D  CB   CB5D9D07
+  83  FB  04  72   7204FB83
+  05  B8  FC  FF   FFFCB805
+  EB  51  8B  F0   F08B51EB
+  55  E8  4F  00   004FE855
+  88  5E  20  FF   FF205E88
+  36  12  00  8D   8D001236
+  46  04  A3  12   12A30446
+  00  FF  36  20   2036FF00
+  00  80  26  20   20268000
+  00  00  E4  14   14E40000
+  C4  7E  30  26   26307EC4
+  FE  45  0D  1E   1E0D45FE
+  07  8B  FA  B0   B0FA8B07
+  00  FF  5E  00   005EFF00
+  98  8B  D8  C4   C4D88B98
+  7E  30  26  FE   FE26307E
+  4D  0D  9C  FA   FA9C0D4D
+  1E  07  9D  8F   8F9D071E
+  06  20  00  80   80002006
+  3E  20  00  00   0000203E
+  74  02  E6  14   14E60274
+  8B  C3  8F  06   068FC38B
+  12  00  5D  CB   CB5D0012
+  58  FF  E0  E8   E8E0FF58
+  FA  FF  05  06   0605FFFA
+  00  8B  E8  C3   C3E88B00
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  00  00  00  00   00000000
+  4C  4F  43  2E   2E434F4C
+  54  59  31  00   00315954
+  00  00  00  00   00000000
+
+If this code is placed at location bin%, then to initialize the code, call
+    USR (bin% + 2, 0, 0, 0, 0)
+Then, to copy date from the flash card:
+    rc% = USR (bin%, ADDR (loc&), drive%, length%, ADDR (buffer))
+copies length% bytes into the buffer, starting from address loc& on card
+drive% (0 is A:, 1 is B:, 2 is C:, etc.). A returned value of 0 indicates
+success.
+

@@ -1,0 +1,67 @@
+rem Does translation first and runtime evaluation afterwards
+rem so that eg. a graphics program could translate expression once and
+rem for all
+
+proc eval:
+  local ret%,catH%
+  local tObj%,tArgs%(4)     rem translator object and method args
+  local rObj%,rArgs%(20)    rem runtime object and method args
+  local errBuf$(64),srcBuf$(128),module$(64)
+  local dExpr$(100),expr$(101),res$(30)
+  local deg%,flags%
+
+  ret%=findlib(catH%,"OPL.DYL")
+  if ret%<0
+    raise ret%
+  endif
+  tObj%=newObjH(catH%,1)  :rem Create translator object - class C_OPLT
+  if tObj%=0
+    raise -10 :rem out of memory
+  endif
+  rObj%=newObjH(catH%,2)  :rem Create runtime object - class C_OPLR
+  if rObj%=0
+    raise -10 :rem out of memory
+  endif
+
+  rem Translator method arguments
+  tArgs%(1)=0         :rem Translate rather than locate error
+  tArgs%(2)=uadd(addr(expr$),1)
+  rem tArgs%(3) takes offset to error
+  rem tArgs%(4) takes address of QCode cell to be passed to runtime
+
+  rem Runtime method arguments
+  rem module$="m:\eval.opo"+chr$(0) :rem no module if speed required
+  rArgs%(1)=0   rem default stack size - 2K
+  rArgs%(4)=uadd(addr(errBuf$),1)    :rem buffer for ZTS error message
+  rArgs%(5)=addr(srcBuf$)    :rem buffer for source module name on error
+  rArgs%(10)=addr(module$)   :rem lbc module name to load 
+
+  rem rArgs%(2) takes error offset in QCode for textual error location
+  rem rArgs%(3) takes line number of start of proc that caused error
+  rem rArgs%(6)-rArgs%(9) take float result
+  
+  do
+    dinit "Test fast evaluate"
+    dEdit dExpr$,"Expression",20
+    dChoice deg%,"Mode","Radians,Degrees"
+    dText "Result",res$+" "
+    if dialog=0 :break :endif
+    expr$=dExpr$+chr$(0)
+    ret%=send(tObj%,1,tArgs%())  :rem O_OT_EXP method - translate expression
+    if ret%<0
+      res$=err$(ret%)
+    else
+      flags%=1 or (deg%-1)*$8000 rem Calculator mode and degrees if required
+      ret%=send(rObj%,1,#(flags%),#tArgs%(4),rArgs%()) rem O_OR_RUN method
+      if ret%<0
+        res$=err$(ret%)
+      else
+        res$=gen$(peekf(addr(rArgs%(6))),30)  rem peek the result
+      endif
+    endif
+    freeAlloc tArgs%(4)                       rem free the QCode cell
+  until 0
+  send(tObj%,0)   rem destroy translator object
+  send(rObj%,0)   rem destroy runtime object
+endp
+

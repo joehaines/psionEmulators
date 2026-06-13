@@ -1,0 +1,297 @@
+! hebrew.hol V1.4
+
+style = italic;
+year_symbol = "j";
+
+! new year for trees - 15th Shevat
+"Tu Bi'Shvat" = hfix(11,15);
+
+! Passover 15-22 Nisan
+{"Pesach (1/8)"     = hfix(1,15); alias = p;}
+"Erev Pesach"        = p - 1;
+"Pesach (2/8)"       = p + 1;
+"Pesach (3/8)"       = p + 2;
+"Pesach (4/8)"       = p + 3;
+"Pesach (5/8)"       = p + 4;
+"Pesach (6/8)"       = p + 5;
+"Pesach (7/8)"       = p + 6;
+"Pesach (8/8)"       = p + 7;
+
+!*****
+! Passover for residents of Israel
+! {"Pesach (1/7)"     = hfix(1,15); alias = p;}
+! "Erev Pesach"        = p - 1;
+! "Pesach (2/7)"       = p + 1;
+! "Pesach (3/7)"       = p + 2;
+! "Pesach (4/7)"       = p + 3;
+! "Pesach (5/7)"       = p + 4;
+! "Pesach (6/7)"       = p + 5;
+! "Pesach (7/7)"       = p + 6;
+!*******
+
+"Shabbat Shekalim"       = p - 43 ! Saturday on or before p - 43
+                           if (weekday(0)) {       ! Sunday
+                              -1
+                           } elseif (weekday(1)) { ! Monday
+                              -2
+                           } elseif (weekday(2)) { ! Tuesday
+                              -3
+                           } elseif (weekday(3)) { ! Wednesday
+                              -4
+                           } elseif (weekday(4)) { ! Thursday
+                              -5
+                           } elseif (weekday(5)) { ! Friday
+                              -6
+                           };
+
+!Fast of Esther - 13th Adar Sheni 
+"Taanith Esther"          = p
+                           if (weekday(2)) { ! Is Pesach on tuesday?
+                              -33
+                           } else {
+                              -31
+                           };
+
+"Shabbat Zachor"         = p - 30 ! Saturday on or before
+                           if (weekday(0)) {       ! Sunday
+                              -1
+                           } elseif (weekday(1)) { ! Monday
+                              -2
+                           } elseif (weekday(2)) { ! Tuesday
+                              -3
+                           } elseif (weekday(3)) { ! Wednesday
+                              -4
+                           } elseif (weekday(4)) { ! Thursday
+                              -5
+                           } elseif (weekday(5)) { ! Friday
+                              -6
+                           };
+                                
+
+"Erev Purim" = p - 31;
+"Purim"      = p - 30;
+"Shushan Purim" = p
+                  if (weekday(0)) {
+                     -28
+                  } else {
+                     -29
+                  };
+
+{
+  alias = hahodesh;
+  "Shabbat HaHodesh"     = p - 14 ! Saturday on or before this date
+                           if (weekday(0)) {       ! Sunday
+                              -1
+                           } elseif (weekday(1)) { ! Monday
+                              -2
+                           } elseif (weekday(2)) { ! Tuesday
+                              -3
+                           } elseif (weekday(3)) { ! Wednesday
+                              -4
+                           } elseif (weekday(4)) { ! Thursday
+                              -5
+                           } elseif (weekday(5)) { ! Friday
+                              -6
+                           };
+}
+"Shabbat Parah" = hahodesh - 7;
+
+"Shabbat HaGadol"        = p - 1
+                           if (weekday(0)) {       ! Sunday
+                              -1
+                           } elseif (weekday(1)) { ! Monday
+                              -2
+                           } elseif (weekday(2)) { ! Tuesday
+                              -3
+                           } elseif (weekday(3)) { ! Wednesday
+                              -4
+                           } elseif (weekday(4)) { ! Thursday
+                              -5
+                           } elseif (weekday(5)) { ! Friday
+                              -6
+                           };
+
+"Yom HaShoah" = p + 12;
+
+"Yom HaZikaron" = hfix(2,4)
+                  doneif(weekday(0))
+                  hfix(2,5);
+
+! 5th Iyar - Israeli Independence Day
+"Yom HaAtzma'ut" = p
+                   if (weekday(0)) {
+                      +18
+                   } elseif (weekday(6)) {
+                      + 19
+                   } else {
+                      +20
+                   };
+
+! 18th Iyar - 33rd day of omer
+"Lag Ba'Omer" = hfix(2,18);
+
+"Yom Yerushalim" = p + 43;
+"Erev Shavuot" = p + 49;
+
+! 6th & 7th Sivan
+"Shavouot (1/2)" = hfix(3,6);
+"Shavouot (2/2)" = hfix(3,7);
+
+!*****
+! Shavouot for residents of Israel
+! "Shavouot" = hfix(3,6);
+!******
+
+{ 
+  alias = t; 
+  entry_type = ignore;  ! Don't write to agenda - only a help variable
+  "[Tish'a B'Av help date]" = hfix(5,9);
+}
+
+"Tzom Tammuz" = t
+                if (weekday(6)) {
+                   -20
+                } else {
+                   -21
+                };
+
+"Shabbat Hazon" = t
+                           if (weekday(0)) {       ! Sunday
+                              -1
+                           } elseif (weekday(1)) { ! Monday
+                              -2
+                           } elseif (weekday(2)) { ! Tuesday
+                              -3
+                           } elseif (weekday(3)) { ! Wednesday
+                              -4
+                           } elseif (weekday(4)) { ! Thursday
+                              -5
+                           } elseif (weekday(5)) { ! Friday
+                              -6
+                           };
+                           
+
+! 9th av - fast postponed to sunday if saturday
+"Tish'a B'Av" = hfix(5,10)
+                doneif(weekday(0))
+                hfix(5,9);
+
+
+"Shabbat Nahamu" = t + 7
+                           if (weekday(0)) {       ! Sunday
+                              -1
+                           } elseif (weekday(1)) { ! Monday
+                              -2
+                           } elseif (weekday(2)) { ! Tuesday
+                              -3
+                           } elseif (weekday(3)) { ! Wednesday
+                              -4
+                           } elseif (weekday(4)) { ! Thursday
+                              -5
+                           } elseif (weekday(5)) { ! Friday
+                              -6
+                           };
+                           
+! 15th av - midsummers day - Hamisha Asar B'Av
+"Hamisha Asar B'av" = hfix(5,15);
+
+
+! Rosh HaShanah / new year
+{"Rosh HaShanah %hy (1/2)" = hfix(7,1); alias = r;}
+"Rosh HaShanah (2/2)"      = r + 1;
+
+"Selichot (night)"         = r - 4
+                             if (weekday(0)) {       ! Sunday
+                                -1
+                             } elseif (weekday(1)) { ! Monday
+                                -2
+                             } elseif (weekday(2)) { ! Tuesday
+                                -3
+                             } elseif (weekday(3)) { ! Wednesday
+                                -4
+                             } elseif (weekday(4)) { ! Thursday
+                                -5
+                             } elseif (weekday(5)) { ! Friday
+                                -6
+                             };
+
+"Erev Rosh HaShanah"       = r - 1;
+
+"Shabbat Shuvah"           = r + 7 ! Saturday on or before r + 7
+                             if (weekday(0)) {       ! Sunday
+                                -1
+                             } elseif (weekday(1)) { ! Monday
+                                -2
+                             } elseif (weekday(2)) { ! Tuesday
+                                -3
+                             } elseif (weekday(3)) { ! Wednesday
+                                -4
+                             } elseif (weekday(4)) { ! Thursday
+                                -5
+                             } elseif (weekday(5)) { ! Friday
+                                -6
+                             };
+
+! postponed to sunday if saturday
+"Tzom Gedaliah"      = r + 3
+                       doneif(weekday(0))
+                       r + 2;
+
+"Erev Yom Kippur"          = r + 8;
+! Yom Kippur - day of atonement - 10th Tishri
+"Yom Kippur"               = r + 9;
+
+"Erev Succot"              = r + 13;
+
+! Succot - tabernacles - 15-23 Tishri
+"Succot (1/9)"                 = r + 14;
+"Succot (2/9)"                 = r + 15;
+"Succot (3/9)"                 = r + 16;
+"Succot (4/9)"                 = r + 17;
+"Succot (5/9)"                 = r + 18;
+"Succot (6/9)"                 = r + 19;
+"Succot (7/9) Hoshanah Rabbah" = r + 20;
+! solemn assembly
+"Shemini Atzeret"              = r + 21;
+! rejoycing of the law
+"Simchas Torah"                = r + 22;
+
+!**********
+! Succot for residents of Israel
+! "Succot (1/8)"                 = r + 14;
+! "Succot (2/8)"                 = r + 15;
+! "Succot (3/8)"                 = r + 16;
+! "Succot (4/8)"                 = r + 17;
+! "Succot (5/8)"                 = r + 18;
+! "Succot (6/8)"                 = r + 19;
+! "Succot (7/8) Hoshanah Rabbah" = r + 20;
+! solemn assembly
+!"Shemini Atzeret/Simchas Torah" = r + 21;
+!**********
+
+!**********
+!Tal U'Matar for residents of Israel
+!"Tal U'Matar (evening)"         = hfix(8,7);
+!**********
+"Tal U'Matar (evening)"          = fix(12,4);
+
+! Chanukah - 25th Kislev - festival of lights
+{"Chanukah (1/8)" = hfix(9,25); alias = c;}
+"Erev Chanukah"   = c - 1;
+"Chanukah (2/8)"  = c + 1;
+"Chanukah (3/8)"  = c + 2;
+"Chanukah (4/8)"  = c + 3;
+"Chanukah (5/8)"  = c + 4;
+"Chanukah (6/8)"  = c + 5;
+"Chanukah (7/8)"  = c + 6;
+"Chanukah (8/8)"  = c + 7;
+
+
+
+!Tzom Tevet
+"Tzom Tevet" = hfix(10,11)
+               doneif(weekday(0))
+               hfix(10,10);
+
+
+

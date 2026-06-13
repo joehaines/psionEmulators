@@ -1,0 +1,1310 @@
+KMAC.APP, the keyboard macro record and playback app
+====================================================
+
+Introduction
+------------
+KMAC.APP allows you to automate many features of your S3a.  KMAC can
+be used to
+   * record keyboard macros
+   * play back these keyboard macros later
+   * edit your keyboard macros to add in extensive control features
+   * automate "demo" programs
+   * automate interactive tutorial programs
+   * simplify automated testing of programs (eg regression testing)
+
+KMAC is designed to work as non-intrusively as possible.  It doesn't
+have its own "screen"; instead, it shares the screen of the current
+foreground application.
+
+There's no need to transfer to another screen to start recording
+a macro.  Just press Shift-Control-Space ("Space" for "Start
+recording" - the same as in the built-in "Record" application), give
+the name of the macro you want to record (and, optionally, a hot-key
+for it), and then start pressing the keys you want recorded.  (As
+well as being recorded, the keys also have their normal effect - so
+you can see how far you've got through your intended sequence.)  When
+you're finished, press Shift-Control-Space again.  Then when you want
+to replay this macro at a later date, just press Shift-Control-Enter
+("Enter" for "Start playback" - the same as in the built-in "Record"
+application).  Hey presto, the key sequence is replicated exactly.
+
+In case you forget these special hot-key combinations, just press
+Shift-Control-Help, which brings up KMAC's own Help screen.  The only
+thing you need to remember is that the KMAC system uses the
+Shift-Control modifier pair as its own special prefix.  Then as the
+Help screen reminds you, you use
+
+   Shift-Ctrl-Space          to start or stop macro recording
+   Shift-Ctrl-Enter          to play back the last macro recorded
+   Shift-Ctrl-Diamond        to select another macro to play back
+   Shift-Ctrl-A through Z    to play back the macro with this hot-key
+   Shift-Ctrl-Menu           to review existing hot-key assignments
+   Shift-Ctrl-Esc            to interrupt a macro playing back
+   Shift-Ctrl-Help           to show the KMAC Help screen
+
+(You are also asked if you want to see this Help screen every time
+you start KMAC, so there's no need even to remember Shift-Ctrl-Help.) 
+   
+KMAC stores all its macros in a plain text file.  You can edit the
+contents of this file to add in extra control features, such as
+
+    skip the next line if there's no dialog showing
+    stop unless a certain app (eg the Word Processor) is foreground
+    make any given application (eg the System Screen) foreground
+    load in another script file and take commands from that instead
+    loop back to the top of the present macro or script file
+    pause briefly (eg to allow the screen to redraw)
+    pause until the user "nudges" playback forwards again
+    switch into "single stepping mode" (useful for "debugging")
+    "bring" data from a background application
+    display "info messages" in the foreground application
+    present query or alert dialogs in the foreground application
+
+If you understand Opl, you can write Opl programs that macros can
+start, and inside these programs, you can do even more complicated
+data manipulations and utilise all the features of Opl to control
+macro playback.  KMAC can also be used to start programs written in
+C, and you can even arrange for the foreground application to start
+running code from a specified DYL (which can have some very powerful
+results).
+
+Although you can do very powerful things with KMAC (and the length of
+this documentation provides something of an indication of this), you
+don't need to work hard and long at it before you can achieve some of
+these results for yourself.  You don't need to know Opl, nor any
+other programming language.  Nor is there any special requirement for
+you ever to look at any of the .KMA (keyboard macro text files)
+produced by KMAC.  You can record and playback your first macro
+literally seconds after copying the KMAC files onto your S3a.
+
+Disclaimers
+-----------
+KMAC is not an official Psion product.  You can not receive any
+assistance with it by contacting Psion Technical Support, or any
+other department within Psion.  However, if you ask a question about
+KMAC in the PSION conference on CIX, I will endeavour to answer it
+within a few days (within reason).
+
+KMAC is reasonably well tested but I cannot take any responsibility
+for any problems you may encounter with your S3a as a result of using
+it.  KMAC exercises the software system on the S3a very fully and can
+sometimes expose limitations of that software that are not otherwise
+noticeable.  However, despite these shortcomings, I have no doubt
+that an S3a running KMAC is an even more powerful "personal
+assistant" than one *not* running KMAC.
+
+Files in KMAC091.ZIP
+--------------------
+KMAC.TXT        This documentation
+KMAC.APP        The app itself
+LPC.DYL         Local Process Control DYL (used by KMAC)
+KMAC.DBF        Database of syntax of keywords understood by KMAC
+KMACED.ALS      Sample text editor for editing KMAC scripts
+EGKMA.TXT       Discussion of some example macros
+KMACLIB.OPO     Module to LOADM to access LPC from Opl programs
+KMACLIB.OPL     Source code for KMACLIB
+OPLLPC.TXT      Documentation on using LPC.DYL from Opl
+
+For those who would like to look at it, the source code for KMAC.APP
+and LPC.DYL is available in separate zip files, KMAC091S.ZIP and
+LPC091S.ZIP.  (This source code is in C and requires version 2 of the
+C SDK to build it.  It also assumes, in place, knowledge of the
+object-oriented manner of operation of HWIM applications.)
+
+Installing KMAC
+---------------
+Copy KMAC.APP into an \APP\ directory on your S3a.
+Copy LPC.DYL into a \DYL\ directory on your S3a.
+
+These are the only two files that you HAVE to copy onto your S3a,
+though you may also find it convenient to copy at the same time
+   KMAC.DBF into a \DAT\ directory
+   KMACED.ALS into an \APP\ directory
+
+In the System Screen, use the "Install" option and select "Kmac" from
+the disk you copied it onto.  An icon will be added to the System
+Screen that it similar to (but noticeably different from) the icon of
+the sound "Record" application.
+
+Press ENTER with the highlight on "Kmac" under the Kmac icon.  The
+word "Kmac" will change into bold text, showing that the Kmac
+application is running, but the System Screen remains in foreground.
+
+(If you get an error instead, such as "File does not exist", check
+that the file LPC.DYL is in a \DYL\ to-level directory.)
+
+A dialog will be shown, displaying
+   The version number of KMAC, and its release date
+   A copyright message
+   A pair of action buttons: Esc for "Continue" and Enter for "Help".
+
+Normally, when starting KMAC you will press Esc to make this dialog
+go away.  But sometimes you may wish to press Enter to view the Help
+screen (described earlier in this document).
+
+Later, when you want to exit KMAC, come back to the System Screen (if
+necessary), put the highlight on the word "Kmac" under its icon, and
+press Delete.
+
+Recording your first keyboard macro
+-----------------------------------
+If necessary, start KMAC, and press Esc to clear the start-up dialog.
+If you are not there already, go to the System Screen.
+
+Now let's record a macro to set the keyclick volume to "Quiet".
+
+Start by pressing Shift-Ctrl-Space.  This brings up a dialog asking
+you to give the name for the keyboard macro you want to record.  Type
+in any name (this can be up to 23 characters long), eg "Set keyclick
+quiet", and press ENTER.  You are now in recording mode.
+
+Press Psion-s to display the "Set the sound" dialog.  Press DOWN
+three times, to highlight the "Key click" line.  Press Q, to select
+"Quiet" from the choice list.  (Nothing will change on the screen if,
+perchance, the setting is already "Quiet".)  Press ENTER to confirm
+the dialog.
+
+Now press Shift-Ctrl-Space to finish recording.  A special info
+message is displayed at the top left corner of the screen, confirming
+the name of the macro, and the number of keypresses in it (6 keys in
+this case).
+
+Playing back this macro
+-----------------------
+In order to see the effect of this macro, manually set the keyclick
+back to loud.  Move the cursor around a bit, and listen to the loud
+keyclick.
+
+If necessary, start KMAC, and go to the System Screen.  Then press
+Shift-Control-Enter.  (You don't need to put the highlight back on
+"Kmac" first.  Kmac captures this key combination, regardless of
+where the cursor is.)
+
+There is a flurry of activity in the middle of the screen, and then
+an information message is shown at the top left corner: "Playback
+successful".  Move the cursor around a bit and you'll hear how the
+keyclick has indeed gone quiet again.
+
+Revising the hotkey for a macro
+-------------------------------
+Press Shift-Control-Menu.  This brings up the KMAC "Revise hot key"
+dialog.  This shows a choice list of all the macros you have recorded
+so far, together with their hot-key.  You'll see that the macro you
+have just recorded has the hot key "[M]" shown for it (at the end of
+its name).  Let's change this to [Q], as follows:
+
+Press ENTER to confirm that we want to change the hotkey of the macro
+shown.  Then press Q to select "Q" in the choice list of possible
+hotkeys shown in the next dialog.  Press ENTER to confirm this
+choice.  If you press Shift-Control-Menu at this stage, you'll see
+that the hotkey for your macro has indeed been changed.
+
+By default, all new macros get assigned the hotkey [M].  Since Ctrl-M
+and Ctrl-Enter produce identical keycodes (13 in each case) and
+have identical modifiers, this means that Shift-Ctrl-Enter runs the
+macro with hotkey [M].  (But once you've revised the hotkey from [M]
+to [Q], the macro can no longer be played back by Shift-Ctrl-Enter.)
+
+At this stage, you should probably experiment by recording several
+other macros and playing them back - either using Shift-Ctrl-Enter,
+or using Shift-Ctrl-<hotkey>, or by using Shift-Ctrl-Diamond and then
+selecting the macro to playback by name.
+
+Note that you cannot record, in a macro, a keypress that takes you
+from one application to another - such as pressing a task key.  The
+recorder facility within KMAC is limited to recording keypresses in
+only one application at a time.  (But see later in this document for
+how to create macros that DO switch from one application to another.)
+
+Macros are saved to file
+------------------------
+When you exit KMAC - by pressing Delete with the highlight on "Kmac"
+in the System Screen - the macros are written out to a plain text
+file.  You can, if you wish, create several different files of
+macros, eg by using the "New file" option in the System Screen.
+
+You can use the supplied word processor alias KMACED.ALS to look at
+these .KMA macro files.  (Alternatively, just use the "Create new
+list" option in the System Screen to create your own text-mode alias
+for the word processor, for \KMA\*.kma files.)  You may find it
+easiest to set the zoom setting to the smallest font (and then to
+save this as the default template for these files - but be sure to
+remove the text before you do this).
+
+Note that changes in macros are only written to file when KMAC is
+exited (or receives a "switch files" instruction from the System
+Screen).  Watch out, in particular, that if you have the .KMA file
+open in an editor, and then try to exit KMAC, it will not be able to
+do so, if there are changes that have to be written to file.  Exit
+the editor first and then KMAC.  Likewise if you want any changes you
+make (by hand-editing) in a .KMA file to be picked up by KMAC, you
+have to exit KMAC first and then restart it.
+
+The format of .KMA files
+------------------------
+You'll be able to see that .KMA files consist of a brief header
+portion followed by a series of macro definitions.
+
+The header section always starts with the line
+    KMAC 1.00
+and KMAC will refuse to load a KMAC file that does not start in this
+way.
+
+After this, one or more of the two following lines may also be present
+in the header section:
+
+    AUTO x
+defines what hot-key, if any, should be given to all new macros.  By
+default, x has the value "M".  You can put "?" instead, to force KMAC
+to ask you to supply a hotkey every time, immediately after recording
+a new macro.  Or you can put "-", so that new macros are left without
+any hot key defined for them.
+
+    QUIET   
+specifies that any new macro recorded is automatically "quiet" (see
+below for the significance of this).
+
+The definition of an individual macro
+-------------------------------------
+Individual macro definitions alway start with the line
+
+    MACRO <name>
+which also specifies the name of the macro.
+
+After this, there can be a few lines specifying additional
+information about the macro; then there is the "CONTENTS" section for
+the macro.
+
+Before the contents section, the following lines can appear:
+
+    KEY x
+which specifies the hot key of the macro, eg "KEY T" to specify the
+hotkey Shift-Ctrl-T
+
+    QUIET
+which specifies that the macro is "quiet", meaning that the info
+message "Play back successful" does NOT get displayed at the end of
+the macro playback
+
+    BACKGROUND
+which specifies that the macro does not start off by automatically
+"attaching" to the foreground application (see below for the
+significance of this).
+
+The contents section must always start with the keyword "CONTENTS"
+and continues either until there is a blank line or the end of the
+file is reached.  The contents themselves are sequences of two types
+of commands:
+
+    1. raw keycodes (together, optionally, with modifiers)
+    2. alphabetic commands (see below for examples).
+
+In all, there are over 40 different alphabetic commands, such as
+    "G" to ensure the attached process is in its "ground state"
+(without any menu or dialog showing, etc - the macro ensures this is
+the case by sending as many Esc keys as are required)
+    "I" to display a specified information message
+    "J" to jump a given number of steps in the macro, if a certain
+condition is true (for example, if there is a dialog showing)
+    "S" to send a specified string of keys (this can be easier to
+understand than just seeing the raw keycodes)
+    "s" to adjust the "single stepping state" of the macro.
+
+Evidently, the case of the first letter of the command is
+significant.  The "S" and the "s" commands are completely different.
+
+The database file KMAC.DBF gives summary info about each of these
+"alphabetic" commands.  These commands are also discussed in more
+detail in the remainder of this documentation.
+
+The only way alphabetic commands can appear in a macro is if they are
+edited in via an editor (such as KMACED).  There is no facility to
+enter them midway through recording a macro (though, clearly, they
+can be added in after finishing recording the "basics" of a macro).
+
+You can also add in comments, which are lines starting with the
+exclamation mark character, "!".
+
+There is a limit of around 3000 characters for an in-memory macro. 
+For longer macros, you have to put some of the contents into a
+separate file, and then load that file during playback, eg using the
+"l" command.
+
+Introducing alphabetic commands
+-------------------------------
+The macro "Set keyclick quiet" described earlier is saved to file as
+follows:
+
+    MACRO Set keyclick quiet
+    KEY Q
+    CONTENTS
+    627 8, 257, 257, 257, 113, 13
+
+There is one problem with this macro, however.  If you press
+Shift-Control-Q when you are in an application other than the System
+Screen, it will have quite the wrong effect.  There is nothing in the
+macro itself to tie it to the System Screen.  In fact, by default,
+all KMAC macros attempt to "attach" to the application that is in
+foreground when they are invoked.
+
+A simple way to fix this would be to edit the macro (using eg KMACED)
+to add in the line
+    gSystem
+as the first "contents" of the macro.  Thus the macro definition
+becomes
+
+    MACRO Set keyclick quiet
+    KEY Q
+    CONTENTS
+    gSystem
+    627 8, 257, 257, 257, 113, 13
+
+(Remember that you will have to restart KMAC for any changes made in
+a top-level macro to have an effect.)
+
+If you also have a macro for setting the keyclick loud, you should
+make the corresponding change to it as well.  Then you can go into an
+application such as the calculator, and change the keyclick volume
+setting between Quiet and Loud at will, just using a single key
+combination each time, without having to task to the System Screen.
+
+This macro uses the "go to" command, with letter "g".  It specifies
+that the macro should "go to" the first application it finds with the
+given name for display in the Status Window.  (The operation of "g"
+is more subtle than you might at first expect.  Eg to "go to" the
+instance of the "Data" application that has the file "Data.dbf" open,
+you would need to specify "gData.dbf".  See later for a fuller
+discussion of how the "g" command works.)
+
+Note that if you play back this macro from an application other than
+the System Screen, the System Screen does NOT become foreground (ie
+come to the front) as a result.  The dialog interaction takes place
+with the System Screen entirely in the background.  Which makes for a
+neater screen display.
+
+If you wanted to make the System Screen come to the front, while the
+macro was played back, you could follow the "g" command with an "F"
+command - the command that brings the attached application to
+foreground.  In this case, the macro could become
+
+    MACRO Set keyclick quiet
+    KEY Q
+    CONTENTS
+    gSystem
+    F
+    627 8, 257, 257, 257, 113, 13
+
+As another idea, you could put a "B" at the end of this macro - to
+put the System Screen into background again after processing the
+string of keys.  But frankly, whilst the "F" and "B" commands can be
+very useful in many places, this particular macro is not one that
+benefits from their presence.
+
+Information messages during macro playback
+------------------------------------------
+A better suggestion for improving the above macro is to change it to
+
+    MACRO Set keyclick quiet
+    KEY Q
+    QUIET
+    CONTENTS
+    ISetting keyclick to quiet
+    gSystem
+    627 8, 257, 257, 257, 113, 13
+
+and its "partner", "Set keyclick loud", could become
+
+    MACRO Set keyclick loud
+    KEY L
+    QUIET
+    CONTENTS
+    ISetting keyclick to loud
+    gSystem
+    627 8, 257, 257, 257, 108, 13
+
+This introduces the "I", or "Information message" command.  Try these
+and see what their effect is.
+
+Note that the keyword "QUIET" has been added to these macros, in
+between their name definitions (the "MACRO" line) and the start of
+their contents (the "CONTENTS" line).  This has the effect of
+suppressing the "Play back successful" info message that would
+otherwise overwrite the macro's own "Setting keyclick..." information
+message.
+
+Clarifying the notion of the "attached process"
+---------------------------------------------------
+If you go to the Calculator and press Shift-Ctrl-L to play back the
+"Set keyclick loud" macro, and immediately start pressing the Up and
+Down cursor keys, you will see the "Setting keyclick to loud"
+information come up on the screen some time PRIOR to the keyclicks
+actually changing to loud.  This is because the remainder the macro
+only runs when the System Screen application has a chance to respond
+to the incoming sequence of keys (and since the System Screen is in
+background at this time, any keys typed into the foreground
+application will get processed at a higher priority - thereby
+delaying the conclusion of the macro playback).
+
+A simple idea to fix this would be to rearrange the macro as follows:
+
+    MACRO Set keyclick loud
+    KEY L
+    QUIET
+    CONTENTS
+    gSystem
+    627 8, 257, 257, 257, 108, 13
+    IKeyclick set to loud
+
+The result is that the "I" command only gets acted on when the
+preceding sequence of keys has actually finished being processed.
+
+However, if you try this change to the macro, you will find that no
+information message appears on the screen.  This is because
+information messages (created by "I" commands) are always displayed
+by the current "attached process".  In this case, the attached
+process is the System Screen.
+
+To make this new macro work properly, you will need to insert an "f"
+command just before the "I" line.  Thus
+
+    MACRO Set keyclick loud
+    KEY L
+    QUIET
+    CONTENTS
+    gSystem
+    627 8, 257, 257, 257, 108, 13
+    f
+    IKeyclick set to loud
+
+The effect of the "f" command is to attach KMAC to the current
+foreground process.  All subsequent KMAC commands will be directed
+towards that process - or until such time as another command may
+cause another change in which process is the attached one.
+
+For clarity, it should be emphasised that the notion of a process
+being in "foreground" is quite distinct from that of a process being
+"attached" to KMAC.  The foreground process is the one whose screen
+is shown, and which receives all standard keys as typed on the
+keyboard.  The attached process is the one which receives all KMAC
+commands.
+
+Note also that all KMAC macros start of, by default, by attaching to
+the current foreground process.  If this is undesireable, put the
+keyword "BACKGROUND" in the header of the macro definition (in
+between the "MACRO" keyword and the "CONTENTS" keyword).
+
+Upper-case and lower-case letter commands
+-----------------------------------------
+Note that the commands "F" and "f" are quite different: the "f"
+command causes KMAC to attach to the current foreground process,
+whereas the "F" command causes KMAC to move the current attached
+process into foreground.
+
+Although there is no strict rule for which commands are represented
+by upper case letters and which by lower case letters, the following
+guiding principle generally applies: commands have upper case letters
+if they involve the active cooperation of the attached process,
+whereas they have lower case letters if they only cause changes
+within the KMAC process itself.
+
+Thus the "g" command (the "go to" command) simply alters which process
+is the one KMAC is attached to.  By contrast, the "G" command (the
+"Ground state" command) involves setting Esc keypresses to the
+attached application, until such time as any dialogs, help screens,
+or menus showing have all been cancelled.
+
+Again, the "I" command (the "Information message" command) requests
+the attached process to display an information message in the top
+left corner of its screen.  By contrast, the "i" command (the "image
+launcher" command) merely executes a specified image (usually .IMG)
+utility program (see later for examples).
+
+Abbreviations are possible
+--------------------------
+In fact, in the header sections of .KMA files, only the first letters
+of keywords are significant, and the remainder of the first word on
+the line is always skipped.
+
+This means that instead of typing eg 
+
+    MACRO Set keyclick loud
+    KEY L
+    QUIET
+    CONTENTS
+    gSystem
+    ...
+
+you could just type
+
+    M Set keyclick loud
+    K L
+    Q
+    C
+    gSystem
+    ...
+
+Requesting user confirmation during macros
+------------------------------------------
+Try typing in the following macro definition (remember that you need
+to use an editor such as KMACED to edit macro definitions, and that
+you need to exit KMAC before you start editing, and then restart it
+after you have finished editing):
+
+    MACRO Bring
+    Q
+    K B
+    C
+    QOkay to Bring?
+    xd0
+    L24
+
+Restart KMAC, and go to the Agenda and highlight an appointment. 
+Next go to the Database and press Shift-Ctrl-B.
+
+The effect of the "Q" command, as you will see, is to display a query
+dialog.  This can have either one or two lines of text - depending on
+whether a comma is found in the string after the "Q".  Thus
+
+    QOkay to Bring?
+
+results in a query dialog with only one line of text, whereas
+
+    QOkay to Bring,(press 'N' to cancel)
+
+results in a query dialog with two lines of text.  In either case,
+the dialog has a No/Yes pair of action buttons.
+
+The way the macro tests the result of this dialog (ie whether the
+user chose 'Yes' or 'No') is by testing the value of the so-called
+"d-variable" ("d" for "decision"), at some later stage in the macro. 
+There are various methods of testing the d-variable.  In this case,
+the "x" command (the "eXit" command) is used.
+
+The "x" command has various formats.  You can use "x" all by itself,
+to exit macro playback unconditionally.  Or you can follow the "x"
+with several different test criteria.  Here, the "xd" variant is used
+(see later for the other possibilities).  "xd0" means to exit macro
+playback if the d-variable has value 0 (or less).
+
+The prior "Q" dialog sets the d-variable to 1 if the user chose
+'Yes', and otherwise to 0.
+
+Placing a "Q" command in a macro can avoid accidents if the user
+chooses the wrong macro hotkey by mistake.
+
+A variant on the "Q" command is the "N" command (the "Notify"
+command).  This has exactly the same syntax, except that the No/Yes
+pair of action buttons is replaced by a single "Continue" action
+button.  Since there is no decision to be made in this case, the
+current value of the d-variable is not altered by the "Notify"
+dialog.  (As for "Q", the "N" command can specify either one or two
+lines of text.)
+
+Note: the "L" command (the "Link paste" command) attempts to "Bring"
+up to the specified number of characters from the first paragraph of
+highlighted text in the application that is currently the "Link paste
+server".  (The terms "Bring" and "Link paste" are interchangeable.) 
+If the second parameter - 24 in the above example - is omitted, the
+maximum number of characters to bring is set to 128.  An error
+results if this value is specified as greater than 128.
+
+Interrupting macro playback
+---------------------------
+Note that you can always interrupt macro playback by pressing the
+Shift-Ctrl-Esc key combination.  This fact may be helpful if you have
+started macro playback in error.
+
+The macro will be interrupted, by KMAC, at the earliest possible
+opportunity.  Occasionally, this may not be immediate - eg if the
+macro is inside a "P" ("pause") or "y" ("yield") command (see below
+for more about these commands).  Also, if the user presses
+Shift-Ctrl-Esc while the macro is waiting for the user to answer an
+"N" or "Q" dialog, the macro will be interrupted only after the
+dialog is answered.
+
+Sending strings of keys - the "S" command
+-----------------------------------------
+When you are looking at a macro inside a .KMA file, you may have
+difficulty, at times, in discerning the exact meanings of all the
+different keys inside a command such as
+
+    627 8, 257, 257, 257, 108, 13
+
+For convenience, KMAC also supports the "S" command for sending
+sequences of keypresses to an application.  This sends a specified
+"string" of keys one at a time, where the keys are either
+
+    standard printable keys
+    special "interpretable" keys (prefixed by an ^ character)
+    psion or shift-psion menu hot keys (prefixed by an @ character).
+
+The "S" command results by default in keypreses with the modifiers
+set to zero, though this can be overridden by means of another use of
+the @ prefix character: @4 means to use Ctrl as the modifier for the
+next key in the sequence, and so on (see below for more details).
+
+The following "S" command will have the same effect as the above
+sequence of raw keycodes:
+
+    S@s^D^D^DQ^C
+
+At first, this might not seem any clearer, but in time you may well
+come to appreciate the power of this command.
+
+In this case:
+    @s means Psion-s (note that @S would mean Shift-Psion-S)
+    ^D means the Down key
+    Q is not preceded by either ^ or @, so it just means a Q key
+    ^C means the Enter key (C for "Confirm").
+
+The full range of interpretable keys supported by the "S" command are
+
+    Up, Down, Left, Right, Home, End, Tab, and Menu - all specified
+by their first letter (eg M for Menu, T for Tab)
+
+    C for Return, X for Escape, P for PgUp, Q for PgDn
+
+    ? for the current drive letter (A or I or B or ...), which can be
+useful in macros sending keys to drive selectors in dialogs (the
+current drive letter is from the drive KMAC was launched from)
+
+    + for Diamond, - for Delete
+
+    Y to Yield CPU until all other background and foreground
+processes finish all their pending activity
+
+    0 to 9 to pause for 0 to 9 seconds (see below), and % to pause
+for half a second.
+
+To send a literal ^ character, put ^^, and to send a literal @
+character, put @@.
+
+Put @<digit> to force the modifiers for the following key in the
+stream to be <digit> (except that if the next key in the stream is of
+type @a or @A, the preceding @<digit> just gets ignored - and the
+modifiers are set to PSION and SHIFT-PSION in these two cases).  Note
+one complication here which is that the value of the PSION modifier
+is usually 8, but for these purposes it is changed to 1.  This is to
+allow @5 to specify modifiers CTRL-PSION, which would not be possible
+(using only a single digit) if the PSION modifier were 8 as usual.
+
+Timing issues
+-------------
+Sooner or later a macro will fail to have to same effect when it is
+played back as it had when it was recorded.  There are several
+possible reasons for this and the next few sections in this document
+cover some of these.  One thing to watch out for, in particular, is
+the issue of *timing*, and the general solution to this kind of
+problem is to add in one or other kind of "P" ("pause") or "y"
+("yield") commands into a macro.
+
+When a macro is being recorded, other processes generally have a
+chance to run on the S3a (within the application and outside the
+application) at the same time as when keys are being pressed.  But
+during macro playback, by default the playback takes place at the
+highest priority - which may mean that the macro feeds an application
+keypresses before the application is ready to receive them.
+
+For example, a macro that tabs out a file selector will in general
+need to insert a pause command before continuing to send keys to that
+file selector.  You'll find you need this if the file selector starts
+beeping at you during playback.  The reason here is that it can take
+the file selector some time to create its file list, but it remains
+responsive to keypresses in the meantime.  (This is to remain
+responsive to keys such as LEFT and RIGHT which will change the
+directory being scanned.)
+
+The "P" command takes an optional parameter, which is how many tenths
+of a second playback should be suspended before continuing.  By
+default (ie if no parameter is given), the playback is just suspended
+until all other activity in the application has finished.  Note that
+in either case, the suspension takes place *within the attached
+application* (rather than inside KMAC itself).
+
+Note that you can add pause statements inside an "S" command.  Thus
+
+    S@m^T
+    P
+    256 4
+
+can be shortened, effectively, to
+
+    S@m^T^0@4^U
+
+and likewise "P10" is equivalent to "S^1", and so on.
+
+Pauses of longer than zero seconds can be particularly effective in
+pacing playbacks intended to demonstrate various aspects of some
+software (eg in point-of-sales demos).
+
+An alternative to the "P" command is the "y" command, which has a
+rather different effect.  This pauses KMAC itself, by means of
+setting its process priority to one less than that standardly taken
+by background processes.  As a result, KMAC will only continue
+running when *all* foreground and background processes finish
+processing all events pending in them.  When this happens, the
+priority of KMAC is reset to what it was beforehand.
+
+A sequence of macro commands such as
+
+    S@m^T
+    y
+    256 4
+
+can be rewritten as
+
+    S@m^T^Y@4^U
+
+A note on process priorities
+----------------------------
+By default, KMAC runs at the rather high process priority of 0xa0. 
+This is higher than the priorities of any of the standard
+applications - higher even than Time, which runs at 0x90 (under the
+rationale that an alarm due to sound should always interrupt activity
+in other processes).
+
+The reason for running KMAC at such a high priority is so that macro
+playback can be as quick as possible - without having to wait for the
+attached application to redraw itself unnecessarily between each two
+keypresses sent to it.
+
+Working round bugs in system code exposed by KMAC macros
+--------------------------------------------------------
+Certain macros that you write may expose some shortcomings in the S3a
+system code.  Ordinarily, these shortcomings do not matter, since the
+system software is never normally exercised quite so intensively as
+during macro playback.  However, some of these problems may
+occasionally cause frustration during macro playback - and can even
+cause applications to "panic", with loss of data that has not yet
+been saved to file.
+
+For this reason, you should always save your data before playing back
+a new keyboard macro, until you have confidence in that macro.
+
+One example of a problem you can encounter is in a macro like the
+following:
+
+    gData.dbf
+    F
+    S@m^T
+
+The intention of this macro is to
+    "go to" the application editing the file "Data.dbf"
+    make this application foreground
+    press psion-m to display the "Merge" dialog
+    press Tab to tab out the file selector
+
+However, if this macro is played back starting from an application
+*other* than the specified database, the database panics 73 shortly
+after being made foreground.  The root cause of this is when an
+application becomes foreground when a file selector is showing that
+was created when the application was effectively still in background
+(and when the file selector hasn't yet finished building its file
+list).
+
+In this case, the fix is simple enough: insert a "P" command directly
+after the "F" command.  This pauses macro playback until all pending
+activity within the attached application has been processed.  In
+particular, the database gets a chance to process the foreground
+notification message from the Window Server, prior to going on to
+process the keypress messages that cause it to create the file
+selector.  (Bear in mind that applications process keys from macro
+playback at a higher priority than any other input from eg the Window
+Server.)
+
+More generally, I try to avoid full-screen file selectors in macro
+playback.  I prefer to use Control-Tab to jump straight to the
+"Specify file list" dialog, and then Control-Enter to jump straight
+back to the dialog level, thereby avoiding the full-screen file
+selector altogether. 
+
+Single stepping macros - the "s" command
+----------------------------------------
+Inevitably, macros will go wrong for all kinds of reason.  To try to
+pin down where the blame lies, you can use the "s" command to put your
+macro into one of three different "single stepping" states.
+
+By default, all macros operate inside "s0" - which has single
+stepping turned off, and thus macro playback proceeds at full speed.
+
+But if the line "s1" is encountered in a macro, the macro will wait
+for the user to press Shift-Ctrl-Diamond before each subsequent line
+in the macro.  This state will continue until either the end of the
+macro is reached, or another "s" command is reached.  By using "s1"
+like this, you can carefully think through what each step in your
+macro is doing.
+
+Occasionally, you may forget that KMAC is still waiting for a
+Shift-Ctrl-Diamond keypress before being able to do anything else. 
+But if this happens, and you try to do something else with KMAC, you
+will see a notifier explaining the situation.
+
+As an alternative to "s1", you may find "s2" especially useful.  In
+addition to waiting for the user to press Shift-Ctrl-Diamond in
+between each step of the macro, this mode also displays a notifier
+containing the text of the line about to be played back, which the
+user has to acknowledge by pressing Esc, before the line is actually
+processed.
+
+Bear in mind, however, that single stepping can alter the "timing"
+features of macros, and therefore can affect their performance.
+
+Waiting for user synchronisation during macros
+----------------------------------------------
+In some macros, you may wish to pause indefinitely between two lines
+of the macro - not for any reason of "debugging", but instead to
+allow the user to interact directly with the application before
+allowing the macro to continue.
+
+This can be achieved by an "s1" command followed immediately
+afterwards by an "s0" command.  The macro pauses when it reaches
+"s1", and then waits for the user to press Shift-Ctrl-Diamond before
+proceeding.  In the meantime, the user can type any additional
+specific keys.
+
+The single command "n" (the "nudge" command) can be used as an
+alternative to "s1" followed by "s0".  The effect is exactly the
+same.
+
+Keyboard macros and Opl or Hwif applications
+--------------------------------------------
+Note that KMAC cannot interact with any application written in Opl or
+in Hwif.  You can only record or playback macros for applications
+written using the HWIM object-oriented system.  If you try to invoke
+KMAC with regard to an application not written using HWIM, KMAC will
+present an error notifier.
+
+This is a fundamental limitation of Opl and Hwif applications and
+there is no prospect that a future version of KMAC for the S3a will
+remove this limitation.  For much the same reason, KMAC cannot
+operate on an S3 - only on an S3a.
+
+One consequence of this is that some macros will fail, when you
+attempt to invoke them from an Opl or Hwif program.  Consider again
+the "Set keyclick loud" macro:
+
+    MACRO Set keyclick loud
+    KEY L
+    QUIET
+    CONTENTS
+    gSystem
+    627 8, 257, 257, 257, 108, 13
+    f
+    IKeyclick set to loud
+
+By default, this macro starts the same as all macros do, by
+attempting to attach to the current foreground process.  However, for
+this particular macro, this step is unnecessary.  Better, therefore,
+to add in the keyword "BACKGROUND" in the header of the macro:
+
+    MACRO Set keyclick loud
+    KEY L
+    QUIET
+    BACKGROUND
+    CONTENTS
+    gSystem
+    627 8, 257, 257, 257, 108, 13
+    f
+    IKeyclick set to loud
+
+This has the effect of letting the macro run at least as far as the
+"f" line before it fails.  It therefore succeeds in its main purpose,
+although it is unable to display an info message at the end to
+announce its success.
+
+If you wished to avoid the final error message, you could use the "q"
+command (the "query attachable" command) to find out whether it is
+possible to attach to the current foreground process.  Like the "Q"
+command discussed earlier, this sets the "d-variable", that can be
+tested eg by a subsequent "x" command.  Thus the macro becomes
+
+    MACRO Set keyclick loud
+    KEY L
+    QUIET
+    BACKGROUND
+    CONTENTS
+    gSystem
+    627 8, 257, 257, 257, 108, 13
+    q
+    xd0
+    f
+    IKeyclick set to loud
+
+(q sets the d-variable to 1 if the foreground process is attachable,
+and otherwise to 0).  The macro only proceeds to its final two lines
+if the current foreground process is attachable.
+
+Taking commands from additional .KMA files
+------------------------------------------
+Several different KMAC commands allow commands to be read from an
+auxiliary .KMA file, instead of from the main one loaded into KMAC on
+startup.
+
+In each case, the "script" file has the same basic format as the
+CONTENTS section of an individual macro definition.  For example, the
+contents of a file "Delrec.kma" could be the lines
+
+    8
+    P
+    J2
+    x
+    SY
+    m0
+
+(see later for the meanings of all the commands in this particular
+script file) - the same mixture of raw keycodes ("8" being the
+keycode for Delete) and alphabetic commands as could belong in the
+CONTENTS section of any macro definition.
+
+One way of causing macro control to transfer to a specified script is
+by using the "l" (or "Launch script") command.  Thus the command
+
+    lDelrec
+
+will have the effect of launching the script file "Delrec.kma" from
+the same directory as the current top-level KMA file is in.  (Specify
+the full pathname and/or extension to look in a different place.)
+
+Once control has been transferred to a script like this, it remains
+there until it is "returned", using the "r" command.  In the
+meantime, it is possible for the entire playback to be terminated,
+using the "x" ("exit") command.
+
+In addition to the "l" command, there are two other commands that can
+cause a script file to be launched: the "d" (or "divert") command,
+and the "e" (or "on Error") command.
+
+The "divert" command
+--------------------
+The "d" command attempts to divert control to a script whose name is
+formed from a specified string, together with up to one of the
+following "names":
+
+   if "%d" is present in the specified string, this gets replaced
+by the current value of the d-variable
+
+   if "%s" is present, this gets replaced by the "status name" (up to
+the extension) of the attached application
+
+   if "%f" is present, this gets replaced by the "family name" (or
+"alias name") of the attached application
+
+   if "%p" is present, this gets replaced by the "process name" of
+the attached application.
+
+Eg "dA%f" will look for a script file "Aprog.kma" in the case of the
+attached process being the program editor, whereas "dA%p" will look
+for a script file "Aword.kma".  (On a technical note, the "status
+name" is taken from DatStatusNamePtr, the "family name" is taken from
+DatProcessNamePtr, and the "process name" is taken from
+DatCommandPtr.  These three "names" appear in various different KMAC
+commands.)
+
+If the script filename specified by a "d" command does not exist,
+macro playback simply passes onto the next line of the macro.
+
+The "on error" command
+----------------------
+The "e" command (the "on error" command) can be used to take
+corrective action if an error arises in a particular line in a macro.
+In case an error arises, control is diverted to the script specified
+in the "e" command.
+
+For example, the sequence of commands
+
+    eStartDbf
+    gLOC::M:\DAT\KMAC.DBF
+    F
+    614 8, 27, 9
+    lDelrec
+    C
+
+has the following effect:
+
+1. The script name "StartDbf" is lodged as the current error-handler
+2. The full form of the "goto" command is used to try to go to the
+application editing the specified full path name
+3. If such an application exists, the macro passes immediately onto
+the next line in the main script - the "F" command
+4. Otherwise, control passes to the script file "StartDbf.kma"
+instead, and only passes to the "F" command (if ever) when an "r"
+command is encountered in "StartDbf.kma".
+
+Some advantages of using script files
+-------------------------------------
+Some advantages of using script files should be pointed out:
+
+1. They cut down the amount of memory overhead required when running
+KMAC.  Only the commands in the top-level script are loaded
+permanently into memory.
+
+2. Macro details in scripts can be changed without having to exit and
+restart KMAC before these changes become effective.
+
+3. Using the "divert" command, more than 26 different macros can, in
+effect, be assigned hotkeys.  Thus the effect of Shift-Ctrl-A while
+in the Program Editor might be quite different (on account of using
+the "d" command) from in the Agenda.
+
+4. Scripts can play a very useful role in "error recovery" - as
+illustrated above.
+
+5. Scripts can play a very useful role in other "test, jump, and
+move" situations - as is discussed below.
+
+Starting applications during macro playback
+-------------------------------------------
+In the above example, the script file "StartDbf.kma" has to arrange
+for the Database application to be running and editing the file
+"M:\DAT\Kmac.dbf".  This can be arranged by use of the two commands
+"c" (set the "command line") and "p" (the "program start" command).
+
+In fact the actual contents of "StartDbf.kma" would be as follows:
+
+    cOData#.DBF#LOC::M:\DAT\KMAC.DBF#
+    pROM::DATA.APP
+
+For a full understanding of this use of the "c" command, you need to
+understand about the format of command lines passed to applications
+on the S3a.  Briefly, there are five portions to such a command line:
+
+1. The very first letter is either 'O' (to "Open" an existing file)
+or 'C' (to "Create" a new file with a specified name)
+
+2. Immediately following this comes a zero-terminated string given
+the "family name" to be used (note: case is sensitive here) - in fact
+the operation of the KMAC "c" command turns all hash ('#') characters
+into zeroes
+
+3. After the zero, and up to the next zero or up to the first
+full-stop (whichever comes first) is the "alias info" to be used
+(this is NULL in the above example)
+
+4. If the alias info was terminated by a full-stop, the text from the
+full-stop to the next zero gives the "default extension" to be used
+by the application
+
+5. Finally, the full path name of the file to be opened or created
+must be passed (and it is important not to omit the final zero).
+
+What the KMAC "c" command actually does is to store the given text,
+so that subsequent commands (such as the "p" or "i" commands) can
+access it.  As mentioned, all hash characters in the specified string
+are converted into zeroes before the text is stored.
+
+The KMAC "p" command attempts to launch the specified program name
+(the "ROM::" specifies that the program is to be found in the ROM of
+the S3a), using the command line stored by the previous "c" command. 
+If successful, KMAC attaches to this application.
+
+Ways of attaching to programs
+-----------------------------
+The "p" command (the "program start" command), just discussed, is one
+method for attaching KMAC to a specified application.  Another
+method, also discussed earlier, is the "g" command (the "go to"
+command).
+
+There are actually two forms of the "g" command - the "short form"
+and the "long form".  The distinction is that the "long form" is used
+whenever a colon or a backslash is found in the filename specified.
+
+In the long form of the "go to" command, KMAC searches for a process
+which has the given full pathname stored at its "DatUsedPathNamePtr". 
+But in the short form, KMAC only searches for a process which has the
+given short-form filename at its "DatStatusNamePtr".  Clearly, the
+long form is more exact, but the short form will suffice in most
+practical cases.  (Also, the long form cannot be used for
+applications that are not file-based.)
+
+Yet another way of attaching to a process is to use the "a" (or
+"attach") command.  This works rather differently, treating the
+specified string as a "process name identifier".  Examples of the use
+of "a" would be "aSYS$SHLL.*" or "aWORD.*".  ("SYS$SHLL is the name
+of the program which users see as the "System Screen".)
+
+Conditional and unconditional exit and return commands
+------------------------------------------------------
+Mention has already been made of the "r" ("return") and "x" ("exit")
+commands.  Each of these exist in both unconditional and conditional
+forms.  Thus the single letter on its own always causes a return or
+an exit to take place.  However, either letter can be followed with
+any of the following four sub-cases:
+
+    d - means to return (or exit) if the current value of the
+d-variable is less than or equal to the given number (usually used in
+"xd0" or "rd0")
+
+    p - means to return if the "process name" of the attached process
+(read from DatCommandPtr) differs from the string given - eg "xpWORD"
+would mean to exit playback unless the attached process was an
+instance of the Word Processor
+
+    f - means to return if the "family name" of the attached process
+(read from DatProcessNamePtr) differs from the string given - eg
+"xfPROG" would mean to exit playback unless the attached process was
+actually the Program Editor
+
+    s - means to return if the "status name" of the attached process
+(read from DatStatusNamePtr) differs from the string given - eg
+"xsTEST.OPL" would mean to exit playback unless the attached process
+was editing a file called "TEST.OPL").
+
+In all cases of the various "names" of the attached process, case is
+not sensitive.  Thus "xfPROG" and "xfProg" would be identical.
+
+Jumps and moves and tests during macro playback
+-----------------------------------------------
+The "d", "e", "r", and "x" commands already discussed give various
+measures of control over what exactly happens during macro playback. 
+This section introduces the very important "m", "j", and "J"
+commands.
+
+The "m" (or "move") command causes the focus of control to move
+inside the current script (or top-level macro definition).  If no
+additional parameter is given, playback moves past the next command,
+skipping it altogether.  If an additional parameter is given that is
+positive - eg "m3" - the specified number of steps are skipped. 
+Finally, the command "m0" has the special meaning of rewinding to the
+beginning of the current script (or if control is currently in the
+top level macro definition, to the beginning of that definition) and
+proceeding forwards again from there.
+
+The "j" (or "jump depending on number of dialogs shown") command
+allows the macro to count the number of dialogs shown on the screen
+of the attached process, and to move past a specified number of steps
+depending on this number.  The general syntax of the "j" command is
+"jm,n", where <n> defaults to 1 and can be omitted, and (also like
+the case of the "m" command) can be given as 0, in which case macro
+control can rewind to the beginning of the current script or
+top-level macro definition.  If <m> is positive, the jump is taken if
+the number of dialogs shown exceeds m, whereas if <m> is negative,
+the jump is taken if the number of dialogs shown is less than (-m).
+
+The "J" command (or "Jump on general condition" command) works very
+similar to the "j" command, except that the set of conditions tested
+is very general.
+
+For example, the "J2" command in the "Delrec" script given earlier
+has the effect of skipping over the next line in the script (actually
+an "exit" command) if a dialog is showing on the screen - this is
+because the "general status info" of the attached application
+contains the value 2 if a dialog is showing.  (See the following
+section for more details.)
+
+The "J2" command in "Delrec" could in fact be replaced by "j0" in
+this case.
+
+The precise syntax of the "J" command is "Jm,n" where <n> has exactly
+the same meaning as for "j" (and for "m").  The jump is taken, for
+positive <m>, if the "status info" of the attached process, ANDed
+with m, is non-zero.  If <m> is negative, the jump is taken if the
+corresponding AND value is zero.
+
+General status info for the attached process
+--------------------------------------------
+Bits are set in the "general status info" of the attached process as
+follows:
+
+    1 is set if a menu is showing
+    2 is set if a dialog is showing
+    4 is set if the application is "locked" (ie would report as
+"busy" in the System Screen)
+    8 is set if the application has a keyboard filter active
+    16 is set if the application has a non-negative i/o semaphore
+value (meaning that there is pending activity in the application)
+    32 is set if the application has called am_start more than once
+(meaning that it is in some kind of modal state).
+
+A full explanation of all these terms is beyond the scope of the
+present documentation.  (The various bits all indicate some kind of
+pending activity that it might be better not to interrupt.)
+
+Synchronisation issues with regard to tests
+-------------------------------------------
+Note that the above "Delrec" script contains the line "P" prior to
+making the "J" test.  This is important.  Otherwise the wrong result
+would be obtained.  The point is that although the effect of the
+previous line in the macro - sending the Delete key - would be to
+bring up a "Delete?" query dialog in due course, the "J" test could
+be carried out before that dialog was actually created.
+
+The KMAC expression evaluator
+-----------------------------
+One more aspect of the "names" feature of KMAC deserves explicit
+mention.  This is used in the "E" (or "Expression evaluate")
+command.  Despite its name, this command has no scope for evaluating
+numerical expressions.  Instead, the allowed contents of the
+expression to be evaluated are the familiar "names" identifiers "%p",
+"%f", and "%s".  It turns out that this can be very useful.
+
+The string evaluated in this way is sent to the attached process as a
+string of keys.
+
+For example, the command "E%s.txt" would send the string of keys
+"Notes.txt" when the file being edited is "Notes.wrd", and would send
+the string of keys "Memo.txt" when the file being edited is
+"Memo.wrd".  This could be exactly the right thing to type into a
+filename editor line of a "Save as" dialog in an application.
+
+Transferring control to Opl programs
+------------------------------------
+Although there is a wide range of control features available to KMAC
+programs, some macros may demand additional data manipulation or
+tests to be carried out.  For this reason, KMAC supports the notion
+of launching an Opl program, which can then use many of the features
+of KMAC in its own right.
+
+The way this works is that the functionality of KMAC has actually
+been split into two different pieces of code.  Script file handling
+and background key capture, etc, is handled by code in KMAC.APP
+itself, but most of the logic for implementing playback is located in
+LPC.DYL.  The logic in LPC.DYL has been designed in such a way as to
+make it accessible from an Opl program as well.
+
+For further details of Opl programs that can use LPC, see the text
+file OPLLPC.TXT.
+
+Miscellaneous KMAC commands
+---------------------------
+For a summary of all the possible alphabetic commands recognised by
+KMAC, see the database file KMAC.DBF.
+
+A few features not mentioned so far can be pointed out:
+
+There are "k" ("kill"), "t" ("terminate"), and "C" ("closedown")
+commands, which provide various means of exiting the current attached
+application.
+
+There is an "i" command, to start a specified utility application,
+without any attempt to attach to it.  (This uses, for its command
+line, anything set up by a prior "c" command.)
+
+There is an "A" command, to cause the attached process to display
+"alloc heap information", which can be very useful during program
+development (to monitor possible memory leakage).
+
+There is a "B" command, to send the attached program into background. 
+
+There is a "v" command, to remember the PID of the current attached
+process, and a "u" ("use") command, to attach back to the process
+whose PID was remembered earlier.
+
+There is an "H" ("Hook DYL") command, to cause the attached process
+to hook a specified DYL (see elsewhere for information on how to
+write such a DYL, and for examples of the use of this command). There
+is also an "h" command, to cause KMAC itself to hook a specified DYL.
+
+Finally, there is an "o" command, to start a specified Opl program -
+eg "o\OPO\TKMACLIB.OPO" - and a "w" command, to wait for the
+completion of the Opl program last launched using an "o" command (or
+for the completion of the image program last launched using an "i"
+command).
+
+Review of the macros in EG.KMA
+------------------------------
+See the text file EGKMA.TXT for a discussion of the example macros
+contained in the file EG.KMA.
+
+These notes prepared by
+-----------------------
+David Wood, Psion Product Development, 25th April 1994.

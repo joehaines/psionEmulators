@@ -1,0 +1,77 @@
+#define EDIT_OPH
+
+#ifndef VARRAY_OPH
+#include <sdk\varray>
+#endif
+
+/* Constants for eproot */
+
+#define EP_SCAN_BACKWARDS 0x01
+#define EP_SCAN_STAY 0x02
+#define EP_SCAN_TO_BEGIN 0x04
+#define EP_SCAN_TO_END 0x08
+#define EP_SCAN_JOIN_DELIM 0x10
+#define EP_SCAN_NOT_TO_END 0x20
+#define EP_RETURN_LENGTH -1
+#define EP_MOD_TOLOWER 0
+#define EP_MOD_TOUPPER 1
+#define EP_MOD_WRAP 2
+
+/* Property of eproot */
+
+STRUCT PRS_EPROOT
+	maxlen%
+ENDS
+
+STRUCT PR_EPROOT
+	root#(SIZEOF(PRS_ROOT))
+	eproot#(SIZEOF(PRS_EPROOT))
+ENDS
+
+/* Property of epflat */
+
+STRUCT PRS_EPFLAT
+	alen%
+	gran%
+	len%
+	buf%
+ENDS
+
+STRUCT PR_EPFLAT
+	root#(SIZEOF(PRS_ROOT))
+	eproot#(SIZEOF(PRS_EPROOT))
+	epflat#(SIZEOF(PRS_EPFLAT))
+ENDS
+
+/* Property of epseg */
+
+STRUCT PRS_EPSEG
+	b%
+ENDS
+
+STRUCT PR_EPSEG
+	root#(SIZEOF(PRS_ROOT))
+	eproot#(SIZEOF(PRS_EPROOT))
+	epseg#(SIZEOF(PRS_EPSEG))
+ENDS
+
+/* Types for vtab */
+
+STRUCT TABS_STRIP_OFFS
+	ploff1%
+	ploff2%
+ENDS
+
+/* Property of vtab */
+
+STRUCT PRS_VTAB
+	c%
+ENDS
+
+STRUCT PR_VTAB
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+	vaflat#(SIZEOF(PRS_VAFLAT))
+	vtab#(SIZEOF(PRS_VTAB))
+ENDS

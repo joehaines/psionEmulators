@@ -1,0 +1,243 @@
+#define SCRLAY_OPH
+
+#ifndef OLIB_OPH
+#include <sdk\olib>
+#endif
+
+#ifndef P_GRAF_OPH
+#include <p\graf>
+#endif
+
+/* Constants for scrlay */
+
+#define SCRLAY_SYM_HARD_HYPHEN 7
+#define SCRLAY_SYM_SOFT_HYPHEN 14
+#define SCRLAY_SYM_HARD_SPACE 15
+#define SCRLAY_SYM_SHOW_SPACE 8
+#define SCRLAY_SHOW_TABS 0x01
+#define SCRLAY_SHOW_SPACES 0x02
+#define SCRLAY_SHOW_CRS 0x04
+#define SCRLAY_SHOW_HYPHENS 0x08
+#define SCRLAY_SHOW_LFS 0x10
+#define SCRLAY_WIDOW_ORPHAN 0x20
+#define SCRLAY_ALIGN_LEFT 0
+#define SCRLAY_ALIGN_RIGHT 1
+#define SCRLAY_ALIGN_CENTRE 2
+#define SCRLAY_ALIGN_JUSTIFY 3
+#define SCRLAY_REPEAT_TAB 3
+#define SCRLAY_NTABS_MAX 8
+#define SCRLAY_SCAN_POS 0
+#define SCRLAY_SCAN_XY 1
+#define SCRLAY_SCAN_LINE 2
+#define SCRLAY_SPACING_KEEP_NEXT 0x01
+#define SCRLAY_SPACING_KEEP_TOGETHER 0x02
+#define SCRLAY_SPACING_NEW_PAGE 0x04
+#define SCRLAY_TBOX_TAB 0x8000
+#define SCRLAY_TBOX_TAB_USED 0x4000
+#define SCRLAY_TBOX_TAB_LEFT 0x2000
+#define SCRLAY_TBOX_NO_STYLE 0x1000
+#define SCRLAY_TBOX_MASK_LEN 0xff
+
+/* Types for scrlay */
+
+STRUCT SCRLAY_TABSTOP
+	x%
+	type%
+ENDS
+
+STRUCT SCRLAY_TABS
+	ntab%
+	tab#(OPPEVAL(SIZEOF(SCRLAY_TABSTOP)*SCRLAY_NTABS_MAX))
+ENDS
+
+STRUCT SCRLAY_MARGINS
+	left%
+	right%
+	indent%
+	align%
+ENDS
+
+STRUCT SCRLAY_SPACING
+	line%
+	above%
+	below%
+	flags%
+ENDS
+
+STRUCT SCRLAY_FONT
+	fid%
+	style%
+	height%
+ENDS
+
+STRUCT SCRLAY_SENSECHARS
+	pos%
+	printer%
+	buf%
+	blen%
+ENDS
+
+STRUCT SCRLAY_PDATA
+	margins%
+	tabs%
+	spacing%
+ENDS
+
+STRUCT SCRLAY_PLABEL
+	font#(SIZEOF(SCRLAY_FONT))
+	align%
+	buf%
+	blen%
+ENDS
+
+STRUCT SCRLAY_DOC
+	len%
+	content%
+	sensechars%
+	sensepdata%
+	senseplabel%
+	toparst%
+	enqpage%
+ENDS
+
+STRUCT QUE_TBOX
+	next%
+	prev%
+ENDS
+
+STRUCT SCRLAY_TBOX
+	hd#(SIZEOF(QUE_TBOX))
+	width%
+	tlen%
+ENDS
+
+STRUCT QUE_LINE
+	next%
+	prev%
+ENDS
+
+STRUCT SCRLAY_LINE
+	hd#(SIZEOF(QUE_LINE))
+	tboxs#(SIZEOF(QUE_TBOX))
+	indent%
+	len%
+	islast#
+	new_page#
+ENDS
+
+STRUCT QUE_PARA
+	next%
+	prev%
+ENDS
+
+STRUCT SCRLAY_PARA
+	hd#(SIZEOF(QUE_PARA))
+	lines#(SIZEOF(QUE_LINE))
+ENDS
+
+STRUCT SCRLAY_PLX
+	pos%
+	line%
+	x%
+ENDS
+
+STRUCT SCRLAY_SCAN
+	scan%
+	test#(SIZEOF(SCRLAY_PLX))
+	pbeg#(SIZEOF(SCRLAY_PLX))
+	lbeg#(SIZEOF(SCRLAY_PLX))
+	tbeg#(SIZEOF(SCRLAY_PLX))
+	pt%
+	pl%
+	pp%
+ENDS
+
+STRUCT SCRLAY_READ
+	label%
+	f#(SIZEOF(SCRLAY_FONT))
+	width%
+	indent%
+	blen#
+	isfirst#
+	islast#
+	new_page#
+ENDS
+
+STRUCT SCRLAY_RD
+	pp%
+	pl%
+	pt%
+	pos%
+ENDS
+
+STRUCT SCRLAY_FMT
+	pp%
+	pos%
+	line%
+	pend%
+	lend%
+ENDS
+
+STRUCT SCRLAY_STYLE
+	options#
+	printer#
+	pd#(SIZEOF(SCRLAY_PDATA))
+	font%
+	fwtab%
+	scrpwidth%
+	sfont%
+ENDS
+
+/* Property of scrlay */
+
+STRUCT PRS_SCRLAY
+	paras#(SIZEOF(QUE_PARA))
+	first#(SIZEOF(SCRLAY_PLX))
+	nomemory#
+	adjust#
+	scan%
+	rd#(SIZEOF(SCRLAY_RD))
+	fmt#(SIZEOF(SCRLAY_FMT))
+	doc#(SIZEOF(SCRLAY_DOC))
+	slines%
+	spadjust%
+	st#(SIZEOF(SCRLAY_STYLE))
+ENDS
+
+STRUCT PR_SCRLAY
+	root#(SIZEOF(PRS_ROOT))
+	scrlay#(SIZEOF(PRS_SCRLAY))
+ENDS
+
+/* Types for prnlay */
+
+STRUCT PRNLAY_PLABEL
+	s#(SIZEOF(SCRLAY_PLABEL))
+	wid%
+	margin%
+	gutter%
+ENDS
+
+/* Property of prnlay */
+
+STRUCT PRS_PRNLAY
+	tbxlen%
+	senselen%
+	sensebuf%
+	pos%
+	line%
+	nlines%
+	below%
+	excess%
+	ngaps%
+	ngap%
+	used%
+	ptab%
+	plabel%
+ENDS
+
+STRUCT PR_PRNLAY
+	root#(SIZEOF(PRS_ROOT))
+	scrlay#(SIZEOF(PRS_SCRLAY))
+	prnlay#(SIZEOF(PRS_PRNLAY))
+ENDS

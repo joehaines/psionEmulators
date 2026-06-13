@@ -1,0 +1,114 @@
+Revertris
+---------
+
+README.TXT file
+
+Contents:
+
+1. Introduction
+2. File Details
+3. Installation
+4. Running the Program
+5. Registration
+6. Licence Agreement
+7. Contact us
+
+
+1. INTRODUCTION
+---------------
+Revertris is a puzzle game that combines concentration tactics with
+time-attack arcade action. Using conventional tetramines (tiles made
+of four linked cells), Revertris starts where Tetris ends, pushing
+the game to a new level of fun.
+
+
+2. FILE DETAILS
+---------------
+The archive file should contain the following files:
+
+revertris.sis - The program
+Readme.txt - Instructions
+
+
+3. INSTALLATION
+---------------
+To install the program simply double-click on the SIS file or select
+"Install New Program" option in PsiWin (EPOC Install).
+
+
+4. RUNNING THE PROGRAM
+----------------------
+Start the program by selecting 'Extras' from the Application bar and
+then selecting the application icon.
+
+
+5. REGISTRATION
+---------------
+This program is shareware. If you like this program and want to
+continue using it, you must register. By registering, you will get a
+personal registration code by e-mail to unlock all the features and
+avoid all the limits of the evaluation version. You'll also get free
+updates and technical support by e-mail from our helpdesk.
+
+Please buy your registration code online at http://www.beelogic.com
+Go to our purchase page and follow the registration instructions.
+All major credit cards accepted.
+
+To unlock the application, select Register in the menu bar and enter
+your personal code in the registration slip. If the code supplied is
+correct, the application will be unlocked inmediatly. There's no need
+to reinstall the software.
+
+
+6. SOFTWARE LICENSE AGREEMENT
+-----------------------------
+The use and redistribution of this program ("Software") is subject
+to the following conditions:
+
+1. You may not copy and distribute the Software nor any of its
+   derivatives in whole or in part unless:
+
+   a) the copyright notice and this conditions appear on all copies;
+   b) copies are complete and unaltered with all messages intact;
+   c) no charge is associated with the distribution of such copies
+   d) any distribution made by you hereunder is expressly made
+      subject to an acknowledgment by you and the recipient of
+      such distribution that BEELOGIC SOFTWARE retains
+      exclusive ownership of the Software including all intellectual
+      property rights therein, at all times.
+
+2. You're allowed to:
+
+   a) Upload this software to any bulletin board or WWW site.
+   b) Demonstrate the software and its capabilities or
+   c) Give copies to potential users, so that others may have the
+      opportunity to obtain a copy for use in accordance with the
+      licence terms contained in this file.
+
+3. The name of BEELOGIC shall not be used in any advertising or
+   publicity pertaining to the use or redistribution of this Software
+   without the prior express, written consent of BEELOGIC.
+
+4. THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT
+   WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY,  FITNESS FOR A
+   PARTICULAR PURPOSE, NON-INFRINGEMENT OR
+   ARISING FROM A COURSE OF DEALING, USAGE, TRADE
+   OR PRACTICE.
+
+5. BEELOGIC DO NOT WARRANT THAT THE SOFTWARE IS
+   ERROR FREE. IN NO EVENT SHALL BEELOGIC BE LIABLE
+   FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+   CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA
+   OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+   NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+   OUT OF OR IN CONNECTION WITH THE USE OR
+   PERFORMANCE OF THIS SOFTWARE.
+
+
+7. CONTACT US
+-------------
+web: http://www.beelogic.com
+e-mail: support@beelogic.com

@@ -1,0 +1,170 @@
+REM ASCII table utility for Series 3.
+REM Rick Andrews Dec 91
+
+
+PROC Ascii:
+REM Main routine.
+	LOCAL Width%(4) REM Screen widths for each mode.
+	LOCAL g%,Mode%,TopChar%,c%
+	LOCAL Exit%,Line%
+	LOCAL Char&, Char$(1)
+
+	Exit%=0
+	TopChar%=%A
+	Mode%=4 REM Dec+Hex+Char.
+	Width%(1)=20 REM Char only.
+	Width%(2)=8 REM Hex+Char.
+	Width%(3)=6 REM Dec+Char.
+	Width%(4)=4 REM Dec+Hex+Char.
+	CLS
+
+REM Only switch gUPDATE off when you
+REM have finished testing the program.
+	gUPDATE OFF
+
+	DO
+		c%=TopChar%
+		Line%=1
+		DO
+			AT 1,Line%
+			c%=DispASC%:(c%,Mode%,Width%(Mode%))
+			Line%=Line%+1
+		UNTIL Line%>9
+		g%=GET
+
+REM Test for Menu or hot-key.
+		IF g%=$122 OR (g% AND $200)
+			IF g%=$122 REM Menu.
+				mINIT
+				mCARD "Mode","Char only",%C,"Hex & char",%H,"Dec & char",%D,"All three",%A,"Exit",%X
+				mCARD "Position","At char 0",%Z,"Enter number",%N,"Enter char",%R
+				mCARD "Key","Show keypress",%K
+				g%=MENU
+			ELSE REM Must be hot-key.
+				g%=(g%-$200)
+			ENDIF
+			g%=g% AND $FFDF
+
+			IF g%=%C REM Char only.
+				Mode%=1 :CLS
+			ELSEIF g%=%H REM Hex and char.
+				Mode%=2 :CLS
+			ELSEIF g%=%D REM Decimal and char.
+				Mode%=3 :CLS
+			ELSEIF g%=%A REM All three.
+				Mode%=4 :CLS
+			ELSEIF g%=%X REM Exit.
+				Exit%=-1
+			ELSEIF g%=%Z REM to char Zero.
+				TopChar%=0
+			ELSEIF g%=%N
+				Char&=TopChar%
+				dINIT "Position"
+				dLONG Char&,"Number",0,255
+				IF DIALOG
+					TopChar%=Char&
+				ENDIF
+			ELSEIF g%=%R
+				dINIT "Position"
+				dEDIT Char$,"Char"
+				IF DIALOG
+					TopChar%=ASC(Char$)
+				ENDIF
+			ELSEIF g%=%K
+				KeyPress:
+			ENDIF
+
+REM Test for non hot-keys.
+		ELSEIF g%=27 REM Esc
+			Exit%=-1
+		ELSEIF g%=256 REM Up
+			TopChar%=TopChar%-Width%(Mode%)
+		ELSEIF g%=257 REM Down
+			TopChar%=TopChar%+Width%(Mode%)
+		ELSEIF g%=260 REM Pg Up
+			TopChar%=TopChar%-(9*Width%(Mode%))
+		ELSEIF g%=261 REM Pg Dn
+			TopChar%=TopChar%+(9*Width%(Mode%))
+		ENDIF
+
+REM Handle wraparound.
+		IF TopChar%>255
+			TopChar%=TopChar%-256
+		ELSEIF TopChar%<0
+			TopChar%=TopChar%+256
+		ENDIF
+
+	UNTIL Exit%
+	gUPDATE ON
+ENDP
+
+
+PROC DispASC%:(FromC%,Mode%,Wid%)
+REM Show ASCII table from char FromC%,
+REM in mode Mode%, with Wid% chars
+REM per screen line.
+REM Return next char position.
+
+	LOCAL i%,Char%,Sep$(1)
+
+	Sep$=CHR$(254) REM Seperator.
+	Char%=FromC%
+	DO
+
+		IF Mode%=2 REM Hex+char.
+			PRINT RIGHT$("0"+HEX$(Char%),2);sep$;
+
+		ELSEIF Mode%=3 REM Dec+char.
+			PRINT GEN$(Char%,-3);sep$;
+
+		ELSEIF Mode%=4 REM all.
+			PRINT GEN$(Char%,-3);sep$;
+			PRINT RIGHT$("0"+HEX$(Char%),2);sep$;
+		ENDIF
+
+REM All modes print a char.
+REM Skip unprintable chars.
+		IF ( (Char%>=7 AND Char%<=13) OR Char%=255)
+			PRINT ".",
+		ELSE
+			PRINT CHR$(Char%),
+		ENDIF
+
+		i%=i%+1
+		Char%=Char%+1
+		IF Char%>255
+			Char%=0
+		ENDIF
+	UNTIL i%>=Wid%
+	RETURN Char%
+ENDP
+
+
+PROC KeyPress:
+REM Display ASCII code of keypress,
+REM also KMOD modifiers.
+
+	LOCAL g%,k%
+	CLS
+	PRINT "Press any key (ESC to exit)"
+	PRINT "Key code & Key modifier"
+	DO
+		g%=GET
+		k%=KMOD
+		PRINT g%,k%,
+		IF k% AND 2
+			PRINT "Shift",
+		ENDIF
+		IF k% AND 4
+			PRINT "Control",
+		ENDIF
+		IF k% AND 8
+			PRINT CHR$(2);"Key", REM Psion symbol.
+		ENDIF
+		IF k% AND 16
+			PRINT "CapsLock",
+		ENDIF
+		PRINT
+	UNTIL g%=27 REM Esc.
+	RETURN
+ENDP

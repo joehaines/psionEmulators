@@ -1,0 +1,109 @@
+==========
+Usenet/comp.sys.psion #18860, from uwek@yedik.escape.de, 2426 chars, Nov 4 9:27 95
+----------
+Article: 18860 of comp.sys.psion
+Newsgroups: comp.sys.psion
+Path: cix.compulink.co.uk!news.compulink.co.uk!btnet!newsfeed.internetmci.com!EU.net!Germany.EU.net!zib-berlin.de!news.rrz.uni-hamburg.de!news.dkrz.de!tubsibr!oker.escape.de!yedik.escape.de!uwek
+From: uwek@yedik.escape.de (Uwe Kallmeyer)
+Subject: Printing from OPL
+Organization: Me? Organized?
+Message-ID: <DHII9t.9x@yedik.escape.de>
+Date: Sat, 4 Nov 1995 09:27:22 GMT
+Lines: 95
+
+Someone expressed some interest in how I did the printing, page
+previewing and the printer setup in TopiX (which is written in
+OPL). Everything I know about this matter came from the following
+code snippet I found, I think, on CIS the other day.
+
+	Regards
+	Uwe K.
+
+
+================< snip >====================< snap >====================
+
+PROC test:
+  global orec%(300)
+  global styles%(10)
+  global msg$(10,40)
+    msg$(1)="First line of the Opl printout"
+    msg$(2)="This line is bold"
+    msg$(3)="Three"
+    msg$(4)="Four"
+    msg$(5)="Five"
+    msg$(6)=""
+    msg$(7)=""
+    msg$(8)="Eight"
+    msg$(9)="Nine..."
+    msg$(10)="That's all for now folks"
+  setstys:
+  while 1
+    send(peekw($38),25)
+    settext:
+    actions:
+  endwh
+ENDP
+
+PROC setstys:
+  styles%(1)=6  rem bold italic
+  styles%(2)=2  rem bold
+  styles%(3)=4  rem italic
+  styles%(10)=1  rem underlined
+ENDP
+
+PROC settext:
+  local i%
+  i%=1
+  do
+    dInit "Define line "+num$(i%,2)
+    dEdit msg$(i%),"Text",40
+    dialog
+    i%=i%+1
+  until i%>10
+ENDP
+
+PROC actions:
+  setorec:
+  preview:
+ENDP
+
+PROC setorec:
+  local i%,j%
+  i%=1
+  while i%<=300
+    j%=1
+    while j%<=10
+      orec%(i%)=styles%(j%)
+      orec%(i%+1)=len(msg$(j%))
+      orec%(i%+2)=addr(msg$(j%))+1
+      i%=i%+3
+      j%=j%+1
+    endwh
+  endwh
+ENDP
+
+PROC preview:
+  tidycom:
+rem use #0 instead of  #1 to print immediately without preview.
+  send(peekw($38),24,#1,#100,orec%(1))
+ENDP
+
+PROC tidycom:
+  local wws%,com%
+  wws%=peekw($12)
+  com%=peekw(wws%+$1c)
+  if com%
+    send(com%,0)
+    pokew wws%+$1c,0
+  endif
+ENDP
+
+================< snip >====================< snap >====================
+
+
+-- 
+    Uwe Kallmeyer; Germany; +49-5303-94104-0 (Fax: -1); uwek@yedik.escape.de 
+================================================================================
+GO_d--_s+:+_g+_!p_a_v+_C++_UL+++_P---_E-_N++_!W_po+_Y+_t+_tv+_b++_e*_u+_h----_n+
+
+

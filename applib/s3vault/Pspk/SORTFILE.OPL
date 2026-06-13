@@ -1,0 +1,46 @@
+PROC SortFile:
+	local in%,out%,cnt%,buffer$(80),rank%(1000)
+	local t%,read%,l%,l2%
+	rank%(1)=1000:rem Silly value
+	ioopen(out%,"loc::m:\spk\speech2.dat",$121)
+	cnt%=0
+	do
+		cnt%=cnt%+1
+		ioopen(in%,"loc::m:\spk\speech.dat",$20)
+		read%=0
+		do
+			t%=ioread(in%,uadd(addr(buffer$),1),80)
+			if t%<0:break :endif
+			read%=read%+1
+			pokeb addr(buffer$),t%
+			l%=0:t%=loc(buffer$,"*")-1
+			do
+				l%=l%+1
+				if t%>rank%(l%+1) and t%<rank%(l%)
+					if l%<cnt%
+						l2%=l%
+						while l2%<cnt%
+							l2%=l2%+1
+							rank%(l2%+1)=rank%(l2%)
+						endwh
+					endif
+					rank%(l%+1)=t%
+				endif
+			until l%=cnt%
+		until 0
+		ioclose(in%)
+		ioopen(in%,"loc::m:\spk\speech.dat",$20)
+		do
+			t%=ioread(in%,uadd(addr(buffer$),1),80)
+			if t%<0:break :endif
+			pokeb addr(buffer$),t%
+			if loc(buffer$,"*")=rank%(cnt%+1)+1
+				print buffer$
+				iowrite(out%,uadd(addr(buffer$),1),len(buffer$))
+			endif
+		until 0
+		ioclose(in%)
+	until cnt%=read%
+	ioclose(out%)
+ENDP
+

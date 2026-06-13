@@ -1,0 +1,61 @@
+
+> Can anyone tell me if (and how) it is possible to start Remote Link from
+> within OPL?
+
+For the S3a, you can use code like the following:
+
+PROC islink:
+  local ax%,bx%,cx%,dx%,si%,di%,fl%
+  local link$(14),pid%,cline$(8)
+  link$="ROM::LINK.IMG"
+  cline$="-b19200"+chr$(0)    rem must get leading byte count right
+  bx%=addr(link$)+1
+  cx%=addr(cline$)
+  di%=addr(pid%)
+  ax%=$0100        rem for FilExecute
+  fl%=os($87,addr(ax%))
+  if fl% and 1
+    print "Error:",err$(ax% and $ff)
+  else
+    bx%=pid%
+    ax%=$0600      rem for ProcResume
+    fl%=os($88,addr(ax%))
+    if (fl% and 1)
+      print "Error:",err$(ax% and $ff)
+    else
+      print "Link started and has PID",hex$(bx%)
+    endif
+  endif
+  get
+ENDP
+
+For the S3, there's no LINK.IMG in the mother rom so you have to specify 
+LOC::C:\IMG\LINK.IMG as the filename to run instead.  And you'll have to 
+specify a slower baud rate (the -b parameter).
+
+If you try to use this code when Link is already running, you'll get a 
+misleading result, since Link will happily start again, and then 
+terminate itself (with "File already exists" error).  So you'll in 
+general also need a function like
+
+PROC islink:
+  local ax%,bx%,cx%,dx%,si%,di%,fl%
+  local link$(8)
+  link$="LINK.*"
+  bx%=addr(link$)+1
+  ax%=$0100      rem for ProcIdByName
+  fl%=os($88,addr(ax%))
+  if fl% and 1
+    print "Link not running"
+  else
+    print "Link running and has PID",hex$(ax%)
+  endif
+  get
+ENDP
+
+Finally, in order to stop link, use ProcTerminate (O/S service $0d88), 
+passing BX as the PID of the process to terminate, and 0 in AL.
+
+Regards, DavidW
+
+

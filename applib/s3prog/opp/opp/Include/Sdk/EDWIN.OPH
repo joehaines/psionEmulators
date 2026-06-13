@@ -1,0 +1,140 @@
+#define EDWIN_OPH
+
+#ifndef LODGER_OPH
+#include <sdk\lodger>
+#endif
+
+#ifndef SCRLAY_OPH
+#include <sdk\scrlay>
+#endif
+
+/* Constants for edwin */
+
+#define PR_EDWIN_DIALLABLE 0x0001
+#define PR_EDWIN_ACCEPT_TABS 0x0002
+#define PR_EDWIN_ACCEPT_SOFT_HYPHENS 0x0004
+#define PR_EDWIN_AUTO_CUR_END 0x0008
+#define PR_EDWIN_AUTO_SELECT 0x0010
+#define PR_EDWIN_DOC_SUPPLIED 0x0020
+#define PR_EDWIN_CLIPBOARD 0x0040
+#define PR_EDWIN_NOTIFY_OVERFLOW 0x0080
+#define PR_EDWIN_READONLY 0x8000
+#define IN_EDWIN_DIALLABLE PR_EDWIN_DIALLABLE
+#define IN_EDWIN_ACCEPT_TABS PR_EDWIN_ACCEPT_TABS
+#define IN_EDWIN_ACCEPT_SOFT_HYPHENS PR_EDWIN_ACCEPT_SOFT_HYPHENS
+#define IN_EDWIN_AUTO_CUR_END (PR_EDWIN_AUTO_CUR_END|PR_EDWIN_AUTO_SELECT)
+#define IN_EDWIN_NO_AUTOSELECT PR_EDWIN_AUTO_SELECT
+#define IN_EDWIN_DOC_SUPPLIED PR_EDWIN_DOC_SUPPLIED
+#define IN_EDWIN_CLIPBOARD PR_EDWIN_CLIPBOARD
+#define IN_EDWIN_VULEN 0x0080
+#define IN_EDWIN_VULEN_NOSCALE 0x0100
+#define IN_EDWIN_VULEN_CHARACTERS IN_EDWIN_VULEN
+#define IN_EDWIN_VULEN_PIXELS (IN_EDWIN_VULEN|IN_EDWIN_VULEN_NOSCALE)
+#define IN_EDWIN_LEFT_CURSOR 0x0200
+#define IN_EDWIN_TEXT_SEGMENTED 0x0400
+#define IN_EDWIN_POSITION_SUPPLIED 0x0800
+#define IN_EDWIN_FONT_SUPPLIED 0x1000
+#define IN_EDWIN_LEADING_SUPPLIED 0x2000
+#define IN_EDWIN_VISLINES_SUPPLIED 0x4000
+#define IN_EDWIN_PAGINATABLE 0x8000
+#define SET_EDWIN_TXT 0x01
+#define SET_EDWIN_EMPTY 0x02
+#define SET_EDWIN_CUR_END 0x04
+#define SET_EDWIN_SEL_ALL 0x08
+#define SET_EDWIN_CURSOR 0x10
+#define SET_EDWIN_ANCHOR 0x20
+#define EWF_BACKWARDS 0x0001
+#define EWF_CASESENS 0x0002
+#define EW_CHANGE_SINCE_SAVED 0x01
+#define EW_CHANGE_SINCE_PAGINATE 0x02
+#define EW_CHANGE 0xffff
+#define EW_BRING_SINGLE_SHOT 0xf000
+
+/* Types for edwin */
+
+STRUCT IN_EDWIN
+	vulen%
+	flags%
+	maxlen%
+	contents#(1)
+ENDS
+
+STRUCT EDWIN_LEADING
+	total%
+	top%
+ENDS
+
+STRUCT IN_EDWIN_X
+	vislines%
+	pos#(SIZEOF(P_POINT))
+	font%
+	style%
+	leading#(SIZEOF(EDWIN_LEADING))
+	doc%
+	clip%
+ENDS
+
+STRUCT SE_EDWIN
+	buf%
+	len%
+ENDS
+
+STRUCT SET_EDWIN
+	flags%
+	txt#(SIZEOF(SE_EDWIN))
+	cursor%
+	anchor%
+ENDS
+
+STRUCT SENSE_EDWIN
+	cursor%
+	anchor%
+ENDS
+
+/* Property of edwin */
+
+STRUCT PRS_EDWIN
+	scrimg%
+	scrlay%
+	doc%
+	cpos%
+	clen%
+	clip%
+	select%
+	change%
+	flags%
+	margins#(SIZEOF(SCRLAY_MARGINS))
+	font#(SIZEOF(SCRLAY_FONT))
+ENDS
+
+STRUCT PR_EDWIN
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	edwin#(SIZEOF(PRS_EDWIN))
+ENDS
+
+/* Property of punctued */
+
+STRUCT PR_PUNCTUED
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	edwin#(SIZEOF(PRS_EDWIN))
+ENDS
+
+/* Property of ewlinksv */
+
+STRUCT PRS_EWLINKSV
+	doc%
+	state%
+	pos%
+	parend%
+	posend%
+	buf#(256)
+ENDS
+
+STRUCT PR_EWLINKSV
+	root#(SIZEOF(PRS_ROOT))
+	ewlinksv#(SIZEOF(PRS_EWLINKSV))
+ENDS

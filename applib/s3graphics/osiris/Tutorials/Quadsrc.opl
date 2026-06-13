@@ -1,0 +1,44 @@
+PROC startutl:
+LOCAL a,b,c,a$(255),b$(255),c$(255),dret%,er$(50)
+ONERR quaderr::
+quaderr::
+IF er$<>"" :GIPRINT er$ :ENDIF
+dINIT "Quadratic equation solver"
+dTEXT "","A quadratic equation has the form:",0
+dTEXT "","axý+bx+c=0",2
+dEDIT a$,"Value for a",20
+dEDIT b$,"Value for b",20
+dEDIT c$,"Value for c",20
+dBUTTONS "Cancel",27,"Find x",13
+dret%=DIALOG
+IF dret%=13
+	er$="Error in a"
+	a=EVAL(pproces$:(a$))
+	er$="Error in b"
+	b=EVAL(pproces$:(b$))
+	er$="Error in c"
+	c=EVAL(pproces$:(c$))
+	ONERR OFF
+	IF (b**2-4*a*c)<0 :REM Roots are complex
+		dINIT "Complex Roots"
+		dTEXT "x=",GEN$(-b/(2*a),10)+" + i("+GEN$(SQR(4*a*c-b**2)/(2*a),10)+")",2
+		dTEXT "or x=",GEN$(-b/(2*a),10)+" - i("+GEN$(SQR(4*a*c-b**2)/(2*a),10)+")",2
+	ELSE
+		dINIT "Real Roots"
+		dTEXT "x=",GEN$((-b+SQR(b**2-4*a*c))/(2*a),10)
+		dTEXT "or x=",GEN$((-b-SQR(b**2-4*a*c))/(2*a),10)
+	ENDIF
+	dBUTTONS "Plot Graph",%p,"Continue",27
+	dret%=DIALOG
+	IF dret%=%p
+		inserteq:("1",GEN$(a,10)+"*x^2+"+GEN$(b,10)+"*x+"+GEN$(c,10),1,FLT(0),FLT(0),FLT(0))
+		GIPRINT "Added quadratic equation"
+	ENDIF
+ENDIF
+ONERR OFF
+ENDP
+
+PROC title$:
+REM Return the name of your utility
+RETURN "Quadratic equation solver"
+ENDP

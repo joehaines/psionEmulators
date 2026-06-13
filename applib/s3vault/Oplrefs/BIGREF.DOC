@@ -1,0 +1,1347 @@
+.ACOS
+a=ACOS(x)
+Returns the arc cosine, or inverse cosine (COS-1) of x. x must be in the range -1 to +1.
+The number returned will be an angle in radians. To convert the angle to degrees, use the DEG function.
+
+.ABS
+a=ABS(x)
+Returns the absolute value of a floating-point number - that is, without any +/- sign - for example ABS(-10.099) is 10.099
+If x is an integer, you won't get an error, but the result will be converted to floating-point - for example ABS(-6) is 6.0.
+Use IABS to return the absolute value as a long integer.
+
+.ADDR
+a%=ADDR(variable)
+Returns the address at which variable is stored in memory.
+The values of different types of variables are stored in bytes starting at ADDR(variable).
+See PEEK for details.
+
+.ALERT
+any of: r%=ALERT(m1$,m2$,b1$,b2$,b3$)r%=ALERT(m1$,m2$,b1$,b2$)r%=ALERT(m1$,m2$,b1$)r%=ALERT(m1$,m2$)r%=ALERT(m1$)
+Presents an alert dialog with the messages and keys specified, and waits for a response. m1$ is the message to be displayed on the first line, and m2$ on the second line.
+If m2$ is not supplied or if it is a null string, the second message line is left blank.
+Up to three keys may be used. b1$, b2$ and b3$ are the strings (usually words) to use on the keys. b1$ appears over an Esc key, b2$ over Enter, and b3$ over Space.
+This means you can have Esc, or Esc and Enter, or Esc, Enter and Space keys. If no key strings are supplied, the word CONTINUE is used above an Esc key.
+The key number - 1 for Esc, 2 for Enter or 3 for Space - is returned.
+
+.APPEND
+APPEND
+Adds a new record to the end of the current data file. The record which was current is unaffected. The new record, the last in the file, becomes the current record.
+The record added is made from the current values of the field variables A.field1$, A.field2$, and so on, of the current data file.
+If a field has not been assigned a value, zero will be assigned to it if it is a numeric field, or a null string if it is a string field.
+To overwrite the current record with new field values, use UPDATE.
+
+.ASIN
+a=ASIN(x)
+Returns the arc sine, or inverse sine (SIN-1) of x. x must be in the range -1 to +1.
+The number returned will be an angle in radians. To convert the angle to degrees, use the DEG function.
+
+.APP
+APP name  ...ENDA
+Begins definition of an OPA. name gives the name of the OPA.
+
+.ASC
+a%=ASC(a$)
+Returns the character code of the first character of a$.
+If a$ is a null string ("") ASC returns the value 0.
+
+.AT
+AT x%,y%
+Positions the cursor at x% characters across the text window and y% rows down. AT 1,1 always moves to the top left corner of the window.
+Initially, the window is the full size of the screen (extending from 1,1 to 40,9), but you can change its size and position with the SCREEN command.
+
+.ATAN
+a=ATAN(x)
+Returns the arc tangent, or inverse tanget (TAN-1) of x.
+The number returned will be an angle in radians. To convert the angle to degrees, use the DEG function.
+
+.BACK
+BACK
+Makes the previous record in the current data file the current record.
+If the current record is the first record in the file, then the current record does not change.
+
+.BEEP
+BEEP time%,pitch%
+Sounds the buzzer. The beep lasts for time%/32 seconds - so for a beep a second long make time%=32, etc. The maximum is 3840 (2 minutes).
+The pitch (frequency) of the beep is  512/(pitch%+1) KHz. BEEP 5,300 gives a comfortably pitched beep.
+If you make time% negative, BEEP first checks whether the sound system is in use (perhaps by another OPL program), and returns if it is. Otherwise, BEEP waits until the sound system is free.
+
+.BREAK
+BREAK
+Makes a program performing a DO...UNTIL or WHILE...ENDWH loop exit the loop and immediately execute the line following the UNTIL or ENDWH statement.
+
+.BUSY
+BUSY str$,c%,delay%BUSY str$,c%BUSY str$BUSY OFF
+BUSY str$ displays str$ in the bottom left of the screen, until BUSY OFF is called. Use this to indicate `Busy' messages, usually when an OPL program is going to be unresponsive to keypresses for a while.
+If c% is given, it controls the corner in which the message appears:
+	c%	corner
+	0	top left
+	1	bottom left (default)
+	2	top right
+	3	bottom right
+delay% specifies a delay time (in half seconds) before the message should be shown.
+The string to display can be up to 19 characters long.
+
+.CALL
+e%=CALL(s%,bx%,cx%,dx%,si%,di%)
+This function enables you to make operating system calls.
+
+.CHR$
+a$=CHR$(x%)
+Returns the character with character code x%.
+
+.CLOSE
+CLOSE
+Closes the current file (that is, the one which has been OPENed and most recently USEd).
+If you've used ERASE to remove some records, CLOSE recovers the memory used by the deleted records, provided it is held either in the internal memory or on a Ram SSD.
+
+.CLS
+CLS
+Clears the contents of the text window. The cursor then goes to the beginning of the top line. If you have used CURSOR OFF the cursor is still positioned there, but is not displayed.
+
+.CMD$
+c$=CMD$(x%)
+Returns the command-line arguments passed when starting a program. Null strings may be returned. x% should be from 1 to 5. cmd$(2) to cmd$(5) are only for OPAs (OPL applications).
+cmd$(1) returns the full path name used to start the running program.
+cmd$(2) returns the full path name of the file to be used by an OPA application.
+cmd$(3) returns "C" for "Create file" or "O" for "Open file".
+If the OPA is being run with a new filename, this will return "C". This happens the very first time the OPA is used, and whenever a new filename is used to run it.
+Otherwise, the OPA is being run with the name of an existing file, and cmd$(3) will return "O".
+cmd$(4) returns the alias information, if any.
+cmd$(5) returns the application name, as declared with the APP keyword.
+See also GETCMD$.
+
+.COMPRESS
+COMPRESSsrc$,dest$
+Copies data file src$ to another data file dest$. If dest$ already exists, the records in src$ are appended to the end of dest$.
+
+.CONTINUE
+CONTINUE
+Makes a program immediately go to the UNTIL... line of a DO...UNTIL loop or the WHILE... line of a WHILE...ENDWH loop - i.e. to the test condition.
+See also BREAK.
+
+.COPY
+COPY src$,dest$
+Copies the file src$, which may be of any type, to the file dest$. Any existing file with the name dest$ is deleted. You can copy across devices.
+Use the appropriate file extensions to indicate the type of file, and wildcards if you wish to copy more than one file at a time.
+
+.COS
+c=COS(x)
+Returns the cosine of x, where x is an angle in radians.
+To convert from degrees to radians, use the RAD function.
+
+.COUNT
+c%=COUNT
+Returns the number of records in the current data file. This number will be 0 if the file is empty.
+
+.CREATE
+CREATEfile$,log,f1,f2,...
+Creates a data file called file$. The filename may be a full file specification of up to 128 characters. Field names may be up to 8 letters/numbers.
+The file may have up to 32 fields, as specified by f1, f2... (if viewed in the Database application, field f1 starts on the top line of the window, f2 is below it, etc.)
+log specifies the logical file name - A, B, C or D. This is used as an abbreviation for the file name when you use other data file commands such as USE.
+Immediately after the CREATE statement, the file is open and can be accessed.
+
+.CURSOR
+CURSOR ONCURSOR OFFCURSORid%,asc%,width%,height%CURSOR id%
+CURSOR ON switches the text cursor on at the current cursor position. Initially, no cursor is displayed.
+You can switch on a graphics cursor in a window by following CURSOR with the ID of the window. This replaces any text cursor. At the same time, you can also specify the cursor's shape, and its position relative to the baseline of text.
+asc% is the ascent - the number of pixels (-128 to 127) by which the top of the cursor should be above the baseline of the current font. height% and width% (both from 0 to 255) are the cursor's height and width.
+If you do not specify them, the following default values are used:
+asc% = font ascent
+height% = font height
+width% = 2
+An error is raised if id% specifies a bitmap rather than a window.
+CURSOR OFF switches off any cursor.
+
+.DATETOSECS
+s&=DATETOSECS(yr%,mo%,dy%,hr%,mn%,sc%)
+Returns the number of seconds since 00:00 on 1 January 1970 at the date/time specified.
+Raises an error for dates before 1 January 1970.
+The value returned is an unsigned long integer. (Values up to +2,147,483,647, which is 03:14:07 on 19/1/2038, are returned as expected.
+Those from +2,147,483,648 upwards are returned as negative numbers, starting from -2,147,483,648 and increasing towards zero.)
+See also SECSTODATE, HOUR, MINUTE, SECOND.
+
+.DATIM$
+d$=DATIM$
+Returns the current date and time from the system clock as a string - e.g: "Fri 16 Oct 1992 16:25:30"
+The string returned always has this format - 3 mixed-case characters for the day, then a space, then 2 digits for the day of the month, and so on.
+
+.DAY
+d%=DAY
+Returns the current day of the month (1 to 31) from the system clock.
+
+.DAYNAME$
+d$=DAYNAME$(x%)
+Converts x%,a number from 1 to 7, to the day of the week, expressed as a three letter string. E.g. d$=DAYNAME$(1) returns MON.
+See also DOW.
+
+.DAYS
+d&=DAYS(day%,month%,year%)
+Returns the number of days since 01/01/1900. Use this to find out the number of days between two dates.
+
+.dBUTTONS
+one of these:dBUTTONSp1$,k1%,p2$,k2%,p3$,k3%dBUTTONS p1$,k1%,p2$,k2%dBUTTONS p1$,k1%
+Defines exitkeys to go at the bottom of a dialog.
+From one to three exit keys may be defined. Each pair of p$ and k% specifies an exit key; p$ is the text to be displayed above it, while k% is the keycode of the key.
+DIALOG returns the keycode of the key pressed (in lower case for letters).
+For alphabetic keys, use the % sign - %A means `the code of A', and so on. An appendix lists the codes for keys (such as Tab) which are not part of the character set.
+If you use the code for one of these keys, its name (e.g. `Tab', or `Enter') will be shown in the key.
+If you use a negative value for a k% parameter, that key is a `Cancel' key.
+The corresponding positive value is used for the key to display and the value for DIALOG to return, but if you do press this key to exit, the var variables used in the commands like dEDIT, dTIME etc. will not be set.
+The Esc key will always cancel a dialog box, with DIALOG returning 0. If you want to show the Esc key as one of the exit keys, use -27 as the k% parameter (its keycode is 27) so that the var variables will not be set if Esc is pressed.
+There can be only one dBUTTONS item per dialog, and it takes up three lines on the screen. dBUTTONS must be the last dialog command you use before DIALOG itself.
+Some keypresses, such as those using the Control key, cannot be specified.
+
+.dCHOICE
+dCHOICE varchoice%,p$,list$
+Defines a choice list to go in a dialog.
+p$ will be displayed on the left side of the line.
+list$ should contain the possible choices, separated by commas - for example, "Yes,No".
+choice% must be a LOCAL or a GLOBAL variable. It specifies which choice should initially be shown - 1 for the first choice, 2 for the second, and so on.
+When you finish using the dialog, choice% is given a value indicating which choice was selected - again, 1 for the first choice, and so on.
+
+.dDATE
+dDATE varlg&,p$,min&,max&
+Defines an edit box for a date, to go in a dialog.
+p$ will be displayed on the left side of the line.
+lg&, which must be a LOCAL or a GLOBAL variable, specifies the date to be shown initially. Although it will appear on the screen like a normal date, for example 15/03/92, lg& must be specified as "days since 1/1/1900".
+min& and max& give the minimum and maximum values which are to be allowed. Again, these are in days since 1/1/1900. An error is raised if min& is higher than max&.
+When you finish using the dialog, the date you entered is returned in lg&, in days since 1/1/1900.
+The System setting determines whether years, months or days are displayed first.
+
+.dEDIT
+dEDIT var str$,p$,len%dEDIT varstr$,p$
+Defines a string edit box, to go in a dialog.
+p$ will be displayed on the left side of the line.
+str$ is the string variable to edit. Its initial contents will appear in the dialog. The length used when str$ was defined is the maximum length you can type in.
+len%, if supplied, gives the width of the edit box (allowing for widest possible character in the font).
+The string will scroll inside the edit box, if necessary. If len% is not supplied, the edit box is made wide enough for the maximum width str$ could possibly be.
+See also dTEXT.
+
+.DEG
+d=DEG(x)
+Converts from radians to degrees.
+Returns x, an angle in radians, as a number of degrees. The formula used is: 180*x/PI
+You can use DEG to convert an angle returned by a trigonometric function back to degrees.
+To convert from degrees to radians, use RAD.
+
+.DELETE
+DELETE filename$
+Deletes any type of file. You can use wildcards.
+See also RMDIR.
+
+.dFILE
+dFILE var str$,p$,f%
+Defines a filename edit box, to go in a dialog. A `Disk' selector is automatically added on the line below.
+p$ will be displayed on the left side of the line.
+f% controls the type of file editor, and the kind of input allowed.
+You can add together any of the following values:
+	value	meaning
+	1	use an edit box
+	2	allow directory names
+	4	directory names only
+	8	disallow existing files
+	16	query existing files
+	32	allow null string input
+Add 1 into f%, for a file edit box, as when creating a new file. Do not add 1, for the `matching file' selector, used when choosing an existing file.
+For a `copy to' operation, use 1+2+16, to specify a file edit box, in which you can type the name of a directory to copy to, and which will produce a query if you type the name of an existing file.
+If asking for the name of a directory to remove, use 4, to allow an existing directory name only.
+`Query existing' is ignored if `disallow existing' is set. These two, as well as `allow null string input', only work with file edit boxes, not `matching file' selectors.
+str$ is the string variable to edit. Its initial contents always control the initial drive and directory used.
+For a file edit box, any filename part of str$ is shown. For a `matching file' selector, you can use wildcards in the filename part (such as *.tmp) to control which filenames are matched.
+If str$ does not contain any drive or directory information, the path as set by SETPATH is used. If SETPATH has not been used, the \OPD directory on the default drive (usually M:, `Internal') is used.
+If you use 8 with a matching file selector, as opposed to an edit box, it restricts the selection to files which match the filename/extension in str$.
+You can always press Tab to produce the full file selector with a dFILE item.
+str$ must be declared to be at least 128 bytes long, or an error will be raised.
+
+.dFLOAT
+dFLOAT var fp,p$,min,max
+Defines an edit box for a floating-point number, to go in a dialog.
+p$ will be displayed on the left side of the line.
+min and max give the minimum and maximum values which are to be allowed. An error is raised if min is higher than max.
+fp must be a LOCAL or a GLOBAL variable. It specifies the value to be shown initially. When you finish using the dialog, the value you entered is returned in fp.
+
+.DIALOG
+n%=DIALOG
+Presents the dialog prepared by dINIT and commands such as dTEXT and dCHOICE.
+If you complete the dialog by pressing Enter, your settings are stored in the variables specified in dTEXT, dCHOICE etc., although you can prevent this with dBUTTONS.
+If you used dBUTTONS when preparing the dialog, the keycode which terminated the dialog is returned. Otherwise, DIALOG returns the line number of the item which was current when Enter was pressed.
+The top item (or the title line, if present), has line number 1.
+If you cancel the dialog by pressing Esc, the variables are not changed, and 0 is returned.
+
+.dINIT
+dINIT title$
+dINIT
+Prepares for definition of a dialog, cancelling any existing one.
+Use dTEXT, dCHOICE etc. to define each item in the dialog, then DIALOG to display the dialog.
+If title$ is supplied it will be displayed at the top of the dialog, centred and with a line across the dialog below it.
+
+.DIR$
+d$=DIR$(filespec$) then
+d$=DIR$("")
+Lists filenames, including subdirectory names, matching a file specification. You can include wildcards in the file specification.
+If filespec$ is just a directory name, include the final backslash on the end - for example, "M:\TEMP\".
+
+.dLONG
+dLONG varlg&,p$,min&,max&
+Defines an edit box for a long integer, to go in a dialog.
+p$ will be displayed on the left side of the line.
+min& and max& give the minimum and maximum values which are to be allowed. An error is raised if min& is higher than max&.
+lg& must be a LOCAL or a GLOBAL variable. It specifies the value to be shown initially. When you finish using the dialog, the value you entered is returned in lg&.
+
+.DO..UNTIL
+DO  statements...UNTIL condition
+DO forces the set of statements which follow it to execute
+repeatedly until the condition specified by UNTIL is met.
+
+.DOW
+d%=DOW(day%,month%,year%)
+Returns the day of the week - from 1 (Monday) to 7 (Sunday) - given the date.
+day% must be between 1 and 31, month% from 1 to 12 and year% from 1900 to 2155.
+
+.dPOSITION
+dPOSITION x%,y%
+Positions a dialog. Use dPOSITION at any time between dINIT and DIALOG.
+dPOSITION uses two integer values. The first specifies the horizontal position, and the second, the vertical.
+dPOSITION -1,-1 positions to the top left of the screen
+dPOSITION 1,1 to the bottom right
+dPOSITION 0,0 to the centre
+dPOSITION 1,0 positions to the right hand edge of the screen, and centres the dialog half way up the screen.
+
+.dTEXT
+dTEXT p$,body$,t%
+dTEXT p$,body$
+Defines a line of text to be displayed in a dialog.
+p$ will be displayed on the left side of the line, and body$ on the right side.
+If you only want to display a single string, use a null string ("") for p$, and pass the desired string in body$. It will then have the whole width of the dialog to itself. An error is raised if body$ is a null string.
+body$ is normally displayed left aligned (although usually in the right column). You can override this by specifying t%:
+	t%	effect
+	0	left align body$
+	1	right align body$
+	2	centre body$
+Add any or all of the following three values to t%, for these effects:
+	t%	effect
+	$100	use bold text for body$
+	$200	underline this item
+	$400	bullet this item (allow it to be selected)
+See also dEDIT.
+
+.dTIME
+dTIME varlg&,p$,t%,min&,max&
+Defines an edit box for a time, to go in a dialog.
+p$ will be displayed on the left side of the line.
+lg&, which must be a LOCAL or a GLOBAL variable, specifies the time to be shown initially. Although it will appear on the screen like a normal time, for example 18:27, lg& must be specified as seconds after 00:00.
+A value of 60 means one minute past midnight; 3600 means one o'clock, and so on.
+min& and max& give the minimum and maximum values which are to be allowed. Again, these are in seconds after 00:00. An error is raised if min& is higher than max&.
+When you finish using the dialog, the time you entered isreturned in lg&, in seconds after 00:00.
+t% specifies the type of display required, as follows:
+	t%	time display
+	0	absolute time no seconds
+	1	absolute time with seconds
+	2	duration no seconds
+	3	duration with seconds
+Absolute times are displayed in 24-hour or am/pm format according to the current setting in System.
+
+.dXINPUT
+dXINPUT varstr$,p$
+Defines a secret string edit box, such as for a password, to go in a dialog.
+p$ will be displayed on the left side of the line.
+str$ is the string variable to take the string you type.
+Important: str$ must be at least eight characters long.
+Initially the dialog does not show any characters for the string; the initial contents of str$ are ignored. A special symbol will be displayed for each character you type, to preserve the secrecy of the string.
+
+.EDIT
+EDIT a$
+Displays a string variable which you can edit directly on the screen.
+See also INPUT.
+
+.ELSE .ELSEIF .ENDA .ENDIF .ENDV .ENDWH
+See IF/APP/VECTOR/WHILE
+
+.EOF
+e%=EOF
+Returns -1 (true) if the end of the file has been reached, or 0 (false) if it hasn't.
+
+.ERASE
+ERASE
+Erases the current record in the current file. The next record is then current. If the erased record was the last record in a file, then following this command the current record will be null and EOF will return true.
+
+.ERR
+e%=ERR
+Returns the number of the last error which occurred, or 0 if there has been no error.
+See also ERR$.
+
+.ERR$
+e$=ERR$(x%)
+Returns the error message for the specified error code x%.
+ERR$(ERR) gives the message for the last error which occurred.
+See ERR.
+
+.ESCAPE OFF
+ESCAPE OFF...ESCAPE ON
+ESCAPE OFF stops PSION-Esc being used to break out of the program when it is running. ESCAPE ON enables this feature again.
+ESCAPE OFF takes effect only in the procedure in which it occurs, and in any sub-procedures that are called. PSION-Esc is always enabled when a program begins running.
+
+.EVAL
+d=EVAL(s$)
+Evaluates the mathematical string expression s$ and returns the floating-point result. s$ may include any mathematical function or operator (eg. sin(x)/(2**3)). Note that floating-point arithmetic is always performed.
+See also VAL.
+
+.EXIST
+e%=EXIST(filename$)
+Checks to see that a file exists.
+Returns -1 (`True') if the file exists otherwise returns 0 (`False').
+
+.EXP
+e=EXP(x)
+Returns the value of the arithmetic constant e (2.71828...) raised to the power of x.
+
+.EXT
+EXT name$
+Gives the file extension of files used by an OPA.
+This can only be used between APP and ENDA.
+
+.FIND
+f%=FIND(a$)
+Searches the current data file for fields matching a$. The search starts from the current record, so use NEXT to progress to subsequent records. FIND makes the next record containing a$ the current record and returns the number of the record found.
+Capitals and lower-case letters match.
+You can use wildcards.
+You can only search string fields.
+
+.FIRST
+FIRST
+Positions to the first record in the current data file.
+
+.FIX$
+f$=FIX$(x,y%,z%)
+Returns a string representation of the number x, to y% decimal places. The string will be up to z% characters long.
+z% -ve  : string is right-justified, padded with spaces
+z% +ve  : no spaces are added
+If the result will not fit in z% characters, asterisks are returned.
+See also GEN$, NUM$, SCI$.
+
+.FLT
+f=FLT(x&)
+Converts an integer expression (either integer or long integer) into a floating-point number.
+See also INT and INTF.
+
+.gAT
+gAT x%,y%
+Sets the current position using absolute co-ordinates. gAT 0,0 moves to the top left of the current drawable.
+See also gMOVE.
+
+.gBORDER
+gBORDER flags%,width%,height%gBORDER flags%
+Draws a one-pixel wide border around the edge of the current drawable.
+If width% and height% are supplied, a border shape of this size is drawn with the top left corner at the current position.
+If they are not supplied, the border is drawn around the whole of the current drawable.
+flags% controls three attributes of the border - a shadow to the right and beneath, a one-pixel gap all around, and the type of corners used:
+	flags%	effect
+	1	1 pixel shadow
+	2	gap for 1 pixel shadow
+	3	2 pixel shadow
+	4	gap for 2 pixel shadow
+	$100	1-pixel gap all round
+	$200	rounded corners
+(1, 2, 3 and 4 are mutually exclusive.)
+Set flags%=0 for no shadow, no gap, and sharper corners.
+
+.gBOX
+gBOX width%,height%
+Draws a box from the current position, width% to the right and height% down. The current position is unaffected.
+
+.gCLOCK
+gCLOCK ON/OFFgCLOCK ON,mode%,offset%gCLOCK ON,mode%
+Displays or removes a clock showing the system time. The current position in the current drawable is used. Only one clock may be displayed in each drawable.
+mode% controls the type of clock:
+	mode%	clock type
+	1	small digital
+	2	medium, system setting
+	3	medium, analog
+	4	medium, digital
+	5	large, analog
+OR the value with these:
+	$10	show date (sml or med)
+	$20	show secs (sml or lge)
+	$40	show am/pm
+$31, for example, specifies a small digital clock, showing both date and seconds. $25 is a large analog clock with a moving second hand.
+Digital clocks display in 24-hour or 12-hour mode according to the system-wide setting in Time.
+The `am/pm' flag ($40) can be used with digital clocks in 12-hour mode, and with medium analog clocks.
+offset% specifies an offset in minutes from the system time to the time displayed. This allows you to display a clock showing a time other than the system time.
+If these parameters are not supplied, mode% is taken as 1, and offset% as 0.
+
+.gCLOSE
+gCLOSE id%
+Closes the specified drawable that was previously opened by gCREATE, gCREATEBIT or gLOADBIT.
+If the drawable closed was the current drawable, the default window (ID=1) becomes current.
+An error is raised if you try to close the default window.
+
+.gCLS
+gCLS
+Clears the whole of the current drawable and sets the current position to 0,0, its top left corner.
+
+.gCOPY
+gCOPY id%,x%,y%,w%,h%,mode%
+Copies a rectangle of the specified size (width w%, height h%) from the point x%,y% in drawable id%, to the current position in the current drawable.
+As this command can copy both set and clear pixels, the same modes are available as when displaying text. Set mode% = 0 for set, 1 for clear, 2 for invert or 3 for replace.
+0, 1 and 2 act only on set pixels in the pattern; 3 copies the entire rectangle, with set and clear pixels.
+
+.gCREATE
+id%=gCREATE(x%,y%,w%,h%,v%)
+Creates a window with specified position and size (width w%, height h%), and makes it both current and foreground. Sets the current position to 0,0, its top left corner.
+If v% is 1, the window will immediately be visible; if 0, it will be invisible.
+Returns id% (2 to 8) which identifies this window for other keywords.
+See also gCLOSE.
+
+.gCREATEBIT
+id%=gCREATEBIT(width%,height%)
+Creates a bitmap with the specified size, and makes it the current drawable. Sets the current position to 0,0, its top left corner.
+Returns id% (2 to 8) which identifies this bitmap for other keywords.
+See also gCLOSE.
+
+.GEN$
+g$=gen$(x,y%)
+Returns a string representation of the number x. The string will be up to y% characters long.
+y% -ve  : string is right-justified, padded with spaces
+y% +ve  : no spaces are added
+If the result will not fit in y% characters, asterisks are returned.
+See also FIX$, NUM$, SCI$.
+
+.GET
+g%=GET
+Waits for a key to be pressed and returns the character code for that key.
+You can use KMOD to check whether modifierkeys (Shift, Control, PSION and CapsLock) were used.
+See also KEY.
+
+.GET$
+g$=GET$
+Waits until a key is pressed and then returns which key was pressed, as a string.
+See also KEY$.
+
+.GETCMD$
+w$=GETCMD$
+Returns new command-line arguments to an OPA, after a "change files" or "quit" event has occurred. The first character of the returned string is "C", "O" or "X". If it is "C" or "O", the rest of the string is a filename.
+The first character has the following meaning:
+"C" - close down the current file, and create the specified new file.
+"O" - close down the current file, and open the specified existing file.
+"X" - close down the current file (if any) and quit the OPA.
+You can only call GETCMD$ once for each System message.
+See also CMD$.
+
+.GETEVENT
+GETEVENT var a%()
+Waits for an event to occur. Returns with a%() specifying the event.
+The data returned in a%() depends on the type of event that occurred. If the event is a key-press, (a%(1)AND$400) is guaranteed to be zero. For other events (a%(1)AND$400) is guaranteed to be non-zero.
+If a key has been pressed:  a%(1)= keycode (as for GET)  a%(2)AND$00ff= modifier (as for KMOD)  a%(2)/256= auto-repeat count (ignored by GET)
+If a program has moved to foreground:  a%(1)= $401
+If a program has moved to background:  a%(1)= $402
+If the machine has switched on:  a%(1)= $403
+If the System screen wants an OPA to change files or exit:  a%(1)= $404
+See also TESTEVENT, GETCMD$.
+
+.gFILL
+gFILL width%,height%,gMode%
+Fills a rectangle of the specified size from the current position, according to the graphics mode specified.
+The current position is unaffected.
+
+.gFONT
+gFONT fontId%
+Sets the font for current drawable to fontId%. The font may be one of the predefined fonts in the ROM or a user-defined font.
+User-defined fonts must first be loaded by gLOADFONT, which returns the fontId% needed for gFONT.
+See also gLOADFONT.
+
+.gGMODE
+gGMODE mode%
+Sets the effect of all subsequent drawing commands - gLINEBY, gBOX etc. - on the current drawable.
+	mode%	Pixels will be:
+	0	set
+	1	cleared
+	2	inverted
+
+.gHEIGHT
+height% = gHEIGHT
+Returns the height of the current drawable.
+
+.gIDENTITY
+id%=gIDENTITY
+Returns the ID of the current drawable.
+Default window has ID=1.
+
+.gINFO
+gINFO var i%()
+Gets general information about the current drawable and about the graphics cursor (whichever window it may be in). The information is returned in the array i%() which must be at least 32 integers long.
+The information is about the drawable in its current state, so e.g. the font information is for the current font in the current style.
+The following information is returned:
+	i%(1)	lowest character code
+	i%(2)	highest character code
+	i%(3)	height of font
+	i%(4)	descent of font
+	i%(5)	ascent of font
+	i%(6)	width of '0' character
+	i%(7)	maximum character width
+	i%(8)	flags for font (see below)
+	i%(9-17)	name of font
+	i%(18)	current graphics mode (gGMODE)
+	i%(19)	current text mode (gTMODE)
+	i%(20)	current style (gSTYLE)
+	i%(21)	cursor state (ON=1,OFF=0)
+	i%(22)	ID of window containing cursor (-1 for text cursor)
+	i%(23)	cursor width
+	i%(24)	cursor height
+	i%(25)	cursor ascent
+	i%(26)	cursor x position in window
+	i%(27)	cursor y position in window
+	i%(28)	1 if drawable is a bitmap
+	i%(29-32)	reserved
+The font flags in i%(8) are:
+	Value:	Meaning:
+	1	font uses standard ASCII characters (32-126)
+	2	font uses Code Page 850 characters (128-255)
+	4	font is bold
+	8	font is italic
+	16	font is serifed
+	32	font is monospaced
+	$8000	font is stored expanded for quick drawing
+(See HEX$ for an explanation of hexadecimal numbers.)
+Use PEEK$(ADDR(i%(9))) to read the name of the font as a string.
+If the cursor is on (i%(21)=1), it is visible in the window identified by i%(22).
+If the cursor is off (i%(21)=0), or is a text cursor (i%(22)=-1), i%(23) to i%(27) should be ignored.
+
+.gINVERT
+gINVERT width%,height%
+Inverts the rectangle width% to the right and height% down from the cursor position, except for the four corner pixels.
+
+.GIPRINT
+GIPRINT str$,c%
+GIPRINT str$
+GIPRINT displays an information message (of up to 64 chars) for about two seconds.
+If c% is given, it controls the corner in which the message appears:
+	c%	corner
+	0	top left
+	1	bottom left
+	2	top right
+	3	bottom right (default)
+
+.gLINEBY
+gLINEBY dx%,dy%
+Draws a line from the current position to a point dx% to the right and dy% down. Negative dx% and dy% mean left and up respectively. The current position moves to the end of the line drawn.
+See also gLINETO, gPOLY.
+
+.gLINETO
+gLINETO x%,y%
+Draws a line from the current position to the point x%,y%. The current position moves to x%,y%.
+See also gLINEBY, gPOLY.
+
+.gLOADBIT
+id%=gLOADBIT(name$,write%,i%)id%=gLOADBIT(name$,write%)id%=gLOADBIT(name$)
+Loads a bitmap from the named bitmap file and makes it the current drawable.
+See also gCLOSE.
+
+.gLOADFONT
+fontId%=gLOADFONT(name$)
+Loads the user-defined font name$. It returns a font ID; use this with gFONT to make the current drawable use this font.
+If name$ does not contain a file extension, .FON is used.
+See also gUNLOADFONT.
+
+.GLOBAL
+GLOBAL variables
+See also LOCAL.
+
+.gMOVE
+gMOVE dx%,dy%
+Moves the current position dx% to the right and dy% downwards, in the current drawable.
+A negative dx% causes movement to the left; a negative dy% causes upward movement.
+See also gAT.
+
+.gORDER
+gORDER id%,position%
+Sets the window specified by id% to the selected foreground/background position, and redraws the screen. Position 1 is the foreground window, position 2 is next, and so on.
+Any position greater than the number of windows is interpreted as the end of the list.
+On creation, a window is at position 1 in the list.
+Raises an error if id% is a bitmap.
+See also gRANK.
+
+.gORIGINX
+x%=gORIGINX
+Returns the gap between the left side of the screen and the left side of the current window.
+Raises an error if the current drawable is a bitmap.
+
+.gORIGINY
+y%=gORIGINY
+Returns the gap between the top of the screen and the top of the current window.
+Raises an error if the current drawable is a bitmap.
+
+.GOTO
+GOTO label or GOTO label::....label::
+Goes to the line following the label:: and continues from there.
+The label:
+Must be in the current procedure
+Must start with a letter and end with a double colon, although the double colon is not necessary in the GOTO statement
+May be up to 8 characters long excluding the colons.
+
+.gPATT
+gPATT id%,width%,height%,mode%
+Fills a rectangle of the specified size from the current position with repetitions of the drawable id%.
+See gCOPY for modes.
+If you set id%=-1 a pre-defined grey pattern is used.
+The current position is unaffected.
+
+.gPEEKLINE
+gPEEKLINE id%,x%,y%,d%(),ln%
+Reads a horizontal line from the drawable id%, length ln%, starting at x%,y%. The leftmost 16 pixels are read into d%(1), with the first pixel read into the least significant bit.
+The array d%() must be long enough to hold the data. You can work out the number of integers required with ((ln%+15)/16) (using whole-number division).
+
+.gPOLY
+gPOLY a%()
+Draws a sequence of lines, as if by gLINEBY and gMOVE commands.
+The array is set up as follows:
+	a%(1)	starting x position
+	a%(2)	starting y position
+	a%(3)	number of pairs of offsets
+	a%(4)	dx1%
+	a%(5)	dy1%
+	a%(6)	dx2%
+	a%(7)	dy2% etc.
+a%() contains pairs of offsets. Each pair is an amount dx%,dy% to move by. You should multiply each dx% by 2; if you are drawing a line by this dx%,dy% this number is correct, but if you are moving by this amount, add 1 to it.
+Positive dx% means to the right, and positive dy% means down.
+The current position is left at the start x,y position.
+
+.gPRINT
+gPRINT  listofexpressions
+Displays a list of expressions at the current position in the current drawable. All variable types are formatted as for PRINT.
+See also gPRINTB, gPRINTCLIP, gTWIDTH, gXPRINT.
+
+.gPRINTB
+gPRINTB t$,w%,al%,tp%,bt%,m%gPRINTB t$,w%,al%,tp%,bt%gPRINTB t$,w%,al%,tp%gPRINTB t$,w%,al%gPRINTB t$,w%
+Displays text t$ in a cleared box of width w% pixels.
+The current position is used for the left side of the box and for the baseline of the text.
+al% controls the alignment of the text in the box - 1 for right aligned, 2 for left aligned, or 3 for centred.
+tp% and bt% are the clearances between the text and the top & bottom of the box. Together with the current font size, they control the height of the box. An error is raised if tp% plus the font ascent is greater than 255.
+m% controls the margins. For left alignment, m% is an offset from the left of the box to the start of the text. For right alignment, m% is an offset from the right of the box to the end of the text.
+For centering, m% is an offset from the left or right of the box to the region in which to centre, with positive m% meaning left and negative meaning right.
+If values are not supplied for some parameters, these defaults are used:
+	al%	left
+	tp%	0
+	bt%	0
+	m%	0
+See also gPRINT, gPRINTCLIP, gTWIDTH, gXPRINT.
+
+.gPRINTCLIP
+w%=gPRINTCLIP(text$,width%)
+Displays text$ at the current position, displaying only as many characters as will fit inside width% pixels. Returns the number of characters displayed.
+See also gPRINT, gPRINTB, gTWIDTH, gXPRINT.
+
+.gRANK
+rank%=gRANK
+Returns the foreground/background position, from 1 to 8, of the current window.
+Raises an error if the current drawable is a bitmap.
+See also gORDER.
+
+.gSAVEBIT
+gSAVEBIT name$,width%,height%gSAVEBIT name$
+Saves the current drawable as the named bitmap file. If width% and height% are given, then only the rectangle of that size from the current position is copied.
+If name$ has no file extension .PIC is used.
+
+.gSCROLL
+gSCROLL dx%,dy%,x%,y%,wd%,ht%gSCROLL dx%,dy%<D%0>
+Scrolls pixels in the current drawable by offset dx%,dy%. Positive dx% means to the right, and positive dy% means down. The drawable itself does not change its position.
+If you specify a rectangle in the current drawable, at x%,y% and of size wd%,ht%, only this rectangle is scrolled.
+The areas dx% wide and dy% deep which are "left behind" by the scroll are cleared.
+The current position is not affected.
+
+.gSETWIN
+gSETWIN x%,y%,width%,height%gSETWIN x%,y%
+Changes position and, optionally, the size of the current window.
+An error is raised if the current drawable is a bitmap.
+The current position is unaffected.
+
+.gSTYLE
+gSTYLE s%
+Sets the style of text displayed in subsequent gPRINT, gPRINTB and gPRINTCLIP commands on the current drawable.
+	s%	Text style:
+	0	normal
+	1	bold
+	2	underlined
+	4	inverse
+	8	double height
+	16	mono
+	32	italic
+Combine these styles by adding their values.
+
+.gTMODE
+gTMODE mode%
+Sets the way characters are displayed by subsequent gPRINT, gPRINTB and gPRINTCLIP commands on the current drawable.
+	mode%	Pixels will be:
+	0	set
+	1	cleared
+	2	inverted
+	3	replaced
+Default is mode 0.
+
+.gTWIDTH
+width%=gTWIDTH(text$)
+Returns the width of text$ in the current font and style.
+See also gPRINT, gPRINTB, gPRINTCLIP, gXPRINT.
+
+.gUNLOADFONT
+gUNLOADFONT fontId%
+Unloads a user-defined font that was previously loaded using gLOADFONT.
+Raises an error if the font has not been loaded.
+See also gLOADFONT.
+
+.gUPDATE
+gUPDATE ONgUPDATE OFFgUPDATE
+The Series 3 screen is usually updated whenever you display anything on it. gUPDATE OFF switches off this feature. The screen will be updated as few times as possible, although you can force an update by using the gUPDATE command on its own.
+gUPDATE ON returns to normal screen updating.
+
+.gUSE
+gUSE id%
+Makes the drawable id% current. Graphics drawing commands will now go to this drawable. gUSE does not bring a drawable to the foreground (see gORDER).
+
+.gVISIBLE
+gVISIBLE ON/OFF
+Makes the current window visible or invisible.
+Raises an error if the current drawable is a bitmap.
+
+.gWIDTH
+width%=gWIDTH
+Returns the width of the current drawable.
+
+.gX
+x%=gX
+Returns the x current position (in from the left) in the current
+drawable.
+
+.gXPRINT
+gXPRINT string$,flags%
+Displays string$ at the current position, with precise highlighting or underlining. The current font and style are still used, even if the style itself is inverse or underlined.
+Text mode 3 (replace) is used - both set and cleared pixels in the text are drawn.
+	flags%	effect
+	0	normal, as with gPRINT
+	1	inverse
+	2	inverse, except corner pixels
+	3	thin inverse
+	4	thin inverse, except corner pixels
+	5	underlined
+	6	thin underlined
+gXPRINT does not support the display of a list of expressions of various types.
+
+.gY
+y%=gY
+Returns the y current position (down from the top) in the current drawable.
+
+.HEX$
+h$=HEX$(x&)
+Returns a string containing the hexadecimal (base 16) representation of integer or long integer x&.
+
+.HOUR
+h%=HOUR
+Returns the number of the current hour from the system clock as an integer between 0 and 23.
+
+.IABS
+i&=IABS(x&)
+Returns the absolute value, i.e. without any sign, of the integer or long integer expression x&.
+
+.ICON
+ICON name$
+Gives the name of the bitmap file to use as the icon for an OPA.
+This can only be used between APP and ENDA.
+
+.IF..ENDIF
+IF condition1  ...ELSEIF condition2  ...ELSE  ...ENDIF
+
+.INPUT
+INPUT variableINPUT log.field
+Waits for a value to be entered at the keyboard, and then assigns the value entered to a variable or data file field.
+See also EDIT.
+
+.INT
+i&=INT(x)
+Returns the integer (in other words the whole number) part of the floating-point expression x. The number is returned as a long integer.
+Positive numbers are rounded down, and negative numbers are rounded up. This may be undesirable - for example INT(-5.9) returns -5 and INT(2.9) returns 2.
+See also INTF.
+
+.INTF
+i=INTF(x)
+Used in the same way as the INT function, but the value returned is a floating-point number. For example, INTF(1234567890123.4) returns 1234567890123.0
+See also INT.
+
+.IOOPEN .IOCLOSE .IOREAD .IOWRITE .IOSEEK .IOW .IOA .IOWAIT .IOSIGNAL .IOYIELD .IOWAITSTAT
+r%=IOOPEN(var h%,name$,mode%)r%=IOCLOSE(h%)IOREAD(h%,addr%,maxLen%)r%=IOWRITE(h%,addr%,length%)IOSEEK(h%,mode%,var off&)IOW(h%,func%,var a1,var a2)IOA(h%,f%,var status%,var a1,var a2)IOWAITIOSIGNALIOYIELDIOWAITSTAT var stat%
+I/O functions
+
+.KEY
+k%=KEY
+Returns the character code of the last key pressed, if there has been one since the last call to the keyboard. These functions count as calling to the keyboard: INPUT, EDIT, GET, GET$, KEY and KEY$.
+If no key has been pressed, zero is returned.
+This command does not wait for a key to be pressed, unlike GET.
+
+.KEY$
+k$=KEY$
+Returns the last key pressed as a string, if there has been a keypress since the last use of the keyboard by INPUT, EDIT, GET, GET$,KEY or KEY$.
+If no key has been pressed, a null string ("") is returned.
+This command does not wait for a key to be pressed, unlike GET$.
+
+.KEYA
+err%=KEYA(var stat%,
+This is an asynchronous keyboard read function.
+Cancel with KEYC.
+
+.KEYC
+err%=KEYC(var stat%)
+Cancels the previously called KEYA function with status stat%.
+
+.KMOD
+k%=KMOD
+Returns a code representing the state of the modifier keys (whether they were pressed or not) at the time of the last keyboard access, such as a KEY function. The modifiers have these codes:
+	2	Shift down	
+	4	Control down
+	8	PSION down	
+	16	Caps Lock on
+If there was no modifier, the function returns 0. If a combination of modifiers was pressed, the sum of their codes is returned.
+Always use immediately after a KEY/KEY$/GET/GET$ statement.
+The value returned by KMOD has one binary bit set for each modifier, as shown above.
+By using the logical operator AND on the value returned by KMOD you can check which of the bits are set, in order to see which modifier keys were held down.
+
+.LAST
+LAST
+Positions to the last record in a data file.
+
+.LCLOSE
+LCLOSE
+Closes the device opened with LOPEN. (The device is also closed automatically when a program ends.)
+
+.LEFT$
+b$=LEFT$(a$,x%)
+Returns the leftmost x% characters from the string a$.
+
+.LEN
+a%=LEN(a$)
+Returns the number of characters in a$.
+
+.LN
+a=LN(x)
+Returns the natural (base e) logarithm of x.
+Use LOG to return the base 10 log of a number.
+
+.LOADM
+LOADM module$
+Loads a translated OPL module so that procedures in that module can be called. Until a module is loaded with LOADM, calls to procedures in that module will give an error.
+module$ is a string containing the name of the module. Specify the full file name only where necessary.
+Up to 4 modules can be in memory at any one time; if you try to LOADM a fifth module, you get an error. Use UNLOADM to remove a module from memory so that you can load a different one.
+By default, LOADM always uses the directory of the initial running program, or the one specified by a OPA application. It is not affected by the SETPATH command.
+
+.LOC
+a%=LOC(a$,b$)
+Returns an integer showing the position in a$ where b$ occurs, or zero if b$ doesn't occur in a$. The search matches upper and lower case.
+
+.LOCAL
+LOCAL variables
+Used to declare variables which can be referenced only in the current procedure. Other procedures may use the same variable names to create new variables.
+Use GLOBAL to declare variables common to all called procedures.
+More than one GLOBAL or LOCAL statement may be used, but they must be on separate lines, immediately after the procedure name.
+See also GLOBAL
+
+.LOCK
+LOCK ON
+LOCK OFF
+Mark an OPA (OPL application) as locked or unlocked. When an OPA is locked with LOCK ON, the System will not send it events to change files or quit.
+If, for example, you move onto the file list in the System screen and press Delete to try to stop that running OPA, a message will appear, indicating that the OPA cannot close down at that moment.
+An OPA is initially unlocked.
+
+.LOG
+a=LOG(x)
+Returns the base 10 logarithm of x.
+Use LN to find the base e (natural) log.
+
+.LOPEN
+LOPEN device$
+Opens the device to which LPRINTs are to be sent.
+You can open any of these devices:
+  The parallel port, with LOPEN "PAR:A"
+  The serial port, with LOPEN "TTY:A"
+  A file, with LOPEN <filename>
+Only one device may be open at any one time. Use LCLOSE to close the device. (It also closes automatically when a program finishes running.)
+
+.LOWER$
+b$=LOWER$(a$)
+Converts any upper case characters in the string a$ to lower case and returns the completely lower case string.
+Use UPPER$ to convert a string to upper case.
+
+.LPRINT
+LPRINT list of expressions
+Prints a list of items, in the same way as PRINT, except that the data is sent to the device most recently opened with LOPEN.
+If no device has been opened with LOPEN you will get an error.
+See PRINT for displaying to the screen.
+See LOPEN for opening a device for LPRINT.
+
+.MAX
+m=MAX(list)
+m=MAX(array(),element)
+Returns the greatest of a list of numeric items.
+
+.mCARD
+mCARD title$,n1$,k1%mCARD title$,n1$,k1%,n2$,k2%etc.
+Defines a menu. When you have defined all of the menus, use MENU to display them.
+title$ is the name of the menu.
+From one to six items on the menu may be defined, each specified by two parameters. The first is the item name, and the second the keycode for a hot-key. This specifies a key which, when pressed together with the PSION key, will select the option.
+
+.MEAN
+m=MEAN(list)m=MEAN(array(),element)
+Returns the arithmetic mean (average) of a list of numeric items.
+
+.MENU
+val%=MENU
+Displays the menus defined by mINIT and mCARD, and waits for you to select an item. Returns the hot-key keycode of the item selected, as defined in mCARD, in lower case.
+If you cancel the menu by pressing Esc, MENU returns 0.
+
+.MID$
+m$=MID$(a$,x%,y%)
+Returns a string comprising y% characters of a$, starting at the character at position x%.
+
+.MIN
+m=MIN(list)m=MIN(array(),element)
+Returns the smallest of a list of numeric items.
+
+.mINIT
+mINIT
+Prepares for definition of menus, cancelling any existing menus. Use mCARD to define each menu, then MENU to display them.
+
+.MINUTE
+m%=MINUTE
+Returns the current minute number from the system clock (0 to 59).
+
+.MKDIR
+MKDIR name$
+Creates a new directory. For example, MKDIR"M:\MINE\TEMP" creates a M:\MINE\TEMP directory, also creating M:\MINE if it is not already there.
+
+.MONTH
+m%=MONTH
+Returns the current month from the system clock as an integer between 1 and 12.
+
+.MONTH$
+m$=MONTH$(x%)
+Converts x%, a number from 1 to 12, to the month name, expressed as a three-letter mixed case string. E.g. MONTH$(1) returns the string Jan.
+
+.NEXT
+NEXT
+Positions to the next record in the current data file.
+If NEXT is used after the end of a file has been reached, no error is reported but the current record is a null and the EOF function returns true.
+
+.NUM$
+n$=NUM$(x,y%)
+Returns a string representation of the integer part of the floating-point number x, rounded to the nearest whole number. The string will be up to y% characters wide.
+See also FIX$, GEN$, SCI$. (FIX$ gives additional syntax)
+
+.OFF
+OFFOFF x%
+Switches the Series 3 off.
+When you switch back on, the statement following the OFF command is executed.
+If you specify an integer, x%, between 8 and 16383, the machine switches off for that number of seconds and then automatically turns back on and continues with the next line of the program (16383 is about 4 hours).
+However, during this time the machine may be switched on by an alarm, and of course you can turn it on with ON/Esc.
+Warning: be careful how you use this command. If, due to a programming mistake, a program uses OFF in a loop, you may find it impossible to switch the Series 3 back on, and may have to reset the computer.
+
+.ONERR
+ONERR label or ONERR label::...ONERR OFF
+ONERR label:: establishes an error handler in a procedure.
+When an error is raised, the program jumps to the label:: instead of the program stopping and an error message being displayed.
+The label may be up to 8 characters long starting with a letter. It ends with a double colon (::), although you don't need to use this in the ONERR statement.
+ONERR OFF disables the ONERR command, so that any errors occurring after the ONERR OFF statement no longer jump to the label.
+
+.OPEN
+OPENfile$,log,f1,f2...
+Opens an existing data file  file$, giving it the logical file name log, and giving the fields the names f1, f2..
+You need only specify those fields which you intend to update or append, though you cannot miss out a field.
+The opened file is then referred to within the program by its logical name (A, B, C or D).
+Up to 4 files can be open at once.
+See also CREATE, USE and OPENR.
+
+.OPENR
+This command works exactly like OPEN except that the opened file is read-only - in other words, you cannot APPEND or UPDATE the records it contains. This means that you can run two separate programs at the same time, both sharing the same file.
+
+.OS
+a%=OS(i%,addr1%)a%=OS(i%, addr1%(), addr2%())
+Calls the Operating System interrupt i%, reading the values of all returned 8086 registers and flags.
+See also CALL.
+
+.PARSE$
+p$=PARSE$(f$,rel$,var off%())
+Returns a full file specification from the filename f$, filling in any missing information from rel$.
+The offsets to the filename components in the returned string is returned in off%() which must be declared with at least 6 integers:
+	off%(1)	filing system offset (1 always)
+	off%(2)	device offset
+	off%(3)	path offset
+	off%(4)	filename offset
+	off%(5)	file extension offset
+	off%(6)	flags for wildcards in returned string
+The flag values in offset%(6) are:
+	0 : no wildcards
+	1 : wildcard in filename
+	2 : wildcard in file extension
+	3 : wildcard in both
+If rel$ is not itself a complete file specification, the current filing system, device and/or path are used as necessary to fill in the missing parts.
+f$ and rel$ should be separate strings.
+
+.PATH
+PATH name$
+Gives the directory to use for an OPA's files.
+This can only be used between APP and ENDA.
+
+.PAUSE
+PAUSE x%
+Pauses the program for a certain time, depending on the value of x%:
+	x%	result
+	0	waits for a keypress.
+	+ve	pause - x%/20 seconds.
+	-ve	pauses - x%/20 seconds or until a keypress.
+If x% is 0, a GET, GET$, KEY or KEY$ will return the key press which terminated the pause. If you are not interested in this keypress, but in the one which follows it, clear the buffer after the PAUSE with a single KEY function:
+PAUSE 0 :KEY
+
+.PEEKB .PEEKW .PEEKL .PEEKF .PEEK$
+The PEEK functions find the values stored in specific bytes:
+p%=PEEKB(x%) returns the integer value of the byte at address x%
+p%=PEEKW(x%) returns the integer at address x%
+p&=PEEKL(x%) returns the long integer value at address x%
+p=PEEKF(x%) returns the floating-point value at address x%
+p$=PEEK$(x%) returns the string at address x%
+See also the POKE commands and ADDR.
+
+.PI
+p=PI
+Returns the value of Pi (3.14... ).
+
+.POKEB .POKEW .POKEL .POKEF .POKE$
+The POKE commands store values in specific bytes:
+POKEB x%,y% stores the integer value y% (less than 256) in the single byte at address x%
+POKEW x%,y% stores the integer y% across two consecutive bytes, with the least significant byte in the lower address, that is x%
+POKEL x%,y& stores the long-integer y& in bytes starting at address x%
+POKEF x%,y stores the floating-point value y in bytes starting at address x%
+POKE$ x%,y$ stores the string y$ in bytes starting at address x%
+See also the PEEK commands and ADDR.
+
+.POS
+p%=POS
+Returns the number of the current record in the current data file, from 1 (the first record) upwards.
+A file can have up to 65534 records. However integers can only be in the range -32768 to +32767. Record numbers above 32767 are therefore returned like this:
+record	value returned
+32767	+32767
+32768	-32768
+32769	-32767
+32770	-32766
+.	.
+.	.
+65534	-2
+To display record numbers, you can use this check:
+IF POS<<0
+	PRINT 65536+POS
+ELSE PRINT POS
+ENDIF
+
+.POSITION
+POSITION x%
+Makes record number x% the current record in the current data file.
+If x% is greater than the number of records in the file then the EOF function will return true.
+
+.PRINT
+PRINT list of expressions
+See also LPRINT, gUPDATE.
+
+.RAD
+r=RAD(x)
+Converts x from degrees to radians.
+To convert from radians to degrees use DEG.
+
+.RAISE
+RAISE x%
+Raises an error.
+
+.RANDOMIZE
+RANDOMIZE x&
+Gives a `seed' (start value) for RND.
+
+.RECSIZE
+r%=RECSIZE
+Returns the number of bytes occupied by the current record.
+Use this function to check that a record may have data added to it without overstepping the 1022-character limit.
+
+.REM
+REM text
+
+.RENAME
+RENAME file1$,file2$
+Renames file1$ as file2$. You can rename any type of file.
+You cannot use wildcards.
+You can rename across directories: RENAME"\dat\x.dbf","\n\x.dbf"is OK. If you do this, you can choose whether or not to change the name of the file.
+
+.REPT$
+r$=REPT$(a$,x%)
+Returns a string comprising x% repetitions of a$.
+
+.RETURN
+RETURN or RETURN variable
+Terminates the execution of a procedure and returns control to the point where that procedure was called (ENDP does this automatically).
+
+.RIGHT$
+r$=RIGHT$(a$,x%)
+Returns the rightmost x% characters of a$.
+
+.RMDIR
+RMDIR str$
+Removes the directory specified by str$.
+You can only remove empty directories.
+
+.RND
+r=RND
+Returns a random floating-point number in the range 0 (inclusive) to 1 (exclusive).
+To produce random numbers between 1 and n - e.g. between 1 and 6 for a dice - use the following statement: f%=1+INT(RND*n)
+A fixed sequence can be generated by using RANDOMIZE.
+
+.SCI$
+s$=SCI$(x,y%,z%)
+Returns a string representation of x in scientific format, to y% decimal places and up to z% characters wide.
+See also FIX$, GEN$, SCI$.
+
+.SCREEN
+SCREEN width%,height%SCREEN width%,height%,x%,y%
+Changes the size of the window in which text is displayed. x%,y% specify the character position of the top left corner; if they are not given, the text window is centred in the screen.
+
+.SECOND
+s%=SECOND
+Returns the current time in secs from the system clock (0 to 59).
+
+.SECSTODATE
+SECSTODATE s&,var yr%,var mo%,var dy%,var hr%,var mn%,var sc%,var yrday%
+Sets the variables passed by reference to the date corresponding to s&, the number of seconds since 00:00 on 1 Jan 1970. yrday% is set to the day in the year (1-366).
+s& is an unsigned long integer. To use values greater than +2,147,483,647, subtract 4,294,967,296 from the value.
+See also DATETOSECS, HOUR, MINUTE, SECOND.
+
+.SETNAME
+SETNAME name$
+Sets the name of the running OPA to name$ and redraws any status window, using that name below the icon.
+
+.SETPATH
+SETPATH name$
+Sets the current directory for file access.
+
+.SIN
+s=SIN(angle)
+Returns the sine of angle, an angle expressed in radians.
+To convert from degrees to radians, use the RAD function.
+
+.SPACE
+s&=SPACE
+Returns the number of free bytes on the device on which the current (open) data file is held.
+
+.SQR
+s=SQR(x)
+Returns the square root of x.
+
+.STATUSWIN
+STATUSWIN ONSTATUSWIN OFF
+Makes a permanent status window visible or invisible.
+
+.STD
+s=STD(list)s=STD(array(),element)
+Returns the standard deviation of a list of numeric items.
+
+.STOP
+STOP
+Ends the running program.
+
+.SUM
+s=SUM(list)s=SUM(array(),element)
+Returns the sum of a list of numeric items.
+
+.TAN
+t=TAN(angle)
+Returns the tangent of angle, an angle expressed in radians.
+To convert from radians to degrees, use the DEG function.
+
+.TESTEVENT
+t%=TESTEVENT
+Returns `True' if an event has occurred, otherwise returns `False'.
+The event is not read by TESTEVENT - it may be read with GETEVENT.
+
+.TRAP
+TRAP command
+TRAP is an error handling command. It may precede any of these commands:
+Data file commands	APPEND, UPDATE	BACK, NEXT, LAST, FIRST,	POSITION	USE, CREATE, OPEN, OPENR,	 CLOSE, DELETE
+File commands	COPY, COMPRESS, ERASE, 	RENAME	LOPEN, LCLOSE	LOADM, UNLOADM
+Directory commands	MKDIR,RMDIR
+Data entry commands	EDIT, INPUT
+Graphics commands	gSAVEBIT, gCLOSE, gUSE	gUNLOADFONT, gFONT, gPATT, gCOPY
+TRAP overrides any ONERR.
+
+.TYPE
+TYPE num%
+Sets the type of an OPA, from 0 to 4, with num%.
+	num%	type
+	0	no files
+	1	1 file (e.g. Calc)
+	2	more than one file / only one in use (e.g. World)
+	3	n files / n in use (e.g. Data, Word)
+	4	n files / new file runs new version of OPA (e.g. RunOpl)
+This can only be used between APP and ENDA.
+
+.UNLOADM
+UNLOADM module$
+Removes from memory the module module$ loaded with LOADM.
+module$ is a string containing the name of the translated module.
+The procedures in an unloaded module cannot then be called by another procedure.
+
+.UNTIL
+See DO
+
+.UPDATE
+UPDATE
+Deletes the current record in the current data file and saves the current field values as a new record at the end of the file. This record, now the last in the file, remains the current record.
+Use APPEND to save the current field values as a new record.
+
+.UPPER$
+u$=UPPER$(a$)
+Converts any lower case characters in a$ to upper case.
+Use LOWER$ to convert to lower case.
+
+.USE
+USE logical name
+Selects the data file with the logical name A, B, C or D. The file must previously have been opened with OPEN, OPENR or CREATE and not yet be closed. All record handling commands (such as POSITION or UPDATE) then operate on this file.
+
+.USR
+u%=USR(pc%,ax%,bx%,cx%,dx%)
+Executes your machine code, returning an integer.
+See also USR$, ADDR, PEEK, POKE.
+
+.USR$
+u$=USR$(pc%,ax%,bx%,cx%,dx%)
+Executes your machine code, returning a string.
+See also ADDR, PEEK, POKE.
+
+.VAL
+v=VAL(numeric string)
+Returns the floating-point number corresponding to a numeric string.
+See also EVAL.
+
+.VAR
+v=VAR(list)v=VAR(array(),element)
+Returns the variance of a list of numeric items.
+
+.VECTOR
+VECTOR I%label1,label2,...labelNENDV
+VECTORI% jumps to label number i% in the list - if i% is 1 this will be the first label, and so on. The list is terminated by the ENDV statement.
+The list may spread over several lines, with a comma separating labels in any one line but no comma at the end of each line.
+If i% is not in the range 1 to N, where N is the number of labels, the program continues with the statement after the ENDV statement.
+See also GOTO.
+
+.WEEK
+w%=WEEK(day%,month%,year%)
+Returns the week number in which the specified day falls, as an integer between 1 and 53.
+day% must be between 1 and 31, month% between 1 and 12, year% between 1900 and 2155.
+Each week is taken to begin on the `Start of week' day, as specified in Time. When a year begins on a different day, it counts as week 1 if there are four or more days before the next week starts.
+
+.WHILE..ENDWH
+WHILE expression  ...ENDWH
+Repeatedly performs the set of instructions between the WHILE and the ENDWH statement, so long as expression returns logical true - non-zero.
+See also DO...UNTIL
+
+.YEAR
+y%=YEAR
+Returns the current year as an integer between 1900 and 2155 from the system clock.

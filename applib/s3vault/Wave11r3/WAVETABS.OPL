@@ -1,0 +1,178 @@
+proc gentabs:
+
+REM *** Generate A-law tables in assembler/OPL ***
+
+local asm&(70)
+local n%,t%,d%
+
+
+	do
+		n% = (t% and (not $55)) or ((not t%) and $55)
+		d%=t% and $f
+		if (t% and $70)=0
+			d%=d%*2+1
+		else
+			d%=(d% or $10)*(2**((t% and $70)/16))
+		endif
+		if t% and $80
+			d%=-d%
+		endif
+		t%=t%+1
+		et%(n%+1)=d%
+	until t%>255
+
+	Asm&(1)=&FB8B0117
+	Asm&(2)=&C681F38B
+	Asm&(3)=&00BB2000
+	Asm&(4)=&0055BD00
+	Asm&(5)=&E081C38B
+	Asm&(6)=&19740800
+	Asm&(7)=&E081C38B
+	Asm&(8)=&F8D10780
+	Asm&(9)=&F8D1F8D1
+	Asm&(10)=&F8D1F8D1
+	Asm&(11)=&F8D1F8D1
+	Asm&(12)=&090070BA
+	Asm&(13)=&81C38BC2
+	Asm&(14)=&810C00E0
+	Asm&(15)=&750400F8
+	Asm&(16)=&81C38B17
+	Asm&(17)=&D103C0E0
+	Asm&(18)=&D1F8D1F8
+	Asm&(19)=&D1F8D1F8
+	Asm&(20)=&BAF8D1F8
+	Asm&(21)=&C2090060
+	Asm&(22)=&E081C38B
+	Asm&(23)=&F8810E00
+	Asm&(24)=&15750200
+	Asm&(25)=&E081C38B
+	Asm&(26)=&F8D101E0
+	Asm&(27)=&F8D1F8D1
+	Asm&(28)=&F8D1F8D1
+	Asm&(29)=&090050BA
+	Asm&(30)=&81C38BC2
+	Asm&(31)=&810F00E0
+	Asm&(32)=&750100F8
+	Asm&(33)=&81C38B13
+	Asm&(34)=&D100F0E0
+	Asm&(35)=&D1F8D1F8
+	Asm&(36)=&BAF8D1F8
+	Asm&(37)=&C2090040
+	Asm&(38)=&E081C38B
+	Asm&(39)=&F8810F80
+	Asm&(40)=&11750080
+	Asm&(41)=&E081C38B
+	Asm&(42)=&F8D10078
+	Asm&(43)=&F8D1F8D1
+	Asm&(44)=&090030BA
+	Asm&(45)=&81C38BC2
+	Asm&(46)=&810FC0E0
+	Asm&(47)=&750040F8
+	Asm&(48)=&81C38B0F
+	Asm&(49)=&D1003CE0
+	Asm&(50)=&BAF8D1F8
+	Asm&(51)=&C2090020
+	Asm&(52)=&E081C38B
+	Asm&(53)=&F8810FE0
+	Asm&(54)=&0D750020
+	Asm&(55)=&E081C38B
+	Asm&(56)=&F8D1001E
+	Asm&(57)=&090010BA
+	Asm&(58)=&81C38BC2
+	Asm&(59)=&750FE0E0
+	Asm&(60)=&81C38B0A
+	Asm&(61)=&D1001EE0
+	Asm&(62)=&33D08BF8
+	Asm&(63)=&B01588D5
+	Asm&(64)=&88C20880
+	Asm&(65)=&FFC7FF14
+	Asm&(66)=&81C3FFCE
+	Asm&(67)=&7D1000FB
+	Asm&(68)=&FF00E903
+	Asm&(69)=&90909090
+	Asm&(70)=&909090CB
+	
+	usr(uadd(addr(asm&(1)),2),0,addr(ct%(1)),0,0)
+	
+endp
+
+proc gentabs2:
+local n%,d%,tab%,c%,t%
+
+rem	if ex
+
+	busy "A-law tables..."
+
+	do
+		n% = (t% and (not $55)) or ((not t%) and $55)
+		d%=t% and $f
+		if (t% and $70)=0
+			d%=d%*2+1
+		else
+			d%=(d% or $10)*(2**((t% and $70)/16))
+		endif
+		if t% and $80
+			d%=-d%
+		endif
+		t%=t%+1
+		et%(n%+1)=d%
+	until t%>255
+
+	tab%=addr(ct%(1))
+	n%=0
+	do
+		if (n% and $800)
+			d%=$70 or ((n% and $780)/128)
+		endif
+		if (n% and $c00)=$400
+			d%=$60 or ((n% and $3c0)/64)
+		endif
+		if (n% and $e00)=$200
+			d%=$50 or ((n% and $1e0)/32)
+		endif
+		if (n% and $f00)=$100
+			d%=$40 or ((n% and $f0)/16)
+		endif
+		if (n% and $f80)=$80
+			d%=$30 or ((n% and $78)/8)
+		endif
+		if (n% and $fc0)=$40
+			d%=$20 or ((n% and $3c)/4)
+		endif
+		if (n% and $fe0)=$20
+			d%=$10 or ((n% and $1e)/2)
+		endif
+		if (n% and $fe0)=0
+			d%=(n% and $1e)/2
+		endif
+		
+		d% = (d% and (not $55)) or ((not d%) and $55)
+			
+		pokeb uadd(tab%,n%),d%
+	
+		n%=n%+1
+	until n%>4095
+
+	n%=1
+	do
+		pokeb(uadd(tab%,8192-n%)),peekb(uadd(tab%,n%)) or $80
+		n%=n%+1
+	until n%>4095
+
+	busy off
+	
+	at 1,4
+	
+rem	print et%($34+1),"$34",hex$(peekb(uadd(addr(ct%(1)),et%($34+1) and $1fff)))
+rem	print et%($b4+1),"$b4",hex$(peekb(uadd(addr(ct%(1)),et%($b4+1) and $1fff)))
+rem	print et%($34+1)
+rem	print (et%($34+1)*90.0)/100
+rem	print hex$(peekb(uadd(addr(ct%(1)),((et%($34+1)*90.0)/100) and $1fff)))
+rem	print et%(peekb(uadd(addr(ct%(1)),((et%($34+1)*90.0)/100) and $1fff))+1)
+	
+rem	get
+
+endp
+
+
+

@@ -1,0 +1,275 @@
+
+
+LumberJack
+version 1.0
+
+
+
+©Andrew Lee
+Parkend House Hotel
+Parkend, Nr Lydney
+GLOS GL15 4HL
+
+e-mail ajl@cix.compulink.co.uk
+
+
+
+Introduction
+	LumberJack is a PABX telephone system "Call Logger" for the Psion 3a. Presently it has only been tested with the London 12 PABX system, however further PABX's may be supported in the future.
+
+Liability
+	The author and/or author's agent accepts no responsibility for damage or loss of revenue resulting from the use or misuse of this program.
+
+Shareware
+	LumberJack is distributed as "Shareware", The shareware release has the limitation of only logging 5 calls per extension, the fifth call will cause the program to end. Registration of LumberJack costs £20 and you will then be sent the full "Registered" version with the above limitation removed. The registered version will be sent on a 3.5 disk, if you wish to receive it on a SSD then please enclose one with your registration cheque.
+	Please send all correspondence to:
+	Andrew Lee
+	Parkend House Hotel
+	Parkend
+	Nr Lydney
+	GLOS
+	GL15 4HL UK
+
+Limitations
+	I feel I should point out the limitations of LumberJack before I start singing it's praises.·	
+	Printing is NOT supported by LumberJack, this is due to the fact that as the Psion needs to be connected to the PABX continually, via the input/output socket on the Psion3a. Disconnecting the PABX to allow printing by the Psion would defeat the object of the "Call Logger".·	
+Presently, LumberJack supports up to 10 Extensions, support for more extensions may be added in the future.
+
+Functions
+	LumberJack will allow you to:	
+View ALL extension activity from one screen.	
+List comprehensive extension logs.	
+User definable STD codes, Charge rates and Markup rates.	
+Option of discounts for mercury calls.		
+Option of non-chargeable dialling time.
+
+Requirements
+	In order to use LumberJack you need:	
+A PABX telephone system with RS232C "Call logging" port.	
+A Psion3a (personal digital assistant) 512K recommended, however LumberJack will run on a 256K machine but memory for the creation of logs will be limited. For 256K machines I recommend installing LUMBER and LUMSET on a 128k SSD.	
+A Psion serial link cable.	
+A Psion modem lead.	
+A Psion power supply. (batteries could be used, but you'll have to change them every 3 days)
+
+Installation
+	The PABX
+The PABX system should be set to 9600 BAUD, this is done via the "master" phone, dialling 19680 to Set Baud rate to 9600 and dial 19651 to switch call logging to ON.
+The correct time and date should also be set into the PABX. Again this is done by dialling via the "master" phone.
+To change the time dial 1961 hhmm (24hour clock)
+To change the year dial 1960 yy
+To change the day and month dial 1962 ddmm
+To change the day of the week dial 1963 w (weekday) Monday=1, Sunday =7.
+
+	The Psion3a
+Connect the power supply, serial link and modem link. The male 25 pin RS232 plug will connect to the PABX system.
+Create a folder /STD/(on the root drive) and into it copy the files:
+LOCAL.DBF	INT1.DBF	INT10.DBF
+REGION.DBF	INT2.DBF	INT11.DBF
+INTERN.DBF	INT3.DBF	INT12.DBF
+FREE.DBF	INT4.DBF	IRE.DBF
+MERCURY.DBF	INT5.DBF
+RATES.DBF	INT6.DBF
+PREMIUM.DBF	INT7.DBF
+DT.DBF	        INT8.DBF
+MINI.DBF	INT8A.DBF
+INTRATES.DBF	INT9.DBF
+FIXED.DBF
+
+The Files 21.dbf-30.dbf can also be copied as they are example log files, only 21.DBF is viewable (view/Ext 21)
+
+Into the /APPS/ folder copy the files:
+LUMBER.OPA
+LUMSET.OPA
+
+The shareware versions of these two apps are called LUMBERUN.OPA and LUMSETUN.OPA.
+Install the programs LUMBER and LUMSET via the system screen with PSION+I.
+LUMBER and LUMSET can both be installed on SSD (recommended for low memory machines) however the /STD/ folder MUST be on the internal drive
+
+Operation
+	Quick Start
+Run LUMBER from the "System" screen. The comms link icon will be activated and the Psion will be placed into "comms receive" mode.
+As calls are made through the PABX system, the information will be sent to the psion, where it will be calculated to paramers set via LUMSET. You can set parameters via LUMSET whilst LUMBER is running however previous calls will be logged and calculated with the parameters as set at that time. 
+To exit LUMBER either:
+	dial 9777 from the extension 21 (usually the master phone).or whilst highlighting LUMBER from the "System Screen", press "DELETE".
+	Should the above fail, use the Emergency Kill Application from the System Screen. ie
+	Press the System button, and when LUMBER is highlighted press "PSION"+"SHIFT"+"k".
+
+	Detailed Operation LUMBER 
+ 
+Run LUMBER from the "System" screen. The main LUMBER screen
+displays 10 extensions with the number of calls per extension and the total cost of calls per extension. LUMBER only has two states of operation.
+1. Waiting for comms input (ie. waiting for call information).
+2. Processing comms input (ie. calculating cost of call etc.)
+The first state is recognised by the comms icon (a zig-zag arrow above the clock) being stationary.
+The second state is recognised by the comms icon "pulsing".
+Usually once started LUMBER is left running continually, either running as a foreground application or as a background application. however it must be noted that as LUMBER takes control of the COMMS port at all times, no applications accessing the printer/comms port will be able to be used.
+Once LUMBER receives call information, it tries to match the first 3-6 numbers of the number dialled with the list of known STD's provided by LUMSET. If a match is found then the number is calculated at the known rate and processing stops, if no match is made then LUMBER assumes the number to be a NATIONAL rate call and after the cost is calculated, LUMSET is then returned to its "receive data" state.
+When an international call is detected (00) then the default rate for any international call is International Band 13. See appendix for list of all call bands.
+
+	Detailed Operation LUMSET
+
+Having started LUMBER you may want the alter the Telephone codes that are recognised by LUMBER, view individual extension call logs or change the call charges used.
+This can all be achieved by running LUMSET from the system screen (LUMBER need not be running).
+Having viewed the main screen, pressing the "MENU" key will bring up the menu bar from where the options within LUMSET can be accessed. Alternately "keyboard shortcuts" are provided for direct access to options.
+NOTE: The only STD's you should edit are the "LOCAL" and "REGIONAL" STD's, all other STD's should be left as supplied.
+
+MENU/ABOUT
+
+ABOUT
+Information regarding LUMSET/LUMBER. version no, contact address and e-mail address.
+HELP
+Simple guide to LUMSET.
+EXIT
+Exits LUMSET 
+
+MENU/SETTINGS
+
+LOCAL
+Add, Remove or View Local STD codes, 0345 ,0645 and others are preset and your telelephone directory will provide a list of all local STD's from your local exchange.
+REGIONAL
+Add, Remove or View Regional STD codes. Regional codes are those within a 35mile (approx) radius of your exchange. Again your telephone directory will provide a list of regional STD's.
+PREMIUM
+Add, Remove or View Premium rate STD codes. Includes the widely used 0898 and mobile phone STD,s.
+Each Premium STD MUST be given a type code namely one of the following.
+p0, p1, m, s0, d, h, n
+MERCURY
+If your PABX is connected to Mercury, then the Mercury codes (131,132) will be looked for and a discount offered if found. If you don't wish a discount to be calculated then enter 0. Mercury discount is preset to 10%.
+FREE CALLS
+Add, Remove or View No Charge STD's. Includes 0800, 0500 and 100. Free Calls are recorded in the extension logs but are not charged.
+FIXED PRICED CALLS
+Add. Remove or View Fixed Priced Call STD's. Set the total cost of these calls to your liking. Directory Enquiries (192) is one example of a fixed price call and is pre-set to 50p.
+DIAL TIME
+Allows the setting of non-chargeable dialling time. The London 12 PABX starts it's timing clock as soon as an outside line is accessed, this means that the time it takes the caller to dial is also included in the total time of the call. The time entered will be deducted from the total call, however the total call time will still be recorded in the extension logs. A dialling time of between 1 and 60 seconds can be set. A dialling time of 0 will of course make the whole call time calcuable.
+The dialling time is preset to 5 seconds.
+
+MENU/INTERNAT.
+
+EDIT/VIEW STD
+Add, Remove or View International STD codes. Any number preceded by 00 is treated as an international code. After selecting required International charge band (1-13+8a+Ireland), STDs can be added viewed or removed.
+note. Band 13 is not selectable, any International STD's not recognised are charged at the BAND 13 rate.
+
+MENU/RATES
+
+SET UK RATES
+Allows all the current rates to be Edited or Viewed.
+These rates are preset to BT charges (July96) and thus can be lowered or higher depending on BT or your telephone provider. The Markup % enables you to set the profit you wish to make from your telephone users. 100% will return 100% profit (ie. the call will cost double BT rates) 200% will return 200% profit and thus the call will cost 3 times BT rates. 0% will return 0 profit and calls will be charged at BT rates.
+see Appendix 1. for a full listing of All charge bands.
+SET INT. RATES
+As above except for setting International rates.
+UK GLOBAL MARKUP
+Allows the Global Markup of ALL UK charge bands. To save you editing every band individually.
+INT GLOBAL MARKUP
+Allows the Global Markup of ALL INT. charge bands. To save you editing every band individually.
+MINIMUM CHARGE
+Allows the setting of minimum charges for both calls within the UK and international calls. If a call is calculated to below the minimum charge then that call is automatically altered to the minimum charge rate. BT current UK minimum charge is I beleive 5p. The minimum charge is NOT "marked up". The minimum UK charge is preset to 10p, whilst the minimum International charge is preset at 50p.
+
+MENU/CLEAR
+
+CLEAR ALL
+Clears ALL telephone logs to ALL extensions.
+CLEAR EXT.
+Clears ALL telephone logs to a single extension. Press "TAB" to view the extension list or use the direction arrows "left" and "right" to select the required extension.
+note. If you are running Lumber and LumSet together, then you'll see that Lumber still displays the "old" extension sumaries after any or all of them have been cleared with LumSet. This is normal and Lumber will update itself after the next call (incoming or outgoing), you can of course force an update by dialling 9 on any phone and replacing the receiver.
+
+MENU VIEW
+
+VIEW EXT.
+View the logs of a single extension.
+After selecting the required extension, a window will display the DATE, TIME, NUMBER DIALED, DURATION, MERCURY ON/OFF,CHARGE BAND and COST of each call. If the number of calls exceeds the display then pressing any key will display the next page of calls. A further press of any key will return you to the main screen.
+note.The cost of the call is calculated using the duration-dialling time (if set) ie Duration includes the dialling time.
+
+
+Thanks
+A big thank you to Psion for making such a wizzo machine and providing great manuals.
+A big thank you to B.T. who after endless phonecalls finally decided that they would send me all the charge band information that I requested, shame it took the best part of two months though.
+A big thank you to the company who sold us our PABX telephone system that would be obsolete within 7 years and who also sold us a call logger that would not function now that B.T. have changed the dialling codes.
+
+Problems
+"When I press "delete" from the system screen with LUMBER selected. LUMBER *seems* to be exited but the comms link icon is still showing."
+
+I encountered this problem whilst developing LUMBER, however for some reason or other it seems to have fixed itself on the two Psions that I have. If you get this error please report back to me with full details of the memory usage of your Psion. In the mean time use the "Kill Application" function of the System Screen to exit LUMBER.
+
+
+
+
+"After clearing some extension logs via LUMSET, LUMBER is still showing the *old* logged info."
+
+LUMBER will redraw the screen AFTER the next call (incoming or outgoing), you can force this by dialling 9 from any phone.
+
+
+
+
+"LUMBER has crashed and complains that it doesn't have enough memory."
+
+Unless you clear extensions regularly and/or have lots of spare memory then you will encounter this problem. ie Clear extensions once the information is no longer needed.
+Obviously the busier the switch-board, the greater the need for clearing extension logs regularly. 
+
+
+
+
+"Why can't I load any of the *.DBF files from the /STD/ Folder into the DATA application.?"
+
+This is due to me not researching the "data" format before writing Lumberjack. To be honest the only reason I can think of, for making them DATA compatible is the loading and printing of the log files via DATA View, however rather than reinvent the wheel, I may write a conversion utility to convert them into a DATA friendly format. If you want this option please let me know.
+
+
+
+
+"Lumber has crashed and won't work when restarted."
+
+This sounds like you've had a power failure or a PABX failure. In the Event of a power failure the Psion will of course carry on working, unfortunately the PABX board won't, Some telephone boards "forget" their baud rate settings, time, date etc and so will need resetting before running Lumber again (see the begining of this manual for the PABX setting up instructions).
+
+
+
+Appendix 1	
+
+UK CHARGE BANDS           (BT Rates @2nd July 1996)
+		CHEAP	PEAK	WEEKEND
+Local		1.7p	4p	1.p
+Regional	4p	8.3p	3.3p
+National	5.8p	9.8p	3.3p
+Free		0	0	0
+Fixed		(Depends on call)	
+Premium	
+P0		149.99p	149.99p	149.99p
+P1		39p	49p	39p
+m		28.32p	41.05p	28.32p
+S0		34.898p	34.898p	34.898p
+d		9.85p	16.71p	9.85p
+h		25.43p	38.57p	25.43p
+n		14.81p	14.81p	14.81p
+
+Appendix 2
+
+INTERNATIONAL CHARGE BANDS
+		PEAK	OFFPEAK
+BAND 1		35.54p	29.61p
+
+BAND 2		45.41p	38.50p
+
+BAND 3		67.45p	57.25p
+
+BAND 4		39.48p	37.84p
+
+BAND 5		77.98	65.80p
+
+BAND 6		68.11p	58.24p
+
+BAND 7		91.73p	73.04p
+
+BAND 8		101.67p	81.53p
+
+BAND 8a		113.51p	91.8p
+
+BAND 9		126.34p	108.52p
+
+BAND 10		131.19p	110.55p
+
+BAND 11		102.65p	97.72p
+
+BAND 12		133.25p	126.34p
+
+BAND 13		135.22p	129.23p
+
+BAND IRELAND	28.63p	19.74p
+
+

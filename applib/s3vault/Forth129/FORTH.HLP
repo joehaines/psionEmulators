@@ -1,0 +1,179 @@
+FORTH info
+==========
+
+Note: This version of Forth uses a parameter stack that grows upwards. This is of
+no consequence unless you start using the sp@ and s0 operators.
+
+In the following list, tos stands for 'top of stack'.
+
+On the stack, TRUE is represented by a 1, FALSE by a 0.
+
+Note that 32bit numbers are stored on the stack as two 16bit numbers.
+
++        Removes 2 numbers from tos and replaces with the sum of the 2 numbers
+-        Removes 2 numbers from tos and replaces with the difference
+*        Removes 2 numbers from tos and replaces with the product
+/        Removes 2 numbers from tos and replaces with the quotient
+mod      Removes 2 numbers from tos and replaces with the remainder of division
+/mod     Removes 2 numbers from tos and replaces with quotient and remainder
+1+       Adds 1 to the number tos
+2+       Adds 2 to the number tos
+1-       Subtracts 1 from the number tos
+2-       Subtracts 2 from the number tos
+2/       Divides the number tos by 2
+2*       Multiplies the number tos by 2
+d+       Adds two 32bit numbers
+d-       Subtracts two 32bit numbers
+d*       Multiplies two 32bit numbers
+d/       Divides two 32bit numbers
+
+.        Removes 1 number from tos and prints it as a signed 16bit number
+u.       Removes 1 number from tos and prints it as an unsigned 16bit number
+d.       Removes 1 32bit number from tos and prints it unsigned 
+d-       Removes 2 32bit numbers from tos and subtracts them leaving the result tos
+."       Prints the following string. The string must be terminated by a "
+cr       Prints a carriage return/linefeed
+emit     Removes 1 number from tos and prints the ascii character of that number
+cls      Clears the screen
+at       Removes two numbers from the stack and moves the cursor to that position.
+         Top left of the screen is 0,0 bottom right is 479,159. The x value should
+         be the number on top of the stack.
+vlist    Displays all currently defined words.
+time     Returns a 32bit number indicating the number of seconds since 1970.
+rand     Returns a 32bit random number
+seed     Takes a 32bit number off the stack for the random number seed.
+         Use 'time seed' to use the time as a seed.
+beep     Beeps. 300 5 beep gives a good beep.
+draw     Draws a line from the current cursor position to x,y where x,y are taken
+         from the stack
+box      Draws a box from the current cursor position to x,y where x,y are taken
+         from the stack
+fill     Fills a box from the current cursor position to x,y where x,y are taken
+         from the stack. The third item on the stack indicates set,clear,invert
+forget   Removes the word following 'forget' from the dictionary.
+variable Creates a variable with the name that follows variable.
+allot    Creates an array using the variable just created. MUST be used immediately
+         after variable.
+@        Takes a number off the stack and returns the value stored at the address
+         given by that number.
+!        Takes an address off the stack followed by a value and stores the value
+         at that address.
+<var>    Returns the address of the variable <var>
+
+Variables:
+==========
+To create a variable with the name 'age' use:
+
+variable age
+
+Arrays:
+=======
+To create an array called 'age', 20 long, use:
+
+variable age 20 allot
+
+To access element 14, use:
+
+age 28 + @         to read contents
+45 age 28 + !      to write 45 into element 14
+
+The variable is initialised to 0 automatically. The word 'age' will now return
+the address of the variable 'age'.
+
+Arrays are NOT initialised to 0.
+
+To read the value of age:
+
+age @ .
+
+To write the value of age:
+
+<value> age !
+
+Other commands:
+===============
+
+The following operators all remove two numbers from the stack and compare them. The
+result is a 1 or 0 on the stack indicating TRUE or FALSE.
+
+<>       Not equal
+=        Equal
+>        Greater than
+>=       Greater than or equal to
+<        Less than
+<=       Less than or equal to
+
+The following operators all remove one number from the stack and compares it with
+zero. The result is a 1 or 0 indicating TRUE or FALSE.
+
+=0       Equal to zero
+0>       Greater than zero
+0<       Less than zero
+
+The following are bitwise logical operators.
+
+and      ANDs the two numbers tos and replaces with result
+or       ORs  the two numbers tos and replaces with result
+xor      XORs the two numbers tos and replaces with result
+
+not      Takes the number off the stack. If it is 0, it is replaced with 1.
+         If it is non-zero, it is replaced with 0.
+
+negate   Changes the sign of the number tos.
+
+The following are all stack operators.
+
+rot      Removes the 3rd number on the stack and brings it to the top of the stack,
+         moving the top two numbers down.
+over     Takes the 2nd number on the stack and copies it on top of the stack
+swap     Swaps the two numbers at the top of the stack
+drop     Removes the number on top of the stack
+dup      Makes a copy of the item on top of the stack
+stack    Returns the number of items on the stack before this command was executed
+sp@      Returns the address of the top of the stack
+s0       Returns the address of the bottom of the stack
+
+The following are also stack operators. They remove a number from the top of the
+stack and then use that number to operate on the stack. In the following description,
+n refers to the number removed from the top of the stack.
+
+roll     Removes the nth item on the stack and brings it to the top of the stack,
+         moving all the other numbers down.
+pick     Copies the nth number on the stack at the top of the stack.
+
+Note that rot  is effectively the same as '3 roll'
+Note that over is effectively the same as '2 pick'
+
+The following are control functions:
+
+do       Takes two numbers from the stack and places them on the return stack.
+         The two numbers are the start and end values of the do..loop.
+loop     Increments the loop counter on the return stack and compares it with
+         target value. Returns control to the statements following the do statement
+         if target not reached.
++loop    Takes a number off the stack and increments the loop counter by that amount.
+         Returns control to the statements following the do statement if target not
+         reached.
+leave    Makes the loop counter value on the return stack the same as the target value.
+         The loop will therefore finish when the loop statement is next encounterd.
+i        Copies the loop counter value from the return stack and places it on the
+         main stack.
+i'       Copies the loop target value from the return stack and places on main stack.
+j        This takes the loop counter value from the outer of two nested do..loops
+         and places it on the stack.
+r@       Copies the value at the top of the return stack onto the main stack.
+r>       Removes a value from the return stack and places on the main stack.
+>r       Removes a value from the main stack and places on the return stack.
+
+if...else...then...
+         
+         When the 'if' is encountered, a number is removed from the stack. If the
+         number is zero, the statements between 'else' and 'then' are executed
+         followed by the statements after the 'then'.
+         If the number removed is non-zero, the statements between the 'if' and the
+         'else' are executed, followed by the statements after the 'then'.
+
+         Upto 8 levels of 'if...else...then' can be nested.
+         
+         The 'else' statement is optional, but if present *must* be between IF and
+         THEN statements.

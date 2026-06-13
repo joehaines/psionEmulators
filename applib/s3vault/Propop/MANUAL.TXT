@@ -1,0 +1,655 @@
+ProPoc Description
+==================
+
+This document gives a short description of the main
+features of ProPoc V2. It does not intend to replace
+the printed user manual which is shipped with the product.
+
+Explanation of terms:
+
+File
+----
+ Each file can contain up to:
+   15 projects
+  224 activities (and summary tasks (PROF))
+   56 milestones
+   15 resources
+    7 locations + global (PROF)
+    1 set of preferences(alarm, mode, calendar)
+
+ Time base (PROF):
+    Days: default, for long term projects
+    Hours: for short term projects (weeks)
+    Minutes: for very short term projects (1-2 days)
+
+
+Project
+-------
+ Name: 
+    a unique name
+ Description: 
+    up to 255 characters of text
+ WBS:
+    Work breakdown structure specification.
+    To edit WBS move the cursor to the description field
+    and press Enter.
+ Rank:
+    1 for high, 15 for low
+    Ranks are unique! 
+    High ranks wins in resource conflicts.
+ Disabled: (PROF)
+    Set to YES to study the effect of dropping the project.
+            
+    Disabled projects are not considered in overall cashflow analysis,
+    or overall resource schedules. They are not used as prerequisites,
+    and do not allocate resources. They are not printed with
+    "print all projects" functions, are not exported to spreadsheeds.
+ Start Date:
+    Official project start date.
+ Location: (PROF)
+    A specific location can be assigned to a project.
+    If a non-global location is specified, constant load resources
+    are not allowed to be used on different locations during the
+    same time interval.
+ Alarm:
+    Set to YES for a second screen to specify which events
+    will generate alarms.
+
+ End date:
+    Computed end date for project.
+ Total duration:
+    Given in absolute dates and workdays
+ Critical:
+    List of critical activities
+ Hot milestones:
+    List of milestones where the actual date is
+    higher or equal the planned date.
+ Links:  
+    Links to prerequisite projects
+ Depending:
+    Projects depending from this project
+ Total costs:
+    Accumulated fix costs and resource costs.
+ Budget:
+    Planned total costs for project.
+
+    Two budget figures will be shown in the project statistics:
+      1. Budget as entered for project
+      2. Budget computed from activity budgets.
+
+        	    
+Outline mode (PROF)
+-------------------
+  The outline mode shows all projects in graphic or table mode, similar
+  to activities in detail mode.
+  Navigation in outline mode is similar to navigation in detail mode.
+  Most operations that are available in detail mode can be applied
+  in outline mode as well.
+  
+  - Link a project to another project. The start of the project
+    will depend on the end of the prerequisite project.
+    The project statistics display prerequisite and depending projects.
+  - Attach a document to a project
+  - Attach a HyperPoc card to a project
+  - Find projects by name, description, prerequisites, or resources.
+  - Use graphical resource schedule and cashflow analysis.
+
+  Switch between Outline and Detail mode with CONTROL-TAB.
+  
+
+Task
+----
+ Can be an activity, a milestone, a subproject, or a summary task
+
+ Name:
+    must be unique within a project
+ Description: 
+    up to 255 characters of text
+ WBS:
+    Work breakdown structure specification
+    To edit WBS move the cursor to the description field
+    and press Enter.
+ Subproject file:
+    Names the file containing the subproject details and
+    Time and date when the subproject file was last saved.
+ Lead, Lag:
+    A number of workdays before/after the
+    task actually begins/ends.
+    No resources are allocated during the lead/lag time.
+    A negative lead/lag value can be used
+    to overlap depending activities.
+ Constraint:
+    Start No Earlier Than
+    As Late As Possible
+    Must Start On
+    As Soon As Possible
+    Finish No Earlier Than
+    Start No Later Than
+    Must Finish On
+    Finish No Later Than
+ Target date:
+    To edit the target date move the cursor to the constraint field
+    and press Enter.
+ Duration:
+    Duration of Activity in workdays (hours,minutes).
+ Priority:
+    Used to resolve resource conflicts within a project.
+    (1 is high, 99 is low).
+ Scheduling:
+    Duration driven:
+      The activity lasts for the defined duration and allocates
+       its resources for the whole duration.
+       When resource overload occurs the activity is postponed.
+    Effort driven:
+       The activity lasts no longer than the defined duration.
+       When resource overload occurs the activity is postponed.
+       When resource underload occurs the activity increases
+       its load on the resource and reduces the actual duration,
+       i.e. the activity will end earlier.
+                  
+       Example: An activity with 10 days duration and 50% resource
+         load and no competition from other activities will
+         actually last only 5 days and will use 100% of the resource.
+         
+ Load of:
+    Percentage (0-100) of how much the resource is used by the task.
+
+ Fix Costs:
+    Setup costs for activity. Arithmetic expression allowed.
+ Budget:
+    Planned total costs for activity. Arithmetic expression allowed.
+ Links:
+    List of tasks the current task depends on.
+
+ Start date:
+    Computed start date for an activity.
+    Activites in other projects with higher
+    priority can influence the start date
+    when they compete for the same resources.
+ End date:
+    Computed end date.
+ Slack:
+    Number of days, the activity is allowed to float.
+    Activites in other projects with higher
+    priority can influence the slack days
+    when they compete for the same resources.
+    An task with zero slack is called critical.
+    A task with a negative slack is called overdue.
+
+Links
+-----
+ To define a link to a prerequisite activity or subproject
+ use the Link function. Then navigate to the desired activity
+ and press Enter. ESC will cancel the link mode.
+ Specify Finish to Start (FS) or Start to Start (SS) and a
+ lag value.
+ To remove or modify links, use the Unlink function.
+ You can also use the link function to place a task
+ into a summary task.
+
+Subprojects (PROF)
+------------------
+ Subprojects are defined with the Insert function and
+ selecting subproject. The subproject file must have been
+ declared previously as a subproject (Preferences, File Links)
+
+ A subproject is updated during each Open of the main file.
+ To open the subproject file, position the cursor
+ on the subproject and press PSION-O.
+
+ Note: Subprojects can impose a workload on resources.
+   However, resource clashes cannot back-influence the subproject.
+   The subproject file does not contain information about resource
+   competition - when a subproject file is calculated it has
+   all resources for itself.
+
+Masterfiles (PROF)
+------------------
+ Master files can be used to inherit Calendars and Resources.
+ (Preferences, View).
+ This includes weekdays, holidays, calendar exceptions,
+ all resource data including resource calendars.
+
+ If a master file is set, its Calendar and resource information
+ will overwrite the local information during each Open.
+
+
+Attached documents
+--------------------
+
+ Tasks and projects can have attached WORD documents.
+ 
+ Press PSION-+ or Shift-ENTER to activate the WORD processor and open
+ the associated document (a new document is created if it did not exist).
+ Then edit the document in the usual way (you may even print it).
+ Leave the WORD processor with PSION-X and you are back in ProPoc.
+ You can delete an associated document with PSION--.
+ Associated documents are deleted, too, when the task or the whole project
+ is deleted (PSION-D or PSION-V).
+                
+ Associated documents are stored under the following pathname:
+
+   project_folder\project_file\itmname.WRD
+
+ for instance, an associated document for task REGIST in project PROPOC
+ would be stored in
+
+   LOC::M:\PROJ\PROPOC\REGIST.WRD.
+                        
+ Identical named tasks will access the same document.
+ 
+ If the task name contains characters other than letter, numeric digit or
+ underscore, the task is identified by a unique task ID. In this case
+ identical named tasks will access different documents.
+ 
+ ProPoc PROF can merge associated documents into its own WORD output documents.
+
+
+Resources
+---------
+
+ Name:
+    Unique resource name
+ Capacity: (PROF)
+    Capacity of resource, e.g. number of staff members
+      
+    Specify a capacity for each resource (0.1-100.0),
+    for instance the number of staff members in a group.
+ 
+    The capacity is displayed in project schedules
+    in paranthesis. The default capacity is 1
+
+    Example: Changing the capacity from 1 to 2 will divide
+      all load values for that resource by 2.
+
+ Load: (PROF)
+    - constant. The workload of a activity will be applied
+      as a constant load. When the utilisation exceeds 100%
+      the activity is postponed.
+    - flexible. When the utilisation exceeds 100%, the work-
+      load for that day is reduced and compensated for at
+      other days. The activity is only postponed if the
+      compensation fails. This allows to interrupt and resume
+      activities that do not use the resource for 100%.
+
+    Example:
+      Proj1, Activity 1: Start: Day 5, Duration:  2, Load: 80%
+      Proj2, Activity 2: Start: Day 1, Duration: 10, Load: 50%
+           
+      Using "constant" mode Activity 2 would have to wait until day 7.
+      Using "flexible" mode Activity 2 starts at day 1, with a load
+      of 50%. During Day 5 and 6, it only gets 20%. This is
+      compensated with a 100% load at day 7 and a 60% load at day 8.
+
+      Flexible mode resources can be used for effort driven
+      activities, too. In this case the activity will use as
+      much as it can get from the resource and will finish as
+      soon as all work is done. In case the nominal duration
+      would be exceeded, the activity is postponed.
+
+      Note:  In resource schedules flexible resource can have peak
+        utlisations of more than 100%.
+  
+
+ Cost per workday:   Resource costs in cost per day
+
+ Overtime surcharge: (PROF)
+    The surcharge is defined in percent and is applied
+    to all periods where a availability of more than 100%
+    has been defined.
+    Example: Availability has been set to 120%.
+      Overtime surcharge was set to 50%
+      Nominal day rate was set to 1000
+      Resulting day rate is 120%*1000+20%*50%*1000 = 1200+100 = 1300
+
+ rated:    
+    - full time (100% during when used)
+    - shared in project (100% but shared between activities)
+    - shared overall (100% but shared between activities)
+    - part time (as defined in Resource load)
+
+
+ Cost per activity:   
+    This is amount is charged once for each
+    activity that uses the resource.
+
+ Note: You can enter arithmetic expressions into all Cost fields.
+
+Resource calendar (PROF)
+------------------------
+
+ Define up to 40 calendar events for each resource. Note, that public holidays
+ and weekends are defined in the global calendar, not in the resource calendar.
+
+ The resource calendar can define changes to the availability of a resource
+ in for repeating weekdays or for defined periods.
+        
+ It is possible to define reduced availability (<100%)
+ for vacations, sickness, etc. and increased availability (>100%)
+ for overtime work (up to 150%).
+
+ Activities are not charged for times of inavailibility.
+        
+ It is possible to create resource calendar entries from the PSION AGENDA,
+ to reflect the inavailibility for project work due to meetings, etc.
+
+ The function will evaluate the average percentage of availibility
+ in specified intervals. All appointment
+ type entries including crossed out ones are considered.
+ The percentage is computed from the length of the appointments compared
+ to the amount of "work hours per day" specified.
+ You can update the calendar entries by reapplying the function. You can make
+ the entries permanent by editing them - they will loose the remark "Agenda".
+        
+ Define the AGENDA file used in Preferences (AgendaLink).
+              
+Preferences
+===========
+        
+The preferences are file specific.
+
+
+Mode
+----
+
+ Reorder:
+    For small projects choose "automatic".
+    For big projects it is better to use "manual"
+    and to call the Reorder function from time to time.
+ Resource:
+    Set to "yes" to resolve resource conflicts (resource levelling).
+    Set to "no" to compute project plan without resolving resource
+      conflicts. This may result in resource utilisations far beyond 100%.
+    "Ignore for slack": same as "yes", but slack days are computed without
+      looking for possible resource conflicts.
+    Charge all/completed work:
+      Affects cost evaluation.
+    Warning on constraint violation:
+      A warning can be given if the constraint date is violated with
+      the following constraints:
+	 Must Start On
+	 Start No Later Than
+	 Must Finish On
+	 Finish No Later Than
+	 
+View
+----
+ Show:
+    all/activity/milestone/subproject
+    This filter restricts the set of displayed items. (PROF)
+    It works for each display mode separately.
+ but only:
+    critical/closed/open/in progress/cost > budget/constraint violation
+    This filter restricts the set of displayed tasks in table mode (PROF)
+				
+ PERT-1:
+ PERT-2: Display options for PERT mode.
+
+ Show Links:
+    Yes/no
+    When set to "yes", links between tasks are shown.
+ Show Grid:
+    Yes/no
+    Shows gridlines at weekstart when set to "yes"
+
+Format
+------
+ Date format: alpha/numeric
+    Alpha displays month name (3 letters).
+    The order (DMY,MDY ...) is taken from the system settings.
+ Currency:
+    File specific currency to be displayed with costs and budgets.
+ Font:
+    Different screen fonts to be selected
+    small/normal/big (S3), 13 system fonts (S3a)
+
+Table definition
+----------------
+ Define the columns of up to 8 tables:
+  Screen display, printer output, text file output, WORD file output.
+  One set for each detail/outline mode.
+
+Table styles
+------------
+ Load/save all current table definitions, filter and font settings
+ from/to file. Table style files are exchangable between different
+ project files.
+
+Alarm
+-----
+ Alarm handler: (PROF)
+    Use the S3a-agenda instead of Morpheus to generate alarms.
+    The advantage is that the alarms are shown in the agenda.
+                
+ Agenda file: File name (PROF)
+    AGENDA file for import of resource calendar events
+    and export of project alarms.
+
+File links
+----------
+ Subproject:
+    Set to yes if you plan to import this file
+    into another file as a subproject. Closing a file
+    will take more time.
+		        
+ Masterfile:
+    See above. Specify the name of the master file.
+
+Weekends
+--------
+ Define which days are restdays and which days are workdays.
+ By default the system workdays/weekends are used.
+        
+Holidays
+--------
+ Define which of the custom holidays are restdays in this project.
+ By default all global holidays are disabled. (see Public holiday file)
+
+Exceptions
+----------
+ Overrides weekend and holiday definitions.
+
+Global holiday file
+-------------------
+ A selection of nationalised holiday settings is contained
+ in the installation package.
+ Use this function to "roll your own". The global
+ holiday file is valid for all project files on the same machine.
+        
+ Set holidays to "Always", "Never", "Custom".
+ "Custom" days can be set individually in each project. (see above)
+
+ Algorithm: (see user manual)
+
+Locations
+---------   
+ ProPoc PROF allows to set up 7 different locations.
+ Activities can be either global or can be assigned to a specific
+ location. ProPoc will make sure that resources are not used in
+ different locations at the same time.
+
+                
+Display
+=======
+ The screen shows a window to the current project or an outline of all projects.
+ Switch projects with PSION-T or the TAB key.
+ Switch between outline and detail with CONTROL-TAB
+ Switch resource display with CAPS-TAB
+ Switch the Statuswindow on or off with CONTROL-MENU.
+ Switch the Display mode (normal/condensed/table/PERT) with DIAMOND.
+    
+ If a task has an associated document the cursor is displayed
+ as a rectangle, otherwise as a triangle.
+    
+ Graphic mode (normal/condensened)
+ ---------------------------------
+    Navigate along the time axis with the cursor keys.
+    The PSION key accelerates. PSION-Shift goes to the begin or end.
+    The CONTROL key scrolls without moving the cursor.
+    CAPS will restrict navigation to critical tasks.
+
+    Little arrows in the bottom/top left corners indicate if there
+    are more lines outside the window.
+
+    The project name is found in the bottom right corner of the main
+    window.
+    
+    Activities are displayed as horizontal solid 1-pixel lines, if critical as
+    solid 2-pixel lines. The name of the activity is found below the line.
+    Projects are displayed as solid 2-pixel lines (1-pixel line if disabled).
+    
+    The completed part of a task is displayed grey.
+    
+
+    Milestones are displayed as vertical dotted 1-pixel lines, if critical
+    as solid 1-pixel lines, if overdue as solid 2-pixel lines. In this case
+    a dotted line to the left at the bottom of the vertical line indicates
+    the delay. The name of the milestone is found to the right at the bottom
+    of the vertical line.
+
+    A calendar is displayed at the bottom and top of the screen.
+    The week start is marked. 
+    Restdays (weekends and public holidays) are greyed out. 
+
+    During link mode a line is drawn between source and target.
+
+    If the cursor sits on an activity you can use the <> keys
+    to modify the activity duration.
+
+ Table mode 
+ ----------
+    Navigate along the time axis with the up/down cursor keys.
+    Scroll with the Left/right cursor keys.
+    The PSION key accelerates.
+    Modifiable fields are highlighted when the cursor moves.
+    Press ENTER to modify a field.
+
+
+    You can restrict the set of displayed tasks in table mode
+    using filters (Preferences, View). (PROF)
+
+    You can customise the table setup with Preferences-Table definition.
+
+ PERT mode
+ ---------
+    Navigate along the time axis with the cursor keys.
+    The PSION key accelerates.
+    The CONTROL key scrolls without moving the cursor.
+    CAPS will restrict navigation to critical tasks.
+
+    Little arrows in the bottom/top left corners indicate if there
+    tasks outside the window.
+
+    The project name is found in the bottom right corner of the main
+    window.
+    
+    Activities are displayed as plain boxes, milestones as boxes with
+    an additional vertical line at the end. If the task is critical, the
+    name is printed in bold.
+    
+    Two attributes are shown above and below the box.
+    By default these are start and end date, but you can select any attribute
+    via Preferences, View (separately for Detail and Outline mode).
+    If you select "Resource" the resource most used by the activity is shown.
+
+    Closed tasks are crossed out. Partially closed tasks are crossed with
+    a single line.
+
+    During link mode a line is drawn between source and target.
+
+
+Reporting
+=========
+
+ Resource schedule, task list
+ Resource schedule, cumulated list
+   Lists resource utilisation for tasks or events.
+   Use Zoom function and left/right cursor keys to adjust time window.
+ Cashflow analysis (PROF)
+   Lists Budget and Costs cumulated over time.
+   Use Zoom function and left/right cursor keys to adjust time window.
+ Bottleneck analysis (PROF)
+   Lists delays per resource
+     -  whole file (last project)
+     -  current projects
+     -  current task (detail mode only)
+ Baseline review (PROF)
+   Lists changes in start/finish (workdays) and costs for
+     - each task (detail mode)
+     - each project (outline mode)
+
+
+ All reports are shown on screen in a scrollable window.
+
+ All reports can be printed to printer, TXT or WRD-file.
+ When printing to WRD-file, associated documents can be merged in (PROF)
+
+ All reports can be exported to spreadsheet (WKS, SPR, SPR with graphics) (PROF)
+ ProPoc will choose the most appropriate graphic format.
+
+ All reports are hotlinked. Position the cursor on an item in the list, press
+ ENTER to jump to that item, or enter a hotkey or menu function.
+ ESC leaves the report.
+
+
+Troubleshooting
+---------------
+
+You cannot change the status of a task.
+
+  Check the prerequisites of the that task. As long
+  as they are not 100% completed you cannot modify
+  a tasks status.
+
+Costs do not appear in project statistics or cashflow analysis.
+
+  Check Preferences-Mode: Charge all/completed.
+
+Resource levelling does not work.
+
+  Check Preferences-Mode for the resource option.
+
+Alarms are not ringing or are ringing at the wrong time:
+
+  Alarms are only updated when ProPoc is exitted,
+  or when a new project file is opened. Please exit
+  ProPoc and restart.
+
+Removing all alarms:
+
+  We recommend not to delete file ALRM.$$$. This would
+  also delete alarms set with other ...Poc applications such
+  as HyperPoc. ProPoc would also recreate the file in the
+  next session.
+  Instead, go to Preferences-Alarms and switch the alarm
+  handler off.
+
+A dialogue box with an error message appears:
+
+  Try to continue work by pressing Enter.
+  If the dialogue box appears repeatedly, abort
+  ProPoc by pressing ESC.
+  Restart ProPoc.
+
+Error messages occur when a file is opened.
+
+  The file may be damaged.
+  Try to open a backup copy of your file.
+
+ProPoc freezes (does not respond any more).
+
+  Press the system button, and use the Kill-function
+  to stop ProPoc. You will not loose data as ProPoc
+  saves all modifications immediately.
+
+The system freezes (does not respond to System button).
+
+  You have to soft reset your system.
+  Use a pin to press the reset button.
+   (Small hole above the ESC key).
+  After resetting press Esc.
+  You will have to reinstall applications, lists and groups,
+  but you will not loose data.
+  Never remove the batteries. This would wipe out your
+  internal disk.
+

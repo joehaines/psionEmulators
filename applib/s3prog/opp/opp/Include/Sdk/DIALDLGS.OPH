@@ -1,0 +1,104 @@
+#define DIALDLGS_OPH
+
+#ifndef DLGBOX_OPH
+#include <sdk\dlgbox>
+#endif
+
+#ifndef WR_IO_OPH
+/* AC: should include <sdk\wr_io> here,
+   but runs out of memory so just
+   define what is needed here */
+#define WR_MAX_DIAL_STRING 24
+#define WR_MAX_IN_STRING 64
+#endif
+
+/* Property of dialdlg */
+
+STRUCT PRS_DIALDLG
+	dialao%
+ENDS
+
+STRUCT PR_DIALDLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+	dialdlg#(SIZEOF(PRS_DIALDLG))
+ENDS
+
+/* Property of freedial */
+
+STRUCT PRS_FREEDIAL
+	current%
+	str#(WR_MAX_DIAL_STRING+2)
+ENDS
+
+STRUCT PR_FREEDIAL
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	freedial#(SIZEOF(PRS_FREEDIAL))
+ENDS
+
+/* Property of fdialdlg */
+
+STRUCT PR_FDIALDLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+	dialdlg#(SIZEOF(PRS_DIALDLG))
+ENDS
+
+/* Property of cntrydlg */
+
+STRUCT PR_CNTRYDLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+ENDS
+
+/* Constants for sdialdlg */
+
+#define PAN_TONE_LENGTH_TICKS 4
+#define PAN_DELAY_LENGTH_TICKS 4
+#define PAN_PAUSE_LENGTH_TICKS 32
+#define PC_TONE_LENGTH_TICKS 6
+#define PC_DELAY_LENGTH_TICKS 4
+#define PC_PAUSE_LENGTH_TICKS 18
+#define SMART_DIAL_MAX_PROMPT 11
+
+/* Types for sdialdlg */
+
+STRUCT SMART_DIAL_ITEM
+	pmt#(SMART_DIAL_MAX_PROMPT+1)
+	str#(WR_MAX_IN_STRING+2)
+ENDS
+
+STRUCT SMART_DIAL_DATA
+	count%
+	it#(OPPEVAL(SIZEOF(SMART_DIAL_ITEM)*(DLGBOX_MAX_ITEM-3)))
+ENDS
+
+STRUCT SMART_DIAL_DATA_S
+	count%
+	it#(SIZEOF(SMART_DIAL_ITEM))
+ENDS
+
+STRUCT DIAL_ENVAR
+	toneLengthTicks%
+	delayLengthTicks%
+	pauseLengthTicks%
+	dialOutCode#(6)
+ENDS
+
+/* Property of sdialdlg */
+
+STRUCT PR_SDIALDLG
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	dlgchain#(SIZEOF(PRS_DLGCHAIN))
+	dlgbox#(SIZEOF(PRS_DLGBOX))
+	dialdlg#(SIZEOF(PRS_DIALDLG))
+ENDS

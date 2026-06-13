@@ -1,0 +1,111 @@
+rem Tab5a4.opa (Supplemental program for con5a4.opa)
+
+app Table
+	type 1
+enda
+
+proc update:
+	rem (This is where you put any new setup
+	rem (commands you might want. The main
+	rem (program sets up all the variables etc.,
+	rem (then jumps to this procedure just
+	rem (before the main menu display commands.
+endp
+
+proc card:
+	rem (This is where you define your own part
+	rem (of the main menu
+	mcard "Tables","Geological",%B
+endp
+
+rem The following is an example program. Quite
+rem long and laborious. Another way is to use
+rem a database (maybe Atomic Tables etc.) or
+rem simple maths to convert things. I leave it
+rem to your ingenuity !
+
+proc procub:
+	local g,g$(7),r$(12),p$(15),e$(11)
+	b::
+	dinit :dposition 0,-1
+	dtext "","Enter millions of years ago",$302
+	dtext "","From .01 to 4600"
+	dfloat g,"",.01,4600
+	g%=dialog
+	if g%=0 or g%=27 :return :endif
+	if g<65
+		r$="Cenozoic"
+		if g<2
+			p$="Quarternary"
+			if g=.01
+				e$="Holocene"
+			else
+				e$="Pleistocene"
+			endif
+		else
+			p$="Tertiary"
+			if g<5
+				e$="Pliocene"
+			elseif g<25
+				e$="Miocene"
+			elseif g<38
+				e$="Oligocene"
+			elseif g<55
+				e$="Eocene"
+			else
+				e$="Palaeocene"
+			endif
+		endif
+	elseif g<250
+		r$="Mesozoic"
+		if g<145
+			p$="Cretaceous"
+		elseif g<215
+			p$="Jurassic"
+		else
+			p$="Triassic"
+		endif
+	elseif g<600
+		r$="Palaeozoic"
+		if g<285
+			p$="Permian"
+		elseif g<360
+			p$="Carboniferous"
+		elseif g<410
+			p$="Devonian"
+		elseif g<440
+			p$="Silurian"
+		elseif g<500
+			p$="Ordovician"
+		else
+			p$="Cambrian"
+		endif
+	elseif g<4600
+		r$="Precambrian"
+		if g<1000
+			p$="Proterozoic"
+		else
+			p$="Archeozoic"
+		endif
+	endif
+	g$=v$:(g)
+	dinit :dposition 0,-1
+	dtext "","Geological Timescale",$302
+	dtext "",g$+" million years ago:"
+	dposition 0,-1
+	if e$<>""
+		dtext "Epoch :",e$
+	endif
+	dtext "Period:",p$
+	dtext "Era   :",r$
+	dbuttons "End",27,"Again",13
+	g%=dialog
+	if g%=0 or g%=27
+	 return 
+	else
+		r$="" :p$="" :e$=""
+		goto b
+	endif
+endp
+
+

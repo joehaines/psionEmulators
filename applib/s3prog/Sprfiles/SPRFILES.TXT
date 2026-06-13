@@ -1,0 +1,854 @@
+
+
+            
+                       Series 3/MC Spreadsheet File Format
+            
+
+            This document describes the structure of .SPR files used
+            by the MC and Series 3 spreadsheets. It is based around a
+            similar document produced specifically for V1.07f and
+            1.08f of the MC spreadsheet.
+
+
+            
+             Header
+            
+
+            The spreadsheet starts with the following header:
+
+                 TEXT fid[16]="SPREADSHEET" packed with zeros
+                 UWORD vers=0
+                 UWORD offset=0
+                 UWORD rtvers=0
+
+            This header must be supplied exactly for current versions
+            of the spreadsheet to load the file.
+
+
+            
+             Records
+            
+
+            The remainder of the file consists of type/length
+            records:
+
+                 UWORD type     the type of the following record
+                 UWORD len   the length of the following record
+                 Record Data    len bytes
+
+            The structure of the record data is dependent on the
+            record type and currently the following types are defined
+
+                      1         Formula
+                      2         Cell contents
+                      3         Column width
+                      4         Default column width
+                      5         Status information
+                      6         Display information
+                      7         Named range
+                      8         Print range
+                      9         Database/criteria ranges
+                      10        Table
+                      11        Print setup (MC)
+                      12        Font (MC)
+                      13        Graph (S3)
+                      14        Current graph index (S3)
+                      15        Font palette (S3)
+                      16        Print data (S3)
+                      17        Printer model (S3)
+
+
+
+                                        Page - 1
+
+
+       Series3/MC spreadsheet file format
+
+                      18        Header text (S3)
+                      19        Footer text (S3)
+                      20        Screen extras (S3)
+                      
+
+            As indicated some of the above types are specific to the
+            MC version and some to the Series 3.
+
+            By and large records can appear in any order, there are
+            currently just two exceptions to this. All formulae
+            records (type 1) must appear before the cells (type 2)
+            that access them, and the order in which they appear
+            should be preserved. The Screen Extras record (type 20),
+            when present, should immediately precede the Display
+            information record (type 6), if not it will be ignored.
+
+            Some record types may appear many times and not all
+            record types need be present, an indication of which are
+            which is given in the following sections.
+
+            Withinrecords range references specify top left, botton
+            right cells in terms of columns and rows. These refernces
+            are inclusive, i.e. {{0,0},{1,2}} is a range A1:B3.
+
+
+            
+             Formula record (type 1, length variable)
+            
+
+            Formulae are stored seperately from the cells that use
+            them. This allows memory savings to be made by storing
+            only one copy of a commonly used formula.
+
+            The record data for a formula is structured as follows:
+
+              UWORD   use       usage count
+              UBYTE   len       formula length
+              UBYTE   form[len]
+
+            The formula is stored in Reverse Polish Notation. All
+            operands are preceeded by a byte that identifies their
+            type. There is no difference between the way functions
+            and operators are treated; both are identified by a
+            single byte following the operands they act on.
+
+            Brackets are stored as entered and are ignored when
+            evaluating formulae. They are supplied only so that
+            formulae can be reproduced as typed in.
+
+            The RPN structure is broken for one set of functions.
+            These are the functions acting upon variable length lists
+            (AVG, COUNT, MAX, MIN, STD, SUM and VAR). The have Start
+            and End tokens either side of the arument list and each
+            operand within the list is preceded by a special token.
+
+            The tokens used in formulae are as follows:
+
+
+
+
+
+                                        Page - 2
+
+
+       Series3/MC spreadsheet file format
+
+            Operators
+
+                 0x01 Less than
+                 0x02 Less than or equal
+                 0x03 Greater than
+                 0x04 Greater than or equal
+                 0x05 Not equal
+                 0x06 Equal
+                 0x07 Add
+                 0x08 Subtract
+                 0x09 Multiply
+                 0x0a Divide
+                 0x0b Power
+                 0x0c Unary plus
+                 0x0d Unary minus
+                 0x0e Logical not
+                 0x0f Logical and
+                 0x10 Logical or
+                 0x11 String concatinate
+
+
+            Delimiters
+
+                 0x12 Open bracket
+                 0x13 Close bracket
+                 0x14 Comma
+                 0x15 End of formula
+
+
+            Operands
+
+                 0x16 Double constant (IEEE floating point number)
+                 0x17 Integer constant (WORD)
+                 0x18 Text string (Leading byte counted string)
+                 0x19 Cell reference (WORD col, WORD row)
+                 0x1a Range reference (WORD tlCol, WORD tlRow, WORD
+            brCol, WORD brRow)
+
+            Column or row references can either be absolute or
+            relatuve, dependent on the top bit of the WORD. If the
+            top bit is set (TRUE) the reference is relative,
+            otherwise, the reference is absolute. Relative references
+            are treated as a signed offset (ignoring the top bit)
+            from the cell which uses the formula. NOTE cell A1 is
+            0,0.
+
+
+            Functions
+
+            In the following, 'x' refers to a numeric argument, 'str'
+            a string and 'range' a range reference.
+
+                 0x1b Err
+                 0x1c False
+                 0x1d Na
+                 0x1e Pi
+                 0x1f Rand
+                 0x20 Now
+
+
+
+                                        Page - 3
+
+
+       Series3/MC spreadsheet file format
+
+                 0x21 True
+                 0x22 Abs(x)
+                 0x23 Acos(x)
+                 0x24 Asin(x)
+                 0x25 At(str)
+                 0x26 Atan(x)
+                 0x27 Cellpointer(x)
+                 0x28 Char(x)
+                 0x29 Code(str)
+                 0x2a Cols(range)
+                 0x2b Cos(x)
+                 0x2c Datevalue(str)
+                 0x2d Day(x)
+                 0x2e Exp(x)
+                 0x2f Hour(x)
+                 0x30 Int(x)
+                 0x31 Iserr(range)
+                 0x32 Isna(range)
+                 0x33 Isnum(range)
+                 0x34 Isstr(range)
+                 0x35 Len(str)
+                 0x36 Ln(x)
+                 0x37 Log(x)
+                 0x38 Lower(str)
+                 0x39 Minute(x)
+                 0x3a Month(x)
+                 0x3b N(range)
+                 0x3c Proper(str)
+                 0x3d Rows(range)
+                 0x3e S(range)
+                 0x3f Second(x)
+                 0x40 Sin(x)
+                 0x41 Sqrt(x)
+                 0x42 Tan(x)
+                 0x43 Timevalue(str)
+                 0x44 Trim(str)
+                 0x45 Upper(str)
+                 0x46 Value(str)
+                 0x47 Year(x)
+                 0x48 Atan2(x,x)
+                 0x49 Cell(x,range)
+                 0x4a Exact(str,str)
+                 0x4b Irr(x,x)
+                 0x4c Left(str,x)
+                 0x4d Mod(x,x)
+                 0x4e Npv(x,x)
+                 0x4f Not used
+                 0x50 Repeat(str,x)
+                 0x51 Right(str,x)
+                 0x52 Round(x,x)
+                 0x53 String(x,x)
+                 0x54 Cterm(x,x)
+                 0x55 Date(x,x)
+                 0x56 Davg(range,x,range)
+                 0x57 Dcount(range,x,range)
+                 0x58 Dmax(range,x,range)
+                 0x59 Dmin(range,x,range)
+                 0x5a Dstd(range,x,range)
+
+
+
+                                        Page - 4
+
+
+       Series3/MC spreadsheet file format
+
+                 0x5b Dsum(range,x,range)
+                 0x5c Dvar(range,x,range)
+                 0x5d Find(str,str,x)
+                 0x5e Fv(x,x,x)
+                 0x5f Hlookup(x,range,x)
+                 0x60 If(x,x,x)
+                 0x61 Index(range,x,x)
+                 0x62 Mid(str,x,x)
+                 0x63 Pmt(x,x,x)
+                 0x64 Pv(x,x,x)
+                 0x65 Rate(x,x,x)
+                 0x66 Sin(x)
+                 0x67 Term(x,x,x)
+                 0x68 Time(x,x,x)
+                 0x69 VLookup(range,x,x)
+                 0x6a Ddb(x,x,x,x)
+                 0x6b Replace(str,x,x,str)
+                 0x6c Syd(x,x,x,x)
+                 0x6d End of avg()
+                 0x6e End of choose()
+                 0x6f End of count()
+                 0x70 End of max()
+                 0x71 End of min()
+                 0x72 End of std()
+                 0x73 End of sum()
+                 0x74 End of var()
+                 0x75 Start of avg()
+                 0x76 Start of choose()
+                 0x77 Start of count()
+                 0x78 Start of max()
+                 0x79 Start of min()
+                 0x7a Start of std()
+                 0x7b Start of sum()
+                 0x7c Start of var() 
+                 0x7d Range in avg()
+                 0x7e Range in choose()
+                 0x7f Range in count()
+                 0x80 Range in max()
+                 0x81 Range in min()
+                 0x82 Range in std()
+                 0x83 Range in sum()
+                 0x84 Range in var() 
+                 0x85 Cell in avg()
+                 0x86 Cell in choose()
+                 0x87 Cell in count()
+                 0x88 Cell in max()
+                 0x89 Cell in min()
+                 0x8a Cell in std()
+                 0x8b Cell in sum()
+                 0x8c Cell in var()
+
+
+
+
+
+
+
+
+
+
+
+                                        Page - 5
+
+
+       Series3/MC spreadsheet file format
+
+            
+             Cell record (type 2, length variable)
+            
+
+                 UWORD  column    Cell co-ordinates (Note A1 is 0,0)
+                 UWORD  row
+                 UBYTE  flags     See below
+                 UBYTE  format    See below
+                 Contents
+
+
+            Flags
+
+            This byte contains information about the display
+            alignment of the cell and the type of the cell.
+
+                 Xþþþþþþþ  This bit is used by the natural order sort
+            and should be left as is.
+                 þXþþþþþþ  Changed flag, TRUE iff the cell has
+            changed since the last recalc.
+                 þþXþþþþþ  Numeric alignment, 1 left aligned, 0 right
+            aligned.
+                 þþþXXþþþ  Text alignment, 00 repeated, 01 left, 10
+            right, 11 centered
+                 þþþþþXXX  Cell type, defines the format of the
+            contents data as follows:
+
+            
+
+            000 (0) Blank
+
+                 This cell contains only the format data shown above
+            and has no contents data.
+
+            
+
+            001 (1) Double
+
+                 Cell contains a floating point constant. The
+            Contents data is:
+
+                 DOUBLE value
+
+            
+
+            010 (2) Text
+
+                 Cell contains a text constant:
+
+                 UBYTE len   Length of the text
+                 TEXT buf[len]    Len bytes for the string
+
+            
+
+            011 (3) Integer
+
+                 Integer constant:
+
+
+
+
+                                        Page - 6
+
+
+       Series3/MC spreadsheet file format
+
+                 WORD value
+
+            
+
+            101 (5) Double formula
+
+                 The cell contains a formula which evaluates to a
+            numeric result. Within the file formulae are referred to
+            by index within the file. This is the reason why the
+            formulae should not be rearranged in an existing file.
+            The contents data is as follows:
+
+              WORD formula   Number of the associated formula
+              DOUBLE val     IEE format, the current value in the
+              cell
+
+            
+
+            110 (6) Text formula
+
+                 The cell contains a formula which evaluates to a
+            text result:
+
+              WORD formula   Formula index within the file
+              UBYTE len    Length of the current text value
+              TEXT buf[len]  The current contents of the cell
+
+            
+
+
+            Format
+
+            The format byte notes whether or not the cells is
+            currently protected and in what way numeric values should
+            be displayed.
+
+                 Xþþþþþþþ  Set if the cell is currently protected.
+                 þXXXXXXX  Gives the numeric display format as
+            follows:
+
+            
+
+                 þ000XXXX  Fixed (XXXX dps)
+                 þ001XXXX  Scientific (XXXX dps)
+                 þ010XXXX  Currency (XXXX dps)
+                 þ011XXXX  Percentage (XXXX dps)
+                 þ100XXXX  Comma (XXXX dps)
+                 þ1110000  Bargraph
+                 þ1110001  General
+                 þ1110010  Date (Lotus DD-MM-YY)
+                 þ1110101  Show formulae
+                 þ1110110  Hidden
+                 þ1110111  Time (Lotus HH:MM:SS)
+                 þ1111111  Default
+
+            
+
+
+
+
+
+                                        Page - 7
+
+
+       Series3/MC spreadsheet file format
+
+            NOTE: For the MC this is the full extent of the cell
+            record. In files generated on the Series 3 there is an
+            extra byte following the cell details which contains the
+            font number 0-3. In the Series 3 spreadsheet the precence
+            of this byte is detected by comparing the length of the
+            record with the calculated length of the cell header and
+            the value details.
+
+
+            
+             Column Width (type 3, length 2)
+            
+
+            This record will appear for each column that is nopt of
+            the default width.
+
+                 UBYTE column   The column number (0 for column A)
+                 UBYTE width
+
+
+            
+             Default column width (type 4, length 2)
+            
+
+                 UWORD width    Width to be used for all columns
+              which there is no type 3 record
+
+
+            
+             Status Information (type 5, length 4)
+            
+
+            Various information concerning the spreadsheet as a
+            whole.
+
+              UWORD flags  See below
+              UBYTE defForm     Numeric display format for cells set
+              to default (see Cells)
+              UBYTE defAlign    Default text and numeric alignments
+              for new cells (see Cells)
+
+            Flags
+
+                 þþþþþþþX       Set if auto recalc is ON
+                 þþþþþþXþ       Set is protection override is on
+                 þþþþþXþþ       Set if cells have been deleted since
+            last recalc
+                 þþþþXþþþ       Set if Table recalc is on
+
+
+            
+             Display Information (type 6, length 26)
+            
+
+            Contains the current state of the display for the
+            spreadsheet:
+
+
+
+
+
+                                        Page - 8
+
+
+       Series3/MC spreadsheet file format
+
+                 UWORD titleTlCol Range for the titles
+                 UWORD titleTlRow
+                 UWORD titleBrCol
+                 UWORD titleBrRow
+                 UWORD topCol
+                 UWORD topRow
+                 UWORD selTlCol   Select range
+                 UWORD selTlRow
+                 UWORD selBrCol
+                 UWORD selBrCol
+                 UWORD cursorCol Position of cursor
+                 UWORD cursorRow
+                 UBYTE lines    True if grid lines are to be
+              displayed
+                 UBYTE hideZeros True if zero values are hidden
+
+
+            
+             Named range (type 7, length 26)
+            
+
+            Specifies a range or cell to be associated with a name.
+            There may be any number of such records in a file.
+
+                 TEXT name[16]         Zero terminated text string
+                 UWORD range_left_column    The range associated with
+              name
+                 UWORD range_top_row
+                 UWORD range_right_column
+                 UWORD range_bottom_row
+                 UWORD type            25 cell reference, 26 range
+              reference
+
+            NOTE: The values for type match the tokens used in
+            formulae, hence the strange values.
+
+
+            
+             Print range (type 8, length 8)
+            
+
+            Specifies one of the range to be offered for selective
+            printing. There may be any number of such records in the
+            file.
+
+                 UWORD range_left_column    The range
+                 UWORD range_top_row
+                 UWORD range_right_column
+                 UWORD range_bottom_row
+
+
+            
+             Database, criterion settings (type 9, length 16)
+            
+
+            Specifies the criterion and database ranges to be used by
+            the database commands. This record type need not appear
+            in the file and since only one database/criterion range
+
+
+
+                                        Page - 9
+
+
+       Series3/MC spreadsheet file format
+
+            can be active at any time if more than one record of this
+            type appears in the file only the last will be used.
+
+                 UWORD crit_left_col   Criterion range
+                 UWORD crit_top_row
+                 UWORD crit_right_col
+                 UWORD crit_bottom_row
+                 UWORD dbase_left_col     Database range
+                 UWORD dbase_top_row
+                 UWORD dbase_right_col
+                 UWORD dbase_bottom_row
+
+
+            
+             Table information (type 10, length 16)
+            
+
+            This record type need not appear and if more than one are
+            present only the last will be used.
+
+                 UWORD range_left_col     Table range
+                 UWORD range_top_row
+                 UWORD range_right_col
+                 UWORD range_bottom_row
+                 UWORD input1_col    Input cell 1
+                 UWORD input1_row
+                 UWORD input2_col    Input cell 2
+                 UWORD input2_row
+
+            For table 2 both input cells are valid. For table 1
+            input2_col must be set to 0xffff (65535).
+
+
+            
+             Print setup (type 11, length 2)
+            
+
+                 UWORD type
+
+                 þþþþþþþþX      TRUE show value, FALSE show formulae
+                 þþþþþþþXþ      If TRUE, show hidden cells
+                 þþþþþþXþþ      If TRUE, show column seperators
+                 þþþþþXþþþ      If TRUE, show headers
+
+
+            
+             Font (type 12, length  18)
+            
+
+                 UWORD type
+                 TEXT name[16]       Font name
+
+
+            Style
+
+                 þþþþþþþX       Bold
+                 þþþþXþþþ       Double height
+
+
+
+
+                                        Page - 10
+
+
+       Series3/MC spreadsheet file format
+
+            
+             Graph (type 13, length variable)
+            
+
+            There may be any number of such record defining the
+            graphs.
+
+                 TEXT name[16]  Zero terminated name for the graph
+                 UWORD A_range[4]  A data range left_col, top_row,
+              right_col, bottom_row
+                 UWORD B_range[4]
+                 UWORD C_range[4]
+                 UWORD D_range[4]
+                 UWORD E_range[4]
+                 UWORD F_range[4]
+                 UWORD X_range[4]
+                 UWORD A_labels[4]   Range containing labels for data
+              set A
+                 UWORD B_labels[4]
+                 UWORD C_labels[4]
+                 UWORD D_labels[4]
+                 UWORD E_labels[4]
+                 UWORD F_labels[4]
+                 UBYTE fmts[6]
+                 UBYTE aligns[6]
+                 UBYTE xAxisScaling
+                 UBYTE xAxisFormat
+                 DOUBLE xAxisLowerLimit
+                 DOUBLE xAxisUpperLimit
+                 UBYTE yAxisScaling
+                 UBYTE yAxisFormat
+                 DOUBLE yAxisLowerLimit
+                 DOUBLE yAxisUpperLimit
+                 UBYTE graphType
+                 UBYTE gridFlags
+                 UBYTE colour
+                 UBYTE rangeFlags
+                 UBYTE labelFlags
+                 UBYTE otherFlags
+                 WORD skip
+                 The strings
+
+            The strings are 10 zero terminated strings packed
+            consectutively after main graph stucture. They are:
+
+                      First line of title - max length 40
+                      Second line of title - max len 40
+                      Title for x axis - max len 40
+                      Title for y axis - max len 40
+                      Legend for A range - max len 20
+                      .
+                      .
+                      .
+                      Legend for F range - max len 20
+
+
+
+
+
+
+
+                                        Page - 11
+
+
+       Series3/MC spreadsheet file format
+
+            
+             Current graph index (type 14, length 2)
+            
+
+                 UWORD curGraph
+
+            Determines which graph is the 'current' graph, i.e. the
+            one selected by the USE GRAPH menu item. 0 is the first
+            graph.
+
+
+            
+             Font pallete  (type 15, length)
+            
+
+                 SCRLAY_FONT fonts[4]
+
+            Each SCRLAY_FONT structure determines which font to use,
+            whether or not it is BOLD etc. The first corresponds to
+            font 1, the second top font 2 etc.
+
+
+            
+             Print data (type 16, length 58)
+            
+
+            This record contains information required to format the
+            document for the printer. It includes, amongst other
+            items, descriptions of the page size and margins, the
+            page numbering style, header and footer position and
+            alignment. The detailed description of this record is
+            outside the scope of this document.
+
+
+            
+             Printer model (type 17, length variable)
+            
+
+                 UBYTE modelIndex
+                 TEXT ztsModel
+
+            The record consists of a zero terminated string,
+            containing the full path name of the current printer
+            driver file, preceded by a one byte index to the printer
+            model within the file.
+
+            The default value is:
+                 0
+                 "ROM::\BJ.WDR"
+
+
+            
+             Header text (type 18, length variable)
+            
+
+                 TEXT zts
+
+
+
+
+
+                                        Page - 12
+
+
+       Series3/MC spreadsheet file format
+
+            A zero terminated string containing the text used for
+            page headers when printing.
+
+
+            
+             Footer text (type 19, length variable)
+            
+
+                 TEXT zts
+
+            A zero terminated string containing the text used for
+            page footers when printing.
+
+
+            
+             Screen extras (type 20, length 2)
+            
+
+                 UWORD flags
+
+                 000000þX       Set if grid labels are shown
+                 000000Xþ       Set if small font is used
+            
+
+            This record immediately precede the display information
+            record (type 6) if it is to have any effect when the file
+            is loaded.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                        Page - 13

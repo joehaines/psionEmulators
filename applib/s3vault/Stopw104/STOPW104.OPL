@@ -1,0 +1,405 @@
+REM
+REM STOPW for the Psion Series 3.
+REM A battery friendly stopwatch.
+REM Version 1.04 Dated 4 April 93
+REM A Chocolate Island Software program.
+REM Copyright (c) Rick Andrews 1992
+REM
+REM This program is freeware.
+REM Please send any comments etc. to:-
+REM Rick Andrews,
+REM 164 Castle Hill, Reading
+REM England    RG1  7RP
+REM
+REM Version history.
+REM V1.00 1 October 92 - Published in Ipso Facto.
+REM V1.01 23 Nov 92 - Made app.
+REM      - Prevent save if zeroed.
+REM V1.02 1 Dec 92 - fixed Auto-switch off defect.
+REM V1.03 25 Mar 93 - Tidy up for PD release.
+REM      - Added Help and About.
+REM V1.04 4 April 93 - First release.
+
+
+APP StopW
+	ICON "\PIC\STOPW.PIC"
+	TYPE 0
+ENDA
+
+
+PROC StopW:
+	GLOBAL gStart& REM Time of event start.
+	GLOBAL gPrevS& REM Secs elapsed in prev run.
+	GLOBAL gInit& REM Time of event restart.
+
+	GLOBAL gElapS& REM Total elapsed seconds.
+	GLOBAL gDesc$(30)
+	GLOBAL gTimeId%,gDescId%
+	GLOBAL gSleep%
+
+	LOCAL file$(128)
+	LOCAL k%,done%
+	LOCAL save% REM Store event?
+
+	LOCAL mode% REM 0-stop, 1-run.
+	LOCAL mode$(5) 
+
+REM Init the variables.
+	gDesc$="(no desc)"
+	mode%=1
+	done%=0 :save%=1
+	mode$="Stop"
+
+	GIPRINT "A 'Chocolate Island Software' program"
+	CLS
+	gBORDER $202
+	gAT 170,3
+	gCLOCK ON,$25
+
+	gAT 178,73
+	gPRINT "Stopwatch"
+
+	gDescId%=gCREATE(3,6,165,25,1)
+	gBORDER $201
+	gAT 5,11 :gPRINT "Event:"
+	gAT 5,20 :gPRINT "Started at"
+
+	gTimeId%=gCREATE(20,33,135,40,1)
+	gBORDER $201
+
+	gAT 6,15 :gPRINT "Elapsed :"
+	gAT 6,31 :gPRINT "Lap time:"
+
+	gSTYLE 8 REM Double height.
+
+	File$="stopwdat"
+	IF GetDets%:(File$)=0
+		RETURN
+	ENDIF
+
+	gUSE gDescId%
+	gAT 38,11 :gPRINTB gDesc$,120
+	gAT 62,20 :gPRINT STime$:(gStart&)
+	gUSE gTimeId%
+
+REM Main loop.
+	DO
+		IF mode% REM Clock running?
+			gElapS&=(Now&:-gInit&)+gPrevS&
+			gAT 55,18 :gPRINTB ETime$:(gElapS&),75
+
+			PAUSE -18 REM Save battery.
+			k%=KEY
+			CheckOff:(k%) REM Allow auto switch off.
+		ELSE
+			k%=GET
+		ENDIF
+
+REM Menu or hot-key hit?
+		IF k%=$122 OR (k% AND $200)
+			IF k%=$122
+				mINIT
+				mCARD "Timer",mode$,%S,"Lap",%L,"About",%A,"Exit",%X
+				mCARD "Reset","Zero clock",%Z,"Kill event",%K
+				mCARD "Event","Edit description",%D
+				k%=MENU
+			ELSE
+				k%=k%-$200
+			ENDIF
+			k%=k% AND $FFDF REM Uppercase.
+REM Reclac elapsed time incase MENU displayed
+REM for a long time.
+			gElapS&=(Now&:-gInit&)+gPrevS&
+
+REM Lap.
+			IF k%=%L
+				IF mode%
+					gAT 55,34
+					gPRINTB ETime$:(gElapS&),75
+				ELSE
+					GIPRINT "Not running"
+				ENDIF
+
+REM Stop/Start.
+			ELSEIF k%=%S
+				IF mode%=0 REM Stopped.
+					Restart:
+					mode%=1
+					mode$="Stop"
+				ELSE REM Running.
+					Stop:
+					mode%=0
+					mode$="Start"
+				ENDIF
+
+REM Zero.
+			ELSEIF k%=%Z
+				IF mode%=0
+					Zero:
+				ELSE
+					GIPRINT "Not stopped"
+				ENDIF
+
+REM Kill.
+			ELSEIF k%=%K
+				IF mode%=0
+					dINIT
+					dTEXT "","Delete event and Exit?",$202
+					dBUTTONS "No",%N,"Yes",%Y
+					IF DIALOG=%y
+						save%=0
+						done%=1
+					ENDIF
+				ELSE
+					GIPRINT "Not stopped"
+				ENDIF
+
+REM Edit description.
+			ELSEIF k%=%D
+				EditDesc:
+
+REM About.
+			ELSEIF k%=%A
+				About:
+
+
+REM Exit.
+			ELSEIF k%=%X
+				done%=1
+			ENDIF
+
+REM Help.
+		ELSEIF k%=291 REM Help key.
+			Help:
+		ENDIF
+
+	UNTIL done%
+
+	TRAP DELETE file$
+
+REM Save details?
+REM Only if not zeroed.
+	IF save% AND gStart&>0 
+		Save:(file$)
+	ENDIF
+
+	gCLOSE gTimeId%
+	gCLOSE gDescId%
+	gCLOCK OFF
+ENDP
+
+
+PROC Restart:
+REM Restart the timer.
+	gInit&=Now&:
+	IF gStart&=0 REM After being zeroed?
+		gStart&=gInit&
+		gUSE gDescId%
+		gAT 62,20 :gPRINTB STime$:(gStart&),95
+		gUSE gTimeId%
+	ENDIF
+	gSTYLE 0
+	gAT 6,15 :gPRINTB "Elapsed",40
+	gSTYLE 8
+	GIPRINT "Started",1
+ENDP
+
+
+PROC Now&:
+REM Returns current time in seconds.
+	LOCAL a&,b&
+REM Have to do at least two readings
+REM in case the results clock over
+REM whilst being read. 
+	a&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+	DO
+		b&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+	UNTIL (ABS(b&-a&)<2)
+	RETURN b&
+ENDP
+
+
+PROC Stop:
+REM Stop the timer.
+	gSTYLE 0
+	gAT 6,15 :gPRINTB "Stopped",40
+	gSTYLE 8 
+	gPrevS&=gElapS&
+	GIPRINT "Stopped",1
+ENDP
+
+
+PROC Zero:
+REM Zero the timer.
+	gElapS&=0 :gPrevS&=0 :gStart&=0
+	gSTYLE 0
+	gAT 6,15 :gPRINTB "Zeroed",40
+	gSTYLE 8
+	gAT 55,18 :gPRINTB ETime$:(gElapS&),75
+	gAT 55,34 :gPRINTB " ",75
+	GIPRINT "Zeroed",1
+ENDP
+
+
+PROC STime$:(t&)
+REM Return formatted start time with date.
+	LOCAL date$(17)
+	LOCAL h%,mi%,s%,d%,mo%,y%,unused%
+	SECSTODATE t&,y%,mo%,d%,h%,mi%,s%,unused%
+	date$=Hms$:(h%,mi%,s%)+" "
+	date$=date$+RIGHT$("0"+GEN$(d%,2),2)+"/"
+	date$=date$+RIGHT$("0"+GEN$(mo%,2),2)+"/"
+	date$=date$+RIGHT$("0"+GEN$(y%-1900,2),2)
+	RETURN date$
+ENDP
+
+
+PROC ETime$:(t&)
+REM Return formatted elapsed time.
+	LOCAL time$(13)
+	LOCAL elap&
+	LOCAL eday%,ehour%,emin%,esec%
+
+	elap&=t&
+	eday%=elap&/86400
+	elap&=elap&-(eday%*86400.)
+	ehour%=elap&/3600
+	elap&=elap&-(ehour%*3600.)
+	emin%=elap&/60
+	elap&=elap&-(emin%*60.)
+	esec%=elap&
+
+	time$=Hms$:(ehour%,emin%,esec%)+" "
+	IF eday%>0
+		time$=time$+GEN$(eday%,3)+"d"
+	ENDIF
+	RETURN time$
+ENDP
+
+
+PROC Hms$:(h%,m%,s%)
+REM Return formatted hours,mins,seconds.
+	LOCAL t$(8)
+	t$=RIGHT$("0"+GEN$(h%,2),2)+":"
+	t$=t$+RIGHT$("0"+GEN$(m%,2),2)+":"
+	t$=t$+RIGHT$("0"+GEN$(s%,2),2)
+	RETURN t$
+ENDP
+
+
+PROC GetDets%:(f$)
+REM Load timer details if they exist.
+	IF EXIST(f$)
+		GIPRINT "Loading details",1
+		OPEN f$,A,time&,desc$
+		gStart&=A.time&
+		gInit&=Now&:
+		gPrevS&=gInit&-gStart&
+		gDesc$=A.desc$
+		CLOSE
+		RETURN 1
+	ELSE
+		IF Start%:=1
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	ENDIF
+ENDP
+
+PROC Start%:
+	gPrevS&=0
+	dINIT "Stopwatch"
+	dTEXT "","Press Enter",2
+	dTEXT "","to start",2 REM Centre.
+	IF DIALOG=0
+		RETURN 0
+	ENDIF
+	gInit&=Now&:
+	gStart&=gInit&
+	GIPRINT "Clock started",1
+	EditDesc:
+	RETURN 1
+ENDP
+
+
+PROC Save:(f$)
+REM Save the timer details.
+	CREATE f$,A,time&,desc$
+	A.time&=gStart&
+	A.desc$=gDesc$
+	APPEND
+	CLOSE
+	GIPRINT "Saved",1
+ENDP
+
+
+PROC EditDesc:
+REM Edit the description.
+	dINIT "Description"
+	dEDIT gDesc$,"Event",20
+	DIALOG
+	gUSE gDescId%
+	gAT 38,11 :gPRINTB gDesc$,120
+	gUSE gTimeId%
+ENDP
+
+
+
+PROC CheckOff:(press%)
+	LOCAL timeout%
+	timeout%=240 REM Seconds=4 Mins.
+	IF press%=0
+		gSleep%=gSleep%+1
+		IF gSleep%>timeout%
+			dINIT
+			dTEXT "","Display paused",2
+			dTEXT "","Press Enter",2
+			DIALOG
+			gSleep%=0
+		ENDIF
+	ELSE
+		gSleep%=0
+	ENDIF
+ENDP
+
+
+PROC About:
+	dINIT
+	dTEXT "","StopW - a battery friendly stopwatch",$202
+	dTEXT "","A 'Chocolate Island Software' program",2
+	dTEXT "",CHR$(184)+" Rick Andrews 1992",2
+	dTEXT "","Version "+"1.04"+" - Dated 4 April 93",2
+	DIALOG
+	dINIT
+	dTEXT "","This program is freeware.",2
+	dTEXT "","If you have any comments about it, ",2
+	dTEXT "","please write to me :-",2
+	dTEXT "","Rick Andrews, 164 Castle Hill,",$102
+	dTEXT "","Reading, England  RG1 7RP",$102
+	dTEXT "","Share and Enjoy!",2
+	DIALOG
+ENDP
+
+
+PROC Help:
+	LOCAL p$(1)
+	p$=CHR$(2) REM Psion.
+	dINIT
+	dTEXT "","Help: StopW", $302 REM Line + Bold + Cent.
+	dTEXT "","This battery friendly stopwatch stores"
+	dTEXT "","event details on the default disk so the"
+	dTEXT "","Series3 can be switched off whilst"
+	dTEXT "","timing long duration events."
+	dTEXT "",CHR$(4),1 REM Page symbol, right aligned.
+	DIALOG
+	dINIT 
+	dTEXT "","Help continued... StopW", $302
+	dTEXT "", p$+"-S Start/Stop. Runs/stops the clock."
+	dTEXT "", p$+"-L Lap. Shows the lap time."
+	dTEXT "", p$+"-Z Zero. Resets a stopped clock."
+	dTEXT "", p$+"-K Kill. Deletes a stopped event."
+	dTEXT "", p$+"-D Desc. Edit the event description."
+	dTEXT "","Use `Menu' for more commands.",2 REM Centred.
+	DIALOG
+ENDP

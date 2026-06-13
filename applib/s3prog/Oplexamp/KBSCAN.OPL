@@ -1,0 +1,19 @@
+PROC scanKB:
+	LOCAL scan%(10),i%,h$(2)
+	AT 10,5 :PRINT " 1  2  3  4  5  6  7  8"
+	AT 14,10 :PRINT "CTRL-ESC to exit"
+	DO
+		CALL($288e,ADDR(scan%()))
+		i%=1
+		AT 10,7
+		DO
+			h$=HEX$(scan%(i%))
+			IF LEN(h$)=1
+				PRINT "0";
+			ENDIF
+			PRINT h$,
+			i%=i%+1
+		UNTIL i%>8
+		PAUSE 12
+	UNTIL 0
+ENDP

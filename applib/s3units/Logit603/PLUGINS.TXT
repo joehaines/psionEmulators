@@ -1,0 +1,197 @@
+
+                   LOG-IT! 6.0 Plug-Ins Information
+
+
+Logit 6.0 has a feature called Plug-Ins, that allows anyone to write
+additional Plug In modules in Opl, to work with Logit. A plugin is a program
+that you write, and is loadable by Logit. The Plugin must have a .plg extension,
+and must be in the \App\Logit\Plug directory. Logit will find all .plg files
+in this directory when you press Psion Shift<P> to bring up the Plugins menu.
+
+When you translate an OPL program , the runable module is named with an opo
+file extension, and is in the \OPO directory. Move it to the \App\Logit\Plug
+directory, and rename it with a .plg extension.
+
+
+WRITING COMPATIBLE PLUG-INS
+
+A Plug-In can enable Logit users to do things with the data that isn't
+designed into the program. All Plug-Ins will show up on the Plugins menu,
+and this is what makes them unique. Once installed to the correct directory,
+they show up on Logit's menu just as if they were a part of the program.
+Accesible from the Log View, press Psion Shift<P>.
+
+It is best when writing a Plug-In to start by creating your own window by
+using something like this:
+
+mywin%=gcreate(0,0,width,height,1)
+
+        ... or if you don't want screen blink,
+
+mywin%=gcreate(0,0,240,80,0)
+REm Draw screen here
+gvisible on
+
+For simple plugins that don't need there own user interface, you can use
+standard Psion dialogs.
+
+        dinit"My module"
+        dtext ""," "
+        dialog
+
+This way when your Plug-In closes, it closes this window and makes a clean
+exit. Next item to note is the format of a Logit file.
+
+
+LOGIT FILE FORMAT
+
+Filename,b,desc$,time$,rate$,t$,dt$,note$,st$
+
+desc$   Client/Item name     - Text String
+time$   Total Time for event - In seconds (Text String format)
+rate$   Hourly Billing Rate  - Text String (Example: "35.00")
+t$      Activity Name        - Text String
+dt$     Date in days format  - fix$(days(day,month,year),0,12)
+note$   Notes/Comments       - Text String
+st$     Starting Time        - In seconds (Text String)
+
+
+1. Data files use logical drive b
+2. There is an example Plugin included at the bottom of this document. It
+   shows how to create your own file export module.
+
+
+GLOBALS:
+
+Main Window ID                  mwin%
+dd$ = Default directory         \App\Logit\
+mypid%                          Our Process ID
+ww%                             Window Width of main window (416, 448, 480)
+dlog$ (Default Log)             "Timerlog.log"
+sfon%                           Current default font
+newfil$                         newfil$(255) - reusable variable
+q$                              ? Character
+
+
+INTELLIGENT REDRAWING FUNCTIONS:
+sres%                           sres%=1 forces a redraw on exit of plugin
+sadd%                           set to 1 if you have added a record
+supd%                           set to 1 if you have updated a record
+sdel%                           set to 1 if you have deleted a record
+
+
+BUILT-IN ROUTINES YOU CAN CALL:
+
+Drawtot:                        Redraws the total on the bottom of the screen
+Msetpos:                        Set to position of cursor. To do it Safely Use
+                                        p%=pos :msetpos:
+                                        On cancel, use position p%
+PrintLog:                       Call up Print Engine. Set variable pview%=1 to
+                                        call the print preview. Do Not declare
+                                        pview% in your procedure. It's a global
+                                        variable from Logit.
+NewEnt:                         Call up New Entry dialog
+Getevt:                         Controlled Getevent loop - handles window resizing
+                                        when going backround. Returns event.
+Calculator                      Calc: - use "guse mwin%" after calling calc:
+Calendar                        Calendar: - use "guse mwin%" after calling
+Jump to any app                 Toapp:("App Name")
+Get Date in user format         date$:(b.dt$,0)
+ff$:                            d$=ff$("filename") - if the file is found, returns
+                                        the driver letter with colon.
+Sure:                           Asks "Are you Sure" - returns 1 for Yes, 0=No
+pidbname:(name$)                Gets a process ID by app name
+Fsz:(f$)                        Returns the size of file f$ (include path)
+Tnow:                           Returns current time in seconds (datetosecs)
+val:(n$)                        Returns value of n$, handles any errors
+Uniq:                           Returns a unique number
+Days:                           Returns days(day,month,year)
+dform:                          Returns current date format (0=mdy, 1=mdy, 2=ymd)
+xcase$:(i$)                     Returns "Test" from "TEST"
+Printset:                       Calls Print setup dialog
+LaunchT:(fname$)                Launches a text file into Word (Text only mode)
+Handerr:(m$,err%)               Handles errors. m$=topline message. err%=err num.
+Time$:(tim&)                    Returns time as string. tim& = seconds
+Nada:(Mess$)                    Does a giprint"No more "+mess$
+
+
+INSTALLING PLUG-INS:
+
+To install a Plug-In all you need to do is copy the Plug-In, which must have
+a .plg extension, to the \App\Logit\Plug directory and Logit will see it there
+and load it when you call up the Plug-Ins menu.
+
+
+EXAMPLE PLUGIN:
+
+
+Proc Myexport:
+local newfil$(128),del%,q%,l$(1),m%,s%,st&,q$(1)
+        q$="?"
+        exp::
+        if count=0 :nada:("Export") :return :endif
+        trap mkdir "M:\wrd"
+        giprint"Path is M:\Wrd" :beep 3,400
+        newfil$="M:\Wrd\*.csv"
+        dinit
+        dtext"","Export Log File",$302
+        dfile newfil$,"",17
+        dtext""," ",$200
+        dchoice del%,"Delimiter","Comma,Tab,Space"
+        dchoice q%,"Use Quotes","No,Yes"
+        if dialog
+                l$=mid$(","+chr$(9)+" ",del%,1)
+                m%=pos :s%=0
+                first
+                trap lopen newfil$
+                if err
+                        dinit
+                        dtext"","Error Creating File",$302
+                        dtext"",err$(err),2
+                        dbuttons "Continue",13
+                        dialog
+                        goto exp::
+                endif
+                busy"Exporting"
+                Do
+                        st&=0 :if b.st$<>"" :st&=val(b.st$) :endif
+                        if q%=1
+                                lprint date$:(b.dt$,0)+l$+time$:(st&)+l$+b.desc$+l$+b.t$+l$+timamt$:+l$+b.rate$+l$+b.note$
+                        else
+                                lprint q$+date$:(b.dt$,0)+q$+l$+q$+time$:(st&)+q$+l$+q$+b.desc$+q$+l$+q$+b.t$+q$+l$+q$+timamt$:+q$+l$+q$+b.rate$+q$+l$+q$+b.note$+q$
+                        endif
+                        next :s%=s%+1
+                Until eof
+                lclose
+                busy off :beep 3,400
+                dinit
+                dtext"","("+fix$(s%,0,5)+")  Log Entries Exported!",$302
+                dtext"","Saved to "+fit$:(newfil$,300),2
+                dtext""," ",$200
+                dtext"","View Printout in Word?",$302
+                dbuttons "NO",%N,"Yes",%Y
+                if dialog=%y
+                        LaunchT:(newfil$)
+                        dinit
+                        dtext"","Save Report File",$302
+                        dbuttons "No",%N,"Yes",%Y
+                        if dialog<>%y
+                                trap delete newfil$
+                                if err
+                                        dinit
+                                        dtext"","Couldn't Delete File",$302
+                                        dtext"","Error: "+err$(err)
+                                        dialog
+                                endif
+                        endif
+                endif
+                position m%
+        endif
+Endp
+
+Don't hesitate to contact me if you have any problem.
+
+                                Mark Esposito
+                             Pelican Software Inc.
+                                 72662,3050
+                               (713) 242-8928

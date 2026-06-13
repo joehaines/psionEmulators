@@ -1,0 +1,722 @@
+GeoDis v1.06
+============
+Uebersicht
+==========
+GeoDis (Geographical Display)  -  (c) 1995-97 Rolf Aeschbacher
+
+Dieses  Programm  stellt  geographische  Informationen  auf  dem Psion Serie 3a
+grafisch  dar.  Staedte und Doerfer werden auf dem Bildschirm eingezeichnet und
+die  Distanz  zwischen  beliebigen Ortschaften kann berechnet werden. Fuer jede
+Ortschaft lassen sich die Kantonszugehoerigkeit, Einwohnerzahl, Hoehe ueber dem
+Meeresspiegel  und die Koordinaten anzeigen. Die Karte laesst sich vergroessern
+und  verkleinern, mit den Pfeiltasten kann der Kartenausschnitt gewaehlt werden
+und selbstverstaendlich sind auch leistungsstarke Suchfunktionen vorhanden.
+
+Sogenannte  Overlays  lassen  sich  beliebig  zu-  und abschalten. Sie zeichnen
+weitere  Details  wie  Strassen, Seen, Fluesse, Kantonsgrenzen, Paesse, Gipfel,
+Hotels usw. auf der Karte ein.
+
+Dieses  Programm  wurde  speziell  fuer  die  Psion  Modelle  Serie  3a  und 3c
+entwickelt, mit zwei Zielsetzungen im Auge: geringer Speicherplatzverbrauch und
+Schnelligkeit der Bildschirmanzeige.
+Das  erste  Ziel  wurde  erreicht,  indem  einerseits  die  Daten  sehr kompakt
+gespeichert wurden und andererseits nur jene Daten in den Hauptspeicher geladen
+werden, die gerade benoetigt werden.
+Das  zweite  Ziel,  die  Schnelligkeit,  war schon schwieriger zu erreichen, da
+durch die Leistungsfaehigkeit des Prozessors limitiert. Wartezeiten lassen sich
+abkuerzen,  indem  die  aktuelle Zeichenoperation mit Esc abgebrochen wird oder
+nur  jene  Overlays  aktiviert  werden,  die   gerade   relevant   sind.   Alle
+Menuefunktionen sind auch waehrend des Zeichenvorgangs aktiv: wird zum Beispiel
+die Taste F gedrueckt, stoppt die Ausgabe und das Suchmenue erscheint.
+
+Hinweis:  Dateien,  die nur der Vollversion beigefuegt sind und Funktionen, die
+nur die Vollversion besitzt, sind nachfolgend mit [*] bezeichnet.
+
+Installation
+============
+Falls  Sie  bereits eine fruehere Version von GeoDis installiert haben, sollten
+Sie  zuerst  alle  Dateien  im  Verzeichnis  \APP\GEODIS\   sowie   die   Datei
+\APP\Geodis.opa loeschen und die Applikation mit Psion-E entfernen.
+Hinweise:  Seit  Version  1.03  sucht  GeoDis  seine   Daten   im   Verzeichnis
+\APP\GEODIS\. Dies entspricht dem allgemein gueltigen Standard. Ab Version 1.05
+hat jede Karte ihr eigenes Verzeichnis in \APP\GEODIS\.
+
+- in das Verzeichnis \APP\
+  Geodis.opa
+
+- alle allgemeinen Dateien in das Verzeichnis \APP\GEODIS\
+  Geodis.pic
+  Georich.opo
+  Geosupp.opo
+  Geogps.opo (fuer GPS-Support, optional)
+  Geomsg.03 (deutsche Texte) oder
+  Geomsg.01 (englische Texte)
+  Geohlp.03 (deutsche Online-Hilfe, fakultativ) oder
+  Geohlp.01 (englische Online-Hilfe, fakultativ)
+  *.ini  die Initialisierungs-Dateien der zu installierenden Karten
+
+Ueber ini-Dateien and Karten
+----------------------------
+Alle  .ini  Dateien koennen umbenannt oder kopiert werden. Wenn also Europa.ini
+nach  Europe.ini  kopiert  wird,  koennen  Sie  beide  starten  und  haben   so
+verschiedene  Ansichten der gleichen Karte! In diesem Fall ist es zu empfehlen,
+GeoDis eine Taste zuzuordnen (Psion-Shift-T) - damit koennen Sie durch Druecken
+einer einzigen Taste zwischen den Ansichten wechseln.
+Karten  koennen  sich  auf  verschiedenen  Disks befinden. GeoDis sucht auf der
+Disk,  von  wo  es  gestartet  wurde,  dann auf den Disks M, A and B (in dieser
+Reihenfolge)  nach \APP\GEODIS\Geodis.pic. Die Disk, auf der diese Datei zuerst
+gefunden  wird,  muss  die  allgemeinen  Dateien  Geomsg, Geohlp sowie die .opo
+Dateien  enthalten.  GeoDis kann auch von einer externen Disk gestartet werden,
+z.B. von einer DOS-Diskette im Cyclone-Drive.
+
+Installation Schweiz
+--------------------
+
+siehe separate Datei
+
+Installation Austria/Oesterreich
+--------------------------------
+
+siehe separate Datei
+
+Installation Deutschland
+------------------------
+
+siehe separate Datei
+
+Installation US-City
+--------------------
+
+siehe separate Datei
+
+Installation USA
+----------------
+(alle Staaten, groesste Staedte)
+\APP\GEODIS\Usa.ini
+alle anderen Dateien in \APP\GEODIS\USA\
+Border.us
+County??.us
+Dist.us1
+Ewho.us
+City1?.us1 (3 Dateien)
+Default.us3
+Mapinf01.us
+Overlays (optional, Endungen us2 und us3):
+- Lakes	die grossen Seen
+- States	die Staaten der USA
+- Pun_*	die Staaten mit Todesstrafe (5 Overlays)
+
+Installation Europa
+-------------------
+(Uebersichtskarte mit den wichtigsten Staedten, Inseln)
+\APP\GEODIS\Europa.ini
+alle anderen Dateien in \APP\GEODIS\EUROPA\
+Border.eu
+County??.eu
+City1?.eu1 (3 Dateien)
+Dist.eu1
+Mapinf01.eu
+Overlays (optional, Endungen eu2 und eu3):
+Country.eu2	Landesgrenzen
+Islands	Inseln
+
+Installation M‚tro
+------------------
+(alle Stationen der Pariser Untergrundbahn)
+\APP\GEODIS\Metro.ini
+alle anderen Dateien in \APP\GEODIS\METRO\
+Border.me
+County01.me
+City??.me1 (6 Dateien)
+Mapinf01.me
+Overlays (optional, Endungen me2 und me3):
+Lines1	M‚tro-Linien
+Lines2	R.E.R.-Linien
+Saine	Fluss, Inseln und Stadtgrenze
+
+Installation France1
+--------------------
+(alle Departemente mit deren Nummern/Namen, keine Orte)
+\APP\GEODIS\France1.ini
+alle anderen Dateien in \APP\GEODIS\FRANCE1\
+Border.f1
+Overlays (optional, Endungen f12 und f13):
+- Departem	alle Departemente
+
+Installation Canaries
+---------------------
+(Uebersichtskarte der Kanarischen Inseln)
+\APP\GEODIS\Canaries.ini
+alle anderen Dateien in \APP\GEODIS\CANARIES\
+Border.ci
+Mapinf01.ci
+Overlays (optional, Endungen ci2 und ci3):
+Cities	Hauptstaedte
+Islands	Namen der Inseln
+Longlat	Netz der Laengen- und Breitengrade
+Peaks	Gipfel, hoechste Erhebungen
+
+Installation Vector
+-------------------
+(verschiedene Vektor-Grafiken, als Overlays realisiert, selbstverstaendlich mit
+Zoom-Moeglichkeit)
+\APP\GEODIS\Vector.ini
+alle anderen Dateien in \APP\GEODIS\VECTOR\
+Border.ve
+Overlays (optional, Endungen ve2 und ve3):
+- Columbia	die Raumfaehre Columbia
+- Illusion	Optische Taeuschung
+- Krumm	Optische Taeuschung
+- Lissajou	Lissajous
+- Maisha	Vektor-Girl
+- Penrose	Optische Taeuschung
+- Porsche	ein Porsche eben
+- Skull	Totenkopf
+- Spiral	Mega-Spirale
+- World	Weltkugel
+
+Installieren von Geodis.opa mit Psion-I.
+----------------------------------------
+
+Nicht benoetigte Dateien fuer den Programmablauf
+----------------------------------------------
+Geocomp.opo	zum Erstellen von Overlays [*]
+Geomanag.opo	Manager fuer GeoDis-Dateien [*]
+Geodis03.txt	Deutsche Anleitung als ASCII Textdatei
+Geodis01.txt	Englische Anleitung als ASCII Textdatei
+Geodis03.wrd	Anleitung im Psion-Format (auf Wunsch erhaeltlich)
+Geodis01.wrd	Anleitung im Psion-Format (auf Wunsch erhaeltlich)
+
+Konfigurationsdateien
+---------------------
+Die  Dateien Geodis.??s und Geodis.reg werden allenfalls im Verzeichnis M:\OPD\
+automatisch  generiert.  Sie  enthalten    Details  zur  Konfigurierung und zur
+Registrierung  und  koennen  bei  Bedarf geloescht werden. Siehe auch Abschnitt
+"Einstellungen".
+
+Tasten
+======
++ - 1 2 3 4 5 6 7: vergroessern, verkleinern, Zoom-Stufe
+Pfeiltasten: bewegen, mit Psion-Pfeiltasten grosse Schritte
+ESC: aktuelle Operation abbrechen
+Leertaste: ganze Karte neu zeichnen
+Enter: nur Overlays neu zeichnen
+Stern *: neu zentrieren
+Hilfe-Taste: Online-Hilfe mit wichtigen Hinweisen. Bitte lesen!!
+Tabulator: Massstab ein/aus
+Diamant: nur grosse Orte/alle Orte
+
+Anzeige (A)
+===========
+Um  das  Programm  flexibler  zu  machen  und um Speicher zu sparen, werden die
+Karten  in  bis zu sieben Teile unterteilt. Jeder Teil laesst sich einzeln ein-
+oder  ausschalten.  Informationen ueber die geladene Karte erhalten Sie jeweils
+mit Psion-M, wenn die entsprechende Mapinf-Datei vorhanden ist.
+
+Formeln (A)
+===========
+Nur  Karten mit Ortschaften: Im Menuepunkt 'Anzeige' ist eine Anwahl 'Orte nach
+Formel'  zu  finden.  Wird  diese  Anwahl  aktiviert, kann in einem Dialog eine
+Formel  eingegeben  werden.  Fuer  die  Daten  jedes  Ortes  wird  diese Formel
+gerechnet (mittels EVAL-Funktion). Ergibt die Formel den Wert 'Wahr' (True), so
+wird der entsprechende Ort auf der Karte eingezeichet.
+Die  Formel-Funktion ist sehr rechenintensiv und daher langsam. Sie laesst sich
+jedoch  massiv  beschleunigen,  indem  die  Karte  mit   +   moeglichst   stark
+vergroessert wird.
+Falls  unter  'Anzeige'  kein  Landesteil oder alle Landesteile aktiviert sind,
+werden alle Teile einbezogen, ansonsten nur die aktivierten.
+Die  Formel kann alle Operatoren enthalten, die von OPL akzeptiert werden, auch
+in beliebiger Kombination.
+
+Variable Markierungen:
+----------------------
+Wenn  Sie unter "Zeichnen" die Auswahl "einwohnerabhaengig" treffen, werden die
+Ortsnamen  in  verschiedenen  Schriftgroessen, abhaengig von der Einwohnerzahl,
+gezeichnet.  Die  kleine  kursive  Schrift  bedeutet  dann,   dass   fuer   den
+betreffenden  Ort  keine  Einwohnerdaten  vorhanden  sind.  Acht   verschiedene
+Schriften werden verwendet.
+Wird  "umrissen"  oder  "ausgefuellt"  ausgewaehlt,  so  wird  jeder der Formel
+entsprechende  Ort mit einem Kaestchen eingezeichnet. Die Groesse der Kaestchen
+haengt  von  der  Einwohnerzahl  und  der  Hoehe  ueber Meer ab: Je breiter das
+Kaestchen  ist,  desto  mehr  Einwohner  hat diese Ortschaft. Je hoeher es ist,
+desto  hoeher  ist  der Ort gelegen. Die Kaestchen sind zwischen 1 und 16 Pixel
+gross (inklusiv), wobei 1 Pixel Breite bzw. Hoehe ein Ort andeutet, bei dem die
+Einwohnerzahl  bzw.  Hoehe  nicht  bekannt ist. Sie koennen auch hier mit B die
+Beschriftung ein- oder ausschalten.
+
+Beispiele fuer Formeln: siehe Online-Hilfe!
+------------------------------------------
+
+Diamant-Taste
+=============
+Die Diamant-Taste schaltet zwischen Anzeige der grossen Ortschaften und Anzeige
+aller Ortschaften um.
+
+Info ueber Orte (I)
+==================
+Folgende Informationen ueber einen Ort werden angezeigt:
+- Kantonszugehoerigkeit, Staat oder Land
+- Hoehe ueber Meer in Meter oder Fuss
+- Einwohnerzahl  (fuer  die  Schweiz   basierend   auf   der   eidgenoessischen
+  Volkszaehlung 1990)
+- Schweizerkarte: Landeskoordinaten in Kilometerunterteilung
+- Karten  Schweiz, Austria & US-City: geographische Koordinaten/Weltkoordinaten
+  in Grad (aus den Landeskoordinaten berechnet)
+- Schweizerkarte: Locator; bei Funkern (HAM Radio und Packet Radio) verwendeter
+  sechsstelliger Code (z.B. JN47HM) zur weltweiten Positionsbestimung (wird aus
+  den geographischen Koordinaten berechnet)
+
+Bei Overlays steht der Name des Overlays im Titel in eckigen Klammern [...].
+
+Falls  zwei  Orte  aktiv  sind,  gelangt man mit Enter zum zweiten Ort, mit Esc
+laesst sich sich die Angabe des zweiten Ortes unterbinden.
+
+Distanzen (D, T)
+================
+Psion-D
+-------
+Distanzen  zwischen  beliebigen  Ortschaften  berechnet das Programm anhand der
+Koordinaten. Dies entspricht der ungefaehren Luftdistanz. 
+
+Hinweis:  Die  berechneten  Distanzen  bei  der  Karte USA sind mit Vorsicht zu
+geniessen, da ziemlich ungenau.
+
+GeoDis  berechnet  gleichzeitig die Peilung, d.h. die Himmelsrichtung vom einen
+Ort zum anderen.
+
+Psion-T
+-------
+Der  Menuepunkt  'Distanztabelle'  zeigt  eine  Liste  aller  Orte,  die in der
+Distanztabelle  enthalten  sind.  Wird  aus  dieser  Liste ein Ort ausgewaehlt,
+verzweigt das Programm in die Suchfunktion.
+
+Karte 'Schweiz':
+Genaue  Angaben ueber die effektive Distanz zwischen 36 wichtigen Orten bezieht
+das  Programm  aus  einer  Distanztabelle. Wird die Distanz zwischen zwei Orten
+abgefragt,  zeigt  GeoDis  automatisch  auf  einer  zusaetzlichen  Zeile  deren
+Reisedistanz an, falls beide Orte in dieser Tabelle enthalten sind. Bei einigen
+Werten  ist  in  Klammern  ein  Detail zum Reiseweg angegeben (Autobahn, Furka,
+Loetschberg, via Italien, Simplon).
+
+Suchen (F, L)
+=============
+Der  Suchtext  kann  maximal  30 Zeichen lang sein. Wildcards (Platzhalter) und
+Umlaute  muessen  nicht  eingegeben  werden,  und  Gross-/Kleinschreibung   ist
+standardmaessig  nicht  von  Belang.  Bei  einem Suchtext von 'zur' werden also
+Zuerich, Zurzach usw. gefunden.
+Es  werden  immer  alle  Teile  (drei  bei  der Schweizer Karte) nach Ortsnamen
+durchsucht,  egal  ob  sie  aktiviert  sind  oder nicht (fuer Aktivierung siehe
+'Anzeige'). Die aktivierten Teile werden jedoch zuerst durchsucht.
+
+Psion-F
+-------
+F sucht nach Orten und nach Texten in Overlays und fragt bei jeder 
+Fundstelle, ob sie angezeigt werden soll. Druecken Sie Psion-Enter nach Eingabe
+des Suchtextes, um in allen Overlays zu suchen.
+
+Psion-L
+-------
+L sucht nur nach Orten, speichert die gefundenen in einer Liste und zeigt diese
+erst  am  Schluss  sortiert  an.  Daraus  laesst  sich dann der gewuenschte Ort
+auswaehlen.
+
+Ort fixieren (N)
+================
+Ein  bereits  angezeigter  Ort  laesst  sich  fixieren, d.h. er gilt fortan als
+Ursprungsort, von dem aus die Entfernung berechnet wird.
+N  praesentiert  eine  kleine  Liste,  aus  der einer der beiden aktuellen Orte
+fixiert oder die Fixierung aufgehoben werden kann.
+
+History (G)
+===========
+Die  bisherigen  angezeigten  Fundstellen  (Orte  +  Overlays)  werden in einer
+eigenen Liste gespeichert, damit jederzeit schnell auf diese zugegriffen werden
+kann.  Wird aus dieser Liste ein Ort ausgewaehlt, verzweigt das Programm in die
+Suchfunktion.
+
+Overlays (O, P)
+===============
+Overlays,  auch  Layers genannt, sind zusaetzliche Daten, die jederzeit auf dem
+aktuellen  Kartenausschnitt  ein-  oder  ausgeblendet  werden  koennen.  GeoDis
+unterscheidet  zur  Zeit  zwei  Arten von Overlays: Punkte (Ortschaften, Hotels
+usw.) und Linien (Fluesse, Seen, Strassen usw.). Erstere koennen auch durch ein
+Bild repraesentiert werden.
+
+Psion-O
+-------
+Fuer  jeden  Overlay  laesst  sich  waehlen, ob er schwarz oder grau gezeichnet
+wird,  bei  Punkt-Overlays  auch, ob die Daten als Markierung oder als Bild auf
+der  Karte  erscheinen   sollen   (einstellen   unter   Psion-A).   Psion-Enter
+praesentiert  ein Menu, bei dem alle Overlays aktiviert oder deaktiviert werden
+koennen.
+
+Psion-P
+-------
+Dies  praesentiert  eine Auswahlliste aller gefundenen Overlays. Wenn Sie einen
+auswaehlen,  wird  die  Beschreibung  aus dem Overlay ausgelesen und angezeigt.
+Zurueck zur Auswahlliste mit Enter oder Abbruch mit Esc.
+
+Die  Dateien  mit der Endung .??2 sind Overlays (die beiden Fragezeichen stehen
+fuer den Kartencode - CH fuer Schweiz, US fuer USA usw.).
+Die   Endung   .??3   bezeichnet   die   zugehoerigen   Icons.    Dies     sind
+Standard-PIC-Bilder, die mit einem Pixeleditor leicht geaendert werden koennen.
+Das  Programm  verwendet sie automatisch, falls ein gleichnamiger Punkt-Overlay
+aktiviert  wird.  Diese  Bilder  koennen  beliebig  gross  sein,  das  Programm
+positioniert sie automatisch richtig, falls sie quadratisch sind.
+
+Momentan  koennen  max. 28 Overlays gleichzeitig angezeigt werden (sechs in der
+unregistrierten Version).
+
+Registrierte  Benuetzer  koennen eigene Overlays erstellen. Es sei dazu auf das
+Zusatzprogramm verwiesen, das der Vollversion beiliegt: Geocomp.opo.
+
+GPS
+===
+Einfuehrung
+----------
+An  GeoDis kann ein GPS (Global Positioning System) angeschlossen werden. Damit
+wird  auf  der  Schweizerkarte  jederzeit  automatisch  die  aktuelle  Position
+angezeigt.
+
+Wie  funktioniert  das  GPS-System?  Die  Amerikaner  betreiben  zwei   Dutzend
+Satelliten,  die  sich  in  Umlaufbahnen um die Erde befinden. Diese Satelliten
+senden  Signale, welche von den GPS-Geraeten empfangen werden. Wenn die Signale
+von  mindestens  drei Satelliten empfangen werden, laesst sich aus der Position
+der  Satelliten  und  der  Laufzeit  der  Signale  die Position des Empfaengers
+berechnen. Je mehr verschiedene Satelliten empfangen werden, desto genauer wird
+diese  Positionsbestimmung  -  einige  Geraete  koennen  bis  zu zwoelf Signale
+empfangen.
+
+Die USA haben das GPS-System natuerlichen nicht aus reiner Gefaelligkeit an der
+Menschheit  aufgebaut, sondern es dient vornehmlich militaerischen Zwecken. Die
+US  Army  kann  naemlich  mit  speziellen  Geraeten  die  codierten GPS-Signale
+verwenden, um die Position sehr genau zu bestimmen (meines Wissens auf ein paar
+Meter  genau).  Die  restliche  Welt  kann  die  uncodierten  GPS-Signale  frei
+empfangen,  wobei  eine  extra  einprogrammierte,  variable  Ungenauigkeit  den
+Messfehler  auf  30  -  50  Meter  erhoeht. Fuer zivile Zwecke ist dies vollauf
+genuegend.
+
+Was  kann  das GPS? Das haengt vom Geraet ab, meistens sind folgende Funktionen
+moeglich:  Positionsangabe  in  Laengen-  und  Breitengraden  oder in Schweizer
+Koordinaten,  Richtung  in  Grad,  Geschwindigkeit  (sehr  genau), Hoehenangabe
+(ungenau), Distanzberechnungen, Umrechnung zwischen Koordinatensystemen, Zeit +
+Datum, Sonnenauf- und Untergang usw.
+
+Was  bringt  ein  GPS fuer GeoDis? Wird ein GPS mittels seriellem Kabel mit dem
+Psion  S3a  verbunden, ergeben sich weitere Einsatzmoeglichkeiten: GeoDis zeigt
+auf  der  Schweizerkarte  laufend an, wo man sich gerade befindet und in welche
+Richtung  man  sich bewegt. Ideal ist der Einsatz dieser Konfiguration im Auto,
+als  Orientierungshilfe auf Reisen. Auch als Fahrtenbuch laesst sich das System
+einsetzen,  denn  GeoDis  speichert auf Wunsch die anfallenden Koordinatendaten
+mit  aktueller  Zeit  in einer Textdatei. Aus dieser Datei laesst sich dann ein
+Overlay generieren, der die zurueckgelegte Strecke auf der Karte einzeichnet.
+
+Preis  und  Bezugsquellen: Globale Positionierungssysteme (GPS) sind in letzter
+Zeit massiv guenstiger geworden, bekommt man doch ein solches Geraet schon fuer
+etwa  300  Franken  (bitte  anfragen  fuer  GPS-Haendler  in  der Schweiz). Die
+kleinsten  Geraete  sind  etwa  so  gross  wie  ein Natel und sind deshalb auch
+geeignet, sie auf sich zu tragen, z.B. auf einer Wanderung.
+
+Was wird fuer GPS-Betrieb am Psion benoetigt?
+
+a) ein GPS-Geraet, das die Daten via serielle Schnittstelle im NMEA-0183 Format
+ausgeben  kann. Ich benuetze ein Garmin GPS 38 (guenstig/kompakt), zu empfehlen
+ist  auch  der  GPS  45XL  oder  GPS II vom gleichen Hersteller, die zwar etwas
+teurer sind, aber mehr Anschluesse (externer Strom, seriell, Antennenanschluss)
+bieten.
+
+b)  ein  serielles Kabel zum GPS, welches gewoehnlich nicht automatisch mit dem
+GPS  geliefert wird. Vorsicht, das Datenkabel hat oft keinen Stecker am anderen
+Ende,  Loetkenntnisse  sind  deshalb  von  Vorteil.  Ihr  Haendler  hilft Ihnen
+vielleicht beim Loeten des Kabels. Anschluesse sind nur drei noetig:
+Garmin GPS 45/40/38   Stecker 9 Pol    25 Pol   Funktion
+Kabel-Farbe           Pin Nr.          Pin Nr
+-------------------   -------------    ------   --------
+schwarz                    5              7     ground
+braun                      3              2     data out
+weiss                      2              3     data in
+rot (wird nicht verwendet)
+(Beim  Anschluss  an  den  PC  waere  eine  Switchbox  zu verwenden, welche die
+Leitungen 2 und 3 kreuzt.)
+
+c) einen seriellen Link fuer den Psion Serie 3a/3c.
+
+Anwendung
+---------
+Da  die Schweizerkarte in GeoDis auf einem Kilometerraster basiert, eignet sich
+der  GPS-Einsatz  nicht fuer kleine Strecken oder fuers Stadtgebiet, da die vom
+GPS gelieferten Daten auf ganze Kilometer auf- oder abgerundet werden.
+
+Beachten   Sie,   dass   GPS   nur   anwaehlbar   ist,   wenn     das     Modul
+\app\geodis\geogps.opo beim Programmstart vorhanden ist.
+
+Sie  sollten zuerst den Psion mit dem GPS verbinden, dann mit Psion-Shift-G die
+GPS-Funktion  von GeoDis aktivieren und schliesslich das GPS-Geraet einschalten
+und  die  NMEA-Schnittstelle aktivieren. Bis das GPS einen gueltigen "Fix" hat,
+gibt  GeoDis  die  Meldung "invalid fix" oder "invalid data" aus. Erst gueltige
+Positionsdaten bewirken die Darstellung des blinkenden Positionskreuzes auf der
+Karte.
+
+Die  Leertaste  (SPACE-Taste)  bewirkt,  dass  die  GPS-Daten sofort ausgelesen
+werden,  auch  wenn  das  Zeitintervall  noch  nicht  abgelaufen war. Falls die
+Position oder Richtung seit der letzten Auslesung geaendert haben, erfolgt eine
+dementsprechende Aenderung auf der Karte.
+
+Sollte  die  Logdatei (Gpstemp.*) in Gebrauch oder schreibgeschuetzt sein, wird
+KEIN Fehler generiert, um das Programm nicht zu unterbrechen - die Daten werden
+einfach  nicht gespeichert. Falls an den kurz eingeblendeten Koordinaten rechts
+unten  ein  /log  angehaengt  ist,  koennen  Sie  sicher  sein,  dass die Daten
+erfolgreich  gespeichert  wurden.  Wenn nur der Kurs (Himmelsrichtung) aendert,
+wird kein Logeintrag geschrieben.
+
+Simulator:  Druecken  Sie  Psion-Shift-G,  dann  Psion-Enter. Damit koennen Sie
+sehen, wie die "wandernde Karte" funktioniert, ohne ein GPS-Geraet anschliessen
+zu muessen.
+
+Einstellungen
+=============
+Die  registrierte  Programmversion  speichert  die  wichtigsten   Einstellungen
+automatisch  bei Programmende in der Datei M:\OPD\Geodis.??s (separat fuer jede
+Karte).  Sind  Sie mit Ihren Einstellungen zufrieden und wollen Sie verhindern,
+dass  diese  wieder  geaendert werden, setzen sie einfach das Dateiattribut der
+oben  erwaehnten  Datei(en)  auf  'Nur  Lesen' (Read Only). Ich selbst benuetze
+Psion-Esc zum Beenden von GeoDis - obwohl das einem Programmabbruch entspricht,
+kann  es  bei GeoDis zu keinem Datenverlust kommen, da auf saemtliche Daten nur
+lesend zugegriffen wird.
+Zoom-Einstellung  und Karten-Position werden bei Programmende auch gespeichert.
+Wenn  Sie  die Karte nach dem Programmstart nicht sehen koennen, druecken Sie 1
+fuer den kleinsten Zoom. Falls das nichts nuetzt, koennen Sie ohne weiteres die
+entsprechende  Setup-Datei  loeschen  (M:\OPD\Geodis.??s),  damit  GeoDis  beim
+naechsten  mal Standardeinstellungen verwendet. Natuerlich koennen Sie auch mit
+F  nach  einem  Ort  suchen,  die  Karte wird danach automatisch wieder richtig
+zentriert.
+
+Speicherbedarf
+==============
+Max. 100 KB freier Hauptspeicher genuegen, um GeoDis mit der Karte 'Schweiz' zu
+nuetzen.  Die  anderen Karten benoetigen etwas weniger Speicher, da sie weniger
+Orte enthalten.
+Der Prozessor des Serie 3a/3c kann bekanntlich nicht mehr als 512 KB verwalten.
+Auf  den  neueren  1 MB und 2 MB Maschinen kann deshalb die Fehlermeldung 'kein
+Speicher'  auftreten,  obwohl  scheinbar  noch  genuegend  Speicher  frei  ist.
+Schliessen  Sie  in diesem Fall eine oder mehrere Anwendungen und versuchen Sie
+es dann erneut.
+
+Infos zur Schweiz
+=================
+Weitere, gratis verfuegbare Daten ueber die Schweiz sind:
+- PLZ.DBF (130 KB), Datenbank mit Postleitzahlen aller Ortschaften der Schweiz
+- Helvetia.spr (23 KB), Tabelle mit Daten aller Kantone (Bevoelkerung, Flaeche,
+  Anzahl  Gemeinden  etc.),  Bevoelkerungszahlen aller Staedte und Resultat der
+  Nationalratswahlen 1995; 8 verschiedene Grafiken
+
+Updates
+=======
+1.02
+- Die  Bildschirmgroesse wird vom Programm zu Beginn abgefragt, mit dem Effekt,
+  dass der grosse Bildschirm im S3a-Emulator voll ausgenuetzt wird.
+- Mit  den Tasten 1 - 7 kann direkt die entsprechende Vergroesserung angewaehlt
+  werden.
+- Formeln (Psion-A)
+- erweitertes Overlay-Format
+1.03
+- mehrere Karten
+- Psion-Enter im Info-Dialog erlaubt es, die Koordinaten des aktuellen Ortes zu
+  speichern.  Mit dem Zusatzprogramm Geocomp.opo lassen sich so eigene Overlays
+  erzeugen. [*]
+- mehrere  Sprachen  dank  Message-Dateien.  Momentan  werden  nur  die Codes 3
+  (deutsch)  und  1  (englisch)  unterstuetzt.  Fall  Sie  eine  andere Sprache
+  wuenschen  als  die, die im Psion-ROM vorgegeben ist, koennen sie die Dateien
+  entsprechend  umbenennen  (*.03  nach  *.01 oder umgekehrt). Sie koennen auch
+  beim  Programmstart die PSION-Taste druecken, dadurch wird die jeweils andere
+  Sprache aktiviert.
+- Konvertierungsmenue, Umrechnung zwischen mi, km, ft, m
+1.04
+- maximal 28 Overlays
+- verbesserte Suchfunktion (exakte šbereinstimmung)
+- Psion-Enter sucht in allen Overlays
+- Schweizer  Grenze  neu gezeichnet (einige Schweizer Orte waren in Deutschland
+  angesiedelt...), Grenze Liechtenstein
+- neue Karten: France1, Vector
+- Geosupp.opo wird nun in jedem Fall benoetigt
+- variable Markierungen im Formelmenu
+- Distanztabelle fuer die USA-Karte
+- Karte Schweiz: HAM-Radio/Packet Radio Locator
+1.05
+- Overlays: Firmen, Best Western, McDonald's aktualisiert (Schweizer Karte)
+- neue Karten: Deutschland, Europa, M‚tro, Kanaren
+- Konvertierungen: m nach ft wird nun korrekt berechnet
+- Info ueber Karten: mapinf01.?? Dateien (z.Z. nur in englisch)
+- Alle/keine Overlays anzeigen: Psion-O, dann Psion-Enter
+- Peilung bei Abfrage der Distanz zwischen Orten
+- Jede  Karte  hat  nun ihr eigenes Verzeichnis in \APP\GEODIS\. Dies macht das
+  Handling der Karten einfacher und beschleunigt den Dateizugriff.
+- Es werden alle Teile nach Orten durchsucht, jedoch neu zuerst die aktivierten
+  (Psion-A)
+- County-Dateien  sind  nun auch sprachenabhaengig: County.xx Dateien umbenannt
+  nach  County??.xx,  wobei  ?? momentan fuer 01=englisch and 03=deutsch steht.
+  GeoDis sucht beide Dateien aber benuetzt bevorzugt jene Sprache, die im Psion
+  ROM  ist.  Die  jeweils  andere  Sprache  wird  verwendet,  wenn  GeoDis  mit
+  gedrueckter Psion-Taste gestartet wird.
+- Limitierungen  der  unregistrierten Version entfernt: Diamant-Taste, History,
+  Distanztabelle
+- besseres  Handling  der  Anzeige,  weniger Zeichenvorgaenge noetig; Leertaste
+  zeichnet ganze Anzeige neu, Enter nur Overlays
+- Geomanag.opo:  Listet/zaehlt  GeoDis-Dateien.  Zeigt  auch  die  zweistellige
+  Dateierweiterung:  city1a.ch1  -  CH  ist  der Code fuer die Schweizer Karte.
+  Geomanag  kann  auch einzelne Karten kopieren oder loeschen. Strg-S haelt die
+  Ausgabe an und Strg-Q faehrt fort. [*]
+- Zoom-Einstellung und Karten-Position werden bei Programmende nun gespeichert
+- Formeln   (Psion-A):   verschiedene   Schriftgroessen   abhaengig   von   der
+  Einwohnerzahl
+- Geocomp kann jetzt neben Point- auch Line-Overlays kompilieren [*]
+1.06
+- Locator neu Psion-Y
+- Psion-P: Anzahl Objekte und Groesse des Overlays wird im Titel angegeben
+- Koordinaten  speichern: Psion-Shift-Enter oder Psion-Enter; wird nun immer im
+  internen  Drive  gespeichert  (Geotemp).  Die  erlaubt  es,  GeoDis  ab einem
+  schreibgeschuetzten Medium laufen zu lassen.
+- Fehler behoben: GeoDis laeuft nun auch ab dem Cyclone Diskettenlaufwerk
+- Orte  anzeigen  und  Formeln  ist jetzt unter Psion-S - bis zu 7 City-Dateien
+  sind nun moeglich (vorher 3)
+- County-Dateiformat geaendert: Menuetetexte integriert (Psion-S)
+- neu: geo_xx.opo Dateien (kartenspezifische Routinen)
+- Suche nach Orten kann mit ESC abgebrochen werden
+- Geocomp.opo:  neue  Option,  die es ermoeglicht, die Overlay-Beschreibung auf
+  der ersten Zeile der Quelldatei zu schreiben
+- Anzeigeroutinen der Orte und Punkt-Overlays beschleunigt
+- Das  GeoDis-Logo  erscheint  nur  noch   etwa   waehrend   einem   von   zehn
+  Programmstarts
+- Ortsnamen und Overlaynamen koennen unabhaengig voneinander ein-/ausgeschaltet
+  werden.  Psion-J  fuer  Ortsnamen  und  Psion-K  fuer  Overlaynamen.  Psion-B
+  uebersteuert J/K und schaltet die Beschriftung ein und aus.
+- GPS-Unterstuetzung:  nur waehlbar, wenn das Modul \app\geodis\geogps.opo beim
+  Programmstart vorhanden ist.
+- Schweiz:  neuer  Overlay  Gourmet;  Overlay   Kantone:   Kantonsbezeichnungen
+  mehrsprachig, mit Einwohnerzahlen; Overlay Bowling aktualisiert
+- Germany:  Overlays  Inseln,  Berge,  KFZ  (Autokennzeichen),  Laender   inkl.
+  Einwohnerzahlen
+- Europa:  neuer  Overlay  Country;  Overlay  Islands:   Malta   +   Elba   und
+  Hauptorte/Flaeche/Land hinzugefuegt
+- Neue  Karte:  US-City.  Aus  technischen  Gruenden  wird bei dieser Karte bei
+  groesstem Zoom kein Rahmen angezeigt.
+- Distanztabelle  bei Speicherknappheit: wenn Alloc fehlschlaegt, wird der Heap
+  komprimiert,  gefolgt von erneutem Alloc. Erst wenn dieser auch fehlschlaegt,
+  wird eine Fehlermeldung ausgegeben.
+- neue Karte: Oesterreich/Austria
+- Anzeigeroutinen geaendert fuer bessere Kompatibilitaet zum Siena
+
+Registrierung (R)
+=================
+Dieses  Programm  ist  nicht  gratis.  Sie  koennen  es jedoch zwei Wochen lang
+unverbindlich  testen.  Falls  Ihnen  das  Programm  gefaellt und Sie es weiter
+benuetzen,  muessen  sie  es  danach  registrieren, andernfalls  muss es wieder
+geloescht  werden.  Die  Registrierung geschieht durch Bezahlung eines geringen
+Betrages (siehe unten).
+
+Vorteile der Registrierung:
+---------------------------
+Sie  erhalten  einen  Code  zugeschickt,  den  Sie  in  der Menueanwahl Psion-R
+(Registrieren)  eingeben  koennen.  Dadurch  werden zusaetzliche Funktionen des
+Programmes freigegeben:
+
+- Die Limitierung auf sechs Overlays entfaellt.
+- Die momentanen Einstellungen lassen sich in einer Setup-Datei speichern
+-  100  anstatt  20  gefundene  Orte  koennen sortiert in einer Liste angezeigt
+werden.
+
+Das  Zusatzprogramm  "Geocomp"  fuer  registrierte  Benuetzer  bietet Ihnen die
+Moegichkeit, eigene Overlays zu erstellen.
+
+Als  registrierter  Benutzer  haben  Sie  auch  die  Moeglichkeit, Wuensche und
+Anregungen  anzubringen.  Diese  werden  sich  unter Umstaenden in zukuenftigen
+Versionen von GeoDis niederschlagen.
+
+Sie  koennen  dieses  Programm auch an Freunde und Bekannte weitergeben, jedoch
+nur  vollstaendig  und unveraendert. Alle Programm- und Daten-Files sowie diese
+Dokumentation  muessen in diesem Fall kopiert werden. Die Vollversion, fuer die
+Sie bezahlt haben, ist jedoch NICHT zur Weitergabe bestimmt.
+Beachten Sie, dass die registrierte Version dieses Programmes eine Datei namens
+Geodis.reg  erzeugt, die Sie nicht weiterkopiern duerfen. Diese Datei gibt alle
+Funktionen des Programmes frei und beinhaltet Ihren Namen. So laesst sich stets
+nachvollziehen,  wer  seine registrierte Version unerlaubterweise weitergegeben
+hat.
+
+Denken  Sie  daran,  nur  durch  Ihre  Unterstuetzung kann das Shareware-System
+ueberleben.  Falls niemand das Programm registriert, habe ich keine Motivation,
+es weiter zu entwickeln und es wird sich mir die Frage stellen, ob ich es nicht
+besser kommerziell vertrieben haette.
+
+Kosten:
+-------
+Die Registrierung kostet nur SFr. 20 oder US$ 20 oder GBP 15 in bar.
+
+Die  kleinen  Karten  (klein  im Sinn von kleiner Platzbedarf) erhalten Sie auf
+jeden  Fall,  denn  Sie  sind  komplett  in  der  Shareware-Version  und in der
+Vollversion enthalten:
+USA, Europa, France1, Metro, Canaries, Vector.
+
+Die grossen Karten kosten jeweils eine Registrierungsgebuehr.
+Momentan sind dies folgende Karten:
+- Schweiz (3000 Orte)
+- Austria (2400 Orte)
+- Germany (1500 Orte)
+- US-City (6400 Orte)
+
+Bei  Bezahlung einer Registrierungsgebuehr erhalten Sie eine der obigen Karten.
+Wenn  Sie  40  Franken  zahlen,  koennen  Sie zwei Karten auswaehlen usw. Bitte
+teilen Sie mir jeweils mit, welche Karte(n) Sie registrieren wollen.
+
+Checks  werden  von Banken nur gegen hohe Gebuehren eingeloest und sind deshalb
+nicht  sehr gern gesehen. Erhoehen Sie deshalb den Betrag um 20 %, wenn Sie den
+Check einer Barsendung vorziehen.
+
+Sie  koennen  via Compuserve registrieren (US$ 22), indem Sie GO SWREG waehlen,
+und  dann  den Instruktionen folgen. Die Registrierungsnummer von GeoDis lautet
+6320.
+
+In Deutschland wird GeoDis durch die Firma PSIOlogic vertrieben. Wenn Sie DM 30
+auf  deren  Konto   einzahlen,   erhalten   Sie   die   Vollversion   und   den
+Registrierungscode schnell und zuverlaessig per Post.
+PSIOlogic
+Michael Baas
+Taunusstrasse 4
+D-63589 Linsengericht
+Tel 06051 470065
+Fax 06051 470066
+Konto 305006 der Raiffeisenbank Gelnhausen (BLZ: 507 626 49)
+
+Lieferung: auf einer PC DOS-Diskette oder fuer Compuserve-Mitglieder via binary
+E-Mail.
+
+Registrierte  Benuetzer erhalten neue Programmversionen automatisch und gratis,
+falls  das  Update  per  E-Mail  versandt werden kann. Ist dies nicht der Fall,
+schicken  Sie mir bitte eine formatierte DOS-Diskette inkl. Rueckporto fuer das
+Update. Erkundigen Sie sich vorher, welches die aktuelle Programmversion ist.
+
+Falls  Sie  komprimierte  Dateien im ZIP-Format nicht verwenden koennen, teilen
+Sie mir das bitte mit der Bestellung mit. Sie werden dann eine Diskette mit den
+unkomprimierten Dateien erhalten.
+
+Haftung
+=======
+GeoDis  wurde  ausfuehrlich  getestet und die Daten wurden sorgfaeltig erfasst.
+Jedoch  kann  weder  fuer  die  Lauffaehigkeit  des  Programmes  noch  fuer die
+Richtigkeit  der  von  GeoDis  praesentierten  Daten  irgend eine Garantie oder
+Haftung uebernommen werden.
+
+Autor
+=====
+Rolf Aeschbacher
+Bacheggweg 2
+CH-8424 Embrach
+Schweiz
+
+E-Mail: 100116.3357@compuserve.com
+Compuserve: 100116,3357
+FidoNet: 2:301/811.26
+Homepage: http://ourworld.compuserve.com/homepages/aeschbi/
+Telefon: +41-(0)1-865-38-48
+Postcheck-Konto: 84-51241-4
+
+[End of file]

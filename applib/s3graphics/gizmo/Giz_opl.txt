@@ -1,0 +1,40 @@
+WRITING OPL MODULES FOR GIZMO
+It's easy to write OPL modules for Gizmo. All you need is a basic knowledge of OPL.
+
+OPL modules for Gizmo only use commands to the text screen, enabling modules to be quickly written with the minimum of fuss.
+
+Why write programs for Gizmo?
+If you often find yourself using the same calculations in your work or interests, you may find it better to write a small program to handle that calculation. It doesn’t take very long to do, and having that special calculation available through Gizmo is a very convenient way of working.
+
+Creating a program
+Users should know that the screen text area allocated to user OPL modules is 21 characters wide by 13 rows.
+
+Please note that; all modules should have a filename and PROC of the same name. In the source code shown below, there is a variable mentioned called 'answer'. This is a global variable used by Gizmo, and your answer must be written to this variable if you want your last answer to be available to Gizmo after your module has run.
+
+I have reproduced below my source code for my profit module to show you just how easy it is to create a small module. You may base your own module on this model. Note that as it stands, after the code has been typed out and translated, you should decline to run it - you can't anyway, because the variable 'answer' is a global variable inside Gizmo itself. Though you should be able to run the module from Gizmo.
+
+It may be easier to test your program without running it through Gizmo. To do this just create a LOCAL variable called answer. When you are happy that your program is working correctly - delete the local variable 'answer' and translate again.
+
+Hope you find these notes of use.
+Happy programming.
+
+PROC Profit:
+LOCAL cost,sell
+PRINT "PROFIT CALC"
+PRINT "Cost price", :TRAP INPUT cost
+IF ERR :GOTO finish:: :ENDIF
+PRINT "Sell price", :TRAP INPUT sell
+IF ERR :GOTO finish:: :ENDIF
+PRINT "Profit œ";sell-cost
+answer=(sell-cost)/cost*100
+answer=VAL(GEN$(answer,12))
+PRINT "Profit/cost="
+PRINT answer;"%"
+PRINT
+answer=(sell-cost)/sell*100
+answer=VAL(GEN$(answer,12))
+PRINT "Profit/sell="
+PRINT answer;"%"
+finish::
+ENDP
+

@@ -1,0 +1,55 @@
+==========
+psion/opl #2922, from hzk, 1671 chars, Jun 22 16:19 96
+Comment to 2921.
+----------
+Here are a few simple fragments to help you.
+
+To check whether a drive or a directory exists, you can try opening its 
+root directory, i.e.  ispath%:("LOC::B:\").  You can use this to check
+whether any path exists:
+
+PROC ispath%:(cp$)
+        LOCAL h%,pp$(128)
+        pp$=cp$+"*.*"
+        IF IOOPEN(h%,pp$,$30)   REM open directory call
+                RETURN 0        REM directory does not exist
+        ELSE
+                IOCLOSE(h%)     REM it does exist, so close it
+                RETURN -1
+        ENDIF
+ENDP
+
+To check what's in a slot, and its size, etc. (You may be able to use 
+this to check the existence of a device instead of ispath%:(), as 
+PEEKW(a%), med%, and bt& will all return zero):
+
+PROC free:(device$)
+        LOCAL a%,bf&,bt&,med%,n$(8),f%(32),r$(40)
+        n$=device$
+        a%=ADDR(f%())
+        CALL($0a87,UADD(ADDR(n$),1),a%)
+        med%=PEEKB(a%+2)
+        r$=media$:(med%)    REM  r$ = media type
+        bt&=PEEKL(a%+6)     REM  bt& = total bytes on device
+        bf&=PEEKL(a%+10)    REM  bf& = free space on device
+        REM the 32 bytes from a%+14 hold the volume name
+        REM PEEKB(a%+46) should hold 1 if device battery is OK
+        REM or zero if battery low, or -4 if battery status n/a
+ENDP
+
+PROC media$:(n%)
+        IF n%=0 :RETURN "Missing or not known"
+        ELSEIF n%=1 :RETURN "Floppy"
+        ELSEIF n%=2 :RETURN "Hard Disk"
+        ELSEIF n%=3 :RETURN "Flash"
+        ELSEIF n%=4 :RETURN "RAM"
+        ELSEIF n%=5 :RETURN "ROM"
+        ELSEIF n%=6 :RETURN "Write Protected"
+        ENDIF
+ENDP
+
+All this and much more is in the PSIONICS file SYSCALLS.
+
+Roger
+
+

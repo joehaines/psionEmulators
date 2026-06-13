@@ -1,0 +1,307 @@
+REM Label.opl version 2.0
+PROC Start:
+GLOBAL vtab%,column%,key%,print%,search%,hor&,vert&,test%,vert%,hor%,labels%,count%,unused%,convert%,test2%
+REM unused% is unused labels on a sheet
+REM labels% is number of labels to be printed
+GLOBAL n$(128),title$(15),name$(3,40),addr1$(3,35),addr2$(3,35),addr3$(3,35),addr4$(3,35),addr5$(3,35),find$(128),test$(20),tag$(12)
+GLOBAL VTAB$(2),HTAB$(2),FFEED$(2)
+VTAB$=CHR$(11) :HTAB$=CHR$(9) :FFEED$=CHR$(12) REM These need changing for different printers
+tag$="X"  REM Default Tag in Notes is "X"
+test%=0 REM Make test%=1 to cutout startup screen and load database at test$.
+test$="A:\DAT\FRIENDS.DBF"
+IF test%=1
+	print%=2
+ENDIF
+n$="\dat\*.dbf" REM Has to go here to set path in first proc.
+				REM (Doesn't work in openfile proc.)
+column%=1
+Openfile: 
+Options:
+count%=1 REM Count positive to find qty
+
+REM First count number of labels to be printed
+DO
+	Search: 
+	NEXT
+UNTIL EOF
+PRINT "Number of labels to be printed=";labels% :GET
+
+IF print%=1
+	Pprep:	REM Prepare Printer
+ENDIF
+
+
+REM Build text for printer in sets of 3 across the page
+count%=-1 REM Count downwards as labels are printed
+FIRST REM reset to start of database
+WHILE labels%>0
+	IF labels%>unused% REM The complete sheet will be used up.
+		UseAll:
+	ELSE
+		UseSome:
+	ENDIF
+ENDWH
+
+REM Print any remaining built but unprinted records
+IF column%>1
+	Prints:
+ENDIF
+
+End:
+ENDP
+
+PROC Build: REM Build label text and print
+IF convert%=1 REM Convert name
+	Title:
+	Surname:
+ELSE REM Leave name as entry in database
+	GetName:
+ENDIF
+GetAddr:
+
+Screen:
+IF column%=3
+	Prints:
+	column%=1
+ELSE
+	column%=column%+1
+ENDIF
+ENDP
+
+PROC End:
+IF print%=1
+	LPRINT FFEED$;
+	LCLOSE
+ENDIF
+PRINT "Finished"
+GET
+ENDP
+
+PROC GetAddr:
+addr1$(column%)=A.add1$ : addr2$(column%)=A.add2$ : addr3$(column%)=A.add3$ : addr4$(column%)=A.add4$ : addr5$(column%)=A.add5$
+ENDP
+
+PROC GetName:
+name$(column%)=A.nm$
+ENDP
+
+PROC Openfile:
+IF test%=0
+	dINIT "Programme to Print Addresses from a database"
+REM	dTEXT "","Addresses must have been marked",2
+	dTEXT ""," Designed by R.A. Churchill",$101 REM Builds up dialog with last line bold
+	DIALOG
+	dINIT "Select a Database"
+	dFILE n$,"Filename",0 REM File selector dialog
+	DIALOG
+ELSE
+	n$=test$
+ENDIF
+REM Alter this line if layout of database is different
+OPEN n$,A,nm$,tel1$,tel2$,tel3$,add1$,add2$,add3$,add4$,add5$,note$
+ENDP
+
+PROC Options:
+search%=1 :hor&=3 :vert&=8 :convert%=1
+dINIT "Special Options"
+dCHOICE print%,"Printer available","Yes,No" REM Can test without printing and reminder to switch on printer
+dCHOICE search%,"Search Where?","One Character in Notes,Character String Anywhere"
+dEDIT tag$,"Search for What?",12
+dCHOICE convert%,"Convert names","Convert,Leave full name"
+dTEXT "","Position of Last Label",2
+dLONG hor&,"Horizontal Position:",1,3
+dLONG vert&,"Vertical Position:",1,8
+DIALOG
+find$="*"+tag$+"*"
+unused%=(vert&-1)*3+hor& REM OK
+ENDP
+
+
+PROC Pprep:
+LOCAL a%
+a%=10
+LOPEN "PAR:A"
+	REM Set UK Character Set
+LPRINT CHR$(27);"R";CHR$(3);
+	REM Set Prestige Fount
+LPRINT CHR$(27);"k";CHR$(3);
+	REM Set Page Length
+REM LPRINT CHR$(27);"C";CHR$(0);CHR$(12);
+	REM Set Fount Emphasis
+LPRINT CHR$(27);"!";CHR$(a%);
+	REM Set Horizontal Tab positions
+LPRINT CHR$(27);"D";CHR$(27);CHR$(55);CHR$(0);
+	REM Set Vertical Tab Positions
+LPRINT CHR$(27);"B";CHR$(1);CHR$(9);CHR$(18);CHR$(26);CHR$(34);CHR$(43);CHR$(51);CHR$(59);CHR$(0);
+vtab%=0
+ENDP
+
+PROC Prints:
+LOCAL text$(6,80),line%,horpos%
+REM line% is a counter
+REM horpos% is another counter
+REM Horizontal Tabs are imbedded in print string so that 
+REM the lines can be printed in turn.
+text$(1)=name$(1)+HTAB$+name$(2)+HTAB$+name$(3)
+text$(2)=addr1$(1)+HTAB$+addr1$(2)+HTAB$+addr1$(3)
+text$(3)=addr2$(1)+HTAB$+addr2$(2)+HTAB$+addr2$(3)
+text$(4)=addr3$(1)+HTAB$+addr3$(2)+HTAB$+addr3$(3)
+text$(5)=addr4$(1)+HTAB$+addr4$(2)+HTAB$+addr4$(3)
+text$(6)=addr5$(1)+HTAB$+addr5$(2)+HTAB$+addr5$(3)
+IF print%=1
+	LPRINT VTAB$; REM Tab Vertically 
+ENDIF
+vtab%=vtab%+1
+line%=1
+
+REM Print each line in turn
+DO
+	IF print%=1
+		LPRINT text$(line%)
+	ENDIF
+	line%=line%+1
+UNTIL line%=7
+
+REM Remove text to avoid printing excess labels when <3 left.
+horpos%=1
+DO
+	name$(horpos%)="" :addr1$(horpos%)="" :addr2$(horpos%)="" :addr3$(horpos%)="" :addr4$(horpos%)="" :addr5$(horpos%)=""
+	horpos%=horpos%+1
+UNTIL horpos%=4
+
+REM End of Page
+IF unused%=0
+	BEEP 5,700
+	vtab%=0
+	IF print%=1
+		LPRINT FFEED$;
+	ENDIF
+	IF labels%>0
+		PRINT "Waiting at End of Page  (Press any key)" :GET
+	ENDIF
+ENDIF
+ENDP
+
+PROC Screen:
+IF convert%=1
+	PRINT "(Entry in database: ";A.nm$;")"
+	PRINT "Name and address on label:"
+	PRINT name$(column%)
+ELSE
+	PRINT A.nm$
+ENDIF
+PRINT A.add1$ :PRINT A.add2$ :PRINT A.add3$ :PRINT A.add4$ :PRINT A.add5$
+ENDP
+
+PROC Search: REM Find Next Record
+LOCAL f%
+IF search%=1
+	WHILE LEFT$(A.note$,1)<> tag$ AND NOT EOF REM Checks first character in notes for an "X"
+		NEXT
+	ENDWH
+ELSEIF search%=2
+	f%=FIND(find$)
+ENDIF
+IF NOT EOF
+	labels%=labels%+count%
+ENDIF
+ENDP
+
+PROC Surname:
+LOCAL space$(1),nn%,mm%,sur$(20)
+nn%=LEN(A.nm$) : mm%=0
+WHILE nn%>0 AND space$ <> " " 
+	space$ = MID$(A.nm$,nn%,1) REM Looks for space before surname
+	nn%=nn%-1 : mm%=mm%+1
+ENDWH
+sur$=RIGHT$(A.nm$,mm%-1) REM Characters after space is surname
+name$(column%)=title$+sur$
+IF nn%=0
+	PRINT "Only one name found which would print as"
+	PRINT name$(column%);
+	PRINT "Therefore name blanked out"
+	PRINT "Press any key to continue"
+	BEEP 5,200 :GET
+	name$(column%)=""
+ENDIF
+ENDP
+
+PROC Tab:
+WHILE vert%>1
+IF print%=1
+	LPRINT VTAB$; REM Tab Vertically 
+ENDIF
+vtab%=vtab%+1
+vert%=vert%-1
+ENDWH
+column%=hor%
+ENDP
+
+PROC Title:
+LOCAL letter$(1),married$(7),initial$(1),step%,nn%
+nn%=LEN(A.nm$):title$=""
+DO
+	letter$=MID$(A.nm$,nn%,1)
+	IF letter$="&" REM Looks for & - flag for married
+		married$="& Mrs. "
+	ENDIF
+	nn%=nn%-1
+UNTIL nn%=0
+IF LEFT$(A.nm$,4)="Miss" REM Looks for Titles and 
+	title$="Miss ":step%=6
+ENDIF
+IF LEFT$(A.nm$,3)="Mrs"
+	title$="Mrs. ":step%=5
+ENDIF
+IF LEFT$(A.nm$,2)="Dr"
+	title$="Dr. ":step%=4
+ENDIF
+	REM IF LEFT$(A.nm$,3)="Drs"
+	REM title$="Drs. ":step%=5
+	REM ENDIF
+step%=1
+IF title$=""
+	title$="Mr. " REM Assumes Mr if no title
+ELSE
+	DO
+		initial$=MID$(A.nm$,step%,1)
+		step%=step%+1
+	UNTIL initial$=" " REM Finds next space
+ENDIF
+initial$=MID$(A.nm$,step%,1) REM Assumes next letter is the initial
+title$=title$+married$+initial$+". "
+ENDP
+
+PROC UseAll:
+	WHILE unused%>0 REM While there are unused labels on the sheet
+		unused%=unused%-1
+		Search:
+		Build:
+		NEXT
+	ENDWH
+	unused%=24 REM New sheet
+ENDP
+
+PROC UseSome:
+vert%=(unused%-labels%)/3+1
+hor%=(unused%+1-labels%)-(vert%-1)*3
+column%=hor%
+Tab:
+WHILE labels%>0
+	unused%=unused%-1
+	Search:
+	Build:
+	NEXT
+ENDWH
+ENDP
+
+PROC Test:
+PRINT "TEST ROUTINE"
+PRINT "Number of labels left to be printed=";labels%
+PRINT "Number of Unused labels on this sheet=";unused%
+PRINT "Name =";A.nm$
+REM PRINT "Position =";POS
+PRINT "column%=";column%
+PRINT "vtab%=";vtab%
+GET
+ENDP

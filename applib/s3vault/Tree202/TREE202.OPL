@@ -1,0 +1,457 @@
+REM
+REM TREE for the Psion Series 3.
+REM Shows files and subdirs on disk.
+REM Based on the MS-DOS (yeuch) utility.
+REM Version 2.02 Dated 4 April 93
+REM A Chocolate Island Software program.
+REM Copyright (c) Rick Andrews 1992
+REM
+REM This program is freeware.
+REM Please send any comments etc. to:-
+REM Rick Andrews,
+REM 164 Castle Hill, Reading
+REM England   RG1 7RP
+REM
+REM Version history.
+REM V1.00 1 May 92 - Published in Ipso Facto.
+REM V2.00 1 Nov 92 - Made app.
+REM      - Print to file or printer.
+REM V2.00a 14 Nov 92 - Print to parallel printer.
+REM      - Increased capacity to 999 files.
+REM V2.01 26 Mar 93 - Tidy up for PD release.
+REM V2.02 4 April 93 - First release.
+
+
+APP Tree
+	ICON "\PIC\TREE.PIC"
+	TYPE 0
+ENDA
+
+
+PROC Tree:
+REM Global array of names and depth.
+	GLOBAL gaName$(999,12)
+	GLOBAL gaDepth%(999)
+
+REM Max & actual number of entries.
+	GLOBAL GMAXENT%,gEntry%
+
+REM Entry level used to calc depth.
+	GLOBAL gLevel%
+
+	LOCAL disk$(4),disk%
+	LOCAL output%
+	LOCAL name$(9),f$(128),p%
+	LOCAL about%
+
+	GMAXENT%=999
+	gEntry%=1
+	disk$="AMBC" 
+
+	disk%=2 REM Internal 'M'.
+	output%=1 REM Screen.
+	about%=1 REM Don't show details.
+
+	GIPRINT "A 'Chocolate Island Software' program"
+
+	dINIT
+	dTEXT "","Tree",$302
+	dCHOICE disk%,"Drive","A,M,B,C"
+	dCHOICE output%,"Print to","Screen,File,Serial,Parallel"
+	dCHOICE about%,"About...","No,Yes"
+	IF DIALOG=0
+		RETURN
+	ENDIF
+
+	IF about%=2
+		About:
+	ENDIF
+
+	IF disk%=2 REM M
+		name$="RAMDRIVE"
+	ELSE
+		name$="(DRIVE-"+MID$(disk$,disk%,1)+")"
+	ENDIF
+
+	IF output%=2
+		f$="\WRD\TREE.TXT"
+		dINIT "Tree details"
+		dEDIT name$,"Disk name"
+		dFILE f$,"Print to file",1 REM 16?
+		IF DIALOG=0
+			RETURN
+		ENDIF
+		IF EXIST (f$)
+			DELETE f$
+		ENDIF
+	ELSEIF output%=3 OR output%=4 REM Printers.
+		IF output%=3
+			p%=1 REM Serial.
+		ELSE
+			p%=2 REM Parallel.
+		ENDIF
+
+REM Check the port is okay now, it can take
+REM quite a long time to scan a big disk...
+		IF chkprt:(p%)=0
+			RETURN REM no printer!
+		ENDIF
+		dINIT "Tree details"
+		dEDIT name$,"Disk name"
+		IF DIALOG=0
+			RETURN
+		ENDIF
+	ENDIF
+
+	CLS
+	AT 8,4
+	PRINT "TREE listing of drive",MID$(disk$,disk%,1)
+	AT 12,6
+	PRINT "Examining "
+
+	Descend:(MID$(disk$,disk%,1)+":")
+
+	IF output%=1 REM Screen
+		CLS
+		ShowTree:(0) REM PRINT.
+	ELSE
+		AT 12,6
+		PRINT "Processing...      "
+		IF output%=2
+			LOPEN f$
+		ELSEIF output%=3 OR output%=4
+REM Having scanned the disk, re-open the
+REM connection to the printer...
+			IF p%=1
+				LOPEN "TTY:A" REM open it for real.
+			ELSE
+				LOPEN "PAR:A" REM Parallel.
+			ENDIF
+		ENDIF
+		LPRINT "Tree of disk '"+UPPER$(name$)+"'"
+		LPRINT "on",DATIM$
+		ShowTree:(1) REM LPRINT.
+		LPRINT
+	ENDIF
+
+	IF output%>1
+		AT 12,6
+		PRINT "Done.        "
+		LCLOSE
+		IF output%=2 REM File
+			AT 8,8
+			PRINT "File is",f$
+		ENDIF
+	ENDIF
+	BUSY "Press any key",3 REM B right.
+	GET
+	BUSY OFF
+ENDP
+
+
+PROC Descend:(path$)
+REM Search filesystem.
+	LOCAL branch$(128),prev$(128)
+	LOCAL dummy$(128)
+	LOCAL dummyc%,curdep%
+
+	gLevel%=gLevel%+1
+
+	prev$=path$+"\"
+	branch$=DirChk$:(prev$)
+
+	IF branch$="NotDir!"
+		AddEntry:(FileN$:(path$))
+		gLevel%=gLevel%-1
+		RETURN
+	ENDIF
+
+REM Show user how hard we're working!
+	AT 22,6
+	PRINT DirN$:(path$)+"         "
+	AddEntry:(DirN$:(path$))
+
+	curdep%=0
+	WHILE branch$<>""
+REM do children (recursive!)
+		Descend:(branch$)
+
+REM Do peers, by restoring dir state.
+		dummy$=DIR$(prev$)
+		dummyc%=0
+		WHILE dummyc%<curdep%
+			dummy$=DIR$("")
+			dummyc%=dummyc%+1
+		ENDWH
+		curdep%=curdep%+1
+		branch$=DIR$("")
+	ENDWH
+	gLevel%=gLevel%-1
+	RETURN
+ENDP
+
+
+PROC FileN$:(p$)
+REM Get name of file.
+	LOCAL a$(128)
+	LOCAL off%(6)
+	a$=PARSE$(p$,"",off%())
+	RETURN RIGHT$(a$,LEN(p$)-off%(4)+1)
+ENDP
+
+
+PROC DirN$:(p$)
+REM Get name of directory.
+	LOCAL l%,c%
+	IF LOC(p$,"\")=0
+		RETURN p$+"\"
+	ENDIF
+REM Scan backwards for '\'
+	l%=LEN(p$)
+	DO
+		l%=l%-1
+		c%=c%+1
+	UNTIL MID$(p$,l%,1)="\"
+	RETURN RIGHT$(p$,c%)+"\"
+ENDP
+
+
+PROC DirChk$:(p$)
+REM Looking for directory.
+	LOCAL d$(128)
+	ONERR NoDir::
+	d$=DIR$(p$)
+	RETURN d$
+NoDir::
+	ONERR OFF
+REM -42 = "Directory does not exist".
+	IF ERR<>-42
+		ALERT(ERR$(ERR))
+		STOP
+	ENDIF
+	RETURN "NotDir!"
+ENDP
+
+
+PROC AddEntry:(name$)
+REM Store entry details.
+	IF gEntry%=GMAXENT%
+		GIPRINT "Too many entries - ignored"
+		gaName$(GMAXENT%)="somelost"
+	ELSE
+		gaDepth%(gEntry%)=gLevel%
+		gaName$(gEntry%)=name$
+		gEntry%=gEntry%+1
+	ENDIF
+	RETURN
+ENDP
+
+
+PROC ShowTree:(dev%)
+REM Display file system structure.
+	GLOBAL gTrunk%(20)
+ REM max depth 20 levels.
+
+	LOCAL level%,file%,dir%
+	LOCAL pause%,index%
+
+	gaDepth%(gEntry%)=0
+	IF dev%=0
+		PRINT gaName$(1)
+	ELSE
+		LPRINT gaName$(1)
+	ENDIF
+
+	index%=2
+	DO
+		level%=gaDepth%(index%)
+		IF level%=0
+			BREAK
+		ENDIF
+
+		IF GetPeer%:(index%)
+			gTrunk%(level%-1)=2 REM tee
+		ELSE
+			gTrunk%(level%-1)=1 REM bend
+		ENDIF
+
+	IF dev%=0
+		PRINT GeTrunk$:(level%);
+		PRINT gaName$(index%)
+	ELSE
+		LPRINT GeTrunk$:(level%);
+		LPRINT gaName$(index%)
+	ENDIF
+
+REM If not a directory...
+		IF RIGHT$(gaName$(index%),1)<>"\"
+			file%=file%+1
+		ELSE
+			dir%=dir%+1
+		ENDIF
+
+		index%=index%+1
+		IF dev%=0
+			pause%=pause%+1
+			IF pause%=8
+				BUSY CHR$(4),2
+				pause%=0
+				IF GET=27 REM 'Esc' to abandon.
+					RETURN
+				ENDIF
+				BUSY OFF
+			ENDIF
+		ENDIF
+	UNTIL level%=0
+
+	IF file%=1
+		IF dev%=0
+			PRINT "1 file",
+		ELSE
+			LPRINT "1 file",
+		ENDIF
+	ELSE
+		IF dev%=0
+			PRINT file%,"files",
+		ELSE
+			LPRINT file%,"files",
+		ENDIF
+	ENDIF
+	IF dir%=1
+		IF dev%=0
+			PRINT "in 1 directory."
+		ELSE
+			LPRINT "in 1 directory."
+		ENDIF
+	ELSE
+		IF dev%=0
+			PRINT "in",dir%,"directories."
+		ELSE
+			LPRINT "in",dir%,"directories."
+		ENDIF
+	ENDIF
+
+	IF gaName$(GMAXENT%)<>""
+		IF dev%=0
+			PRINT "(Some entries lost, maximum is",GMAXENT%;")"
+		ELSE
+			LPRINT "(Some entries lost, maximum is",GMAXENT%;")"
+		ENDIF
+	ENDIF
+	RETURN
+ENDP
+
+
+PROC GeTrunk$:(depth%)
+REM Get trunk shape.
+	LOCAL i%,trunk$(40),b2%
+	LOCAL tee$(1),pipe$(1)
+	LOCAL bend$(1),dash$(1),spc$(1)
+
+	pipe$=CHR$(179)
+	bend$=CHR$(192)
+	tee$=CHR$(195)
+	dash$=CHR$(196)
+
+	spc$=CHR$(32) REM Space.
+
+	IF depth%<=1
+		RETURN ""
+	ENDIF
+
+	IF depth%=2
+		IF gTrunk%(1)=2
+			RETURN tee$+dash$
+		ELSE
+			RETURN bend$+dash$
+		ENDIF
+	ENDIF
+
+REM depth is 3 or more.
+	b2%=depth%-2
+	trunk$=""
+	i%=1
+	DO
+		IF gTrunk%(i%)=2
+			trunk$=trunk$+pipe$+spc$
+		ELSE
+			trunk$=trunk$+spc$+spc$
+		ENDIF
+		i%=i%+1
+	UNTIL i%>b2%
+
+	IF gTrunk%(depth%-1)=2
+		trunk$=trunk$+tee$+dash$
+	ELSE
+		trunk$=trunk$+bend$+dash$
+	ENDIF
+
+	RETURN trunk$
+ENDP
+
+
+PROC GetPeer%:(index%)
+REM Any peers?
+	LOCAL curlev%,chklev%,i%
+	curlev%=gaDepth%(index%)
+	i%=index%+1
+	DO
+		chklev%=gaDepth%(i%)
+		IF chklev%=curlev%
+			RETURN -1
+		ENDIF
+		i%=i%+1
+	UNTIL chklev%<curlev%
+	RETURN 0
+ENDP
+
+PROC ChkPrt:(type%)
+REM Check now to make sure printer
+REM is on and in.
+REM Returns 0 if Abandoned.
+	LOCAL okay%,d%
+
+	okay%=0
+	DO
+		IF type%=1
+			TRAP LOPEN "TTY:A" REM Serial.
+		ELSE
+			TRAP LOPEN "PAR:A"
+		ENDIF
+		IF ERR
+			ALERT(ERR$(ERR),"More...")
+			dINIT "Printer link problems"
+			IF type%=1
+				dTEXT "","Check serial printer",2
+			ELSE
+				dTEXT "","Check parallel printer",2
+			ENDIF
+			dBUTTONS "Abandon",-27,"Retry",13
+			d%=DIALOG
+			IF d%=0 REM Esc.
+				RETURN 0
+			ENDIF
+		ELSE
+			okay%=1
+		ENDIF
+	UNTIL okay%=1
+	LCLOSE REM Don't hog the printer port.
+	RETURN 1
+ENDP
+
+PROC About:
+	dINIT
+	dTEXT "","Tree - a disk contents utility",$302
+	dTEXT "","A 'Chocolate Island Software' program",2
+	dTEXT "",CHR$(184)+" Rick Andrews 1992, 1993",2
+	dTEXT "","Version "+"2.02"+" - Dated 4 April 93",2
+	DIALOG
+	dINIT
+	dTEXT "","This program is freeware.",2
+	dTEXT "","If you have any comments about it, ",2
+	dTEXT "","please write to me:-",2
+	dTEXT "","Rick Andrews, 164 Castle Hill,",$102
+	dTEXT "","Reading, England  RG1 7RP",$102
+	dTEXT "","Share and Enjoy!",2
+	DIALOG
+ENDP

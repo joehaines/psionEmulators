@@ -1,0 +1,132 @@
+PROC readAgn:
+	global secs&,s,yr%,mo%,dy%,hh%,mm%,ss%,yrday%
+	global f$(128),rtype$(6,15)
+	f$="\agn\*.agn"
+	rtype$(1)="yearly"
+	rtype$(2)="monthly by date"
+	rtype$(3)="monthly by day"
+	rtype$(4)="weekly"
+	rtype$(5)="daily"
+	rtype$(6)="workdays"
+	while 1
+		dInit "Select Agenda file to display"
+		dFile f$,"Agenda file",0
+		if dialog = 0
+			stop
+		endif
+		trap open f$,a,day%,dur%,tim%,alm%,t$
+		if err
+			cls
+			print err$(err)
+		else
+			first
+			ScanRecs:
+			close
+		endif
+	endwh
+ENDP
+
+PROC ScanRecs:
+	local b%
+	while 1
+		Output:
+		while 1
+			dInit
+			dPosition 1,1
+			dButtons "Back",8,"Next",13
+			b%=dialog
+			if b%=13
+				if pos>=count
+					giprint "At end of file",2
+					continue
+				endif
+				next
+				break
+			elseif b%=8
+				if pos<=1
+					giprint "At start of file",2
+					continue
+				endif
+				back
+				break
+			else
+				return
+			endif
+		endwh
+	endwh
+ENDP
+
+PROC Output:
+	local t$(70),ty%,in%,st%,en%
+	local ad%,l%
+	cls
+	t$=a.t$
+	if a.day% = -1
+		print t$
+		print "To-do item"
+		print "Priority:",a.tim%
+		print "2nd key:",a.dur%/2
+		return
+	elseif a.day% = -2
+		l%=len(t$)-6
+		ad%=addr(t$)
+		pokeb ad%,l%
+		ty%=peekb(ad%+l%+1)
+		in%=peekb(ad%+l%+2)
+		st%=peekw(ad%+l%+3)
+		en%=peekw(ad%+l%+5)
+		print t$
+		if ty%<0 or ty%>5
+			print "*** Unknown repeat type ***"
+		else
+			print "Repeat",rtype$(ty%+1)
+		endif
+		print "Interval",in%
+		prntDay:("Start day:",st%)
+		if en%
+			prntDay:("End day:",en%)
+		else
+			print "Repeating forever"
+		endif
+	else
+		print t$
+		prntDay:("Day:",a.day%)
+	endif
+	if a.tim% and $8000
+		print "Untimed"
+	else
+		print "Timed"
+	endif
+	if (a.tim% and $8000) <> $8000
+		prntTime:("Time:",a.tim% and $7fff)
+		prntTime:("Duration:",a.dur%/2)
+	endif
+	if (a.dur% and $1) <> $1
+		if a.tim% and $8000
+			print "Alarm days previous: ";a.alm%/(24*60)
+			prntTime:("Alarm: ",(23*60+59)-(a.alm%-((a.alm%/(24*60))*(24*60))))
+		else
+			prntTime:("Alarm: ",(a.tim% and $7fff)-(23*60+59)+a.alm%)
+		endif
+	else
+		print "No alarm set"
+	endif
+ENDP
+
+PROC prntTime:(s$,t%)
+	print s$,t%/60;":";t%-((t%/60)*60)
+ENDP
+
+PROC prntDay:(p$,d%)
+	secs&=d%
+	secs&=secs&-days(1,1,1970)
+	secs&=secs& and &ffff 
+	s=secs&
+	s=s*86400
+	if s>2147483647
+		s=s-4294967296
+	endif
+	secs&=s
+	secstodate secs&,yr%,mo%,dy%,hh%,mm%,ss%,yrday%
+	print p$,dy%;"/";mo%;"/";yr%
+ENDP

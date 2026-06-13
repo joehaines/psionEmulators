@@ -1,0 +1,96 @@
+PROC dragdemo:
+
+REM This is a demo program to illustrate how to drag a
+REM window using OPL32. This is JUST A DEMO, and therefore
+REM doesn't have any error handling, additional event
+REM handling, graceful closing, or many other features of
+REM a professionally developed program.
+
+REM Copy this text file to a folder on your Series 5.
+REM Then use the PROGRAM application menu item
+REM FILE/CREATE NEW FILE to create a new program
+REM called DRAGDEMO.
+REM Then use EDIT/SELECT ALL and hit the DELETE key
+REM to clear out the preset text.
+REM Now use FILE/MORE/IMPORT TEXT to import this file.
+REM Finally, use TRAN to translate and run this program.
+
+REM You may copy, use, share, and generally have your way
+REM with this program. All I ask, is that if you,
+REM or someone else you know, ever needs Psion OPL software
+REM programming, please give us a try:
+
+REM		Jeff Siegel
+REM		National Technology Services, Inc.
+REM		PO Box 4433
+REM		Cherry Hill, NJ 08034 USA
+REM		(609) 786-8600
+REM		75344.1732@compuserve.com
+REM		http://www.n-t-s.com
+
+GLOBAL ev&(16),dragx&,dragy&,wid%
+REM ev&=Holds returned values from GETEVENT32.
+REM dragx&,dragy&=previous window position.
+REM wid%=window id
+
+REM gCREATE(x%,y%,width%,height%,vis%,flags%)
+wid%=gCREATE(100,100,120,100,1)
+gBORDER 1
+gAT 10,20 :gPRINT"Touch and"
+gAT 10,40 :gPRINT"drag me"
+gAT 10,60 :gPRINT"Baby!"
+gAT 10,80 :gPRINT"(ESC to quit)"
+
+DO
+	GETEVENT32 ev&()
+	REM ev&(1)=&408 is 'pointer event'
+	REM ev&(2)=time stamp
+	REM ev&(3)=window ID
+	REM ev&(4)=pointer type (see below)
+	REM ev&(5) = modifiers
+	REM ev&(6) = x-coordinate
+	REM ev&(7) = y-coordinate
+	REM ev&(8) = x-coordinate relative to parent window
+	REM ev&(9) = y-coordinate relative to parent window
+	REM For 'pointer event' type ,ev&(4), gives one of the following values:
+	REM 0 = pen down
+	REM 1 = pen up
+	REM 6 = drag
+
+	IF ev&(1)=&404 OR ev&(1)=27 REM Terminate or Esc
+		STOP
+	ELSEIF ev&(1)=&408 AND ev&(3)=wid%
+		IF ev&(3)=wid%
+			drag:
+		ENDIF
+	ELSE
+		gIPRINT"Event="+GEN$(ev&(1),6)
+	ENDIF
+UNTIL ev&(1)=&404 OR ev&(1)=27
+
+ENDP
+
+PROC drag:
+
+IF ev&(4)=0 REM pen on screen
+	dragx&=ev&(8) REM Save current window position
+	dragy&=ev&(9) REM using absolute coordinates.
+ELSEIF ev&(4)=1 REM pen off
+	dragx&=0
+	dragy&=0
+ELSEIF ev&(4)=6 REM drag
+	CLS
+	AT 1,17 :print"x local =",ev&(6)
+	PRINT"y local =",ev&(7)
+	PRINT"x absolute =",ev&(8)
+	PRINT"y absolute =",ev&(9)
+	
+	REM Move the window by the difference between the
+	REM previous coordinates and the newly reported coordinates.
+	gSETWIN ev&(8)-dragx&+gORIGINX,ev&(9)-dragy&+gORIGINY
+	
+	dragx&=ev&(8) REM Save new position
+	dragy&=ev&(9)
+ENDIF
+
+ENDP

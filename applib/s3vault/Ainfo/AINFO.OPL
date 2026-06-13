@@ -1,0 +1,241 @@
+ App Ainfo
+ icon "B:\Opd\Ainfo.pic"
+ Enda
+
+Proc Main:
+local a$(19,60),d%,l%,j%,r%,pw$(12),ch$(12)
+global n$(19,12)
+giprint"Reading data...",2
+trap mkdir "M:\dat"
+trap mkdir "M:\app\Ainfo\"
+if exist("M:\App\Ainfo\Ainfo.set")
+ open "M:\App\Ainfo\Ainfo.set",a,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$,r$,s$
+n$(1)=a.a$ :n$(2)=a.b$ :n$(3)=a.c$ :n$(4)=a.d$
+n$(5)=a.e$ :n$(6)=a.f$ :n$(7)=a.g$ :n$(8)=a.h$
+n$(9)=a.i$ :n$(10)=a.j$ :n$(11)=a.k$ :n$(12)=a.l$
+n$(13)=a.m$ :n$(14)=a.n$ :n$(15)=a.o$ :n$(16)=a.p$
+n$(17)=a.q$ :n$(18)=a.r$ :n$(19)=a.s$
+else
+ create "M:\App\Ainfo\Ainfo.set",a,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$,r$,s$
+ setname$:
+help:
+endif
+if exist("M:\Dat\Ainfo.dbf")
+ open "M:\Dat\Ainfo.dbf",c,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$,r$,s$
+else
+ create "M:\Dat\Ainfo.dbf",c,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$,r$,s$
+c.a$="000" :append
+endif
+top::
+gat 1,79
+gprintb"¸1993 Pelican Software Inc.",235,3
+dinit"Account Info Main Menu"
+dbuttons "View",13,"Setup",%S,"Help",%H
+d%=dialog
+cls
+if d%=0
+ return
+elseif d%=%s
+ setname$:
+ use c :goto top
+elseif d%=%h
+ help: :goto top
+endif
+pw$=""
+dinit"Enter Password"
+dxinput pw$,"Password:"
+if dialog=0 :goto top :endif
+giprint"Reading...",2
+a$(1)=e$:(c.a$,pw$,-1) :a$(2)=e$:(c.b$,pw$,-1) :a$(3)=e$:(c.c$,pw$,-1)
+a$(4)=e$:(c.d$,pw$,-1) :a$(5)=e$:(c.e$,pw$,-1) :a$(6)=e$:(c.f$,pw$,-1)
+a$(7)=e$:(c.g$,pw$,-1) :a$(8)=e$:(c.h$,pw$,-1) :a$(9)=e$:(c.i$,pw$,-1)
+a$(10)=e$:(c.j$,pw$,-1) :a$(11)=e$:(c.k$,pw$,-1) :a$(12)=e$:(c.l$,pw$,-1)
+a$(13)=e$:(c.m$,pw$,-1) :a$(14)=e$:(c.n$,pw$,-1) :a$(15)=e$:(c.o$,pw$,-1)
+a$(16)=e$:(c.p$,pw$,-1) :a$(17)=e$:(c.q$,pw$,-1) :a$(18)=e$:(c.r$,pw$,-1)
+a$(19)=e$:(c.s$,pw$,-1)
+dinit"Account Number Database"
+dtext"","Bank Accounts",$102
+dedit a$(1),n$(1)
+dedit a$(2),n$(2)
+dedit a$(3),n$(3)
+dedit a$(4),n$(4)
+d%=dialog
+dinit"Account Number Database"
+dtext"","Credit Card Accounts",$102
+dedit a$(5),n$(5)
+dedit a$(6),n$(6)
+dedit a$(7),n$(7)
+dedit a$(8),n$(8)
+dedit a$(9),n$(9)
+l%=dialog
+if n$(10)+n$(11)+n$(12)+n$(13)+n$(14)<>""
+dinit"Account Number Database"
+dtext"","Phone/Gas Accounts",$102
+dedit a$(10),n$(10)
+dedit a$(11),n$(11)
+dedit a$(12),n$(12)
+dedit a$(13),n$(13)
+dedit a$(14),n$(14)
+j%=dialog
+endif
+if n$(15)+n$(16)+n$(17)+n$(18)+n$(19)<>""
+dinit"Account Number Database"
+dtext"","Phone/Gas Accounts",$102
+dedit a$(15),n$(15)
+dedit a$(16),n$(16)
+dedit a$(17),n$(17)
+dedit a$(18),n$(18)
+dedit a$(19),n$(19)
+r%=dialog
+endif
+if l% or d% or j% or r%
+beep 5,250
+dinit"Changes have been made!"
+dtext"","Save with changes?",2
+dbuttons "(Yes)",%Y,"(Yes - New PW)",%P,"Cancel",-27
+d%=dialog
+if d%=0 :goto top
+elseif d%=%y
+ goto save
+endif
+pw1::
+pw$=""
+dinit"Enter Password"
+dxinput pw$,"Password:"
+if dialog=0 :goto top :endif
+dinit"Enter again to verify"
+dxinput ch$,"Password:"
+if dialog=0 :goto top :endif
+if ch$<>pw$
+ giprint"Incorrect password..."
+ goto pw1
+endif
+save::
+giprint"Saving..."
+c.a$=e$:(a$(1),pw$,1) :c.b$=e$:(a$(2),pw$,1) :c.c$=e$:(a$(3),pw$,1)
+c.d$=e$:(a$(4),pw$,1) :c.e$=e$:(a$(5),pw$,1) :c.f$=e$:(a$(6),pw$,1)
+c.g$=e$:(a$(7),pw$,1) :c.h$=e$:(a$(8),pw$,1) :c.i$=e$:(a$(9),pw$,1)
+c.j$=e$:(a$(10),pw$,1) :c.k$=e$:(a$(11),pw$,1) :c.l$=e$:(a$(12),pw$,1)
+c.m$=e$:(a$(13),pw$,1) :c.n$=e$:(a$(14),pw$,1) :c.o$=e$:(a$(15),pw$,1)
+c.p$=e$:(a$(16),pw$,1) :c.q$=e$:(a$(17),pw$,1) :c.r$=e$:(a$(18),pw$,1)
+c.s$=e$:(a$(19),pw$,1)
+ update
+ giprint"Changes saved..."
+else giprint"No changes made!"
+endif
+goto top
+endp
+
+Proc E$:(DATA$,PASS$,FUNC%)
+LOCAL COUNT%,PASS%,CHR%
+LOCAL NDATA$(253)
+IF (FUNC%<>1) AND (FUNC%<>-1)
+ RAISE 226
+ENDIF
+COUNT%=LEN(PASS$)
+WHILE COUNT%>0
+ PASS%=PASS%+ASC(MID$(PASS$,COUNT%,1))-COUNT%
+ COUNT%=COUNT%-1
+ENDWH
+RANDOMIZE PASS%
+COUNT%=LEN(DATA$)
+WHILE COUNT%>0
+ CHR%=ASC(MID$(DATA$,COUNT%,1))+INT(RND*91)*FUNC%
+ CHR%=CHR%+((CHR%>122)*91)-((CHR%<32)*91)
+ COUNT%=COUNT%-1
+ NDATA$=CHR$(CHR%)+NDATA$
+ENDWH
+RETURN NDATA$
+Endp
+
+Proc Setname$:
+local r%,d%,l%,j%,p$(25)
+p$="Personalize Account Names"
+use a
+n$(1)=a.a$ :n$(2)=a.b$ :n$(3)=a.c$ :n$(4)=a.d$
+n$(5)=a.e$ :n$(6)=a.f$ :n$(7)=a.g$ :n$(8)=a.h$
+n$(9)=a.i$ :n$(10)=a.j$ :n$(11)=a.k$ :n$(12)=a.l$
+n$(13)=a.m$ :n$(14)=a.n$ :n$(15)=a.o$ :n$(16)=a.p$
+n$(17)=a.q$ :n$(18)=a.r$ :n$(19)=a.s$
+dinit"Setup: Account Manager"
+dtext"","Enter the names of your accounts and"
+dtext"","they will be used as the headings when"
+dtext"","entering account number information."
+dbuttons "Continue",13,"Cancel",-27
+if dialog=0 :return :endif
+dinit p$
+dtext"","Bank Accounts",$102
+dedit n$(1),"1"
+dedit n$(2),"2"
+dedit n$(3),"3"
+dedit n$(4),"4"
+d%=dialog
+dinit p$
+dtext"","Credit Card Accounts",$102
+dedit n$(5),"5"
+dedit n$(6),"6"
+dedit n$(7),"7"
+dedit n$(8),"8"
+dedit n$(9),"9"
+l%=dialog
+dinit p$
+dtext"","Phone/Gas Accounts",$102
+dedit n$(10),"10"
+dedit n$(11),"11"
+dedit n$(12),"12"
+dedit n$(13),"13"
+dedit n$(14),"14"
+j%=dialog
+dinit p$
+dtext"","Phone/Gas Accounts",$102
+dedit n$(15),"15"
+dedit n$(16),"16"
+dedit n$(17),"17"
+dedit n$(18),"18"
+dedit n$(19),"19"
+r%=dialog
+if sum(j%,l%,d%,r%)>0
+dinit"Save Changes?"
+dbuttons "Yes",%Y,"No",%N
+r%=dialog
+if r%<>%y :giprint"No chamges made..." :return :endif
+a.a$=n$(1) :a.b$=n$(2) :a.c$=n$(3) :a.d$=n$(4)
+a.e$=n$(5) :a.f$=n$(6) :a.g$=n$(7) :a.h$=n$(8)
+a.i$=n$(9) :a.j$=n$(10) :a.k$=n$(11) :a.l$=n$(12)
+a.m$=n$(13) :a.n$=n$(14) :a.o$=n$(15) :a.p$=n$(16)
+a.q$=n$(17) :a.r$=n$(18) :a.s$=n$(19)
+giprint"Saving..."
+if count
+ update
+else
+ append
+endif
+else giprint"No chamges made..."
+endif
+Endp
+
+Proc help:
+dinit
+dtext"","Help: Account Number Manager",$302
+dtext"","This utility helps to get your vital",2
+dtext"","info as fast as possible. To use it start",2
+dtext"","out by going to Setup and personalizing",2
+dtext"","your account names. These will show up",2
+dtext"","in the program next to the account num's",2
+dtext"","so you'll know what you're looking at.",2
+dialog
+dinit
+dtext"","Help: Account Number Manager",$302
+dtext"","Note that this software uses data",2
+dtext"","encryption which is unlocked by the",2
+dtext"","password that you use. If you forget",2
+dtext"","it, you'll have to start over since",2
+dtext"","it will be impossible to unlock the",2
+dtext"","data again.",2
+dialog
+dinit
+dtext"","Hope you like it!",$302
+dtext"","Freeware from",$2
+dtext"","Pelican Software Inc."
+dialog
+Endp

@@ -1,0 +1,284 @@
+rem Change log
+rem
+rem 1.01
+rem 112293 Compatibility with S3 OPL
+rem 1.0
+rem 1093 Translation from BASIC
+
+proc main:
+	local inpdate&,timetemp,lat,long,zonein&,zone
+	local i%,rise$(5),set$(5)
+	CLS
+	dinit "Sunrise, Sunset, Twilight of Sun"
+	dtext "","An Astronomy Program",2
+	dtext "","Version 1.01",2
+	dbuttons "Press Enter to continue",13
+	lock on
+	dialog
+	lock off
+REM  PURPOSE --
+REM
+REM  THIS PROGRAM GIVES THE TIME OF SUNRISE, SUNSET, AND
+REM  TWILIGHT  (ASTRONOMICAL, NAUTICAL, AND CIVIL)
+REM  TO WITHIN A MINUTE OR TWO DURING THE SECOND HALF OF
+REM  THE TWENTIETH CENTURY.
+REM
+REM  INPUTS --
+REM
+REM  LATITUDE IN DEGREES, MIMUTES, AND SECONDS.
+REM  NORTH IS POSITIVE.
+REM  EXAMPLE: 30.0028 REPRESENTS 30
+REM  DEGREES, 00 MINUTES, 28 SECONDS
+REM  NORTH LATITUDE.
+REM
+rem  LONGITUDE IN DEGREES, MINUTES, AND SECONDS,
+rem  WEST IS POSITIVE.
+rem  EXAMPLE: 90.1109 REPRESENTS 90 DEGREES,
+rem  11 MINUTES, 09 SECONDS, WEST LONGITUDE.
+rem
+rem  Time zone is the number of hours from coordinated universal time,
+rem  adding one hour for summer or daylight saving time as needed.
+rem
+rem  FOR EXAMPLE, IN THE 48 CONTIGOUS UNITED STATES AND CANADA,
+rem  SEE TABLE BELOW.
+rem
+rem                   STANDARD   DAYLIGHT
+rem
+rem    EASTERN          -5.00      -4.00
+rem    CENTRAL          -6.00      -5.00
+rem    MOUNTAIN         -7.00      -6.00
+rem    PACIFIC          -8.00      -7.00
+rem
+rem  YEAR (1951 THRU 2000)
+rem
+rem  MONTH (1 THRU 12)
+rem
+rem  DAY (1 THRU 31)
+rem
+rem  OUTPUTS --
+rem
+rem  OUTPUTS ARE GIVEN IN HOURS AND MINUTES ON A 24
+rem  HOUR BASIS, EXAMPLE: 6.25 REPRESENTS 6:25 A.M.,
+rem  AND 18.25 REPRESENTS 6:25 P.M.
+rem
+rem  A ZERO OUTPUT INDICATES THAT THE PHENOMENON
+rem  DOES NOT OCCUR ON THE SPECIFIED DATE,
+rem  E.G., THE SUN DOES NOT SET IN MID-SUMMER AT
+rem  HIGH LATITUDES.
+
+rem
+rem - INPUTS
+rem
+	inpdate&=days(day,month,year)
+	do
+		dinit "Enter Parameters"
+		dfloat lat,"Latitude",-180,180
+		dfloat long,"Longitude",-180,180
+		ddate inpdate&,"Date",days(1,1,1951),days(31,12,2000)
+		dlong zonein&,"Time Zone",-12,12
+		lock on
+		i%=dialog
+		lock off
+		if i%
+			busy "Working",1,4
+			rise$=fix$(Sunrise:(lat,long,inpdate&,zonein&),2,5)
+			set$=fix$(Sunset:(lat,long,inpdate&,zonein&),2,5)
+			busy off
+			dinit "Results"
+			dtext "Sunrise",rise$
+			dtext "Sunset",set$
+			dbuttons "Quit",-27,"Repeat",13
+			lock on
+			i%=dialog
+			lock off
+		endif
+	until i%=0
+endp
+
+proc Sunrise:(lat1,long1,inpdate&,zonein&)
+	rem procedure variables
+	local doy%,lat,long,zone
+
+	rem Constants
+	local a,c,d
+	A = 1.5708
+	C = 4.71239
+	D = 6.28319
+	
+	lat=rad(sex2dec:(lat1))
+	long=rad(sex2dec:(long1))
+	doy%=days2day:(inpdate&) :rem crack the date apart
+	zone=zonein&
+	zone=rad(sex2dec:(zone))*-15
+	return aprxtime:(0,a,-0.0145439,lat,long,doy%,zone)
+endp
+
+proc Sunset:(lat1,long1,inpdate&,zonein&)
+	rem procedure variables
+	local doy%,lat,long,zone
+
+	rem Constants
+	local a,c,d
+	A = 1.5708
+	C = 4.71239
+	D = 6.28319
+
+	lat=rad(sex2dec:(lat1))
+	long=rad(sex2dec:(long1))
+	doy%=days2day:(inpdate&) :rem crack the date apart
+	zone=zonein&
+	zone=rad(sex2dec:(zone))*-15
+	return aprxtime:(1,c,-0.0145439,lat,long,doy%,zone)
+endp
+
+proc Sex2Dec:(z1) :rem SEXAGESIMAL TO DECIMAL
+	local w,x,y,z
+	W = 1
+	z=z1
+	IF Z<0
+		W = -1
+		Z = ABS(Z)
+	endif
+	X = INT(Z+0.00005)
+	Z = (Z - X) * 100
+	Y = INT(Z)
+	Z = (Z - Y) * 100
+	return (X+Y/60+Z/3600)*W
+endp
+
+proc aprxtime:(i%,j,r,lat,long,doy%,zone) :rem Approximate time
+	rem procedure variables
+	local apxtime,slrtasc,sldecl,x,n%
+	local slmnanml,sltrlng
+
+	rem Constants
+	local a,c,d
+	A = 1.5708
+	C = 4.71239
+	D = 6.28319
+
+	apxtime=doy%+((j+long)/d) :rem approximate time
+	slmnanml=apxtime*0.017202-0.0574039 :rem solar mean anomaly
+
+	rem Calculate solar true longitude
+	x=sin(slmnanml)
+	sltrlng=slmnanml+0.0334405*x
+	x=sin(2*slmnanml)
+	sltrlng=sltrlng+3.49066e-04*x
+	sltrlng=sltrlng+4.93289
+	
+	rem Quadrant determination
+	sltrlng=nrmliz:(sltrlng)
+	x=sltrlng/a
+	x=x-int(x)
+	if x=0
+		sltrlng=sltrlng+4.84814e-06
+	endif
+	if sltrlng>c
+		n%=2
+	elseif sltrlng>a
+		n%=1
+	else
+		n%=0
+	endif
+	
+	rem Solar right ascension
+	slrtasc=sin(sltrlng)/cos(sltrlng)
+	slrtasc=atan(0.91746*slrtasc)
+	
+	rem Quadrant adjustment
+	if n%=1
+		slrtasc=slrtasc+pi
+	elseif n%=2
+		slrtasc=slrtasc+d
+	endif
+	
+	rem Solar declination
+	sldecl=0.39782*sin(sltrlng)
+	sldecl=sldecl/sqr(-sldecl*sldecl+1)
+	sldecl=atan(sldecl)
+	
+	return cnvcoord:(i%,r,lat,long,apxtime,zone,slrtasc,sldecl)
+endp
+
+proc cnvcoord:(i%,r,lat,long,apxtime,zone,slrtasc,sldecl) :rem coordinate conversion
+	rem procedure variables
+	local sldeclcv,lclaptim,utctim,wlltim,v,w,x,y
+
+	rem Constants
+	local a,c,d
+	A = 1.5708
+	C = 4.71239
+	D = 6.28319
+
+	rem Coordinate conversion
+	sldeclcv=r-sin(sldecl)*sin(lat)
+	sldeclcv=sldeclcv/(cos(sldecl)*cos(lat))
+	
+	if abs(sldeclcv)>1 :rem null phenomenon
+		v = 0
+		return v
+	endif
+
+	rem Adjustment
+	sldeclcv=sldeclcv/sqr(-sldeclcv*sldeclcv+1)
+	sldeclcv=-atan(sldeclcv)+a
+	if i%<>1 :rem i%=0 for sunrise, 1 for sunset
+		sldeclcv=d-sldeclcv
+	endif
+	
+	rem local apparent time
+	lclaptim=sldeclcv+slrtasc-0.0172028*apxtime-1.73364
+	utctim=lclaptim+long :rem UTC
+	
+	v=nrmliz:(utctim-zone) :rem wall clock time
+	x=deg(v)/15
+	v=int(x)
+	w=(x-v)*60
+	x=int(w)
+	y=w-x
+	if y>=0.5
+		x=x+1
+	endif
+	if x>=60
+		v=v+1
+		x=0
+	endif
+	v=v+x/100
+	return v
+endp
+
+proc nrmliz:(z) :rem Normalization
+	local x
+
+	rem Constants
+	local d
+	D = 6.28319
+
+	x=z
+	while x<0
+		x=x+d
+	endwh
+	while x>=d
+		x=x-d
+	endwh
+	return x
+endp
+
+proc days2day:(days&)
+	local dyscent&(2),dateent%(4)
+	local flags%,ax%,bx%,cx%,dx%,si%,di%
+	dyscent&(1)=days&
+	si%=addr(dyscent&()) :di%=addr(dateent%())
+	ax%=$0600 :rem TimDaySecondsToDate fn.
+	flags%=os($89,addr(ax%)) :rem TimManager int.
+	if flags% and 1
+		raise (ax% or $ff00)
+	else
+rem year%=peekb(di%)+1900
+rem month%=peekb(uadd(di%,1))+1
+rem day%=peekb(uadd(di%,2))+1
+rem return peekw(uadd(di%,6))+1		:rem 112293
+		return peekw(di%+6)+1		:rem 112293
+	endif
+endp

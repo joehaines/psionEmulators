@@ -1,0 +1,25 @@
+Method File
+
+File type
+
+The methods available to the Psiring program are stored in a Psion DBF file or table called 'methods.dbf'.
+
+Fields
+
+The fields or columns in the Methods file are:
+ Name: method name
+ Type: ie type of method record. So far only one type is implemented: place [notation]
+	No:	number of bells that change
+	Plain:	plain lead (or half-lead)
+	Bob:	those rows which differ in a bob lead compared to a plain lead
+	Single:	those rows which differ from the plain lead (preceded by some identical rows to cause the call to be made in advance of the of the row where the change occurs.
+
+Place Notation
+
+The entry of the place notation is as follows:
+places::= block of one or more digits or X for no places made
+	eg: 1 12 125 X
+the places for each row are a block separated by a space
+Other symbols:
+	< = repeat every row to the left of this symbol (or left of the > symbol if it exists) in reverse order. Thus '1 5 345<' will be unpacked to read as though '1 2 345 345 2 1' had been entered. Anything to the right of is added at the end eg '1 2<3' becomes '1 2 2 1 3'.
+	> (with <) = reverse all rows to the left of this symbol after first adding anything between > and <. Thus '1 2>3<' becomes '1 2 3 2 1' and '1 2>3<4' becomes '1 2 3 2 1 4'.

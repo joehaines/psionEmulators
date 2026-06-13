@@ -1,0 +1,37 @@
+==========
+psion/opl #1225, from psioncorp, 1153 chars, May 31 10:15 94
+Comment to 1223. Comments. 
+----------
+FINDFIELD in fact has two bugs:
+
+1. The flags% argument is documented incorrectly in that the nibbles of the lo-
+w 
+byte are in the opposite order. ie. the case dependent/independent value 0 or -
+1 
+must be multiplied by 16 (hex $00 or $10), while the direction value 0,1,2 or -
+3 
+should be used directly. The allowed values are therefore 0,1,2,3,16,17,18,19 -
+
+(hex $00,$01,$02,$03,$10,$11,$12 and $13).
+
+2. FINDFIELD actually does FIND unless the byte at address peekw($1c )+7 
+happens to be zero! Therefore a temporary fix is to use:
+pokeb(peekw($1c)+7),0
+immediately before calling FINDFIELD.
+
+NB pokeb peekw($1c)+7,0 must be called *immediately* before *every* 
+call to FINDFIELD.This is because that address is a "scratch register" used by-
+ 
+the OPL runtime for many things.
+
+This also means, in fact, that you must not use procedures or functions of any-
+ 
+kind for arguments to FINDFIELD because they could change that address. eg. 
+pokeb ... :FINDFIELD(a$,s%:,GET,2) will fail. Always use constants, parameters-
+, 
+variables (array elements too), fields or arithmetical expressions based on 
+these for FINDFIELD arguments.
+
+Dave (psioncorp)
+
+

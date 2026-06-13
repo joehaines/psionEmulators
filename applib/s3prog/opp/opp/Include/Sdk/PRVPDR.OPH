@@ -1,0 +1,81 @@
+#define PRVPDR_OPH
+
+#ifndef P_OBJECT_OPH
+#include <p\object>
+#endif
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#ifndef P_GRAF_OPH
+#include <p\graf>
+#endif
+
+#ifndef OLIB_OPH
+#include <sdk\olib>
+#endif
+
+#ifndef PRINTER_OPH
+#include <sdk\printer>
+#endif
+
+#ifndef PRDRV_OPH
+#include <sdk\prdrv>
+#endif
+
+/* Types for prvpdr */
+
+STRUCT PRV_BITMAP
+	Id%
+	SegHandle%
+	Size#(SIZEOF(UPOINT ))
+	ByteWidth%
+	BitWidth%
+ENDS
+
+STRUCT FONT_DESC
+	typeface%
+	height%
+	style%
+ENDS
+
+STRUCT BMP_RASTER_TL
+	Type#
+	Length#
+ENDS
+
+STRUCT BMP_RASTER_ROW_REC
+	tl#(SIZEOF(BMP_RASTER_TL))
+	Data#(2)
+ENDS
+
+/* Property of prvpdr */
+
+STRUCT PRS_PRVPDR
+	pChWidths%
+	SpaceWidth%
+	FontY%
+	TwipsRound%
+	PageHeight%
+	Scale#(SIZEOF(UPOINT))
+	Round#(SIZEOF(UPOINT))
+	Pos#(SIZEOF(UPOINT))
+	hPrvDone%
+	mPrvDone%
+	Bmp#(SIZEOF(PRV_BITMAP))
+	SegHandle%
+	SegPos&
+	SegHeight%
+	SegSize%
+	pArray%
+	pBitRow%
+	pLastRow%
+	pRowRec%
+ENDS
+
+STRUCT PR_PRVPDR
+	root#(SIZEOF(PRS_ROOT))
+	pdr#(SIZEOF(PRS_PDR))
+	prvpdr#(SIZEOF(PRS_PRVPDR))
+ENDS

@@ -1,0 +1,55 @@
+==========
+psion/4_series3 #2524, from dpalmer, 1069 chars, Aug 30 15:33 95
+Comment to 2510.
+----------
+> Does anyone have any .OPL snippets they wouild care to share 
+> concerning how to call the UNZIP.IMG file via opl, with paths to 
+> the files you wish to unzip?
+
+Along the following lines:
+
+proc launch%:(app$,arg$)
+local name$(128)
+local cmdl$(128)
+local pid%, ret%
+
+name$=app$+chr$(0)
+cmdl$=arg$+chr$(0)
+ret%=call($0187,UADD(addr(name$),1),UADD(addr(cmdl$),1),0,0,addr(pid
+%))
+if ret%<0
+  alert(app$+" process failed",err$(ret%))
+  return 0
+endif
+
+return pid%
+endp
+
+proc resume:(pid%)
+call($0688,pid%,0,0,0,0)
+endp
+
+Note that unlike the firmware apps, unzip.img is expecting a simple 
+zero-terminated command line with space-separated arguments i.e. 
+the normal way (none of those mode characters or embedded NULs 
+nonsense!).
+
+So the following:
+
+global uzippid%
+uzippid%=launch%:("loc::m:\run\unzip.img", "-qq m:\test.zip")
+if uzippid%<>0
+  resume:(uzippid%)
+endif
+
+should extract the archived files *into the current directory* (-qq 
+tells it to be very non-verbose).
+
+Not tested, this, BTW.
+
+Regards,
+
+David.
+  
+
+

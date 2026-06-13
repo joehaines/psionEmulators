@@ -1,0 +1,169 @@
+REM Module - TAGGING.OPL
+
+REM Demo of how to allow multiple
+REM file selection from OPL
+
+REM Written by Jezar at Psion.
+REM You have a royalty free right to
+REM use and distribute this software in
+REM any way you see fit, provided you
+REM agree that neither Jezar nor Psion
+REM can be held responsible for the
+REM consequences of its use.
+
+REM Use at your own risk.
+REM No warranties.
+
+REM This shows how to get a complete
+REM list of tagged files from the user.
+REM There is, regrettably, not enough
+REM space here for a full explanation,
+REM but basically, it tells the 
+REM requester not to destroy the list.
+REM We then talk to the list ourselves,
+REM and destroy it by sending a message.
+
+REM Hope this is of use,
+REM Jezar@cix.compulink.co.uk
+REM 01:42 23/11/94 (yawn!)
+
+PROC TagDemo%:
+	LOCAL ret%
+	WHILE 1
+		PRINT "Press TAB, and tag several files"
+		PRINT "by using the '+' key"
+		ret% = FileTag%:("Example of Tagging Files","Action","File:","\OPL\",0)
+		PRINT "Dialog returned:",ret% 
+		GET
+		CLS
+	ENDWH
+ENDP
+
+PROC Action%:(name$)
+	REM Your "action" routine can
+	REM return non-zero to state that
+	REM it wants NO more filenames sent.
+	REM This is just a simple demo:
+	
+	PRINT name$
+ENDP
+
+PROC FileTag%:(Title$,Action$,Prompt$,fname$,flags%)
+	LOCAL total%,count%,n$(130)
+	LOCAL d$(130),o%(8),ret%,vastr%
+	
+	REM File edit boxes are NOT allowed:
+	IF (flags% AND 1)
+		RAISE -2
+	ENDIF
+	n$=fname$
+	
+	REM Present the dialog:
+	dINIT Title$
+	REM Keep together--------------
+	dFILE n$,Prompt$,flags%
+	vastr%=KeepTag%:
+	REM ---------------------------
+	ONERR Clean::
+	ret%=DIALOG
+	IF ret%=0
+		RAISE 0
+	ENDIF
+	
+	REM Get basic details (if any):
+	total%=CALL($CF,vastr%,1)
+	IF total%>=1
+		REM Full path of tagged items:
+		d$=VAstr$:(vastr%,0)
+		count%=1
+	ENDIF
+	IF total%>=2
+		REM First file name tagged:
+		n$=VAstr$:(vastr%,1)
+		count%=2
+	ENDIF
+	
+	REM Collect/process all the files:
+	WHILE 1
+		n$=PARSE$(n$,d$,o%())
+		IF @%(Action$):(n$) :REM Your proc.
+			RAISE 0 :REM You've finished?
+		ENDIF
+		IF count%>=total%
+			RAISE 0 :REM All done?
+		ENDIF
+		REM Get next tagged name:
+		n$=VAstr$:(vastr%,count%)
+		count%=count%+1
+	ENDWH
+	
+Clean::
+	ONERR OFF
+	REM We MUST destroy the VASTR object:
+	CALL($CF,vastr%,0)
+	IF ERR
+		RAISE ERR
+	ENDIF
+	RETURN ret% :REM DIALOG return code.
+ENDP
+
+PROC KeepTag%:
+REM  This procedure tells a file
+REM  requester just declared, not to
+REM  destroy its list of tagged files.
+REM  We will return the handle of that
+REM  list, to use and destroy later.
+	
+	LOCAL fnselwn%,flgadr%,vastr%,dlgptr%
+	LOCAL UADD&,UADD%,index%,idxptr%
+	
+	UADD&=&00CBC303
+	UADD%=ADDR(UADD&)
+	
+	dlgptr%=PEEKW($36)
+	
+	REM Get index of file requester:
+	idxptr%=USR(UADD%,dlgptr%,$3D,0,0)
+	index%=PEEKB(idxptr%)-2
+	
+	REM Ask for handle of file requester:
+	fnselwn%=CALL($CF,dlgptr%,21,index%)
+	
+	REM Get and set the flag to keep tags:
+	flgadr%=USR(UADD%,fnselwn%,$20,0,0)
+	POKEW flgadr%,(PEEKW(flgadr%) OR $0800)
+	
+	REM Get handle of the VASTR object:
+	vastr%=PEEKW(USR(UADD%,fnselwn%,$1c,0,0))
+	RETURN vastr%
+ENDP
+
+PROC VAstr$:(vastr%,index%)
+REM  Retrieve a string from a
+REM  VASTR object.
+REM  (Generally useful procedure)
+	
+	LOCAL UADD&,len%,str%
+	LOCAL txt$(255),txtLBC%,txtZTS%
+	
+	REM Get LBC and ZTS pointers:
+	UADD&=&00CBC303 :REM Unsigned add
+	txtLBC%=ADDR(txt$)
+	txtZTS%=USR(ADDR(UADD&),txtLBC%,1,0,0)
+	
+	REM Get/check string length:
+	len%=CALL($CF,vastr%,15,index%)
+	IF len%<0 OR len%>255
+		RAISE -112 :REM String too long
+	ENDIF
+	
+	REM Get string data:
+	str%=CALL($CF,vastr%,20,index%)
+	CALL($AC,0,0,0,str%,txtZTS%)
+	POKEB txtLBC%,len%
+	
+	RETURN txt$
+ENDP
+
+REM End of file - Tagging.opl
+

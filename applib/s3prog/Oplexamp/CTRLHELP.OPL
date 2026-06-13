@@ -1,0 +1,41 @@
+PROC ctrlhelp:
+	local cnt
+
+	launchh:
+	cnt=0
+	do
+		cnt=cnt+1
+		dInit "Busy..."
+		dText "","(display number "+num$(cnt,6)+")",2
+		dText "","Press HELP for Help",2
+		dText "","Press ESC to Quit",2
+	until dialog=0
+ENDP
+
+PROC launchh:
+REM launches DoHelp subprocess
+	local helpnm$(128),cmdl$(128)
+	local off%(6)
+	local ret%
+	local hpid% :rem pid of subprocess
+	local pid% :rem pid of this process
+	helpnm$=parse$("dohelp.opo",cmd$(1),off%())
+	if not exist(helpnm$)
+		print "File does not exist"
+		print helpnm$
+		get
+		stop
+	endif
+	cmdl$="ORunOpl"+chr$(0)+chr$(0)+helpnm$+chr$(0)
+	helpnm$="rom::sys$prgo"+chr$(0)
+	ret%=call($0187,addr(helpnm$)+1,addr(cmdl$),0,0,addr(hpid%))
+	if ret%<0
+		print "Couldn't start DoHelp subprocess"
+		print err$(ret%)
+		get
+		stop
+	endif
+	pid%=call($0088,0,0,0,0,0) :rem ProcId
+	call($92,hpid%,2,0,addr(pid%),$28) :rem ProcCopyToById
+	call($0688,hpid%,0,0,0,0) :rem ProcResume
+ENDP

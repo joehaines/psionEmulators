@@ -1,0 +1,389 @@
+SHELL v2.5 ... a Shell for Psion Series 3a .. by Marko Schuster 1994
+
+NEWS: look at the end of this file!
+
+NOTE : Cause my english is not SO good, this doc is not a 100% translation
+       from my german-doc. If you have problems, may be it helps if you
+       read the german text, perhaps you can find the answer of your
+       question ...
+       (The program is 100% english!)
+       
+                    
+                    0. Copyright
+
+This Version of Shell is not public domain, but freely distributable.
+This means that I have the copyright, but you can use it without paying
+money for it. You can give the prg. to your friends, you can upload it
+in your BBS, but you are NOT allowed to make money with it.
+
+If you find bugs or have any suggestions .. let me know.
+
+
+                    1. WHY A SHELL?
+                    
+Well.. the Series3a-"Workbench" (You'll see, I have an Amiga (even 2 :-) ))
+is very good, but a few things I've missed and so I programmed the Shell.
+
+
+                    2. WHAT CAN I DO WITH THE SHELL?
+                    
+(not translated from the german doc)
+Simply try it out! :-)
+
+
+                    3. HOW I WORK WITH THE SHELL?
+                    
+Simply enter the commands :-). This is handled by the OPL-Command "EDIT".
+If you press ESC on an empty line, you can get the last line typed.
+It is a little Buffer with 9 lines. Instead this you can enter the command
+"+" which let you select the line you want to edit with a dialog.
+The command "+" will not be add to the buffer!
+
+Redirection: with v2.5 you can redirect the output to a file by typing
+>file directly after the command before its arguements! A NIL: or NUL:
+can be choosen for no output. Example: dir >dir.txt M:\opl\ writes
+all filenames in the directory M:\opl\ to the file dir.txt. 
+
+                    
+                    4. Hints
+                    
+You MUST have the prg. "EXPWIN2.OPA" und your M:\APP\-Directory.
+This is a little exploding-windows-hack which is used by shell and may
+be used in your own programmes!
+If a batch-file 'M:\autoexec.bat' exisits, it will be exucted on every start
+of shell. (In it you can have e.g. PROMPT and FONT - commands ..)
+In the archive there is also an alias-file of WORD, named ed_bat.als,
+a true ascii-editor. It can be used to edit/make *.bat files (in the
+\bat\ - directory). To edit autoexec.bat, press TAB and open the file
+autoexec.bat from M:\
+If a command doesn't exist, it is searched in the directories \OPO, \APP
+and \BAT if there exists a file named command+.OPO/OPA/BAT and if this
+is true it will be loaded, if it is a OPO or OPA, or executed, if it is
+a BAT - file. To start a OPO or OPA - prg. you must then enter the procedure
+which you want to start, followed by a ":" as you would do it in OPL.
+Warning: When the current directory is on REM:: it will be searched on REM::A,
+REM::B: and REM::M: ..
+
+You can get the argument-list of a command by entering the command WITHOUT
+any argument, so don't use -? or /? as you would do it in a 'normal' dos/
+shell! !!  Example: COPY would print COPY <source> <dest>
+
+                    
+                    5. Available Commands
+
+You must at least enter the letters shown here in caps, e.g. RemDir,
+you can enter REMDIR or RD (you can also type ReMdIr or rd or rD ..)
+Between arguments there must be at least 1 space. But type NO space
+in an argument! This makes problems by files, which have spaces. Simply
+replace the space with the wildcard "?" (you can also use the wildcard "*"
+for 1-xx chars, but for more information consult the programming manual on
+page 41)
+
+Output on screen can be paused by pressing CTRL-S (every OPL-prg. allow
+you to do this!)
+
++
+        Display buffer-list and let you select the line you want to edit,
+        ESC to abort.
+
+*
+        Shell goes in background        
+
+?      
+        lists all available commands
+        
+#
+        = DIAL, for more informations, see on DIAL
+        
+;<comment>
+        To insert a comment. Useful for batchfiles.
+        Example: ;this is a comment-line
+                 
+<proc>: [<argument>]
+        Starts the procedure <proc>. ONE argument is allowed optionally.
+        Beispiel:  TEST:     equal to OPL  TEST:
+                   TEST: ab  equal to OPL  TEST:("ab")
+                   
+ALIAS [<alias_in> [<alias_out>]]
+        Shows and sets ALIASes. The Alias is <alias_in>, the command
+        <alias_out> is the real command. The alias alias_in may be up
+        to 10 chars, the alias_out up to 128. Max. 20 aliases may be
+        used. Look in the batch UNIX.BAT for an example for UNIX-users.
+        A good place for aliases is the M:\autoexec.bat.
+        ALIAS without any options lists all aliases, ALIAS with one
+        option lists the command that will be executed by alias_in.
+        A @ may be set in the alias_out to get the options from the
+        line typed in with the alias.
+        Examples:
+        ALIAS c copy @    - will set alias c to "copy @". Now you
+        can type e.g. "c test1.opl test1.bak" instead of "copy test1.opl
+        test1.bak". "ALIAS C" would type out "copy @". 
+
+[CD] <path>
+        change the current directory. Be sure to add a "\" on the
+        end of the directory-name. Example: Instead of CD \OPL you
+        must type CD \OPL\ !! One exception: CD A: would change to
+        the current directory on A:
+        !! You can NOT use a ".." for the parent dir as you would use
+        it on a PC !! .. perhaps in future versions :-)
+        If the path is not a command or a existing file, you can also
+        enter the paths without "CD" .. also the path must end with
+        an \ or ::
+        Example: current path = M:\OPL\ 
+                       cd a:
+                 new path = A:\OPL\
+                 or without CD:   \APP\
+
+ChangeTaskPri <process-id> <priority>
+        Changes the priority of the task with given process-id to
+        priority. Until know, I don't know how to get the priority
+        of a task, only set it :) .. BTW: the S3a sets special prio's
+        for example if moving a running OPO-prg. to background.
+
+CLS     the screen will be cleared...
+
+COPY <source> <dest>
+        Copy the file source to dest. Dest may be a file or a directory.
+        If you use wildcards, there is NO output, which file is copied!
+        Example: current path = M:\AGN\
+                        copy agenda.agn agenda.bak    (backup)
+                        copy agenda.agn a:            (copy to 
+                                                       A:\AGN\Agenda.agn)
+                                                       
+DATE    the date an time in the format WWW TT MMM JJJJ SS:MM:SS aus.
+        Example: Sat 15 May 1993 22:20:54
+        it's equal to the command TIME..
+    
+Dir [<path>]
+        shows the directory of the current path or the specified <path>.
+        you can also add files and/or wildcards to the path, e.g.
+        DIR a*.* .
+        The DIR-Command is not yet font-sensitive, so the columns may be
+        look very funny with some fonts (it is correct with font 1, 4, 5,
+        10, 11, 13, 8225 (8225 are the small caps used in the spreadsheet)
+        .. if you want to see subdirectories .. use command SDir
+        .. if you want to see date/time/attribs .. use command LDir
+        
+DELete  <file>
+        deletes the file <file>. Whole directories can be deleted by
+        DELete *.* .
+        
+DIAL <number>
+        Dials a number. Be sure not to type spaces between the numbers!
+        It's equal to the command #. The # - char can be also found by
+        pressing the HELP-Key!
+        erreichen kann!
+        Example: DIAL 3942*39AB#
+                  # 2093
+
+ECHO [<text>]
+        Prints the text text on the screen. If there is no text, make a
+        new line. Useful for batchfiles.
+
+EVAL <term>
+        calculates the mathematical expression <term>. The output is decimal.
+        Example: EVAL 2*&F    .. = 30
+        
+EXecute <batch>
+        executes the batchfile 'batch'. If it can be found in the \BAT\
+        or current directory, you can enter the filename without EXecute.
+        Example: ex \test.bat    .. executes the batch-file '\test.bat'
+                  ed      .. executes the batchfile ed.bat if it can be
+                             found in \BAT\ or the current dir.
+
+eXit
+        exits the shell.. equal to Quit
+
+Font <font-id> [<style>]
+        Change font. The available standard-fonts will be listet if you
+        enter Font without an argument. Style is the Style of the font.
+        On proportional fonts, you should use 16 for non-proportional.
+        Example: f 5 16
+  
+HELP
+        shows a small help..
+
+INFO [<dev>]
+        shows infos about the current device or dev
+        (name, size, free bytes)
+        Example: INFO ROM::    or INFO M:
+
+LDir [<path>]
+        shows directory with file-dates, -times and -attributes.
+        Also it uses only 1 entry per line (yet!).
+
+Load <OPO/OPA-File>
+        loads a OPO or OPA file to memory. If the file can be found
+        in \OPO\, \OPA\ or the current dir, you mustn't type Load..
+        Example: L test.opo
+        To start a procedure see the ":"-command.
+        
+LoadFont <font-filename> 
+        loads a font into memory and prints its ID.
+        Example: lf M:\fon\script.fon   .. prints -16377
+                  f -16377 16            .. change the font
+                  
+MakeDir <path>
+        Erstellt ein Verzeichnis
+        Example: md \pic    .. erstellt das Verzeichnis \PIC
+
+MEM     prints free memory in bytes
+
+MOVE <source> <dest>
+        Equal to the commands COPY and DELETE.
+        Example: move *.opo A:
+        
+PAUSE <delay>
+        Equal to the OPL-Command PAUSE. A 0 will wait for a key.
+
+Play <file> [<duration>]
+        Plays a WVE-File created by the Recorder.
+        Aborted if you press any key.
+        Example: p rom::sys$al01.wve
+
+PROMPT <prompt>
+        changes the prompt. following strings can be used additionaly:
+         %B = Backspace, deletes the last char
+         %D = Day of the week
+         %E = Name of the day of the week
+         %F = shows free memory in bytes (MEM!)
+         %H = Hour
+         %I = Minute
+         %K = Waits for a keypress
+         %M = Month
+         %N = New line       
+         %O = Name of the Month
+         %P = Current path
+         %S = Second
+         %Txx= Style, MUST be 2 chars!. 02=underline 04=invert 32=italic
+         %W = Week
+         %Y = Year (4 chars)
+         %Z = Year (2 chars)
+        Example:  prompt [%e%b, %d.%m.%z / %h:%i:%s]%n%p >
+                   .. results for example:
+                   [Fr, 01.10.93 / 13:45:26]
+                   M:\OPL\ >
+                   
+Quit
+        Quits the shell .. equal to eXit
+
+RemDir <path>
+        Deletes a (empty) directory
+        Example: rd M:\opl\tests   .. deletes M:\opl\tests
+        
+REName <old> <new>
+        Rename a programme with the OLD-name to the NEW-name
+        The new name can contain a path, if it is on the same disk.
+        Example: ren test.txt imprtnt.txt
+                 ren \opl\shell.opl \opl\tools\shell.opl
+                  
+Run <opo-file> 
+        starts a OPO-File as it would done by RUNOPL .. 
+        It doesn't halt the shell, that means you can use the
+        shell immediately after the Run-Command without exiting
+        the runned prg(s) ! 
+
+
+SET [<var> [<value>]]
+        Sets the variable VAR to VALUE. In this version, there is only
+        allowed to set UNIX to ON or OFF. UNIX ON means, that / are
+        converted to \ in an commandline. So you can type your pathes
+        with / instead of \ (Example: ls M:/OPL/ if LS is an alias to dir)
+        This may be usefull for UNIX and AMIGA - Users ...
+        Not converted are / in the commands ECHO, PROMPT, ALIAS and EVAL.
+        In a next version you will be able to set more vars and to
+        read & use them in your batch-files.
+
+SDir [<path>]
+        Shows the current dir or the one specified and its subdirs and
+        subdirs and so on.
+        Example: SD M:\
+
+TASKS
+        shows all tasks and their process-ids
+
+TIME
+        Equal to DATE and prints the current date and time.
+
+Type <filename> [HEX]
+        Types a text-file. If HEX is specified, it will be shown in
+        HEX and ASCII. (This is font-sensitive !!)
+        Example: type M:\autoexec.bat
+                 t rom::agenda.app hex
+                  
+UnLoad <OPO-File>
+        A loaded OPO/OPA-file will be unloaded.
+
+UnloadFont <font-id>
+        The loaded font with the ID specified will be unloaded.
+        Example: uf -16377
+        
+View <filename> [<x> <y>] [<bitmap>] [Grey]
+        Views a Pic. X/Y = length/height of the pic. On a 'normal'
+        PIC-File (the first bytes of it are PIC - you can see this if
+        you type a pic hex ...) the length/height is read from the
+        file. But this won't work on APP or IMG - Files e.g. .
+        bitmap = the bitmap which should be loaded
+        Grey = the next bitmap will be loaded to the grey-plane.
+        Example: view \pic\psion.pic
+                 view \pic\psion.pic grey
+                 view \pic\psion.pic 40 80
+                 view rom::world.app 400 120 2
+                 v rom::sys$shll.img 4
+                 v rom::sys$wsrv.img 60 50 4 g
+                  
+
+                    6. FUTURE VERSIONS ..
+                    
+DIR - font-sensitive, options, no LDIR/SDIR any more ...
+
+Batchfiles with arguments
+
+Allow ".." in filenames
+
+check a filename given at RUN what kind of file it is and start
+then the application for it. For example RUN xxx.wrd would start
+the word.application with filename xxx.wrd.
+
+                    
+                    7. How to contact me
+                    
+* via Email to  ns103@fim.uni-erlangen.de
+* German people can also call my BBS (see german dok) .. it is 100% in
+  german an there's no english text, so it makes no sense if you call it,
+  sorry..
+* A voice call is also too expensive (number can be found in the german
+  DOK-File), but you can write to me:
+  Marko Schuster
+  Helmstra·e 23
+  D-90419 NÅrnberg
+  Germany
+
+                    
+                    8. History         
+
+v2.5   * new command: TASKS - shows tasks & her process-id
+       * new command: ChangeTaskPri - changes priority of tasks
+       * Type doesn't worked on V2.4x .. no it works (& even faster :) )
+       * wildcards can be used now with PLAY and VIEW
+       * copy/delete/move: filenames are shown (wildcards!)
+       * redirection of output to file (or NIL: / NUL: for no output)
+
+v2.44  * ALIAS-command
+       * Executing a batch from a batch will work now.
+       * SET UNIX ON to convert / to \ in commandlines
+       * MEM shows free memory in bytes
+       * INFO shows Infos about devices
+       * new in PROMPT: %F shows free memory
+                            
+v2.43  * New LDIR-Command .. lists file-date,time&attribute
+       * New ed_bat.als in the archive
+       
+v2.42  * RUN opo-files
+       * ststistics in DIR and SDIR
+       * no CD-try on 'unknown command'
+
+v2.41  * Play doesn't played the given filename
+       * CD is no longer needed
+       
+

@@ -1,0 +1,90 @@
+Objet du programme
+
+GarPsi 5  permet de transférer et convertir des données entre le Psion et un GPS Garmin. Les données de latitude et longitude transmises ou reçues par le GPS sont dans le système géodésique WGS84. Aussi, GarPsi 5 permet de plus d'éditer des fichiers de waypoints et de points de tracé de route dans la plupart des systèmes géodésiques supportés par les GPS Garmin. Il supporte notamment le système European 1950 auquel se réfère la quasi totalité des cartes marines françaises et anglaises. GarPsi a été testé entre un Psion Series 5 et un Garmin 45. Il est incompatible avec le Garmin 90.
+
+
+Installation
+
+Les différents fichiers doivent être inplémentés sur la même unité logique X (C ou D) de la manière suivante : X:\System\Apps\GarPsi5\GarPsi5.aif
+X:\System\Apps\GarPsi5\GarPsi5.app
+X:\System\Apps\GarPsi5\GarPsi5.mbm
+X:\System\Apps\GarPsi5\Systems
+Pour la version en anglais:
+X:\System\Apps\GarPsi5\GarPsi501.hlp
+X:\System\Apps\GarPsi5\GarPsi501.rsc
+Pour la version en français:
+X:\System\Apps\GarPsi5\GarPsi502.hlp
+X:\System\Apps\GarPsi5\GarPsi502.rsc
+Les autres fichiers sont des exemples de fichiers de données. Leur utilisation est sous votre entière responsabilité. Ils doivent être placés dans le dossier
+X:\System\Apps\GarPsi5\Data
+A l'initialisation le programme y créera un fichier GarPsi5.ini
+ATTENTION ! L'effacement de ce dernier fichier nécessite de fournir à nouveau le code d'enregistrement dans le cas d'une utilisation sous licence.
+
+
+Enregistrement
+
+Ce programme est un shareware. Sans enregistrement, il n'est pas possible d'envoyer des fichiers au Garmin. L'enregistrement vous permet aussi de bénéficier gratuitement des mises à jour. L'enregistrement s'effectue en renvoyant le document LICENCE.TXT complété et accompagné du règlement. Le code vous sera transmis par retour du courrier et email éventuellement. Règlement (par chèque sur une banque française ou cash) : 200FF ou UKP20 ou DM60 ou $40.
+
+
+Préférences
+
+A l'initialisation et ensuite par le menu "Options", il est possible de fixer des préférences: - sur le décalage horaire qui doit être identique à celui du GPS (+1h en France à l'heure d'hiver), - sur le système géodésique utilisé (il y aura correspondance des coordonnées entre GPS et Psion si les systèmes utilisés sont identiques), - sur les unités. Pour ce dernier point, j'ai limité l'utilisation aux degrés avec un choix sur les subdivisions.
+
+
+Connexion au GPS
+
+Avec un PC, il m'a suffit de raccorder une fiche DB9 mâle au câble fourni avec mon GPS. Les fils blanc, marron et noir doivent être soudés respectivement sur les broches 2, 3 et 5 (numérotation de droite à gauche et de haut en bas en regardant les broches à souder). On peut ensuite connecter ce câble sur le câble série du Psion. ATTENTION ! Ne pas connecter votre GPS directement sur la prise RS232 d'un PC car celle-ci délivre des signaux entre +25 et -25V. Avec un Mac La fiche miniDIN 8 ayant le repérage suivant:
+   X X X 6
+ X O X X 3
+     X X  1
+c'est à dire que les broches sont numérotées de droite à gauche et de bas en haut (O est le tenon qui rend la fiche asymétrique), les fils blanc, marron et noir doivent être soudés respectivement aux broches 5, 3 et 4. Choisir le format "GARMIN/GARMIN" comme configuration d'entrées/sorties sur le GPS. Ne pas mettre en service la connexion série du Psion.
+
+
+Saisie des coordonnées
+
+La saisie des coordonnées s'effectue en degrés. L'utilisation des caractères ° ou ' n'est pas nécessaire. Par convention, le programme affecte une valeur négative aux latitudes Sud et aux longitudes Ouest, positives aux autres. Aussi, un caractère tel que -, s et w (majuscules ou non) en premier caractère affectera un signe négatif à la valeur saisie. Celle-ci sera interprétée comme une latitude Sud ou une longitude Ouest selon la nature du champ. Ensuite, dans le corps du champ saisi, le point est interprété comme un point décimal et tout autre caractère non numérique comme un changement de subdivision (de degré à minute ou de minute à seconde). Ceci permet une grande liberté mais ne forcez pas la dose quand même ! On doit arriver à planter le programme ! Exemples : si vous utiliser l'unité "ddd°mm.mmm'" qui est la plus courante sur les cartes marines "45.5", "n51-25.3", "w2/8/5", "-56 15 90" seront interprétés par "N45°30.000'", "N51°25.300'", "S02°08.083'", "S56°16.500'" en tant que latitudes et "E045°30.000'", "E051°25.300'", "W002°08.083'", "W056°16.500'" en tant que longitudes.
+
+
+Sauvegarde et restauration de données du GPS
+
+Les trains de données émis par le GPS sont stockés tel quels dans des fichiers ayant comme extension "ALM", "ROU", "TRA" et "WAY" respectivement pour l'almanach des satellites, les routes, le tracé et les waypoints. Avant restauration vers le GPS, les données doivent être préparées sous cette forme.
+
+
+Conversion des données
+
+Les fichiers reçus du GPS doivent être décodés pour être édités sauf l'almanach. Le décdage de l'almanach n'a en effet pas d'intérêt. Sa sauvegarde peut par contre éviter un redémarrage "à froid" long et fastidieux en cas de perte complète des données par absence d'alimentation du GPS. Les fichiers décodés ont pour extension "RBF", "TBF" et "WBF". Avant envoi vers le GPS, les fichiers DBF doivent être codés en trains de données prêtes à envoyer dans les fichiers aux extensions adéquates: ROU, TRA, WAY.
+
+
+Edition de fichiers
+
+Il est possible de créer avec l'option "Edition de fichier" un nouveau fichier. Cette option présente les données dans le système géodésique et l'unité choisis en préférences. Outre les fonctions classiques d'édition, il est possible à partir de cette option d'envoyer l'enregistrement courant au GPS, de rechercher un point à partir d'une chaîne de caractères et de trier un fichier de waypoints par distances croissantes à partir du waypoint courant. L'option "Partition de fichier" permet d'extraire une portion de tracé d'un fichier "tbf" et de le sauvegarder séparément (si vous voulez par exemple garder la trace de votre long bord de grand largue sous spi au surf à 12 noeuds ou d'un chemin rase-cailloux au travers des îles Chausey, mais attention à la précision du GPS !). Elle permet aussi de ne sélectionner que les premiers waypoints d'un fichier "wbf" qui aura été trié par distances croissantes par rapport au premier afin de ne pas encombrer le GPS de données inutiles.
+
+
+Mise à l'heure
+
+La mise à l'heure du Psion doit être utilisée avec prudence car il s'avère que le Psion a toujours un retard qui peut varier entre 1 à 10s sans que j'arrive à en détecter la cause.
+
+
+Ajout de Waypoints
+
+L'option "ajout de Waypoints" permet de créer ou mettre à jour des waypoints sur le GPS depuis le Psion et de bénéficier ainsi d'une saisie plus commode : "Position actuelle" a une fonctionnalité identique à la touche "mark" du GPS, "Autre position" permet de saisir toute autre position. Il faut noter que ces waypoints ne seront pas enregistrés dans les fichiers du Psion.
+
+
+Historique
+
+1.0a - 01/05/99 - Pré-version non enregistrable
+
+
+Remerciements
+
+Je remercie Jonathan Duff auteur de PSIGAR, disponible sur http:// ourworld.compuserve.com/homepages/Jon_Duff/homepage.htm Son programme m'a incité à développer un programme plus universel. J'ai repris l'architecture générale consistant à obtenir des fichiers Psion DBF en deux étapes. Ceci permet de faire des transferts rapides entre les deux appareils et de travailler ensuite en différé uniquement avec le Psion. Je remercie aussi William Soley auteur d'un document sur le protocole de transfert Garmin/Garmin disponible à l'adresse suivante : http://playground.sun.com/pub/soley/garmin.txt
+
+
+Responsabilité
+
+L'auteur décline toute responsabilité dans les conséquences de l'utilisation de ce programme.
+
+
+Auteur
+
+J.L.HOCHART 9ter rue Gambetta 50130 OCTEVILLE FRANCE Tél. (33) 2 33 93 53 34 email: molpetrus@geocities.com URL: http://www.geocities.com/Colosseum/Dugout/7981/

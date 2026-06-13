@@ -1,0 +1,291 @@
+ APP Swing
+  EXT "ODB"
+  PATH "\DAT"
+  TYPE $1000
+  ICON "B:\opd\Comp.pic"
+ ENDA
+
+PROC Swing:
+  GLOBAL X,Y,K%,W%,Remadj$(8),x%,y%,z%
+  GLOBAL Diradj$(8),Remo,Dir,Direct$(12),Min%
+  GLOBAL Max%,Dev,Z,Heading%,Master,Id%(2)
+  GLOBAL Remote,Direct,Nom%,Dnorth,Deast
+  GLOBAL Dsouth,Dwest,Rnorth,Reast,Rsouth
+  GLOBAL Rwest,P%,im%
+	DEFAULTWIN 1  	
+	im%=0	
+	PICTURE:
+	ID%(1)=P%
+	im%=1
+	PICTURE:
+	ID%(2)=P%
+  x%=-47 :y%=-50 :z%=12
+  gUSE 1
+  gVISIBLE OFF
+  DO
+  x%=x%+50
+  IF x%>480 :z%=z%*-1 :y%=y%+50 :x%=z%-47 :ENDIF
+	gAT x%,y%
+  gGREY 1
+  gCOPY id%(2),0,0,48,48,2
+  gGREY 2
+  gCOPY id%(1),0,0,48,48,2
+ UNTIL y%>180
+ gVisible on
+ gGREY 2
+  Top::
+  dINIT ""
+  dTEXT "","COMPASS  SWING",2
+  dTEXT "","Freeware written by Graham Linsky",514
+  dTEXT "","press <Help> if needed ",514
+  dTEXT "","Type of action required",514
+    IF EXIST("compcard.dbf")
+  dTEXT "Four  point","STEER BY",2
+		  dBUTTONS "correction",%f,"check swing",%c," CARD",%s
+	  ELSE
+  dTEXT "         Four  point"," ",2
+  		dBUTTONS "correction",%f,"check swing",%c
+  	ENDIF
+  K%=DIALOG
+  IF K%=0
+  	Help:
+  	GOTO top::
+  ENDIF
+  IF K%=99
+    IF EXIST("compcard.dbf")
+      DELETE "compcard.dbf"
+    ENDIF
+    CREATE "compcard.dbf",A,HEADING%,REMOTE,REMCRAFT,DIRECT,DIRCRAFT
+    W%=330
+    Check:
+    STOP
+  ENDIF
+  IF K%=115
+    OPEN "compcard.dbf",A,HEADING%,REMOTE,REMCRAFT,DIRECT,DIRCRAFT
+    Read:
+    GET
+    STOP
+  ENDIF
+  IF K%=102
+		ELSE
+		STOP
+  ENDIF
+  Direct$="NORTH"
+  Collect:
+  Rnorth=Remo
+  Dnorth=Dir
+  Direct$="EAST"
+  Nom%=90
+  Collect:
+  Reast=Remo
+  Deast=Dir
+  Direct$="SOUTH"
+  Nom%=180
+  Collect:
+  Rsouth=Remo
+  Dsouth=Dir
+  X=Remote+(Rnorth-Rsouth)/2
+  Y=Direct+(Dnorth-Dsouth)/2
+  Remadj$=FIX$(X,1,8)
+  Diradj$=FIX$(Y,1,8)
+  dINIT "  ON SOUTH  "
+  dTEXT "  ADJUST REMOTE TO  READ ",Remadj$
+  dTEXT "  ADJUST DIRECT READING TO  READ  ",Diradj$
+  DIALOG
+  Direct$="WEST"
+  Nom%=270
+  Collect:
+  Rwest=Remo
+  Dwest=Dir
+  X=Remote+(Reast-Rwest)/2
+  Y=Direct+(Deast-Dwest)/2
+  Remadj$=FIX$(X,1,8)
+  Diradj$=FIX$(Y,1,8)
+  dINIT "  ON WEST  "
+  dTEXT "  ADJUST REMOTE TO  READ  ",Remadj$
+  dTEXT "  ADJUST DIRECT READING TO  READ  ",Diradj$
+  DIALOG
+ENDP
+
+PROC Check:
+  LOCAL n%
+  dINIT "Number of points"
+  dTEXT "      Eight","Twelve   ",2
+  dBUTTONS "points",%e,"points",%t
+  K%=DIALOG
+  n%=45
+  IF K%=116
+    n%=30
+  ENDIF
+  DO
+    Collect:
+    Write:
+    Nom%=Nom%+n%
+  UNTIL Nom%>330
+  Read:
+  GET
+ENDP
+
+PROC Collect:
+  LOCAL n$(20)
+  n$=NUM$(Nom%,3)
+  Min%=Nom%-10
+  Max%=Nom%+10
+  IF Min%<0
+    Max%=360
+    Min%=0
+  ENDIF
+  dINIT Direct$
+  Master=Nom%
+  Remote=Nom%
+  Direct=Nom%
+  dTEXT "               ON  HEADING",n$,512
+  dFLOAT Master,"  MASTER COMPASS",Min%,Max%
+  dFLOAT Remote,"  REMOTE COMPASS",Min%,Max%
+  dFLOAT Direct,"  DIRECT READING COMPASS",Min%,Max%
+  DIALOG
+  Remo=Remote-Master
+  IF Remo<-350
+    Remo=Remo+360
+  ENDIF
+  IF Remo>350
+    Remo=Remo-360
+  ENDIF
+  Dir=Direct-Master
+  IF Dir<-350
+    Dir=Dir+360
+  ENDIF
+  IF Dir>350
+    Dir=Dir-360
+  ENDIF
+ENDP
+
+PROC Write:
+  A.HEADING%=Nom%
+  A.REMOTE=Remote
+  A.REMCRAFT=Remo
+  A.DIRECT=Direct
+  A.DIRCRAFT=Dir
+  APPEND
+ENDP
+
+
+PROC Read:
+  GLOBAL W,W$(5),Nom$(5)
+  LOCAL a,a$(5),b,b$(5),c$(5)
+  LOCAL d,d$(5),r,x%,y%
+  LOCAL Totrem,Totdir,Trem$(5),Tdir$(5)
+  FIRST
+  DO
+    Totrem=Totrem+A.REMCRAFT
+    Totdir=Totdir+A.DIRCRAFT
+    NEXT
+  UNTIL EOF
+  LAST
+  Trem$=NUM$(A.REMOTE-Totrem/COUNT,4)
+  Tdir$=NUM$(A.DIRECT-Totdir/COUNT,4)
+  dINIT "Coefficient 'A' adjustment"
+  dTEXT "Make REMOTE read",Trem$,512
+  dTEXT "Make DIRECT read",Tdir$,512
+  dTEXT "","Which systems did you correct ?",2
+  dTEXT "","Press  <ESC>  for neither",2
+  dBUTTONS "Remote",%r,"Both",%b,"Direct",%d
+  K%=DIALOG
+  IF K%=114
+    r=Totrem/COUNT
+  ENDIF
+  IF K%=100
+    d=Totdir/COUNT
+  ENDIF
+  IF K%=98
+    r=Totrem/COUNT
+    d=Totdir/COUNT
+  ENDIF
+  gAT 110,0
+  gFILL 260,14*COUNT,1
+  gFONT 6
+  x%=120
+  y%=10
+  gAT x%+5,y%
+  gPRINT "FOR"
+  gAT x%+90,y%
+  gPRINT "REMOTE"
+  gAT x%+190,y%
+  gPRINT "DIRECT"
+  y%=y%+3
+  FIRST
+  DO
+    x%=125
+    y%=y%+12
+    Nom%=A.HEADING%
+    Remo=A.REMCRAFT
+    Dir=A.DIRCRAFT
+    a=Nom%+Remo-r
+    IF a<0
+      a=a+360
+    ENDIF
+    W=a
+    Zero:
+    c$=W$
+    b=Nom%+Dir-d
+    IF b<0
+      b=b+360
+    ENDIF
+    W=b
+    Zero:
+    d$=W$
+    W=Nom%
+    Zero:
+    a$=c$+FIX$(a,0,5)
+    b$=d$+FIX$(b,0,5)
+    Nom$=W$+FIX$(Nom%,0,5)
+    gAT x%,y%
+    gPRINT Nom$
+    x%=x%+100
+    gAT x%,y%
+    gPRINT a$
+    x%=x%+100
+    gAT x%,y%
+    gPRINT b$
+    NEXT
+  UNTIL EOF
+ENDP
+
+PROC Zero:
+  IF W<100
+    W$="0"
+  ENDIF
+  IF W<10
+    W$="00"
+  ENDIF
+  IF W>100
+    W$=""
+  ENDIF
+ENDP
+
+PROC Help:
+	dINIT 
+	dTEXT "","'Four point swing' will calculate coef 'C' and then 'B' but",2
+	dTEXT "","will not collect data towards coef 'A' or 'STEER BY' card",$202
+	dTEXT "","'Check swing' collects data for coef 'A' calc and 'STEER BY' card.",2
+	dTEXT "","Data is kept even if program is exited. Next check swing overwrites",$202
+	dTEXT "","You can see what affect the coef 'A' correction will have before",2
+	dTEXT "","adjusting compass azimuth by rerunning 'STEER BY' part of program",$202
+	dBUTTONS "Continue",13,"Exit program",27
+	K%=DIALOG
+	IF K%=0
+	STOP
+	ENDIF
+ENDP
+
+PROC picture:
+  LOCAL A$(128),D%(100),B%,C%,E%
+  A$=CMD$(1)
+  B%=IOOPEN(C%,A$,1024)
+  B%=IOREAD(C%,ADDR(D%()),200)
+  E%=23+(D%(11) AND 255)
+  B%=PEEKW(ADDR(D%())+E%)
+  CALL(24461,1,E%,0,0,0)
+  IOCLOSE(C%)
+  P%=gLOADBIT(A$,0,im%)
+ENDP

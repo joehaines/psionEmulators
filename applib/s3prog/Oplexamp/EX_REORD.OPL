@@ -1,0 +1,26 @@
+PROC reorder:
+	LOCAL last%,e$(255),e%,lpos%,n$(128),c%
+	n$="\dat\*.dbf"
+	dINIT "Re-order Data file"
+	dFILE n$,"Filename",0
+	IF DIALOG REM returns 0 if cancelled
+		OPEN n$,a,a$
+		LAST :last%=POS
+		IF COUNT>0
+			WHILE last%<>0
+				POSITION last% :e%=POS
+				e$=UPPER$(a.a$)
+				DO
+					IF UPPER$(a.a$)<e$
+						e$=UPPER$(a.a$) :e%=POS
+					ENDIF
+					lpos%=POS :BACK
+				UNTIL pos=1 and lpos%=1
+				POSITION e%
+				PRINT e$
+				UPDATE :last%=last%-1
+			ENDWH
+		ENDIF
+		CLOSE
+	ENDIF
+ENDP

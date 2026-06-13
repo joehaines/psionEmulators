@@ -1,0 +1,48 @@
+REM Source file - DIR2.OPL
+
+REM How to use the
+REM supplied directory scanner for
+REM finding a file. This version only
+REM scans the default drive.
+
+REM Written by Jezar at Psion, for
+REM The 1994 Psion Developers Conference
+
+
+
+PROC main:
+	LOCAL name$(130)
+	
+	BUSY "Searching"
+	name$=FFfind$:("dir2.OPL")
+	BUSY OFF
+	IF name$<>""
+		PRINT "Found:",name$
+	ELSE
+		PRINT "File not found"
+	ENDIF
+	GET
+ENDP
+
+
+PROC FFfind$:(basic$)
+	GLOBAL FFkey$(255),FFmatch$(130)
+	
+	FFkey$=basic$
+	LOADM "DIRSCAN"
+	DSscan:("\","FFcheck")
+	UNLOADM "DIRSCAN"
+	RETURN FFmatch$
+ENDP
+
+
+PROC FFcheck%:(name$)
+	IF RIGHT$(name$,LEN(FFkey$))=UPPER$(FFkey$)
+		FFmatch$=name$
+		RETURN 1
+	ENDIF
+ENDP
+
+
+REM End of file
+

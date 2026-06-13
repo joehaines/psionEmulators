@@ -1,0 +1,72 @@
+Subj:  need help			Section: Psion Programming
+  To:  Chris Hennings, 100010,511	Sunday, 02 July, 1995 8:42:05 PM
+From:  ROGERIO BRAVO, 100662,2624	#158867
+
+I really hope you don´t minde: I had to post the answer in the news group;
+Thank you very much for your help; yhnks to you, now I am spending less
+time with calculations; the following is the corresponding to the INTERNET
+post I sended. Best regards and I hope someday to be of some assistence.
+
+From: rbravo@telepac.pt (Rogerio Bravo)
+Newsgroups: comp.sys.psion
+Subject: OPL problem/program: solved at last!
+Date: 2 Jul 1995 20:31:51 GMT
+Message-ID: <3t6vnn$pb6@tpone.telepac.pt>
+
+Some days ago I asked for help about a problem on programing with OPL;
+
+The problem was:
+
+I wanted to input a date, add a number of days to that date and
+obtain the final result: the new date minus 8 days.
+
+In case anybody wants to know how to solve it here it goes:
+
+Chris Hennings (CompuServe 100010,511) help me out with his message:
+
+"If you're happy working in the period 1970 - 2155 then no problems:
+
+y%=1995, mo%=6, d%=28, h%=0, mi%=0, s%=0, yd%
+ts&=DATETOSECS(y%,mo%,d%,h%,mi%,d%)      /* This gets seconds since 
+1/1/70 is s& */
+nodays&=90
+nodays&=nodays& * 86400                                          /* To 
+get the day offset in seconds          */
+ts&=ts&+nodays&                             
+SECSTODATE ts&,y%,mo%,d%,h%,mi%,d%,yd%     /* Converts secs back to 
+y%.mo% etc */
+
+If you want to work prior to 1970 then you have to do a bit more yourself 
+but I've got some code that does this somewhere.
+
+Rgds
+Chris"
+
+Whit his answer I was able to produce what I call the final code:
+
+PROC presc:
+local y%,mo%,d%,h%,mi%,s%,yd%
+local deadline&,ndays&,ts&
+h%=0
+mi%=0
+s%=0
+print "Initial Date:"
+print "Year:"
+input y%
+print "Month:"
+input mo%
+print "Day:"
+input d%
+print "Number of days:"
+input ndays&
+ts&=DATETOSECS(y%,mo%,d%,h%,mi%,s%)
+ndays&=(ndays&-8)*86400
+ts&=ts&+ndays&
+SECSTODATE ts&,y%,mo%,d%,h%,mi%,s%,yd%
+print
+print "Final date:", y%,mo%,d%
+get
+ENDP
+
+I hope it can be useful to somebody.
+

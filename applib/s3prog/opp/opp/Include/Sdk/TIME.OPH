@@ -1,0 +1,80 @@
+#define TIME_OPH
+
+#ifndef OLIB_OPH
+#include <sdk\olib>
+#endif
+
+#ifndef P_DATE_OPH
+#include <p\date>
+#endif
+
+/* Constants for time */
+
+#define SET_TIME_SECONDS 0
+#define SET_TIME_DATE 1
+#define SET_TIME_DAYSEC 2
+#define SET_TIME_NOW 3
+#define SET_TIME_DATESTR 4
+#define SET_TIME_TIMESTR 5
+#define SENSE_TIME_SECONDS 0
+#define SENSE_TIME_DATE 1
+#define SENSE_TIME_DAYSEC 2
+#define SENSE_TIME_STRING 3
+#define SENSE_TIME_DATESTR 4
+#define SENSE_TIME_TIMESTR 5
+#define SENSE_TIME_FIELDS 0x8000
+#define FLD_TIME_DAY 0
+#define FLD_TIME_MONTH 1
+#define FLD_TIME_YEAR 2
+#define FLD_TIME_HOUR 3
+#define FLD_TIME_MINUTE 4
+#define FLD_TIME_SECOND 5
+#define FLD_TIME_DAYNAME 6
+#define PR_TIME_DDMMYY 0x0000
+#define PR_TIME_MMDDYY 0x0001
+#define PR_TIME_YYMMDD 0x0002
+#define PR_TIME_DATE_ORDER 0x0003
+#define PR_TIME_NO_DAY 0x0004
+#define PR_TIME_NO_MONTH 0x0008
+#define PR_TIME_NO_YEAR 0x0010
+#define PR_TIME_MONTH_NAME 0x0020
+#define PR_TIME_SUFFIX_NAME 0x0040
+#define PR_TIME_DAY_NAME 0x0080
+#define PR_TIME_NO_CENTURY 0x0100
+#define PR_TIME_NO_SECS 0x0200
+#define PR_TIME_AMPM 0x0400
+#define TY_TIME_DAY 0
+#define TY_TIME_MONTH 1
+#define TY_TIME_SUFFIX 2
+#define TY_TIME_AMPM 3
+#define TY_TIME_FORMAT 4
+#define LN_TIME_DAY_NAME 14
+#define LN_TIME_MONTH_NAME 14
+#define LN_TIME_DATE_STR 48
+#define LN_TIME_TIME_STR 12
+
+/* Types for time */
+
+STRUCT SE_TIME_FORMAT
+	flags%
+	dsep#
+	tsep#
+ENDS
+
+STRUCT SE_TIME_FIELD
+	fld%
+	buf%
+	len%
+ENDS
+
+/* Property of time */
+
+STRUCT PRS_TIME
+	ds#(SIZEOF(P_DAYSEC))
+	f#(SIZEOF(SE_TIME_FORMAT))
+ENDS
+
+STRUCT PR_TIME
+	root#(SIZEOF(PRS_ROOT))
+	time#(SIZEOF(PRS_TIME))
+ENDS

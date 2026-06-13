@@ -1,0 +1,67 @@
+PROC wordrap:
+	LOCAL text$(3,128),tloc%,tlen%,x%
+	LOCAL fontid%,y%
+	
+	REM Program "WORDRAP" by Matthew Walters
+	REM The following code displays a line of text centred in a window,
+	REM wrapping round until it fits into the space provided.
+	REM PSION seem to have overlooked this requiremnt from gPRINTB etc.
+	REM This version also allows for hyphenation, but you could in
+	REM theory use any character as the cut off point.
+	REM Feel free to use it in your own programs, or as inspiration
+	REM to wite something better or more useful. 
+
+	
+	ONERR end
+	REM Stop when there's a problem.
+	
+	fontid%=9
+	gCREATE(0,0,240,160,1)
+	gBORDER 1
+	REM Select a small font to start with, and create a window half the screen
+	REM length, with a border.
+	
+	top::
+	gFONT fontid%
+	text$(1)="this is a sample line of text including spaces and hyphen-ation."
+	gAT 0,y%
+	REM Set the font size, and define the demo string.
+	
+	start::
+	y%=y%+12
+	REM This is the bit that matters...
+	tlen%=len(text$(1)) :REM find the length of the string
+	tloc%=tlen%+1
+	
+	DO
+		tloc%=tloc%-1
+		x%=(ASC(MID$(text$(1),tloc%,1))) 
+		REM X% is the ASCII value of the character tloc% along the string.
+		text$(2)=LEFT$(text$(1),tloc%) 
+		REM The string is cut in two until either a space or hyphen is found,
+		REM and the string is shorter than the space needed to display it.
+	UNTIL (x%=32 AND (gTWIDTH(text$(2))<gWIDTH)) or (gtwidth(text$(1))<gwidth) or (x%=45 and (gtwidth(text$(2))<gwidth)) 
+	
+	gAT (gWIDTH-(gTWIDTH(text$(2))))/2,y% :gPRINT text$(2) 
+	REM The revised string is printed in the centre of the line
+
+	REM The process starts over with the remainder of the string
+	REM if this string is still too long to fit in the window;
+	REM otherwise the remainder is centred and displayed.
+	text$(3)=RIGHT$(text$(1),(tlen%-LEN(text$(2)))) 
+	IF gTWIDTH(text$(3))>gWIDTH 
+		text$(1)=text$(3)
+		GOTO start
+		ELSE y%=y%+12 :gAT (gWIDTH-(gTWIDTH(text$(3))))/2,y%
+		gPRINT text$(3)
+	ENDIF
+
+	fontid%=fontid%+1 :y%=y%+4
+	REM For demonstration purposes, the font size changes and it all
+	REM happens again, until an invalid font size causes the program to stop.
+	GOTO top
+	
+	end::
+	GET
+	STOP
+ENDP

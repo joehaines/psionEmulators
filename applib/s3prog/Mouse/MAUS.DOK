@@ -1,0 +1,96 @@
+Die Maus und die Serie3(a)   .. von Marko Schuster 1993
+-------------------------------------------------------
+
+Die Files im Archiv:
+
+Maus3.*    - Beispiel-Prg. fr Serie3
+Maus3a.*   - Das Beispiel-Prg. fr den Serie3a
+Kreuz.pic  - Ein Sprite fr den Serie3a, muá im Verzeichnis
+             M:\pic\sprites\  sein (kann im OPL-Prg. abge„ndert werden..)
+
+Hinweis zum Programm: Wenn die linke Maustaste gedrckt ist, wird
+gezeichnet.
+
+Eine Maus am Serie3?? So etwas soll funktionieren? Natrlich.. Natrlich
+muá das Programm so programmiert worden sein, daá eine Maus als Alternativ-
+Eingabem”glichkeit verwendet werden kann. Im Klartext heiát das: Man kann
+die Maus allerh”chstens dann verwenden, wenn der Programmier sein Programm
+so geschrieben hat, daá es eine Maus untersttzt. Assembler-Programmierer
+k”nnten sich auch in die Tastaturabfrage-routine 'einklinken', so daá
+z.B. die Maus die Cursortasten emuliert, die Maustasten z.B. Men, Enter
+und ESC, und das so dann die Maus immer benutzt werden kann, auch in
+Standard-Applikationen und dem System-Bildschirm. (Auf dem PC gibt es ja
+so ein Programm (fr die Cursortasten). Die verwendete Maus muá
+eine serielle Maus sein, die man gew”hnlich an den PC anschlieát. M„use fr
+Amiga, Atari oder C64 funktionieren nicht! Serielle M„use haben entweder
+einen 9poligen oder 25poligen Sub-D-Stecker bzw. -Buchse. Zum Anschluá
+an das Serial-Link wird zuerst einmal ein Nullmodemkabel ben”tigt, das
+zwischen Maus und Serial-Link gesteckt werden muá. Bastler
+k”nnen natrlich auch andere Wege finden, ich z.B. hab die 9polige Buchse
+vom Serial-Link abgeschnitten, danach gemessen, welche Leitung auf welchem
+Pin sein sollte, und diese dann an einen neuen 9poligen Sub-D-Stecker
+gel”tet (Vertauschung der Pins wg. 'Nullmodem' beachten!). Man k”nnte
+an die Maus auch einen entsprechenden Mini-Din-Stecker anl”ten, der gleich
+ins Serial-Link gesteckt werden wrde, allerdings hab ich bisher noch
+kein Gesch„ft gefunden, in dem es solche ben”tigten 9-polige Mini-Din-
+Stecker zu kaufen gibt. Aber zurck zum Problem:
+Eine serielle Maus arbeitet gew”hnlich mit 1200 Baud. Daher muá erst einmal
+die serielle Schnittstelle vom Serie3(a) mit 1200 Baud ge”ffnet werden.
+Sch”n und gut, die Serielle ist ge”ffnet, die Maus sendet uns die Bewegungen,
+aber WAS denn?? Nach stundenlangem Forschen mittels eines Terminal-
+programmes, scheine ich das Problem gel”st zu haben. Allerdings
+gibt es verschiedene serielle M„use, die verschiedene Sequenzen senden.
+Ich z.B. kann mittels eines kleines Schalters auf der Unterseite der Maus
+umschalten zwischen "2-Tasten (Microsoft-Maus)" und "3-Tasten (Mouse
+System-Maus)" umschalten. Letzteres ist die Einstellung, die ich entr„tselt
+habe. Hat man also die Wahl, muá man auf "3-Tasten" stellen, wenn man die
+unten genannten Abfragen benutzt. Da ich nur eine PC-Maus habe, weiá ich
+nicht, inwieweit bei anderen M„usen diese Wahlm”glichkeit besteht.
+Leider ist es mir noch nicht gelungen, wie ich in OPL merken k”nnte, ob
+an der Seriellen Zeichen anliegen. Das hat zur Folge, daá Tastatureingaben
+in diesem Beispiel nicht m”glich sind, da die Prozedur darauf wartet, daá
+die Maus etwas sendet. Steht die Maus still, steht auch das Prg. .
+Die Maus sendet fr jede Bewegung 5 Bytes, wobei eine Bewegung auch mehrere
+Punkte und Richtungen beinhalten kann. Die Bewegungen werden in den letzten
+vier Bytes gespeichert, das erste Byte dagegen enth„lt den Status der
+Maus-Tasten. Folgende Werte (dezimale Angabe!) sind hier m”glich:
+
+  128 : alle Maus-Tasten gedrckt
+  129 : linke und mittlere gedrckt
+  130 : linke und rechte gedrckt
+  131 : linke gedrckt
+  132 : mittlere und rechte gedrckt
+  133 : mittlere gedrckt
+  134 : rechte gedrckt
+  135 : keine gedrckt
+
+Wenn wir davon ausgehen, daá PSION beim Serial-Link immer die selben
+Farben an den selben Pins verwendet, máte ein 9poliger Stecker, an dem
+man ohne Nullmodemkabel die Maus anschlieáen kann, so gel”tet werden:
+
+Pin Farbe
+ 1  Leer
+ 2  Braun
+ 3  Rot
+ 4  Schwarz
+ 5  Blau und Abschirmung
+ 6  Grn
+ 7  Gelb
+ 8  Orange
+ 9  Leer
+
+Hinweis: Es ist zwar m”glich, sowohl Maus als auch den PC an das Serial-Link
+anzuschlieáen. Es ist allerdings nicht m”glich, die Maus und die Rechner-
+kopplung gleichzeitig zu betreiben. Daher darf immer nur ein Ger„t an das
+Serial-Link angeschlossen sein! Bei Rechnerkopplung die Maus also ausstecken
+und ebenso bei Maus-Betrieb den Stecker zur PC-Seriellen !!
+Es kann zwar normalerweise nichts passieren, wenn man einmal Pins ausversehen
+vertauscht oder das Nullmodemkabel nicht einsteckt, aber wie bei allen
+Hardwarebasteleien sei angemarkt: Fr Sch„den ist weder der Autor noch
+eine andere Person auáer dem Bastler selbst verantwortlich. Auáerdem sollte
+beachtet werden, daá dadurch Garantieansprche verloren gehen k”nnen.
+
+written by .. Marko Schuster 12/93
+(Sysop Lonely Times 0911/3939034)
+EMail: ns103@fim.uni-erlangen.de
+

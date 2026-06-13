@@ -1,0 +1,176 @@
+
+				     PhunJump
+
+			     Version 1.2F - June 1998
+		      Copyright ¸ PhunSoft 1998 - Peter Hunkeler
+
+
+
+       Introduction
+       =============
+
+       PhunJump is a task switcher for the Psion Series 3c. The program was
+       designed to run on a Psion Series 3c although it should run on a
+       Series 3a as well.
+
+       PhunJump will show a list of active tasks. You'll use the cursor keys
+       to move the highlighted bar and the enter key to jump to the selected
+       task.
+
+
+       Copyright notice
+       ================
+
+       Copyright ¸ PhunSoft 1998 - Peter Hunkeler
+       Reverse translation is prohibited.
+
+       PhunJump is FreeWare+
+
+       FreeWare+ is almost like FreeWare: You may freely use and further
+       distribute this program provided that you keep all files of the package
+       together and unmodified.
+
+       So why is it called FreeWare+, then?  This is because I would like to
+       invite you to send me a nice postcard of your place of residence
+       should you like the program and decide to keep on using it.  See below
+       for snail mail address.
+
+       I will try to inform you about important updates if you provide me
+       with an eMail address of yourself.
+
+
+       Acknowledgements
+       ================
+
+       I would like to express my special thanks to:
+
+	    Daniel Pfund for providing me with some basic algorithms and for
+	    the permission to use them in PhunJump.
+
+	    Clive D.W. Feather for his wonderful Psionics files.
+
+
+       Disclaimer
+       ==========
+
+       This software is provided without warranty of any kind.  The author
+       shall not be held liable for any loss or damage of any kind due to the
+       use of this program.
+
+
+       Author's Address
+       ================
+
+       Snail mail   PhunSoft
+		    Peter Hunkeler
+		    Friedhofstrasse 7
+		    CH-8903 Birmensdorf / ZH
+		    Switzerland
+
+       eMail	    peter_hunkeler@bigfoot.com
+       Home page    www.geocities.com/SiliconValley/Park/8467
+
+
+       Installation
+       ============
+
+       The PhunJump package consists of the following two files:
+
+		    PhunJump.Opa	    the program file
+		    PhunJump.Txt	    this description
+
+       To install it simply copy the PhunJump.Opa file to the \APP directory
+       on any drive, then install it on the system screen.
+
+       PhunJump is designed to ease switching to any active application,
+       therefore I recommend to assign it to one of the base application
+       buttons (I prefer Jotter). That way you have a one-button-access to
+       the task list.
+
+
+       Usage
+       =====
+
+       PhunJump will show a list of active tasks which will be updated whenever
+       it is brought to the foreground. The list will show a task's status
+       window text (usually the file name in use) followed by the application
+       name. The latter will be SYS$PRGO for OPL programs unless the program
+       takes care to set a new process name (using a system call).
+
+       Use the CURSOR keys (ARROW keys) to move the highlighted bar. PhunJump
+       may handle up to 30 active tasks but will only show up to 12 at a time.
+       If there are more than 12 active tasks the list will scroll if you move
+       off the list, i.e. "up" on top left or "down" on bottom right.
+
+       The LEFT and RIGHT cursor keys move the highlighted bar "column wise",
+       or to the first or last entry if already in the first or last column,
+       resp.
+
+       The ENTER key jumps to the selected task, i.e. makes it the foreground
+       task.
+
+       The ESC key jumps back to the task that was the foreground task just
+       before you jumped to PhunJump.
+
+|      SHIFT-DELETE sends a close request to the selected task. This is done
+|      by sending an "X" command string. If the application honours system
+|      requests it should eventually stop. The "X" command is NOT the same
+|      as the system screen Psion-X, which will terminate the application
+|      whether is is listening for commands or not.
+|      PhunJump will wait a 1/2 second to give the application a chance to
+|      terminate before refreshing the task list. The application will still
+|      be shown on the list should it need more time to stop. DON'T send
+|      another close request but use the update function (SPACE, see below)
+|      instead.
+|	 If an application is still running after some refreshes, switch to
+|      it. It might be that the application is showing a dialog or menu and
+|      may not be able to listen to commands right now. Use the application's
+|      normal way to close it.
+
+
+|      SPACE will update the task list immediately.
+
+       The HELP key will show a short help screen.
+
+
+
+       Additional Info
+       ===============
+
+|      All system tasks (those that begin with SYS$...) except the RunOPL
+|      (SYS$PRGO) tasks are excluded from display.
+|
+|      NOTE that beginning with version 1.2F the "system screen" task
+|      (SYS$SHLL) will no longer be shown on the list. The system screen
+|      can always be jumped to using the system button.
+
+       Besides updating when switched to foreground, the task list will also be
+       updated after power on and after quitting the help screen. This is to
+       minimize the chance that PhunJump lists a task that already has ended at
+       that time. It does not, however, prevent listed tasks to end while you
+       are looking at the list or moving the highlighted bar. If you try to
+       jump to an already ended task PhunJump will not know about that fact
+|      and will stay in the foreground instead. To get an updated list
+|      immediately, use the update function (SPACE key).
+
+|      PhunJump will need about 18 KB of free memory to start and 13KB to run.
+
+
+       Release History
+       ===============
+
+       V1.2F   June 1998
+	       - New "Send Close Command (X)" function to close a task
+	       - New "update now" function
+	       - System shell task no longer shown in task list
+
+       V1.1F   January 1998
+	       - This is the first release to the public.
+	       - More information on the help screen.
+	       - Permanent "usage line" on bottom of screen.
+	       - Make sure no "String too long" error may occur when saving
+		 the task name in the array (use left$ in assignment).
+
+       V1.0F   January 1997
+	       - First final release; for personal usage only.
+

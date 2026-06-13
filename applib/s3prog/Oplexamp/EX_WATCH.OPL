@@ -1,0 +1,36 @@
+PROC watch:
+	LOCAL k%,s%,se%,mi%
+	AT 15,1 :PRINT "Stopwatch"
+	AT 10,9 :PRINT "Press a key to start"
+	GET
+	DO
+	CLS :mi%=0:se%=0:s%=SECOND
+	AT 10,9 :PRINT "   S=Stop, L=Lap    "
+	loop::
+	k%=KEY AND $ffdf REM ensures upper case
+	IF k%=%S
+		GOTO pause::
+	ENDIF
+	IF k%=%L
+		AT 15,5 :PRINT "Lap: ";mi%;":";
+		IF se%<10 :PRINT "0"; :ENDIF
+		PRINT se%;" ";
+	ENDIF
+	IF SECOND<>s%
+		s%=SECOND :se%=se%+1
+		IF se%=60 :se%=0:mi%=mi%+1 :ENDIF
+		AT 13,7
+		PRINT "Mins",mi%,"Secs",
+		IF se%<10 :PRINT "0"; :ENDIF
+		PRINT se%;" ";
+	ENDIF
+	GOTO loop::
+	pause::
+	mINIT
+	mCARD "Watch","Restart",%R,"Zero",%Z,"Exit",%X
+	k%=MENU
+	IF k%=%r
+		GOTO loop::
+	ENDIF
+	UNTIL k%<>%z
+ENDP

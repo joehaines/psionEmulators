@@ -1,0 +1,150 @@
+rem APP Video
+rem  PATH "\OPD"
+rem  ICON "B:\OPD\JIL'NBOX.PIC"
+rem  TYPE $1000
+rem ENDA
+
+PROC Vid:
+  GLOBAL C%,W$(128),B1%,B2%,A%,G%,L%,P%,W%,H%
+  GLOBAL D1%,D2%,Dx%,Dy%,e%,A&,N%,K%,I%,Z%,B%
+  CALL(5003,0,0,0,0,0)
+  W$="DANCER"
+  A&=2
+  dINIT "Animated pic viewer  V 2.0"
+  dFILE W$,"Root name of file:",1
+  dCHOICE L%,"Animation direction","Bounce,Loop"
+  dLONG A&,"Pause lengh",1,100
+  IF DIALOG=0
+    STOP
+  ENDIF
+  IF EXIST (W$+"1.pic")
+  B2%=gLOADBIT(W$+"1")
+  ELSE
+  File:
+  Vid:
+  ENDIF
+  W%=gWIDTH
+  H%=gHEIGHT
+  A%=(240-(W%/2))
+  B%=(80-(H%/2))
+  gCLOSE B2%
+  BUSY "Loading"
+  B1%=gCREATE(0,0,W%,H%,1)
+  ONERR EROR::
+  DO
+    C%=C%+1
+    B2%=gLOADBIT(W$+NUM$(C%,2))
+    gUSE B1%
+    gSETWIN A%,0,W%,C%*H% 
+    gAT 0,H%*(C%-1)
+    gCOPY B2%,0,0,W%,H%,3
+    gCLOSE B2%
+  UNTIL 0
+  EROR::
+  ONERR OFF
+  IF ERR<>-33
+    RAISE ERR
+  ENDIF
+  N%=C%-1
+  IF N%=0 : RAISE -33
+  ENDIF
+  D1%=gCREATE(0,0,0,0,1)
+  D2%=gCREATE(0,0,0,0,1)
+  gORDER D1%,1
+  gORDER D2%,2
+  gORDER B1%,3
+  gUSE B1%
+  C%=0
+  I%=1
+  BUSY OFF
+  BUSY "<Menu> key"
+  DO
+  e%=e%+1
+    C%=C%+I%
+    IF e%=5
+    BUSY OFF
+    ENDIF
+    gSETWIN A%+Dx%,-1*(H%*(C%-1))-Dy%
+    PAUSE A&
+    IF C%=N% AND L%=2 : C%=0
+    ENDIF
+    IF C%=N% 
+    I%=-1
+    ELSEIF C%=1
+      I%=1
+    ENDIF
+    IF P%
+      K%=GET
+    ELSE
+      K%=KEY
+      IF k%=290
+      	MEN:
+      ENDIF
+      IF k%=291 :Keys: :ENDIF
+    ENDIF
+      IF K%=32 :P%=1 :ELSE :P%=0 :ENDIF
+		IF H%>160
+      IF K%=256 :dY%=dY%-5 :ENDIF
+      IF K%=260 :dY%=dY%-25 :ENDIF
+      IF (dY%)<0 :dY%=0 :ENDIF
+      IF K%=257 :dY%=dY%+5 :ENDIF
+      IF K%=261 :dY%=dY%+25 :ENDIF
+      IF ABS(dY%)>(H%-160) :dY%=(H%-160)	:ENDIF
+    ENDIF
+		IF W%>480
+      IF K%=258 :dX%=dX%-5 :ENDIF
+      IF K%=263 :dX%=dX%-25 :ENDIF
+      IF ABS(dX%)>(W%/2-240) :dX%=-(W%/2-240) :ENDIF
+      IF K%=259 :dX%=dX%+5 :ENDIF
+      IF K%=262 :dX%=dX%+25 :ENDIF
+      IF ABS(dX%)>(W%/2-240) :dX%=(W%/2-240) :ENDIF		
+    ENDIF
+    G%=G%+1
+   IF G%=500 :PAUSE 2 :G%=0 :ENDIF
+  UNTIL 0
+ENDP
+
+PROC Men:
+	LOCAL a%
+	mINIT
+	mCARD "Video","Open file",%o,"Continue",%c,"Exit",%x
+	mCARD "Help","Keys",%k,"Files",%f,"Quit Menu",%c
+	a%=MENU
+	IF a%=120
+		STOP
+	ENDIF
+	IF a%=111 : gClose B1% : gClose D1%
+	gClose D2%
+		VID:
+	ENDIF
+	IF a%=102 : File:
+	ENDIF
+	IF a%=107 : Keys:
+	ENDIF
+ENDP
+
+PROC File:
+	dINIT "Example of File Selection"
+	dTEXT "","For file Dancer1.pic: just type the root ie. Dancer",2
+	dTEXT "","To cruise the directories press <TAB> on file BUT the",2
+	dTEXT "","full file name will be returned use right arrow key to clear",2
+	dTEXT "","highlight and <Delete> to remove the number and extension",2
+	dTEXT "","Set Disk, choose Loop or Bounce and pause by experimenting",2
+	dBUTTONS "continue",13
+	Dialog 
+ENDP
+
+
+
+PROC keys:
+		dINIT "KEYS"
+		dTEXT "","If the image is larger than the screen",2
+		dTEXT "","in either direction, the arrow keys will",2
+		dTEXT "","navigate around the picture in 5 pixel",2
+		dTEXT "","steps. <Space Bar> freezes frame and",2
+		dTEXT "","advances one frame, <Enter> to unfreeze",2
+		K%=DIALOG
+	IF K%=0
+		FILE:
+		ENDIF
+ENDP

@@ -1,0 +1,212 @@
+declare external
+EXTERNAL Hopalong:(a, b, c)
+EXTERNAL Quadruptwo:(a, b, c)
+EXTERNAL Threeply:(a, b, c)
+EXTERNAL Chip:(a, b, c)
+
+CONST ctrX%=320
+CONST ctrY%=110
+
+PROC Fract:
+local type%
+local a,b,c
+
+	a=10 :b=20 :c=30
+	dINIT "Fractals"
+	dTEXT "","Select type ad Enter 3 parameters",2
+  dTEXT "","Use numbers, eg 13 47.6 12",$202
+  dChoice type%,"Type:","Hopalong,Quadruptwo,Threeply,Chip"
+  dFLOAT a,"A",-1000,1000
+  dFLOAT b,"B",-1000,1000
+  dFLOAT c,"C",-1000,1000
+	if DIALOG=0
+		stop
+	endif
+
+	gCLS
+	gUpdate off
+
+	vector type%
+		L_HOP, L_QUAD, L_THRE, L_CHIP
+	endv
+	goto EXIT
+
+	L_HOP::
+	Hopalong:(a, b, c)
+	goto EXIT
+
+	L_QUAD::
+	Quadruptwo:(a, b, c)
+	goto EXIT
+
+	L_THRE::
+	Threeply:(a, b, c)
+	goto EXIT
+
+	L_CHIP::
+	Chip:(a, b, c)
+	goto EXIT
+	
+	EXIT::
+ENDP
+
+PROC Hopalong:(a, b, c)
+local x,y,xn
+local n&,m&
+local col%
+
+	col%=0
+	gColor 0,0,0
+	
+	LOOP::
+	  if n&>=6000
+	    m&=m&+n&
+	    n&=0
+	    at 1,1 :print m&;"  Points   "
+	    
+	    col%=col% + 64
+	    if col%>255
+	    	col%=0
+	    endif
+	    gColor col%, col%, col%
+	  endif
+	
+		if x>0
+			xn = y-sqr(abs(b*x-c))
+		elseif x<0
+			xn = y+sqr(abs(b*x-c))
+		else
+			xn = y
+		endif
+
+		y=a-x :x=xn
+		
+		gat int(x)+ctrX%,int(y)+ctrY%
+		glineby 0,0
+				
+		n&=n&+1
+	goto LOOP
+ENDP
+
+PROC Quadruptwo:(a, b, c)
+local v
+local x,y,xn
+local n&,m&
+local col%
+
+	col%=0
+	gColor 0,0,0
+	
+	LOOP::
+	  if n&>=6000
+	    m&=m&+n&
+	    n&=0
+	    at 1,1 :print m&;"  Points   "
+	    
+	    col%=col% + 64
+	    if col%>255
+	    	col%=0
+	    endif
+	    gColor col%, col%, col%
+	  endif
+	
+		v=ln(abs(c*x-b))
+		if x>0
+			xn = y-sin(ln(abs(b*x-c)))*atan(v*v)
+		elseif x<0
+			xn = y+sin(ln(abs(b*x-c)))*atan(v*v)
+		else
+			xn = y
+		endif
+
+		y=a-x :x=xn
+		
+		gat int(x)+ctrX%,int(y)+ctrY%
+		glineby 0,0
+				
+		n&=n&+1
+	goto LOOP
+ENDP
+
+PROC Threeply:(a, b, c)
+local c1,c2
+local x,y,xn
+local n&,m&
+local col%
+
+	c1=cos(b)
+	c2=sin(a+b+c)
+
+	col%=0
+	gColor 0,0,0
+	
+	LOOP::
+	  if n&>=6000
+	    m&=m&+n&
+	    n&=0
+	    at 1,1 :print m&;"  Points   "
+	    
+	    col%=col% + 64
+	    if col%>255
+	    	col%=0
+	    endif
+	    gColor col%, col%, col%
+	  endif
+	
+		if x>0
+			xn = y-abs(sin(x)*c1+c-x*c2)
+		elseif x<0
+			xn = y+abs(sin(x)*c1+c-x*c2)
+		else
+			xn = y
+		endif
+
+		y=a-x :x=xn
+		
+		gat int(x)+ctrX%,int(y)+ctrY%
+		glineby 0,0
+				
+		n&=n&+1
+	goto LOOP
+ENDP
+
+PROC Chip:(a, b, c)
+local v1,v2
+local x,y,xn
+local n&,m&
+local col%
+
+	col%=0
+	gColor 0,0,0
+	
+	LOOP::
+	  if n&>=6000
+	    m&=m&+n&
+	    n&=0
+	    at 1,1 :print m&;"  Points   "
+	    
+	    col%=col% + 64
+	    if col%>255
+	    	col%=0
+	    endif
+	    gColor col%, col%, col%
+	  endif
+	
+		v1=ln(abs(b*x-c))
+		v2=ln(abs(c*x-b))
+		if x>0
+			xn = y-cos(v1*v1)*atan(v2*v2)
+		elseif x<0
+			xn = y+cos(v1*v1)*atan(v2*v2)
+		else
+			xn = y
+		endif
+
+		y=a-x :x=xn
+		
+		gat int(x)+ctrX%,int(y)+ctrY%
+		glineby 0,0
+				
+		n&=n&+1
+	goto LOOP
+ENDP

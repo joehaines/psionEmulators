@@ -1,0 +1,111 @@
+SETUP (handshake=NONE :parity=NONE :STOP=1 :DATA=8 :BAUD=9600)
+newmenu:
+MENU "Download or other action?" (
+"Download waypoints" goto getway
+"Download routes" goto getrout
+"Download track" goto gettrck
+"Poweroff" GOTO poweroff )
+EXIT
+getway:
+capture "\txt\waypoint.txt"
+SEND "<$10><$0A><$02><$07><$00><$ED><$10><$03>"
+wait 10 (on reply "<$10><$1B>" GOTO waysox)
+ALERT "SOX Input timed out"
+EXIT
+waysox:
+SEND "<$10><$06><$02><$1B><$00><$DD><$10><$03>"
+newway:
+wait 10 (on reply "<$10><$23>" GOTO waystart
+					on reply "<$10><$0C>" GOTO waystop)
+ALERT "Waypoint start timed out"
+EXIT
+waystart:
+wait 4 (on reply "<$10><$03>" GOTO wayend)
+ALERT "Waypoint input timed out"
+EXIT
+wayend:
+SEND "<$10><$06><$02><$23><$00><$D5><$10><$03>"
+goto newway
+waystop:
+wait 4 (on reply "<$10><$03>" GOTO wayoff)
+ALERT "Waypoint stopping timed out"
+EXIT
+wayoff:
+capture OFF
+SEND "<$10><$06><$02><$0C><$00><$EC><$10><$03>"
+ALERT "Waypoint input completed"
+GOTO newmenu
+
+getrout:
+capture "\txt\route.txt"
+SEND "<$10><$0A><$02><$04><$00><$F0><$10><$03>"
+wait 10 (on reply "<$10><$1B>" GOTO routsox)
+ALERT "SOX Input timed out"
+EXIT
+routsox:
+SEND "<$10><$06><$02><$1B><$00><$DD><$10><$03>"
+newrec:
+wait 10 (on reply "<$10><$1D>" GOTO newrout
+					on reply "<$10><$1E>" GOTO routway
+					on reply "<$10><$0C>" GOTO routstop)
+ALERT "Route record timed out"
+EXIT
+newrout:
+info "New route..."
+wait 4 (on reply "<$10><$03>" GOTO routed)
+ALERT "Route data timed out"
+EXIT
+routed:
+SEND "<$10><$06><$02><$1D><$00><$DB><$10><$03>"
+goto newrec
+routway:
+wait 4 (on reply "<$10><$03>" GOTO routend)
+ALERT "Route input timed out"
+EXIT
+routend:
+SEND "<$10><$06><$02><$1E><$00><$DA><$10><$03>"
+goto newrec
+routstop:
+wait 4 (on reply "<$10><$03>" GOTO routoff)
+ALERT "Route stopping timed out"
+EXIT
+routoff:
+capture OFF
+SEND "<$10><$06><$02><$0C><$00><$EC><$10><$03>"
+ALERT "Route input completed"
+GOTO newmenu
+
+gettrck:
+capture "\txt\track.txt"
+SEND "<$10><$0A><$02><$06><$00><$EE><$10><$03>"
+wait 10 (on reply "<$10><$1B>" GOTO trcksox)
+ALERT "SOX Input timed out"
+EXIT
+trcksox:
+SEND "<$10><$06><$02><$1B><$00><$DD><$10><$03>"
+newtrck:
+wait 10 (on reply "<$10><$22>" GOTO trckstart
+					on reply "<$10><$0C>" GOTO trckstop)
+ALERT "Track start timed out"
+EXIT
+trckstart:
+wait 4 (on reply "<$10><$03>" GOTO trckend)
+ALERT "Track input timed out"
+EXIT
+trckend:
+SEND "<$10><$06><$02><$22><$00><$D6><$10><$03>"
+goto newtrck
+trckstop:
+wait 4 (on reply "<$10><$03>" GOTO trckoff)
+ALERT "Track stopping timed out"
+EXIT
+trckoff:
+capture OFF
+SEND "<$10><$06><$02><$0C><$00><$EC><$10><$03>"
+ALERT "Track input completed"
+GOTO newmenu
+
+poweroff:
+SEND "<$10><$0A><$02><$08><$00><$EC><$10><$03>"
+EXIT
+

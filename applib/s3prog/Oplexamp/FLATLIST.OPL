@@ -1,0 +1,175 @@
+/* 
+    Example OPL program which replaces choice list in a dialog
+    with a VAFLAT array allowing more choice items than the normal
+    list (limited to 254 items - this example creates a choice
+    list with 360 items).
+
+    A related OPL program STRLIST.OPL uses the VASTR class of
+    array to reduce the amount of memory used with a penalty of
+    reduced speed.
+
+    This file should be accompanied by VARRAY.TXT which describes
+    some of the concepts used here in a little more detail.
+
+*/
+
+#define DatDialogPtr		$36
+
+#define E_GEN_NOMEMORY		-10
+
+#define SE_CHLIST_NSEL		1
+#define SE_CHLIST_DATA		2
+#define SE_CHLIST_RETAIN	4
+
+#define C_VAFLAT		3
+
+#define O_DESTROY		0
+
+#define O_VA_INIT		17
+#define O_VA_APPEND		7
+
+#define O_WN_SET		10
+
+
+/*  MAIN: is our top level procedure  */
+
+PROC main:
+
+	GLOBAL		ret%                              /*  General return  */
+
+	ret% = Choice%:    
+
+	IF ret% < 0
+		PRINT "Error was", ret%
+	ELSE
+		PRINT "You chose item", ret%
+	ENDIF
+	GET
+
+ENDP
+
+
+/*  CHOICE%: replaces the choice list and displays the dialog  */
+
+PROC Choice%:
+
+	GLOBAL		datdlg%                      /*  DatDialogPtr static  */
+	GLOBAL		vaflat%                      /*  The C_VAFLAT object  */
+	GLOBAL		set%(3)                      /*  SE_CHLIST structure  */
+	GLOBAL		pset%                          /*  Pointer to set%()  */
+
+	LOCAL		choice%                /*  Live variable for dCHOICE  */
+	LOCAL		lgnsel%              /*  set.nsel in SE_CHLIST 'set'  */
+	LOCAL		index%                  /*  Index of the choice list  */
+
+	index%  = 1                             /*  Index of the dialog item  */
+	pset%   = ADDR(set%())          /*  pset% points to SE_CHLIST struct  */
+
+	lgnsel%  = 0                         /*  set.nsel in SE_CHLIST 'set'  */
+
+	set%(1)  = (SE_CHLIST_DATA) OR (SE_CHLIST_NSEL) OR (SE_CHLIST_RETAIN)
+	set%(3)  = lgnsel%
+	
+	PRINT "Generating list, wait a short time"
+	ret% = Array%:
+	IF ret% < 0
+		RETURN ret%
+	ENDIF
+
+	dINIT "Test dialog"                              /*  Init the dialog  */
+	dCHOICE choice%, "Date", "dummy"       /*  Create a choice list with
+                                                               a dummy entry  */
+
+	datdlg%  = PEEKW(DatDialogPtr)  /*  datdlg% points to current dialog  */
+	set%(2)  = vaflat%                             /*  set.data = varray  */
+	
+	ret% = ENTERSEND0(datdlg%, O_WN_SET, #index%, #pset%)
+
+/*
+    WN_SET is a method provided by the DLGBOX class and is used to
+    set the data element in the property of the control associated
+    with the dialog box item.
+*/
+	IF (ret% <> 0)                                  /*  Return any error  */
+		RETURN ret%
+	ENDIF
+
+	IF (DIALOG > 0)                                   /*  Run the dialog  */
+		lgnsel% = choice%
+		ret% = ENTERSEND0(vastr%, O_DESTROY)            /*  Clear up  */
+		IF (ret% <> 0)                          /*  Return any error  */
+			RETURN ret%
+		ENDIF
+
+		RETURN lgnsel%                  /*  Return the option chosen  */
+	ENDIF
+
+	ret% = ENTERSEND0(vastr%, O_DESTROY)                    /*  Clear up  */
+	IF (ret% <> 0)                                  /*  Return any error  */
+		RETURN ret%
+	ENDIF
+
+ENDP
+
+
+/*  ARRAY%: creates the array and fills it with example data  */
+
+PROC Array%:
+
+	LOCAL		yea%                                    /*  The year  */
+	LOCAL		mon%                                   /*  The month  */
+	LOCAL		buf$(10)                     /*  The built-up string  */
+	LOCAL		pbuf%                            /*  Pointer to buf$  */
+	LOCAL		size%                  /*  Record length for VA_INIT  */
+	LOCAL		gran%                    /*  Granularity for VA_INIT  */
+	LOCAL		ohand%               /*  Category handle of OLIB.DYL  */
+
+	gran% = 16                                     /* Granularity  is 16  */
+	size% = 9                                     /*  Record length is 9  */
+	
+	ret% = FINDLIB(ohand%, "OLIB.DYL")  /*  Find category handle of OLIB  */
+	IF (ret% <> 0)
+		RETURN ret%                                 /*  Return error  */
+	ENDIF
+
+	vaflat% = NEWOBJH(ohand%, C_VAFLAT)/*  Create an instance of C_VFLAT  */
+ 	IF (vaflat% = 0)
+		RETURN E_GEN_NOMEMORY                         /*  Return OOM  */
+	ELSE
+                                /*  Set up the record length and granularity  */
+		ret% = ENTERSEND0(vaflat%, O_VA_INIT, #size%, #gran%)
+		IF (ret% <> 0)
+			RETURN ret%                     /*  Return any error  */
+		ENDIF
+	ENDIF
+
+	yea% = 1970                                        /*  Start at 1970  */
+	mon% = 1                                        /*  Start at January  */
+
+/*  
+    The following loops round and round adding all the month & year
+    combinations between Jan 1970 and Dec 2000. It is a convenient
+    way of generating a very long list. The strings are then added
+    to the array using VA_APPEND.
+*/
+	WHILE (yea% <= 2000)
+		WHILE (mon% <= 12)
+			buf$ = MONTH$(mon%) + CHR$(32) + GEN$(yea%, 4) + CHR$(0)
+			pbuf% = UADD(ADDR(buf$), 1)         /*  Skip the LCB  */
+			ret% = ENTERSEND0(vaflat%, O_VA_APPEND, #pbuf%)
+
+/*
+    VA_APPEND is a method provided by the (abstract) class
+    VAROOT. It appends the records pointed to by, in this case 'pbuf%',
+    to the end of the array.
+*/
+			IF (ret% <> 0)
+				RETURN ret%             /*  Return any error  */
+			ENDIF
+			mon% = mon% + 1                 /*  Reset to January  */
+		ENDWH
+		yea% = yea% + 1                       /*  Increment the year  */
+      		mon% = 1                             /*  Increment the month  */
+	ENDWH
+	RETURN 0                                                /*  No error  */
+ENDP

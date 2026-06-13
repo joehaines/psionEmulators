@@ -1,0 +1,28 @@
+PROC fsize&:(f$)
+
+	LOCAL pinfo$(16),ppinfo%,fname$(20),err%,ret&
+	LOCAL ax%,bx%,cx%,dx%,si%,di%	/*  variables MUST be in this order  */
+
+	ppinfo% = ADDR(pinfo$) + 1	/*  pinfo$ is P_INFO struct  */
+	fname$ = f$ + CHR$(0)		/*  name must be zero-terminated  */
+
+	ax% = $0800					/*  $08 is subfunction number  */ 
+	bx% = ADDR(fname$) + 1          
+	cx% = ppinfo%
+	dx% = $00
+	di% = $00
+	si% = $00
+
+	err% = OS($87,ADDR(ax%))		/*  $87 is FilStatusGet interrupt  */
+	
+	IF (err% AND 1)
+		ret& = (ax% AND $FF) - 256
+	ELSE
+		POKEB ADDR(pinfo$),16
+		ret& = PEEKL(ADDR(pinfo$) + 5)
+	ENDIF
+
+	RETURN ret&
+
+ENDP
+		

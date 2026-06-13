@@ -1,0 +1,516 @@
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º SysLib 2.45                                                                º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+SysLib 2.45 is an application framework designed to provide all the 
+neccessary functionality which you like to have for your applications 
+without any extra programming! This leaves only the applicatoric 
+dependent procedures in your applications, reducing complexity and size 
+and even reduces the time for testing all the basics.
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Terms of usage                                                             ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+SysLib 2.45 may be used freely within your applications, even if you 
+supply them as shareware. The only thing you are asked to do is to name 
+the author in your applications documentation.
+The fee for this applications should not be higher because of the usage 
+of the SysLib. Please, if possible, avoid to include the SysLib itself 
+in your packages because of it's continous further development and 
+enhancements. Simply refer to it's name in the CompuServe Forum.
+The author will do (almost) anything to keep the interface absolutely 
+stable, but if there are any troubles with your application using it, 
+ask for assistance!
+As some kind of gratification please make an offer for a free 
+registration for any shareware using SysLib to the author!
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ About this reference                                                       ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Please consider this paper as a constantly growing thing, because on one 
+hand the SysLib was not thought of to be a public use library and 
+therefore all the related documentation has to be written after the 
+programming, and on the other hand the library is far from being perfect
+and to be extended and enhanced which does not make the documentation 
+work very much easier!
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ About the author                                                           ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+If you have any questions, please contact the author:
+
+Thomas Nemec
+Gladbeckstraáe 1/12a/10
+2320 Schwechat, Austria
+CIS: 100024,3461
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ A minimum application using the SysLib                                     ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+See the following application skeleton as a template for an absolute 
+minimal application (simply try to translate this application thing and
+watch what it is doing!):
+
+Rem --------------- application source starts here --------------------------
+App Template
+Type Type $1003
+Ext "ext"
+Path "\template"
+Enda
+
+Rem your application start procedure should only load the SysLib and
+Rem enter the event loop
+Proc Main:
+LoadM dir$:("Sys$Lib2.opo")
+Events:("\template","ext","1.0","",0)
+Endp
+
+Rem try to find the SysLib on any local drive and in \opo or \syslib
+Proc dir$:(fn$)
+Local i%,d$(6),r$(7)
+d$="ABMABM" :r$="OPO\"
+Do
+  i%=i%+1
+  If i%=4 :r$="SYSLIB\" :EndIf
+  If Exist(Mid$(d$,i%,1)+":\"+r$+fn$)
+    Return (Mid$(d$,i%,1)+":\"+r$+fn$)
+  EndIf
+Until i%=6
+Return fn$
+Endp
+
+Rem be ready to receive all the messages
+Rem 0=initialize application (special message, called only once)
+Rem 1=come to foreground
+Rem 2=go to background and so on (see the psion programmers manual)
+Proc Message:(t%)
+Print "Message:",t%
+Endp
+
+Rem each time there has a file open to be performed
+Proc Open%:
+Print "Open:",f$
+Endp
+
+Rem or a create is neccessary
+Proc Create%:
+Print "Create:",f$
+Endp
+
+Rem close a file on exit or before any file change
+Proc Close%:
+Print "Close"
+Endp
+
+Rem ignore [ctrl][menu] keypresses
+Proc SetWidth:(w%)
+Endp
+
+Rem catch all the simple key presses, return 1 if to exit
+Proc Key%:(k%,s%)
+Print "Key:",k%,"Mod:",s%
+Endp
+
+Rem react on special key combinations (including diamond key), 
+Rem return 1 if to exit
+Proc CtrlKey:(k%,s%)
+Print "CtrlKey:",k%,"Mod:",s%
+Endp
+
+Rem perform menu and hotkey operations, return 1 if to exit
+Proc Action%:(k%)
+If k%=%x
+  Return 1
+EndIf
+Endp
+
+Rem make a menu on request, return the result on exit
+Proc Menu%:
+Local i%
+mInit
+mCard "Special","Exit",%x
+Lock On
+i%=Menu
+Lock Off
+Return i%
+Endp
+Rem --------------- application source ends here ----------------------------
+
+
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º Minimum application needings                                               º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+The above application example does the following basic things for you:
+
+1.  Your application will be renamed from something like "Sys$prgo.$09" to
+    "TEMPLATE.$09"
+2.  On startup there will be a logo shown in the lower right edge of the
+    screen, naming the application and it's version 
+    (here: "Template 1.0")
+3.  The applications data path and file extension is stored and can be 
+    retrieved by a function Mask$:
+4.  The applications actual working file name is stored within a 
+    global variable called f$
+5.  The country data is read from the system and provided in global 
+    variables
+6.  Your application will be initialized by a message 0
+7.  The working file will be created or opened by the applications
+    create/open functions
+8.  The text "bring" mechanism will be initialized
+9.  The timer will be initialized
+10. Now the message loop will be entered and can only be exited if a 
+    termination signal is encountered (which means return 1 on key 
+    and action procedures)
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Event loop handling                                                        ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+All the messages and events are handled by an event loop, which is to be 
+called on application entry:
+
+Events:( datadir$, ext$, ver$, rsc$, flags% )
+
+datadir$        specifies the data directory for the application e.g. "\data"
+
+ext$            specifies the extension string e.g. "ext"
+
+ver$            is the applications version number string (max 4 chars)
+                e.g. "1.1a"
+
+rsc$            specifies the ressources name (description to follow)
+
+flags%          states configuration flags (description to follow)
+
+This event loop will only be left on an exit request, usually from a
+hotkey or menu item call.
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Message handling                                                           ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Every time when a message is encountered from the system, the 
+applications message handler call back procedure "Message" will be 
+called:
+
+Message:(msg%)
+
+msg%            Message type identifier,
+                msg%=0 for the application initialization
+                msg%=1 for "come to foreground"
+                msg%=2 for "go to background" and so on
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ File creation, file open and file close                                    ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Every time when a file has to be created, opened or changed by request from 
+the system screen or on startup, this call back procedures are executed 
+(before opening or creating a new file any currently open file will be 
+closed)
+
+Create%:
+Open%:
+Close%:
+
+These procedures should return 0 on success, otherwise 1.
+File creation should try to delete any existing file having the same 
+name.
+The global variable f$ consists of the full filename.
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Key processing                                                             ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Whenever a (normal) key is to be processed, the applications call back 
+procedure Key%: will be called: 
+
+Key%:( key%, mod% )
+
+key%            is the value of the pressed key, e.g. %a or %O or anything
+
+mod%            is the modifier, e.g. $02 if only [shift] is pressed
+
+This function has to return 1 if an exit is to perform afterwards, 
+otherwise 0.
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Special key processing                                                     ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Whenever a special key is to be processed, the applications call back 
+procedure CtrlKey%: will be called:
+
+CtrlKey%:( key%, mod% )
+
+For the parameters and return code see the procedure Key%:
+
+The code will be subtracted by 256, providing: 0 for cursor up, 1 for 
+cursor down, 4 for page up, 36 for the diamond key and so on!
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Menu handling                                                              ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Every time when the menu key is pressed, the applications call back 
+procedure Menu%: is called:
+
+Menu%:
+
+This procedure should build up a menu in the usual manner, providing the 
+result of the OPL statement MENU as the procedures result.
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Hotkey processing and menu element selection                               ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Each selected menu element and any (additional) hotkey has to be 
+processed in the applications call back procedure Action%:
+
+Action%:( hotkey% )
+
+hotkey%         stands for the hotkey or menu element selection, e.g. %o
+
+This procedure should return 1 if an exit is to be made, otherwise 0.
+
+
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º Enhanced functionality                                                     º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+There are lots of functions available in the SysLib, some of them are 
+listed below:
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ [Ctrl][Menu] state window change                                           ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+To react correct on a [ctrl][menu] key press you have to use the 
+SetWidth: call back procedure in such a way:
+
+Proc SetWidth:(width%)
+gSetWin gOriginX,gOriginY,gWidth+w%,gHeight     Rem change the window size
+Rem include here your applications reaction to the size change
+Return 1                                Rem signal a "size change accepted"
+Endp
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Include an "About" message                                                 ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+To show your initials on startup and provide an about box you have to 
+provide a call back procedure About$: like this one:
+
+Proc About$:(i%)
+Vector i%
+  a1,a2,a3,a4
+Endv
+a1:: Return "(c)1994"
+a2:: Return "Your Name"
+a3:: Return "Your email address"
+a4:: Return "Your initials"
+Endp
+
+To show the about box by reacting on the SysLib hotkey [shift]A include 
+the following source fragment in your Action%: procedure:
+
+.....
+ElseIf hotkey%=k0%:(17)
+  About:
+ElseIf ......
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Date and time formatting                                                   ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Format a date number d& by using the procedure 
+
+date$:(days&)
+
+or a time number t& by using the procedure
+
+time$:(time&,0)
+
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º  SysLib's screen updating and cursor management                            º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+Since most of the applications on the S3a are line and column oriented, 
+a large number of procedures are related to this type of screen output.
+To use this functionality, follow the below described guidelines (shown 
+on basis of a simple example):
+
+
+Rem --------------- application source starts here --------------------------
+App Template
+Type Type $1003
+Ext "ext"
+Path "\template"
+Enda
+
+Rem enter the event loop
+Proc Main:
+LoadM dir$:("Sys$Lib2.opo")
+Events:("\template","ext","1.0","",0)
+Endp
+
+Rem try to find the SysLib on any local drive and in \opo or \syslib
+Proc dir$:(fn$)
+Local i%,d$(6),r$(7)
+d$="ABMABM" :r$="OPO\"
+Do
+  i%=i%+1
+  If i%=4 :r$="SYSLIB\" :EndIf
+  If Exist(Mid$(d$,i%,1)+":\"+r$+fn$)
+    Return (Mid$(d$,i%,1)+":\"+r$+fn$)
+  EndIf
+Until i%=6
+Return fn$
+Endp
+
+Rem handle messages
+Proc Message:(t%)
+If t%=0                         Rem initialize application
+  ttl%=1                        Rem use a title line
+  sld%=1                        Rem use a slider bar
+  Zoom:(0)                      Rem use the standard font selection
+  SetStat:(2)                   Rem use the big status window on startup
+  SetFnc:("Lne","PrtIdx")       Rem use the standard index output proc's
+  SetFnc:("Pos","pSeek")        Rem use this positioning procedure
+  SetFnc:("Hdr","Head")         Rem use this title output procedure
+  SetFnc:("Fld","Field")        Rem use this field output procedure
+  Count%=3                      Rem let us assume there are 3 lines to draw
+  poll%=3                       Rem signal: redraw the whole screen
+EndIf
+Endp
+
+Rem call back proc for the field values
+Proc Field$:(f%,n%)
+Return Num$(n%,3)+","+Num$(f%,3)        Rem simply print line and column #
+Endp
+
+Rem call back proc for the title identifiers
+Proc Head$:(i%)
+Return Num$(i%,3)               Rem simply print the column #
+Endp
+
+Rem call back proc for doing a seek on item n%
+Proc pSeek%:(n%)
+Endp
+
+Proc Create%:
+Endp
+
+Proc Open%:
+Endp
+
+Proc Close%:
+Endp
+
+Rem react on [ctrl][menu] key combinations
+Proc SetWidth:(w%)
+gSetWin gOriginX,gOriginY,gWidth+w%,gHeight
+SetCW:(-1,g%(6)*28,2)   Rem the first column is 28 chars wide
+SetCW:(0,g%(6)*8,1)     Rem the second column is 8 chars wide
+poll%=3                 Rem redraw the screen
+Return 1                Rem signal "ok"
+Endp
+
+Rem catch all the simple key presses, return 1 if to exit
+Proc Key%:(k%,s%)
+Endp
+
+Rem react on special key combinations (including diamond key), 
+Rem return 1 if to exit
+Proc CtrlKey:(k%,s%)
+If MoveCur:(k%)                 Rem process cursor movement
+  giPrint "Key not valid"       Rem process any non cursor movement keys
+EndIf
+Endp
+
+Rem perform menu and hotkey operations, return 1 if to exit
+Proc Action%:(k%)
+If k%=%x
+  Return 1
+EndIf
+Endp
+
+Rem make a menu on request, return the result on exit
+Proc Menu%:
+Local i%
+mInit
+mCard "Special","Exit",%x
+Lock On
+i%=Menu
+Lock Off
+Return i%
+Endp
+Rem --------------- application source ends here ----------------------------
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Zoom the working font                                                      ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+To increase the current font by 1 use
+
+Zoom:(1)
+
+To decrease the current font by 1 use
+
+Zoom:(-1)
+
+To force a redraw use afterwards:
+
+SetWidth:(0)
+
+
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º SysLib's global variables                                                  º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+The following variables may be changed by the application:
+
+Global fnt%     Rem font number (default=7)
+Global esc%     Rem exit by escape (1=yes, 2=no)
+Global frm%     Rem use framed output (1=yes, 2=no)
+Global cm%      Rem cursor mode (1=arrow, 2=line)
+Global sld%     Rem use a slider bar on the right side (1=yes, 2=no)
+Global ttl%     Rem use a title line (1=yes, 2=no)
+Global Count%   Rem number of items (records)
+Global poll%    Rem refresh signal, refresh:
+                Rem 1=full screen w/o title
+                Rem 2=full screen w title
+                Rem 3=full screen w cls
+                Rem 4=only current line
+                Rem 5=only current and next line
+                Rem 6=only current and previous line
+                Rem 7=only title and current line
+                Rem 8=only title
+Global top%     Rem number of first index line (top line)
+Global cp%      Rem number of current index line on screen 
+
+The following variables may be checked by the application:
+
+Global o%       Rem current file message %O, %C or %X
+Global f$(128)  Rem current file name (including path)
+Global Pos%     Rem current line position
+Global lg$(2)   Rem current language code ("01" is english)
+Global pid%     Rem current process id
+
+
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º Further documentation                                                      º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+Since the above description is only a fraction of the functionality, 
+please look out for the next versions of SysLib to include more 
+specification documentation!
+
+
+(c)1994 by Thomas Nemec, Vienna, Austria
+

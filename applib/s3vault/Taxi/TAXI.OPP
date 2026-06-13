@@ -1,0 +1,322 @@
+rem -- Taxi Fare Calculator
+rem -- Kevin J. Northover (29 Mar 1996)
+rem #define DEBUG
+#ifdef DEBUG
+	#pragma debug
+#endif
+
+APP Taxi
+	TYPE $1
+	PATH "\OPD"
+	EXT "DBF"
+ENDA
+
+#define DATAFILE "\OPD\Taxi.dbf"
+#define QUERYFILE "\OPD\Hailtaxi.dbf"
+#define NAMELEN  20
+#define NEXTRAS  6
+
+/* number of price bands in fare tariff */
+#define MAXBANDS  3
+/* Kilometers per mile */
+#define KPM  1.609354
+
+STRUCT Tariff
+	city$(NAMELEN)
+	currncy$(1)
+	dunits$(5)        /* miles or km */
+	bands%            /* Number of fare bands */
+	rate(MAXBANDS)    /* price per meter tick */
+	time(MAXBANDS)    /* seconds per tick */
+	dist(MAXBANDS)    /* distance per tick */
+	maxFare(MAXBANDS) /* CUMULATIVE fare limit */
+	extras$(NEXTRAS,64)
+ENDS
+
+PROC main:
+	rem -- globals for queries
+	global qCity$(NAMELEN)  rem -- city
+	global qCity%           rem -- position
+	global qDist            rem -- distance
+	global qSpeed           rem -- speed
+	global qUnits$(NAMELEN) rem -- distance units
+	global hailed%          rem -- remote request?
+	global Measure$(8)      rem -- for distance
+	global Cities$(255)     rem -- cities list
+
+	local <Tariff*>tariff%
+	local fare, ask%
+
+	CACHE 2000, 2000
+	GIPRINT "Taxi! v1.0"
+	Measure$="Km,Miles"
+
+	IF 0 = OpnCity%:(DATAFILE)
+		GOTO cleanup
+	ENDIF
+	CityLst%:
+	Default%:
+
+	tariff% = NewFare%:
+	IF tariff% = 0 :GOTO cleanup : ENDIF
+	IF 0 = GetCity%:(tariff%, qCity$)
+		hailed%=0
+	ENDIF
+	
+	ask%=1
+
+	WHILE ask% = 1
+		IF hailed% = 0
+			ask% = GetTrip%:
+		ENDIF
+		IF ask% = 1
+			IF GetCity%:(tariff%, qCity$)
+				fare = CalcFare:(tariff%, \
+					qDist, qSpeed, qUnits$)
+				ask%=ShowFare:(tariff%, fare)
+			ENDIF
+			hailed%=0
+		ENDIF
+	ENDWH
+cleanup::
+	TRAP CLOSE
+	FreeFare:(tariff%)
+ENDP
+
+PROC Default%:
+	rem -- Set defaults, Cities database must 
+	rem -- be opened first.
+	hailed%=0
+
+	TRAP OPEN QUERYFILE,B,cty$,dist$,speed$,unit$
+	IF 0 = ERR
+		IF COUNT > 1 :LAST : hailed%=1: ENDIF
+		IF COUNT > 0
+			qCity$= B.cty$
+			qDist = VAL(B.dist$)
+			qSpeed= VAL(B.speed$)
+			qUnits$= B.unit$
+		ENDIF
+		IF COUNT > 1 :ERASE : ENDIF
+		CLOSE
+	ELSE
+		USE A
+		FIRST
+		qCity$=A.cty$
+		qUnits$=A.u$
+		qDist=Convert:(2.0, "Miles", qUnits$)
+		qSpeed=Convert:(9.0, "Miles", qUnits$)
+		qDist=INTF(qDist*100+0.5)/100
+		qSpeed=INTF(qSpeed*10+0.5)/10
+	ENDIF
+ENDP
+
+PROC ShowFare:(<Tariff*>s%, fare)
+	LOCAL i%
+	dINIT qCity$+" Taxi for " +\
+		FIX$(qDist,2,6) + " " + qUnits$ +\
+		" at " + FIX$(qSpeed,1,6) + " " +\
+		qUnits$ + " per Hour"
+	dTEXT "Estimated Fare:", \
+		s%->currncy$ + FIX$(fare,2,6),$100
+	WHILE i% < NEXTRAS :i%++
+		IF s%->extras$(i%) <> ""
+			IF 0 = LOC(s%->extras$(i%),"	")
+				dTEXT "", s%->extras$(i%)
+			ELSE
+				dTEXT Field$:(s%->extras$(i%),"	",2), \
+					s%->currncy$ + \
+					Field$:(s%->extras$(i%),"	",1)
+			ENDIF
+		ENDIF
+	ENDWH
+	return DIALOG
+ENDP
+
+PROC GetTrip%:
+	local u%
+	u%=LOC(Measure$, qUnits$)
+	IF u% > 1 :u% = 2 : ENDIF
+	dINIT "Journey Details"
+	DFLOAT qDist, "Distance",0.0,100.0
+	dFLOAT qSpeed, "Speed",1,100
+	dCHOICE qCity%,"City",Cities$
+	dCHOICE u%,"Distance In",Measure$ 
+	IF DIALOG
+		qUnits$=Field$:(Measure$,",",u%)
+		qCity$=Field$:(Cities$,",",qCity%)
+		RETURN 1
+	ENDIF
+	RETURN 0
+ENDP
+
+PROC CalcFare:(<Tariff*>s%, dist, speed, units$)
+rem -- ensure distance and speed in same units
+rem -- as Tariff uses.
+	local f, dt, i%, d, v
+	d=Convert:(dist, qUnits$, s%->dunits$)
+	v=Convert:(speed, qUnits$, s%->dunits$)
+	IF v < 1 :v=1 :ENDIF
+rem -- do fare calculation, acumulating bands
+	WHILE i% < s%->bands%
+		i%++
+		/* distance travelled before meter ticks
+		   is the lesser of meter distance threshold
+		   and the distance taxi can travel in the
+		   maximum time between ticks */
+		dt = s%->time(i%)*v/3600
+		if dt > s%->dist(i%) 
+			dt = s%->dist(i%)
+		endif
+		WHILE f < s%->maxFare(i%) and (d > 0)
+			f += s%->rate(i%)
+			d -= dt
+		ENDWH
+	ENDWH
+	return f
+ENDP
+
+PROC OpnCity%:(fil$)
+	IF NOT EXIST(fil$)
+		ALERT("Data File Not Found", fil$)
+		RETURN 0
+	ELSE
+		OPENR fil$,A,cty$,cry$,u$,bnd$, \
+				rte$, tim$, dst$, mxf$, \
+				ex1$, ex2$, ex3$, ex4$, ex5$, ex6$
+		RETURN 1
+	ENDIF
+ENDP
+
+PROC GetCity%:(<Tariff*>s%, city$)
+	local r%, i%, f$(12)
+	IF city$ = s%->city$
+		RETURN 1
+	ENDIF
+	FIRST
+	r% = FIND(city$)
+	IF r% = 0
+		ALERT("No Data for ", city$)
+		RETURN 0
+	ELSE
+		qCity%=POS
+		s%->city$=A.cty$
+		s%->currncy$=A.cry$
+		s%->dunits$=A.u$
+		s%->bands%=INT(VAL(A.bnd$)+0.1)
+		WHILE i% < s%->bands% : i%++ 
+			f$ = Field$:(A.rte$, "	", i%)
+			s%->rate(i%)=VAL(f$)
+			s%->time(i%)=VAL(Field$:(A.tim$, "	", i%))
+			s%->dist(i%)=VAL(Field$:(A.dst$, "	", i%))
+			s%->maxFare(i%)=VAL(Field$:(A.mxf$, "	", i%))
+		ENDWH
+		s%->extras$(1)=A.ex1$
+		s%->extras$(2)=A.ex2$
+		s%->extras$(3)=A.ex3$
+		s%->extras$(4)=A.ex4$
+		s%->extras$(5)=A.ex5$
+		s%->extras$(6)=A.ex6$
+	ENDIF
+#ifdef DEBUG
+	PrntCity:(s%)
+#endif
+	RETURN 1
+ENDP
+
+PROC Field$:(a$, c$, n%)
+rem -- return the nth field from the c$ delimited
+rem -- string a$
+	LOCAL f$(255), l%, e%, i%
+	f$=a$ :l% = LEN(f$) :e%=LOC(a$, c$)
+	i% =1 : WHILE e% <> 0 AND i% < n%
+		rem -- clip off first field
+		l% = l%-e%
+		f$=RIGHT$(f$, l%)
+		e%=LOC(f$, c$)
+		i%++
+	ENDWH
+	IF e% = 0
+		RETURN f$
+	ELSE
+		RETURN LEFT$(f$, e%-1)
+	ENDIF
+ENDP
+
+PROC NewFare%:
+	local <Tariff*>s%
+	s%=alloc(SIZEOF(Tariff))
+	if s% = 0
+		print "Tariff alloc failed"
+		stop
+	endif
+	return s%
+ENDP
+
+
+PROC FreeFare:(<Tariff*>s%)
+	freealloc(s%)
+ENDP
+
+PROC Convert:(d, from$, to$)
+	LOCAL f$(1), t$(1), r
+	f$ =upper$(left$(from$,1))
+	t$=upper$(left$(to$,1))
+	if f$ = t$
+		r = d
+	elseif t$ = "M" and f$ = "K"
+		r = d/KPM
+	elseif t$ = "K" and f$ = "M"
+		r = d*KPM
+	else
+		ALERT("Unrecognised Distance Units",\
+				"From: "+from$+"  To: "+to$)
+		r = -1
+	endif
+	RETURN r
+ENDP
+
+PROC CityLst%:
+	rem -- get list of cities for dialogs
+	rem -- adapted from Tubefinder...
+	LOCAL p%
+	FIRST
+	Cities$=A.cty$
+	DO
+		NEXT
+		IF NOT EOF
+			IF (LEN(Cities$)+LEN(A.cty$)+1)>255
+				ALERT("Too many Cities",\
+				"Only first "+NUM$(POS-1,2)+" shown")
+				BREAK
+			ENDIF
+			Cities$=Cities$+","+A.cty$
+		ENDIF
+	UNTIL EOF
+	p%=POS-1
+	FIRST
+	RETURN p%
+ENDP
+
+#ifdef DEBUG
+PROC PrntCity:(<Tariff*>s%)
+	local i%
+	print s%->city$, s%->currncy$, s%->dunits$
+	i%=0
+	WHILE i% < s%->bands%
+		i%++
+		print i%, s%->rate(i%), \
+			s%->time(i%), \
+			s%->dist(i%), \
+			s%->maxFare(i%)
+	ENDWH
+	i%= 0 :WHILE i% < NEXTRAS :i%++
+		print s%->extras$(i%)
+	ENDWH
+ENDP
+#endif
+
+#ifdef DEBUG
+	#include <OPPDBG>
+#endif
+

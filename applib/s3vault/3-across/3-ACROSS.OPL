@@ -1,0 +1,457 @@
+PROC Xword:
+
+rem          3-Across
+rem     -------------------
+rem  By Martin Newham ¸ Jan'92
+
+global grid$(13,13),a$(1),clue$(30,40),loc$(30,20),ans$(30,13),b$(30),v$(30),n$(15),busy$(20),lin$(5,13)
+global x%,y%,l%,bl%,tl%,max%,k%,qi%,boxy%,sely%,q%,h%,r%,id%,b%,w%
+
+game:
+ENDP
+
+
+rem ==================== PROCedures
+
+PROC game:
+define:
+qi%=gcreate(0,3,238,238,1) :gborder $204
+qi%=gcreate(0,56,238,24,1) :gorder 2,1
+bl%=6 :tl%=0 :qi%=1 :b%=1 :boxy%=3
+busy "Building Crossword...",1
+guse 2
+crtgrd:
+crtx:
+busy off
+k%=-1
+loop::
+xbox:
+cbox:
+goto loop
+ENDP
+
+
+PROC xpos%:(qt%)
+return val(mid$(loc$(qt%),1,2))
+ENDP
+
+
+PROC ypos%:(qt%)
+return val(mid$(loc$(qt%),3,2))
+ENDP
+
+
+PROC keyb%:(q%)
+do :k%=key
+if q%=1 :goto pass :endif
+until k%<>0
+pass:: 
+if k%=290 :menu: :endif
+if KMOD and 8 :k%=0-(k%-512) :menu: :endif
+return k%
+ENDP
+
+
+PROC cbox:
+local c%,m%,smin%,smax%,qt%
+w%=1
+ctop:: :if sely%>0
+l%=0 :m%=0 :k%=0 :c%=0 :smin%=0
+do :l%=l%+1 :if sely%=ypos%:(l%) :c%=c%+1 :m%=l% :endif
+if c%=1 and k%=0 :smin%=l% :k%=1 :endif
+if c%>1 and k%=1 and smax%<>m% :smax%=l% :endif
+until l%=max%
+if c%=0 :if b%=1 :beep 10,100 :endif :giprint "No clues for selected line!",1 :goto cend :endif
+busy$=gen$(c%,2)+" clue(s) selected" :busy busy$,0 
+qi%=smin% :endif
+guse 3 :gorder 3,1 :qt%=qi%+1
+do :if qt%=qi% :if b%=1 :beep 10,100 :endif :goto skip :endif
+gcls :gborder $203
+gat  5,10 :gprint "Clue: ";mid$(loc$(qi%),6,2)
+gat 48,10
+if mid$(loc$(qi%),5,1)="D" :gprint "Down" :gety: :else gprint "Across" :getx: :endif
+drlin:
+b$=mid$(loc$(qi%),8,len(loc$(qi%)))
+gat 5,20  :gprint clue$(qi%)
+gat 135,10 :gprint "' ";v$;" '"
+gat  85,10 :gprint "( ";n$;")"
+gat   3,2 :gfill 231,10,2
+qt%=qi%
+skip::
+k%=keyb%:(0)
+if w%=2 :sely%=-1 :goto cend :endif
+if sely%=-2 :sely%=-1 :goto ctop :endif
+if sely%<0
+if k%=256 and qi%>1 :qi%=qi%-1 :endif
+if k%=257 and qi%<max% :qi%=qi%+1 :endif
+else
+if k%=256 and qi%>smin% :do :qi%=qi%-1 :until sely%=ypos%:(qi%) :endif
+if k%=257 and qi%<smax% :do :qi%=qi%+1 :until sely%=ypos%:(qi%) :endif
+endif
+if k%=13 :qt%=qi%+1 :xmove: :popbox:
+if v$<>""
+if mid$(loc$(qi%),5,1)="A" :putx:(qi%) :else :puty:(qi%) :endif :endif
+endif
+until k%=9
+cend:: :gborder $204 :busy off :busy$=""
+ENDP
+
+
+PROC xbox:
+local s%,i%
+w%=2
+s%=second :i%=0
+guse 2 :gborder $203 :gorder 2,1
+do
+if k%<0 :k%=9 :continue :endif
+do :if s%<>second :i%=1-i%
+gat 4,0-(boxy%-12) :gfill 228,14,2
+s%=second :endif
+k%=keyb%:(1) :until k%<>0
+if i%=1 :i%=0
+gat 4,0-(boxy%-12) :gfill 228,14,2
+endif
+if w%=1 :goto xend :endif
+if k%=256 
+up:
+elseif k%=257
+down:
+endif :until k%=9 or k%=13
+if k%=13
+sely%=0-((boxy%/17)-2)
+if boxy%=3 :sely%=1 :endif
+else
+sely%=-1 
+endif
+xend:: :gborder $204
+ENDP
+
+
+PROC xmove:
+local t%
+x%=xpos%:(qi%)
+y%=ypos%:(qi%)
+guse 2
+boxy%=0-((y%*17)-20)
+gsetwin 0,boxy%
+ENDP
+
+
+PROC crtx: 
+guse 2
+l%=1 :x%=7 :y%=7
+do :line:(l%,18,x%,y%)
+l%=l%+1 :x%=7 :y%=y%+17 :until l%=14
+ENDP
+
+PROC Smlx:
+local l%,x%,y%,zd%
+zd%=gcreate(0,0,80,78,1) :gborder $203
+busy off :guse zd%
+l%=1 :x%=6 :y%=5
+do :line:(l%,6,x%,y%)
+l%=l%+1 :x%=6 :y%=y%+5 :until l%=14
+if b%=1 :beep 20,400 :endif :get :gclose zd%
+if len(busy$)>0 :busy busy$,0 :endif
+ENDP
+
+
+PROC drlin:
+local p1%,p%,t%,v%,v1$(30),s%
+v1$="" :n$=""
+p1%=len(loc$(qi%))-8 :p%=0
+t%=1 :s%=1 :do
+v%=val(mid$(loc$(qi%),(8+p%),2))
+n$=n$+gen$(val(mid$(loc$(qi%),(8+p%),2)),2)
+n$=n$+" "
+if v%=len(v$) :v1$=v$ :p%=p1% :continue :endif
+v1$=v1$+mid$(v$,t%,v%) :lin$(s%)=mid$(v$,t%,v%)
+t%=t%+v%
+v1$=v1$+"/"
+p%=p%+2 :s%=s%+1 :until p%>=p1%
+if right$(v1$,1)="/" :v1$=left$(v1$,len(v1$)-1) :endif
+v$=v1$
+ENDP
+
+
+PROC popbox:
+local l$(20),x%,k%,d%,id%,os%
+if h%=2 :help: :endif
+id%=gcreate(42,25,150,24,1) :gborder $203
+guse id% :gfont 1 :gstyle 16
+l$=v$ :os%=75-(gtwidth(l$)/2)
+x%=1 :do :popt:(os%,x%,l$)
+k%=keyb%:(0) :d%=0 
+if (k%=258 or k%=32) and x%<len(l$) :d%=1 :endif
+if k%=259 and x%>1 :d%=-1 :endif
+if k%=8 and (x%>1 and x%<=len(l$)) :l$=left$(l$,x%-1)+mid$(v$,x%,1)+right$(l$,len(v$)-x%) :d%=-1 :endif
+if k%=8 and x%=1 :l$=left$(l$,x%-1)+mid$(v$,x%,1)+right$(l$,len(v$)-x%) :endif
+if k%>32 and k%<250 :l$=left$(l$,x%-1)+upper$(chr$(k%))+right$(l$,len(v$)-x%) :d%=1 :endif
+if x%+d%<=len(l$) :x%=x%+d% :endif
+if mid$(l$,x%,1)="/" :x%=x%+d% :endif
+until k%=13 :v$=l$
+gclose id% :guse 3
+k%=0 :do :k%=loc(v$,"/")
+if k%=0 :continue :endif
+v$=left$(v$,k%-1)+right$(v$,len(v$)-k%)
+until k%=0
+if h%=1 :help: :endif
+ENDP
+
+PROC popt:(os%,x%,l$)
+gtmode 3 :gat os%,12 :gprint l$
+gat 6,14 :gfill 135,5,1
+gtmode 0 :gat os%+((x%-1)*6),22 :gprint "^"
+ENDP
+
+
+PROC crtgrd:
+local qi%,a$(2)
+qi%=1 :do
+v$=rept$("_",len(ans$(qi%)))
+a$=mid$(loc$(qi%),5,1)
+if a$="A" :putx:(qi%) :else :puty:(qi%) :endif
+qi%=qi%+1 :until qi%=max%+1
+qi%=1 :do
+x%=xpos%:(qi%)-1 :y%=ypos%:(qi%)-1
+a$=gen$(val(mid$(loc$(qi%),6,2)),2)
+guse 2 :gfont 3 :gstyle 0
+gat (x%*17)+9,(y%*17)+14
+gprint a$
+qi%=qi%+1 :until qi%=max%+1
+gfont 1 :gstyle 16 :guse 3 :ENDP
+
+
+PROC putx:(qi%)
+local x%,y%,l%,s%,a$(1)
+x%=xpos%:(qi%) :y%=ypos%:(qi%)
+l%=len(v$)
+grid$(y%)=left$(grid$(y%),x%-1)+upper$(v$)+right$(grid$(y%),14-(l%+x%))
+guse 2 :l%=0 :do :gat ((x%+l%)*17)-2,(y%*17)+6
+a$=mid$(v$,l%+1,1) :gfont 2 :gtmode 3
+if a$<>"_" :gprint a$ :endif
+l%=l%+1 :until l%=len(v$)+1 :guse 3
+ENDP
+
+
+PROC puty:(qi%)
+local x%,y%,z%,l%,p%,t%
+z%=qi% :p%=qi% 
+x%=val(mid$(loc$(z%),1,2))-1
+y%=val(mid$(loc$(z%),3,2))
+l%=len(v$)+1 :t%=1 :do
+grid$(y%)=left$(grid$(y%),x%)+mid$(v$,t%,1)+right$(grid$(y%),12-x%)
+y%=y%+1 :t%=t%+1 :until t%=l% or y%=14
+y%=val(mid$(loc$(z%),3,2))
+guse 2 :l%=0 :do :gat ((x%+1)*17)-2,((y%+l%)*17)+6
+a$=mid$(v$,l%+1,1) :gfont 2 :gtmode 3
+if a$<>"_" :gprint a$ :endif
+l%=l%+1 :until l%=len(v$)+1 :guse 3
+ENDP
+
+
+PROC getx:
+local x%,y%,l%
+x%=xpos%:(qi%)
+y%=ypos%:(qi%)
+v$=mid$(grid$(y%),x%,14-x%)
+l%=loc(v$,"*")-1
+if l%>0 :v$=left$(v$,l%) :endif
+ENDP
+
+
+PROC gety:
+local x%,y%,z$(1)
+x%=xpos%:(qi%)
+y%=ypos%:(qi%)
+v$="" :do
+z$=mid$(grid$(y%),x%,1)
+if z$="*" :continue :endif
+v$=v$+z$ :y%=y%+1
+until z$="*" or y%=14
+ENDP
+
+
+PROC help:
+local w%
+if h%=1 and v$<>upper$(ans$(qi%)) :if b%=1 :beep 10,100 :beep 20,400 :endif :v$="" :endif
+if h%=2 and v$<>upper$(ans$(qi%))
+w%=0 :do :w%=loc(v$,"/")
+if w%=0 :continue :endif
+v$=left$(v$,w%-1)+right$(v$,len(v$)-w%)
+until w%=0
+if v$=upper$(ans$(qi%)) :goto hend :endif
+redo::
+r%=(rnd*len(ans$(qi%)))+1
+if mid$(v$,r%,1)=upper$(mid$(ans$(qi%),r%,1)) :goto redo :endif
+v$=left$(v$,r%-1)+upper$(mid$(ans$(qi%),r%,1))+right$(v$,len(v$)-r%)
+hend:: :if loc(v$,"/")=0 :drlin: :endif
+endif
+ENDP
+
+
+PROC down:
+if boxy%<=-198 :giprint "Already at bottom!"
+if b%=1 :beep 10,100 :endif :goto dnend :endif
+gsetwin 0,boxy%
+boxy%=boxy%-17
+gsetwin 0,boxy%
+dnend:: :ENDP
+
+
+PROC up:
+if boxy%>=3 :giprint "Already at top!"
+if b%=1 :beep 10,100 :endif :goto upend :endif
+gsetwin 0,boxy%
+boxy%=boxy%+17
+gsetwin 0,boxy%
+upend:: :ENDP
+
+
+PROC line:(l%,z%,x%,y%)
+local ll%,zl%,xl%,yl%,s%
+xl%=x% :yl%=y%
+zl%=z% :ll%=l%
+s%=1 :do
+gat xl%,yl% :a$=mid$(grid$(ll%),s%,1)
+if a$="*" :gfill zl%,zl%,0 :goto bye :endif
+gbox zl%,zl% :if a$<>"_" and zl%>10 :gat xl%+3,yl%+9 :gprint a$
+elseif a$<>"_" and zl%<10 :gat xl%+2,yl%+4 :gprint "." :endif
+bye:: :xl%=xl%+(zl%-1) :s%=s%+1 :until s%=14
+ENDP
+
+
+PROC menu:
+local q%
+if k%<0 :k%=0-k% :goto mskip :endif
+busy off :minit
+mcard "File","New",%n,"Save",%s,"Load",%l,"Print",%p,"About",%a,"Quit",%q
+mcard "View","Cross Word",%x,"Clues",%c,"Deselect Clues",%d,"View Preview",%v
+mcard "Options","Help Level",%h,"Print Options",%y,"Bleeps",%b
+k%=menu
+if len(busy$)>0 :busy busy$,0 :endif
+if k%=0 :goto mend :endif
+mskip::
+if k%=%h :h%=h%+1 :hlp: :endif
+if k%=%n :q%=1 :dinit "New Game" :dchoice q%,"Are you sure? ","No,Yes" :dialog :if q%=2 :gclose 2 :gclose 3 :game: :endif :endif
+if k%=%q :q%=1 :dinit "Quit Game" :dchoice q%,"Are you sure? ","No,Yes" :dialog :if q%=2 :stop :endif :endif
+if k%=%b :dinit "Bleep Options" :dchoice b%,"Disable Bleeps? ","No,Yes" :dialog :endif
+if k%=%s or k%=%p or k%=%y or k%=%l :alert: :endif
+if k%=%x and w%=1 :w%=2 :endif
+if k%=%c and w%=2 :w%=1 :endif
+if k%=%a :about: :endif
+if k%=%v :id%=gidentity :Smlx: :guse id% :endif
+if k%=%d :sely%=-2 :busy off :endif
+mend:: :k%=0
+ENDP
+
+
+PROC hlp:
+dinit "Help Level"
+dchoice h%,"Select:","None,Some,Lots"
+dialog :h%=h%-1
+ENDP
+
+
+PROC alert:
+local a%
+a%=ALERT("Sorry, the selected option","is currently unavaliable.","Continue")
+ENDP
+
+
+PROC about:
+id%=gidentity :gborder $204
+dinit
+dtext "","3-Across Version 2.9",2
+dtext "","By Martin Newham ¸ Jan '92",$202
+dbuttons "Continue",27
+k%=dialog
+guse id% :gborder $203
+ENDP
+
+
+PROC define:
+local qi%
+qi%=1 :do
+grid$(qi%)=rept$("*",13)
+qi%=qi%+1 :until qi%=14
+
+ clue$(1)="In the manner of learning"
+ clue$(2)="Most insane"
+ clue$(3)="Beg"
+ clue$(4)="Fool (US slang)"
+ clue$(5)="Weight to hold ship"
+ clue$(6)="Fiction"
+ clue$(7)="Method"
+ clue$(8)="Oil exporters' organisation (inits.)"
+ clue$(9)="Keen"
+clue$(10)="Mark of pressure"
+clue$(11)="Used parts from one car to fix another"
+clue$(12)="Sail supporters"
+clue$(13)="Round cloth cap"
+clue$(14)="Coming into being"
+clue$(15)="Serum used for inoculation"
+clue$(16)="Ran away"
+clue$(17)="To despense"
+clue$(18)="Expressed disapproval"
+clue$(19)="Boy's name"
+clue$(20)="Christian vestment"
+clue$(21)="Most joyful"
+clue$(22)="Dreading"
+clue$(23)="Condition of oblivion"
+clue$(24)="Short period"
+clue$(25)="Apparatus"
+
+ ans$(1)="academically"
+ ans$(2)="maddest"
+ ans$(3)="cadge"
+ ans$(4)="nerd"
+ ans$(5)="anchor"
+ ans$(6)="fable"
+ ans$(7)="system"
+ ans$(8)="opec"
+ ans$(9)="eager"
+ans$(10)="imprint"
+ans$(11)="cannibalised"
+ans$(12)="yardarms"
+ans$(13)="beret"
+ans$(14)="birth"
+ans$(15)="vaccine"
+ans$(16)="fled"
+ans$(17)="administer"
+ans$(18)="deprecated"
+ans$(19)="sam"
+ans$(20)="alb"
+ans$(21)="happiest"
+ans$(22)="fearing"
+ans$(23)="limbo"
+ans$(24)="spell"
+ans$(25)="gear"
+
+ loc$(1)="0102A0612"
+ loc$(2)="0104A0807"
+ loc$(3)="0904A0905"
+ loc$(4)="0106A1004"
+ loc$(5)="0806A1206"
+ loc$(6)="0507A1405"
+ loc$(7)="0108A1506"
+ loc$(8)="1008A1604"
+ loc$(9)="0110A1905"
+loc$(10)="0710A2107"
+loc$(11)="0212A2212"
+loc$(12)="0301D010404"
+loc$(13)="0501D0205"
+loc$(14)="0701D0305"
+loc$(15)="0901D0407"
+loc$(16)="1101D0504"
+loc$(17)="0102D0610"
+loc$(18)="1303D0710"
+loc$(19)="0606D1103"
+loc$(20)="0806D1203"
+loc$(21)="1106D1308"
+loc$(22)="0507D1407"
+loc$(23)="0709D1705"
+loc$(24)="0909D1805"
+loc$(25)="0310D2004"
+max%=25
+ENDP

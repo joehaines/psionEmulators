@@ -1,0 +1,238 @@
+                                JBDial
+                             Version 1.6
+                           (c)JBSoft 1994-6
+
+Overview
+--------
+Put simply, JBDial is a program to dial telephone numbers. If a modem
+is connected to the Psion then this will be accessed otherwise the
+internal speaker will be used. Once a file has been selected for use,
+this name is stored and will be used the next time the application is
+run. It is also possible to search several files at the same time and
+also use 'Bring'. It can use phone card numbers as well so most
+eventualities should be covered.
+
+N.B. You should be aware that the modem working relies on the Hayes
+     command set being fully implemented (i.e. ATX0 should stop the
+     modem from checking for a dial tone before sending the dial
+     sequence. If this doesn't happen then the modem dial will fail).
+
+Installation
+------------
+Copy the program to an \APP\ directory and then, from the System
+screen, with the cursor at the point where you wish the JBDial icon to
+appear, press Psion-I. Select the drive that has the file on it and
+select JBDial in the Filename box, then press Enter.
+
+The program will show up on your System screen in the selected place
+and can be run by placing the cursor on the name of the file and
+pressing Enter.
+
+It is possible to use this new file as previous versions (i.e. as an
+OPO file). Rename the file from JBDIAL.OPA to JBDIAL.OPO and place the
+file in your \OPO\ directory. This will allow the new version to be
+run in the same way as the previous releases.
+
+Usage
+-----
+On first usage of the program a dialog will show allowing for the
+Modem and Card dialling setup. Please leave the Card fields blank
+unless you wish to use this option. On further uses of this dialog, if
+the Card fields have entries, this is displayed with a tick on the
+left hand of the dialog. The number is never shown for security
+reasons so you will have to enter the data again if you are unsure
+that it is correct. Whilst entering the numbers they are shown though
+so, if security is an issue, do this in a secure place.
+
+The default settings for the modem are
+
+     Reset: ATZ,ATX0
+      Dial: ATDT
+
+Whilst anything can be entered at this point you will need to use
+something similar to ATX0 as this is what enables a series of numbers
+to be sent using the modem without disconnecting the line. Failure to
+use something like this will mean that only the first number will be
+sent (be it the Dial Out code or the Card number or the Telephone
+number). If the system doesn't work with the defaults then you will
+have to read your modem manual to find out if it is possible for the
+modem to dial without dial tone detection. The comma after ATZ is
+necessary to allow that command to complete before another command is
+sent (otherwise the second command will be lost).
+
+The Number formatting line is set so that numbers are formatted by the
+Psion (in a similar way as Data does this) or just used as shown
+without any formatting taking place.
+
+Choosing a file:
+Once this data has been input then a further dialog asking for the
+file to search will be shown. Once this file has been specified the
+dialog will only be shown if Setup is pressed on the Find dialog. The
+dialog also enables a build of a database of files to be searched (you
+can Add or Delete from this file but only if the visible file in the
+Filename line is a true file name).
+
+Find:
+The Find dialog is shown next and a search clue should be specified to
+enable the search to work. This need not be a full name and the case
+is non-specific. The search will take place on all fields and, once
+the item is found, the numbers embedded in that record will be
+displayed along with the data in the first field. For the program to
+recognise telephone numbers there must be a telephone symbol in the
+Label associated with the field but no symbol is required when using
+Bring or the Redial log. If the file is open in a Data application
+then it will be automatically closed to do the find and re-opened when
+JBDial is terminated.
+
+Manual Entry:
+If the Control key is pressed at the same time as Enter and then held
+down for a moment then the details entered in the Find dialog will be
+used for manual dialling. Alternatively, if the edit field is left
+blank, you will be taken to the Edit number dialog where you can enter
+your number (this isn't quite as good as you will not be able to enter
+names or Extension numbers on this second dialog).
+
+Redial Log:
+You can also access the Redial log at this point by pressing Ctrl-
+Menu. This takes you to the list of numbers in the Redial file where
+you can select the number to dial and press enter. Selection is either
+with the cursor up and down keys or you can press the Number relating
+to the line which will move the cursor there. If there is no entry in
+the file then the option to escape or manually enter a number is
+given. The file is automatically created when the first entry is sent
+to it. If you do not wish to select a number then exit using Esc.
+
+There is a menu implemented in this view with the following options:
+
+Delete
+will delete the highlighted number (as will Psion-D)
+
+Information
+Psion-I will display the information on the selected line
+
+Edit
+Psion-E will edit the information on the selected line.
+
+Manual Entry
+Psion-M will allow a Manual entry in the file.
+
+
+Reverse Bring:
+The highlighted line can be copied to another application (if that
+application can use Bring - e.g. Agenda) - this only works whilst in
+the Redial Log display and only works on the one line that is
+highlighted.
+
+Bring:
+Alternatively a Bring option (using the Tab key) will bring
+highlighted data from another application (e.g. Agenda and other
+programs that allow the use of Bring). This can be in the format of a
+name followed by a number - the program will separate the sections
+out.
+
+If the data found is incorrect the search can be resumed by pressing
+Esc which takes you to an Action dialog where you can choose to Find
+again ('G'), start a new search ('F') or Quit ('Esc'). Otherwise,
+highlight the phone number to dial and press Enter. If nothing is
+found in the search then you can specify a new file to search or
+change the text to be searched for.
+
+Dialing:
+Once the number has been specified then the final Dial dialog will be
+displayed. This allows a selection of dialling Out (with a <9,> or
+whatever was specified in your Psion setup) or normally. There is an
+additional button which allows the use of a Dial card - this button
+just enables or disables this usage. Esc will allow you to escape from
+this dialog without initialising a dial sequence.
+
+Modem choice:
+The program will check to see if a modem is connected at this point
+and, if so, will use the modem to dial the numbers. If no modem is
+available then the speaker will automatically be used. If the 3Link is
+connected but there is no modem on the end of it the program will
+hang. I have not been able to intercept this problem as it does not
+appear possible to set a timeout for the link.
+
+A series of dialogs will now be shown (depending on what options you
+have chosen) allowing the different numbers to be sent. If an
+extension has been entered after the Number in your database or in the
+data for use with Bring, then an option to use this will be given. The
+format must be
+
+     123-4567 X4976
+        ^       ^
+     normal   extension
+
+for this to work (the extension must be indicated with a capital 'X'
+and must be on the same line as the telephone number). If an extension
+has been detected then, after dialling the number, a further dialog
+will show to allow the sending of the extension number.
+
+On Connection:
+If the modem was used then, on connection to the required number,
+press Enter to disconnect it (this is prompted by another dialog).
+Finally, a further dialog is shown that will allow a re-dial or
+another search as well as the option to place the phone number into a
+Redial log for further use at a later date - up to 10 numbers can be
+stored this way. To leave the program use Esc.
+
+Termination:
+If you wish to terminate the sequence at any time use the Esc key - if
+the modem method is in use you will be prompted to disconnect the
+modem from the line.
+
+Restrictions
+------------
+
+1. The telephone number to dial must have a phone symbol embedded in
+   the Label associated with that field if using a database.
+2. If the Serial Link is connected and there is no modem on the end of
+   it, then the program will hang with an empty screen. You can only
+   exit at this point using Psion-Esc.
+3. The modem must be Hayes compatible (i.e. accept AT commands).
+4. The speaker dial uses the setup resident in the Psion as set from
+   the System screen (on English machines using <Shift-Psion-D>).
+5. The file(s) storing the Data files accessed and the modem
+   information is stored in the OPD directory of the default drive as
+   JBDIAL.CFG - it is unencrypted!
+
+6. The file which keeps the Redial log is called \OPD\JBDLOG.DBF and
+   is always on the default drive.
+7. The modem must be able to send a dial sequence without having to
+   recognise the dial tone first and also it must understand the
+   command <;> which returns the modem to the command mode after
+   sending the dial string.
+
+Thanks
+------
+The most profound thanks are due to Arthur Karpman whose ideas,
+testing and driving force made this program more than just a little
+toy.
+
+Release History
+---------------
+1.2   First public release (previous versions were hard-coded for my
+      system.
+1.4   Increased potential size of Labels dealt with.
+      Now allows sub-directories of \DAT\ to be used.
+1.5   Implemented Bring.
+1.6   Improved closedown and re-opening of Datafiles.
+      Allowed re-dials and searching again of number.
+      Allowed more than one file to be searched at a time.
+      Changed program into an Application (OPA).
+      Various small changes have taken place.
+      Allowed International dial prefixes to be used.
+      Allowed use of a dial card.
+      Altered dial out buttons to mimic Data for choice of Dial and
+      Dial Out.
+      Extensions allowed.
+      Implemented a Redial later log file.
+      Implemented the reverse Bring in the Redial log.
+
+Contact
+-------
+John Boyce
+CompuServe: 100014,1240
+CIX/Internet: jboyce@cix.compulink.co.uk
+
+                                                John Boyce 5 June 1996

@@ -1,0 +1,213 @@
+
+REM Fast ellipse drawing code for OPL
+REM ================================
+REM
+REM This software may be freely used,
+REM modified, and distributed for any 
+REM purposes you see fit, provided that
+REM you accept all responsibility in
+REM doing so.
+REM
+REM Free software. 
+REM No warrantees given or implied.
+REM -----------------------------------
+REM
+REM This program contains a procedure
+REM called Ellipse%:() which draws an
+REM ellipse of up to 364 pixels in
+REM diameter.
+REM
+REM Thanks to collegues for giving
+REM me the formula, and access to their
+REM own code in order to develop this 
+REM little OPL version.
+REM 
+REM I hope this is of use to someone.
+REM
+REM Jezar,
+REM Psion Software Development,
+REM London, England
+REM
+REM Email: Jeremy-Wakefield@psion.com
+REM
+
+PROC Main%:
+REM  Test proc for the Ellipse%:() procedure
+	
+	LOCAL repeat%
+	LOCAL max%,min%
+	LOCAL width%,height%
+	LOCAL x1%,x2%,y1%,y2%
+	
+	max% = 365
+	min% = 10
+	IF max% > gHEIGHT
+		max% = gHEIGHT
+	ENDIF
+	
+	gUPDATE OFF
+	gGMODE 2
+	
+	WHILE repeat% < 100
+		repeat% = repeat%+1
+		
+		width% = RND*(max%-min%)+min%
+		height% = RND*(max%-min%)+min%
+		
+		x1% = RND*(gWIDTH-width%)
+		x2% = x1%+width%
+		y1% = RND*(gHEIGHT-height%)
+		y2% = y1%+height%
+		
+		Ellipse%:(x1%,y1%,x2%,y2%,1)
+	ENDWH
+	GET
+ENDP
+
+PROC Ellipse%:(aTopLx%,aTopLy%,aBotRx%,aBotRy%,aFilled%)
+REM  Draw an ellipse in a rectangle
+REM  Maximum diameter is limited to 364 pixels
+	
+	LOCAL x%,y%
+	LOCAL width%,height%
+	LOCAL first%,error&,newLine%
+	LOCAL a%,b%,aSq&,bSq&,aSqBSq&
+	LOCAL aSqF&,bSqF&,aSqT&,bSqT&
+	LOCAL offsX%,offsY%,adjX%,adjY%
+	LOCAL xOut1%,xOut2%,yOut1%,yOut2%
+	
+	
+	REM Calculate some useful constants:
+	
+	width%  = aBotRx%-aTopLx%
+	height% = aBotRy%-aTopLy%
+	
+	a% = (width%-1)/2
+	b% = (height%-1)/2
+	
+	adjX% = (width%-1) AND 1
+	adjY% = (height%-1) AND 1
+	
+	offsX% = aTopLx%+a%
+	offsY% = aTopLy%+b%
+	
+	aSq& = a%*a%
+	bSq& = b%*b%
+	aSqBSq& = aSq&*bSq&
+	
+	
+	REM Set initial values:
+	x% = 0
+	y% = b%
+	newLine% = 0
+	aSqT& = aSq&*y%
+	bSqT& = bSq&
+	aSqF& = aSq&*(2-y%-y%)
+	bSqF& = 3*bSq&
+	error& = bSq&-(aSq&*b%)+(aSq&/2)
+	
+	REM Is ellipse worth drawing?:
+	IF width%>2 AND height%>2
+		first% = 1
+		
+		REM Correction for gGMODE 2
+		IF (adjX%=0) AND (aFilled%=0)
+			gAT offsX%,offsY%-y% :gLINEBY 1,1
+			gAT offsX%,offsY%+y%+adjY% :gLINEBY 1,1
+		ENDIF
+			
+		DO
+			IF aFilled%
+				IF newLine%
+					gAT xOut1%,yOut1%
+					gLINETO xOut2%+1,yOut1%+1
+					gAT xOut1%,yOut2%
+					gLINETO xOut2%+1,yOut2%+1
+					newLine% = 0
+				ENDIF
+			ENDIF
+			
+			xOut1% = offsX%-x%
+			xOut2% = offsX%+x%+adjX%
+			yOut1% = offsY%-y%
+			yOut2% = offsY%+y%+adjY%
+			
+			IF aFilled% = 0
+				gAT xOut1%,yOut1% :gLINEBY 1,1
+				gAT xOut2%,yOut1% :gLINEBY 1,1
+				gAT xOut1%,yOut2% :gLINEBY 1,1
+				gAT xOut2%,yOut2% :gLINEBY 1,1
+			ENDIF
+			
+			REM Next pixel calculation, for first half of quadrant.
+			IF first%
+				IF error& < 0
+					error& = error&+bSqF&
+				ELSE
+					error& = error&+bSqF&+aSqF&
+					aSqF& = aSqF&+aSq&+aSq&
+					y% = y%-1
+					
+					aSqT& = aSqT&-aSq&
+					newLine% = 1
+				ENDIF
+				
+				x% = x%+1
+				bSqT& = bSqT&+bSq&
+				bSqF& = bSqF&+bSq&+bSq&
+				
+				REM Have we finished the first half of the quadrant?
+				IF aSqT& <= bSqT&
+					REM Set initial values for second half
+					error& = (-aSqBSq&) + bSq&*(x%*x%) + aSq&*(y%-1)*(y%-1)
+					aSqF& = aSq&*(3-y%-y%)
+					bSqF& = bSq&*(2+x%+x%)
+					first% = 0
+				ENDIF
+				
+			REM Next pixel calculation, for second half of quadrant.
+			ELSE
+				IF error& < 0
+					error& = error&+aSqF&+bSqF&
+					bSqF& = bSqF&+bSq&+bSq&
+					x% = x%+1
+				ELSE
+					error& = error& + aSqF&
+				ENDIF
+				
+				y% = y%-1
+				aSqF& = aSqF&+aSq&+aSq&
+				newLine% = 1
+			ENDIF
+		UNTIL y%<0
+		
+		REM Finish off the rendering
+		IF adjY% = 0
+			gAT offsX% - x%, offsY%
+			IF aFilled%
+				gLINETO offsX% + x%+adjX%+1, offsY%+1
+			ELSE
+				gLINEBY 1,1
+				gAT offsX% + x%+adjX%, offsY%
+				gLINEBY 1,1
+			ENDIF	
+		ELSEIF aFilled%
+			gAT xOut1%,yOut1%
+			gLINETO xOut2%+1,yOut1%+1
+			gAT xOut1%,yOut2%
+			gLINETO xOut2%+1,yOut2%+1
+		ENDIF
+		
+	REM Too small - just draw lines
+	ELSEIF width%>0 AND height%>0
+		y% = aTopLy%
+		WHILE y% < aBotRy%
+			gAT aTopLx%, y%
+			y% = y%+1
+			gLINETO aBotRx%, y%
+		ENDWH
+	ENDIF
+ENDP
+
+REM End of file
+

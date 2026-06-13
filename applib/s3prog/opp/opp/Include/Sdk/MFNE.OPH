@@ -1,0 +1,57 @@
+#define MFNE_OPH
+
+#ifndef LODGER_OPH
+#include <sdk\lodger>
+#endif
+
+/* Constants for mfne */
+
+#define MFNE_MAX_FIELDS 4
+#define MFNE_MAX_WIDTH 10
+#define MFNE_MAX_TRAILER 3
+#define MFNE_LOWER 0
+#define MFNE_UPPER 1
+#define MFNE_CURSOR_WIDTH 3
+#define MFNE_SIGNED 0x01
+#define MFNE_LEFT_ALIGN 0x02
+#define MFNE_SUPPRESS_LEADING 0x04
+#define MFNE_SUPPRESS_SEPARATOR 0x08
+#define MFNE_TRAILER 0x10
+#define MFNE_SETS_NEXT 0x20
+#define MFNE_SETS_PREV 0x40
+#define MFNE_AUTO_SIZE 0x80
+#define MFNE_EMPHASISED_KLUDGE 0x20
+
+/* Types for mfne */
+
+STRUCT MFNE_FIELD
+	flags%
+	value&
+	width#
+	hWidth#
+	hPos#
+	separator#
+	limits&(2)
+ENDS
+
+/* Property of mfne */
+
+STRUCT PRS_MFNE
+	selected%
+	cField%
+	nField%
+	totWidth%
+	cPos%
+	changed%
+	eStr#(MFNE_MAX_WIDTH+2)
+	dStr#(MFNE_MAX_FIELDS*(MFNE_MAX_WIDTH+1)+MFNE_MAX_TRAILER+2)
+	trail#(2)
+	f#(OPPEVAL(SIZEOF(MFNE_FIELD)*MFNE_MAX_FIELDS))
+ENDS
+
+STRUCT PR_MFNE
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	mfne#(SIZEOF(PRS_MFNE))
+ENDS

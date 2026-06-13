@@ -1,0 +1,70 @@
+PROC bio:
+LOCAL curd&,min&,max&,dtf&,dob&,ds1970&,day&
+LOCAL phys%,emot%,inte%,yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+LOCAL name$(18)
+LOCAL nod
+name$="???????"
+curd&=DAYS(DAY,MONTH,YEAR)
+ds1970&=DAYS(1,1,1970)
+dtf&=curd&
+dob&=DAYS(D,M,YYYY)
+min&=0
+max&=DAYS(31,12,2049)
+dINIT "Biorhythm Calculator"
+dEDIT name$,"Name:",18
+dDATE dob&,"Date of birth:",min&,max&
+dDATE dtf&,"Calculate for:",min&,max&
+IF DIALOG
+	day&=dtf&
+	day&=(day&-ds1970&)*24*3600
+	SECSTODATE day&,yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+	nod=FLT(dtf&-dob&)
+	phys%=calc%:(nod/23)
+	emot%=calc%:(nod/28)
+	inte%=calc%:(nod/33)
+	graph:(phys%,emot%,inte%,name$,yr%,mo%,dy%)
+ENDIF
+endp
+
+proc calc%:(modd3)
+RETURN INT(((SIN(((modd3)-INT(modd3))*2*PI)+1)*7)+1)
+endp
+
+proc graph:(phys%,emot%,inte%,name$,yr%,mo%,dy%)
+LOCAL g%
+DO
+	gGMODE 0
+	gSTYLE 0
+	gAT 0,0
+	gBORDER $201,240,80
+	gAT 10,25
+	gPRINT chr$(254)+"Physical"
+	gAT 120,15
+	gFILL (phys%*7),10,0
+	gAT 10,40
+	gPRINT chr$(254)+"Emotional"
+	gAT 120,30
+	gFILL (emot%*7),10,0
+	gAT 10,55
+	gPRINT chr$(254)+"Intellectual"
+	gAT 120,45
+	gFILL (inte%*7),10,0
+	gAT 15,65
+	gSTYLE 4
+	gPRINT dy%;"/";mo%;"/";yr%
+	gAT 2,10
+	gSTYLE 17
+	gPRINTB "Biorhythm for "+name$,230,3
+	gAT 117,53
+	gLINEBY 0,5
+	gLINEBY 111,0
+	gLINEBY -1,-5
+	gAT 117,70
+	gPRINT "LOW"
+	gAT 200,70
+	gPRINT "HIGH"
+	BUSY "ENTER to Exit"
+	g%=GET
+UNTIL g%=13
+BUSY OFF
+ENDP

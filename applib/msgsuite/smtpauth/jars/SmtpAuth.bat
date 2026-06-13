@@ -1,0 +1,1 @@
+java -cp SmtpAuth.jar;EpocUtil.jar de.mvcsys.smtpauth.SmtpAuthGui SmtpAuth.ini

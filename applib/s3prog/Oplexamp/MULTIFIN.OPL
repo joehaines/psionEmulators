@@ -1,0 +1,197 @@
+==========
+psion/wishlist #1588, from psion_c, 4769 chars, Oct 23 17:32 95
+Comment to 1585.
+----------
+Here is a OPL program I wrote. It is hard coded to look in the \DAT\ 
+directory on the A: drive (because that is where I keep my files) but you 
+should be able to amend it easily. I know it is c**p but I wrote it from 
+memory in about 5 minutes - I'd be the first to admit it is no work of 
+art...
+
+PROC main:
+
+        GLOBAL          d$(128)
+        GLOBAL          k%, op%
+        GLOBAL          in$(10)
+        GLOBAL          ax%,bx%,cx%,dx%,si%,di%
+        GLOBAL          cmdl$(128)
+        GLOBAL          pnam$(128)
+        GLOBAL          pid%
+        
+        LOCAL           ret%
+        LOCAL           spos%
+
+        FONT    10,0
+        rem SCREEN      80, 17
+        gSetWin 0, 0, 480, 160
+
+DO
+        spos% = 1
+        CLS
+
+        GetClue:
+        d$ = DIR$("loc::a:\dat\*.dbf")
+
+
+        WHILE LEN(d$)
+                ret% = InFile%:(spos%)
+                IF ret% > 0
+                        spos% = ret%
+                        PrRes%:(spos%)
+                        PRINT
+                        PRINT "Y, N, L, Esc"
+                        k% = GET
+                        IF (k% = %Y) OR (k% = %y)
+                                spos% = spos% + 1
+                                CONTINUE
+                        ELSEIF (k% = %N) OR (k% = %n)
+                                d$ = DIR$("")
+                                spos% = 1
+                                CONTINUE
+                        ELSEIF (k% = %L) OR (k% = %l)
+                                cmdl$ = "OData" + CHR$(0) + ".DBF" + 
+CHR$(0) + d$ 
++ CHR$(0)
+                                pnam$ = "rom::data.app" + CHR$(0)
+                                ax% = 0
+                                bx% = ADDR(pnam$) + 1
+                                cx% = ADDR(cmdl$)
+                                dx% = 0
+                                si% = 0
+                                di% = ADDR(pid%)
+                                call($0187, bx%, cx%, dx%, si%, di%)
+                        
+                                ax% = 0
+                                bx% = pid%
+                                cx% = 0
+                                dx% = 0
+                                si% = 0
+                                di% = 0
+                                call($0688, bx%, cx%, dx%, si%, di%)
+                                STOP
+                        ELSEIF k% = 27
+                                STOP
+                        ELSE
+                                d$ = DIR$("")
+                                spos% = 1
+                                CONTINUE
+                        ENDIF
+                ELSE
+                        spos% = 1
+                        d$ = DIR$("")
+                        PRINT "Now searching",d$
+                        CONTINUE
+                ENDIF
+
+        ENDWH
+
+        PRINT "That's it..."
+        PRINT "Go again ? (Y/N)"
+        op% = GET
+UNTIL (op% <> %Y) AND (op% <> %y)
+        STOP
+
+ENDP
+
+PROC GetClue:
+
+        AT 3,1
+        PRINT "Find what, you loser ?"
+        PRINT
+        AT 3,3
+        TRAP INPUT in$
+        IF ERR = -114
+                STOP
+        ENDIF
+
+        RETURN
+
+ENDP
+
+PROC InFile%:(start%)
+
+        LOCAL           err%
+
+        OPEN d$,A,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$
+
+        POSITION start%
+
+        err% = FIND("*" + in$ + "*")
+        CLOSE
+        RETURN err%
+        
+ENDP
+
+
+
+PROC PrRes%:(recpos%)
+
+        CLS
+        AT 1,1
+        PRINT CHR$(7)
+        PRINT "Search clue:",in$
+        PRINT "File       :",d$
+        PRINT "RecPos     :",recpos%
+
+
+        OPEN d$,A,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$
+        POSITION recpos%
+
+        PRINT
+        IF LEN(A.a$)
+                PRINT ">> ",A.a$
+        ENDIF
+
+        IF LEN(A.b$)
+                PRINT ">> ",A.b$
+        ENDIF
+
+        IF LEN(A.c$)
+                PRINT ">> ",A.c$
+        ENDIF
+
+        IF LEN(A.d$)
+                PRINT ">> ",A.d$
+        ENDIF
+
+        IF LEN(A.e$)
+                PRINT ">> ",A.e$
+        ENDIF
+
+        IF LEN(A.f$)
+                PRINT ">> ",A.f$
+        ENDIF
+
+        IF LEN(A.g$)
+                PRINT ">> ",A.g$
+        ENDIF
+
+        IF LEN(A.h$)
+                PRINT ">> ",A.h$
+        ENDIF
+
+        IF LEN(A.i$)
+                PRINT ">> ",A.i$
+        ENDIF
+
+        IF LEN(A.j$)
+                PRINT ">> ",A.j$
+        ENDIF
+
+        IF LEN(A.k$)
+                PRINT ">> ",A.k$
+        ENDIF
+
+        IF LEN(A.l$)
+                PRINT ">> ",A.l$
+        ENDIF
+
+        IF LEN(A.m$)
+                PRINT ">> ",A.m$
+        ENDIF
+
+        CLOSE
+
+ENDP
+
+

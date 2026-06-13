@@ -1,0 +1,216 @@
+/*
+        Author:         DP
+        Started:        17/2/94
+        Machine:        S3a only
+
+Procedure to return the current values of the batteries from the 
+E_SUPPLY_INFO structure below.
+
+typedef struct
+    {
+    unsigned char mainBatteryLevel;
+    unsigned char mainBatteryStatus;
+    unsigned char backupBatteryLevel;
+    unsigned char dcLevel;
+    unsigned short int warningFlags;
+    unsigned long int insertionDate;
+    unsigned long int ticksInUseBatter
+    unsigned long int ticksInUseDc;
+    unsigned long int maTicks;
+    } E_SUPPLY_INFO;
+
+*/
+#define HwManager       $008E   
+#define HwSupplyInfo    $2200
+
+#define E_MBAT_ZERO     0       /* Main battery levels & status */
+#define E_MBAT_VERY_LOW 1
+#define E_MBAT_LOW      2
+#define E_MBAT_GOOD     3
+
+#define E_SUPPLY_SOUND_WARNING 0x0001           /* Warning flags */
+#define E_SUPPLY_FLASH_WARNING 0x0002
+#define E_SUPPLY_SYSTEM_TIME_CHANGED 0x0004
+
+
+#define TRUE    1
+#define FALSE   0
+
+proc battery:
+
+        LOCAL ax%,bx%,cx%,dx%,si%,di%   /* OS registers*/
+        LOCAL yr%, mo%, dy%, hr%, mn%, sc%, yrday%      /* SECSTODATE vars */
+        LOCAL Info$(22)         /* buffer for the struct to be returned in to */
+        LOCAL pbuff%            /* pointer to the buffer */
+        LOCAL flags%            /* the return flags */
+
+/* return values into the following variables from the struct */
+
+        LOCAL MainBL%   /* main battery level */
+        LOCAL MainBS%   /* main battery status */
+        LOCAL BackBL%   /* backup battery level */
+        LOCAL DCLevel%  /* mains supply status */
+        LOCAL WarnFlg%  /* warning flags */
+        LOCAL InsDate&  /* insertion date */
+        LOCAL UseBat&   /* time on batteries */
+        LOCAL UseDC&    /* time on mains */
+        LOCAL mA&       /* total battery used */
+
+/* variables used for conversions */
+
+        LOCAL BatHour%
+        LOCAL BatMin%
+        LOCAL DCHour%
+        LOCAL DCMin% 
+        LOCAL mA%
+
+        LOCAL MainBL$(14)
+        LOCAL MainBS$(14)
+        LOCAL BackBL$(9)
+        LOCAL Mains$(7)
+        LOCAL Date$(10)
+
+        LOCAL BatTime$(10) 
+        LOCAL DCTime$(10)
+        LOCAL TotCurr$(8)
+
+        
+        pbuff% = ADDR(Info$) + 1        /* set up a pointer to the buffer */
+
+/* fill in the OS registers with the correct information */
+
+        ax% = HwSupplyInfo              
+        bx% = pbuff%
+        cx% = 0
+        dx% = 0
+        si% = 0
+        di% = 0
+
+        flags% = OS(HwManager, ADDR(ax%))       /* call the system service */
+
+        IF flags% AND 1                 /* if there is an error report it */
+		PRINT err$(flags%)
+                GET
+                STOP
+
+        ENDIF
+
+        pokeb ADDR(info$),22    /* poke the lbc of the buffer */
+
+/* read the values in the buffer into the correct variables */
+
+        MainBL%  = peekb(ADDR(info$) + 1)
+        MainBS%  = peekb(ADDR(info$) + 2)
+        BackBL%  = peekb(ADDR(info$) + 3)
+        DCLevel% = peekb(ADDR(info$) + 4)
+        WarnFlg% = peekw(ADDR(info$) + 5)
+        InsDate& = peekl(ADDR(info$) + 7)
+        UseBat&  = peekl(ADDR(info$) + 11)
+        UseDC&   = peekl(ADDR(info$) + 15)
+        mA&      = peekl(ADDR(info$) + 19)
+
+/* 
+Read the main batery level and status and backup battery level 
+and mains level and convert them into verbose English for use with 
+dTEXT
+*/
+
+        IF MainBl% = E_MBAT_ZERO    
+                MainBL$ = "Not present !"
+        ELSEIF MainBl% = E_MBAT_VERY_LOW
+                MainBL$ = "Replace !"
+        ELSEIF MainBL% = E_MBAT_LOW     
+                MainBL$ = "Low"
+        ELSEIF MainBl% = E_MBAT_GOOD    
+                MainBL$ = "Good"
+        ENDIF
+
+
+        IF MainBS% = E_MBAT_ZERO    
+                MainBS$ = "Not present !"
+        ELSEIF MainBS% = E_MBAT_VERY_LOW
+                MainBS$ = "Replace !"
+        ELSEIF MainBS% = E_MBAT_LOW     
+                MainBS$ = "Low"
+        ELSEIF MainBS% = E_MBAT_GOOD    
+                MainBS$ = "Good"
+        ENDIF
+
+        IF BackBL% = TRUE
+                BackBL$ = "Good"
+        ELSE
+                BackBL$ = "Replace !"
+        ENDIF
+
+        IF DCLevel% = TRUE
+                Mains$ = "Present"
+        ELSE
+                Mains$ = "No"
+        ENDIF
+
+/* 
+   convert the insertion date from system time into a numeric 
+   representation
+*/
+        SECSTODATE InsDate&, yr%, mo%, dy%, hr%, mn%, sc%, yrday%
+
+/* convert the integer variables into a string for use with dTEXT */
+
+        date$  = FIX$(dy%,0,-2)+"/"+FIX$(mo%,0,-2)+"/"+FIX$(yr%,0,4)
+
+
+        BatHour% = (UseBat&/32)/3600    /* get the number of hours the main battery has been in */
+        BatMin%  = mod%:(UseBat&)       /* get the number of minutes the main battery has been in */
+        DCHour%  = (UseDC&/32)/3600     /* get the number of hours the mains  has been in */
+        DCMin%   = mod%:(UseDC&)        /* get the number of minutes the mains has been in */
+        mA%      = (mA&/32)/3600        /* get the total time in mAh */
+
+
+/* convert the integer variables into strings that can be displayed by dTEXT */
+
+        BatTime$ = FIX$(BatHour%,0,4)+"h "+FIX$(BatMin%,0,4)+"m"
+        DCTime$  = FIX$(DCHour%,0,4)+"h "+FIX$(DCMin%,0,4)+"m"
+        TotCurr$  = FIX$(mA%,0,4)+" mAh"
+
+
+/* print the results, leaving out some of the less verbose */
+
+
+        dINIT "Usage Monitor (live readings)"
+        dTEXT "Main batteries",                 MainBL$
+rem     dTEXT "Main battery Status",            MainBS$  
+        dTEXT "Backup battery",                 BackBL$  
+        dTEXT "External power",                 Mains$  ,$200
+rem     PRINT "Warning Flags",                  WarnFlg%
+        dTEXT "Main batteries inserted on",     date$
+        dTEXT "Time on external power",         DCTime$  
+        dTEXT "Time on batteries",              BatTime$ 
+        dTEXT "Total battery used",             TotCurr$  
+        DIALOG
+
+endp
+
+
+proc mod%:(a&)
+
+/*
+        routine to return the number of minutes as an integer
+        from a value passed to it as time in ticks (1/32 of second)
+*/
+
+        LOCAL Mins%
+        LOCAL Time&
+        LOCAL Time
+
+        Time& = a&
+
+        Time = FLT(Time&/32)  /* divide by 32 to get number of seconds */
+
+/* find the remainder, ie number of minutes, after removing the number
+   of hours from the total number of seconds */
+
+        Mins% = INT((Time-(INT(Time/3600.0)*3600))/60)  
+
+        RETURN Mins%    /* return the number of minutes */
+
+endp

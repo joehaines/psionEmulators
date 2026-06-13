@@ -1,0 +1,53 @@
+==========
+Usenet/comp.sys.psion #30973, from ncw@axis.demon.co.uk, 2067 chars, Jun 14 18:17 96
+Comment to 30926.
+----------
+Article: 30973 of comp.sys.psion
+Path: cix.compulink.co.uk!news.compulink.co.uk!btnet-feed1!btnet!tank.news.pipex.net!pipex!dispatch.news.demon.net!demon!axis.demon.co.uk!ncw
+From: ncw@axis.demon.co.uk (Nick Craig-Wood)
+Newsgroups: comp.sys.psion
+Subject: Re: How can we calculate a CRC in OPL?
+Date: Fri, 14 Jun 1996 18:17:11 GMT
+Lines: 33
+Message-ID: <19960614.181711.29@axis.demon.co.uk>
+References: <31C17C56.3A78@lpl.univ-aix.fr>
+Reply-To: ncw@axis.demon.co.uk
+NNTP-Posting-Host: axis.demon.co.uk
+X-NNTP-Posting-Host: axis.demon.co.uk
+X-Newsreader: RISC OS TTFN Version 0.36
+X-Posting-Agent: RISC OS Newsbase 0.55-pre-12a
+
+Martin Brousseau (nitram@lpl.univ-aix.fr) wrote:
+
+> I am developing and application using serial communication to a controler
+> card and a CRC (checksum) must be attatch to each command before to send it
+> via the RS232. The CRC is calculated with an XOR over all caracters in the
+> command to be sent. Is anyone have an idea on how to calculate this kind of
+> CRC in OPL. There is no XOR operaror in OPL!
+
+Well here's one I made earlier which calculated a checksum on 32 bytes of
+EEPROM dowloaded from a satellite receiver.
+
+  REM calculate checksum
+  i%=1
+  csum%=$5A
+  DO
+    csum%=(csum% OR eeprom%(i%)) AND (NOT (csum% AND eeprom%(i%)))
+    i%=i%+1
+  UNTIL i%>31
+
+Boolean logic freaks will understand what it is all about ;-)
+
+| A   B | A OR B | A AND B | NOT (A AND B) | (A OR B) AND (NOT (A AND B)) |
++-------+--------+---------+---------------+------------------------------+
+| 0   0 |   0    |    0    |       1       |               0              |
+| 0   1 |   1    |    0    |       1       |               1              |
+| 1   0 |   1    |    0    |       1       |               1              |
+| 1   1 |   1    |    1    |       0       |               0              |
+
+BTW a CRC is a long way from a checksum.
+
+-- 
+|- Nick Craig-Wood ---------------------------------- ncw@axis.demon.co.uk -|
+|---- Keep those cards and letters coming, and please don't call again -----|
+

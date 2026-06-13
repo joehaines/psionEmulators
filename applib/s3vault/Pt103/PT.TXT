@@ -1,0 +1,898 @@
+
+                          PT - Packet Terminal
+
+Forward
+
+These programs are copyright
+
+Rovoreed Limited,
+New House Cottage,
+Cublington,
+Madley
+Hereford
+HR2 9NX
+
+This suite of software is NOT Public Domain, neither are they Freeware or
+Shareware.
+
+Rovoreed Limited retains full and exclusive rights to the distribution of
+this suite of  programs. Too many  of our "free"  programs have ended  up
+being sold or  distributed on  CD-ROM to make  profit for  third-parties,
+that we have been forced to build into this suite of programs  mechanisms
+to cripple to software remotely.
+
+Rovoreed Limited  reserves  the right  to  cripple the  software  without
+warning.
+
+Should we  ever  be forced  to  cripple the  software,  then no  data  or
+programs will  erased  from your  Series  3 computer.  A  message  header
+received from  your  local  BBS  will condition  the  software  into  not
+starting up. You will be  notified of this fact,  and you are advised  to
+log on to your local BBS and read any messages addressed to PT@WWW for an
+explanation. Hopefully we won't have to do it.
+
+Rovoreed Limited regrets that  it will not provide  any support for  this
+product. These programs are  released to fullfill  a specific need.  They
+should not be  construed as being  of the standard  of software  normally
+produced by Rovoreed Limited. Specifically, no formal program testing  or
+program proving has been carried out on this software.
+
+
+Introduction
+
+Occassionally I  have seen  requests coming  over the  packet network  on
+information or help  regarding the availability  of packet terminals  and
+the Psion Series 3. This is my response to those requests.
+
+The programs originally evolved out of several test programs written  for
+the Psion Series  3 range  of computers  to learn  the available  library
+routines, and to try to put some meaning behind the words in the Software
+Developement Kit. With this background, it can be seen that there was  no
+regular  design,  the   programs  just  evolved,   and  there  are   some
+shortcomings because of it. For example, it is not possible to search for
+text in a message. However I use them to handle all my packet traffic, so
+I can quite honestly say I find them useful.
+
+The prorams as  supplied will  run on  both the Series  3 &  3a range  of
+computers. The programs will  all adapt to the  machine they are  running
+on. Extra  facilities provided  on  the Series  3a  are text  zoom,  and,
+because of the extra resolution, it is possible to display message  sizes
+when in header mode of the message editor..
+
+What is does
+
+In some  respects the  programs operate  in a  similar manner  to TPK  by
+G‚rard Regnard (F1EBN). They can be used by Radio Amateurs to listen  out
+for interesting  messages on  the packet  network, and  to download  them
+automatically into a Psion Series 3.
+
+The programs provide the following features.
+   1) solicit FBB beacons from your nominated host.
+   2) listen out for  text strings you  have specified and  automatically
+     mark these messages for downloading from your host.
+   3) at 45 minute intervals automatically download any marked  messages,
+     and upload any messages  for onward transmission.  You can force  an
+     immediate connection if you don't wish to wait the 45 minutes.
+   4) allow you to enter private  messages or bulletins for uploading  to
+     your host.
+   5) allow you to reply to any messages received.
+   6) operates asychronously, in  that it is possible  to read a  message
+     and reply to it whilst the program continue to communicate with your
+     host.
+   7) automatically  delete private  mail from  your host  that has  been
+     downloaded.
+   8) Allow send and receive of 7+ files.
+   9) Link/Paste  architecture  is supported.  This  means that  you  can
+     'Bring' from PT into other applications and also 'Bring' from  other
+     applications into PT.
+
+What it does not  do that TPK  does, is maintain a  log, neither does  it
+compress the messages before transmission, nor does it request compressed
+mail from the host.  There is definately no  YAPP implemented. There  are
+probably other things that PT doesn't do either.
+
+Installation
+
+You should have the following files:-
+
+   PT.APP
+   PTINIDAT.IMG
+   PTINITNC.IMG
+   PTDBMGR.IMG
+   PTMSG.IMG
+   PTRENUM.IMG
+   PT_7PLUS.IMG
+   PT_TNC.TXT
+   PT_RS232.TXT
+   PT.TXT (this file)
+
+PT.APP is the main control program. It handles all communication with the
+TNC, and running of the other programs in the suite.
+
+PTINIDAT.IMG is a small program that only runs when PT is started up.  It
+locates the database files that may  have been created on previous  runs,
+and if it  can't find any  then it creates  some empty ones  on the  same
+device as the program  was run from.  This simple task  was written as  a
+separate program to  reduce memory requirements.  The database is  looked
+for in the following order, the drive  the programs are run from, M:,  A:
+and then B:. The program ignores default drive settings.
+
+PTINITNC.IMG runs at startup and in  response to the 'Reset TNC'  command
+in PT. Unsuprisingly then,  it's job is  to reset the  TNC. It starts  by
+sampling the RS232 line at the following speeds, 9600, 4800, 2400,  1200,
+300 and 110 baud. If  it detects a 'cmd:' prompt  at one of those  speeds
+then that is the speed the RS232 link  is set at. If no 'cmd:' prompt  is
+detected,  then  it  starts  an  autobauding  procedure.  It  sends   '*'
+characters - which  the PK232  uses as  an autobaud  character, and  then
+tries to solicit a command prompt with a ^C. This autobaud feature can be
+defeated, see below. After it gets  a 'cmd:' prompt, the contents of  the
+file PT_TNC.TXT is sent to the  TNC followed by the date/time. This  file
+should contain the commands necessary to initialise the TNC. The supplied
+file is for the AEA PK232 without battery backup. This is the TNC I  use,
+I don't know how  other TNCs' react  or other TNC  commands. If your  TNC
+doesn't issue a 'cmd:' prompt, let me know and I'll try to sort something
+out !
+
+PTDBMGR.IMG is the database manager. It handles all I/O to the  database.
+Other programs talk  to it to  get or send  information to the  database.
+After you terminate PT, you may notice that PTDBMGR lingers under the IMG
+Ghost icon for a few moments, it is tidying up the database, and doing  a
+compress which can take some time with  a large database. It is for  this
+reason that if you  exit PT and immediately  re-enter it, that some  file
+errors (File in Use) occur.
+
+PTMSG.IMG is the message reader and editor.  It is used to trawl all  the
+heard message headers and  select messages for  reading. Replies and  new
+messages for outbound transmission are  also created using this  program.
+It can also be used to pack/unpack 7+ messages.
+
+PTRENUM.IMG is a utility  program for renumbering your  copy of the  host
+database. One day I woke up to find  my FBB host synching at 8390 when  I
+thought it should be 120510. The Sysop had renumbered his msg base, and I
+had to do the same, so this program was born.
+
+PT_7PLUS.IMG is a version of 7+ by  Axel DG1BBQ modified by me to run  on
+the Series 3. It can be installed as  an .APP in its' own right, or  used
+to process inter-process requests.
+
+PT_TNC.TXT is a plain text file that is sent to the TNC to initialise it.
+See below.
+
+PT_RS232.TXT is  a small  optional parameter  file that  can be  used  to
+defeat PTINITNC autobaud. Basically, it tells PTINITNC what speed to use.
+See the file contents for more help.
+
+PT.TXT is this file. In versions of PT prior to 1.00, we also  supplied a
+.WRD file that  you could  format  and print using the  Word application.
+Unfortunately, this document is  now so large that it cannot be processed
+by Word. This file is now the only printable documentation.
+
+Installation procedure
+
+The programs have to be installed in  the normal Psion  way. That is  the
+file PT.APP should be  placed in the \APP\  directory, and all the  other
+files  should  be  placed  a  subdirectory  called  PT  under  the  \APP\
+directory, i.e. in \APP\PT\. All files  should reside on the same  drive.
+Finally use  the Psion-I  command on  the system  screen to  install  the
+program.
+
+The database will be created on the same device as the programs when  the
+program is initially run. If you want to keep the programs on Flash,  and
+the database on  RAM, then  install the programs  on RAM,  run PT,  exit,
+delete the programs from the RAM device and copy the programs to Flash.
+I would strongly recommend installing the  suite on a RAM SSD  initially.
+Although the programs are "Flash  friendly" the amount of traffic  coming
+over the  amateur network  - currently  about 300  messages per  day  are
+passing through my  local node; means  that you will  use up Flash  SSDs'
+quickly, particularly if you download many.
+
+Upgrade procedure
+
+V0.10 to V0.11
+
+Replace the old .IMG  and .APP files with  the new ones. PTDBMGR.IMG  has
+not changed. No other files need changing or deleting.
+
+V0.11 to V0.12
+
+Replace the old .IMG  and .APP files with  the new ones. PTDBMGR.IMG  has
+not changed.
+The program no longer  uses transparent text mode  to handle the link  to
+the host BBS. Some changes are  required to the file PT_TNC.TXT. For  the
+PK232 you can  simply replace  your old  PT_TNC.TXT file  with the  newly
+supplied one. If you don't use a PK232, then the new TNC commands which I
+found necessary for this new method to work are located at the end of the
+file.
+
+V0.12 to V0.13
+
+Replace PT.APP with the new version. No other programs have changed.
+
+V0.13 to V0.14
+
+Replace all programs.
+
+V0.14 to V0.15
+
+Replace all programs.
+
+V0.15 to V1.00
+
+Replace all programs.
+
+Memory requirements
+
+In normal use you should  have only two programs  running for 95% of  the
+time. These  are PT  which is  the  main screen  & control  program,  and
+PTDBMGR. PT requires about 6k of  memory. PTDBMGR starts off about at  6k
+and grows depending on the number of messages you have on your system. As
+a guide, 3 days of bulletins will grow the program to 10k.
+
+PTMSG is the message editor and  reader. This again requires about 6k  to
+run as a  minimum, but  will grow dynamically  for example  when text  is
+loaded for reading.  There is a  limit of  4k on message  entry, but  the
+reader is capable of loading a message as big as any downloaded from your
+host provided you  have enough free  memory to hold  it. Extra memory  is
+required in  addition to  what is  apparent from  the message  size.  The
+system needs  extra memory  for formatting  the message.  Further  memory
+appears to be  used by system  services. This  may not be  apparent on  a
+Series 3 where  the standard  applications such  as Word  and Agenda  are
+already running, but on a "quiet" machine system usage can grow by 10  to
+15k. I presume this is .DBF buffering. I would advise therefore that  you
+have at least 40k free memory  when you start. Therefore the basic  suite
+should run an a 128k Series 3 which "out of the  box" has 45k free.
+
+PTRENUM requires as much space again as you have used for your host  .DBF
+file. If it runs out  of room during the  renumber operation, no harm  is
+done, or data lost. It just doesn't do the job.
+
+PT_7PLUS requires about 64k to run. This is because it is a "dirty  port"
+from the  IBM PC  environment, and  has not  been modified  to any  great
+extent to use the inbuilt  features of the Series 3.  It may not ever  be
+possible to run this  program from within PT  on some machines. For  this
+reason, PT_7PLUS can be installed  as an application and run  stand-alone
+should you wish.
+
+The TNC setup file
+
+There are two files, one of which is optional.
+
+PT_RS232.TXT  if  it  exists  inhibits  PT  from  autobauding.  The  file
+specifies the baud rate your TNC  runs at. If you want autobauding,  then
+delete this file, otherwise  it MUST exist in  the same directory as  all
+the .IMG files. Some TNCs  don't like the way  PT autobauds. If your  TNC
+has battery backup, and you know what speed it needs, then specify it  in
+this file.
+
+The TNC  configuration file  supplied (PT_TNC.TXT)  is for  an AEA  PK232
+without battery backup. If you have a different TNC or use the PK232 with
+battery backup, then you will probably have to edit this file. Each  line
+is sent to the TNC. Lines starting with a ';' character are comments  and
+are ignored, i.e. not sent to the TNC.
+
+The general order of commands within the file is important. Flow  control
+statements should come first.
+
+Other than that, basic requirements by the software require,
+
+   Eight bit, no parity, one stop bit
+   RTS/CTS handshaking
+   Echoing of commands disabled
+   Header lines disabled
+   Line feeds disabled
+
+If you experience problems with getting  the TNC to initialise, then  try
+setting the TNC to work at 2400  baud. After sampling the RS232 at  9600,
+4800, 2400, 1200, 300 &  110 baud the link is  set back to 2400 to  force
+autobauding, so  2400 is  taken  as a  last-ditch  attempt. If  it  still
+doesn't work after this, then try using the PT_RS232.TXT file.
+
+The database
+
+At runtime a  sub-directory is created  from the root  called \PT\.  This
+contains details of all messages in the database.
+
+Two .DBF files are created containing the message header information. The
+actual message text is held in separate .TXT files, one for each  message
+in a subdirectory within \PT\.
+
+A further subdirectory called \PT\ARRIVALS\ contains files extracted from
+7+ messages.
+
+Although it is possible  to switch between different  hosts, this is  not
+advised.
+
+The .DBF files cannot be accessed using the Data application.
+
+The .TXT files are held  like they are to be  sent, or received from  the
+host. That  is  lines  delimited  with  carriage  returns.  For  outbound
+messages, PT will  automatically word-wrap  text at or  below colomn  72.
+This is only mentioned because after  a message is entered, the only  way
+to alter the text is either to delete the message and re-enter it, or  to
+edit the .TXT file with the Word application. I've not tried this. On the
+one occassion I wanted to do it, I did a bring of the message into  Word,
+editted it there, deleted the original  message, and then did a bring  of
+the message from Word into PT.
+
+Configuration data, and your prefered setups  are saved in a file  called
+PT.DBF. This file  must reside in  the same directory  as the various  PT
+.IMG files. It will created initially when the program exits. Although is
+it possible  to  look  at  the  contents  of  this  file  with  the  Data
+application it is not advised to try altering anything. The data is  held
+in binary strings. That is, the Data application will think the data is a
+string and try  to display  it as such,  but the  string contains  binary
+data, not always printable ASCII. The programs will behave  unpredictably
+if you alter anything in this file.
+
+7+
+
+Yes, you too can now send/receive 7+ messages direct from/to your  Psion.
+If you don't know  what 7+ is,  then I suggest you  read the separate  7+
+manual.
+
+The supplied version of  7+ can be run  stand-alone, or by  inter-process
+request. When run with PT, it  is driven by inter-process requests,  but,
+you may  not have  enough  room in  your  Series 3  for  this to  work  -
+particularly if you have a 128k  model. For this reason, PT_7PLUS can  be
+installed like any other application and run outside of PT. On the system
+screen,   select   Psion-I.   At    the   file   prompt,   navigate    to
+\APP\PT\PT_7PLUS.IMG by using the Tab and arrow keys. It does not  matter
+that this application does not end in  .APP. The program can then be  run
+just like any other Psion application.
+
+The program will prompt for a file name. If this is left blank, then  the
+help subsystem is called. This contains  a brief summary of the  commands
+available, just like if you  were to run the  IBM PC version without  any
+parameters.
+
+If you wish to send a file in 7+ format, but the file is resident on your
+PC then you will need to start PT without the Series 3 being connected to
+your TNC. Instead, connect your Psion  to your PC. Get into the  outbound
+mailbox, select  Psion  +,  and  choose the  drive  as  the  REM::  drive
+containing the file to transmit, and choose the file by navigating to  it
+using the TAB and arrow  keys. This assumes you  have a file server  like
+MCLINK or SLINK running on your PC.
+
+This file will be split up by 7+ and put in you outbound mail  directory.
+The message titles are automatically  generated to contain the file  name
+and part number.
+
+It has always been possible to receive  7+ files with PT, but now it  can
+unpack them  too.   In  the  header mode in the message editor, place the
+cursor on a message header which you think is a 7+ file. You can normally
+tell this from the title  of the message.  Hit  Psion -,  and the message
+will checked for being a valid 7+ format file, and in  doing so, check to
+ensure all the parts are  already  resident in the Series 3. If any parts
+are missing you will be notified. If all the  parts are present, then the
+original file is recreated from the individual  messages.  Unfortunately,
+in this version of 7+ the original file date/timestamp is lost. The  file
+will get the current date/time.
+
+After the file has been recovered from the one or more messages, then the
+option concerning whether to keep the individual parts is obeyed. I would
+advise leaving this option  at  the default of delete. This option can be
+found in the Set Preferences option on the main PT screen.
+
+Runtime
+
+One of the required items of data that you must supply is your call  sign
+and that of your host. You must enter these before the program will start
+up. Other items default to sensible values.
+
+The programs will start up without a TNC being connected. A notifier will
+be displayed and you get the  option of continuing or aborting. It  might
+be useful to  continue if  you simply want  to access  a previously  read
+message. i.e. you  are out and  about without your  radio and 3-Link  and
+have a few spare moments to reply to your  mail,  or alternatively if you
+wish to 7+ up a file resident on your PC.
+
+Active programs
+
+Screen displays
+
+The screen images change depending on which program is in the foreground.
+Normally this will be  PT itself, but  you can switch  to the inbound  or
+outbound message reader.
+
+PT - Packet Terminal
+
+The main PT  screen show the  local time and  UTC in the  top right  hand
+side. If the UTC  time appears wrong  then check that  you have set  your
+'Home Town' correctly within the World or Time applications. You can also
+check  that  the  daylight  savings  options  are  correct  in  the  Time
+application.
+
+The top left  of the screen  show your  callsign and the  amount of  free
+space on the  device used for  the database. This  free space total  gets
+updated at minute intervals.
+
+There might optionally be an envelope type symbol shown next to the  UTC.
+If it is there, then there is mail waiting on your host that has not been
+read. This envelope is triggered by the MAIL> beacon your host generates.
+
+The next line shows the number  of unread messages, and unsent  messages.
+As the program is meant to  run unattended this gives a quick  indication
+if any new messages have arrived.
+
+The FBB beacon shows  the highest FBB beacon  heard from your host.  This
+may not be the same as the  highest beacon saved to file. The reason  is,
+some beacons simply represent messages passing through your host,  others
+may be private messages, or, simply a beacon has been hit by QRM.
+
+If the program is really out of sync with your host, then another  number
+will appear alongside the FBB beacon. This number represents the  highest
+message the system is "happy with". The term "happy with" is used because
+again, it doesn't  actually represent  any quantifyable term.  It is  the
+highest beacon number heard without breaks. If you watch this number,  it
+may occassionaly stick, and a  re-sync. beacon will be transmitted.  When
+the missing beacon is received, the number will leap, because  hopefully,
+the program will have heard some of the subsequent beacons, and held them
+internally. When the missing beacon is heard, it can save all  subsequent
+ones to file.
+
+The bottom 4  lines of  the screen (7  lines on  a Series 3a)  acts as  a
+traffic window. If you  can hear packet traffic  on your transceiver  but
+nothing appears in this area, then there is probably something wrong with
+the TNC configuration. In this  circumstance  you will probably  also get
+messages such as 'Serial Overflow' and 'Packet too large' appearing.
+
+When it is deemed  time to connect  to the host -  either because the  45
+minute timer has  elapsed, or  on command;  then a  popup window  appears
+giving a guide to the state  of the connection. Because the programs  all
+behave asynchronously,  there is  no  need to  wait for  the  dis-connect
+before doing something else. You can read messages as they arrive, delete
+stuff you no longer need, in fact  you can do anything, which is just  as
+well because last night it was busy  in IO91VK and it took 26 minutes  to
+send a 20 word message !! It's  almost as boring watching packet mail  as
+it is watching batteries recharge.
+
+PTMSG - Message Editor
+
+The editor operates on  both the inbound messages  - those received  from
+your host; and outbound messages - those that you wish to send.
+
+The editor operates in  three modes. These are  header mode, reader  mode
+and edit mode. When the program is first called, it is header mode.
+
+Header mode  displays  all  the  headers within  either  the  inbound  or
+outbound mailbox  and  the  initial display  is  different  depending  on
+whether you are looking at inbound messages or outbound messages.
+
+For inbound messages it should start by positioning you at the header  of
+the first new message that has entered the system since you last  looked.
+If there are no new messages, it  positions you at the last message.  For
+outbound messages it simply positions on the last header in the system.
+
+Other than that  the displays  are identical. Embelishments  are used  to
+highlight the status of different headers. These are :-
+   Italics indicate messages  that are  marked for  downloading from  the
+     host, but have not yet been downloaded.
+   Inverted indicates messages  that are  filed. i.e.  there actually  is
+     some text for the message, and it can be read.
+   Underlined indicates that the header  has been marked for keeping.  It
+     will not be  purged off, but  it can still  be deleted, without  any
+     warning if you  explicitly tell the  program to do  so. A 7+  unpack
+     will not delete messages so marked.
+
+You can navigate around with the up/down keys, the page up/down, the home
+and end keys. There are other  commands for moving around, and they  will
+be covered later.
+
+Having found a filed message, then the  next logical step is to read  it.
+To do this we enter  reader mode. Simply move  the cursor to the  message
+and hit the 'Enter' key. If the message has not yet been downloaded,  you
+get told, otherwise to message is loaded ready for reading.
+
+The text of the message pops up, and it is possible to move around  using
+the cursor movement keys. It is not possible to change the text. To  exit
+reader mode  either  hit Psion-U,  or  Psion-X (or  equivalent  in  other
+languages).
+After having read a message you may wish to reply. For this we need  edit
+mode. This mode can only be entered with the Psion-R (Reply), or  Psion-E
+(Enter) commands. Full editting facilities are available. Exit edit  mode
+either with the Psion-S (Save) or Psion-U (Revert) command.
+7+ messages can be sent with Psion +, and unpacked using Psion -.
+
+Utility programs
+
+PTRENUM - Host message base renumber
+
+PTRENUM is used to renumber your copy of the host database. In two  years
+I have only needed to do this once.
+If you discover your host is  outputting beacons with much lower  numbers
+than you expect, then log  on to your host  manually, and check what  the
+last message you have is now numbered. The difference (usually  negative)
+is entered at the prompt.
+
+This program can  be run  from under the  IMG icon  although the  program
+should be kept with all the other PT .IMG files. Place the cursor on  the
+.IMG icon and press  tab. Navigate to  the \APP\PT\ sub-directory  select
+PTRENUM and hit enter.
+The reason it is done  like this is that is  so the the program can  find
+all the files it requires and update them accordingly.
+The program cannot be run while PT is running.
+
+The commands
+
+The following gives  a desciption  of the  commands available  in PT  and
+PTMSG. Help is available for most commands, but for those where it is not
+available, then the command is  identical to the standard Psion  function
+of the same name.
+   Inbound mail  -  Loads  PTMSG  which  then  interrogates  the  inbound
+     messages, i.e. those from your host.
+   Outbound mail  -  Loads PTMSG  which  then interrogates  the  outbound
+     messages, i.e. those you wish to transmit.
+   Message numbers - allows you to reset your next bid, or to change  the
+     highest FBB beacon  heard. It is  very unlikely that  you will  ever
+     need to use this command. It is  provided so that you can reset  the
+     message numbers to sensible  values if you  have been using  another
+     offline reader,  for example  TPK or  you have  been offline  for  a
+     while. If you think  you can get  a lot of  messages by setting  the
+     last message  received from  to host  to a  low value  like 1,  then
+     forget it. FBB restricts the number  of old message headers it  will
+     broadcast, but it varies  from system to system,  so some will  give
+     more than others.
+   Purge messages - allows you to  recover some SSD space. The 'Keep  how
+     many days' operates from  today. If today is  the 3rd, and you  only
+     have messages for the 1st and 2nd, and you specify keep 2 days,  the
+     purge will  delete all  messages  for the  1st,  i.e. it  will  keep
+     messages for the 2nd & 3rd, even though there maybe no messages  for
+     any of  those days.  It is  generally  a good  idea to  keep  UNREAD
+     messages, since 7+ can wait several days for all parts to arrive.
+   Reset TNC - resets the TNC by invoking PTINITNC. The TNC is reset when
+     the program starts up.  Probably the only other  time you will  need
+     this command is  if power  fails to  the TNC.  If the  TNC fails  to
+     initialise, then  all operations  to the  TNC are  trapped, and  not
+     executed, i.e. the  Connect or Synchronise  commands do nothing.  If
+     the TNC does  not reset  for any  reason, then  a small  information
+     message appears each time you explicitly access the TNC.
+   Connect to host -  forces a connection to  the host, thereby  avoiding
+     the 45 minute  wait to send  and receive messages.  A pop-up  window
+     displays the current state of the connection. When sending messages,
+     the screen tends  to stick at  a message with  100% complete,  don't
+     worry about this, the TNC is usually busy talking to your host.
+   Log - toggles on and off capture of all data sent and received to  the
+     TNC. The  log file  is called  PT.LOG  and is  created in  the  same
+     directory as the database files. Toggling on the log file will cause
+     any old log file to be deleted, i.e. it does not append.
+   Synchronise - sends  a re-synchronise request  to your host.  Normally
+     you will not need to use this, since a re-sync request is sent  when
+     the program starts and any  time that PT detects  it is out of  step
+     with the host. Possibly the only time  you may wish to use it is  to
+     check that your host is still up and running. If your host hears the
+     resync request it should  respond within a  minute depending on  how
+     busy it is.
+   Set preferences -  You will  have seen  this option  before, when  you
+     first ran the program. It is used to specify your call sign and that
+     of your host.  Any subsequent change  will probably be  just to  the
+     'listen for' text,  and to toggle  reception of bulletins.  Although
+     you can receive private messages, the default on FBB is to not allow
+     it. This has to be enabled on your host with the OR command. One new
+     feature in FBB 5.15b is that private messages for users that do  not
+     use your host are no longer broadcast as FBB beacons. This is to cut
+     down on  the number  of  beacons that  FBB  transmits on  a  resynch
+     request, so although you might request download of private messages,
+     you might not get as many as  you think there are. The 'listen  for'
+     can appear anywhere, so you can trap messages from certain users, or
+     just topics.  Where you  wish to  trap more  than 1  item, e.g.  all
+     messages to PSION and messages  from GB2RS, then separate the  items
+     with commas, e.g. PSION,GB2RS
+     7+ Parts tells PT what to  do with all the individual messages  that
+     go up to make the complete 7+ file. Usually we would want to  delete
+     the parts after the file has been recreated.
+     Kill 7+ Metafile is used when an error is found in the 7+ file.  See
+     the 7+ manual. Normally this is set to 'Yes' to delete the  metafile
+     when an error occurs. These metafiles  can get big, and just use  up
+     valuable space.
+   Version - displays the software version.
+   Exit - exits the program. You may notice PTDBMGR running under the IMG
+     ghost icon for several  moments after exiting  the program, this  is
+     simply the database manager tidying things  up now it knows that  it
+     will get no more requests to service the database.
+
+Not all of the following commands  are available at the same time  within
+PTMSG
+
+   Jump to  new  msgs  -  jumps to  the  latest  untouched  message.  Not
+     available in the outbound mailbox. An untouched message is one  that
+     the cursor hasn't visited. When entering the inbound mailbox you are
+     immediately put at the first new message. You can scroll back up the
+     list with the cursor keys, and then use this command to get back  to
+     where you were. Alternatively, if you have touched the last  message
+     header, then this command  will put the last  message at the top  of
+     the screen, leaving the remainder of  the screen blank, so that  you
+     can watch new messages arrive.
+   Jump to msg no - If you know an explicit message number, then this  is
+     the command to use to get to it quickly.
+   Find unread msg -  If you come back  to PT after a  few hours, and  it
+     says unread messages are available, then enter the inbound  mailbox,
+     and use Psion-*. It will find the first (or next) unread message  in
+     the system. A message  is recorded as being  read after the  message
+     text has been loaded into the message reader with the Enter key.  It
+     doesn't matter if you have not looked at all the text of a  message.
+     If a message has been loaded into  the reader, it is deemed to  have
+     been read. If you don't read the message, then hitting Psion-* again
+     will find the next unread message. To find the first unread  message
+     again, move the cursor to any message that is not an unread  message
+     and hit Psion-*. Basically, if you are on an unread message  Psion-*
+     will find you  the next unread  message, else it  will find you  the
+     first one.
+   Find - This command is used to search the message headers for specific
+     text. It is possible to search  the Subject, From, To and At  fields
+     for specific text,  in any  direction, with case  sensitivity on  or
+     off.
+     The text is treated as a substring, so entering 'A' in subject  will
+     find all messages where 'A' appears anywhere in the subject.
+     If no text is entered for a field, then that field will not be  used
+     in the selection process.
+     E.g. To search for a message from an EA8 station to EU, then set the
+     'To' field to EU and the 'From'  field to EA8. The search will  only
+     find message headers from EA8 stations to those at EU.
+   Find again -  Basically works the  same as standard  Psion Find  again
+     functions. It continues  to search  from the  current position,  and
+     uses the same search criteria as Find.
+   Mark for  download -  Messages marked  for download  are displayed  in
+     italics. If a message header looks like it could be interesting, and
+     you want to download it, or,  if the 'listen for' text has  detected
+     something you know you don't want, then you can use this command  to
+     toggle the marked for download status.
+   Delete -  deletes the  message  header, and  any file  containing  the
+     message text. Even  if a header  is marked keep  protected, then  it
+     will be deleted. No confirm message is issued, it just does it.
+   Keep - toggles  a message as  protected from automatic  delete by  the
+     purge. Keep protected messages are underlined.
+   Enter new msg -  Creates a message in the outbound mailbox. If you are
+     in the inbound mailbox, the message is still created in the outbound
+     mailbox. You enter a dialogue requesting the addressee and home BBS.
+     These fields must be completed, after which you enter edit mode. See
+     the command available below.
+   Reply to message - is similar  to the 'Enter new message' above,  just
+     that the addressee and subject fields are prefilled with data  taken
+     from the message the cursor is pointing to.
+   Resend message - is only available in the Outbound Mailbox.
+   Send 7+ File - will  prompt you for an addressee  and a file. It  will
+     then request PT_7PLUS to  encode the file and  put all the parts  in
+     your Outbound Mailbox ready for transmission.
+   Unpack 7+ File is used to manually rebuild a file from the constituent
+     messages. If not all the parts have been downloaded into your Psion,
+     then it will tell you which parts are missing. The generated file is
+     output to  \PT\ARRIVALS\.  The  various constituent  parts  will  be
+     deleted if you requested this in the Preferences menu option on  the
+     main screen.
+     It is also possible that some of the parts you received are corrupt.
+     If this is the  case, then an error  report will be generated  ready
+     for sending back to the original sender. You also have the option to
+     save the metafile for error correction.  This option is also in  the
+     Preferences menu option on the main screen.
+   Header - When entering or  replying to a message,  you may wish to  go
+     back to the dialogue that started  message entry, so that you  could
+     change the subject or the private/bulletin status for example.  This
+     command allows that. On exit, you  are back in the editor where  you
+     left it.
+   Insert text - Standard Psion insert.
+   Copy text - Standard Psion copy.
+   Bring - Standard Psion bring.
+   Save - Saves  the message in  the outbox ready  for uploading to  your
+     host.
+   Revert - forgets the message you are entering.
+   Set preferences  -  There are  two  options available  concerned  with
+     loading the message text  into the reader.  These are, load  message
+     routing, and use proportional text. These are by default, no and yes
+     respectively. You may wish to view the route to see why the  message
+     took so  long getting  to you,  or where  is has  been on  the  way.
+     Frankly, after  you've seen  this  stuff more  than twice,  it  gets
+     boring,  which  is  why  it  is  normally  set  to  not  load.   The
+     proportional text is normally enabled  because it looks better,  but
+     normal PCs  don't use  proportional text  and people  will send  you
+     tables of data  that will  look "wonky" in  proportional text  mode.
+     Therefore an option is provided to disable proportional text.
+   Zoom - is only available on the Series 3a, and replicates the standard
+     Psion zoom commands.
+   Version - software version
+   Exit - exits the inbound or outbound mailbox.
+
+Going /P
+
+This is not advisable. The program  is designed to run continually.  When
+going portable, this implies that there  will be long gaps between  using
+the program. When the program starts up, it will try to resync with  your
+host. If you  have been  QRT for  a few days,  then you  will be  several
+hundred or possible thousands of messages out of step with your host. The
+program will try its' best to bring you up to date. However, the  beacons
+FBB output are on all bands, so if you are on a relatively quiet 4m band,
+the beacons you cause to be output are also splattering across 2m & 70cm.
+You will become unpopular.
+The best way I  can think of  overcoming this problem is  to use the  TNC
+command XMITOK OFF, start the program up,  and wait for an FBB beacon  to
+appear. Use the Psion-M command to reset the highest FBB beacon saved  to
+this value, exit PT,  use the Comms application  to set XMITOK ON  again,
+and re-enter PT. It is  a bit long winded, but  at least you won't get  a
+stream of abuse.
+
+Direct connect
+
+You can't. If you want  to take direct control of  the TNC then you  must
+exit PT and enter the Comms Application.
+You will probably find that the TNC  will need a few commands sent to  it
+before it is easily usable, e.g.
+   ALFDISP ON
+   ACRPACK OFF
+   ECHO ON
+These are the commands  for a PK232, if  you've got something  different,
+then it's up  to you to  work it  out. It is  useful to have  these in  a
+script file if you intend to direct connect a lot.
+
+Problems
+
+   UTC time is wrong. Check that you have correctly set your 'Home  City'
+     in the World or Time applications.  If this is right then check  the
+     Daylight Savings option.
+   TNC not powered up. Some TNCs can be powered from the control voltages
+     present in the RS232  lead. This is not  possible with the Series  3
+     even if it is powered with a mains adaptor. You will have to get  an
+     alternative power supply or TNC.
+   TNC not responding at all. Try  using the Comms application. If  there
+     is nothing at  all, then are  you aware  that both the  TNC and  the
+     Series 3 are wired up  as DCE? You'll need  a null modem adaptor  to
+     overcome this problem.
+   You need to digipeat to your host but can't see how to. The reason is,
+     you can't. It has to be a single hop.
+   No traffic appears, and you get  Serial Overrun messages. The link  to
+     the TNC has reset to the wrong  speed. Use Psion-R to reset the  TNC
+     again.
+   You can't get it to work and want help. You could try asking me but  I
+     don't promise anything. If  I think you've found  a bug, I may  have
+     already fixed it. These programs are supplied FREE OF CHARGE &  it's
+     not worth my time to be continually messing with the code.
+
+The future
+
+The following is simply some rough thoughts on what (if any) improvements
+that will be made to these programs  over the coming months. They do  not
+indicate any intention to do them though.
+The program is not language specific. In common with other Psion Series 3
+products, the program can  potentially support, English, French,  German,
+Spanish, Italian, Swedish,  Danish, Norwegian,  Finnish, American,  Swiss
+(French),  Swiss  (German),  Portuguese,  Turkish,  Icelandic,   Russian,
+Hungarian, Dutch, Belgian Flemish, Australian, New Zealand, Austrian  and
+Belgian French. If someone desparately needs a foriegn language version I
+can probably work something out. No  promises though, and you'll have  to
+do the translation yourself.
+Initial experiments with compressing mail indicates that the (de)compress
+program is  likely  to be  about  80k on  its  own. Adding  to  that  the
+recommended 40k gives far more free  memory than most Series 3  computers
+have available  at runtime.  It may  be possible  to reduce  this  memory
+requirement.
+It is unlikely that a  log will ever be maintained  like TPK does. I  can
+see little or no point as the TPK log does not satisfy UK licensing.
+Text search within the editor, in the body text of messages.
+Better manual.
+Use the TNC host mode.
+Handle multiple sessions.
+PMS.
+
+Known Bugs
+
+File in use error  on program startup -  caused by PTDBMGR still  running
+after exiting from the program moments earlier.
+Switching hosts causes saved FBB beacon to become confused. There's  only
+one saved beacon number. Answer - don't switch hosts.
+
+Modification History
+
+V0.10 released 19th Dec 1993
+
+Disable reset of TNC while connected.
+When replying to mail, don't RE: RE: RE:... One is enough !
+Fixed problem when multiple databases exist. Problem in PT_CONN.C  saving
+messages to path in  DatCommandPtr, and not the  path found by  PTINIDAT.
+Also PTINIDAT searched in order M:, A:, B:, Installed drive. This is  not
+the order the documentation said. We now do what the documentation says.
+Changes for FBB 5.15b. Mail is now sent with S%C %S @ %S. Note the  extra
+spaces around  the @.  This is  downward compatible  with FBB  5.15.  Not
+tested on other versions.
+PTINITNC now checks  at 9600,4800,2400,1200,300,110  baud before  forcing
+autobaud. This seems far more reliable than previous methods.
+
+V0.11 released 9th Jan 1994 incorporates all the above fixes.
+
+Changed the way the program detects end of message.
+Not sure changes  to PTMSG.IMG  in V0.11  were actually  included in  the
+released .ZIP. There was a mixup with the latest source.
+Don't use transparent mode, because  we seem to miss disconnect  messages
+from the host if the host times out and we aren't expecting it.
+Messages for sub-nodes are now sent to the host.
+If a download  aborted, then  the message file  was left  open. The  next
+attempt to download  put up a  notifier 'File in  Use'. This problem  has
+only become apparent now  that we recover gracefully  from a TIME OUT  at
+the host end, and never manifested itself when in transparent text mode.
+
+V0.12 released 17th Jan 1994 incorporates all the above fixes.
+
+Removed extraneous CTRL-Z at end of message input. Stops the menus  being
+output more then once on a message send. Saves wasteing time.
+Now that FBB5.15b  doesn't output  "P" msgs, when  we start  up, our  FBB
+beacon will drop back to the last held on file, not the last heard.  This
+can be as much  as 40 or 50  headers, and is a  waste of bandwidth.  Save
+last heard as type "F" in PT.DBF
+
+V0.13 released 9th Feb 1994 incorporates all the above fixes.
+
+Rebuild with SDK version 2.
+Added new parameter file PT_RS232.TXT which holds baud rate. If this file
+exists then PTINITNC doesn't autobaud.
+
+V0.14 released 21st Mar 1994 incorporates all the above fixes.
+
+Improved link/paste server.  Apparently it  was possible  to hang  system
+apps,  I  never  experienced  this  problem,  but  incorporated  mods  as
+suggested by Psion.
+Added search function.
+Renumber utility added.
+Envelope type graphic to show mail waiting on the host. Shows bug in  FBB
+that sometimes keeps private mail for us, and doesn't beacon it.
+Only write unique messages to the  database. Fixes bug where we had  msgs
+repeated down the screen in the msg reader.
+Search added.
+Added 3a Icon and the main program, PT, now runs in dual mode
+If a msg was entered, and the file is then replaced by another file,  the
+msg lengths became confused and the transmit %age would not end at 100%
+
+V0.15 released 31st May 1994 incorporates all the above fixes.
+
+If TNC not connected then allow machine to time out/power down.
+PTMSG now runs in dual mode and Zoom option added.
+Fixed bug where if reading a message and toggled status window,  then the
+display refreshed to the header list.
+Bug fix. When entering a msg,  and the title was the max number of chars,
+it said must fill to and at.
+Make  menus  more dynamic.  Stops saying 'Prohibited in ...  mode'.  User
+doesn't get the option in PTMSG & PT says Log On/Log Off.
+Added 'Resend' option.
+Send a DAYTIME command to the TNC after setup. If PT_TNC.TXT contained  a
+RESTART it was cleared.
+7+ encode/decode added.
+Timer on input  buffer. Don't have to  wait for new packet before display
+the currently held one.
+Stop extraneous UNPROTO transmissions.
+Use background formatting in message editor.
+Bug Fix.  If downloaded a message already marked as unread, it bumped the
+unread count again.
+
+V1.00 released 16th September 1994 incorporates all the above fixes.
+
+If the default drive is not where the message base is, then 7+ fell over
+complaining about the lack of a directory, or file.
+Increase size of @ field in message input to allow for explicit addressing.
+Bug fix in send 7+ file. The file should be sent roughly equal parts of
+file size/4000. For a file just over 65k i.e. 79k the calculation gave a
+truncated figure for the 79k i.e. 14k divided that by 4000 to arrive at 3
+parts, so the file was split into 4 parts of about 20k.
+SSIDs allowed.
+Speed up the database manager. Now far more responsive while purging - use
+p_getosd to check if client waiting, and if there is, serve the client.
+
+V1.01 released 8th December 1994 incorporates all the above fixes.
+
+If a new msg header arrives in PT when the user is reading a msg with
+PTMSG then when the user finishes reading, they could not get to the new 
+message header until yet another new message header arrived. i.e. First,
+Last and count of headers was only updated when the header list was
+displayed.
+
+V1.02 released 11th January 1995 incorporates the above fix.
+
+If low on system memory, PTDBMGR could fail during initialisation, and
+PT would hang waiting for initialisation to finish. PT now reports the
+failure.
+If set "Last Host Msg" higher than really heard, then set it lower, the
+last message read stays at the higher value. Allow change in Next Message
+menu.
+The message header list on the Series 3 Classic only showed titles. Show 
+the whole thing.
+Fix Connection Status box on Series 3 Classic. Text scribbled over the box 
+margin.
+Fix PT Set preferences dialog so that there are not too many items on the
+Series 3 Classic. Move 7+ options to new menu item.
+
+V1.03 released 15th August 1995 incorporates the above fixes.

@@ -1,0 +1,54 @@
+REM ==========================
+REM psion/series3 #2691, from csljohns, 1245 chars, Sep 29 22:22 92
+REM This is a comment to message 2660.
+REM There are comments to this message.
+REM --------------------------
+REM For what it's worth, frequently used conversions can be LOADed
+REM into the calculator as a little compiled OPL (OPO) program:
+REM e.g...
+PROC cm2in:(cm)          REM  Centimeters to inches
+RETURN cm/2.54
+ENDP
+PROC in2cm:(in)          REM  viceversa
+RETURN in*2.54
+ENDP
+PROC cen2far:(ce)        REM  centigrade to farenheit
+RETURN (ce*9/5)+32
+ENDP
+PROC far2cen:(fa)        REM  viceversa
+RETURN (fa-32)*5/9
+ENDP
+PROC lb2kg:(lb)          REM  pounds to kg
+RETURN lb*0.454
+ENDP
+PROC kg2lb:(kg)          REM  viceversa
+RETURN kg*2.205
+ENDP
+PROC ga2li:(ga)          REM  gall to litres
+RETURN ga*4546
+ENDP
+PROC li2ga:(li)          REM  litres to gall
+RETURN li*0.220
+ENDP
+PROC h2m:(h,m)           REM  Hours to mins (! see below)
+RETURN 60*h+m
+ENDP
+PROC m2h:(m)             REM  Mins to hours (! see below)
+LOCAL h,i
+h=INT(m/60)
+i=INT(m-h*60)
+RETURN (h*100+i)/100
+ENDP
+PROC et:(onh,onm,offh,offm)   REM  Hours+mins between two times
+LOCAL ton,toff                REM  useful when programming a
+ton = h2m:(onh,onm)           REM  video!!
+toff = h2m:(offh,offm)        REM
+RETURN m2h:(toff-ton)
+ENDP
+
+REM Use:  At the calculator, load CALC.OPL then use the routines
+REM byt typing (e.g.  cm->ins)     cm2in:(56+2-45)
+REM converts 13 cm to inches etc...
+REM
+REM Carl Littlejohns
+REM

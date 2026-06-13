@@ -1,0 +1,37 @@
+rem LISTCONV.OPL - A.Grieve 1996
+rem Converts old LISTED files to V7.0 format
+
+proc main:
+	local name$(128), newname$(128)
+	local p%(6)
+	setpath "\opd\"
+	name$=".odb"
+	trap mkdir "\lst"
+	dinit "Convert .ODB File to new format"
+	dfile name$, "File:", 8+16+64+128
+	if dialog<>0
+		trap open name$, a, d1$,d2$,d3$
+		if err
+			cls :print err$(err)
+			get :stop
+		endif
+		newname$="\lst\"+mid$(parse$(name$, "", p%()), p%(4), p%(5)-p%(4))+".LST"
+		trap create newname$, b, d1$,d2$,d3$,d4$,d5$,d6$
+		if err
+			cls :print err$(err)
+			get :stop
+		endif
+		do
+			b.d1$ = a.d1$
+			b.d2$ = a.d2$
+			b.d3$ = a.d3$
+			use b
+			append
+			use a
+			next
+		until (eof)
+		print "File converted OK"
+		get
+	endif
+endp
+

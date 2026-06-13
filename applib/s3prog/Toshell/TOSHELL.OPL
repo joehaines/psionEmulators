@@ -1,0 +1,40 @@
+PROC toshell:
+REM
+REM *********************************************************************
+REM * Program to bring the system window into foreground from any 	*
+REM * any application on the Series3. This is done by capturing 	*
+REM * the key combination CONTROL + Z (^Z). The program must be running	*
+REM * in background to allow this. It will leave the task you have come *
+REM * from running. Comments are written to show the 'C' equivalent	*
+REM * before the actual OPL function.					*
+REM * Written by DWW, Psion Development, Jan 1991.			*
+REM *********************************************************************
+REM
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name$(12) :REM Long enough for zero terminator too
+
+	name$="sys$shll.*"
+	gBorder $200
+
+	REM wCaptureKey(26,4,4)
+	REM Captures CONTROL+Z combination
+	call($458d,26,$404,0,0,0)
+	REM cl has modifier, ch has modifier mask
+
+	WHILE 1
+		GET
+		
+		REM ax%=p_pidfind("sys$shll.*")
+		REM Finds pid of System Shell (shell)
+		ax%=$0100
+		bx%=ADDR(name$)+1
+		os($88,ADDR(ax%))
+
+		REM wClientPosition(0,ax%)
+		REM Positions shell to foreground  
+		call($198d,0,ax%,0,0,0)
+
+	ENDWH
+
+ENDP
+

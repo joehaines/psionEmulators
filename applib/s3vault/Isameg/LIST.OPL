@@ -1,0 +1,127 @@
+/*
+Date:	9/11/93
+
+Files required at runtime:
+	M:\ISAM.DYL
+	M:\DAT\DATA.DBF	database file
+
+Shows a screen-full of records in alphabetical order that match the find 
+string instantly as it is typed in by the user.
+The editor only supports Esc and Delete editing keys.
+Initially the find string is set to "a" so all records beginning with "a"
+are listed.
+
+This program illustrates ISAM usage only and should not be used as a 
+template for writing an application.
+*/
+
+#include <l_file.oph>
+#include <isam.opg>
+
+PROC main:
+    GLOBAL isamCat%,pIsam%
+    LOCAL fDef$(34),keyDef$(66)
+    LOCAL i%,indexId%,l&,c%,len%,alen%,k%
+    LOCAL nRecs&,r&,f1$(255),f2$(255),p%(10),a$(255),d$(255),n%
+
+    loadIsam:
+    creaIsam:
+    openData:("LOC::M:\DAT\DATA.DBF",FOPEN or FUPDATE)
+    len%=8
+    keyDef$=chr$(1)+chr$(0)+chr$(0)+chr$(0)
+    keyDef$=keyDef$+chr$(ISAM_FIELDTYPE_STRING)+chr$(ISAM_FIELDFLAG_ASCEND)
+    keyDef$=keyDef$+chr$(0)+chr$(len%)+chr$(ISAM_CONVERT_FOLD)+chr$(0)
+    send(pIsam%,O_IS_SET_KEYDEF,#0,#uAdd(addr(keyDef$),1))
+    indexId%=openIx%:("LOC::M:\DATA.BTX",FREPLACE or FUPDATE)
+    send(pIsam%,O_IS_IFLAGS,#indexId%,#ISAM_FLAG_ALLOWDUP,#ISAM_FLAG_ALLOWDUP)
+    print "Building index"
+    send(pIsam%,O_IS_IBUILD,#indexId%)
+    send(pIsam%,O_IS_ICOUNT,#indexId%,nRecs&)
+    gIPrint "Number of records="+num$(nRecs&,6)
+    a$=""
+    do
+        d$=a$
+        if a$="" :a$="A" :endif
+        alen%=len(a$)
+        cls
+        gAt 0,143
+        gBox 280,17
+        at 2,17 :print "Find:";d$,"     "
+        p%(1)=addr(a$)
+        p%(2)=0
+        c%=send(pIsam%,O_IS_IFIND,#indexId%,p%(1))
+        at 1,1
+        if c%=0 or c%=1
+            send(pIsam%,O_IS_GET_FIELD,#0,f1$,#ISAM_FIELDTYPE_STRING)
+            send(pIsam%,O_IS_GET_FIELD,#1,f2$,#ISAM_FIELDTYPE_STRING)
+            n%=0
+            while n%<13 and upper$(left$(f1$,alen%))=upper$(left$(a$,alen%))
+                print f1$,":",f2$
+                c%=send(pIsam%,O_IS_INEXT,#indexId%)
+                if c%<0 :break :endif
+                send(pIsam%,O_IS_GET_FIELD,#0,f1$,#ISAM_FIELDTYPE_STRING)
+                send(pIsam%,O_IS_GET_FIELD,#1,f2$,#ISAM_FIELDTYPE_STRING)
+                n%=n%+1
+            endwh
+            if n%=0
+                print "Not found"
+            endif
+        else
+            print "Not found"
+        endif
+
+        k%=get
+        if k%=27
+            a$=""
+        elseif k%=8
+            if a$<>""
+                a$=left$(a$,len(a$)-1)
+            endif
+        else
+            if d$=""
+                a$=chr$(k%)
+            else
+                a$=a$+chr$(k%)
+            endif
+        endif
+    until 0
+ENDP
+
+PROC pErr:(mess$,err%)
+    print mess$,"failed -",err$(err%)
+    get
+    stop
+ENDP
+
+PROC loadIsam:
+    LOCAL c%
+
+    c%=loadlib(isamCat%,"LOC::M:\ISAM.DYL",1)
+    if c%<0 : pErr:("Load ISAM.DYL",c%) :endif
+ENDP
+
+PROC creaIsam:
+    pIsam%=newObjH(isamCat%,C_BTDBF)
+    send(pIsam%,O_IS_INIT,#4096,#0)
+ENDP
+
+PROC openData:(name$,mode%)
+    LOCAL xName$(255),xMode%
+    LOCAL c%
+    
+    xName$=name$+chr$(0)    
+    xMode%=mode%
+    c%=enterSend(pIsam%,O_IS_DOPEN,#uAdd(addr(xName$),1),#xMode%)
+    if c%<0 :pErr:("Open data file",c%) :endif
+ENDP
+
+PROC openIx%:(name$,mode%)
+    LOCAL xName$(255),xMode%
+    LOCAL c%
+
+    xName$=name$+chr$(0)    
+    xMode%=mode%
+    c%=enterSend(pIsam%,O_IS_IOPEN,#uAdd(addr(xName$),1),#xMode%)
+    if c%<0 :pErr:("Open index file",c%) :endif
+    return c%
+ENDP

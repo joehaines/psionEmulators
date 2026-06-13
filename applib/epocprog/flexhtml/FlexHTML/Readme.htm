@@ -1,0 +1,807 @@
+
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<meta name="generator" content="FlexHTML/1.11 (EPOC) [D Rushall, FreEPOC www.freepoc.org]" />
+<base target="_top" />
+<style type="text/css">
+body,h1,h2,h3,p,td,li,ul,ol { font-family: sans-serif; background: white; color: black; }
+pre,tt { font-family: monospace; }
+a:link { color: blue; }
+a:visited { color: purple; }
+a:active { color: red; }
+a:hover { color: red; }
+.banner { background: #EEEEEE }
+.alt { background: #EEEEEE }
+</style>
+<title>FlexHTML</title>
+</head>
+<body>
+<hr align="left" width="100%" size="1" noshade="noshade" color="#000000" clear="all" />
+<h1 align="left">FlexHTML</h1>
+<p align="left"><strong>Flexible HTML generation for EPOC
+<br />(C) 2000, 2001 David Rushall</strong></p>
+<hr align="left" width="100%" size="1" noshade="noshade" color="#000000" clear="all" />
+
+<h2 clear="all">1 What is FlexHTML?</h2>
+
+<p>FlexHTML is a simple OPM to process text files and
+apply template macros. As a file is processed, special
+template commands invoke user-written OPL functions to
+generate a block of output.</p>
+
+<p>It was originally designed to aid the
+development and maintenance of my web
+site, where the OPL templates are used to...
+<ul>
+<li>include common text on multiple pages, without requiring server-side includes,</li>
+<li>ensure common layout on all pages (over and above what is acheived by
+<a href="#CSS">CSS files</a>),</li>
+<li>generate pseudo-dynamic navigation controls,</li>
+<li>automatically boilerplate each page with full URL and last update date,</li>
+<li>help to ensure that all pages are XHTML 1.0 complient by generating the complex stuff,</li>
+<li>and generate some pages HTML and WML pages from a common source.</li>
+</ul>
+...all from source held in OPL Program editor files for
+convenience of editing. When the time comes to give the
+site a new look, some changes to the OPL templates can be
+easily propagated to all pages on the site.
+</p>
+
+<p>With a little work the module could be applied to
+other scenarios, such as extracting a database of bookmarks
+to form an HTML links page or generating both an HTML
+and Help/Data version of an application's user manual from
+a single source. Advanced HTML applications could also
+employ temporary outputs and multiple passes to build a
+table of contents of automatically numbered sections,
+or float footnotes to the end of the document.
+</p>
+
+<p>Using FlexHTML requires some effort, basic
+knowledge of OPL and knowledge of HTML (and any other desired
+output formats) -
+but then the result is a far more flexible than other HTML
+generation tools for the EPOC platform
+and it is easier than editing all your complex
+but repetitive HTML tagging by hand.
+</p>
+
+<h3 clear="all">1.1 <a name="CSS">How does FlexHTML fit with CSS?</a></h3>
+
+<p>You might say that Cascading Style Sheets (CSS)
+are the best way to control the presentation of HTML
+documents, and you'd be right.</p>
+
+<p>You might say that if all the presentation information
+is in the CSS then you you don't need a tool to help write
+the HTML. I say you should think again.</p>
+
+<p>A tool like FlexHTML is a compliment and not a competitor
+to CSS.</p>
+
+<ul>
+<li>Using FlexHTML to generate repetitive sequences
+(e.g. thumbnail images that link to a larger version)
+helps ensure your HTML is valid, consistent and
+correct.</li>
+<li>FlexHTML can be used to automatically apply
+alternating styles to sequences of items
+(e.g. different background colours
+for odd and even rows in a table).</li>
+<li>FlexHTML can generate standard content (e.g. headers,
+footers and navigation bars) and vary it based on current
+document, build date, etc.</li>
+<li>FlexHTML can be used to generate main page content
+based on databases, equations, etc.</li>
+<li>You can even use FlexHTML to generate your CSS too
+(e.g. ensure matching colours on different elements).</li>
+</ul>
+
+<hr align="left" width="80%" size="1" noshade="noshade" color="#000000" clear="all" />
+<h2 clear="all">2 Installation</h2>
+
+<p>To install this software on your machine,just
+install the main application SIS file:</p>
+
+<dl><dt>FlexHTML.sis</dt>
+<dd>FlexHTML SIS installation file.</dd></dl>
+
+<p>The software will be installed on the C: drive.</p>
+
+<dl>
+
+<dt>C:\System\OPM\FlexHTML.opm</dt>
+<dd>The FlexHTML OPM module.</dd>
+
+<dt>C:\System\OPL\FlexHTML.oph</dt>
+<dd>The FlexHTML OPL header file.</dd>
+
+<dt>C:\FlexHTML\</dt>
+<dd>This directory contains example files and
+documentation for developers. You may move this folder
+but you will have to update the examples accordingly,
+if you wish to use them.</dd>
+
+</dl>
+
+<p>You can test the FlexHTML installation by running the
+C:\FlexHTML\Runme.opo example file. See below for more
+details.</p>
+
+<p clear="all"><strong>Note:</strong>
+Please consult the manuals for your device for
+details of installing applications packaged in SIS
+files. You will require a PC or Mac running your
+EPOC connect software (i.e. PsiWin 2 or equivalent)
+or the "Add/Remove" icon on the control panel of
+your EPOC device. Double-clicking on the SIS file
+either on the EPOC device or on the PC/Mac connected
+to the EPOC device should do the trick.</p>
+
+<hr align="left" width="80%" size="1" noshade="noshade" color="#000000" clear="all" />
+<h2 clear="all">3 Usage notes</h2>
+
+<h3 clear="all">3.1 What is a FlexHTML template?</h3>
+
+<p>A FlexHTML template consists of an OPL procedure
+which is invoked when the FlexHTML processor finds a
+template call in the source file it is processing.
+The OPL function is responsible for generating any
+output that should replace the template call in the
+output file, accessing any global state variables it
+requires.</p>
+
+<p>Consider the following simple example:</p>
+
+<p><pre> proc hello$:
+   lprint "Hello ";flexgetarg$:(1);"!"
+ endp</pre></p>
+
+<p>This template, <tt>hello</tt>, writes a single line to
+the output stream; a greeting to the person named by
+the templates first argument.</p>
+
+<p>To invoke the template, one would include something like
+the following in the input file:</p>
+
+<p><pre> ##+hello
+ World
+ ##-</pre></p>
+
+<p>This would be simply replaced in the output, by:</p>
+
+<p><pre> Hello World!</pre></p>
+
+<p>That's pretty much it - simple but effective, as we
+shall see.</p>
+
+<h3 clear="all">3.2 Putting it together</h3>
+
+<p>In order to use FlexHTML you will need the following...</p>
+
+<ul>
+<li>one FlexHTML OPM module (FlexHTML.opm),</li>
+<li>one FlexHTML OPM header file (FlexHTML.oph),</li>
+<li>one set of OPL template procedures (e.g. Runme.opl),</li>
+<li>one controlling OPL procedure (e.g. "build:" in Runme.opl),</li>
+<li>one or more source files (e.g. Readme.flx),</li>
+<li>and, a little patience.</li>
+</ul>
+
+<p>Mix as follows...</p>
+
+<ol>
+<li>Put your source files in a suitable directory
+(use C:\FlexHTML\ for now).</li>
+<li>Edit the controlling procedure (e.g. "build:" in Runme.opl)
+to ensure that the path is correct for:
+<ul>
+<li>the INCLUDE of the FlexHTML.oph header file,</li>
+<li>the LOADM of the FlexHTML.opm module,</li>
+<li>any LOADM for template libraries (not required for Runme.opl),</li>
+<li>the source file,</li>
+<li>and, the output file.</li>
+</ul></li>
+<li>Translate and run the program.</li>
+</ol>
+
+<p>If all goes well, an HTML version of the document will
+have been generated. The remaining sections of this
+document should give some clues about how it all
+works. Look at the Runme.opl and Readme.flx files
+to get some ideas about what you can do.</p>
+
+<p clear="all"><strong>Note:</strong>
+My use of the ".flx" extension is arbitrary.
+You may use any file name extension that you wish
+(e.g. ".txt" or none)</p>
+
+<h3 clear="all">3.3 Source formats</h3>
+
+<p>The input to FlexHTML must either be a ASCII text
+file or an OPL Program file. In the case of the latter,
+we're simply misusing the OPL editor as a convenient text
+editor; removing the requirement for you to export
+from Word or Program as plain text, or find another text
+editor.</p>
+
+<p clear="all"><strong>Note:</strong>
+You can also use FlexHTML to export OPL Program files to
+plain text in batches. If the Program file contains no
+templates the the output will be a simple plain text
+version of the input.</p>
+
+<p>The input file contains a mixture of text to be
+copied to the output file and template calls. When the
+file is processed, the input is copied to the output and
+any template calls replaced with the result of their
+invocation.</p>
+
+<p clear="all"><strong>Note:</strong>
+If you wish, the input file may consist entirely of
+templates. All that would remain of the input
+file in the output stream would be any blank lines
+you left between the templates.</p>
+
+<h3 clear="all">3.4 FlexHTML template syntax</h3>
+
+<p>FlexHTML uses a simple syntax. Any line starting with
+'##' (no preceding white space) is a control line, and
+anything else is pretty much ignored.</p>
+
+<p>The character immediately following the '##' indicates
+the type of control line.</p>
+
+<table align="center" border="1" cellspacing="1" cellpadding="2">
+<tr><th colspan="2" class="banner">Template control characters</th></tr>
+
+<tr><th class="alt" align="left" valign="top">+</th>
+<td align="left" valign="top">
+<tt> ##+hello</tt><br />
+Begin a new template argument.
+If this the first argument of the template, then the
+template name follows the '+'.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">-</th>
+<td align="left" valign="top">
+<tt> ##-</tt><br />
+End the last argument of the template.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">!</th>
+<td align="left" valign="top">
+<tt> ##!footer</tt><br />
+Call template without providing arguments (i.e. a
+short-hand for '##+footer' followed by '##-').</td></tr>
+
+<tr><th class="alt" align="left" valign="top">;</th>
+<td align="left" valign="top">
+<tt> ##; Comment text</tt><br />
+A comment line - the remaining text on the line is ignored
+and no output is generated.
+You can also use the ";" character to insert a comment at
+the end of a control line (e.g. "##+hello ;say hello").</td></tr>
+
+</table>
+
+<h3 clear="all">3.5 Writing the control procedure</h3>
+
+<p>The main procedure of the control program is responsible
+for:</p>
+<ul>
+<li>defining and initialising any global variables that
+will be used by the user-written templates (e.g. section
+counters);</li>
+<li>LOADMing the FlexHTML.opo module;</li>
+<li>optionally, checking that the loaded FlexHTML.opo
+is compatible (recommended);</li>
+<li>LOADMing any template libraries required (when
+the templates are not contained in the same OPO as the
+control procedure);</li>
+<li>and finally, process one or more input files.</li>
+</ul>
+
+<p>The following functions are provided by FlexHTML.opo
+for this purpose.</p>
+
+<table align="center" border="1" cellspacing="1" cellpadding="2">
+<tr><th colspan="2" class="banner">Functions for use in control procedure</th></tr>
+
+<tr><th class="alt" align="left" valign="top">flexVerChk:</th>
+<td align="left" valign="top">
+<tt>flexVerChk:(kFlexVersion)</tt><br />
+Ensure loaded FlexHTML OPM is compatible with the version
+required (i.e. the version of the header against which
+the user-written code has been translated).</td></tr>
+
+<tr><th class="alt" align="left" valign="top">flex:</th>
+<td align="left" valign="top">
+<tt>flex:("c:\example.flx", "c:\", "example.htm", kFlexFlags_None&)</tt><br />
+Process named file to produce named output on named
+output path.</td></tr>
+
+</table>
+
+<p clear="all"><strong>Note:</strong>
+My use of the ".flx" extension is arbitrary.
+You may use any file name extension that you wish
+(e.g. ".txt" or none)</p>
+
+<h3 clear="all">3.6 Template basics</h3>
+
+<p>For each template used in the source file, you must
+provide an OPL procedure for the template. The name
+of the procedure must be the template name with a '$'
+suffix (i.e. return a string) and it must have no
+arguments.</p>
+
+<p clear="all"><strong>Note:</strong>
+Please <em>do not</em> start template names with the
+letters 'flex'.</p>
+
+<p>To generate the template's output, simply
+LPRINT whatever you want. Your LPRINTed text will
+appear in the output stream where the template invocation
+appeared in the input stream.</p>
+
+<p>The return string of a template is any error message.
+If the template is sucessful, you should return an empty
+string. If a non-empty error message is returned,
+FlexHTML will display an error report including your
+message.</p>
+
+<p clear="all"><strong>Note:</strong>
+You can pass information between templates (e.g. section
+counters) via OPL global variables, which must be declared
+by your control program and which must <em>not</em>
+start with the letters 'flex'.</p>
+
+<h3 clear="all">3.7 Using template arguments</h3>
+
+<p>Templates are most useful when they are given arguments.
+Templates may have up to 8 (kMaxArgs%)
+arguments of up to 8192 (kMaxArgLength%) characters each.
+The constants for these values are provided in
+FlexHTML.oph.
+Any arguments not supplied in the template invocation in
+the source file will be empty (i.e. have zero length).</p>
+
+<p>Arguments are numbered from 1 to 8 and can be
+retrieved by the following functions.</p>
+
+<table align="center" border="1" cellspacing="1" cellpadding="2">
+<tr><th colspan="2" class="banner">Functions to read template arguments</th></tr>
+
+<tr><th class="alt" align="left" valign="top">flexArgLen%</th>
+<td align="left" valign="top">
+<tt>flexArgLen%:(arg%)</tt><br />
+Returns length of numbered argument.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">flexGetArg$</th>
+<td align="left" valign="top">
+<tt>flexGetArg$:(arg%)</tt><br />
+Returns contents of the numbered argument, as a string.
+The argument must be no more than 255 characters in length,
+in order to fit into an OPL string.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">flexInsertArg</th>
+<td align="left" valign="top">
+<tt>flexInsertArg:(arg%)</tt><br />
+Copy the numbered argument into the output stream,
+with no changes. The argument may be of any length
+(up to the maximum length of 8192 characters) as it
+does not have to be stored into an OPL string.</td></tr>
+
+</table>
+
+<h3 clear="all">3.8 Embedding further source files</h3>
+
+<p>FlexHTML includes the ability to combine multiple
+source files to form a single output, thus enabling
+common features such as scripts and navigation
+areas to be maintained from a single source and embedded
+on every page.</p>
+
+<p>The processing of embedded inputs is truely recursive;
+templates in the embedded source will be processed and
+may embed still further sources, as required.</p>
+
+<table align="center" border="1" cellspacing="1" cellpadding="2">
+<tr><th colspan="2" class="banner">Function to embed other files</th></tr>
+
+<tr><th class="alt" align="left" valign="top">flexInclude</th>
+<td align="left" valign="top">
+<tt>flexInclude:("another_file.flx")</tt><br />
+Process named file and insert output into current
+output stream.</td></tr>
+
+</table>
+
+<p clear="all"><strong>Note:</strong>
+If you want to declare a global variable to be available
+for the processing of the single embedded source,
+declare the global in the OPL procedure that calls
+the include function.</p>
+
+<p clear="all"><strong>Note:</strong>
+My use of the ".flx" extension is arbitrary.
+You may use any file name extension that you wish
+(e.g. ".txt" or none)</p>
+
+<h3 clear="all">3.9 Other template functions</h3>
+
+<p>In addition to the basic functions for processing
+files and handling template arguments, FlexHTML
+provides a number of utility functions. These
+are summarised below.</p>
+
+<table align="center" border="1" cellspacing="1" cellpadding="2">
+<tr><th colspan="2" class="banner">Auxillary functions</th></tr>
+
+<tr><th class="alt" align="left" valign="top">flexVer$</th>
+<td align="left" valign="top">
+<tt>flexVer$:</tt><br />
+Returns a version string identifing FlexHTML,
+suitable for inclusion in an HTTP GENERATOR header.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">flexInsertBoilerplate</th>
+<td align="left" valign="top">
+<tt>flexInsertBoilerplate:("")</tt><br />
+Inserts a standard "made with FlexHTML"-style string
+into the output stream. If you use FlexHTML, please
+consider using function as part of your document
+footer. The argument string to this function is
+reserved for future use and must be empty for now.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">flexOutFile</th>
+<td align="left" valign="top">
+<tt>flexOutFile$:</tt><br />
+Returns the name (not path) of the current output file.
+This can be useful to generate correct include document
+URLs in footers, for example.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">flexKeyword</th>
+<td align="left" valign="top">
+<tt>flexKeyword$:(flexGetArg$(arg%),allowEmpty%)</tt><br />
+Analyse supplied string to find a keyword, consisting
+of alphanumeric and '-' characters.
+Leading and trailing spaces
+are removed but other spaces will raise an error.
+Result is always returned in upper case.</td></tr>
+
+<tr><th class="alt" align="left" valign="top">flexError</th>
+<td align="left" valign="top">
+<tt>flexError:(-1,"Something broke")</tt><br />
+Halt document processing with given error code and
+message.</td></tr>
+
+</table>
+
+<p>See below for a complete listing of FlexHTML.oph
+with more details of these functions.</p>
+
+<h3 clear="all">3.10 More examples</h3>
+
+<p>This document is an example use of FlexHTML. Take a
+look at the Example.opl and Example.flx files used
+to generate it. For example, see how:<p>
+
+<ul>
+<li>the section numbers get inserted automatically,</li>
+<li>all sections but the first are preceeded with
+a shorter horizontal rule,</li>
+<li>the FlexHTML.oph source file appears in this
+documentation,</li>
+<li>all the notes and function tables are
+formatted with consistent tagging,</li>
+<li>and, how I know that the square root of 49 is
+7
+</li>
+</ul>
+
+<hr align="left" width="80%" size="1" noshade="noshade" color="#000000" clear="all" />
+<h2 clear="all">4 Notes and Limitations</h2>
+
+<h3 clear="all">4.1 File formats</h3>
+
+<p>Most text-based formats and languages can be contained
+in the input stream provided that they do not require the
+use of '##' as the first two characters on a line.
+However, since FlexHTML replaces blocks of lines with
+other blocks of lines, it is not possible to insert
+variables in the middle of a line (as the C macro
+pre-processor does, for example).</p>
+
+<h3 clear="all">4.2 Text formatting</h3>
+
+<p>FlexHTML currently knows nothing (or at least very little) of
+the data it is handling. This may be a concern if you
+wish to both target an output stream that can handle
+word-wrapping (e.g. HTML) and one that cannot (e.g. plain
+text).</p>
+
+<h3 clear="all">4.3 Escape characters</h3>
+
+<p>Another problem with generating multiple output
+formats lies in the conventions for escape character
+sequence. For example, if I write '&amp;', this would
+appear as an ampersand character in formatted
+HTML/XML/etc, but would appear as the raw escape sequence
+in a text output.
+However, in the absense of built in support for such differences
+in a potential future version of FlexHTML, there are
+potential work arounds via the cunning use of templates.
+</p>
+
+<hr align="left" width="80%" size="1" noshade="noshade" color="#000000" clear="all" />
+<h2 clear="all">5 Disclaimer and copyright</h2>
+
+<ol>
+
+<li>FlexHTML is freeware and copyright; it is not
+public domain. The rights to this package remain the
+property of the author.</li>
+
+<li>You may use this software for your own use,
+free of charge, for an indefinite period and at no
+obligation to the author.</li>
+
+<li>Permission is given to publicly distribute this
+software provided the ownership of the rights to this
+software is clearly stated and any fee charged is
+extremely nominal.
+Distributions of this software must always consist of
+the the unaltered SIS file distribution.</li>
+
+<li>If you wish to use and distribute this module as
+part of your own application you may do so provided
+that you:<ul>
+<li>Contact the author of this module, at the email
+address below, to inform him of your intentions
+and to allow him to notify you of any updates.</li>
+<li>Distribute the module in the original SIS file
+or correctly embed the original SIS file in your own
+SIS file. (The UID for FlexHTML is 0x10003934.)</li>
+</ul></li>
+
+<li>Use of this software is entirely at the user's own
+risk. The user must accept responsibility for any 
+direct or indirect loss or damage arising from the 
+use (or misuse) of the package. This software is 
+supplied "as-is".</li>
+
+</ul>
+
+<hr align="left" width="80%" size="1" noshade="noshade" color="#000000" clear="all" />
+<h2 clear="all">6 Contacts</h2>
+
+<p>If you have any problems, comments or suggestions about
+this software, you can contact me at the following email
+addresses:</p>
+
+<ul>
+<li>dave@freepoc.de</li>
+<li>dave@piecafe.demon.co.uk</li>
+</ul>
+
+<p>This application is distributed in association with
+FreEPOC:</p>
+
+<ul>
+<li>http://www.freepoc.de/</li>
+</ul>
+
+<p>For the latest news of this an my other software, also
+visit:</p>
+
+<ul>
+<li>http://www.piecafe.demon.co.uk/</li>
+</ul>
+
+<hr align="left" width="80%" size="1" noshade="noshade" color="#000000" clear="all" />
+<h2 clear="all">7 FlexHTML.oph</h2>
+
+<p>The contents of the OPL header file for FlexHTML have
+been included below for reference.
+
+<p><pre>rem ====================================================
+rem = FlexHTML.oph - FlexHTML OPM header file
+rem = (C) 2000, 2001 David Rushall
+rem = In association with FreEPOC
+rem = All rights reserved.
+rem = See associated documentation for details of use
+rem = --------------------------------------------------
+rem = Please consider using standard FlexHTML footer
+rem = 'boilerplate' on public HTML pages generated with
+rem = this OPM. See "flexInsertBoilerplate:" below.
+rem = --------------------------------------------------
+rem = Free your plamtop...   Free yourself...    FreEPOC
+rem = Web                        http://www.freepoc.org/
+rem = Email                             dave@freepoc.org
+rem = --------------------------------------------------
+rem = Dave Rushall       http://www.piecafe.demon.co.uk/
+rem ====================================================
+
+rem ----------------------------------------------------
+rem - Constants
+rem -
+const kMaxArgs%=8         : rem number of template args
+const kMaxArgLength%=8192 : rem template argument length
+const kMaxLineLength%=255 : rem input line length
+
+const kFlexVersion=1.11   : rem FlexHTML version number
+const kFlexHTMLUID&=&10003934 : rem ...and UID
+
+rem - Flags for flex:() calls
+const kFlexFlags_None&=0  : rem standard operation
+rem (other flags reseved for future use)
+
+rem ----------------------------------------------------
+rem - flexVerChk - Version check
+rem -  Args:   version,  header version identifier
+rem -  Return: Nothing
+rem -  Notes:  Confirms FlexHTML OPM is compatible with
+rem -          supplied FlexHTML version number.
+rem -          Completes only if compatible (else STOPs)
+rem -          Use in main code body thus...
+rem -            flexVerChk:(kFlexVersion)
+rem -          May be called at any time
+external flexVerChk:(version)
+
+rem ----------------------------------------------------
+rem - flex - do template processing for a single input
+rem -  Args:   inFile$, input file name (inc path)
+rem -          outPath$, local output file directory
+rem -          outFile$, output file name
+rem -          flags&, proceessing flags
+rem -  Return: Nothing
+rem -  Notes:  Opens input and output files and copies
+rem -          input to output, line by line. If a
+rem -          template sequence is encountered, the
+rem -          arguments are collected (with nothing
+rem -          written to output) and the user template
+rem -          function called. The template function
+rem -          is then free to make calls to other
+rem -          library functions and generates required
+rem -          output via LPRINT statements.
+rem -          Input file may be either plain text file
+rem -          or produced with the OPL program editor.
+rem -          Output is plain text file.
+rem -          See constants above for valid flags.
+rem -          Completes only if succesful (i.e. no
+rem -          errors were detected or raised by user
+rem -          templates)
+rem -          May NOT be called within a user template
+rem -
+external flex:(inFile$,outPath$,outFile$,flags&)
+
+rem ----------------------------------------------------
+rem - flexInclude - embed another input in output
+rem -  Args:   inFile$, input file name (inc path)
+rem -  Return: Nothing
+rem -  Notes:  Input file may be either plain text file
+rem -          or produced with the OPL program editor,
+rem -          and may include templates for processing.
+rem -          Completes only if succesful (i.e. no
+rem -          errors were detected or raised by user
+rem -          templates)
+rem -          May ONLY be called within a user template
+rem -
+external flexInclude:(inFile$)
+
+rem ----------------------------------------------------
+rem - flexver$ - return FlexHTML version string
+rem -  Args:   None
+rem -  Return: Version string
+rem -  Notes:  Output suitable for HTTP 'GENERATOR'
+rem -          header, etc.
+rem -          May ONLY be called within a user template
+rem -
+external flexver$:
+
+rem ----------------------------------------------------
+rem - flexArgLen% - get template argument length
+rem -  Args:   a%, argument number
+rem -  Return: Argument length
+rem -  Notes:  Length of indicated template argument
+rem -          is returned
+rem -          May ONLY be called within a user template
+rem -
+external flexarglen%:(a%)
+
+rem ----------------------------------------------------
+rem - flexGetArg$ - get template argument as string
+rem -  Args:   a%, argument number
+rem -  Return: Argument sting
+rem -  Notes:  Contents of indicated template argument
+rem -          is returned as a string. If argument is
+rem -          longer than 255 and processing is
+rem -          terminated.
+rem -          May ONLY be called within a user template
+rem -
+external flexGetArg$:(a%)
+
+rem ----------------------------------------------------
+rem - flexInsertArg - send template argument to output
+rem -  Args:   a%, argument number
+rem -  Return: Nothing
+rem -  Notes:  Contents of indicated template argument
+rem -          is placed into output stream. Argument
+rem -          may be of any length (up to maximum).
+rem -          May ONLY be called within a user template
+rem -
+external flexInsertArg:(a%)
+
+rem ----------------------------------------------------
+rem - flexInsertBoilerplate - FlexHTML footer to output
+rem -  Args:   empty$, reserved (must be "" for now)
+rem -  Return: Nothing
+rem -  Notes:  Standard FlexHTML HTML footer insert
+rem -          is placed into output stream.
+rem -          Reserved parameter, empty$, MUSt be ""
+rem -          May ONLY be called within a user template
+rem -
+rem -          Please consider using this footer at
+rem -          the end of all public HTML documents
+rem -          generated with the help of FlexHTML.
+rem -
+external flexInsertBoilerplate:(empty$)
+
+rem ----------------------------------------------------
+rem - flexOutFile$ - returns name of current output file
+rem -  Args:   None
+rem -  Return: Value of outFile$ specified on flex: call
+rem -  Notes:  May ONLY be called within a user template
+rem -
+external flexOutFile$:
+
+rem ----------------------------------------------------
+rem - flexKeyword$ - extract keyword from string
+rem -  Args:   s$, string in which to look
+rem -          allowNull%, if zero an error is raised if
+rem -              no keyword was found in string
+rem -  Return: Value of keyword, in upper case
+rem -  Notes:  Given a string, this function trims all
+rem -          leading and trailing white space and
+rem -          returns the remainder, folded to upper
+rem -          case.
+rem -          If the remainder contains any characters
+rem -          other than 'A' to 'Z', '0' to '9' or '-'
+rem -          then an error is raised and the function
+rem -          does not return.
+rem -          An error is also raised if the remainder
+rem -          is the empty string and allowNull% is
+rem -          false.
+rem -          May ONLY be called within a user template
+rem -
+external flexKeyword$:(s$,allowNull%)
+
+
+rem ----------------------------------------------------
+rem - flexError - test for and report error
+rem -  Args:   ec%, standard OPL error code
+rem -          msg$, error message string
+rem -  Return: Nothing
+rem -  Notes:  If ec% is non zero, an error report is
+rem -          generated (including line number, error
+rem -          description and supplied message text)
+rem -          and processing is terminated.
+rem -          Returns immediately if ec% is zero.
+rem -          May ONLY be called within a user template
+rem -
+external flexError:(ec%,msg$)
+
+rem ====================================================
+rem End of FlexHTML.oph
+rem ====================================================
+
+</pre></p>
+
+<hr align="left" width="100%" size="1" noshade="noshade" color="#000000" clear="all" />
+<p>
+Generated with help from <a href="http://www.freepoc.org/">FlexHTML</a> for EPOC
+</p>
+</body></html>
+

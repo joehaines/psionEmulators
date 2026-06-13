@@ -1,0 +1,34 @@
+PROC arlaunch:
+rem This little piece of OPL will let you
+rem launch a program with a dynamically
+rem generated filename (which requires
+rem something more elaborate that AuroRun's
+rem built in macroes.  Good if you want
+rem to edit a different timesheet, or
+rem something, each week.
+
+rem This uses a trick with macsys to execute
+rem the required program, but there's no
+rem reason why you couldn't invoke it
+rem directly with an OS call.
+
+rem Unless the AutoRun definition has the
+rem same "name" as the program invoked by
+rem this OPL, it will launch it every time
+rem the configuration file is processed.  In
+rem this case, its therefore appropriate to
+rem use the 'once' condition in the when
+rem field.
+
+global prog$(8),file$(128),ppppid%,wk%,wk$(2)
+
+prog$="Sheet"
+wk%=week(day,month,year)-40
+if wk%<0 :wk%=wk%+53 :endif
+wk$=right$("0"+gen$(wk%,2),2)
+file$="m:\spr\time"+right$(gen$(year,4),2)+wk$+".spr"
+
+loadm "m:\app\macro.opa"
+runappb:(prog$,file$)
+unloadm "m:\app\macro.opa"
+ENDP

@@ -1,0 +1,186 @@
+PROC box:
+LOCAL vers
+vers=8.2
+CLS
+gMOVE 40,10
+gLINEBY 160,0
+gLINEBY 0,-5
+gLINEBY -5,0
+gLINEBY 0,55
+gLINEBY -150,0
+gLINEBY 0,-55
+gLINEBY -5,0
+gLINEBY 0,5
+gAT 45,25:gFONT 2
+gPRINT "        The Power Biller"
+gAT 45,35
+gPRINT "           by Keith Pirie"
+gAT 45,45
+gPRINT "             Version ",vers
+gAT 45,55
+gPRINT "                   @1994"
+PAUSE -100
+CLS
+start:
+ENDP
+
+PROC start:
+GLOBAL dum&,date1&,date2&,bill&,cost,type$(25)
+GLOBAL cal,cl,tar,tr,tax,tx,rat,rt,d%,dr%
+GLOBAL vat,rate,start&,end&,total,used&
+GLOBAL sm,cubft,cubmtr,calory,kilowt,subtotal
+GLOBAL dummy&,standchr,eunit,echr,eu,ec
+type$="Power Biller"
+OPEN "bills",A,cl,rt,tr,tx,ec,eu
+cal=a.cl
+rat=a.rt
+tar=a.tr
+tax=a.tx
+echr=a.ec
+eunit=a.eu
+CLOSE
+update:
+biller:
+ENDP
+
+PROC biller:
+d%=1
+CLS
+dINIT type$+" - Calculator"
+dCHOICE d%,"Options","Gas,Electric,Update Charges,Quit"
+DIALOG
+dr%=d%
+
+IF dr%=1
+gas:
+ELSEIF dr%=2
+elec:
+ELSEIF dr%=3
+start:
+ENDIF
+STOP
+ENDP
+
+PROC reading:
+days:
+numbers::
+CLS
+dINIT type$+" - Meter Reading"
+dLONG start&,"Last Reading",1,99999999
+dLONG end&,"Current Reading",1,99999999
+DIALOG
+
+IF start&>end&
+CLS :PRINT "You're current reading cannot be less"
+PRINT "than your previous one - PLEASE RE-ENTER"
+BEEP 32,320 : BEEP 32,160 :BEEP 32,320
+GET
+GOTO numbers::
+ENDIF
+
+ENDP
+
+PROC gas:
+reading:
+cubft=end&-start&
+cubmtr=cubft*2.83
+cubmtr=cubmtr*10 :dummy&=cubmtr :cubmtr=dummy& :cubmtr=cubmtr/10
+sm=cubmtr*cal
+kilowt=sm/3.6
+dummy&=kilowt :kilowt=dummy&
+cost=kilowt*(tar/100)
+cost=cost*100 :dummy&=cost :cost=dummy& :cost=cost/100
+standchr=bill&*(rat/100)
+standchr=standchr*100 :dummy&=standchr :standchr=dummy& :standchr=standchr/100
+subtotal=cost+standchr
+vat=(subtotal*tax)/100
+vat=vat*100 :dummy&=vat :vat=dummy& :vat=vat/100
+total=subtotal+vat
+total=total*100 :dummy&=total :total=dummy& :total=total/100
+CLS
+PRINT "       Power Biller - GAS BILL"
+PRINT "Cubic Feet used >",cubft
+PRINT "Cubic Metres    >",cubmtr
+PRINT "Kilowatts       >",kilowt
+PRINT "Gas Charge                > œ";cost
+PRINT "Bill covers",bill&,"days"
+PRINT "Standing charge           > œ";standchr
+PRINT "VAT                       > œ";vat
+PRINT "Total Bill                > œ";subtotal+vat
+GET
+biller:
+ENDP
+
+PROC elec:
+LOCAL used&
+reading:
+used&=end&-start&
+cost=used&*(eunit/100)
+cost=cost*100 :dummy&=cost :cost=dummy& :cost=cost/100
+subtotal=cost+echr
+vat=(subtotal*tax)/100
+vat=vat*100 :dummy&=vat :vat=dummy& :vat=vat/100
+total=subtotal+vat
+total=total*100 :dummy&=total :total=dummy& :total=total/100
+
+CLS
+PRINT "      Power Biller - ELECTRIC BILL"
+PRINT "Units used      >",used&
+PRINT "Electric charge           > œ";cost
+PRINT
+PRINT "Standing charge           > œ";echr
+PRINT "VAT                       > œ";vat
+PRINT
+PRINT "Total Bill                > œ";subtotal+vat
+GET
+biller:
+ENDP
+
+PROC days:
+LOCAL date1&,date2&
+again::
+CLS
+date1&=33968
+date2&=34333
+dINIT type$+" - Date Entry"
+dDATE date1&,"Date of last Read",days(1,1,1993),days(1,1,2099)
+dDATE date2&,"Date of this Read",days(1,1,1994),days(1,1,2099)
+DIALOG
+bill&=date2&-date1&
+IF bill&<0
+CLS
+BEEP 32,600
+dINIT
+dTEXT "","LAST DATE AFTER THIS ONE",$100
+DIALOG
+GOTO again::
+ENDIF
+
+ENDP
+
+PROC update:
+GLOBAL g$(1),type%
+dINIT type$+" - Billing Charges"
+dFLOAT cal,"Gas Calorific Value",20,50
+dFLOAT rat,"Gas Daily standing Charge (p)",0,40
+dFLOAT tar,"Gas Tarriff Rate (p)",0,5
+dFLOAT eunit,"Cost per Unit (p)",0,40
+dFLOAT echr,"Electric Standing Charge (œ.p)",20,50
+dFLOAT tax,"VAT Rate (%)",0,30
+DIALOG
+saving:
+ENDP
+
+PROC saving:
+delete "\opd\bills.odb"
+create "bills",A,cl,rt,tr,tx,ec,eu
+A.cl=cal
+A.rt=rat
+A.tr=tar
+A.tx=tax
+A.eu=eunit
+A.ec=echr
+append
+close
+ENDP
+

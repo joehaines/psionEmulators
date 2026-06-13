@@ -1,0 +1,207 @@
+GARPSI V2.4e - Psion shareware
+
+Aim
+
+GARPSI allows you to transfer GARMIN GPS data onto your PSION
+and to convert them in DBF format. Position data transmitted or
+received by the GPS are in WGS 84 map datum. So, GARPSI allows
+you to edit them in any map datum supported by the GARMIN GPS.
+GARPSI was tested with a PSION 3c or a PSION 3a emulator and a
+GARMIN 45. It may work with 38, 40 and II models. It don't work with
+a GARMIN 90.
+
+
+Installation
+
+The different files must be saved on the same logical unit X
+( A or B or M ) in the following way :
+X:\APP\GARPS24e.OPA
+X:\APP\GARPSI\MODELe.RBF
+X:\APP\GARPSI\MODELe.TBF
+X:\APP\GARPSI\MODELe.WBF
+X:\APP\GARPSI\SYSTEMS.ODB
+X:\APP\ROUTES.ALS
+X:\APP\GARPSI\GARPSI1e.RSC
+X:\APP\GARPSI\GARPSI2e.RSC
+X:\APP\GARPSI\GARPSI3e.RSC
+X:\APP\GARPSI\GARPSI.PIC
+The five latest files are optional. They are the alias used to edit
+routes files in DBF format, help files and introduction screen.
+Install GARPS24e.OPA and ROUTES.ALS [Psion]+[I] in the
+usual way. At the first use, GARPSI opens a new subdirectory
+" Y:\GARPSI\ " on the unit Y specified by the user. This unit must
+be the internal memory or a RAM SSD in preference to a Flash SSD.
+This subdirectory contains the data files and the preferences
+files GARPSI.INI.
+WARNING ! Erasing this file needs to register again the code if your
+are a registered user.
+
+
+Updating
+
+Replace old files by new files. Keep only files in "Y:\GARPSI\" folder
+
+Registration
+
+GARPSI is a shareware program. Without registration you can't
+transmit files to the GPS. Registration allows you to benefit
+updating free of charge.
+To register on line use http://www.regsoft.com/ in EPOC page
+Payment: $30 by international credit card or check on US bank
+You also must complete and send me
+LICENCEe.TXT with payment to be registered. I'll send your code by
+return of post (and email if you have it).
+Payment: 15OFF or UKP15 or DM50 or $30 on a french bank or by
+Eurocheque or cash.
+While the shareware is'nt registered, registration screen appears
+when it starts up.
+
+
+Preferences
+
+At the first use and by the "Setup" menu option, you can fix your
+preferences :
+- the UTC time offset ( O in UK in winter) ,
+- the map datum (to have the same position on the GPS and the
+PSION needs to have the same map datum),
+- the position format.
+Only degrees are used with different subdivisions because other
+UTM and British grid are unknown to me. But I can add them if you
+explain me the directions for use !
+
+
+GPS link
+
+With a PC
+I made up the DB9 male end to the GARMIN lead. The wires are :
+white ( data in )  - pin 2
+brown ( data out ) - pin 3
+black ( ground ) - pin 5
+red ( external power ) - not needed
+Pins are numbered from the right to the left and from top to
+bottoms when you look at the soldering pins.
+After then you can connect the GARMIN lead to the PSION serial link.
+
+With a Mac
+miniDIN 8 map
+  X  X  X    6
+X  O  X  X 3
+  X  X  X    1
+Pins are numbered from the right to the left and from bottoms to
+the top (O is the plastic stud). The wires are :
+white ( data in )  - pin 5
+brown ( data out ) - pin 3
+black ( ground ) - pin 4
+red ( external power ) - not needed
+
+WARNING ! Don't connect your GPS unit to a RS232 port because it
+delivers +25V to -25V signal. You can destroy your GPS !
+
+
+Position data entering
+
+You have to use degrees but use of character " ø " or " ' " isn't
+necessary. The software gives conventionally a negative value to
+the southern latitudes and western longitudes. So, " - " or " s " or
+" w " (upper or lower case) like first character  will give a minus
+sign to the entering data . Then this one will be read like a southern
+latitude or western longitude according to the field. After then a
+point will be read like a decimal point and any other not numeric
+character like a subdivision change (from degrees to minutes or
+from minutes to seconds).
+Example: if you use " dddømm.mmm " format, " 45.5 ", "n51-25.3 ",
+" w2/8/5 ", " -56 15 90 "will be read like " N45ø30.000' ",
+" N51ø25.300' ", " N02ø08.083' ", " S56ø16.500' "in a latitude field
+and " E045ø30.000' ", " E051ø25.300' ", "W002ø08.083' ",
+" W056ø16.500' "in a longitude field.
+
+
+GPS data saving and restoring
+
+The frames transmitted by the GPS are saved without reduction in
+files with a " ALM " or " ROU " or " TRA " or " WAY " extension
+corresponding to satellite almanac, routes, track log and waypoints.
+ Before return to the GPS, data must  be formated in this way.
+
+
+Data reducing to DBF format
+
+Frames received from the GPS can be reduced to DBF format except
+the almanac. Almanac reducing isn't interesting. Yet, its saving
+could avoid a long and dull "cold start" of GPS if the battery fails.
+Reduced data are stored in files with " RBF ", " TBF ", " WBF "
+extensions. There are built from models in " X:\APP\GARPSI\ "
+subdirectory. You can modify their labels but not their structures.
+Before return to the GPS, DBF files must be converted in data
+frames in " ROU ", " TRA " or" WAY " files.
+
+
+File edition
+
+You can edit routes files with " ROUTES.ALS ". Indeed, these files
+don't need GARPSI because they don't contain position data.
+Waypoints and track log files needs " File edition" option of GARPSI.
+You can create a new file in this way. This option shows position
+data in selected Map datum and position format. You also can
+transmit the current data to the GPS unit, search a point by
+characters chain and sort waypoints by increasing distances from
+the current waypoint.
+"file Split" allows you to save a part of a file in an other file.
+So you only select  the closest waypoints.
+
+
+Other facilities
+
+Psion clock setup must be used with care. It is always 1 s to 10 s
+late and I didn't find the reason.
+"add Waypoints" option allows you to add waypoints directly onto
+your GPS in a more convenient way. You can enter the current
+position automatically like the "Mark" button on your GPS or any
+other position. Note that these waypoints aren't saved on your
+PSION.
+
+
+Updating history
+
+Version 2.4e - 11/11/1998
+Author's URL and email, payment facility and free using period changed
+Geodetic system choice dialog, messages dialog and help files changing
+
+Version 2.2e - 1/28/98
+File edition: new searching option, new sorting option and possible
+transmission to the GPS unit
+Help on line added
+Transmission from GPS to Psion speed improved
+Beeps added
+Introduction modified
+160 geodetic systems available
+Example file added
+"ROUTE.ALS" icon modified
+
+Version 1.0e - 5/1/97
+first english version
+
+
+Acknowledgements
+
+Thanks to Jonathan Duff, PSIGAR author. His program is avalaible
+on http://ourworld.compuserve.com/homepages/Jon_Duff/
+homepage.htm
+It incites me to work out a more universal program. Indeed, PSIGAR
+seems suitable to walkers because it gives a great place to their
+curious Map datum ! I choosed the same principle to obtain DBF files
+in two steps. That allows to have speedy transmission between the
+GPS and the PSION.
+Thanks to William Soley. He wrote a GARMIN/GARMIN protocol
+document available on http://playground.sun.com/pub/soley/
+garmin.txt
+
+
+Author
+
+J.L.HOCHART
+9ter rue Gambetta
+50130 OCTEVILLE FRANCE
+Phone: (33) 2 33  93 53 34
+email: molpetrus@geocities.com
+URL: http://www.geocities.com/Colosseum/Dugout/7981/

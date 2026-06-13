@@ -1,0 +1,77 @@
+Invoking UNZIP.IMG from external applications
+
+The main enhancement in version 1.4 is that it allows the
+destination directory (where the extracted files will be placed)
+to be specified on the command line. This is useful where Unzip
+is being spawned by a parent process, rather than run
+interactively using the RUN.APP utility.
+
+The syntax for specifying the destination directory is as follows:
+
+  m:\run\unzip.img [options] -@ m:\destin\dir\  zipfilename
+
+The -@ switch (chosen so as to be unlikely to conflict with
+switches for other platforms) must be used as follows:
+
+  1) It must be the *last* of any options on the command line.
+
+  2) It must be followed by (at least one) space, then the full
+     path name of the destination directory.
+
+  3) The destination directory must exist already.
+
+  4) The destination directory name must be terminated with a
+     backslash (EPOC requires this).
+
+Example command line:
+
+  -qq -@ m:\tmp\ a:\zipfile.zip
+
+unzips quietly the zip file on drive A to the \tmp directory of
+the internal drive.
+
+
+Invoking UNZIP.IMG from C or C++
+
+  #include <plib.h>
+  /* This assumes PLIB is in use, change as required for CLIB */
+
+  int pid;
+  char name[64];
+  char cmdl[128];
+
+  p_scpy(name, "m:\\run\\unzip.img"); /* Or wherever Unzip is located */
+  p_scpy(cmdl, "command line to be passed");
+  pid = p_execc(name, cmdl, p_slen(cmdl));
+  if (pid<0)
+    p_notifyerr(pid, "Unzip launch failed", NULL, NULL, NULL);
+  else
+    p_presume(pid);
+
+
+Invoking UNZIP.IMG from OPL
+
+  #ifdef S3A
+  #define UADD(x,y) uadd(x,y)
+  #else
+  #define UADD(x,y) (x+y)
+  #endif
+
+  local pid%, ret%
+  local name$(64), cmdl$(128)
+
+  name$="m:\run\unzip.img"+chr$(0)  REM Or wherever Unzip is located
+  cmdl$="command line to be passed"+chr$(0)
+  ret%=call($0187,UADD(addr(name$),1),addr(cmdl$),0,0,addr(pid%))
+  if ret%<0
+    alert("Unzip launch failed",err$(ret%))
+  else
+    call($0688,pid%,0,0,0,0)  REM Resume process
+  endif
+
+-------------
+David Palmer
+Edinburgh
+Scotland
+September, 1995
+

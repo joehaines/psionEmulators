@@ -1,0 +1,399 @@
+For Yacas users
+***************
+
+
+Changes in Yacas for EPOC32 v1.0.53rev2 & Console Client 1.10 (November 12th 2003)
+==================================================================================
+
+- "Version()" shows the release version of Yacas, the starting of Yacas shows
+the Yacas server & client versions and the "Example()" comment;
+
+- outputs greater than 255 characters are now allowed, the current limit
+is 5KB, and Yacas will be closed if the output is greater than 5 KB or
+the input is greater than 256 bytes;
+
+- a thin "EpocServer.exe" can be used, taking 400KB less of RAM;
+
+- a memory leak related to the outputs is now fixed;
+
+
+Changes in Yacas for EPOC32 v1.0.53rev2 & Console Client 1.20 (November 18th 2003)
+==================================================================================
+
+- the scroll bars are turned on by default and the vertical and
+horizontal history size of them are increased, from 10x10 to 500x25
+(lines x characters), taking just more 40 KBytes of RAM;
+
+- "Shift+Del" keypress works deleting text on the right (as a delete),
+and "Del" keypress deletes text on the left;
+
+- "Fn+Left" keypress works as "Home" (the cursor goes to the beginning of the
+input line) and "Fn+Right" as "End" (the cursor goes to the end);
+
+- "Ctrl+Left" keypress jumps 10 characters to the left and "Ctrl+Right"
+keypress jumps 10 characters to the right;
+
+- "Up" and "Down" keypresses also show the current line and the total lines
+of the history in a message window;
+
+- "Shift+Left", "Shift+Right", "Shift+Ctrl+Left" and "Shift+Ctrl+Right"
+allow to select a region on the current input line (during the
+selection, the lines above the cursor are also show inverted but it does
+not affect the selection of the region);
+
+- "Copy" & "Paste" now work but just inside Yacas, i.e., they do not
+export & import to the EPOC32 clipboard (available to other application);
+
+- the history file is not clipped to the current history position when
+exiting Yacas on EPOC32.
+
+
+
+For C++ programmers 
+*******************
+
+Changes in Yacas for EPOC32 v1.0.53rev2 & Console Client 1.10 (November 12th 2003)
+==================================================================================
+
+- an empty "platdll.h" is created at "src/plat/epoc32/";
+
+- "mathcommands.h" has line 99 commented 
+   CORE_FUNCTION(LispIsPromptShown)
+
+- "yacasapi.cpp" has line 117 commented 
+   SetCommand(LispIsPromptShown,"IsPromptShown");
+
+- "epocclsv.h" has line 21 changed from 
+   #define KMaxYacasStringLength 256
+to 
+   #if defined(__WINS__)
+     #define KMaxYacasStringLength 1800
+   #else
+     #define KMaxYacasStringLength 5120
+   #endif
+
+- "epocserv.cpp", has the line
+   delete writeBuf;
+inserted in line 162 (after "TRAP(...);") to correct the memory leak of
+output buffers,
+line 293 can be changed for a thin "EpocServer.exe" from
+   800000, //KDefaultStackSize,
+to
+   400000, //KDefaultStackSize,
+
+- "epocserv.mmp" has line 8 that can changed for a thin "EpocServer.exe" from
+   epocstacksize 800000
+to
+   epocstacksize 400000
+
+- "epoccli.h" has 
+   #include "version.h"
+inserted into line 26.
+
+- "epoccli.cpp" has line 261 changed from
+  iConsole->Printf(_L("Yacas for EPOC32\r\n"));
+to
+  iConsole->Printf(_L("Yacas version " VERSION " for EPOC32, Console Client version 1.10 \r\n"));
+  iConsole->Printf(_L("To see example commands, keep typing Example(); \r\n"));
+line 572 of "epoccli.cpp" was changed from
+   TBuf<KMaxYacasStringLength> input;
+to
+   TBuf<256> input;
+lines 179 and 579 of "epoccli.cpp" were changed from
+   iConsole->Printf(result);
+to
+   iConsole->Write(result);
+so output with more than 255 characters are displayed without any clipping.
+lines 226 and 242 were changed from
+  iConsole->SetHistorySizeL(10,10);
+to
+  iConsole->SetHistorySizeL(500,25);
+so the history size of lines of horizontal characteres are increased from 10 x 10
+to 500 x 25,
+the line below was inserted into line 259, after "CCoeControl::ActivateL();",
+  iConsole->SetScrollBarVisibilityL(CEikScrollBarFrame::EAuto,CEikScrollBarFrame::EAuto);
+so the scroll bars are turned on by default.
+
+
+Changes in Yacas for EPOC32 v1.0.53rev2 & Console Client 1.20 (November 18th 2003)
+==================================================================================
+
+- the same changes made in Yacas for EPOC32 v1.0.53rev2 & Console Client 1.21;
+
+- "epoccli.cpp" has lines 226 and 242 changed from
+  iConsole->SetHistorySizeL(10,10);
+to
+  iConsole->SetHistorySizeL(500,25);
+so the history size of lines of horizontal characteres are increased from 10 x 10
+to 500 x 25,
+the line below was inserted into line 259, after "CCoeControl::ActivateL();",
+  iConsole->SetScrollBarVisibilityL(CEikScrollBarFrame::EAuto,CEikScrollBarFrame::EAuto);
+so the scroll bars are turned on by default,
+the member function "void CConsoleControl::SaveHistory()" has the line
+  for (i=0;i<history;i++)
+changed to
+  for (i=0; i < iHistory->Count(); i++)
+so the history file is not clipped to the current history position when
+exiting Yacas on EPOC32,
+the member function "void CConsoleControl::HandleCommandL(TInt aCommand)" has the
+"case EMenuCommandEditPaste :" modified, the lines
+  iConsole->Write(*iSelBufPtr);
+  iConsole->FlushChars();
+should be replaced by
+  if (iCursorPos == iLine.Length())
+    iLine.Append(*iSelBufPtr);
+  else
+    iLine.Insert(iCursorPos,*iSelBufPtr);
+  iCursorPos+=iSelBufPtr->Length();
+  iConsole->SetPos(0);
+  iConsole->ClearToEndOfLine();
+  iConsole->FlushChars();
+  iConsole->SetPos(0);
+  iLine.ZeroTerminate();
+  iConsole->Printf(_L("In> %s "),iLine.Ptr());
+  iConsole->SetPos(iCursorPos+4);
+  iConsole->FlushChars();
+the member function "TKeyResponse CConsoleControl::OfferKeyEventL(const
+TKeyEvent& aKeyEvent,TEventCode aType)" has many changes, it should be
+replaced by 
+TKeyResponse CConsoleControl::OfferKeyEventL(const TKeyEvent& aKeyEvent,TEventCode aType)
+{
+  TBool flagForgetSelection = ETrue;
+  TBool flagPrintIn = ETrue;
+  TInt  deltaCursorPos;
+  if (aType!=EEventKey)
+    return(EKeyWasConsumed);
+  TInt code=aKeyEvent.iCode;
+  TInt modifiers=aKeyEvent.iModifiers;
+  if (code==CTRL('e'))
+    CBaActiveScheduler::Exit();
+
+  TRect range = iConsole->Selection(); // get current selected range
+
+  switch (code)
+  {
+    case EKeyUpArrow:
+    {
+      if (history>0)
+      {
+        history--;
+        HBufC* pL=(*iHistory)[history];
+        Buf()=(*pL);
+      }
+      TBuf<32> msg;
+      msg.Format(_L("Line %d of total history %d"),history+1,iHistory->Count());
+      iEikonEnv->InfoMsg(msg);
+      iCursorPos = iLine.Length();
+      break;
+    }
+      
+    case EKeyDownArrow:
+    {
+      if (history<iHistory->Count())
+      {
+        history++;
+        if (history == iHistory->Count())
+        {
+          iLine.Zero();
+          iLine.ZeroTerminate();
+        }
+        else
+        {
+          HBufC* pL=(*iHistory)[history];
+          iLine = (*pL);
+          TBuf<32> msg;
+          msg.Format(_L("Line %d of total history %d"),history+1,iHistory->Count());
+          iEikonEnv->InfoMsg(msg);
+        }
+      }
+      iCursorPos = iLine.Length();
+      break;
+    }
+
+    case EKeyLeftArrow:
+      if (modifiers & EModifierCtrl) {
+        if (iCursorPos > 9)
+          deltaCursorPos = -10;
+        else
+          deltaCursorPos = -iCursorPos;
+      } else {
+        if (iCursorPos > 0)
+          deltaCursorPos = -1;
+        else
+          deltaCursorPos = 0;        
+      }
+      if (modifiers & EModifierShift) {
+        while (deltaCursorPos < 0) {
+          iCursorPos--;
+          deltaCursorPos++;
+          iConsole->SetPos(iCursorPos+4);
+          if (range.iTl.iX > iConsole->CursorPos().iX)
+            range.iTl = iConsole->CursorPos();
+          else
+            range.iBr = iConsole->CursorPos();
+        }
+        iConsole->SetSelection(range);  // Does anyone know why it inverts the lines above the current one ?
+        flagForgetSelection = EFalse;
+      } else {
+        iCursorPos += deltaCursorPos;
+        iConsole->SetPos(iCursorPos+4);
+        flagPrintIn = EFalse;
+      }
+      break;
+
+    case EKeyRightArrow:
+      if (modifiers & EModifierCtrl) {
+       if ((iCursorPos + 10) < iLine.Length())
+          deltaCursorPos = 10;
+        else
+          deltaCursorPos = iLine.Length() - iCursorPos;
+      } else {
+        if (iCursorPos < iLine.Length())
+          deltaCursorPos = 1;
+        else
+          deltaCursorPos = 0; 
+      }
+      if (modifiers & EModifierShift) {
+        while (deltaCursorPos > 0) {
+          iCursorPos++;
+          deltaCursorPos--;
+          iConsole->SetPos(iCursorPos+4);
+          if (range.iBr.iX < iConsole->CursorPos().iX)
+           range.iBr = iConsole->CursorPos();
+          else
+            range.iTl = iConsole->CursorPos();
+        }
+        iConsole->SetSelection(range);  // Does anyone know why it inverts the lines above the current one ?
+        flagForgetSelection = EFalse;
+      } else {
+        iCursorPos += deltaCursorPos;
+        iConsole->SetPos(iCursorPos+4);
+        flagPrintIn = EFalse;
+      }
+      break;
+
+    case EKeyHome:
+      iCursorPos = 0;
+      iConsole->SetPos(iCursorPos+4);
+      flagPrintIn = EFalse;
+      break;
+
+    case EKeyEnd:
+      iCursorPos = iLine.Length();
+      iConsole->SetPos(iCursorPos+4);
+      flagPrintIn = EFalse;
+      break;
+
+    case EKeyEnter:
+      if (iLine.Length()>0)
+      {
+        iConsole->Cr();
+        iConsole->Lf();
+        iLine.ZeroTerminate();
+
+        HBufC* pB=Buf().Alloc();
+        if (pB!=NULL) {
+          TRAPD(r,iHistory->AppendL(pB));
+        }
+
+        history = iHistory->Count();
+
+        iLine.Append(';');
+        iLine.ZeroTerminate();
+
+        TBuf<256> input;
+        TBuf<KMaxYacasStringLength> result;
+        TInt ret;
+
+        input = iLine.Ptr();
+        ret = iYacasSession.SetFromString(input,result);
+        iConsole->Printf(_L("Out> "));
+        iConsole->Write(result);
+        iConsole->Printf(_L("\r\n"));
+
+        iLine.Zero();
+        iLine.ZeroTerminate();
+        DrawInPrompt();
+        flagPrintIn = EFalse;
+      }
+      break;
+
+    case EKeyBackspace:
+      if (modifiers & EModifierShift)
+        iLine.Delete(iCursorPos,1);
+      else
+      {
+        if (iCursorPos>0)
+        {
+          iCursorPos--;
+          iLine.Delete(iCursorPos,1);
+        }
+      }
+      break;
+
+    case EKeyDelete:
+      iLine.Delete(iCursorPos,1);
+      break;
+
+    case EKeyTab:
+    {
+      TInt prevhistory=history;
+      history = iHistory->Count()-1;
+      TBuf<256> line;
+      line.Append(iLine);
+      line.Append(_L("*")); // pattern match wildcard
+      while (history>=0)
+      {
+        HBufC* pL=(*iHistory)[history];
+        TInt match = pL->Match(line);
+        if (match == KErrNotFound) // not found a match
+          goto CONTINUE;
+
+        // found a match
+        iLine = (*pL);
+        iCursorPos = iLine.Length();
+        break;
+      CONTINUE:
+        history--;
+      }
+      if (history<0)
+        history = prevhistory;
+      TBuf<32> msg;
+      msg.Format(_L("Line %d of total history %d"),history+1,iHistory->Count());
+      iEikonEnv->InfoMsg(msg);
+    }
+    break;
+    
+    default:
+    {
+      if (iCursorPos == iLine.Length())
+        iLine.Append(code);
+      else
+      {
+        TBuf<1> c;
+        c.Append(code);
+        iLine.Insert(iCursorPos,c);
+      }
+      iCursorPos++;
+    }
+    break;
+  }
+
+
+  if (flagPrintIn) {
+    iConsole->SetPos(0);
+    iConsole->ClearToEndOfLine();
+    iConsole->FlushChars();
+    iConsole->SetPos(0);
+    iLine.ZeroTerminate();
+    iConsole->Printf(_L("In> %s "),iLine.Ptr());
+    iConsole->SetPos(iCursorPos+4);
+    iConsole->FlushChars();
+  }
+  if (flagForgetSelection) {
+    iConsole->SelectCursor();  // forget previous selection
+  }
+     
+  return(EKeyWasConsumed);
+}
+

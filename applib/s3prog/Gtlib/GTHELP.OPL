@@ -1,0 +1,788 @@
+proc gthelp:
+ local ver
+ defaultwin 1
+
+ rem ** gthelp for gtlib v1.0 ... written by M.Schuster 1993-94,96
+ rem ** see doc-file for more infos.
+
+ rem ** this source is freely distributable and give you examples
+ rem ** how and what you can do with gtlib!
+
+ if exist("M:\opo\gtlib.opo")
+  loadm "M:\opo\gtlib.opo"
+ elseif exist("A:\opo\gtlib.opo")
+  loadm "A:\opo\gtlib.opo"
+ elseif exist("B:\opo\gtlib.opo")
+  loadm "B:\opo\gtlib.opo"
+ else
+  alert("You need \opo\gtlib.opo on M:, A: or B:","if you want to run this prg. !!","Quit")
+  stop
+ endif
+ ver=gtver:(1.0) :rem check the needed version-nr.
+ gpfill:(0,0,480,160,1,3,0,0,0) :rem fill with grey, no pattern
+ main: :rem main-procedure
+endp
+
+proc main:
+ local a%,i%(32),a$(255),s%(16),k%,km%,mad%
+ local wpx%,wpy%,wpw%,wph%,pf%,fp%(32) :rem proc-window
+ local wdx%,wdy%,wdw%,wdh%,df%,fd%(32) :rem descr.-window
+ local wsx%,wsy%,wsw%,wsh%,sf%,fs%(32) :rem syntax-window
+ local wvx%,wvy%,wvw%,wvh%,vf%,fv%(32) :rem var-menu
+ local pla%,pls%,pll%,pln% :rem proc-(list-)window
+ rem ** init, draw screen, .. **
+ mad%=nminit%:(2,4,14)
+ nmcard:(mad%,"GTHelp","aAbout,hHelp,%-,xQuit")
+ nmcard:(mad%,"Procedure","sShow Example")
+ pf%=4 :rem mono8
+ sf%=9 :rem swiss8
+ df%=10 :rem swiss11
+ vf%=8218 :rem swiss8 (width 5)
+ gupdate off
+ gfont pf% :ginfo fp%()
+ gfont sf% :ginfo fs%()
+ gfont df% :ginfo fd%()
+ gfont vf% :ginfo fv%()
+ gfont 8
+ a$="Syntax:"
+ wsx%=gtwidth(a$)+3 :wsy%=2 :wsh%=2*fs%(3)+5
+ wpx%=2 :wpy%=4+wsh% :wpw%=3+fp%(7)*8
+ pll%=(159-wpy%-1)/(fp%(3)+1) :wph%=pll%*(fp%(3)+1)+3
+ wpy%=wpy%+(159-wpy%-wph%)/2
+ wdx%=wpw%+18 :wdy%=4+wsh%+15 :wdw%=250 :wdh%=6*(fd%(3)+1)+3
+ wdy%=wdy%+(159-wdy%-wdh%-fd%(3)-8)/2
+ wsw%=wdx%-wsx%+wdw%
+ wvx%=wdx%+wdw%+4 :wvy%=1 :wvw%=480-wvx%-2 :wvh%=(159-wvy%-1)/(fv%(3)+1)*(fv%(3)+1)+3
+ wvy%=wvy%+(159-wvy%-wvh%)/2
+ gatcpr:(a$,0,0,wsx%,wsy%+wsh%)
+ gsprint:(a$,0,2,3)
+ gbbev:(wsx%,wsy%,wsw%,wsh%,1)
+ gpfill:(wsx%+1,wsy%+1,wsw%-2,wsh%-2,2,3,-1,1,0)
+ gbbev:(wpx%,wpy%,wpw%,wph%,0)
+ gbbev:(wpx%+wpw%,wpy%,12,wph%,0) :rem border for sbar
+ gbbev:(wdx%,wdy%,wdw%,wdh%,1)
+ gpfill:(wdx%+1,wdy%+1,wdw%-2,wdh%-2,2,3,-1,1,0)
+ gbbev:(wvx%,wvy%,wvw%,wvh%,1)
+ gpfill:(wvx%+1,wvy%+1,wvw%-2,wvh%-2,2,3,-1,1,0)
+ gat wdx%,wdy%-3 :gfont 7 :gsprint:("Description:",0,2,3)
+ a$="Variables:"
+ gatcpr:(a$,wvx%-3-gtwidth(a$),wsy%+wsh%,wvx%,wdy%)
+ gsprint:(a$,0,2,3)
+ gfont 7
+ a$="G T H e l p   v 1 . 0 "
+ gatcpr:(a$,wdx%,wdy%+wdh%,wdx%+wdw%,160)
+ goprint:(a$,2,1,0)
+ s%(1)=wpx%+wpw%+2 :s%(2)=wpy%+2 :s%(3)=8 :s%(4)=wph%-4
+ s%(5)=0 :s%(6)=1000 :s%(7)=1 :s%(8)=1 :s%(9)=-1 :s%(10)=0
+ s%(11)=1 :s%(14)=4
+ gsbar:(addr(s%()))
+ openr fisr$:("\dat\gtlib.dbf",1),A,s$,proc$,syntax$,descr$,v1$,v2$,v3$,v4$,v5$,v6$,v7$,v8$,v9$,v10$,v11$,v12$,v13$,v14$,v15$,v16$
+ pln%=count :pls%=1 :pla%=1
+ s%(6)=1000.0*pll%/pln%
+ gsbar:(addr(s%()))
+
+drawlist::
+ gpfill:(wpx%+1,wpy%+1,wpw%-2,wph%-2,1,3,0,0,0)
+ a%=1
+ gmsbar:(addr(s%()),(pls%-1)*1000.0/pln%)
+ gfont pf%
+ do
+  gat wpx%+2,wpy%+a%*(fp%(3)+1)-fp%(4)+1
+  position a%+pls%-1
+  gprint left$(a.proc$,8)
+  a%=a%+1
+ until a%>pll%
+
+ do
+  gat wpx%+2,wpy%+(pla%-pls%)*(fp%(3)+1)+2
+  cursor 1,0,wpw%-4,fp%(3),4
+  k%=get :km%=kmod
+  cursor off
+  if k%=257 or (k%=261 and (km% and 4))
+   if km% and 4 :pla%=pln% :pls%=pln%-pll%+1 :k%=1000 :if pls%<1 :pls%=1 :endif
+   else pla%=pla%+1
+   endif
+  elseif k%=261
+   if (pla%-pls%+1)<pll% :pla%=pls%+pll%-1
+   else
+    pla%=pla%+pll%
+    pls%=pls%+pll%
+    if pls%+pll%-1>pln% :pls%=pln%-pll%+1 :endif
+    k%=1000 :rem redraw win
+   endif
+  elseif k%=256  or (k%=260 and (km% and 4))
+   if km% and 4 :pla%=1 :pls%=1 :k%=1000
+   else pla%=pla%-1
+   endif
+  elseif k%=260
+   if pla%>pls% :pla%=pls%
+   else
+    pla%=pla%-pll%
+    pls%=pls%-pll%
+    if pls%<1 :pls%=1 :endif
+    k%=1000 :rem redraw win
+   endif
+  elseif k%=290
+   k%=nmenu%:(mad%)
+   if k%=512+%h
+    abhlp:(1)
+   elseif k%=512+%a
+    abhlp:(0)
+   elseif k%=512+%s
+    position pla%
+    showex:
+   endif
+  elseif k%=512+%a
+   abhlp:(0)
+  elseif k%=512+%x
+   freealloc mad%
+   gpfill:(0,0,480,160,1,3,0,0,0)
+   gupdate on
+   expwinc:(0,0,480,160)
+  elseif k%=291 or k%=512+%h
+   abhlp:(1)
+  elseif k%=512+%s or k%=%s
+   position pla%
+   showex:
+  elseif k%=13 or k%=258
+   gupdate off
+   position pla%
+   gpfill:(wsx%+1,wsy%+1,wsw%-2,wsh%-2,0,1,0,0,0)
+   gpfill:(wdx%+1,wdy%+1,wdw%-2,wdh%-2,0,1,0,0,0)
+   gpfill:(wvx%+1,wvy%+1,wvw%-2,wvh%-2,0,1,0,0,0)
+   gfont sf% :gstyle 16 :gat wsx%+2,wsy%+fs%(5)+2 :gwprint:(a.syntax$,wsw%-3,2,0,1)
+   gstyle 0
+   gfont df% :gat wdx%+2,wdy%+fd%(5)+2 :gwprint:(a.descr$,wdw%-3,6,3,1)
+   gfont vf% :gat wvx%+2,wvy%+fv%(5)+2 :gwprint:(a.v1$,wvw%-3,16,0,1)
+   gwprint:(a.v2$,wvw%-3,20,0,1)
+   gwprint:(a.v3$,wvw%-3,20,0,1)
+   gwprint:(a.v4$,wvw%-3,20,0,1)
+   gwprint:(a.v5$,wvw%-3,20,0,1)
+   gwprint:(a.v6$,wvw%-3,20,0,1)
+   gwprint:(a.v7$,wvw%-3,20,0,1)
+   gwprint:(a.v8$,wvw%-3,20,0,1)
+   gwprint:(a.v9$,wvw%-3,20,0,1)
+   gwprint:(a.v10$,wvw%-3,20,0,1)
+   gwprint:(a.v11$,wvw%-3,20,0,1)
+   gwprint:(a.v12$,wvw%-3,20,0,1)
+   gwprint:(a.v13$,wvw%-3,20,0,1)
+   gwprint:(a.v14$,wvw%-3,20,0,1)
+   gfont pf%
+   gupdate on
+  endif    
+  if pla%>pln%
+   pla%=pln%
+  elseif pla%<1
+   pla%=1
+  elseif (pla%-pls%)=pll%
+   pls%=pls%+1
+   ggrey 2
+   gscroll 0,-fp%(3)-1,wpx%+1,wpy%+fp%(3)+2,wpw%-2,wph%-4-fp%(3)
+   gmsbar:(addr(s%()),(pls%-1)*1000.0/pln%)
+   gat wpx%+1,wpy%+1+(fp%(3)+1)*(pla%-pls%)
+   ggrey 1
+   gfill wpw%-2,fp%(3)+1,0
+   gat wpx%+2,wpy%+(fp%(3)+1)*(pla%-pls%+1)
+   ggrey 0
+   position pla%
+   gprint left$(a.proc$,8)
+  elseif pla%<pls%
+   pls%=pls%-1
+   ggrey 2
+   gscroll 0,fp%(3)+1,wpx%+1,wpy%+1,wpw%-2,wph%-4-fp%(3)
+   gmsbar:(addr(s%()),(pls%-1)*1000.0/pln%)
+   gat wpx%+1,wpy%+1
+   ggrey 1
+   gfill wpw%-2,fp%(3)+1,0
+   gat wpx%+2,wpy%+(fp%(3)+1)*(pla%-pls%+1)
+   ggrey 0
+   position pla%
+   gprint left$(a.proc$,8)
+  endif
+  gupdate
+ until k%=1000 or k%=512+%x
+ if k%=1000 :goto drawlist :endif
+endp
+
+proc abhlp:(m%) rem m%=0:about, m%=1: help
+ global k%(2)
+ local x%,y%,w%,h%,wi%,t$(128),a%,a$(255)
+ w%=300
+ h%=150
+ x%=240-w%/2
+ y%=80-h%/2
+ rem create first part of window in "background" (=invisible)
+ wi%=gcreate(x%,y%,w%,h%,0,1)
+ guse wi%
+ gpfill:(0,0,w%,h%,1,0,0,0,0)
+ gpfill:(0,0,w%,h%,1,3,-1,0,0)
+ gbbev:(0,0,w%,h%,0)
+ gbbev:(2,13,w%-4,h%-14,1)
+ gline:(1,13,1+w%-1,13,0,3)
+ gpfill:(3,14,w%-6,h%-16,1,3,0,0,0)
+ guse 1 :gupdate on :expwino:(x%,y%,w%,h%) :guse wi%
+ gat 3,11
+ ggmode 2 :ggrey 2 :gtmode 1
+ gfont 10
+ if m%=0
+  gprint "About .."
+  t$="Gadget & Tools - Library"
+  gbdbl:(10,23,w%-20,h%-45,0)
+ else
+  gprint "Help .."
+  t$="Usage of GTHelp"
+  gbdbl:(10,23,w%-20,h%-45,1)
+ endif
+ gfont 7
+ a%=gtwidth(t$)
+ gpfill:(w%/2-a%/2-5,23,a%+10,2,1,3,0,0,0) :rem erase gbdbl-line..
+ gat w%/2-a%/2,28
+ goprint:(t$,2,1,0)
+ ggmode 0 :ggrey 0 :gtmode 0
+ gfont 10
+ gvisible on
+ gat 25,45
+ gupdate off
+ if m%=0
+  gsprint:("Installed GTLib-version: v"+fix$(gtver:(0.0),1,5),0,2,3)
+  gat 25,62
+  a$="GTLib (freeware!) is a library for OPL- programmers to make a better use of the grey color, together with useful graphic and non-graphic tools. It gives the basics you need for a own, good-looking graphic user interface. I hope you'll like it!"
+  gwprint:(a$,w%-50,20,3,1)
+ else
+  a$="Move through the procedure-list with (Psion, Ctrl &) cursor-keys, then press ENTER to see syntax and description; press s or "+chr$(2)+"s to view an example of this procedure."
+  gat 25,49
+  gfont 11
+  gwprint:(a$,w%-50,20,3,4)
+  gfont 10
+ endif
+ gat 20,142
+ gprint "Abort:"
+ gat 165,142
+ gprint "Continue:"
+ gat 73,142
+ gsprint:("ESC",0,2,3)
+ gat 236,142
+ gsprint:("SPACE",0,2,3)
+ gbbev:(67,130,35,16,0)
+ gbbev:(230,130,50,16,0)
+ gupdate on
+ k%(1)=0
+ k%(2)=0
+ do
+  abkey:
+ until k%(1)=2 or k%(2)=2
+ if k%(2)=2 or (k%(1)=2 and m%=1) :rem ESC..
+  gclose wi%
+  expwinc:(x%,y%,w%,h%)
+  return
+ endif
+ gupdate off
+ gpfill:(10,15,w%-20,h%-37,1,3,0,0,0)
+ gbdbl:(10,23,w%-20,h%-45,0)
+ t$="this program GTHelp"
+ gfont 7
+ a%=gtwidth(t$)
+ gpfill:(w%/2-a%/2-5,23,a%+10,2,1,3,0,0,0) :rem erase gbdbl-line..
+ gat w%/2-a%/2,28
+ goprint:(t$,2,1,0)
+ ggmode 0
+ gfont 10
+ gat 25,45
+ ggrey 1 :gtmode 1
+ gprint "Written for GTLib-Version v1.0"
+ ggrey 0 :gtmode 0
+ gat 25,62
+ a$="GTHelp is one of the first programmes which uses GTLib. It gives examples and help for all procedures of GTLib and also an example of what you can do with it. The source is included in the archive, so you can get ideas for your own programmes."
+ gwprint:(a$,w%-50,20,3,1)
+ gupdate on
+ k%(1)=0
+ k%(2)=0
+ do
+  abkey:
+ until k%(1)=2 or k%(2)=2
+ if k%(2)=2 :rem ESC..
+  gclose wi%
+  expwinc:(x%,y%,w%,h%)
+  return
+ endif
+ gupdate off
+ gpfill:(10,15,w%-20,h%-37,1,3,0,0,0)
+ gbdbl:(10,23,w%-20,h%-45,0)
+ t$="the author of GTLib&GTHelp"
+ gfont 7
+ a%=gtwidth(t$)
+ gpfill:(w%/2-a%/2-5,23,a%+10,2,1,3,0,0,0) :rem erase gbdbl-line..
+ gat w%/2-a%/2,28
+ goprint:(t$,2,1,0)
+ ggmode 0 :ggrey 0 :gtmode 0
+ gfont 10
+ gat 25,45
+ gsprint:("All work done by Marko Schuster 1994,96",0,2,3)
+ gat 25,62
+ a$="If you have any bug-reports or comments then write to me. You can contact me via email (ns103@fim.uni-erlangen.de) or send me a"
+ gwprint:(a$,w%-50,20,3,1)
+ gat 25,110
+ gwprint:("FAX: +49-911-3939031",w%-50,1,2,0)
+ gat 25,122
+ gprint "Hope you'll use GTLib in your prgs.!"
+ gupdate on
+ k%(1)=0
+ k%(2)=0
+ do
+  abkey:
+ until k%(1)=2 or k%(2)=2
+ gclose wi%
+ expwinc:(x%,y%,w%,h%)
+endp
+
+proc abkey:
+ if scan%:(" ") :rem it looks cool on the screen when the button looks pressed as long as ..
+  if k%(1)=0    :rem .. you press the key, however it won't work on the emulator :-(
+   k%(1)=1
+   gbbev:(230,130,50,16,1)
+   gat 237,143
+   gsprint:("SPACE",1,2,7)
+  endif
+ elseif scan%:(" ")=0
+  if k%(1)=1
+   k%(1)=2
+   gbbev:(230,130,50,16,0)
+   gat 236,142
+   gsprint:("SPACE",0,2,3)
+  endif
+ endif
+ if scan%:("ESC") :rem esc key pressed
+  if k%(2)=0
+   k%(2)=1
+   gbbev:(67,130,35,16,1)
+   gat 74,143
+   gsprint:("ESC",1,2,7)
+  endif 
+ elseif scan%:("ESC")=0 :rem esc key not pressed
+  if k%(2)=1
+   k%(2)=2
+   gbbev:(67,130,35,16,0)
+   gat 73,142
+   gsprint:("ESC",0,2,3)
+  endif
+ endif
+ do
+ until key=0
+endp
+
+proc showex:
+ global wi%,x%,y%,w%,h%,c$(1)
+ local p$(8)
+ c$=chr$(34)
+ p$=a.proc$
+ if loc(p$,"&") or loc(p$,"%") or loc(p$,"$") or len(p$)=8
+  p$=left$(p$,len(p$)-1)
+ endif
+ onerr er
+ @("x"+p$):
+ if wi%
+  gat 6,gheight-8
+  gprint "Press a key to continue"
+  get
+  gclose wi%
+  gupdate on
+  expwinc:(x%,y%,w%,h%)
+ endif
+ return
+ er::
+ onerr off
+ if err=-99
+  giprint "No example available"+chr$(1)
+ else
+  raise err
+ endif 
+endp
+
+proc xkey:
+ gat 6,gy+15
+ gprint "[ Press a key to continue ]"
+ get
+endp
+
+proc xwin:(m%)
+ if m%<5
+  w%=240
+  h%=140
+ endif
+ x%=240-w%/2-30
+ y%=80-h%/2
+ gupdate on
+ expwino:(x%,y%,w%,h%)
+ gupdate off
+ wi%=gcreate(x%,y%,w%,h%,1,1)
+ gpfill:(0,0,w%,h%,1,0,-1,0,0)
+ gbbev:(0,0,w%,h%,0)
+ gbbev:(3,3,w%-6,h%-6,1)
+ if m%=0
+  gpfill:(4,4,w%-8,h%-8,1,3,-1,2,3)
+ else
+  gpfill:(4,4,w%-8,h%-8,1,3,0,0,0)
+ endif
+ gfont 10
+ gat 6,15
+endp
+ 
+proc xgtver:
+ xwin:(0)
+ gprint "ver=gtver:(0.5)"
+ gat 6,28
+ gprint "-> ver="+fix$(gtver:(0.5),1,4)
+ gat 6,45
+ gwprint:("Now we take an higher version-nr.. Press ENTER to view the alert (and exit the prg.) or any other key to abort this example...:",w%-10,4,0,1)
+ gprint "ver=gtver:(2.5)"
+ if get=13
+  gtver:(1.5)
+ endif
+endp
+
+proc xfisr:
+ xwin:(0)
+ gprint "file$=fisr$:("+c$+"\dat\gtlib.dbf"+c$+",0)"
+ gat 6,28
+ gprint "-> file$="+c$+fisr$:("\dat\gtlib.dbf",0)+c$
+ gat 6,45
+ gwprint:("Now let's have a look what will happen if the file won't exist and mode%=1:",w%-10,3,0,1)
+ gprint "file$=fisr$:("+c$+"xxqwkx.xyz"+c$+",1)"
+ xkey:
+ gat 6,gy+14
+ gprint "-> file$="+c$+fisr$:("xxqwkx.xyz",1)+c$
+endp
+
+proc xbin:
+ xwin:(0)
+ gprint "bin$=bin$:(16)"
+ gat 6,28
+ gprint "-> bin$="+c$+bin$:(16)+c$
+ gat 6,45
+ gprint "bin$=bin$:(%a)"
+ gat 6,58
+ gprint "-> bin$="+c$+bin$:(%a)+c$
+endp
+
+proc xbin2dec:
+ xwin:(0)
+ gprint "dec&=bin2dec&:("+c$+"1101"+c$+")"
+ gat 6,28
+ gprint "-> dec&="+num$(bin2dec&:("1101"),2)
+ gat 6,45
+ gprint "dec&=bin2dec&:("+c$+"1101001011101"+c$+")"
+ gat 6,58
+ gprint "-> dec&="+num$(bin2dec&:("1101001011101"),5)
+endp
+
+proc xtrim:
+ xwin:(0)
+ gfont 9
+ gstyle 16
+ gprint "text$=trim$:("+c$+" Test  text  "+c$+",0)"
+ gat 6,28
+ gprint "-> text$="+c$+trim$:(" Test  text  ",0)+c$
+ gat 6,45
+ gprint "text$=trim$:("+c$+" Test  text  "+c$+",1)"
+ gat 6,58
+ gprint "-> text$="+c$+trim$:(" Test  text  ",1)+c$
+endp
+
+proc xinsert:
+ xwin:(0)
+ gprint "new$=insert$:("+c$+"1234"+c$+","+c$+".."+c$+",3)"
+ gat 6,28
+ gprint "-> new$="+c$+insert$:("1234","..",3)+c$
+endp
+
+proc xdelete:
+ xwin:(0)
+ gprint "new$=delete$:("+c$+"12345"+c$+",3,2)"
+ gat 6,28
+ gprint "-> new$="+c$+delete$:("12345",3,2)+c$
+endp
+
+proc xmidx:
+ xwin:(0)
+ gprint "new$=midx$:("+c$+"1234"+c$+","+c$+".."+c$+",2)"
+ gat 6,28
+ gprint "-> new$="+c$+midx$:("1234","..",2)+c$
+endp
+
+proc xexc:
+ xwin:(0)
+ gprint "new$=exc$:("+c$+"a-b-c-d"+c$+","+c$+"-"+c$+","+c$+".."+c$+")"
+ gat 6,28
+ gprint "-> new$="+c$+exc$:("a-b-c-d","-","..")+c$
+endp
+
+proc xrloc:
+ xwin:(0)
+ gprint "pos%=rloc%:("+c$+"TEST"+c$+","+c$+"T"+c$+")"
+ gat 6,28
+ gprint "-> pos%="+num$(rloc%:("TEST","T"),1)
+endp
+
+proc xgedwl:
+ local a%,t$(9)
+ t$="Test-Text"
+ xwin:(0)
+ gprint "lpos%=gedwl%:("+c$+t$+c$+",1,40)"
+ gat 6,28
+ a%=gedwl%:(t$,1,40)
+ gprint "-> lpos%="+num$(a%,2)
+ gat 6,41
+ gprint t$
+ gline:(6,44,6+40,44,0,0)
+ gat 6,56
+ gprint left$(t$,a%)
+endp 
+
+proc xgedwf:
+ local a%,t$(9)
+ t$="Test-Text"
+ xwin:(0)
+ gprint "fpos%=gedwf%:("+c$+t$+c$+",9,40)"
+ gat 6,28
+ a%=gedwf%:(t$,9,40)
+ gprint "-> fpos%="+num$(a%,2)
+ gat 6,41
+ gprint t$
+ gline:(6+gtwidth(t$)-40,44,6+gtwidth(t$),44,0,0)
+ gat 6,57
+ gprint mid$(t$,a%,len(t$)-a%+1)
+endp 
+
+proc xscan:
+ xwin:(0)
+ gprint "k%=scan%:("+c$+"LSHIFT"+c$+")"
+ gat 6,28
+ gwprint:("Press (and hold) left SHIFT-Key, ESC to quit",w%-10,3,0,1)
+ gtmode 3
+ do
+  gat 6,52
+  gprint "-> k%="+num$(scan%:("LSHIFT"),-2)
+ until key=27
+ gtmode 0
+endp
+
+proc xfreq:
+ xwin:(0)
+ gprint "file$=freq$:("+c$+"TestTitle"+c$+","+c$+"\opd\"+c$+",0)"
+ xkey:
+ gat 6,gy+14
+ gprint "-> file$="+c$+freq$:("TestTitle","\opd\",0)+c$
+endp
+
+proc xgbdbl:
+ xwin:(1)
+ gprint "gbdbl:(10,40,50,15,0)"
+ gat 6,28
+ gprint "gbdbl:(10,60,50,15,1)"
+ gbdbl:(10,40,50,15,0)
+ gbdbl:(10,60,50,15,1)
+endp
+
+proc xgbbev:
+ xwin:(1)
+ gprint "gbbev:(10,40,50,15,0)"
+ gat 6,28
+ gprint "gbbev:(10,60,50,15,1)"
+ gbbev:(10,40,50,15,0)
+ gbbev:(10,60,50,15,1)
+endp
+
+proc xgcircle:
+ xwin:(1)
+ gprint "gcircle:(30,60,20,0,2,3)"
+ gat 6,28
+ gprint "gcircle:(80,60,20,1,0,3)"
+ gcircle:(30,60,20,0,2,3)
+ gcircle:(80,60,20,1,0,3)
+endp
+
+proc xgpfill:
+ xwin:(1)
+ gprint "gpfill:(20,40,50,15,2,0,0,0,0)"
+ gat 6,28
+ gprint "gpfill:(20,60,50,15,1,0,-1,2,0)"
+ gpfill:(20,40,50,15,2,0,0,0,0)
+ gpfill:(20,60,50,15,1,0,-1,0,0)
+endp
+
+proc xgatcpr:
+ xwin:(0)
+ gprint "gatcpr:("+c$+"T-g"+c$+",20,40,70,59)"
+ gat 6,28
+ gprint "gprint "+c$+"T-g"+c$
+ gbox:(20,40,50,19,0,0)
+ gatcpr:("T-g",20,40,70,59)
+ gprint "T-g"
+endp
+
+proc xgsprint:
+ xwin:(1)
+ gprint "gsprint:("+c$+"Test"+c$+",2,0,3)"
+ gat 6,28
+ gsprint:("Test",0,2,3)
+endp
+
+proc xgoprint:
+ xwin:(1)
+ gprint "goprint:("+c$+"Test"+c$+",2,1,0)"
+ gat 6,28
+ goprint:("Test",2,1,0)
+ gat 6,44
+ gprint "goprint:("+c$+"Test"+c$+",0,1,0)"
+ gat 6,57
+ goprint:("Test",0,1,0)
+endp
+
+proc xgwprint:
+ local l%,a$(128)
+ xwin:(0)
+ a$="This is an example of gwprint: with all lines centered ..."
+ gwprint:("l%=gwprint:("+c$+a$+c$+",w%-10,5,2,2)",w%-10,5,0,1)
+ gat gx,gy+6
+ l%=gwprint:(a$,w%-10,5,2,2)
+ gprint "-> l%="+num$(l%,2)
+endp
+
+proc xgsbar:
+ local s%(16)
+ xwin:(1)
+ gwprint:("s%(1)=10 :s%(2)=80 :s%(3)=100 s%(4)=8 :s%(5)=200 :s%(6)=600 s%(7)=0 :s%(8)=1 :s%(9)=-1 s%(10)=0 :s%(11)=2 :s%(12)=0 s%(13)=0 :s%(14)=4",w%-10,6,0,0)
+ gprint "gsbar:(addr(s%()))"
+ s%(1)=10 :s%(2)=80 :s%(3)=100 :s%(4)=8
+ s%(5)=200 :s%(6)=600 :s%(7)=0 :s%(8)=1
+ s%(9)=-1 :s%(10)=0 :s%(11)=1 :s%(12)=0
+ s%(13)=0 :s%(14)=4
+ gsbar:(addr(s%())) 
+ gat 6,105
+ gprint "-> s%(15)="+num$(s%(15),3)+", s%(16)="+num$(s%(16),3)
+endp
+
+proc xgmsbar:
+ local s%(16),a%
+ xwin:(1)
+ gfont 1
+ gwprint:("s%(1)=10 :s%(2)=55 :s%(3)=100 :s%(4)=8 s%(5)=200 :s%(6)=600 :s%(7)=0 :s%(8)=1 s%(9)=-1 s%(10)=0 :s%(11)=2 :s%(12)=0 s%(13)=0 :s%(14)=4",w%-10,6,0,0)
+ gprint "gsbar:(addr(s%()))"
+ s%(1)=10 :s%(2)=55 :s%(3)=100 :s%(4)=8
+ s%(5)=200 :s%(6)=600 :s%(7)=0 :s%(8)=1
+ s%(9)=-1 :s%(10)=0 :s%(11)=1 :s%(12)=0
+ s%(13)=0 :s%(14)=4
+ gsbar:(addr(s%())) 
+ gat 6,77
+ gprint "gmsbar:(addr(s%()),400.0)"
+ gat 6,92
+ gprint "Now press a key and see what happens"+chr$(1)
+ get
+ gmsbar:(addr(s%()),400.0)
+ gat 6,107
+ gprint "-> s%(5)="+num$(s%(5),3)+", s%(6)="+num$(s%(6),3)
+endp
+
+proc xgedit:
+ local e%(16),text$(30)
+ xwin:(0)
+ gfont 1
+ gwprint:("e%(1)=1 :e%(2)=0 :e%(3)=30 :e%(4)=10 e%(5)=80 :e%(6)=0 :e%(7)=0 :e%(8)=2 :e%(9)=0 e%(10)=0 :e%(11)=0 :e%(12)=20 :e%(13)=60",w%-10,5,0,1)
+ gprint "do"
+ gat 6,gy+10
+ gprint "  text$=gedit$:(text$,addr(e%()))"
+ gat 6,gy+10
+ gprint "until e%(14)=13 or e%(14)=27"
+ gat 6,gy+10
+ gprint "Edit upto 30 chars, CR/ESC to end.."
+ e%(1)=1 :e%(2)=0 :e%(3)=30 :e%(4)=10 :e%(5)=80
+ e%(6)=0 :e%(7)=0 :e%(8)=2 :e%(9)=0
+ e%(10)=0 :e%(11)=0 :e%(12)=20 :e%(13)=60
+ gplot:(20,84,0,0)
+ gplot:(60,84,0,0)
+ a::
+ do
+  gat 6,83
+  text$=gedit$:(text$,addr(e%()))
+  gat 6,93
+  gtmode 3
+  gprint "-> e%(14)="+num$(e%(14),-4)+", e%(15)="+num$(e%(15),-3)+",   "
+  gat 6,103
+  gprint "-> e%(16)="+num$(e%(16),-2)+" "
+ until e%(14)=13 or e%(14)=27
+ gtmode 0
+ if e%(7)=1 :return :endif
+ gat 6,113
+ gwprint:(text$,w%-10,5,0,1)
+ gprint "e%(7) is now 1 - input only numbers.."
+ e%(7)=1
+ text$=""
+ goto a
+endp
+
+proc xexpwino:
+ xwin:(0)
+ gprint "This window was opened with:"
+ gat 6,28
+ gprint "expwino:("+num$(x%,3)+","+num$(y%,3)+","+num$(w%,3)+","+num$(h%,3)+")"
+endp
+
+proc xexpwinc:
+ xwin:(0)
+ gprint "This window will be closed with:"
+ gat 6,28
+ gprint "expwinc:("+num$(x%,3)+","+num$(y%,3)+","+num$(w%,3)+","+num$(h%,3)+")"
+endp
+
+proc xgetcont:
+ xwin:(0)
+ gprint "contrast%=getcont%:"
+ gat 6,28
+ gprint "-> contrast%="+num$(getcont%:,2)
+endp
+
+proc xsetcont:
+ local a%
+ xwin:(0)
+ gprint "setcont:(15)"
+ xkey:
+ a%=getcont%:
+ setcont:(15)
+ xkey:
+ setcont:(a%)
+endp
+
+proc xnminit:
+ xnmenu:
+endp
+
+proc xnmcard:
+ xnmenu:
+endp
+
+proc xnmenu:
+ local ad%
+ xwin:(0)
+ gprint "ad%=nminit%:(1,4,20)"
+ ad%=nminit%:(1,4,20)
+ gat 6,28
+ gprint "-> ad%="+num$(ad%,5)
+ gat 6,41
+ gwprint:("nmcard:(ad%,"+c$+"Test"+c$+","+c$+"aTest1,bT2,%-, Ex3"+c$+")",w%-10,2,0,0)
+ nmcard:(ad%,"Test","aTest1,bT2,%-, Ex3")
+ gat 6,65
+ gprint "r%=nmenu%:(ad%)"
+ xkey:
+ gat 6,92
+ gprint "-> r%="+num$(nmenu%:(ad%),4)
+ freealloc ad%
+ gat 6,104
+ gprint "And now a menu with 20 entries.."
+ xkey:
+ ad%=nminit%:(1,20,5)
+ nmcard:(ad%,"Test"," 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20")
+ nmenu%:(ad%)
+ freealloc ad%
+endp
+
+

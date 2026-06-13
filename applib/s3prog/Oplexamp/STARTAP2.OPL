@@ -1,0 +1,57 @@
+==========
+psion/opl #2276, from hzk, 2029 chars, Sep 23 16:37 95
+Comment to 2273.
+----------
+You can start an application easily -
+1.      ROM application:
+
+        pgname$="rom::WORD.APP"+CHR$(0)
+        cmdl$="OWord"+CHR$(0)+".TXT $"+CHR$(0)+edfile$+CHR$(0)
+        r%=CALL($0187,UADD(ADDR(pgname$),1),addr(cmdl$),0,0,addr(pid%))
+        CALL($0688,pid%)
+
+The above will open Word as a text editor, loading edfile$ (includes full 
+path).
+
+2.      Translated OPL program:
+
+        pgname$="rom::SYS$PRGO"+CHR$(0)
+        cmdl$="ORunOpl"+CHR$(0)+CHR$(0)+oponame$+CHR$(0)
+        r%=CALL($0187,UADD(ADDR(pgname$),1),addr(cmdl$),0,0,addr(pid%))
+        CALL($0688,pid%)
+        
+Here an OPO file named oponame$ (incl full path) will be launched.
+
+You can check whether the lauched process is still running:
+
+        status%=CALL($8c8d,pid%)
+        IF status%<0      :REM editor closed
+        
+This assumes that the launching process is still active, i.e. pid% has 
+not changed!
+
+You can close down an APP or OPA by sending a message to it as follows:
+
+        x$="X"
+        r%=CALL($da8d,pid%,UADD(ADDR(x$),1),1)   REM send shutdown msg.
+        
+If closing an OPA, make sure the OPA handles close down messages 
+properly, as shown on page 113 in the 3a programming manual.  i.e. the 
+OPA should be waiting for an event (e.g. GETEVENT) and should interpret a 
+system message "X" as a closedown request.
+
+All this was extracted from the OPL for PocPac, my packet radio program.  
+Hopefully I haven't missed anything out!  By the way, it's worth checking 
+that the launched process is still active before trying to close it down. 
+It's also worth checking that the process has actually been started 
+before trying to close it, etc.
+
+When launching things from OPL you run the risk of leaving them running 
+after closing down the main program.  A sub process can launch another, 
+and you can get into a right pickle!  So if your main program receives a 
+closedown message, it should check if it has launched anything still 
+active, and close it down if necessary!
+
+Roger
+
+

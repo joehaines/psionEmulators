@@ -1,0 +1,460 @@
+Changes to Clock5 since v1.72
+==============================
+* Background activity monitor now only scans the letter keys (a-z) to
+monitor keyboard use.  It no longer scan the cursor controls, number keys,
+etc. and ignores shifted keys (as well as the Ctrl and Fn keys previously
+ingored).  This should solve a problem that a number of people have
+mentioned - namely that the Open files/programs dialog couldn't be
+navigated by the keyboard when Sleep Mode was active.  This new keyboard
+scanning routine now places far less load on the Psion - which means that
+there's now negligible delay in typing in other apps whilst Clock5 is
+'scanning' in the background.
+
+
+Changes to Clock5 since v1.61
+==============================
+* Installation is now by Psion's .sis file method.  In theory, this should
+make installation much easier for the user and version control easier
+for me!  Hopefully it meets with everyone's approval.
+
+* Added an option in the Viewing Options menu to display a small
+calendar in the Digital Minutes view.  I realised that I was switching
+between this and the Calendar view just to look at dates in the current
+month - so a small calendar in the Digital Minutes view made it easier.
+
+* Filippo Zerboni suggested that the space bar should optionally act
+as an 'off' switch when being used in 'NightClock' mode.  Some
+people like to leave their Psion open at night rather than fumble with
+it when they're asleep.  It's easy to turn on (just tap the screen!) but
+using Fn+Esc to turn it off is a little more difficult...!  This has now
+been implimented so that between the Nightclock times in the Digital
+Seconds or Digital Minutes views, pressing the space bar will switch
+the machine off (assuming the NightClock setting has been enabled).
+
+* Brian Coutinho,John Hunting, and others suggested that the Digital
+Minutes view should optionally be able to flash the time separating dots.
+This is now an option in the Viewing Options.
+
+* In previous versions, if you switched the Psion off for longer than the
+period set in the "Sleep time" it brought the program to the foreground
+when it was switched back on.  There is now an option to reset the Sleep
+Mode timer at Power On.  My thanks to Tony Crocker for suggesting
+this option.
+
+* As I've mentioned on my web site in the past, a lot of people have had
+problems getting used to the fact that Sleep Mode didn't allow Fn+Key
+hotkeys in other programs to work (eg. Fn+N in Pascal Nicholas's
+excellent Macro5).  A workaround for this was suggesed in the Help file
+but I've now changed the background keyboard activity monitor so that it
+only captures normal keypresses and Shift+Key presses.  It doesn't
+capture Shift+Cursor keypresses now either (to allow for their use in the
+Sheet program, etc.).
+
+* Something that'd been irritating me for a while was that when you used
+the Ctrl+Menu hotkey to bring Clock5 to the foreground with its password
+enabled, it immediately brought up the password entry box requesting the
+password.  You could ignore this of course and it'd go away after 10 seconds
+- but it still annoyed me!  I've now added a 'keyboard de-bounce' at this
+point so that it doesn't do this any more.
+
+* Filip Everaert suggested that the Power On options should be expanded
+to include more 'Auto Password at Power On' possibility's.  Specifically he
+suggested there should be an option for the password to force its use just
+once at Power On (thereby potentially replacing the need for the system
+password).  Assuming that the Clock5 password has been set, Clock5 can
+now do this even when it's in the background at Power On   It'll return to
+the background unless the options have been set otherwise.
+
+* Fixed a small bug in the Logos view.  When a logo bounced of either the
+top or the left-hand side of the screen, the first top or left-hand line of pixels
+was stripped from the logo on the first bounce on these two sides.  Now fixed.
+
+* Improved the Geofox compatibility.  In v1.6/1.61 the program gave "Psion"
+as one of the built-in logos but loaded only part of the Geofox logo.  It should
+now correctly suggest "Geofox" on a Geofox machine and correctly load the
+'fox's logo from the ROM.  My thanks again to Bob Norris and Elizabeth
+Liddell for helping me with this.
+
+* Updated the Help file for v1.7.
+
+* One change that won't directly affect anybody using Clock5 is that I've
+started using language resource files (i.e. Clock5.rsc) to contain all the
+language-specific dialogs.  This because manually updating each language
+version with every version upgrade was becoming a big drain on my
+available time.  With Clock5 currently available in 7 languages, I reckon
+it would've taken at least 2/3 of my available programming time just to re-code
+for all the languages!  Apart from making life easier for both myself and
+Clock5's various translators who very generously give up their own free
+time, there will be an indirect benefit to everyone.  I.e. since I'll be able 
+to concentrate on doing what I enjoy (the actual programming), updates
+should become a bit more frequent again.  They'd tailed off somewhat
+of late as I'd devoted more and more time to re-coding languages.  These
+resource files have been generated using Guillaume Sabouraud's (author
+of ChemTools EPOC 32) excellent RSCtools2.  I'll be talking more about
+them in future...
+
+Changes to Clock5 since v1.6
+==============================
+* Spotted a minor bug in v1.6.  In the Calendar view when showing 2 months,
+the 2nd set of 'day initials' above the 2nd month wasn't printing on the screen.
+A simple mistake and I've no idea how it crept into the public release - my
+apologies...  (Still, nobody else told me about it so I guess I got away with
+it!)  ;-)
+
+Changes to Clock5 since v1.5
+==============================
+* Improved the Calendar view.  Previous versions had a rather quickly
+put together view of a calendar - and it had a bug in it!  I hadn't realised
+that some months need 6 lines in which to display all the dates - e.g.
+November '98!  This has been remedied and the whole thing made a bit
+prettier.  There are now also 3 views available: a 1 month view (as
+before), a 2 month view, and a 6 month view.  These can be selected
+using Settings/Viewing Options or - as in Agenda - by using the Tab
+key to toggle the views.  You can also now move through the months
+- either by using the curled calendar edges provided on screen or by
+using the left and right cursor keys.  Lastly;  pressing the space bar
+always brings you back to the current date (again, as per Agenda).
+
+* I've replaced the 'Crazy Logo' with an altogether more useful option.
+The original Crazy Logo was really just a space filler - and to test my
+programming for some animation effects.  However, it never really
+worked as a scrolling view because of the small size of the logo.  It's
+been replaced with 'Logos' which lets you choose from 3 built-in logos
+(Clock5, EPOC, or Psion) or from your own.  If you add a new directory
+in the Clock5 directory called "Logos" (surprise!) and put standard .mbm
+files into it, Clock5 will let you choose these new logos as well as the 3
+standard ones.  The .mbm files have to be smaller than the screen size
+otherwise Clock5 will refuse them.  The logos are selected from the
+View/Logos/Choose Logo menu or by pressing the Tab key to select
+each of the available logos in turn.  Now you can have your own corporate
+logo, picture of loved ones, naked women (or men!), etc. as your screen
+saver...  NB: This has meant replacing the old version of the Clock5.mbm
+file with a newer one - make sure you change to the newer one too!  ;-)
+[NOTE FOR GEOFOX USERS: currently the 'Psion' logo doesn't work on
+the Geofox.  I'm working on this and hope to be able to upload a minor
+revision fix for this very soon]
+
+* Alan Rabbitte pointed out with some (justifiable) exasperation that
+whilst you could have spaces in the password you set in Clock5, you
+couldn't then enter spaces into the password box!  Ooops - now fixed
+so that you can.  Also enabled Delete key action, added a couple of
+'padlock' graphics, added a 10 second inactivity timeout to the
+password box itself, and made the password box 'pen-sensitive' ...
+
+* With the demise of the 'Crazy Logo' view, I didn't feel I could justify
+that logo's animation in the 'About' splash - or rather, I couldn't justify
+the disk space it used up in the Clock5.mbm file just to animate the
+'About' screen!  Therefore, I've reduced the size of this file and replaced
+the previous animation with a different one that doesn't require 16 frames
+worth of logo to animate it!  The result is that the size of the program files
+(i.e. not including voice files, etc) has reduced from 72K in v1.5 to 58K for
+v1.6....  Can't be bad!  ;-)
+
+* I found a bug whereby if you changed from 12hr to 24hr clock display
+(or visa versa) but weren't actually in a digital clock display at the time,
+the program would 'forget' to re-draw the digits to their new size when
+you did change to a digital clock display.  Now fixed.
+
+Changes to Clock5 since v1.4
+==============================
+* Added full integration with the Psion's 8 own built-in alarm timers.
+ Hence any changes made to the Alarms in Clock5 will be reflected
+in the Time app. and visa versa.  You can view, set, disable/enable,
+cancel, and set the alarm sound settings.  The only thing that Clock5
+cannot do that the Time app. can is view the time that any given alarm
+is set for.  This is a restriction of RMRAlarm.opx (and possibly the
+EPOC Kernel hooks).  If it changes to allow more access then I'll
+upgrade Clock5 accordingly.  The Alarms settings allow you use any
+of the Psion's built-in alarm sounds or any alarm sounds you've
+recorded/installed yourself.
+
+* Added the option of an alarm symbol in the Digital views.  This is
+set in the Viewing Options.  If set and any of the internal alarms are
+also set then a little alarm symbol will be shown in the digital views...
+
+* Updated the Help file to better describe the way Sleep Mode works and
+added a new section for the Alarms.
+
+* Fixed a bug which Raul Lucky and others found.  If the password was
+enabled and you entered your password into the box to bring up the menu
+and then used a short-cut key combo instead of the menu itself to select
+a function; the password box would immediately come back demanding
+the password again.  This was particularly irritating if you'd used Ctrl+h
+to send Clock5 to the background because it'd go to the background and
+then bounce back to the foreground with the password box again...
+
+* Fixed a bug which occured when Sleep mode was enabled.  If Ctrl+Menu
+was pressed (i.e. Clock5's hot-key) when in the background, it caused the
+menu to come up in the foreground app. just before Clock5 came to the
+foreground.  It'd stay up on the app. (now in the background) until that
+app. was used again when it'd probably have to be cancelled - very
+irritating!  ;-)
+
+* Fixed a bug in the Calendar view.  When operated on German machines,
+the German word for 'Thursday' is 'Donnerstag' and I hadn't allowed for its
+extra length.  The result was that German machines running Clock5 on a
+Wednesday in Calendar view would crash the program!  I've increased the
+string length to allow for this - and a fully German version should be 
+released soon anyway.
+
+* Tweaked the NightClock/Backlight logic again slightly so that now the
+ONLY time it will always force the backlight on all the time is if the External
+power option is selected and external power is present (or if you've opted to
+use the NightClock timer).  At all other times, you can manually control the
+backlight.  However, Clock5 will still check for trigger events such as a
+change in the external power being present or not and pulse the setting once
+as appropriate (depending on the setting in NightClock).  You'll always be
+able to change this manually again though.  Hopefully now the logic is
+completely sensible...  My thanks again to Harry Brueckner for gently
+nagging me to fix it!
+
+Changes to Clock5 since v1.3
+==============================
+* GeoFox compatibility.  Clock5 now automatically detects if it's running in
+a 'fox and re-sizes/re-positions the views accordingly.  I am completely
+indebted to Bob Norris for his time, energy, and patience whilst I was
+figuring out how to get Clock5 to work on his 'fox.  Many thanks Bob!
+
+* 24 hour clock view.  A 'Viewing Options' box has been added which lets
+you choose between a 12 or 24hr digital clock.  It also lets you choose the
+line width in the Mystify views.
+
+* Fixed a bug in Sweet Dreams mode.  If your machine was set to start up
+displaying the Owner Information screen, Sweet Dreams wouldn't run.  It's
+now works with the Owner Info. screen set for start-up.  Thanks to Wolfgang
+Schmid for pointing this out to me.
+
+*Program initialisation / saving settings.  As more and more variables were
+getting added into Clock5 for it to remember, it was taking longer and longer
+for it to both save them and initialise the settings when the program was first
+run.  Also, the format of the Clock5.ini file was changing from version number
+to version number - meaning that every time a new version of Clock5 was installed,
+the old Clock5.ini file had to be deleted.  By moving from an OPL16 to an OPL32
+database structure, I've speeded up the 'saving' routine by >100%.  :-)
+Also, v1.4 will detect a previous version's Clock5.ini file, delete it, and re-initialise
+the first time it's run.  I'm afraid you still have to re-enter your preferences but it's
+an improvement of having to remember to delete the file yourself!
+
+* Background activity monitor.  This is now working - for the keyboard at
+least.  When Sleep mode is enabled and Clock5 is in the background, it will
+monitor ordinary keypresses, Shift+ keypresses, and Fn+ keypresses (NB: not
+Ctrl+ keypresses) and re-set the sleep timer with every keypress.  Therefore
+when Sleep mode is enabled, Clock5 now behaves like a 'real' screensaver!
+Points to note: a) it doesn't yet monitor Ctrl+ keypresses, the system keys, or
+any touch-screen activity, b) it's a relatively processor-intensive activity at
+present so it tends to slow the keyboard response marginally (more so when
+there's no external power present - to save battery power).  I'll keep working
+on both of these issues and see if I can improve them in future versions.
+
+* Fixed a bug in the sleep timer.  Since the sleep timer measures absolute
+time (i.e. irrespective of whether the Psion has been switched on or off); if
+the machine was switched off when the timer was due and then switched on
+later, it would completely miss its cue to come to the foreground.  This is
+now fixed so that it'll come to foreground straight away if it missed its time
+when switched on.
+
+Changes to Clock5 since v1.22
+==============================
+
+* Sweet Dreams.  This is based upon Steve Litchfields original program
+and takes its name from it - with his permission of course.  ;-)  Thanks
+Steve.  As well as giving the flashing external LED option, it can 'beep'
+the time (using medium-length beeps for the hours and shorter, higher-
+pitched beeps for the tens of minutes), or speak the time from the voice
+recordings stored in the new /system/apps/Clock5/Voice directory.  For
+the LED and beeps, the minutes are rounded to the nearest ten minute
+figure - so the time given will never be more than 5 minutes out either
+way.  Plenty accurate enough for most people in the middle of the night.
+When Sweet Dreams is enabled and your Psion case is closed, pressing
+the external 'play' button switches on the machine, flashes the LED (or
+beeps/speaks the time) and then switches the machine off.  Very handy in
+the middle of the night.  (NB: You just have to press the button briefly
+once.  There's a slight delay in the case of the beep and voice options -
+the reason for which is explained further below)
+I added the beep/voice options because - although I liked Steve's idea of
+not disturbing your partner with the silent LED - I frequently travel alone
+on business when 'disturbing' someone just isn't an issue!  Also, personally
+I find that focussing my eyes on *anything* in the middle of the night takes
+quite an effort whereas my ears seem to have a 'permanently on' mode of
+operation!
+Opening your Psion (assuming this activates it) will also activate Sweet Dreams
+when it's enabled.  However - given that your machine turns off once it's 'done'
+the time - there's also an option to jump out of Sweet Dreams mode by pressing
+any key whilst Sweet Dreams mode is running.  Also - since nobody can plan
+for every eventuality - there are bound to be occasions when you know that
+Sweet Dreams is enabled but you need to open your machine in 'polite' (or
+maybe not so!) company.  There's a 1 second pause before both the beeps or 
+voice option start playing for you to quickly press a key to cancel it.
+Since memory space is an issue for some people, Clock5 is intelligent
+enough to know if you've deleted the /Voice directory and will remove
+the voice option from the Sweet Dreams dialog box.  FYI, the 28 ADPCM
+voice files use something approaching 100Kb of memory space - more than
+Clock5 itself plus all its associated files (including this one).
+I apologise now for the voice used (my own...).  I surfed the net looking
+for some pre-recorded files featuring an appropriately sexy female voice -
+but alas without any luck!  If however anyone would care to donate an
+appropriate female (or male depending on preference) voice, I'd be
+more than happy to bundle it with Clock5 instead!
+At the moment, Sweet Dreams only works when Clock5 is in the foreground
+(with or without password enabled) - not in the background.  I can add this
+feature if people want it though...
+
+* Harry Brueckner suggested that the NightClock control logic should
+be changed slightly to still allow *some* manual control.  It has as
+follows:-
+The logic behind the NightClock backlight control is now a compromise 
+between control and 'over-control'.
+
+Backlight on if power:
+If ticked, the backlight is always on when power is present/switches
+off when power isn't present.  If un-ticked, the control will switch the
+backlight off *once* when the box is 1'st un-ticked - but still allows
+you to manually (or with BL+, Macro5, etc.) turn the light on or off after this.
+
+Timed:
+If ticked, ONLY on between those times (unless over-ridden by power
+control above).  If un-ticked, ALWAYS off (unless over-ridden by power
+control above).
+This way, you *can* still have manual control but still control things
+automatically too...
+
+* Changed the 'View' menu around so that the 'Calendar' menu item
+is at the top of the list.  This so that when using the cursor to move right
+along the menu headings, you don't have to press it twice to get past
+'Digital' and then 'Seconds'.  My thanks to John Hunting for suggesting
+this mod.
+
+Changes to Clock5 since v1.2
+==============================
+
+* Fixed a small bug in the Calendar and Digital minutes views.
+I'd forgotten that the 11th, 12th, etc. of the month have a 'th' after
+the number instead of 'st, 'nd', etc. as in say '21st', '22nd', etc.
+
+* Corrected some of the information in the Help file which was
+out of date.
+
+* Tweaked the Multi Polygons display to improve the look slightly.
+
+Changes to Clock5 since v1.1
+==============================
+
+* Added a couple more screensavers: Mystify (Single Polygon) and
+Mystify (Multiple Polygons).  Wonder where I got those names?  I
+felt that the time had come to be able to show WinCE users that you
+don't need a Pentium PC in order just to bounce some lines around the
+screen!
+
+* Added the NightClock settings and functionality.  Now you can set
+the backlight to come on in the evening and go off in the morning - or
+switch on/off in the middle of the day if you prefer!  It doesn't have to
+be night time...  Also a setting for having the backlight auto-detect
+whether the external power is connected or not.
+
+* The menu structure was becoming a bit cluttered so I added an extra
+column to the menus and rearranged things slightly (hopefully into a more
+logical view).  Also added a 'memory' to the menu so that it remembers
+what the last menu option was that was used.
+
+* I missed off the Cancel/OK dialog buttons from the 'Sleep Time' pop-up
+box in v1.1.  It still worked fine with the Esc/Enter keys but I've now added
+the buttons so it'll work with the pointer.
+
+* Once Clock5 v1.1 had been 'unlocked' from its password, it'd bring up the menu.
+If it was then hidden using Ctrl+H instead of the Hide menu, it'd go to the
+background but leave the keyboard locked.  This is now fixed.  Thanks to Alastair
+McCulloch for spotting this.
+
+* Another one from Alastair but which took me a lot longer to fix...  Fn+Help wasn't
+captured by the program when it locked the keyboard/silkscreen.  In fact, I don't
+think that key combo. *can* be trapped - which was unfortunate because of course
+it always fires up the Psion's 'help' details.  The program couldn't detect that it was
+in the background because pressing these keys had also brought up the password 
+dialog box which was patiently waiting for the password to be entered - but now in
+the background.  In the event, I had to write my own password dialog box (instead
+of using the standard EPOC ones) which would continuously scan the keyboard *and*
+make sure it stayed in the foreground.  Fn+Help will still start up the Psion's help
+engine - but Clock5 will now come back to the foreground immediately afterwards.
+
+* It turns out that some people preferred *not* to have the password entry
+debounced (i.e. so that the 1st keypress to bring up the password box isn't also
+the 1st letter entered into the password itself - see previous list of changes for
+details below).  You can now choose this as an option in the password setup
+dialog box.  See the Help file for details also.
+
+* Added a keypress beep option to the password dialog box
+
+* Fixed a problem that occurred in certain programs when starting up (e.g.
+Message Suite's Email and Guillaume Dupont's Porfolio).  Email (say)
+would start up then switch into the background for an instant before
+continuing to run.  Unfortunately Clock5 took this as an invitation to jump
+to the foreground and would promptly do so - leaving the Email program
+languishing in the background and in need of a task-switcher!  Clock5 has
+now be duly punished and given strict instructions to be better behaved in
+future...
+
+* Fixed a bug in v1.1 and earlier where if you dragged the pointer across
+the screen it started up the Help file.  Doing this more than once made it
+try to run the same Help file more than once - resulting in an error (and
+causing much confusion!).
+
+Changes to Clock5 since v1.0
+==============================
+* Added a 'digital minutes only' view.  I haven't implemented a 12/24hr
+switch option yet - but I will.  Probably sometime in the next few versions
+whilst I'm adding some of the other bits I've talked about.
+
+* Added a 'calendar' view.  I've been thinking about doing this for some
+time and intend to make it somewhat more interactive than this initial
+screen.  Probably more like the calendar you can bring up in Agenda by
+pressing the Tab key.  Something else for a future version though...
+
+* The Hot-key has been changed from 'Fn+Menu' to 'Ctrl+Menu'.  This
+because (as Christian Schmid pointed out) 'Fn+Menu' is normally used
+in 'Data' to dial phone numbers with.
+
+* 'De-bounced' the keyboard for when the password is enabled.  Previously
+when you pressed a key on the keyboard when the password was enabled
+the password checking box came up and the key you'd pressed became the
+first letter entered as the password.  Now this 1st keypress isn't entered into
+the password box - the next keypress becomes the 1st letter entered.  Thanks
+to Tim Salmon for pointing this out and reminding me to fix it!
+
+* Made Clock5's password 'aware' of the Psion's own system password
+ Previously, if your Clock5 password was enabled in the foreground
+(i.e. with all the possible key combinations trapped so that no task-switching
+program could switch programs) and your Psion's system password kicked
+in (e.g. 1st switch-on the next day or whatever) then you'd get the Owner
+Info. screen up requesting your system password - but you wouldn't be able to
+enter it because all the keys were blocked!  The only way out of this was to
+do a soft-reset!  Yeuch!  Clock5 now detects that the system password is set
+and asks for permission to temporarily disable it (it'll re-enable it when you
+exit Clock5).  You can chose to ignore this request if you wish and it won't
+bother you again - but you do so at your own risk!  :-)  If you let it temporarily
+disable the system password, you'll still get the Owner Info. screen as before
+but it won't need the password.  All the keys will still be blocked - apart from
+the ESCAPE key.  Press this to bring Clock5 back to the foreground.  Thanks
+(and apologies!) to Joop Smit for finding this particular 'feature'.
+
+* 'System Password Check' has been added to the Tools/Settings menu which
+allows you to toggle between whether or not Clock5 ignores the system
+password being set.
+
+* Improved the animation in the 'About' screen and made the .mbm file
+much smaller.  This has reduced the total memory required for Clock5
+(unzipped) by about 40K - even allowing for all the additional features,
+etc.  Not bad, hey?
+
+* Re-addressed the power consumption issue.  When switched to the
+background, Clock5 looped around without pausing the processor at all.
+Consequently the current consumption jumped up to about 110mA when
+in background mode (i.e. every time you'd normally look at it on the system
+screen)!  This has now been fixed so that in background mode, the program
+has little or no effect on the current (it reads ~45mA).
+
+* Also re-wrote some of the digital clock drawing routine so that it now only
+draws 68-70mA when in the foreground.  NB: I disabled the background
+mode to measure it - normally you won't be able to measure this!  The
+seconds are also drawn slightly more quickly than before.
+
+---------------------- End -----------------------

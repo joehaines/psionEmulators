@@ -1,0 +1,89 @@
+PROC train:
+	LOCAL ch%
+DO
+gAT 124,45
+gFONT 12
+gSTYLE 25
+gPRINT "JOURNEY PROGRAMME"
+gAT 179,75
+gFONT 7
+gSTYLE 33
+gPRINT "Press MENU key"
+ch%=GET
+CLS
+				IF ch%=$122 OR (ch% AND $200)
+	mINIT
+	mCARD "Control","RUN",%r,"Select  Journey",%s,"QUIT",%q
+	mCARD "Timetables","Enter  Details",%t,"Check  Details",%c
+	mCARD "Routes","Enter  New  Route",%n,"Check  Route",%k,"Route  Catalogue",%g
+	mCARD "Information","Debrief  Analysis",%a,"User  Information",%i
+	ch%=MENU
+				ELSEIF ch% AND $200
+					ch%=ch%-$200
+				ENDIF
+				ch%=ch% AND $FFDF
+					IF ch%<>0
+						IF ch%=%Q
+							RETURN
+						ELSEIF ch%=%T
+							LOADM "\OPO\TRAIN\Table"
+							table:
+							UNLOADM "\OPO\TRAIN\Table"
+						ELSEIF ch%=%C
+							LOADM "\OPO\TRAIN\Readtab"
+							readtab:
+							UNLOADM "\OPO\TRAIN\Readtab"
+						ELSEIF ch%=%S
+							LOADM "\OPO\TRAIN\Select"
+							select:
+							UNLOADM "\OPO\TRAIN\Select"
+						ELSEIF ch%=%N
+							LOADM "\OPO\TRAIN\Route"
+							route:
+							UNLOADM "\OPO\TRAIN\Route"
+						ELSEIF ch%=%R
+							LOADM "\OPO\TRAIN\Run"
+							start:
+							UNLOADM "\OPO\TRAIN\Run"
+						ELSEIF ch%=%K
+							LOADM "\OPO\TRAIN\Readtab"
+							readrut:
+							UNLOADM "\OPO\TRAIN\Readtab"
+						ELSEIF ch%=%G
+							LOADM "\OPO\TRAIN\Readtab"
+							readcat:
+							UNLOADM "\OPO\TRAIN\Readtab"
+						ELSEIF ch%=%I
+							LOADM "\OPO\TRAIN\Instruct"
+							oprat:
+							UNLOADM "\OPO\TRAIN\Instruct"
+						ELSEIF ch%=%A
+							LOADM "\OPO\TRAIN\Graph"
+							graph:
+							UNLOADM "\OPO\TRAIN\Graph"
+						ENDIF
+					ENDIF
+	UNTIL 0
+ENDP
+
+PROC sort:
+	LOCAL c%,lowest%,lpos%,low%
+	c%=COUNT
+		WHILE c%<>0
+			POSITION c%
+				lowest%=POS
+				low%=VAL(A.idx$)
+					DO
+						IF VAL(A.idx$)<low%
+							low%=VAL(A.idx$)
+							lowest%=POS
+						ENDIF
+							lpos%=POS-1
+							POSITION lpos%
+					UNTIL lpos%=0
+				POSITION lowest%
+				UPDATE
+					c%=c%-1
+			ENDWH
+			RETURN
+ENDP

@@ -1,0 +1,85 @@
+PROC ctrlbeep:
+	global pid%
+	global mstat%,maddr%
+	local kstat%,k%(2)
+	local bstate%
+
+	telldie:
+	launchb:
+	print "Esc to quit"
+	print "Enter to toggle beep on/off"
+	while 1
+		keya(kstat%,k%(1))
+		iowait
+		if kstat%<>-46
+			if k%(1)=27
+				exit:
+			elseif k%(1)=13
+				if bstate%
+					quiet:
+				else
+					noisy:
+				endif
+				bstate%=1-bstate%
+			elseif k%(1)>=%a and k%(1)<=%z
+				at 1,5
+				print "Received key",chr$(k%(1))
+			endif
+		else
+			exit:
+		endif
+	endwh
+ENDP
+
+PROC telldie:
+REM ensure we are told we are going to die
+	call($0083,$1,0,0,0,0) :rem MessInit
+	call($0e88,1,0,0,0,0) :rem ProcOnTerminate
+	call($0183,addr(maddr%),0,0,0,addr(mstat%)) :rem MessReceiveAsynchronous
+	escape off
+ENDP
+
+PROC launchb:
+REM launches beeper subprocess
+	local beepnm$(128),cmdl$(128)
+	local off%(6)
+	local ret%
+	beepnm$=parse$("beeper.opo",cmd$(1),off%())
+	if not exist(beepnm$)
+		print "File does not exist"
+		print beepnm$
+		get
+		stop
+	endif
+	cmdl$="ORunOpl"+chr$(0)+chr$(0)+beepnm$+chr$(0)
+	beepnm$="rom::sys$prgo"+chr$(0)
+	ret%=call($0187,addr(beepnm$)+1,addr(cmdl$),0,0,addr(pid%))
+	if ret%<0
+		print "Couldn't start beeper subprocess"
+		print err$(ret%)
+		get
+		stop
+	endif
+	call($0688,pid%,0,0,0,0) :rem ProcResume
+	call($998d,0,0,0,0) :rem come to foreground again
+ENDP
+
+PROC noisy:
+REM Start beeps
+	local one%
+	one%=1
+	call($92,pid%,2,0,addr(one%),$28) :rem ProcCopyToById
+	call($0986,pid%,0,0,0,0) :rem IoSignalByPid
+ENDP
+
+PROC quiet:
+REM Stop beeps
+	local zero%
+	call($92,pid%,2,0,addr(zero%),$28) :rem ProcCopyToById
+ENDP
+
+PROC exit:
+REM Clean shutdown
+	call($0d88,pid%,0,0,0,0)
+	stop
+ENDP

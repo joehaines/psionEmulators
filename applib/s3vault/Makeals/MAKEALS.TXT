@@ -1,0 +1,61 @@
+Files in this zip:
+    MAKEALS.EXE         version 1.08 of Psion's MakeAls program
+    MAKEALS.TXT         this documentation
+    MYSPELL.MA          example alias source file
+
+MakeAls.exe can be used to create .ALS files, the same way that the
+"Create new list" menu command in the S3a System Screen does.
+
+It has the advantage that you can use it for "no-file" apps.  Eg you
+can change the icon for the SpellCheck application.
+
+To use MakeAls, you need:
+   a text input file, such as MySpell.MA
+   an icon file, with the same basic name as the .MA file
+
+Then type (eg) MAKEALS MYSPELL
+and you'll end up with (eg) MYSPELL.ALS that you can install in the
+System Screen in place of SPELL.APP (which you'll have to remove
+manually).
+
+MySpell.MA just has the following five lines (no indents)
+    MySpell
+    <leave empty>
+    1000
+    Spell
+    <leave empty>
+
+(the second and fifth lines are blank).
+
+These lines have the following meaning:
+    The first line gives the public name of the new group
+    The second line could give the default directory
+    The third gives the application type number
+    The fourth the name of the application being aliased
+    The fifth line gives possible alias data.
+
+Alias data would be of significance only to an application supporting
+positive aliasing (such as the word processor).
+
+See the C SDK or the Opl Programming manual for more information
+about application type numbers.  Note in this case that the 1000 is
+necessary if the icon is 48x48 and contains a grey plane as well as a
+black plane.
+
+In the case of a file-based application, the default extension would
+come one the first line too, eg MySpell.DIC, but in that case you
+should use the System Screen's "Create new list" instead.
+
+You'll need to supply MYSPELL.PIC by yourself.
+You put it on the same directory, on the PC, as the .MA file.
+
+Finally, there are a few strange things in the screen output from
+MakeAls in the case of no-file apps, which you can safely ignore (I'm
+talking about the "Expected extension" line).
+
+PS, for interest, the .MA file for the S3a Program editor is
+    Program.OPL
+    \OPL\
+    1003
+    Word
+    OROPO*

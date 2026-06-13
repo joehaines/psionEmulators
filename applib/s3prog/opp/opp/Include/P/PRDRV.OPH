@@ -1,0 +1,35 @@
+#define P_PRDRV_OPH
+
+STRUCT P_LAYOUT_DATA
+	topmarg#
+	bodylen#
+	lftmarg#
+	bodywid#
+ENDS
+
+STRUCT P_ESCAPE_DATA
+	escapon#
+	escchar#
+ENDS
+
+#define P_PRNFLG_ESCAPE 1 /* Set if escape processing is enabled */ 
+#define P_PRNFLG_LAYOUT 2 /* Set if layout processing is enabled */ 
+#define P_PRNTYP_PAR 0   /* Parallel port type */ 
+#define P_PRNTYP_SER 1   /* Serial port type */
+#define P_PRNTYP_FIL 2   /* File port type */ 
+
+STRUCT P_PRN_INTF
+	port_type#
+	nstack#
+	flags#
+	escchar#
+	ld#(SIZEOF(P_LAYOUT_DATA))
+ENDS
+
+STRUCT P_PRN_CRK
+	pintf%
+	label%
+	pname%
+	psetbuf%
+	driver%
+ENDS

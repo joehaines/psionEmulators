@@ -1,0 +1,144 @@
+#define VARRAY_OPH
+
+#ifndef OLIB_OPH
+#include <sdk\olib>
+#endif
+
+#ifndef P_QUE_OPH
+#include <p\que>
+#endif
+
+/* Constants for varoot */
+
+#define VA_ROOT_DUPLICATE 1
+#define VA_ROOT_FLG_FOLD 0x01
+#define VA_ROOT_FLG_DESC 0x02
+
+/* Types for varoot */
+
+STRUCT PR_VAROOT_KEY
+	ofs#
+	len#
+	fold#
+	desc#
+ENDS
+
+/* Property of varoot */
+
+STRUCT PRS_VAROOT
+	nrec%
+	key#(SIZEOF(PR_VAROOT_KEY))
+ENDS
+
+STRUCT PR_VAROOT
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+ENDS
+
+/* Property of vafix */
+
+STRUCT PRS_VAFIX
+	rlen%
+ENDS
+
+STRUCT PR_VAFIX
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+ENDS
+
+/* Property of vaflat */
+
+STRUCT PRS_VAFLAT
+	gran%
+	nspc%
+	base%
+ENDS
+
+STRUCT PR_VAFLAT
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+	vaflat#(SIZEOF(PRS_VAFLAT))
+ENDS
+
+/* Types for sgbuf */
+
+STRUCT PR_SGBUF_HD
+	q#(SIZEOF(P_QUE))
+	len%
+ENDS
+
+STRUCT PR_SGBUF_SBO
+	seg%
+	base%
+	ofs%
+ENDS
+
+/* Property of sgbuf */
+
+STRUCT PRS_SGBUF
+	hd#(SIZEOF(PR_SGBUF_HD))
+	nbytes%
+	cur#(SIZEOF(PR_SGBUF_SBO))
+ENDS
+
+STRUCT PR_SGBUF
+	root#(SIZEOF(PRS_ROOT))
+	sgbuf#(SIZEOF(PRS_SGBUF))
+ENDS
+
+/* Property of vaseg */
+
+STRUCT PRS_VASEG
+	buf%
+ENDS
+
+STRUCT PR_VASEG
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+	vaseg#(SIZEOF(PRS_VASEG))
+ENDS
+
+/* Property of vastr */
+
+STRUCT PRS_VASTR
+	size%
+	gran%
+	base%
+	len%
+	num%
+	pnum%
+ENDS
+
+STRUCT PR_VASTR
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vastr#(SIZEOF(PRS_VASTR))
+ENDS
+
+/* Types for vaxvar */
+
+STRUCT RC_VAXVAR
+	len%
+	buf%
+ENDS
+
+/* Property of vaxvar */
+
+STRUCT PR_VAXVAR
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+	vaflat#(SIZEOF(PRS_VAFLAT))
+ENDS
+
+/* Property of vaxvars */
+
+STRUCT PR_VAXVARS
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+	vaseg#(SIZEOF(PRS_VASEG))
+ENDS

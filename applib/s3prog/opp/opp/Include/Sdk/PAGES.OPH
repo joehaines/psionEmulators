@@ -1,0 +1,155 @@
+#define PAGES_OPH
+
+#ifndef VARRAY_OPH
+#include <sdk\varray>
+#endif
+
+#ifndef APPMAN_OPH
+#include <sdk\appman>
+#endif
+
+#ifndef EPDOC_OPH
+#include <sdk\epdoc>
+#endif
+
+#ifndef SCRLAY_OPH
+#include <sdk\scrlay>
+#endif
+
+#ifndef TIME_OPH
+#include <sdk\time>
+#endif
+
+#ifndef PRDRV_OPH
+#include <sdk\prdrv>
+#endif
+
+/* Constants for pages */
+
+#define PAGES_DONE_PAGE 0
+#define PAGES_DONE_DOC 1
+#define PAGES_DONE_END 2
+#define PAGES_DONE_ERROR 3
+#define PAGES_DOC_NEW_PAGE 0x01
+#define PAGES_DOC_RESET_PAGE_NUM 0x02
+#define PAGES_FLAGS_PRINTING 0x01
+#define PAGES_FLAGS_NOTFIRST 0x02
+#define PAGES_FLAGS_ZERODOWN 0x04
+#define PAGES_REGION_BODY 0
+#define PAGES_REGION_TOP 1
+#define PAGES_REGION_BOTTOM 2
+#define PAGES_REGION_LAST_BOTTOM 3
+#define PAGES_REGION_END 4
+#define PAGES_REGION_VERY_END 5
+#define PAGES_REGION_DOC_END 6
+#define PAGES_PAGENUM_ARABIC 0
+#define PAGES_PAGENUM_ROMAN_U 1
+#define PAGES_PAGENUM_ROMAN_L 2
+#define PAGES_HEADER_2_COLUMNS SCRLAY_ALIGN_JUSTIFY+1
+#define PAGES_HEADER_3_COLUMNS SCRLAY_ALIGN_JUSTIFY+2
+
+/* Types for pages */
+
+STRUCT UPOINT
+	x%
+	y%
+ENDS
+
+STRUCT UEXTENT
+	tl#(SIZEOF(UPOINT))
+	width%
+	height%
+ENDS
+
+STRUCT PAGES_DONE
+	event%
+	page%
+	pages%
+ENDS
+
+STRUCT PAGES_HEADER
+	f#(SIZEOF(SCRLAY_FONT))
+	align#
+	first_page#
+ENDS
+
+STRUCT PAGES_PAGE
+	width%
+	height%
+	body#(SIZEOF(UEXTENT))
+	hdtop%
+	hdbot%
+ENDS
+
+STRUCT PAGES_PAGENUM
+	offset%
+	last%
+	style%
+ENDS
+
+STRUCT PAGES_PARAMS
+	pg#(SIZEOF(PAGES_PAGE))
+	pdrflags%
+	docflags%
+	pgbeg%
+	pgend%
+	top#(SIZEOF(PAGES_HEADER))
+	bot#(SIZEOF(PAGES_HEADER))
+	pgnum#(SIZEOF(PAGES_PAGENUM))
+ENDS
+
+STRUCT PAGES_CALLS
+	hread%
+	mread%
+	hdone%
+	mdone%
+ENDS
+
+STRUCT PAGES_INIT
+	wdr%
+	c#(SIZEOF(PAGES_CALLS))
+	fname%
+	toptxt%
+	bottxt%
+ENDS
+
+/* Property of pages */
+
+STRUCT PRS_PAGES
+	pagarr%
+	todo%
+	ephead%
+	prhead%
+	pdr%
+	in#(SIZEOF(PAGES_INIT))
+	par#(SIZEOF(PAGES_PARAMS))
+	last_pos%
+	flags%
+	pheight%
+	brk_height%
+	brk_above%
+	brk_pos%
+	y%
+	nrec%
+	page%
+	reset_page#
+	newdoc#
+	started#
+	newpage#
+	region%
+	holding%
+	pos%
+	pr#(SIZEOF(WDR_PRINT))
+	tabs#(SIZEOF(SCRLAY_TABS))
+	spacing#(SIZEOF(SCRLAY_SPACING))
+	margins#(SIZEOF(SCRLAY_MARGINS))
+	time#(LN_TIME_DATE_STR)
+	date#(LN_TIME_TIME_STR-2)
+	ioclen%
+ENDS
+
+STRUCT PR_PAGES
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	pages#(SIZEOF(PRS_PAGES))
+ENDS

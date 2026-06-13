@@ -1,0 +1,468 @@
+                              ReadCIX      v4.9
+
+
+An Offline message reader for CIX for the Psion Series 3a/c Pocket computer.
+
+Sales.
+######
+
+ This product is now FreeWare.
+
+To register and remove the Nag screen enter the following into the registration details
+Name:   Freeware
+Code:     1242
+
+Upgrading
+##########
+
+*** NOTE ****
+Upgrading versions after 4.2 please make sure all messages are read and delete all messages from the Delete all option on the Message menu. The Readmen.opa module can be deleted.
+For versions before 4.2 please remove all ReadCIX files and install this version in the new directories. Users of 4.2 and above must delete the configuration file and install the new programs and scripts over the older versions.
+
+Introduction. 
+#############
+ It is important to remember the concept behind ReadCIX, it was never meant to be a full OLR such as Matrix or Telepathy or Ameol,the size limits imposed by the small memory would make this impossible. Not from any limitations of OPL or the Series 3a/c itself, more the problems of fitting a large message base into 2Mb of RAM. ReadCIX was created to cater for the times when you have not had time to read all the messages downloaded onto a desktop PC or while you are away and would like to keep up to date with messages and Mail.
+
+There is no clever or complicated thread handling in ReadCIX, all it tries to do is either take a previously downloaded scratchpad or,  a scratchpad downloaded to the  Series 3a/c automatically, and present the messages in an orderly  fashion and enable you to create new messages and replies.
+
+Installation.
+#############
+ You can install ReadCIX.opa  into any \app directory. The remaining files must go in a \app\readcix directory  on  any drive. 
+
+ There are 21 Files included in the Zip file:
+
+  \app Directory
+          ReadCIX.opa	           : The program itself, 
+  \app\readcix Directory
+          Rhscms.dyl                : Comms DYL
+          Sys$help.opo              : Help system
+          Readcix.hlp               : Help File
+          Readall.man 	           :
+          Upload.man	           : The main ReadCIX scripts 
+          Terminal.man              :
+          CixMail.sco               : Additional scripts
+          Recover.sco               :
+          Resume.sco                : 
+          Basket.sco                :
+          Flist.sco                 :
+          Billing.sco               :
+          News.sco                  :
+          Maildir.sco               :
+          Finish,Mail,Welcome.wve   : Optional Sound files.
+ 
+The files sys$help.opo and readcix.hlp ar optional, if you dont feel the need for help, dont install them.
+
+Files not to be installed.
+
+          ReadCIX.TXT                   : This file   
+          Scripts.zip                      : Source for the supplied scripts
+          CixGuide.wrd                  : Beginners guide to ReadCIX
+****Notes
+
+The Zip file of Script source is included  to enable advanced users to customise the scripts. Unless you are VERY sure if what you are doing, do not overwrite the supplied ones.
+
+
+       Psion-I will then install the program as described in the Psion manual.
+
+Operation.
+##########
+General.
+
+There is a full help system on ReadCIX, press the Help key from the main screen and navigate to the area of interest.
+
+ReadCIX allows you to browse a set of messages downloaded from CIX, either by ReadCIX itself or transferred from another computer. It will arrange your messages into conferences, and you can pick which conferences to read. A list of available conferences to read is shown on the main screen together with details of the number of unread messages/total number of messages. Also shown on the main screen are details of any switches set on and  the names of Archived scratchpads. While viewing a message you may print the text or jot down notes or save a message. You can also reply to a message or create new mail and messages.
+
+On first running the program you will be prompted for your CIX user name and password, this is used by ReadCIX to notify you of any replies to messages created by ReadCIX and for logging on to CIX.  Once the program has started,first set up the options in the Configure ReadCIX, Configure Comms and printer options under the special menu. The path names all need a trailing \ i.e. b:\cix\ . If you intend using the built in Comms functions then the correct connections to a modem must be made. Once a scratchpad has been downloaded use the post option to create the individual message files for reading.
+
+If space is limited on the Series 3a/c the scratchpad can be posted from a remote drive using the serial link.
+
+**NOTE
+
+ReadCIX Supports multiple configuration files, so it is possible to have different setups for different Modems/users etc. As standard the default readcix.cfg is used but this can be copied from the system screen and ReadCIX started with the new Config file.
+
+Here is a description of the menu options.
+
+Files. 
+==============
+
+Read Messages
+-------------------------.
+Select a conference to read. 
+
+Delete Messages
+--------------------------
+Deletes one or all the message files. It is best to use this option for deleting message files rather than the system screen as the message pointers are reset.
+
+Display Text File
+-------------------------
+Select and display a text file from within ReadCIX, this could be a previously saved message or downloaded information such as billing details.
+
+Delete Text File
+-----------------------
+Deletes one or all of the text files stored in the directory \cix\text
+
+ Exit.
+---------
+Return to the system screen.
+
+Connect
+======
+
+Full connect
+-----------------
+This  will run the supplied script Readall. This will upload any replies and download any new messages.
+
+Just upload replies 
+-----------------------------
+This will run the supplied script Upload which will just upload any replies.
+
+Run Script 
+----------------
+This will run a user supplied script. ReadCIX will look in the directory defined in the  setting in the Configure option for additional scripts. The following are supplied.
+
+CixMail:			Just uploads any replies stored and downloads any waiting Mail
+Maildir:                 Download a list of files in your mail directory
+Resume:		        Will prompt for a user name and logon and retrieve the resume
+Baskets:                 Downloads a listing of the contents of you In/Out Baskets 
+Flist:                   Downloads a listing of  a topics file list
+Billing:                 Prompts for Year and Month and retrieves billing details
+News:                    Downloads any new messages from Newsnet newsgroups you are
+                         joined to. Optionally joins or resigns groups.
+Terminal                 Allows you to start up the built in Comms app, with optionally 
+                         logging on to CIX and staying online.
+
+**** Notes.
+
+Read CIX uses the Standard Series 3a/c Comms application to connect to CIX, therefore there are a few things to setup outside ReadCIX before it can be used. The Comms application must be installed and the serial link connected to a modem with the correct cables. 
+When a script is selected from the menu, ReadCIX passes control to the Comms application while the script is running. This allows you to monitor the progress of the script and reply to
+any prompts. When the script has finished, control returns to ReadCIX.
+
+ Posting.
+========
+
+Post Scratchpad.
+-------------------------
+After prompting for a file name this option will read through the downloaded scratchpad and post the messages to the relevant file. ReadCIX uses the first eight characters of the conference name as a file name. It will create a file for each new conference. If ReadCIX finds a conference exists already, the messages will be added to the end of file. ReadCIX maintains a pointer to the last read message for each conference and will position you at the last read message upon entering a conference file. After posting the scratchpad will be renamed to Scratchp.sc(x) where x is an number from 1-5 This will allow the scratchpad to be saved for later importing into a desktop system. For example the scratchpads could be saved whilst away and the imported into AMEOL via the Import CIX scratchpad option.
+
+Import scratchpad
+---------------------------
+After prompting for a file name this option will read through a scratchpad in the same manner as above. the only difference is that this option looks for a scratchpad which has been created with the COMPACT HEADER YES option set on CIX. This option is used in OLR's such as AMEOL .
+
+Post Newsgroups
+--------------------------
+After prompting for a file name this option will read through a scratchpad downloaded with the News script and post the messages to a message file called News. All Newsgroups will be posted to the News file, must as topics are posted to on conference file.
+After posting the scratchpad will be saved in the same manner as a CIX scratchpad described above.
+
+Delete Scratchpad.
+-----------------------------
+Delete the downloaded scratchpad.
+
+CIX
+===
+
+Join Conference/Topic
+--------------------------------
+This option will prompt for a conference or topic to join on CIX, if you just enter a conference you will be joined to all topics, specifying a topic will restrict the joining to that topic. Only the 5 most recent messages are collected on first joining topic to reduce the amount of storage used.
+
+Resign Conference/Topic
+------------------------------------
+This works as above but allows the resigning of either a conference or topic.
+
+Read Resume
+---------------------
+Select a previously downloaded resume for reading. The Script Resume can be used to log on and retrieve a resume, the script prompts for a user name and logs on and downloads the resume to a file called resume.txt. ReadCIX will then prompt for a new unique name and store the resume in \cix\resume\ on your default drive.
+
+Delete Resume
+-----------------------
+Deletes one or all downloaded resumes.
+
+Restore Pointers
+------------------------
+This option will restore the message pointers to enable the recovery of a lost scratchpad.
+
+Display File list
+-----------------------
+Display a previously downloaded topic file list.
+
+Delete File list
+---------------------
+Deletes one or all of the downloaded file lists
+
+Switch Files On/Off
+-------------------------------
+This toggle simply sets a switch which the script Readall can see. If it is set ON then the script will prompt for File names to upload or download. The switch is reset on completion of a logon session.
+
+****Notes.
+
+If the Switch Files toggle is ON i.e.. the option is showing Switch Files OFF, then the Readall script will display a menu after asking for the scratchpad name and before logging on to CIX.
+The menu has 5 options.
+
+Download file
+Upload File
+Download Binmail
+Upload Binmail
+No File action.
+
+For the File options you are prompted for a conference/topic name and the location of the file and a name.For Uploads you are also prompted for a description/size. For the Binmail options you are prompted for names and locations only.
+
+The No file action will not attempt any file actions.
+
+This part of the script will be run after all normal processing so do not attempt to send Binmail from ReadCIX that is being uploaded in the same session.
+
+Mail
+====
+
+Clear Inbasket
+Clear Outbasket
+------------------------
+These options will clear the relevant basket on CIX
+
+Mark Mail Unread
+--------------------------
+This option prompts for a Mail Message number from your Inbasket and will mark it unread.
+
+Binmail File
+------------------
+If you have Uploaded a file to your personal directory on CIX this option will allow you to send the file to another CIX user. You are prompted for the file name and a recipient.
+
+Erase Binmail
+--------------------
+This allows you to delete a file in your personal directory on CIX
+
+Display Basket Contents
+-------------------------------------
+Allows the displaying of  In/Out baskets If you have used the script Baskets to download the contents of your mail In and Out baskets.
+
+Delete Basket File
+----------------------------
+Deletes the above file, this does not delete any item in you In/Out Baskets
+
+Create
+======
+
+Create mail
+-----------------
+You are prompted for a To: Name and Title: Use the up and down arrow keys to move between the fields. Press enter to move to the Writing area.
+
+You are placed in the built in Word processor and can the compose your message, Whilst you are in the Word processor, ReadCIX is paused displaying a message until you exit from the editor. 
+
+Psion x will return you to ReadCIX.
+
+Create message
+-------------------------
+You are prompted for a conference and topic to post the message to and also a title for the message. Please make sure you are joined to both the conference and topic you select as the created script does no checking on this.
+Once again press enter to move to the writing area.
+
+See above for full description.
+
+Create FAX
+-----------------
+You are prompted for a FAX Number. The remaining fields are used to make up the cover page of the FAX.
+Once again press enter to move to the writing area.
+See above for full description.
+
+Reply File
+========
+
+Edit Reply file.
+----------------------
+Any new mail or messages or replies or FAX's you create are stored in a file called Reply.txt in the \cix\ directory on the internal drive. This option starts the built in Word processor to allow you to edit or add to a previously created message. If you have anything in your reply.txt file the screen will look something like this.
+
+JOIN psion/series3
+SAY
+TITLE: ReadCIX
+Hi this is a demo reply file
+
+
+
+
+.
+QUIT
+MAIL
+TO: salex
+TITLE: ReadCIX
+What a good program ReadCIX is, I have sent the required 12.00 registration fee.
+
+Fred
+.
+SEND
+QUIT
+
+You should be able to see the text of your message in between the Capitalised commands. You can edit the message and add as much extra text as you wish as long as the commands or their relative positions are not altered. If you are an expert on CIX there is no reason why you could not add extra commands to the file to perform other functions.
+
+You exit the Word processor in the normal way with Psion X
+
+Clear Reply file
+-----------------------
+This option will clear the created reply file Reply.txt in the \cix\ directory of the internal drive.
+
+Recover Reply file
+--------------------------
+This option will copy the saved reply file back to reply.txt file if necessary.
+
+**** Notes
+
+After running the Script options from the Connect menu, if all replies were posted OK, the reply file (Reply.txt in the \cix\ directory of the internal drive) is copied to reply.bak  and the reply.txt file cleared.
+
+This Backup file can be recovered using the Recover Reply file option from the connect menu or renamed reply.txt if the replies are needed again for some reason.
+
+Run
+=====
+
+Run Program
+----------------
+This allows the running of external programs. Use the Create switch to create a switch in the form xxxxxx.run where xxxx is the name of the program you wish to run. This name will then be listed when using the Run option and the program can be started from ReadCIX. Only .opa type programs are supported, and only programs that do not have a file list under them.
+
+Example.
+To add Timber11 to the list, create a timber11.run switch, using the Run Program option will then allow you to start Timber from your ReadCIX session.
+
+Special.
+========
+
+Configure ReadCIX.
+----------------------------
+This allows you to define the following.
+
+Drive for Message files
+Drive  for scratchpad
+Path for additional scripts used in the connect menu
+Use sound Yes or No
+Use the message reply notification Yes or No
+User Def 1
+User Def 2
+
+****Notes
+
+Switching off the reply notification will show a slight increase in speed of posting the scratchpad.
+The user def options are for advanced users. Using the Configure User Defined option, names can be given to the options shown in the Configure ReadCIX dialog. These User defined options can be used to control the action of user written, or the supplied scripts. Each option, if selected, will create a file on the m drive in the \cix directory called Rhsc-opt.xxx where xxx can be 091-095 depending on the option selected. See the supplied scripts for examples of how to use this technique.
+
+Configure Comms
+--------------------------
+This allows you to define the following
+
+CIX User Name
+CIX Password
+CIX Phone Number to Dial
+Modem Initialisation string
+Dialling Prefix- ATDT for Tone, ATDP for pulse.
+Baud Rate to use
+Type of Handshaking to use
+Download Protocol
+
+****Notes
+
+If you require a number to be inserted for a outside line on a switchboard place it after the ATDT/ATDP command.
+It is best to leave the Handshaking option at the default unless you are experiencing problems.
+
+Printer.
+--------------
+The printer setup menu allows you to specify a parallel or serial printer, and if serial the settings for the serial port.
+
+Register.
+-------------
+ReadCIX is FreeWare, Enter the code given above to remove the Nag Screen.
+
+About.
+----------
+Displays brief details of ReadCIX and shows which configuration file you are using.
+
+Create Switch
+------------------
+ReadCIX supports the concept of switches to control parts of the online session. At the moment only a few are used.
+News
+Basket
+Maildir
+
+If  one of these switches is set on the the corisponding script will be run after the full connect script has run ie if a switch has been created called maildir.on then after compleating the full connect script the Maildir script would be run before logging off.
+Any switches set on will show above the status bar on the main display.
+
+Also the switch Arcreply.on will cause ReadCIX to append all replies to a file arcreply.txt in the \cix\text directory.
+
+Reading Messages.
+##################
+
+Whilst reading messages,  the help key will show a reminder of the available keys, these are 
+
+                Esc- Return to Menu
+                Help- Basic help text
+                Enter- Show next page of message 
+                Space- Show next page of message
+                Shift Enter- Show first page of message
+                Up Arrow- Previous message
+                Down Arrow- Next message 
+                Menu-Call up SubMenu 
+                Psion+END- Goto last message of Conference
+                Psion+HOME-Goto first message of Conference
+                Psion+PGUP-Jump to Original message if Comment
+
+As Noted above pressing menu  will bring up a sub menu with options that can be performed.
+
+Replies
+=======
+
+The options here are the same as found in the Create menu with the exception of Reply to message. This will not prompt for a Conference/Topic or title but will create a Comment on the current message. 
+
+Messages
+=========
+
+Save Messages
+---------------------------
+This will prompt for a file name to save the current message to. If the file exists it will be overwritten.
+
+Print Message
+---------------------
+This will allow the current message to be printed to the printer specified in the Configure menu.
+
+Archive Message
+-----------------
+This will append the current message to Archive.txt in the \cix\text\ directoryand can be read with the Display text file option.
+
+Edit
+====
+
+Find
+-------
+This will allow searching for a text string in the body of a message. The search starts from the next message and searches the current message file only. You will be positioned at the message containing the text. This option does not effect the last read message pointer so a search through an unread conference will not stop later reading.
+
+Special
+======
+
+Write note
+---------------
+This  will switch to the word processor application of the Series 3a/c to allow the writing of
+notes. You will be asked if you require a new file or wish to use a existing one.
+
+Zoom  View
+-----------------
+This option cycles through the three available Zoom levels.
+
+Register EOL / Ignore EOL
+---------------------------------------
+This option will try to preserve the layout of a message rather than fit as much as possible on the screen. This option acts as a toggle. In the smallest font view this option is not available as the default is to preserve the layout at this level.
+
+Message Details
+----------------------------
+Displays the current message number and date and time
+
+Sound
+======
+
+Sound is used in four places.
+
+1. On the startup screen. (Welcome.wve)
+2. On completion of a Connection. (Finish.wve)
+3. On completion of posting. (Finish.wve)
+4. On detecting a Mail Message. (Mail.wve)
+
+Each file can be deleted if the sound is not required, or the can be recorded over to customise your setup.
+
+ Any problems or request can be referred to my CIX ID salex or my CIS ID 100034,2641.
+
+
+Acknowledgements.
+
+My thanks to Chris Hennings of Right Hand Software for the Comms DYL. RHSCMS.DYL is supplied strictly for ReadCIX and cannot be used for any other purpose.
+Also thanks to John Boyce for his help in converting Word files to text.
+Finally, thanks to David Griffiths for his patience in testing and enthusiastic advertising of ReadCIX.
+
+

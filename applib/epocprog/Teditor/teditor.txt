@@ -1,0 +1,52 @@
+Teditor.opo  a loadable basic editor module for the Psion Series 5.
+Updated 14th February, 1998.
+
+This module can be loaded into an OPL32 program to provide a simple text
+editor.
+
+Load it when required, or at startup, with a LOADM command. You can 
+unload it if you wish, with UNLOADM.
+
+The OPL code supplied shows how the module is called. It will return
+suitable error codes if anything goes wrong within the module. 
+
+error_code% = ted%:(file$,title$,size&,flag%,thread&)
+
+file$		is the full path to a file to be edited or created.
+title$		is the legend above the editor window. If a null string is used,
+		an extra line will be created in the editor window.
+size&		Make sure the buffer is big enough! Its size is fixed at startup,
+		and cannot grow like a proper editor!
+flag%		Set this to 0 for an existing file, or 1 to create a new file.
+thread&		is the thread id for the main application.
+
+The module contains a BUSY OFF command which is executed when the editor
+appears. It is a good idea to preceed your call to ted: with something
+like BUSY "Please wait". The module also generates a "Saving..." message
+when saving a file. If something goes wrong while saving, this may not be 
+cancelled, so use a BUSY OFF after calling ted:
+
+It may be desirable to LOCK ON and LOCK OFF to prevent your application
+being closed from the system screen while ted: is being used.
+
+The module also generates standard error codes.
+
+Note that the time between loading a text file, and the editor window
+appearing, is variable and not always related to file size. For example,
+there may be a delay between the "press UpArrow" message and the editors
+appearance. A small 1.5k file may take longer to appear than a 10k file!
+
+Geofox users: This module is intened for use on a 640 * 240 screen.
+Contact me if you have a larger screen.
+
+Teditor.opo is supplied with no guarantee of suitability for any use.
+The author disclaims all responsibility for any unwanted effects on your
+Psion or other computer. USE AT YOUR OWN RISK.
+
+Teditor.opo is freeware. If you circulate an application with this module,
+I disclaim any responsibility for unwanted effects.
+
+Roger Muggleton
+hzk@cix.co.uk
+http://www.cix.co.uk/~hzk/
+

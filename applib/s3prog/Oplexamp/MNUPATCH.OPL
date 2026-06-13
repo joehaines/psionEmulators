@@ -1,0 +1,47 @@
+This file will hopefully help OPL programmers to avoid a bug in the
+OPL 'MENU' routine, which allocates itself memory that doesn't get
+released properly. I don't know whether it clears itself when
+the program terminates, or whether the allocated memory stays
+around until the next soft reboot, but the patch is still worth
+using in your programs, there's no point in making trouble for
+yourself when you know the cure ...
+
+proc main:
+
+ global pt1&(7),pt2&(7),pt3&(8) rem patch arrays
+
+ rem load up MENU patch
+ ptinit:
+
+endp
+
+
+PROC PtInit:
+	REM menu patch machine code
+        REM (C) Psion UK PLC
+
+	Pt1&(1) = &8BF88BFC
+	Pt1&(2) = &8B00121E
+	Pt1&(3) = &778B205F
+	Pt1&(4) = &E42AAC0C
+	Pt1&(5) = &A5ABC88B
+	Pt1&(6) = &75C084AC
+	Pt1&(7) = &CBF8E2FB
+	Pt2&(1) = &00B4F08B
+	Pt2&(2) = &FC808BCD
+	Pt2&(3) = &AD0D7330
+	Pt2&(4) = &C932D08B
+	Pt2&(5) = &CDD88BAD
+	Pt2&(6) = &F8754ACF
+	Pt2&(7) = &CB
+ENDP
+
+
+/// And, where you'd normally call MENU ... ///
+
+ REM use menu patch around call to menu
+ USR(ADDR(PT1&(1)),ADDR(PT3&(1)),0,0,0)
+ k% = MENU
+ USR(ADDR(PT2&(1)),ADDR(PT3&(1)),0,0,0)
+
+That's all folks!

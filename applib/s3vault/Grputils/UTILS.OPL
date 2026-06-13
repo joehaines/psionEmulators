@@ -1,0 +1,147 @@
+REM Utils Application for Series 3 - 27 Nov 91
+REM Rick Andrews.
+
+APP Utils
+	TYPE 0
+REM Put your icon here, or remove the line.
+	ICON "\PIC\UTILS.PIC"
+ENDA
+
+
+PROC Utils:
+
+REM Full pathnames of .OPOs found.
+	LOCAL name$(20,128)
+REM String of .OPO names to offer user.
+	LOCAL choice$(254)
+	LOCAL fname$(128)
+	LOCAL disk$(1)
+REM Names of disks to search.
+	LOCAL dname$(4)
+
+	LOCAL done%,disk%
+	LOCAL c%,numtool%
+
+REM (Constant) Maximum number of toolnames. 
+	LOCAL MAX%
+
+REM Initialisation.
+REM Total number of tools on all drives.
+	MAX%=20
+
+REM Names of disk drives to search.
+	dname$="MABC"
+
+REM Check each disk for tools.
+	disk%=1 :done%=0 :numtool%=0
+	DO
+		disk$=MID$(dname$,disk%,1)
+
+		fname$=ChkDir$:(disk$+":\UTILS\*.OPO")
+
+		WHILE fname$<>""
+REM If the array is full...
+			IF numtool%=MAX%
+				done%=1
+				GIPRINT ("Too many tools found!")
+				BREAK
+			ENDIF
+			numtool%=numtool%+1
+			name$(numtool%)=fname$
+			fname$=DIR$("")
+		ENDWH
+
+		disk%=disk%+1
+REM If all disks have been checked...
+		IF disk%>LEN(dname$)
+			done%=1
+		ENDIF
+	UNTIL done%
+
+REM Now build the choice string.
+	c%=1
+	choice$=BaseN$:(name$(1))
+
+	WHILE c%<numtool%
+		c%=c%+1
+		IF LEN(choice$)>240
+			GIPRINT ".OPO names too long!"
+			BREAK
+		ENDIF
+		choice$=choice$+","+BaseN$:(name$(c%))
+	ENDWH
+
+	IF choice$ = ""
+		ALERT ("No .OPOs found")
+	ELSE
+		DO
+			dINIT "Choose"
+			dCHOICE c%,"Tool",choice$
+			IF DIALOG
+REM Load the chosen one and call it.
+				LOADM name$(c%)
+				@(BaseN$:(name$(c%))):
+				UNLOADM name$(c%)
+			ELSE
+				BREAK
+			ENDIF
+		UNTIL 0
+	ENDIF
+ENDP
+
+
+
+PROC ChkDir$:(path$)
+REM Ensure a disk and sub-directory exist.
+	LOCAL file$(128) REM Full filename.
+
+	file$=""
+REM The DIR$ will produce an error if the
+REM disk or directory is missing, so the error
+REM has to be trapped using the ONERR command.
+	ONERR nodir::
+	file$=DIR$(path$)
+nodir::
+	ONERR OFF
+	RETURN file$
+ENDP
+
+
+PROC BaseN$:(f$)
+REM Extract filename from full pathname.
+REM And tidy it up by capitalising the first letter.
+	LOCAL name$(8)
+	LOCAL tidynm$(8)
+
+	LOCAL dot%,slash%
+	LOCAL len%
+
+REM Find the '.' separator.
+	dot%=LOC(f$,".")
+	IF dot%=0 REM no dot
+		RETURN ""
+	ENDIF
+
+REM Find the '/' separator.
+	slash%=dot%-1
+	DO
+		IF MID$(f$,slash%,1)="\"
+			BREAK
+		ENDIF
+		slash%=slash%-1
+	UNTIL slash%=0
+	IF slash%=0 REM Not found
+		RETURN ""
+	ENDIF
+
+REM Extract the filename and tidy it.
+	len%=dot%-slash%-1
+	name$=MID$(f$,slash%+1,len%)
+
+	tidynm$=LEFT$(name$,1)
+	IF len%>1
+		tidynm$=tidynm$+LOWER$(RIGHT$(name$,len%-1))
+	ENDIF
+
+	RETURN tidynm$
+ENDP

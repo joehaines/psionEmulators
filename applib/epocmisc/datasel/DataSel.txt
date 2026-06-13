@@ -1,0 +1,364 @@
+DataSel is a replacement for the Data program built in to most Epoc machines .
+
+To install DataSel simply double click on the SIS file , or copy the SIS file
+to your Psion and use the Add/Remove command in the control panel to add
+the program .
+
+DataSel is very simple to use ( I hope !! ) I shall list the commands in the 
+order they appear on the menu and make a note of any unusual or hidden
+commands whose function is not immediately apparrent .
+
+When you start DataSel for the very first time , no database will exist ,
+you will be asked if you would like to open an existing file or create a 
+new one - as no existing files will exist ( yet ) you should select Create New
+and one will be automatically created and the display will show the first
+record in the file . This first record will be similar to :-
+
+Field1 This file is empty , press Ctrl+A to add new records
+Field2 or Ctrl+L to merge in records from an existing file
+Field3 Edit the titles using Ctrl+T
+Field4
+Field5 Welcome to Dataselector for Epoc ! @ Mark Stevenson 2000
+Field6 Read the readme file for more information
+
+After a merge has been done - if the First record is as above , it will be
+automatically removed from the file .
+
+Menu commands :-
+
+File
+
+Ctrl+O
+Open file , this allows you to open an existing DataSel file , you cannot
+open standard Epoc database files - see the merge command
+
+Ctrl+N
+Create New file , this enables you to create a new database file , when a
+file is created - the first record will be as shown above - this will be
+removed after a merge , if you simply want to add individual records add
+at least ONE new record BEFORE attempting to delete the default record
+
+Ctrl+L
+Merge , this enables existing Epoc databases to be merged into an existing
+DataSel file , if there are already records in the DataSel file the merged
+records will be added at the end of the existing ones , in the order they
+appear in the actual datbase file ( this may be different to the order
+they are DISPLAYED in the Epoc Data program ) , if the first record in the
+DataSel file is the default one ( This file is empty etc.. ) then this
+record will be automatically removed from the file . This saves you the
+effort of doing it manually - you didn't want to keep that record did you ?
+
+NOTE
+The database file you wish to merge in MUST contain at least 8 Text fields
+or an error will occur . Memo field are NOT text fields , nor are Date fields
+Number fields etc. In Data you can check on the type of labels by pressing
+Ctrl+L , highlighting each field and then selecting Edit and checking the
+'Type' . If there are less than 8 text fields you should add as many as are
+required until there are 8 text fields . Assuming there are 8 text fields ,
+any NON-TEXT fields will be ignored ( and not merged in ) . If you have an
+existing Data file you wish to use in DataSel which does not conform to
+these requirements , you can either convert it on the PC using Psion file
+convertor to a Series 3 file then use Palmtop Software 3Base to convert it
+to plain text file - in the format of :-
+
+8 Fields per record
+Field de-limiter = Carriage return , Line feed ( CR,LF )
+record de-limiter = Carriage return , Line feed ( CR,LF )
+
+( this method is highly recommended - 3Base is now freely downloadable
+from the Palmtop website )
+
+Or to export the file as text from the Epoc Data program , create a new
+Epoc Data file , delete all the labels and add 8 new ones , with each
+field being set to text with a 250 character length then importing the
+text file created earlier . I have done this myself with excellent 
+results on my Tv/Vcr fault databases which contain over 5000 entries .
+
+Ctrl+E
+Exit , exits the program , all current options are saved and the database 
+file is compressed ( deleted entries removed etc. ) to save disk space .
+
+Ctrl+X
+Export as text , this exports the file as text . The export format is:- 
+
+DataSel type : 8 Fields per record
+Field de-limiter = Carriage return , Line feed ( CR,LF )
+record de-limiter = Carriage return , Line feed ( CR,LF )
+
+This is compatible with Palmtop software 3Base file conversion program
+and most PC databases have a plain text CR,LF import utility ( Dbase etc. )
+
+****************************************************************************
+
+If you set the 'Export delimiters' line to Psion Data , when importing into
+Psion Data you would set the import text file dialog 'Options' settings to 
+the following .
+
+Text Qualifier = None
+Label separator = Tab ( Tab )
+Entry separator = End of line
+
+You would also need to have ensured that you have set at least the first 8
+label types to 'text' , with a length of 250 . Note that DataSel can store 
+a maximum of 255 characters per field , if any fields are longer than 250 ,
+the last five characters of that field will be 'lost' by the Psion import
+routine , but WILL be present in the export file created by DataSel , you
+should be able to view this file with a text editor , and 'reclaim' the
+lost information .
+
+Note that this type of export file CAN NOT be re-imported into DataSel . 
+If this file is imported into a Psion Data file , this Data file can then 
+be imported back into DataSel .
+
+****************************************************************************
+
+The file is normally sorted alphabetically before being exported , for 
+databases which you do not want to be sorted alphabetically this can be
+overridden by using the hidden shortcut command of Ctrl+Fn+X , you can tell
+if the file is to be exported alphabetically ( or not ) as when you are 
+asked for the exported files file name , the dialog will display either
+'Alphabetic Export as text' or 'Non-Alphabetic Export as text' .
+It is possible to sort the database , using the alphabetic export and then 
+importing the text file into a new database file .
+
+Shift+Ctrl+X
+Import text , this enables the import of plain text files into an existing
+DataSel database file . The text file format MUST be :- 
+
+8 Fields per record
+Field de-limiter = Carriage return , Line feed ( CR,LF )
+record de-limiter = Carriage return , Line feed ( CR,LF )
+
+again you can prepare a Series 3 database or other database using Palmtop
+Software 3Base or similar . No checks are performed that the file to be
+imported is in a valid form , the worst that can happen is that records
+run 'out of sequence' with any labels that might be entered - or the
+resulting records contain gibberish .
+
+If you set the 'Export delimiters' line to Psion Data when exporting the
+file , you will NOT be able to import this back into DataSel , in this case
+you would have to import the file into a Psion Data file , then import
+this Data file into DataSel ( see instructions on exporting above ) .
+
+If you are importing into an existing file , it might be sensible to
+back the file up BEFORE attempting an import .
+
+Ctrl+Q
+About , displays a copyright notice and the version number .
+
+Navigate
+
+Fn+<
+First record , goes to the first record
+
+Fn+>
+Last record , goes to the last record .
+
+Ctrl+J
+Jump to record , jump directly to a specific record number .
+
+Ctrl+F
+Find records , allows search of all records , records which match the search
+will be displayed along with a record count ( Record 3 of 344 ) . As this
+searches ALL 8 fields , a limit of 10 characters exists on this search , if
+more than 10 are entered it will be truncated to the first 10 .
+
+Shift+Ctrl+F
+Sql Search , the sql search gives more control over the search . It is possible
+to find records which match 2 criteria . The first search request is entered ,
+along with the specific field to search and the type of search , if this is
+set to 'Contains' then the search request can be at any position in the relevant
+field ( 'mark' would find marked , hallmark , remarked etc ) if set to 'Equalls'
+then the entire contents of the relevant field must exactly ( apart from case )
+'Greater than' allows search for records greater than the search request COMPARED
+AS A STRING VALUE , using this on records which contain numbers AND punctuation
+or letters of the alphabet causes odd effects . 'Less than' works in the same way
+and has the same limitations as greater than . If you wish to perform a search on
+a second criteria set 'Second search' to 'And' - records must contain both search
+requests , 'Or' records can contain one , other or both search requests , 'None'
+- no second search is carried out .
+
+Ctrl+G
+Quick search , allows a search for the next/previous record to be entered , after
+entering the search request press 'Enter' to search forward , or Ctrl+R to search
+backwards . All fields are searched . You might be interested that as this feature
+was copied in its entirety from the Series 3 version of the program it is possible
+to carry out a dual search by typing in the search request as follows :-
+
+mark and london
+mark and mablethorpe
+mkstevo@nildram.co.uk and www.markstevenson.nildram.co.uk
+
+( records must contain both the items either side of the ' and ' - the spaces
+either side of the word and MUST exist - but are ignored )
+
+mark or london
+mark or mablethorpe
+mkstevo@nildram.co.uk or www.markstevenson.nildram.co.uk
+
+( records can contain either of the items either side of the ' or ' - the spaces
+either side of the word or MUST exist - but are ignored )
+
+you can even type :-
+
+mkstevo@nildram.co.uk and mablethorpe or mark and london
+
+( this example is effectively split as follows )
+
+(mkstevo@nildram.co.uk and mablethorpe) or (mark and london)
+
+records can optionally contain either of the two sets of bracketed requests .
+
+mkstevo@nildram.co.uk and mablethorpe or london
+( Valid request )
+
+( this example is effectively split as follows )
+
+(mkstevo@nildram.co.uk and mablethorpe) or (london)
+
+records can optionally contain either of the two sets of bracketed requests .
+
+mablethorpe or mkstevo@nildram.co.uk and london
+( Valid request )
+
+(mablethorpe) or (mkstevo@nildram.co.uk and london)
+
+mablethorpe and mkstevo@nildram.co.uk and london or mark
+( INVALID request )
+
+((mablethorpe) and (mkstevo@nildram.co.uk and london)) or (mark)
+unless you have an entry containing the phrase 'mkstevo@nildram.co.uk and london'
+the first half of this search is unlikely to return as true .
+
+if you wish to search for a phrase containing the word 'and' , either enter it
+with no trailing space ( 'dead and' or 'and burried' ) or use the Find records 
+command instead .
+
+Esc
+Find all records , cancels any existing search and all records are valid .
+
+Ctrl+I
+Insta-Search options , the options set here are stored for each file you have
+opened on the Psion , the options are 'Field to search' ( any of the 8 fields or All
+fields ) 'Only search start of field' ( Yes or No ) if this is set to yes then the
+first characters in the field ( or fields ) must exactly match the search request
+( 'mark' will match 'marked' , 'Mark' , 'Mark Stevenson' , 'MarkStevenson.nildram' 
+but NOT 'www.MarkStevenson.nildram.co.uk' , 'remarked' , 'He was a marked man' etc.)
+'Always Start at first record' ( Yes or No ) if this is set to yes when a NEW 
+Insta-Search request is entered , the search will start from record 1 .
+
+Note that the Insta-Search options affect the Quick search operation , apart from 
+always start at first record .
+
+**********************************************************************************
+
+An Insta-Search is initiated by just typing at the keyboard - simple as that .
+
+DataSel assumes if you do not press any control buttons ( Ctrl , Fn , Tab , Enter ,
+Esc , Del , Menu etc. ) you want to enter an Insta-Search . If you pause typing an
+Insta-Search request for more than 2-3 seconds the search will start automatically
+you can alternatively press 'Enter' to skip the 2-3 second pause if you are in a rush
+If you make a mistake typing an Insta-Search request , pressing 'Esc' will cancel the
+Insta-Search operation .
+
+It is possible to enter a dual search request as outlined in the Quick search section
+as an Insta-Search command ( if you can type quickly enough !! )
+
+Insta-Search searches WITHIN the current record set , this can be helpful in trying
+to narrow down the records you require .
+
+************************************************************************************
+Pressing 'Enter' will search for the next record which matches the search request
+displayed in the status bar , pressing Shift+'Enter' searches for the previous
+record which matches the search request . If no search request has been entered
+this will simply move to the next/prevoius record in the file .
+*******
+
+Edit
+
+Ctrl+A
+Add record , adds a new record to the database , once the details have been entered
+press 'Enter' to save and a new empty record will be displayed ready for adding in ,
+when you have finished adding records either press 'Esc' to close the Add dialog (and
+abandon any information currently entered in the dialog ) or press 'Enter' while an
+empty record is displayed . IE pressing 'Enter' twice in quick succession saves the
+first record then abandons the adding of further records without saving the 'empty'
+record .
+
+Ctrl+U
+Update Current record , allows updating of records . Press 'Enter' to save the changes
+or 'Esc' to close the dialog and abandon any changes NOT YET SAVED .
+
+Ctrl+K
+Edit New record , adds a new record , with the field values filled in using the current
+records field values , useful if you have a lot of similar records to enter . 'Enter'
+saves the record , 'Esc' abandons any changes made so far . The ORIGINAL record is
+left unchanged , the NEW record is saved at the end of the file .
+
+Ctrl+D
+Delete record , deletes the current record . Press 'Enter' to confirm deletion , 'Esc'
+to abandon the delete action .
+
+Shift+Ctrl+T
+Edit field titles , allows you to customise the field titles .
+
+NOTE . If you set any of the field titles to 'Date' ( NOT 'Date sold' or 'Sale date' etc.)
+when a record is added ( Ctrl+A ) or Edit new ( Ctrl+K ) the date field will be filled
+with the current date in the format dd/mm/yyyy - IE 27/06/2000 .
+
+View
+
+Ctrl+B
+Browser , Displays the records in a simple list style , press 'Enter' - close the browser
+and make the browsers current record the current record , 'Esc' close the browser , 
+Ctrl+W alter the display widths .
+
+NOTE the browser is not yet working to my satisfaction , it is VERY slow if displaying
+the results of a search . I may remove it completely from later versions .
+
+Ctrl+T
+Show toolbar , shows or hides a toolbar . The setting of the toolbar is saved on a file
+to file basis , you could have one file which automatically has a toolbar on opening
+and another with no toolbar .
+
+Ctrl+W
+Word Wrap , turns the word wrap on or off . Word wrap is always turned on when the file 
+is opened
+
+Ctrl+M
+Zoom im
+
+Shift+Ctrl+M
+Zoom out
+
+Debug
+
+Shift+Ctrl+D
+Debug , If you see this command you must have my Psion Revo !! Does nothing of use other
+than to slow the program down and print out values of critical variables at various
+points of the program . Helps me to see what is going on 'under the hood' while trying
+out various features and code re-writes .
+
+*************************************************************************************
+The status bar doubles up as the scrollbar if a record is unable to be displayed in
+its entirety in the display window . When this is the case , the scroll up/down 
+arrows will be displayed in the right corner of the status bar , tapping on the
+appropriate arrow will scroll in the direction indicated , you can also use the up
+and down arrow keys on the keyboard to the same effect . If the display has been
+scrolled - the Tab key returns the display to the usual position .
+*************************************************************************************
+The left and right keys ( < , > ) move to the next/revious records as expected
+*************************************************************************************
+
+While DataSel is not exactly 'Beta' software , it is not exactly finished either .
+I would welcome constructive comments regarding its operation . I can Honestly say
+that I use it daily and much prefer it to the Data program , but am still refining
+its operation .
+
+
+DataSel is freeware , I use it on my Revo reglarly
+and I have not suffered from any unusual growths,
+injuries or data loss as a result . 
+I cannot promise that you won't either .
+
+Copyright Mark Stevenson 2000 mkstevo@nildram.co.uk

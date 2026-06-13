@@ -1,0 +1,42 @@
+Some (brief) notes on new alarm services on the S3a
+===================================================
+
+See aalarma.opl for an (Opl) example.
+
+The enclosed file hasrv.h gives the C interface.
+You may notice how the line
+    local t1&,t2&,snd$(8)  rem keep together
+in the Opl program matches the definition
+    typedef struct
+        {
+        ULONG absTime; /* Alarm time in seconds */
+        ULONG dueTime; /* Actual time alarm is due for */
+	SE_SND sound; /* The sound to play */
+	} AXDATA;
+in the header file.
+
+Note: the zero_term field in the SE_SND struct is not used at the
+level of the interface to the alarm server ALM:.
+
+To signal *other* WVE files to be used (other than those in the rom):
+---------------------------------------------------------------------
+The files *must* be of the form \WVE\<name>.WVE on a local drive.
+Eg \WVE\SOUND.WVE.
+In this case, just put <name> into name[], and the length into the
+len field.
+In Opl, you might define, in this example,
+    sndname%(n)="SOUND"
+Note that the drive letter is omitted completely.
+The S3a alarm driver (more correctly, the S3a sound driver) hunts
+this down when the alarm goes off.
+
+Brief comments on details of AALARMA.OPL
+----------------------------------------
+
+The +9 in the ioa line converts from S3 services to S3a services
+(because A_FUNTIMED_X is 9 more than A_FUNTIMED, etc).
+
+The -1 in the call to bufcopy: takes account of the fact that the
+addr of a string gives the address of the leading byte count of the
+string, whereas Opl also sets aside a byte *before* this for the
+maximum length of the string.

@@ -1,0 +1,582 @@
+rem Digital.opl
+rem An example of digital audio (DSP)
+rem signal processing.
+rem
+rem Totally Public Domain - do
+rem anything you wish, freely, with
+rem this code - I claim no
+rem copyright, or offer warranties.
+rem 
+rem Needs modifying for the 3a
+rem
+rem Written by jezar@cix
+rem January 1994
+
+Proc startup:
+	setup:("kget%")
+endp
+
+PROC kget%:
+	LOCAL k%,h$(26),a$(5)
+	h$="NOSAWLUVGCKRDHIZPMXBTF"
+	WHILE 1
+		k%=GET
+		IF k%=$122 REM Menu key
+			mINIT
+ 			mCARD "File","New file",%N,"Open file",%o,"Save file",%s,"Save as",%a,"Revert",%v
+			mCARD "Edit","Add waveforms",%w,"Low pass filter",%l,"Volume",%g,"Clear wave",%c,"Complex filter",%k,"Undo",%u
+			mCARD "Display","Redraw",%r,"Show difference",%d
+			mCARD "Store","Store waveform",%h,"Retrieve waveform",%i,"Difference "+chr$(16)+" waveform",%z,"Mix waveform+store",%m
+			mCARD "Special","Phase toggle",%t,"Phase offset",%p,"Base offset",%b,"Info about program",%f,"Exit",%x
+			k%=MENU
+			IF k% AND INTF(LOC(h$,CHR$(k%)))
+				a$="proc"+CHR$(k%)
+				@(a$): REM procn:, proco:, ...
+			ENDIF
+		ELSEIF k% REM hot-key 
+			k%=k% AND $DF REM Uppercase
+			k%=LOC(h$,CHR$(k%)) REM One of ours?
+			IF k%
+ 				a$="proc"+MID$(h$,k%,1)
+				@(a$): REM procn:, proco:, ...
+			ENDIF REM ignore other weird keypresses
+		ELSE REM some other key
+			RETURN k%
+		ENDIF
+	ENDWH
+ENDP
+
+
+Proc setup:(calback$)
+	Global data(239),undo(239)
+	Global squt(239),sint(239)
+	Global store(239),poly%(481)
+	Global yoff%,xmax%,e%(10),fname$(130)
+	Global lpf,lpg,nf&,na,sa,saved%,fo&
+	Global kl0,kl1,kl2,kk1,kk2,stable%
+	Global wt1%,wt2%,gn,sp
+	wt1%=2
+	wt2%=2
+	gn=1
+	na=0.5
+	sa=0.5
+	nf&=5
+	kl0=.6
+	kl1=-0.42
+	kk1=0.42
+	kl2=-0.15
+	kk2=0.1
+	yoff%=40-1
+	xmax%=240-1
+	lpg=0.2
+	lpf=0.8
+	gborder 1
+	gat 1,yoff%
+	glineto xmax%-1,yoff%
+	fname$="Digital.odb"
+	setname fname$
+	
+	if exist(fname$)
+		loader%:(fname$)
+	endif
+	
+	if testevent
+		getevent e%()
+	endif
+	@(calback$):
+endp
+
+Proc backup:
+	local i%
+	
+	while i%<xmax%
+		i%=i%+1
+		undo(i%)=data(i%)
+	endwh
+	saved%=0
+endp
+
+Proc procu:
+	local i%,s
+	
+	while i%<xmax%
+		i%=i%+1
+		s=data(i%)
+		data(i%)=undo(i%)
+		undo(i%)=s
+	endwh
+	saved%=0
+	redraw:
+endp
+
+proc redraw:
+	local i%,j%
+	onerr errhand
+	i%=1
+	j%=2
+	
+	busy "Redrawing"
+	poly%(1)=1
+	poly%(2)=data(1)+yoff%
+	poly%(3)=xmax%-2
+	
+	while i%<xmax%
+		i%=i%+1
+		j%=j%+2
+		poly%(j%)=2
+		poly%(j%+1)=int(data(i%))-int(data(i%-1))
+	endwh
+	cls
+	gborder 1
+	gpoly poly%()
+	busy off
+	return
+	
+errhand::
+	onerr off
+	busy off
+	error%:
+	procu:
+endp
+
+proc procd:
+	local i%,j%,p%,t%
+	i%=1
+	j%=2
+	
+	busy "Showing difference"
+	poly%(1)=1
+	p%=data(1)-store(1)
+	poly%(2)=p%+yoff%
+	poly%(3)=xmax%-2
+	
+	while i%<xmax%
+		i%=i%+1
+		j%=j%+2
+		poly%(j%)=2
+		t%=data(i%)-store(i%)
+		poly%(j%+1)=t%-p%
+		p%=t%
+	endwh
+	cls
+	gborder 1
+	gpoly poly%()
+	busy off
+endp
+
+proc procw:
+	local f&,w$(5)
+	w$="Wave "
+	
+	dinit
+		dlong nf&,w$+"1 frequency",1,xmax%/2
+		dfloat na,w$+"1 amplitude",-1,1
+		dfloat sp,w$+"1 start point",0,1
+		dChoice wt1%,w$+"1 type","Sine,Square"
+		dlong f&,w$+"2 frequency",0,xmax%/2
+		dfloat sa,w$+"2 amplitude",-1,1
+		dChoice wt2%,w$+"2 type","Sine,Square"
+	if dialog=0
+		return
+	elseif stable%=0
+		stable:
+	endif
+	
+	if f&
+		busy "Adding waveforms"
+	else
+		busy "Adding waveform"
+	endif
+	
+	backup:
+	if wt1%=1
+		snwave:(nf&,na,sp)
+	elseif wt1%=2
+		sqwave:(nf&,na,sp)
+	endif
+	if f&
+		if wt2%=1
+			snwave:(f&,sa,0.0)
+		elseif wt2%=2
+			sqwave:(f&,sa,0.0)
+		endif
+	endif
+	busy off
+	redraw:
+endp
+
+proc snwave:(fq&,a,sp)
+	local i%,wp%,am
+	wp%=sp*xmax%
+	if wp%=0
+		wp%=xmax%
+	endif
+	
+	am=a*(yoff%-1)
+	
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=data(i%)+am*sint(wp%)
+		wp%=wp%+fq&
+		if wp%>xmax%
+			wp%=wp%-xmax%
+		endif
+	endwh
+endp
+
+proc sqwave:(fq&,a,sp)
+	local i%,wp%,am
+	wp%=sp*xmax%
+	if wp%=0
+		wp%=xmax%
+	endif
+	
+	am=a*(yoff%-1)
+	
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=data(i%)+am*squt(wp%)
+		wp%=wp%+fq&
+		if wp%>xmax%
+			wp%=wp%-xmax%
+		endif
+	endwh
+endp
+
+proc stable:
+	local i%,rd,v%,h%
+	h%=xmax%/2
+	v%=1
+	
+	busy "Building wavetables"
+	rd=2*pi/xmax%
+	while i%<xmax%
+		i%=i%+1
+		if i%=h%
+			v%=-v%
+		endif
+		squt(i%)=v%
+		sint(i%)=sin(i%*rd)
+	endwh
+	busy off
+	stable%=1
+endp
+
+proc procg:
+	local i%
+	
+	dinit "Volume"
+		dfloat gn,"Gain",0,1000
+	if dialog=0
+		return
+	endif
+	busy "Adjusting volume"
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=data(i%)*gn
+	endwh
+	busy off
+	redraw:
+endp
+
+proc procp:
+	local i%
+	
+	dinit "Phase offset"
+		dlong fo&,"Amount",0,xmax%
+	if dialog=0
+		return
+	endif
+	busy "Adjusting phase"
+	backup:
+	i%=xmax%-fo&
+	while i%
+		data(i%+fo&)=data(i%)
+		i%=i%-1
+	endwh
+	busy off
+	redraw:
+endp
+
+proc procl:
+	local i%,p
+	
+	dinit "Low pass filter"
+		dfloat lpg,"Gain",-5,5
+		dfloat lpf,"Frequency response",-5,5
+	if dialog=0
+		return
+	endif
+	busy "Filtering"
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=data(i%)*lpg+p
+		p=data(i%)*lpf
+	endwh
+	busy off
+	redraw:
+endp
+
+proc procc:
+	local i%
+	
+	busy "Clearing"
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=0
+	endwh
+	busy off
+	redraw:
+endp
+
+proc procz:
+	local i%
+	
+	busy "Converting"
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=data(i%)-store(i%)
+	endwh
+	busy off
+	redraw:
+endp
+
+proc proct:
+	local i%
+	
+	giprint "Phase inverted"
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=-data(i%)
+	endwh
+	redraw:
+endp
+
+proc procm:
+	local i%,w,s
+	w=1
+	s=1
+	
+	dinit "Mix waveform+store"
+		dfloat w,"Waveform gain",-5,5
+		dfloat s,"Store gain",-5,5
+	if dialog=0
+		return
+	endif
+	busy "Mixing"
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=data(i%)*w+store(i%)*s
+	endwh
+	busy off
+	redraw:
+endp
+
+proc procb:
+	local i%,b,r
+	b=0
+	
+	dinit "Move base offset"
+		dfloat b,"Shift",-5,5
+	if dialog=0
+		return
+	endif
+	r=-2*yoff%*b
+	busy "Shifting"
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=data(i%)+r
+	endwh
+	busy off
+	redraw:
+endp
+
+proc prock:
+	local dl1,dl2,i%,dk0,dk1,dk2,a
+	
+	dinit "Second order (IIR) filter"
+		dfloat kl0,"Coefficient L0",-5,5
+		dfloat kl1,"Coefficient L1",-5,5
+		dfloat kk1,"Coefficient K1",-5,5
+		dfloat kl2,"Coefficient L2",-5,5
+		dfloat kk2,"Coefficient K2",-5,5
+	if dialog=0
+		return
+	endif
+	busy "Applying filter"
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		if i%>1
+			dl1=undo(i%-1)
+		endif
+		if i%>2
+			dl2=undo(i%-2)
+		endif
+		data(i%)=data(i%)*kl0+dl1*kl1+dl2*kl2+dk1*kk1+dk2*kk2
+		dk2=dk1
+		dk1=data(i%)
+	endwh
+	busy off
+	redraw:
+endp
+
+proc procr:
+	redraw:
+endp
+
+proc proch:
+	local i%
+	
+	while i%<xmax%
+		i%=i%+1
+		store(i%)=data(i%)
+	endwh
+	giprint "Waveform stored"
+endp
+
+proc proci:
+	local i%
+	
+	backup:
+	while i%<xmax%
+		i%=i%+1
+		data(i%)=store(i%)
+	endwh
+	redraw:
+endp
+
+proc proca:
+	local name$(130),nf%
+	name$=fname$
+	
+	dinit "Save as"
+		dfile name$,"",$11
+		dchoice nf%,"Use new file","Yes,No"
+	if dialog=0
+		return
+	endif
+	if nf%=1
+		fname$=name$
+	endif
+	saver%:(name$)
+endp
+
+proc procs:
+	if saved%=0
+		saver%:(fname$)
+	else
+		giprint "Not Changed"
+	endif
+endp
+
+proc proco:
+	local name$(130)
+	name$=fname$
+	
+	dinit "Open file"
+		dfile name$,"",$00
+	if dialog=0
+		return
+	endif
+	loader%:(name$)
+endp
+
+proc procx:
+	procs:
+	stop
+endp
+
+proc procv:
+	loader%:(fname$)
+endp
+
+proc loader%:(name$)
+	local i%,er%
+	
+	trap open name$,A,dat
+	if error%:
+		return 0
+	endif
+	
+	busy "Loading"
+	backup:
+	while i%<xmax% and not eof
+		i%=i%+1
+		data(i%)=A.dat
+		next
+	endwh
+	busy off
+	close
+	fname$=name$
+	setname fname$
+	saved%=1
+	redraw:
+	return 1
+endp
+
+proc saver%:(name$)
+	local i%
+	
+	trap delete name$
+	trap create name$,A,dat
+	if error%:
+		return 0
+	endif
+	
+	busy "Saving"
+	while i%<xmax%
+		i%=i%+1
+		A.dat=data(i%)
+		append
+	endwh
+	busy off
+	close
+	setname fname$
+	saved%=1
+	return 1
+endp
+
+proc error%:
+	if err
+		dinit err$(err)
+		dbuttons "Continue",-27
+		dialog
+		return 1
+	endif
+	return 0
+endp
+
+proc procn:
+	local name$(130)
+	
+	procs:
+	dinit "New file"
+		dfile name$,"",$11
+	if dialog=0
+		return
+	endif
+	fname$=name$
+	saver%:(name$)
+endp
+
+proc procf:
+	gborder 1
+	dinit "About Digital.opl"
+		dtext "","Create a new file with N",0
+		dtext "","Add waveforms with W",0
+		dtext "","Filter waveform with L or K",0
+		dtext "","Use H to store waveform",0
+		dtext "","Analyze now-store with D",0
+		dtext "","U will always undo last filter",0
+	dialog
+endp
+
+rem End of file
+

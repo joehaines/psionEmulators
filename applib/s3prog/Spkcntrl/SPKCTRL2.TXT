@@ -1,0 +1,71 @@
+==========
+psion/opl #829, from dw2, 2763 chars, Nov  8 14:57 93
+Comment to 827. 
+----------
+Here's a routine that does most of what you want:
+
+    PROC test:
+      local sh%,r%      rem SND: channel handle and error return
+      local sset%       rem for setting bpm/ volumne
+      local n1%(4),n2%(14)      rem notes for the two channels
+      local stat1%,stat2%       rem status words
+      local len1%,len2%         rem lengths of the note sequences
+      n1%(1)=1048 :n1%(2)=24 :n1%(3)=524 :n1%(4)=12
+      len1%=2                   rem two notes for first channel
+      n2%(1)=1048 :n2%(2)=4 :n2%(3)=1320 :n2%(4)=4
+      n2%(5)=1568 :n2%(6)=4 :n2%(7)=2092 :n2%(8)=4
+      n2%(9)=1568 :n2%(10)=4 :n2%(11)=1320 :n2%(12)=4
+      n2%(13)=1048 :n2%(14)=12
+      len2%=7                   rem seven notes for second channel
+      r%=IOOPEN(sh%,"SND:",-1)
+      if r% :RAISE r% :endif    rem could be friendlier here
+      sset%=120+(2*$100)        rem low byte is bpm, high byte volume
+      IOW(sh%,7,sset%,#0)       rem P_FSET, last parameter garbage
+      IOC(sh%,1,stat1%,n1%(1),len1%)    rem E_FSOUNDCHANNEL1
+      IOC(sh%,2,stat2%,n2%(1),len2%)    rem E_FSOUNDCHANNEL2
+      IOWAIT                            rem wait for sounds to complete
+      if stat1%=-46                     rem which completed "first"
+        IOWAITSTAT stat1%               rem use up other signal
+      else
+        IOWAITSTAT stat2%
+      endif
+      IOCLOSE(sh%)              rem close channel when not needed
+    ENDP
+
+Notes: (1) the required sequence for playing sound in this way is:
+open SND:, set the volume and bpm, make a couple of IOCs, then an
+IOWAIT, then an IOWAITSTAT to use up the other signal, and finally
+close the SND: channel.
+
+(2) To be system-friendly, close SND: the moment your program no
+longer needs it.
+
+(3) You can be more user-friendly with some of the possible errors
+from IOOPEN.  Eg an "in use" error.
+
+(4) To play only one channel, set the other len% value to zero.
+
+(5) Evidently, each note is described by two integers, the first
+giving the frequency, and the second a number of beats.
+
+(6) The notional "bpm" is, in my experience, somewhat misleading.  I
+think it's out by a factor of four or so.  Make your own investigations.
+
+(7) Don't try playing sound without a P_FSET first.
+
+(8) You can P_FSENSE (I/O service number 8) to find the existing
+volume and bpm settings, if you like.
+
+(9) If you want to change the volume between two sets of notes, close
+the channel first and then re-open it before setting the new volume.
+
+(10) Allowed volumes: 0, 1=2, 3, and 4=5 (ie four settings in all).
+
+(11) The above code assumes no other events will complete in the
+meanwhile.  If that is not correct, copy the IOWAIT IOSIGNAL loop
+from the C code in SOUND3A.TXT in an FLIST near here.
+
+(12) -46 is, of course, E_FILE_PENDING.
+
+Regards, DavidW
+

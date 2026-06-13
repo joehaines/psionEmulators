@@ -1,0 +1,220 @@
+
+
+    Bowling, a Patience Card Game for the Psion Series 3
+    Copyright (C) 1993, 1994  J Cade Roux
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    See the file COPYING for details of the GNU General Public License.
+
+
+                             Installation
+
+To install Bowling, copy Bowling.app to any directory (like \APP\) and
+install it <Psion-I> from the system screen.  Alternatively, rename it
+Bowling.img, and copy it to the \IMG\ directory, or any other directory
+(such as a games alias) referenced by an alias of RunImg.
+
+
+                                Credits
+
+Development tools used included:
+
+On the PC:
+
+The Psion SIBO SDK with TopSpeed C compiler
+Multi-Edit 7.0
+
+On the Amiga:
+
+DeluxePaint IV - the only paint program I've ever used which is worth
+running.  Certainly light years ahead of Paintbrush - the only other
+development tool I have used to make graphics for Psion games.
+
+Thanks go to Beta testers, in no particular order:
+
+Mark Ellis, Graham Tappenden, RIchard E. Hollicker, Pierre Lagrange,
+Chris Lees, Gray Mason, Timothy Roach, Bryan SIverly, Martin Skowronski
+
+Special thanks to Graham for translating the German language resource
+file.
+
+
+                                 Rules
+
+This game was designed by Sid Sackson, and is described in his 1969
+book, "A Gamut of Games".
+
+A bowling score pad consists of 10 frames.  In each frame, a player can
+roll two balls in an attempt to knock down the 10 pins.  If all 10 are
+knocked down on the first ball (a strike = X), the second ball is not
+used.
+
+In each frame, the player scores as many pins as he knocks down.  If a
+strike is scored, the number of pins downed with the next 2 balls is
+added to the 10 for the strike.
+
+If the player knocks down the remaining pins with the second ball (a
+spare = /), the number of pins downed with the next ball is added to
+the 10 for the spare.
+
+Additional balls are allowed in the final frame if a spare or strike is
+scored.  Up to 3 balls might be played.
+
+Maximum score 300 = 12 strikes
+
+Changes for bowling solitaire:
+
+1 card from the top of a ball pile can be used for removing 1-3 cards
+from the pin layout.  The pin cards must be adjacent and, when added
+together, their last digit must be the same as the ball pile card.
+
+The card from the ball pile and the card(s) from the layout are
+removed.  All following plays must remove pin cards adjacent to removed
+pins.
+
+The ball is over when no more cards from the ball pile can be used, or
+if play of such a card would make later plays impossible due to lack of
+necessary cards already played.
+
+If a strike is not scored, the top card from each of the ball piles is
+removed, and play continues again.  If all the remaining pins are
+removed with the second ball, a spare is scored.
+
+The first card of a frame cannot be used to remove any card from the
+back row, or to remove the middle pin by itself.
+
+
+                                Playing
+
+The keys used to control Bowling (on a US keyboard - see below for
+modifying for other keyboards) are as follows:
+
+    Pin Layout Keys:                        Ball Pile Keys:
+
+            1   2   3   4                       9 0 +
+              Q   W   E
+                A   S
+                  Z
+
+
+
+<Enter> Ball over
+
+<Esc> Clear all selected pins
+
+Basic Play Sequence:
+
+Use the Pin keys to select up to three adjacent pins, then use a ball
+pile key to remove the selected pins.
+
+Continue until no more can be removed.  If pins remain, press <Enter>.
+Strikes and spares are automatically processed.
+
+For advanced play (and according to the recommended play in the
+book), use the play table above the score table.  This indicates which
+cards have been taken out of play.  The deck is made up of 20 cards -
+two sets of 1-10.  Thus when only one of the cards has been taken out
+of play, a '/' appears under the number.  When both cards are out of
+play, a 'X' appears under the rank.
+
+
+                               Compiling
+
+Bowling was written completely with PLIB, HWIF, and WLIB functions,
+and, as such, is not portable (even to other SIBO machines, unless you
+want to rewrite all the HWIF sections) in any way.  The source to the
+game and the utilities library necessary to compile are freely
+available from the author.
+
+Attention non-English speakers:
+
+It is possible to translate and compile new language-dependent resource
+files (without having to recompile the whole program with the C
+compiler) and BOWLING will look for them in the \APP\BOWL\ directory on
+any drive.  Using the RCOMP resource compiler (available from Psion),
+RCOMP XXXXXX.RC will generate a suitable XXXXXX.RSC resource file.
+
+As a preliminary move, I have translated just the keys for German and
+French keyboards in the BOWL03.RSC and BOWL02.RSC resources.  The
+resource can be altered by changing and recompiling the BOWLXX.RC
+files - available from the author.
+
+Notes on translation:
+
+When translating the file, only strings in quotes should be altered.
+Care should be taken to keep all RESOURCEs in the same order, and in
+the case of the help topics, care should be taken with the line
+lengths.  The file should be named BOWLXX.RSC where XX is the
+two-letter language code of your machine.
+
+01  English
+02  French
+03  German
+04  Spanish
+05  Italian
+06  Swedish
+07  Danish
+08  Norwegian
+09  Finnish
+10  USA     (This is embedded in the application already)
+11  Swiss French
+12  Swiss German
+13  Portuguese
+14  Turkish
+15  Icelandic
+16  Russian
+17  Hungarian
+18  Dutch
+19  Belgian Flemish
+20  Australian
+21  New Zealand
+22  Austrian
+23  Belgian French
+
+If a suitably named file exists, it will always be used.  If not, the
+embedded resource (American English) will be used.  Thus it is possible
+to create a resource file (in any language) and name it suitably for
+your machine and put it in a \APP\BOWL\ directory.  e.g.  Your machine
+is German but you speak French.  Just compile a French resource and
+rename it with the German code:  BOWL03.RSC instead of BOWL02.RSC.
+Thus it is always possible to test any external resource file by
+renaming it to your machine's language code - overriding even use of
+the internal file.  The English resource script is named BOWLING.RC,
+and is freely available.  Other .RC files should be named
+appropriately:  e.g.  BOWLXX.RC.  These will be added to later
+distributions if mailed to the author.
+
+
+                             Problems/Bugs
+
+
+                               Revisions
+
+1.0b: Initial Beta Release on CompuServe        940606
+
+1.1b: Second Beta Release on CompuServe         940612
+        Bug in final frame scoring fixed
+                                    Resent      940616
+
+1.1:  Final 1.1 Release on CompuServe           940630
+
+                                Author
+
+Cade Roux
+P.O. Box 513
+Boutte, LA 70039  USA
+
+73733.1014@compuserve.com

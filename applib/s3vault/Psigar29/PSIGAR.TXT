@@ -1,0 +1,480 @@
+PsiGar 2.9
+
+
+
+PsiGar is a shareware program for owners of Garmin GPS45 GPS receivers.
+I have no reports of problems from users with the 38, 40, 45, 65 and 75 models.
+It will probably work with other Garmin receivers but I can't verify this.
+There have been some problems with a GPS90, but all the others work ok so far.
+The problems seem to be with the built in waypoints making route editing impossible.
+
+
+If you like this program and/or use it for more than 30 days you are required to register it. The registration details are given below.
+
+
+Please read this entire document before using the program.
+
+PsiGar allows you to save Waypoints, Routes, Track Logs and Almanac information
+onto your Psion series 3a.
+
+The waypoint file can be converted to database compatible file and edited or
+added to as any other database file. The altered file can then be sent back to the GPS receiver.
+
+The registered version also allows you to send  Routes, Track Logs and Almanac data to the receiver. Of these file types only routes and track logs can be edited.
+
+
+The Psiway addon module allows you to enter waypoints in a more convenient way.
+You can use the Psion to create a waypoint averaged out over a number of  readings, create a waypoint using the Psion as an external keyboard for the GPS and enter waypoints manually and either send them direct to the GPS or save them in a waypoint file.
+The Psiway addon module also includes Wayedit which supports the direct editing
+of ".way" files without having to create database files first.
+You can now enter OSGB grid references directly in Psiway.
+
+When viewing a waypoint file with Psiway you can also view a waypoint in OSGB grid references by selection "OSGB Grid View". You can now edit a waypoint using OSGB Grid references. 
+
+
+This software is under constant development so it is quite possible that there could be bugs present in the software.
+In particular the Psiway module could easily contain bugs as it has had very limited testing.
+The OSGB bits of Psiway are not yet complete and can crash if you enter invalid numbers, I'm not sure what the valid limits are so I have not yet been able to put constraints into the program
+
+Please read the disclaimer at the end of this document before using the software.
+
+Please feel free to contact me with any suggestions or queries, preferably at the email address below.
+What's New in Version 2.9?
+
+The installation instructions have changed from versions earlier than 2.7 to make them more compatible with other Psion Applications. The .RSC files are now stored in an APP\PSIGAR directory rather than an APP directory.
+
+A new option PCX5 has been added to the Special menu. This currently allows conversion from Psigar Waypoint, Route and Track Log files to Garmin PCX5 type files. The Garmin files are by default stored in the PSIGAR\PCX5 directory as some of the filename extensions are the same as those used by Psigar. When transferred to a PC these files can be used as standard Garmin PCX5 files. A "Fugawi" export option has been added to the PCX5 routine to allow exporting of track logs and waypoints to this PC based mapping software.
+
+The GPS communication routines have been rewritten to automatically time out if communication with the GPS is not established within five seconds. This stops you having to "kill" PsiGar if a GPS communications error occurs. The new routines also transfer waypoints about 50% faster than the old ones.
+
+
+
+
+Installation.
+
+Firstly if you are updating from an earlier version than 2.3 you may delete the file "garhead.dbf" from the "m:\opd" directory.
+I have changed waypoint database files to use the extention ".wbf" rather than ".dbf" to make them easier to recognise.
+In version 2.0 and 2.1 Psirbf.als and psitbf.als were incorrectly named psirte.als and psitrk.als. You can rename these files or not as you wish.
+
+
+copy PSIGAR28.OPA to your \APP directory
+copy PSIWAY.RSC to any \APP\PSIGAR directory (you may have to create the directory first)
+copy PSICON.RSC to any \APP\PSIGAR directory
+copy WAYHEAD.WBF to any \OPD directory 
+copy RTEHEAD.RBF to any \OPD directory
+copy TRKHEAD.TBF to any \OPD directory
+     (You may need to make this directory first)
+PSIGAR27.OPA is the main program file.
+PSIWAY.RSC is the PsiWay addon module.
+PSICON.RSC contains the conversion routines
+WAYHEAD.WBF is a header file which must be present to edit data files.
+RTEHEAD.RBF is a header file which must be present to edit routes.
+TRKHEAD.TBF is a header file which must be present to edit track logs
+
+Optional.
+copy PSIRBF.ALS to your \APP directory
+copy PSITBF.ALS to your \APP directory
+copy PSIWBF.ALS to your \APP directory
+
+These are alias files using the data application to point directly to the route, track and waypoint files in the psigar directory. This speeds up viewing PsiGar database files as you don't have to change directory to access them.
+
+
+Install PSIGAR using <PSION> <I> in the usual way
+
+Optional.
+Install PSIRBF.ALS, PSITBF.ALS and PSIWBF.ALS using <PSION><I>.
+
+Connecting to a GPS
+
+You will need a Psion serial link lead and connection lead to attach to the port on the GPS receiver. The relevant lead with bare wires is available from most Garmin dealers. You will probably have to make up the Psion end to connect to the serial link yourself.
+
+For a GPS 38,40,45 or 75 the wiring required is For a 25 way male Dtype as used with the PC 3Link the wires are 
+pin 2 brown (Data out from GPS)
+pin 3 white (Data in to GPS)
+pin 7 black (Ground)
+
+For a 9 way male Dtype as used with the PC 3Link the wires are
+pin 3 brown (Data out from GPS)
+pin 2 white (Data in to GPS)
+pin 5 black (Ground)
+
+If using a Psion modem link rather than a PC link you reverse the wiring for pins 2 an 3 for both 9 and 25 pin dtypes.
+
+The red wire is the external power supply connection and is not needed.
+If using an external power supply the black wire is the earth for this as well.
+Some dealers will supply a ready made lead ending with a 3Link mini din plug though this is more expensive, roughly £40.
+
+For  a GPS 120 using a Garmin bare wire power data cable
+GPS 120        25 pin dtype connector
+Blue      	pin 2
+Brown          	pin 3
+Black          	pin 7
+
+You can make the cable up using a mini din plug to connect to the podule on the serial link lead but they can be very difficult to solder due to the number of small pins very close together.
+Operation
+
+The program is menu driven and easy to understand.
+
+
+First setup your GPS45 for GARMIN / GARMIN  HOST mode on the I/O setup menu.
+Make sure the lead is connected and the GPS left on.
+Make sure the Psion serial link is turned OFF on the system screen.
+
+Run PsiGar.
+
+Select menu GARMIN > PSION and any of the options.
+
+ALL sends almanac info, routes, track logs and waypoints to the Psion.
+The other options send the indicated items only.
+
+The following default filenames are used:
+
+almanac info        	M:\PSIGAR\PSIGAR.ALM
+routes              		M:\PSIGAR\PSIGAR.RTE
+track logs          	M:\PSIGAR\PSIGAR.TRK
+waypoints           	M:\PSIGAR\PSIGAR.WAY
+Waypoint database   	M:\PSIGAR\PSIGAR.WBF
+Routes database     	M:\PSIGAR\PSIGAR.RBF
+Track Log Database  	M:\PSIGAR\PSIGAR.TBF
+
+Psiway waypoints    	M:\PSIGAR\PSIWAY.WAY
+
+
+If you now select PSION > GARMIN you can send any or all of these files back to the GPS receiver. (Only waypoints can be sent back in the unregistered version).
+
+The action here is essentially additive for routes, waypoints and track logs.
+
+Sending an almanac overwrites the current one. I can't think why you would want to do this unless your batteries had died and you had lost all your stored data.
+
+Sending a route file updates the routes in the file only, other routes are not touched. NOTE If the route you send has names corresponding to existing waypoints these waypoints will be updated if necessary to match the ones in the route. Any waypoints in the route not currently in the waypoint list in the receiver will be added to the waypoint list.
+
+Sending track logs updates the track log already present by adding more points.
+Note a line will be drawn from the last existing point to the first loaded point when viewed on the map screen.
+I have found it useful to save all my track logs as separate files so that I can retrace any route simply by loading the appropriate log. Having only one route present at any time gives a much clearer display on the map. It also allows you to use a more frequent update interval on the mapping screen as you can have the full number of points available each time.
+
+Sending waypoints updates any existing waypoints with the same names and adds any that do not exist. Any existing waypoints not in the file will not be touched.
+
+
+File Conversion
+
+WHEN EDITING ANY DATABASE FILES PLEASE COMPRESS THEM BEFORE SAVING THEM. This avoids occasional errors when converting them back to Garmin files.
+
+You can use the GARMIN Waypoint> DATABASE option under the FILE CONVERSION 
+menu to convert a Garmin waypoint file to a file that can be edited using the 3a's data program.
+With PsiGar version 2 I would recommend using the Wayedit option in the PsiWay module instead as it allows for easier text entry with a degree of error checking and also saves the need of converting to database files and back again after editing.
+
+This file will default to M:\PSIGAR\PSIGAR.WBF.
+When entering or altering information using the data program you must stick to the following guidelines. 
+
+1: The name field should be a max of 6 letters.
+2: Latitude should be -89.99998 to 89.99998 degrees positive value for north, negative for south.
+3: Longitude should be -179.99998 to 179.99998 degrees positive values for east negative for west.
+   
+4: Latitude and longitude values should be for a WGS84 map datum as this is how the Garmin Protocol outputs its waypoints.
+   Also if you want to compare latitude and longitude values with those on the gps to check that all is ok, the gps must be set to position format hddd.ddddd_ on the navigation setup menu. This is not necessary for transfers it is purely for comparison purposes.
+
+5: The creation date should follow the template DD/MM/YYYY HH:MM:SS
+	   DD=day
+	   MM=month
+	   YYYY=year
+	   HH=hour
+	   MM=minute
+	   SS=second
+   
+   Alternatively enter NOW and the current date and time will be used when the file is converted to a Garmin file.
+   
+6: The comment field should be a max of 16 characters (Garmin's protocol seems to suggest a 40 character field but the GPS45 only seems to handle 16, Other units with larger screens may handle more). If you enter more than 16 characters the GPS will ignore the extra characters.
+
+7: Do not leave any field blank as this can corrupt the data fields when stored.
+
+As these items are being edited using the built in data program no error checking is carried out at entry time. I have included some error trapping in the main program but I'm sure I haven't caught all possible errors. If the GPS doesn't accept a particular waypoint it will give an error message and not load it, the rest of the file will be loaded as normal.   
+
+
+If you want to enter waypoints manually it is much faster and less error prone to use the Psiway module.
+
+
+When you have finished altering the data close the file.
+You can now use the DATABASE WAYPOINT> GARMIN option in the FILE CONVERSION 
+menu to convert the database file back to a Garmin file in preparation for sending it back to the GPS. I would suggest using a new filename here in case you have messed up!
+
+When you send data back to the GPS it seems to just ignore incorrect data or give a waypoint error message.
+
+If you want to send almanac info, routes or track logs back to the GPS you will need to register the program.
+
+
+
+Editing of routes is now available in the same manner as editing waypoints.
+
+As this part of the program is new it has not undergone the degree of soak testing that the other routines have.
+
+First you save get both route and waypoint files from the Garmin. The waypoint file is required as you need a file containing all available waypoints. This is to allow you to add additional route waypoints to thos stored in the routes.
+
+Second you convert a Garmin route file to a Database route file using the GARMIN ROUTES > DATABASE option under the FILE CONVERSION Menu.
+This gives you a file which can be edited using the Data program.
+
+A record in this file must stick to the following format
+
+
+Route number    X% (0-19)
+Route Name      XXXXXXXXXXXXXXXX (max 16 characters)
+Route Waypoints XXXXXX,XXXXXX,XXXXXX,XXXXXX,XXXXXX (Max 5 names of 6 chrs)
+Route Waypoints XXXXXX,XXXXXX,XXXXXX,XXXXXX,XXXXXX (Max 5 names of 6 chrs)
+Route Waypoints XXXXXX,XXXXXX,XXXXXX,XXXXXX,XXXXXX (Max 5 names of 6 chrs)
+Route Waypoints XXXXXX,XXXXXX,XXXXXX,XXXXXX,XXXXXX (Max 5 names of 6 chrs)
+Route Waypoints XXXXXX,XXXXXX,XXXXXX,XXXXXX,XXXXXX (Max 5 names of 6 chrs)
+Route Waypoints XXXXXX,XXXXXX,XXXXXX,XXXXXX,XXXXXX (Max 5 names of 6 chrs)
+
+You can have 20 routes of up to 30 waypoints each.
+
+Note the route name will be shown as ________________ if the GPS has derived its name from your waypoints, rather than a manually entered route name.
+
+The waypoint names must be identical to the waypoint names stored in the Garmin Waypoint file. If you want to use waypoints from a selection of different waypoint files, copy all the files to the Garmin first and then save the combined file back to the Psion. Use this combined file when asked for the waypoint file.
+
+The order of the routes within the Database file is not important.
+
+When you have finished editing the routes save the file and exit the data program.
+
+Use the DATABASE ROUTES > GARMIN option under the FILE CONVERSION menu to 
+compile an appropriate file to send back to the Garmin.
+You will need to specify the database file, A waypoint file containing all the Waypoints used in all the routes and a file to save the output to.
+ 
+This option is quite slow if you are dealing with a large number of waypoints and routes. 
+
+
+Editing Track Logs is almost identical to editing Waypoints. There are a couple of things to note.
+Firstly the track point must be a 4 digit number ie point 1 is 0001 not 1.
+Secondly when converting back to Garmin Track Log Files, the process can be very slow as the database must be sorted to get the track points into ascending order first. The sorting routine is now much faster than in previous versions, (thanks to someone who anonymously sent me a better sort routine!). 
+You can also now use an external sort routine if you prefer, the program now checks if the file is in order before attempting to sort it. If the file is already sorted the sort routine does not run.
+
+There appears to be a problem in how Garmin GPS's handle dates in track logs, when sending a track log back to the GPS all date and time information is set back to the GPS default. This means that if you send the track back to the psion again all the dates appear as 31/12/1989 00:00:00. This is not a bug in this software, all software that sends tracks to the GPS has the same problem.
+The field marked start point dictates how a track log is split up. If this field is set to 1 the point will be taken as the start of a new track and will not be joined on the GPS screen to the previous point. You can actually use this to fix the breaks that occur in a track log due to "poor GPS coverage"
+problems causing an artificial break. Just turn the break point back to 0 and the track will join up across the gap.
+
+The Split Track Database function gives you a convenient way of picking out a section of a track log to keep on its own. E.g. say you had two different journeys stored in one track log file. You can look at the database file and note where each journey starts and ends, and then use the split function to save them as separate files.
+
+
+Under the special menu there is now an option to allow you to set the time on the Psion to match the Garmin's time. This has been updated to allow you to give a local time offset from Greenwich mean Time.
+Troubleshooting
+
+The  most likely cause of trouble is the GPS not being set for the correct mode of operation or the lead being incorrectly wired. The program will hang up if it cannot maintain communication with the GPS receiver. There is nothing I can do about this, it is a function of how the Psion handles its serial interface - it only returns control to the program when the requested number of bytes have been transferred, if not enough bytes are transferred it never returns control. Under these situations the only way to exit the program is to return to the system menu and kill the program using <Psion> <shift> <K>.
+
+
+I have noticed that when you have finished uploading to the GPS it is usually necessary to switch it off and back on again to get the nearest waypoints displayed in the moving map screen. It is probably a good idea to always switch the GPS off and on again anyway after uploading data to it.
+
+
+There is a potential problem when converting database routes back to Garmin routes. The system memory usage of this function is right on the limit on my Psion. If anyone gets "No system memory" errors when using this function please let me know. I could fix this but it would render the function unavailable to people using GPS 90's for example which need more memory to store waypoints.
+PSIWAY
+
+
+
+Psiway lets you create waypoints in several new ways.
+
+Average GPS Waypoint.
+
+This allows you to create a waypoint based on the average of several different readings taken over a period of time, to hopefully even out any errors.
+You specify how many readings to take and at what time intervals. When completed you specify what to call the waypoint, give it a description and it is then sent automatically to the GPS. The description defaults to the Psion's current time and date.
+
+
+Auto GPS Waypoint.
+
+In this mode the Psion acts as an external keyboard for the GPS. When you select this option the Psion gets a position fix from the GPS and lets you enter a name and description. The waypoint is then sent to the GPS. 
+
+Manual ddd.ddddd_ Waypoint.
+
+As auto GPS Waypoint except the latitude and longitude are specified by you rather than read from the GPS. When completed the waypoint is sent directly to the GPS.
+
+Manual ddd_mm.mmm' Waypoint.
+
+This is as the Manual ddd.ddddd waypoint except the latitude and longitude are entered in degrees and minutes (on two separate lines). This is often easier when entering waypoints from a map.
+Note negative values represent south and west as normal. The negative sign is only entered for the degrees not the minutes.
+
+Manual OSGB Waypoint.
+
+This allows you to enter a waypoint using OSGB Grid references or eastings/northings. 
+
+
+Wayedit.
+
+These options allow you to directly edit a .way file either using ddd.ddddd_ or ddd_mm.mmm' for latitude and longitude entry.
+I have limited the accuracy to 5 decimal places to match the values displayed on the GPS, this is equivalent to about 1 metre anyway. I would love to see a map that could be read to this degree of accuracy!
+
+You can now also edit waypoint files in OSGB coordinates, but it is very slow to change waypoints, the on the fly conversions are a bit sore on the Psion's brain! Only use this mode if you want to enter waypoints from a map. If you simply want to rename waypoints use one of the other options instead.
+
+You can edit an existing ".way" file or start from scratch.
+
+These options use the same text entry modes as for the manual waypoints.
+The difference is that these options store the waypoints in a file rather than sending them directly to the GPS. This lets you work in isolation from the GPS entering several waypoints from a map for instance and then send the complete file to the GPS at one go.
+
+To move around within the waypoint file you use the "Action" option at the top of the dialog box.
+You can choose Add, Update, Erase, Search, Previous, Next, First Goto and OSGB Grid View.
+
+Add.
+You edit the currently displayed waypoint and it is then added to the waypoint file as a new waypoint, leaving the original one unchanged.
+The creation time will automatically be set to the current psion date and time. If you want to set the description to the current date and time simply enter a description of "NOW", without the quotes.
+I know it's not as pretty as using a clean screen but it works! It also helps for several close waypoints as you will probably only have to alter the minutes and not the degrees
+
+Update.
+This will replace the current waypoint with your edited version. As usual it will be stored as the last record in the file. The creation time will be left unchanged unless you enter "NOW" as the waypoint description, this will also change the creation time.
+
+Erase.
+Delete the currently displayed waypoint.
+
+Search.
+Search for a Waypoint name.
+
+Previous.
+Step back one waypoint.
+
+Next.
+Step forward one waypoint.
+
+First.
+Go directly to the first waypoint.
+
+Goto.
+Specify a waypoint to goto by number.
+
+OSGB Grid View.
+View current waypoint in OSGB Grid references.
+
+
+
+PCX5.
+
+This new option under the Special menu allows you to convert routes, track logs and waypoint Psigar files to the equivalent Garmin PCX5 files.
+
+Only waypoints may be converted in the unregistered version.
+
+This is a new option and is very much in an alpha test state so use with care!
+
+The converted files will by default be stored in a \psigar\pcx5 directory. This is because the track log .trk and route .rte extensions required by PCX5 are the same as those used by PsiGar.
+
+
+
+
+
+Registration.
+
+Send a cheque for £10.00 to
+Jonathan Duff
+7 Glenview Avenue
+Holywood
+County Down
+Northern Ireland
+BT18 0PX
+
+If you don't have a UK cheque account you can send either a Eurocheque for £10.00 or cash.
+
+Or use Compuserve's software registration scheme GO SWREG, Registration ID 10634
+This will cost $20.
+
+
+Phone 01232 425242
+email 100767.1421@compuserve.com
+web site http://ourworld.compuserve.com/homepages/Jon_Duff/homepage.htm
+
+The most recent version of this program will normally be available on
+my web page and also from the Compuserve "Palmtop A" forum.
+Version Info.
+Psigar 2.9
+Fixed bug in transfer routines that caused an invalid first record to be added to all files
+
+PsiGar 2.8, Psiway 2.8, Psicon 1.1 09:08:1997-08-09
+Fixed bug in waypoint transfers causing lockup if you had exactly 16 waypoints
+Improved transfer routines to provide auto time out.
+Added "Fugawi" export options.
+
+
+Psigar 2.7, Psiway 2.7, Psicon 1.0 12:01:1997.
+Added PCX5 export.
+
+Psigar 2.6, Psiway 2.6 12:10:1996
+Fixed search bug in Psiway module that caused incorrect screen updating when search selected for a second time.
+
+Psigar 2.5,Psiway 2.5 25:09:1996
+Fixed bug in OSGB file editing, which caused valid OSGB waypoints to be declared outside the applicable range.
+Removed 50 metre offsets from six figure OSGB waypoint entry routines.
+Changed the "Return to Psigar" menu item in Psiway for "Psion x" to "Psion r".
+
+Psigar 2.4, Psiway 1.3 09:09:1996
+Added OSGB file editing, removed some Nag screens and Operation aborted dialog boxes.
+
+Psigar 2.3, Psiway 1.2 18:08:1996
+Added Limited OSGB support to Psiway
+
+Psigar 2.2, Psiway 1.1 15:08:1996
+Psiway.rsc, trkhead.tbf, rtehead.rbf and wayhead.wbf can now be stored on any drive.
+Fixed bug in Psiway which did not allow for 0 degrees, some minutes west when editing waypoints in ddd.mm.mmm format.
+Fixed bug in countdown loop id Psiway average waypoint option
+Extended max time in Psiway average waypoint to 999 secs and built in escape option.
+
+2.1
+Fixed bug in Database > Garmin routes which allowed comments to be used rather than waypoint names.
+Fixed problem with invalid date in Garmin waypoint in recent GPS units.
+
+2.0_  16:07:1996
+Added WayEdit to Psiway module. 
+
+
+2.0alpha 14:07:1996
+
+Added Psiway module.
+Added Split Track Database function.
+
+1.7 05:07:1996
+
+Added improved sort routine to track log editing.
+
+
+1.6_ 10:04:1996
+
+Added track log editing.
+Fixed a bug in the time setting function which gave you a 1 in 256 chance of the time being set incorrectly.
+Changed the registration details to a more secure method.
+Fixed a problem with duplication of track log points when sending from Psion to Garmin in some circumstances.
+
+
+1.5_ 06:04:1996
+
+Basically a modification to version 1.4_ to allow for the larger length waypoint and route records created by the GPS90. There is a potential problem when modifying routes for a GPS90 as this seems to store a lot of unknown information in the comments section of route waypoints and for some route waypoints comes up with crazy times i.e. year 2007.
+
+1.4_ 31:03:1996
+
+Added new option to allow you to edit routes.
+Added offset from Greenwich mean time to time setting option.
+
+
+1.3 27:03:1996
+
+Added new option to allow you to set the time on the Psion from the gps.
+This version was a response to a specific request and not a generally released version.
+
+
+1.2 19:03:1996
+
+Fixes bug in transfer of waypoints between Garmin Psion Data files.
+
+
+1.1 15:03:1996
+
+Initial release.
+
+
+DISCLAIMER
+
+
+The program is used entirely at the users own risk. I accept no liability whatsoever for the use of this program. The protocols it is based on are unpublished and are possibly incomplete or even incorrectly implemented. Any loss or corruption of data is at the users own risk.
+
+Now with the introduction with OSGB Grid references I must also add that I can accept no responsibility for any errors in the conversion routines, any navigation carried out using PsiGar is entirely at the users own risk.
+
+
+Copyright
+
+
+The code used in this program is copyrighted by myself, please do not attempt to reverse translate or modify the code in any way. 
+
+
+Acknowledgements.
+
+Special thanks to Bill Pechey and Mike Rudin for their help in converting OSGB grid references to latitude/longitude and vice versa.
+

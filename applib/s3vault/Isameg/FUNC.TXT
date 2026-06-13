@@ -1,0 +1,1382 @@
+
+
+CHAPTER 1
+
+
+
+.C.1 ISAM FUNCTIONS
+
+
+
+
+
+
+ISAM functions are called using either p_send or p_entersend
+to the ISAM object created with (for example) the PLIB
+function p_newlibh.
+
+Most functions which can fail will return zero or a positive
+number for success or leave with a negative error number,
+giving the caller the option of catching the error using
+p_entersend or leaving the error handling to a higher level
+by calling p_send.
+
+Functions that can generate E_FILE_EOF (for example,
+O_IS_INEXT), will return this negative error rather than
+leave.
+
+All functions can be called from standard C but O_IS_IFILTER
+and O_IS_IDUP are only applicable when using object oriented
+programming (OOP).
+
+There are three types of functions:
+
+  þ  General functions
+
+  þ  Data file functions
+
+  þ  Index file functions
+
+
+
+.c.:General functions
+
+This section describes functions to perform the following:
+
+  þ  Initialise and destroy an ISAM object.
+
+  þ  Define and read the field definition for a data file.
+
+  þ  Define and read the key definition for an index file.
+
+  þ  Read and write data to the record buffer.
+
+  þ  Set the format for conversion of numbers to text.
+
+  þ  Add, erase and update records in the data file with
+     appropriate updates to all associated index files.
+
+
+
+
+                                                           1
+
+ISAM REFERENCE
+
+.i.O_IS_INIT;     .c.::Initialise an ISAM object (O_IS_INIT)
+
+.f.VOID p_send4(VOID *pIsam, O_IS_INIT, INT rBufSize, INT
+iBufBlocks);
+
+Initialise the ISAM object with a record buffer of length
+rBufLen and an index buffer in an external memory segment
+with iBufBlocks blocks (a block is ISAM_BLOCK_SIZE (512)
+bytes long). If iBufBlocks is zero, the default number of
+blocks, BL_DEFAULT_BLOCKS (20) is used.
+
+Performs the following initialisation:
+
+  þ  Allocates rBufLen bytes for the record buffer.
+
+  þ  Sets the field definition to the default of 32 string
+     fields.
+
+  þ  Sets the key definition to the default of the first
+     eight characters of the first string field.
+
+  þ  Sets the radix for number conversion to the default of
+     10.
+
+  þ  Sets the format for doubles converted to text to the
+     default of P_DTOB_GENERAL with a width of 20 and a
+     decimal point character of '.'.
+
+rBufLen sets the size of the record buffer and must be in
+the range ISAM_MIN_RECORD_BUFFER (512) to
+ISAM_MAX_RECORD_BUFFER (16384). If it is not, p_panic will
+be called. The record buffer is used to read records from
+the data file and must be at least as long as the longest
+record to be read. A length of ISAM_MAX_RECORD_LENGTH+2
+(4096) is guaranteed to be large enough for all records.
+When an index file is being built, data is read from the
+file in blocks as large as the record buffer; the bigger the
+buffer, the faster the build will be.
+
+iBufBlocks must be less than or equal to ISAM_MAX_SEG_BLOCKS
+(1024). Any value greater than this will cause p_panic to be
+called.
+
+Leaves with E_GEN_NOMEMORY if there is insufficient memory
+to initialise everything.
+
+Typically, this function would be called when the object is
+created and can be combined into one call using (for
+example) the PLIB function f_newlibhsend:
+
+  pIsam=f_newlibhsend(isamCatNum,C_BTDBF,O_IS_INIT,4096,0);
+
+This will create an ISAM object and initialise it with a
+record buffer of 4096 bytes and the default number of index
+buffer blocks.
+
+Creating an ISAM object is explained further in the
+Introduction chapter.
+
+
+
+
+2
+
+                                            1 ISAM FUNCTIONS
+
+.i.O_IS_DESTROY;  .c.::Destroy an ISAM object (O_IS_DESTROY)
+
+.f.VOID p_send2(VOID *pIsam, O_IS_DESTROY);
+
+Destroy the ISAM object. The data file and all open index
+files are closed and all memory is freed.
+
+Note that if more than one ISAM object is created in the
+same process, the external segment memory used for buffering
+the indexes is shared and will only be freed when the last
+ISAM object is destroyed.
+
+O_IS_DESTROY can fail due to one or more write operations
+but will always succeed in destroying the ISAM object
+(freeing all memory used). No error is ever returned and the
+function will not leave.
+
+Carefully written applications avoid this problem by using
+O_IS_DFLUSH and O_IS_IFLUSH, to flush all buffered data (and
+taking appropriate action if this fails) before destroying
+the object without risk of failure.
+
+
+.i.O_IS_SET_FIELDDEF;          .c.::Set the field definition
+(O_IS_SET_FIELDDEF)
+
+.f.INT p_send4(VOID *pIsam, O_IS_SET_FIELDDEF, INT nFields,
+VOID *pArgs);
+
+Set the field definition to contain nFields with types in
+the list at pArgs. This field definition will be used when a
+data file is created.
+
+Alternatively pArgs can point to an ISAM_FIELDDEF structure
+containing the field definition while nFields is passed as
+zero.
+
+The ISAM_FIELDDEF structure is defined in isam.g as:
+
+  typedef struct
+     {
+     WORD nFields;
+     UBYTE type[ISAM_MAX_DEFINED_FIELDS];
+     } ISAM_FIELDDEF
+
+For example:
+
+  LOCAL_C VOID defineFields(VOID)
+     {
+     ISAM_FIELDDEF fieldDef;
+  
+     fieldDef.nFields=2;
+     fieldDef.type[0]=ISAM_FIELDTYPE_WORD;
+     fieldDef.type[1]=ISAM_FIELDTYPE_LONG;
+     p_send4(pIsam,O_IS_SET_FIELDDEF,0,&fieldDef);
+     }
+
+is equivalent to:
+
+
+
+
+                                                           3
+
+ISAM REFERENCE
+
+  LOCAL_C VOID setFieldDef(INT nFields,...)
+     {
+  
+     p_send4(pIsam,O_IS_SET_FIELDDEF,nFields,&nFields+1));
+     }
+
+  LOCAL_C VOID defineFields(VOID)
+     {
+     
+     setFieldDef(2,ISAM_FIELDTYPE_WORD,ISAM_FIELDTYPE_LONG);
+     }
+
+and both define the field structure of the data file to be
+two fields, the first a WORD field, the second a LONG.
+
+The maximum number of fields that can be specified is
+ISAM_MAX_DEFINED_FIELDS (32) and each field type must be one
+of the following types:
+
+ISAM_FIELDTYP  for a signed BYTE field.
+E_BYTE
+
+ISAM_FIELDTYP  for an unsigned UBYTE field.
+E_UBYTE
+
+ISAM_FIELDTYP  for a signed WORD field.
+E_WORD
+
+ISAM_FIELDTYP  for an unsigned UWORD field.
+E_UWORD
+
+ISAM_FIELDTYP  for a signed LONG field.
+E_LONG
+
+ISAM_FIELDTYP  for an unsigned ULONG field.
+E_ULONG
+
+ISAM_FIELDTYP  for a DOUBLE field.
+E_DOUBLE
+
+ISAM_FIELDTYP  for a leading byte count string field.
+E_STRING
+
+More fields than are specified in the field definition can
+be accessed, but they are always assumed to be of type
+ISAM_FIELDTYPE_STRING.
+
+Note that this specifies the field types to be used in the
+actual data file; however, conversion to and from
+ISAM_FIELDTYPE_STRING is performed automatically by the
+functions O_IS_PUT_FIELD and O_IS_GET_FIELD. See the
+descriptions of these two functions for further details.
+
+Similarly, index files may specify field types which differ
+from those specified for data file fields. The field types
+will be converted automatically, provided the conversion is
+to or from ISAM_FIELDTYPE_STRING. See the description of
+O_IS_SET_KEYDEF.
+
+
+
+
+4
+
+                                            1 ISAM FUNCTIONS
+
+Returns zero if successful or leaves with E_GEN_ARG if the
+given field definition is invalid.
+
+
+.i.O_IS_GET_FIELDDEF;          .c.::Get the field definition
+(O_IS_GET_FIELDDEF)
+
+.f.ISAM_FIELDDEF *p_send2(VOID *pIsam, O_IS_GET_FIELDDEF);
+
+Get the current field definition, returning a pointer to an
+ISAM_FIELDDEF structure.
+
+
+.i.O_IS_SET_KEYDEF;              .c.::Set the key definition
+(O_IS_SET_KEYDEF)
+
+.f.INT p_send2(VOID *pIsam, O_IS_SET_KEYDEF, nKeyFields,
+VOID *pArgs);
+
+Set the key definition (to be used for the next created
+index file) to contain nKeyFields with the parameters for
+each key field specified in the list at pArgs. This key
+definition will be used for the next index file created.
+
+Alternatively pArgs can point to an ISAM_KEYDEF structure
+containing the key definition while nFields is passed as
+zero.
+
+The ISAM_KEYDEF structure is defined in isam.g by:
+
+  typedef struct
+     {
+     WORD field;         /* Field number for key */
+     UBYTE type;         /* Type of field in key */
+     UBYTE flags;        /* ISAM_FIELDFLAG_ASCEND or
+  ISAM_FIELDTYPE_DESCEND */
+     UBYTE offset;       /* Offset for string comparison */
+     UBYTE len:          /* Length for string comparison */
+     WORD convert;       /* Convert flag or collate table */
+     } ISAM_KEY_FIELD;
+
+  typedef struct
+     {
+     WORD nKeyFields;
+     ISAM_KEY_FIELD keyField[ISAM_MAX_KEYFIELDS];
+     } ISAM_KEYDEF;
+
+For example:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                           5
+
+ISAM REFERENCE
+
+  LOCAL_C VOID defineKey(VOID)
+     {
+     ISAM_KEYDEF keyDef;
+  
+     keyDef.nKeyFields=2;
+     keyDef.keyField[0].field=3;
+     keyDef.keyField[0].type=ISAM_FIELDTYPE_STRING;
+     keyDef.keyField[0].flags=ISAM_FIELDFLAG_ASCEND;
+     keyDef.keyField[0].offset=0;
+     keyDef.keyField[0].len=8;
+     keyDef.keyField[0].convert=ISAM_CONVERT_NOFOLD;
+     keyDef.keyField[1].field=1;
+     keyDef.keyField[1].type=ISAM_FIELDTYPE_LONG;
+     keyDef.keyField[1].flags=ISAM_FIELDFLAG_ASCEND;
+     p_send4(pIsam,O_IS_SET_KEYDEF,0,&keyDef);
+     }
+
+is equivalent to:
+
+  LOCAL_C VOID setKeyDef(INT nKeyFields,...)
+     {
+  
+     p_send4(pIsam,O_IS_SET_KEYDEF,nKeyFields,&nKeyFields+1)
+  ;
+     }
+
+  LOCAL_C VOID defineKey(VOID)
+     {
+     
+     setKeyDef(2,3,ISAM_FIELDTYPE_STRING,ISAM_FIELDFLAG_ASCE
+  ND,0,8,ISAM_CONVERT_NOFOLD,1, ISAM_FIELDTYPE_LONG,
+  ISAM_FIELDTYPE_ASCEND);
+     }
+
+The fields: offset, len and convert must only be supplied if
+the type is ISAM_FIELDTYPE_STRING.
+
+The key definition is subject to the following validation:
+
+  þ  The number of key fields must be in the range 1 to
+     ISAM_MAX_KEYFIELDS (8).
+
+  þ  The field number for each key field must be in the
+     range 0 to ISAM_MAX_RECORD_FIELDS (4094).
+
+  þ  The type of each key field (the type actually stored in
+     the index file) must be valid and must be either the
+     same as the type specified in the current field
+     definition or be a conversion from or to an
+     ISAM_FIELDTYPE_STRING.
+
+  þ  The length of a key produced by this definition must be
+     no greater than ISAM_MAX_KEY_LENGTH (64).
+
+Returns the length of a key resulting from this definition
+if successful or leaves with E_GEN_ARG if the key definition
+is invalid.
+
+
+
+
+
+6
+
+                                            1 ISAM FUNCTIONS
+
+.i.O_IS_GET_KEYDEF;              .c.::Get the key definition
+(O_IS_GET_KEYDEF)
+
+.f.ISAM_KEYDEF *p_send3(VOID *pIsam, O_IS_GET_KEYDEF, INT
+indexId);
+
+Get the key definition for the index indexId, returning a
+pointer to an ISAM_KEYDEF structure. The value indexId is
+returned when an index is opened (see O_IS_IOPEN below).
+
+
+.i.O_IS_PUT_FIELD;             .c.::Put a value into a field
+(O_IS_PUT_FIELD)
+
+.f.INT p_send5(VOID *pIsam, O_IS_PUT_FIELD, INT field, VOID
+*pData, INT type);
+
+Put the data at address pData into the record buffer at
+field number given by field. If any preceding fields have
+not been set, they will be automatically set to contain
+zeros.
+
+The type parameter is the type of the data pointed to by
+pData. If type is ISAM_FIELDTYPE_STRING, the data at pData
+must be in the form of a leading byte string.
+
+If type is different from that specified for field number
+field (as reported by O_IS_GET_FIELDDEF) and either of these
+two types is ISAM_FIELDTYPE_STRING, the field data will be
+converted between numeric and string types as necessary
+according to the current radix (as set by O_IS_SET_RADIX).
+
+For example, if the field definition is set to 32 strings
+and the current radix is decimal (the defaults), the
+following code will put the value "31" into field zero in
+the record buffer as a leading byte count string.
+
+  WORD value;
+  
+  value=31;
+  p_send5(pIsam,O_IS_PUT_FIELD,0,&value,ISAM_FIELDTYPE_WORD)
+  ;
+
+Returns zero if successful or leaves with one of the
+following negative error numbers:
+
+E_FILE_RECORD  the assignment to the field would make the
+               total record length greater than
+               ISAM_MAX_RECORD_LENGTH (4094) or the size of
+               the buffer specified in O_IS_INIT.
+
+E_GEN_ARG      the type conversion required is not to or
+               from ISAM_FIELDTYPE_STRING.
+
+E_GEN_FAIL     the type conversion failed because the string
+               could not be recognised as a number.
+
+E_GEN_OVER     the type conversion failed because the number
+               is out of range.
+
+
+
+                                                           7
+
+ISAM REFERENCE
+
+.i.O_IS_GET_FIELD;             .c.::Get a value from a field
+(O_IS_GET_FIELD)
+
+.f.INT p_send5(VOID *pIsam, O_IS_GET_FIELD, INT field, VOID
+*pData, INT type);
+
+Get the data from field in the record buffer into the buffer
+at pData.
+
+The type parameter is the type of the data required at
+pData. If type is ISAM_FIELDTYPE_STRING, the data will be
+written to pData in the form of a leading byte string.
+
+If type is different from that specified for field number
+field (as reported by O_IS_GET_FIELDDEF) and either of these
+two types is ISAM_FIELDTYPE_STRING, the field data will be
+converted between numeric and string types as necessary
+according to the current radix (as set by O_IS_SET_RADIX).
+
+For example, if the field definition is set to 32 strings
+(the default), the following code will get the value from
+field 10 in the record buffer and convert it to a LONG.
+
+  LONG lValue;
+  
+  p_send5(pIsam,O_IS_GET_FIELD,10,&lValue,ISAM_FIELDTYPE_LON
+  G);
+
+Returns zero if successful or leaves with one of the
+following negative error numbers:
+
+E_GEN_ARG      the type conversion required is not to or
+               from ISAM_FIELDTYPE_STRING.
+
+E_GEN_FAIL     the type conversion failed because the string
+               could not be recognised as a number.
+
+E_GEN_OVER     the type conversion failed because the number
+               is out of range.
+
+
+.i.O_IS_GET_TYPE;               .c.::Get the type of a field
+(O_IS_GET_TYPE)
+
+.f.INT p_send3(VOID *pIsam, O_IS_GET_TYPE, INT field);
+
+Return the actual type of field in the data file.
+
+This provides the same functionality as calling
+O_IS_GET_FIELDDEF and then inspecting the required field. It
+is included for convenience.
+
+
+
+
+
+
+
+
+
+
+
+8
+
+                                            1 ISAM FUNCTIONS
+
+.i.O_IS_GET_RBUF;  .c.::Get the address of the record buffer
+(O_IS_GET_RBUF)
+
+.f.ISAM_RECORDBUF *p_send2(VOID *pIsam, O_IS_GET_RBUF);
+
+Get the actual address of the record buffer allocated in
+O_IS_INIT, returning a pointer to an ISAM_RECORDBUF
+structure defined in isam.g as:
+
+  typedef struct
+     {
+     WORD len;           /* Length of record */
+     UBYTE data[2];      /* len bytes of data... */
+     } ISAM_RECORDBUF;
+
+This function is provided to allow direct access to the
+current record in the buffer, if needed. Typically, it will
+be more convenient to use O_IS_GET_FIELD and O_IS_PUT_FIELD.
+
+
+.i.O_IS_SET_RADIX;  .c.::Set the radix for number conversion
+(O_IS_SET_RADIX)
+
+.f.VOID p_send3(VOID *pIsam, O_IS_SET_RADIX, INT radix);
+
+Set the base radix for number conversion to radix. By
+default this is set to 10.
+
+
+.i.O_IS_SET_DFORMAT;    .c.::Set the text format for DOUBLES
+(O_IS_SET_RADIX)
+
+.f.VOID p_send3(VOID *pIsam, O_IS_SET_DFORMAT, P_DTOB
+*dFormat);
+
+Set the format for DOUBLES converted to text to be that
+specified by dFormat.
+
+
+.i.O_IS_ADD;                    .c.::Add an entry (O_IS_ADD)
+
+.f.INT p_send2(VOID *pIsam, O_IS_ADD);
+
+Add the record currently in the record buffer to the data
+file and attempt to add entries to all open index files
+which do not have ISAM_FLAG_MANUAL set (see O_IS_IFLAGS).
+
+One or more of the index files may refuse to actually add
+the entry for any of the following reasons:
+
+  þ  A filter method returns FALSE (see O_IS_IFILTER).
+
+  þ  The entry matches an existing entry in the index and a
+     duplicate method returns FALSE (see O_IS_IDUP).
+
+  þ  The entry matches an existing entry in the index and
+     ISAM_FLAG_ALLOWDUP is not set (see O_IS_IFLAGS).
+
+but no error will be given.
+
+
+
+                                                           9
+
+ISAM REFERENCE
+
+Returns FALSE if successful or leaves with one of the
+negative errors returned by the PLIB function p_write.
+
+
+.i.O_IS_ERASE;              .c.::Erase an entry (O_IS_ERASE)
+
+.f.INT p_send2(VOID *pIsam, O_IS_ERASE);
+
+Erase the record currently in the record buffer from the
+data file and from all open index files which do not have
+ISAM_FLAG_MANUAL set (see O_IS_IFLAGS).
+
+The record buffer must contain a record read by a successful
+call to one of the following functions: O_IS_DFIRST,
+O_IS_DNEXT, O_IS_IFIND, O_IS_INEXT, O_IS_IBACK, O_IS_IFIRST,
+O_IS_ILAST, O_IS_ICURRENT.
+
+Returns FALSE if successful or E_FILE_EOF if the current
+record is end-of-file or leaves with one of the negative
+errors returned by the PLIB function p_write.
+
+
+.i.O_IS_UPDATE;           .c.::Update an entry (O_IS_UPDATE)
+
+.f.INT p_send2(VOID *pIsam, O_IS_UPDATE);
+
+Replace the record which was read by a successful call to
+one of the following functions: O_IS_DFIRST, O_IS_DNEXT,
+O_IS_IFIND, O_IS_INEXT, O_IS_IBACK, O_IS_IFIRST, O_IS_ILAST,
+O_IS_ICURRENT, by the new contents of the record buffer in
+the data file and all open index files which do not have
+ISAM_FLAG_MANUAL set (see O_IS_IFLAGS).
+
+Returns FALSE if successful or E_FILE_EOF if the current
+record is end-of-file or leaves with one of the negative
+errors returned by the PLIB function p_write.
+
+
+
+.c.:Data file functions
+
+This section describes functions to perform the following:
+
+  þ  Open or create a data file.
+
+  þ  Flush the buffers used for the data file.
+
+  þ  Get the current size of the data file.
+
+  þ  Sequentially read the data file.
+
+
+.i.O_IS_DOPEN;            .c.::Open a data file (O_IS_DOPEN)
+
+.f.INT p_send4(VOID *pIsam, O_IS_DOPEN, TEXT *name, UINT
+mode);
+
+Open a data file specified by the zero terminated file
+specification name.
+
+
+
+10
+
+                                            1 ISAM FUNCTIONS
+
+The mode parameter is the same as for the PLIB function
+p_open(P_FSTREAM). If P_FCREATE or P_FREPLACE is specified,
+the data file is created with the current field definition
+(see O_IS_SET_FIELDDEF). If an existing data file is opened,
+the current field definition is set to that of the file
+opened.
+
+Only one data file can be opened per ISAM object. If an
+attempt is made to open more than one, p_panic will be
+called.
+
+Returns zero if successful or leaves with one of the
+negative errors returned by p_open(P_FSTREAM).
+
+
+.i.O_IS_DFLUSH;   .c.::Flush data file buffers (O_IS_DFLUSH)
+
+.f.INT p_send2(VOID *pIsam, O_IS_DFLUSH);
+
+Flush all data written to the data file and write the file's
+modification date.
+
+Returns zero if successful or leaves with one of the
+negative errors returned by the PLIB function p_write.
+
+See the PLIB function p_iow(P_FFLUSH) for further details on
+flushing.
+
+
+.i.O_IS_DSIZE;       .c.::Get size of data file (O_IS_DSIZE)
+
+.f.INT p_send3(VOID *pIsam, O_IS_DSIZE, LONG *size);
+
+Write the size (in bytes) of the open data file to size.
+
+Returns zero if successful or leaves with one of the
+negative errors returned by the PLIB function p_seek.
+
+
+.i.O_IS_DFIRST;    .c.::Read first data record (O_IS_DFIRST)
+
+.f.INT p_send2(VOID *pIsam, O_IS_DFIRST);
+
+Read the first record in the data file into the record
+buffer.
+
+Returns zero if successful or E_FILE_EOF if there are no
+records or leaves with one of the negative errors returned
+by the PLIB function p_read.
+
+
+.i.O_IS_DNEXT;       .c.::Read next data record (O_IS_DNEXT)
+
+.f.INT p_send2(VOID *pIsam, O_IS_DNEXT);
+
+Read the next record in the data file into the record
+buffer.
+
+
+
+
+
+                                                          11
+
+ISAM REFERENCE
+
+Should be used in conjunctions with O_IS_DFIRST to provide
+sequential access to the data file records in the order they
+are stored without the need for an index file.
+
+Returns zero if successful or E_FILE_EOF if the current
+record is the last record in the file or leaves with one of
+the negative errors returned by the PLIB function p_read.
+
+
+
+.c.:Index file functions
+
+This section describes functions to perform the following:
+
+  þ  Open or create an index file.
+
+  þ  Flush the buffers used for the index file.
+
+  þ  Build a complete (dense) index file from a sorted or
+     unsorted data file.
+
+  þ  Build an index for a selection of records (sparse) by
+     one of two mechanisms:
+     
+     1) Specify a function which will be called during the
+     building of the index (OOP only).
+     
+     2) Add and erase entries from the index directly.
+
+  þ  Get the size and number of entries in an index.
+
+  þ  Provide fast indexed access to records in the data file
+     from a given index and match key.
+
+  þ  Provide sequential access to records in the data file
+     in the order defined by an index.
+
+The function O_IS_IOPEN returns an indexId which is then
+passed as a parameter to other index functions.
+
+
+.i.O_IS_IOPEN;               .c.::Open an index (O_IS_IOPEN)
+
+.f.INT p_send4(VOID *pIsam, O_IS_IOPEN, TEXT *name, UINT
+mode);
+
+Open an index file specified by the zero terminated file
+specification name.
+
+The mode parameter is the same as for the PLIB function
+p_open(P_FSTREAM). If P_FCREATE or P_FREPLACE is specified,
+the data file is created with the current key definition
+(see O_IS_SET_KEYDEF above). If an existing index file is
+opened, its key definition can be obtaining using
+O_IS_GET_KEYDEF.
+
+Note that the key definition is stored in the index file
+itself and cannot be changed once the index file has been
+created.
+
+
+
+12
+
+                                            1 ISAM FUNCTIONS
+
+Returns an indexId from 1 to 31 if successful or leaves with
+one of the negative errors returned by p_open(P_FSTREAM) or
+E_GEN_FAIL if an attempt is made to open more than 31
+indexes.
+
+
+.i.O_IS_ICLOSE;            .c.::Close an index (O_IS_ICLOSE)
+
+.f.INT p_send3(VOID *pIsam, O_IS_ICLOSE, INT indexId);
+
+Close the index specified by indexId and return zero.
+
+O_IS_ICLOSE can fail due to one or more write operations but
+will always succeed in closing the channel (the indexId
+should not be used subsequently). No error is ever returned
+and the function will not leave.
+
+Carefully written applications avoid this problem by using
+O_IS_IFLUSH to flush all buffered data (and taking
+appropriate action it this fails) before closing the channel
+without risk of failure.
+
+
+.i.O_IS_IFLUSH;  .c.::Flush index file buffers (O_IS_IFLUSH)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IFLUSH, INT indexId);
+
+Flush all buffers used for index indexId and write the index
+file's modification date.
+
+Returns zero if successful or leaves with one of the
+negative errors returned by the PLIB function p_write.
+
+See the PLIB function p_iow(P_FFLUSH) for further details on
+flushing.
+
+
+.i.O_IS_IFLAGS;   .c.::Set and get index flags (O_IS_IFLAGS)
+
+.f.INT p_send5(VOID *pIsam, O_IS_IFLAGS, INT indexId, INT
+mask, INT value);
+
+Modify the flag bits given by mask to the state (set or
+clear) given by value in index indexId.
+
+Returns the new value of the flags; passing mask as zero
+just reads the current flag settings.
+
+The flags available are:
+
+ISAM_FLAG_ALL  allow duplicate entries in the index. If this
+OWDUP          flag is set, duplicate entries will be added
+               when the index is built using O_IS_BUILD or
+               O_IS_QBUILD or when entries are added with
+               O_IS_ADD or O_IS_IADD.
+
+
+
+
+
+
+
+                                                          13
+
+ISAM REFERENCE
+
+ISAM_FLAG_MAN  the index will not be automatically updated
+UAL            by calls to the general functions O_IS_ADD,
+               O_IS_ERASE or O_IS_UPDATE. The index
+               functions O_IS_IADD and O_IS_IERASE must be
+               used to add or erase entries explicitly;
+               typically, it is used to build an index to a
+               selection of records only (a sparse index).
+
+ISAM_FLAG_MIN  Minimize the storage requirement of the index
+IMIZE          by altering the way keys are inserted. The
+               index is not compressed when the flag is set
+               but any future additions to the index are
+               inserted using the minimize algorithm. With
+               the flag set, the actual insertion will be
+               slower but the index produced will be smaller
+               and hence a greater portion of it can be held
+               in internal buffers which means finding the
+               insertion point is faster.
+               
+               Whether it is worth setting this flag is
+               clearly application dependent and the best
+               way to decide is by trial and error.
+               
+               The flag can be set or cleared at any stage
+               without harming the index structure.
+
+By default, all the above flags are not set.
+
+Note that these settings are stored in the index file but
+can be modified at any time. For example, if
+ISAM_FLAG_ALLOWDUP is not set, it does not necessarily mean
+there are no duplicate entries in the index. It just means
+that the current intention is to not add duplicates.
+
+Example
+  testId=p_send4(pIsam,O_IS_IOPEN,"TEST.INX",P_FREPLACE|P_FU
+  PDATE);
+  p_send5(pIsam,O_IS_IFLAGS,testId,ISAM_FLAG_ALLOWDUP,ISAM_F
+  LAG_ALLOWDUP);
+  
+
+creates an index file in which duplicate entries will be
+allowed.
+
+
+.i.O_IS_IFILTER; .c.::Specify a filter method (O_IS_IFILTER)
+
+.f.VOID p_send5(VOID *pIsam, O_IS_IFILTER, INT indexId, VOID
+*pObj, INT method);
+
+This function is only applicable when using object oriented
+programming (OOP).
+
+Specify the object at pObj to be called with method whenever
+entries are added to index indexId, to facilitate the
+building of an index to a selection of records (a sparse
+index).
+
+
+
+
+
+14
+
+                                            1 ISAM FUNCTIONS
+
+The method is called with a pointer to the key that is being
+inserted and the address of a LONG which is the data file
+reference. The method must return FALSE if the entry should
+be omitted from the index or TRUE if it should be added.
+
+To remove the filter method, pObj must be passed as NULL.
+
+
+.i.O_IS_IDUP;   .c.::Specify a duplicates method (O_IS_IDUP)
+
+.f.VOID p_send5(VOID *pIsam, O_IS_IDUP, INT indexId, VOID
+*pObj, INT method);
+
+This function is only applicable when using object oriented
+programming (OOP).
+
+Specify the object at pObj to be called with method whenever
+a duplicate entry is added to index indexId.
+
+The method is called with a pointer to the key that is being
+inserted and the address of a LONG which is the data file
+reference. The method must return FALSE if the duplicate
+entry should be omitted from the index or TRUE if it should
+be added anyway. There is no regard for the setting of the
+flag ISAM_FLAG_ALLOWDUP in either case, ie the method called
+has higher priority.
+
+To remove the duplicates method, pObj must be passed as
+NULL.
+
+
+.i.O_IS_IBUILD;            .c.::Build an index (O_IS_IBUILD)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IBUILD, INT indexId);
+
+Build the index specified by indexId using its key
+definition to extract keys from the records in the data
+file.
+
+If the data file is already ordered by the key for this
+index, O_IS_IQBUILD should be used to build the index much
+faster.
+
+The index is always built from scratch; any existing index
+entries are erased first.
+
+Returns FALSE if the complete build was successful and there
+were no duplicate entries; returns TRUE if successful but
+there were duplicates or leaves with one of the negative
+errors returned by the PLIB function p_write in which case
+all entries made so far will be erased.
+
+Duplicate entries
+The value TRUE, returned by O_IS_IBUILD is simply to inform
+the caller that one or more keys extracted from the data
+during the build were identical. It does not, however,
+indicate whether more than one copy of the key has been
+stored in the index or not. This is controlled by the
+following:
+
+
+
+                                                          15
+
+ISAM REFERENCE
+
+  þ  If a duplicates method has been specified by O_IS_IDUP,
+     its return value of TRUE or FALSE determines whether to
+     insert or not. (This is applicable to OOP only.)
+
+  þ  If there is no duplicates method, the setting of the
+     flag ISAM_FLAG_ALLOWDUP is used.
+
+
+.i.O_IS_IQBUILD;        .c.::Build an index from sorted data
+(O_IS_IQBUILD)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IQBUILD, INT indexId);
+
+Build the index specified by indexId using its key
+definition to extract keys from the records in the (sorted)
+data file.
+
+For this function to work, the records in the data file must
+be in the correct order defined by the key definition for
+this index.
+
+There are two advantages of this function over O_IS_IBUILD:
+
+  1) It is much faster for a large number of records. So
+     much faster, in fact, that it is often quicker to sort
+     the data file (using, for example, a quick-sort
+     algorithm) and then call O_IS_IQBUILD to build an index
+     than to call O_IS_IBUILD with an unsorted data file.
+
+  2) The index file produced will generally be smaller (more
+     compressed) than that produced using O_IS_IBUILD. Note
+     that if the flag ISAM_FLAG_MINIMIZE is set before the
+     call to O_IS_QBUILD, an even smaller index file will be
+     produced at a small cost to the time taken (see the
+     O_IS_IFLAGS function, above).
+
+The index is always built from scratch, so any existing
+index entries are erased first.
+
+Returns FALSE if the complete build is successful or leaves
+with one of the negative errors returned by the PLIB
+function p_write in which case all entries made so far will
+be erased.
+
+Note that there is no checking for duplicate entries as
+there is with the O_IS_IBUILD function.
+
+
+.i.O_IS_IADD;            .c.::Add an index entry (O_IS_IADD)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IADD, INT indexId);
+
+Add an entry to the index indexId using its key definition
+to extract a key from the record currently in the record
+buffer.
+
+The entry is added to the given index only, unlike the
+function O_IS_ADD which adds entries to all appropriate
+indexes automatically. This provides, therefore, the
+
+
+
+16
+
+                                            1 ISAM FUNCTIONS
+
+mechanism for building and maintaining a selective (sparse)
+index:
+
+  þ  Read records into the record buffer using, for example,
+     O_IS_DNEXT, or O_IS_IFIND, O_IS_INEXT with another
+     index.
+
+  þ  Selectively add entries to this index if certain
+     conditions are met.
+
+This method of building an index will typically be slower
+than building a sparse index by calling O_IS_IBUILD or
+O_IS_IQBUILD after specifying a filter method but does not
+require OOP.
+
+If the entries are to be added in key order, the function
+O_IS_IQADD should be used to add the entries faster.
+
+Returns FALSE if successful or TRUE if successful but the
+entry is a duplicate or leaves with one of the negative
+errors returned by the PLIB function p_write.
+
+The decision whether to add a duplicate entry is made in
+exactly the same way as with O_IS_IBUILD.
+
+
+.i.O_IS_IQADD; .c.::Add an index entry in order (O_IS_IQADD)
+
+.f.INT p_send4(VOID *pIsam, O_IS_IQADD, INT indexId, INT
+finish);
+
+Add an entry to the index indexId in order using its key
+definition to extract a key from the record currently in the
+record buffer.
+
+The entries must be added in the correct order given by the
+key for this index and the parameter finish should be passed
+as FALSE for all entries except the last entry, when it
+should be passed as TRUE.
+
+The index should contain no entries before the first
+O_IS_IQADD is called.
+
+The advantages of this function over O_IS_IADD are the same
+as O_IS_IQBUILD over O_IS_IBUILD.
+
+Returns FALSE if successful or leaves with one of the
+negative errors returned by the PLIB function p_write.
+
+Note that there is no checking for duplicate entries as
+there is with the O_IS_IADD function.
+
+
+.i.O_IS_IERASE;      .c.::Erase an index entry (O_IS_IERASE)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IERASE, INT indexId);
+
+Erase an entry from the index indexId, which corresponds to
+the record currently in the record buffer.
+
+
+
+                                                          17
+
+ISAM REFERENCE
+
+The entry is erased from the given index only, unlike the
+function O_IS_ERASE which erases entries from all
+appropriate indexes automatically. This provides, therefore,
+the mechanism for maintaining a selective (sparse) index.
+
+Returns FALSE if successful or TRUE if there is no entry in
+the index which corresponds to the record in the record
+buffer or leaves with one of the negative errors returned by
+the PLIB function p_write.
+
+
+.i.O_IS_IERASEALL;              .c.::Erase all index entries
+(O_IS_IERASEALL)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IERASEALL, INT indexId);
+
+Erase all entries in the index indexId.
+
+Returns zero if successful or leaves with one of the
+negative errors returned by the PLIB function p_write.
+
+
+.i.O_IS_ICOUNT;         .c.::Get the number of index entries
+(O_IS_ICOUNT)
+
+.f.INT p_send4(VOID *pIsam, O_IS_ICOUNT, INT indexId, LONG
+*count);
+
+Write the number of entries in the open index file indexId
+to count.
+
+Returns zero if successful or leaves with one of the
+negative errors returned by the PLIB function p_seek.
+
+
+.i.O_IS_ISIZE;   .c.::Get size of an index file (O_IS_ISIZE)
+
+.f.INT p_send4(VOID *pIsam, O_IS_DSIZE, INT indexId, LONG
+*size);
+
+Write the size (in bytes) of the open index file indexId to
+size.
+
+Returns zero if successful or leaves with one of the
+negative errors returned by the PLIB function p_seek.
+
+
+.i.O_IS_IFIND;.c.::Find a record using an index (O_IS_IFIND)
+
+.f.INT p_send4(VOID *pIsam, O_IS_IFIND, INT indexId, VOID
+**pArgs);
+
+Find an entry in the index indexId which matches the key
+generated by the arguments at pArgs and read the
+corresponding record from the data file into the record
+buffer.
+
+pArgs is the address of an array of pointers to key fields
+to be matched, terminated by NULL if fewer key fields are
+
+
+
+18
+
+                                            1 ISAM FUNCTIONS
+
+supplied than are specified in the key definition for this
+index.
+
+Returns the following:
+
+FALSE          if a matching entry is found and the
+               corresponding record is read into the record
+               buffer.
+
+TRUE           if no match is found and the record
+               corresponding to the following index entry is
+               read into the buffer.
+
+E_FILE_EOF     if no match is found and there is no
+               following index entry (no record is read into
+               the record buffer).
+
+or leaves with a negative error returned from the PLIB
+function p_read.
+
+For example:
+
+  LOCAL_C INT findEntry(INT indexId,...)
+     {
+  
+     return(p_send4(pIsam,O_IS_IFIND,indexId,&indexId+1));
+     }
+
+  LOCAL_C VOID find(VOID)
+     {
+     UBYTE str[16];
+     LONG l;
+  
+     l=99999L;
+     str[0]=3;
+     str[1]='A';
+     str[2]='B';
+     str[3]='C';
+     if (findEntry(index1,&l,&str[0],NULL)==FALSE)
+          p_printf("Found");
+     else
+          p_printf("Not found");
+     }
+
+will search index1 for the first entry with field zero equal
+to 99999L and field one equal to ABC. Note that the field
+types passed must be the same as those specified in the key
+definition of the index.
+
+If there is more than one entry in the index which matches
+the given fields, O_IS_IFIND will always read the first one.
+To read any others, use O_IS_INEXT.
+
+
+
+
+
+
+
+
+
+
+                                                          19
+
+ISAM REFERENCE
+
+.i.O_IS_INEXT;    .c.::Read next indexed record (O_IS_INEXT)
+
+.f.INT p_send3(VOID *pIsam, O_IS_INEXT, INT indexId);
+
+Read the record corresponding to the next entry in index
+indexId into the record buffer.
+
+Returns zero if successful or E_FILE_EOF if the current
+index entry is the last one or leaves with one of the
+negative errors returned by the PLIB function p_read.
+
+
+.i.O_IS_IBACK;.c.::Read previous indexed record (O_IS_IBACK)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IBACK, INT indexId);
+
+Read the record corresponding to the next entry in index
+indexId into the record buffer.
+
+Returns zero if successful or E_FILE_EOF if the current
+index entry is the first one or leaves with one of the
+negative errors returned by the PLIB function p_read.
+
+
+.i.O_IS_IFIRST; .c.::Read first indexed record (O_IS_IFIRST)
+
+.f.INT p_send3(VOID *pIsam, O_IS_IFIRST, INT indexId);
+
+Read the record corresponding to the first entry in index
+indexId into the record buffer.
+
+Returns zero if successful or E_FILE_EOF if there are no
+entries in the index or leaves with one of the negative
+errors returned by the PLIB function p_read.
+
+
+.i.O_IS_ILAST;    .c.::Read last indexed record (O_IS_ILAST)
+
+.f.INT p_send3(VOID *pIsam, O_IS_ILAST, INT indexId);
+
+Read the record corresponding to the last entry in index
+indexId into the record buffer.
+
+Returns zero if successful or E_FILE_EOF if there are no
+entries in the index or leaves with one of the negative
+errors returned by the PLIB function p_read.
+
+
+.i.O_IS_ICURRENT;           .c.::Read current indexed record
+(O_IS_ICURRENT)
+
+.f.INT p_send3(VOID *pIsam, O_IS_ICURRENT, INT indexId);
+
+Read the record corresponding to the current entry in index
+indexId into the record buffer.
+
+Returns zero if successful or E_FILE_EOF if the current
+index entry is set to end-of-file or leaves with one of the
+negative errors returned by the PLIB function p_read.
+
+
+
+20
+
+                                            1 ISAM FUNCTIONS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                          21

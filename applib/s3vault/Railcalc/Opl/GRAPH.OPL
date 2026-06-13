@@ -1,0 +1,124 @@
+PROC graph:
+	LOCAL idG%,p%,file$(128),log&,log$(3),n%
+	LOCAL mlfst,ppm,chk%,tot%,x%(20),y%(20)
+	LOCAL ml(20),tim&(20),tab&(20),nm$(20,20)
+	LOCAL stst$(255),pk1%,pk2%
+	LOCAL timspd,tabspd,timspd$(3),tabspd$(3)
+		file$="*.rkv"
+		log&=5
+		dINIT
+		dTEXT "","SHOW  RECORDS  OF  JOURNEY",$302
+		dFILE file$,"Select Journey",8
+		dLONG log&,"Maximum  minutes  late",1,300
+		p%=DIALOG
+		IF p%=0
+			RETURN
+		ENDIF
+		log$=GEN$(log&,3)
+		IF EXIST(file$)
+			OPEN file$,A,nm$,idx$,ml,stop$,tabA,tabD,timA,timD
+		ENDIF
+			FIRST
+				mlfst=A.ml
+			LAST
+				ppm=ABS(332/(A.ml-mlfst))
+			n%=1
+			chk%=1
+				FIRST
+		x%(n%)=INT(ABS(A.ml-mlfst)*ppm)+4
+		y%(n%)=82-INT((A.timD-A.tabD)*82/(log&*60))+4
+		nm$(n%)=A.nm$
+		ml(n%)=A.ml
+		tim&(n%)=A.timD
+		tab&(n%)=A.tabD
+			n%=n%+1
+			DO
+				NEXT
+					IF A.nm$<>"Mile" AND A.nm$<>"Unstop"
+		x%(n%)=INT(ABS(A.ml-mlfst)*ppm)+4
+		y%(n%)=82-INT((A.timD-A.tabD)*82/(log&*60))+4
+		nm$(n%)=A.nm$
+		ml(n%)=A.ml
+		tim&(n%)=A.timD
+		tab&(n%)=A.tabD
+			n%=n%+1
+			chk%=chk%+1
+					ELSE
+			chk%=chk%+1
+					ENDIF
+			UNTIL chk%=COUNT
+			tot%=n%
+			IF tot%<21
+				DO
+				nm$(n%)=" "
+				n%=n%+1
+				UNTIL n%=21
+			ENDIF
+			gFONT 7
+			gSTYLE 33
+			gAT 390,25
+			gPRINT "Speed"
+			gAT 390,45
+			gPRINT "Records"
+			gAT 20,105
+			gPRINT "Lateness"
+			gAT 20,125
+			gPRINT "Chart"
+			gFONT 9
+			gSTYLE 1
+			gAT 97,78
+			gPRINT log$+" min"
+			gAT 100,155
+			gPRINT "0 min"
+				idG%=gCREATE(135,68,340,90,1,1)
+				gXBORDER 1,1
+		n%=1
+		gAT x%(n%),y%(n%)
+		n%=n%+1
+		DO
+			gLINETO x%(n%),y%(n%)
+			n%=n%+1
+		UNTIL n%=tot%
+		n%=1
+		DO
+		gAT x%(n%),1 :gFILL 2,6,0
+		gAT x%(n%),82 :gFILL 2,6,0
+			n%=n%+1
+		UNTIL n%=tot%
+		gUSE 1
+			stst$=nm$(1)+","+nm$(2)+","+nm$(3)+","+nm$(4)+","+nm$(5)+","+nm$(6)+","+nm$(7)+","+nm$(8)+","+nm$(9)+","+nm$(10)+","+nm$(11)+","+nm$(12)+","+nm$(13)+","+nm$(14)+","+nm$(15)+","+nm$(16)+","+nm$(17)+","+nm$(18)+","+nm$(19)+","+nm$(20)
+		pk1%=1
+		pk2%=2
+	DO
+		dINIT
+		dTEXT "","AVERAGE   SPEEDS",$302
+		dCHOICE pk1%,"From      .............................",stst$
+		dCHOICE pk2%,"To      ..................................",stst$
+		dPOSITION -1,-1
+		p%=DIALOG
+			IF p%=0
+				gUSE idG%
+				gCLS
+				gCLOSE idG%
+				gCLS
+				CLOSE
+				RETURN
+			ENDIF
+			timspd=ABS((ml(pk2%)-ml(pk1%))/(tim&(pk2%)-tim&(pk1%))*3600)
+			tabspd=ABS((ml(pk2%)-ml(pk1%))/(tab&(pk2%)-tab&(pk1%))*3600)
+			timspd$=GEN$(INT(timspd),3)
+			tabspd$=GEN$(INT(tabspd),3)
+			dINIT
+			dTEXT "","AVERAGE   SPEEDS",$302
+			dTEXT nm$(pk1%)+"  to  "+nm$(pk2%)+" - tabled  at",tabspd$,$101
+			dTEXT nm$(pk1%)+"  to  "+nm$(pk2%)+" - timed  at",timspd$,$101
+			dPOSITION -1,-1
+			p%=DIALOG
+		UNTIL p%=0
+				gUSE idG%
+				gCLS
+				gCLOSE idG%
+				gCLS
+				CLOSE
+				RETURN
+ENDP

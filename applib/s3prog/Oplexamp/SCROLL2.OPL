@@ -1,0 +1,68 @@
+==========
+psion/opl #1147, from sboswell, 1482 chars, May  5 20:23 94
+----------
+Title:Scrolling Text in a window
+Well I sussed out how to do this (Really *Easy*, I don't know why I
+didn't think of it before). Here's a little example program that does
+it. Theres no error checking or anything so it goes a bit odd at the
+end of list but I'm sure you see what I was getting at.
+
+
+PROC Main:
+  GLOBAL Scr$(10,20),List$(26,20),Id%
+  LOCAL Count%,Button%,Pos%,Quit%
+  Count%=1
+  WHILE Count%<=26
+    List$(Count%)=REPT$(CHR$(Count%+64),(Count%/2)+5)
+    Count%=Count%+1
+  ENDWH
+  Id%=gCREATE(1,24,180,125,1,1)
+  gXBORDER 1,771
+  gFONT 4
+  Pos%=1
+        WHILE Quit%<>1
+          Loadarr:(Pos%)
+          Prarr:
+          Button%=GET
+          IF Button%=%u
+            Pos%=Pos%+1
+          ELSEIF Button%=%d
+          Pos%=Pos%-1
+        ELSE
+          Quit%=1
+        ENDIF
+  ENDWH
+        STOP
+ENDP
+PROC Loadarr:(Pos%)
+  LOCAL Count%,NewPos%
+  Count%=1
+  WHILE Count%<=10
+    NewPos%=Pos%+(Count%-1%)
+    IF NewPos%<=26 AND NewPos%>=1
+      Scr$(Count%)=List$(NewPos%)
+    ELSE
+      Count%=10
+    ENDIF
+    Count%=Count%+1
+  ENDWH
+ENDP
+PROC Prarr:
+  LOCAL Count%
+  Count%=1
+  WHILE Count%<=10
+    gAT 10,(Count%*10)+10
+    gPRINTB Scr$(Count%),160
+    Count%=Count%+1
+  ENDWH
+ENDP
+
+I hope this is of use to somebody, I know its a very basic sort of
+thing but I'm new to OPL and I'm sure I'm not the only one learning it
+at the moment. (The first bit of code he writes for himself that anybody
+else has seen and he uploads it to CIX (is he mad??) B^))
+
+
+Stevie B
+
+

@@ -1,0 +1,304 @@
+VT100 Terminalemulator
+Prliminary Manual
+
+1. Einfhrung
+Der VT100 Terminalemulator ist ein Kommunikationsprogramm, das sowohl die DEC
+VT100 ESC-Sequenzen als auch die Codes fr ANSI und TTY Emulation beinhaltet.
+Die Software ist nur auf dem Serie3a lauff„hig.
+
+2. Schnelleinstieg
+Um den Emulator zu starten, installieren Sie die Applikation in der Systemober-
+fl„che. W„hlen Sie dazu den Meneintrag "INSTALLIEREN" unter "APPLIKATION" im
+Systemfenster. In der Dateiauswahlzeile muá dann die Zeile "TERMINAL.APP" stehen.
+Nach dem Best„tigen mit ENTER kann die Applikation gestartet werden. Dazu muá
+der Cursor unter dem Terminal-Icon stehen. Wenn Sie dann ENTER drcken,
+erscheint der Terminalbildschirm mit einem blinkenden Cursor. Die Software ist nun
+betriebsbereit und wartet auf eine Eingabe. Die Standardeinstellungen des
+Ports sind wie folgt:
+
+        Port: 9600 Baud, 8 Bits, 1 Stopbit, keine Parit„t, TTY:A
+        Handshake: XON/XOFF
+        Initialisierung: atz
+        Auflegen: +++^$D02H0^M
+        W„hlmodus: Puls
+        Bildschirmschirmgr”áe 80 Spalten mal 25 Zeilen.
+
+Alle Einstellungen k”nnen in "EINSTELLUNGEN" unter "EXTRAS" ge„ndert werden.
+Um die Kommunikation sicher zu machen, wird der Gebrauch eines Handshake
+Protokolls empfohlen.
+
+3. Men
+
+3.1 Kommunikation
+
+3.1.1 Initialisierung
+Der Initialisierung ist auf "atz^M" eingestellt. In "EINSTELLUNGEN" kann dies
+in eine andere Zeichenkette ge„ndert werden. Wenn die Verbindung zum Modem
+korrekt ist muá auf dem
+Bildschirm ein "OK" erscheinen.
+
+3.1.2 W„hlen
+In diesem Dialog finden Sie drei Optionen:
+        Wiederholen(TAB): W„hlt die zuletzt gew„hlte Nummer
+        Frei: freie Eingabe einer beliebigen Nummer
+        Datei: Sucht in einer Datenbank nach einer Nummer. Die Datei, in der
+          gesucht wird, kann in "EINSTELLUNGEN" ausgew„hlt werden.
+          (zur Tabellendarstellung siehe Anhang B)
+
+Wenn eine Nummer durch freie Eingabe oder ber eine Datei gew„hlt wurde, so
+wird diese automatisch in einer Datei gespeichert. So kann auch die zuletzt
+editierte Nummer wieder angew„hlt werden kann. Diese Datei ist im Verzeichnis
+\INI\ gespeichert.
+Beim Start wird zuerst auf eventuell vorhandenen SSDs und im internen Speicher
+gesucht.
+
+3.1.3 Auflegen
+Auflegen beendet eine bestehende Verbindung sofort. Die zu sendende Zeichen-
+kette kann ebenfalls in "EINSTELLUNGEN" ge„ndert werden. Beim ersten Starten
+wird "+++^$D02H0^M" abgespeichert. Das ^$d02 fhrt eine Verz”gerung von 3
+Sekunden ein.
+
+3.2 Display
+
+3.2.1 L”schen
+Das Kommando "L™SCHEN" l”scht den Bildschirm und bewegt den Cursor in die obere
+linke Ecke.
+
+3.2.2 Anzeige
+Im Anzeige-Dialog k”nnen die folgenden Einstellungen vorgnommen werden:
+        Lokales oder Externes Echo an oder aus
+        Statuszeile in verschiedenen Gr”áen oder aus
+        Blockcursor oder Strichcursor
+        Entertaste: mit oder ohne Linefeeed (hex 10)
+        Position des Naviagtionsfensters oder aus
+
+Die Statuszeile informiert den Benutzer ber aktuelle Einstellungen wie Port,
+Handshake, etc.
+
+3.2.3 TTY/VT100
+Mit dieser Option kann auf TTY und zurck auf VT100 umgeschaltet werden. Der
+Meneintrag wird automatisch aktualisiert. Vor dem Umschalten auf VT100 wird
+die Bildschirmgr”áe in Spalten und Zeilen abgefragt.
+
+3.3 šbertragung
+
+Die Optionen dieses Mens dienen zum Einstellen und zum Durchfhren von
+Dateibertragung.
+
+3.3.1 Protokoll
+Mit der Option kann eine Version des XMODEM oder YMODEM -Protokolls ausgew„hlt
+werden. Wenn man im Dialog TAB bet„tigt, wird eine Liste mit allen  verfgbaren
+Protokollen ge”ffnet.
+
+3.3.2 Senden/Empfangen
+Der Menpunkt "SENDEN" zeigt einen Dateiauswahlbox an, mit deren Hilfe die zu
+sendende Datei ausgew„hlt werden kann. Wenn der Dialog best„tigt wird,
+beginnt die šbertragung. Nach dem Aufruf von "EMPFANGEN" muá eine Zieldatei
+angegeben werden. Falls kein Protokoll festgelegt wurde, erscheint eine ent-
+sprechende Auswahlbox.
+
+3.3.3 Logdatei ein/aus
+Falls es n”tig ist, alle angezeigten Informationen in einer Datei zu
+speichern, kann dies mit "Logdatei ein/aus" erfolgen. Es erscheint eine Editbox,
+in die ein Dateiname angegeben werden muá. In dieser Datei befinden sich danach
+alle angezeigten Informationen. Zum Beenden muá der Menpunkt wieder aufgerufen
+werden.
+
+3.4 Makro
+Mit den Makrostrings k”nnen kurze Einlogprozeduren automatisiert werden. Dazu
+steht ein Editor "NDERN" und eine Auswahlbox "WHLEN" zur Verfgung.
+Im Editmodus k”nnen die folgenden Steuerzeichen verwendet werden:
+        - ^$dnn   Verz”gerung der nachfolgenden Befehle um nn Sekunden
+        - ^^      bertr„gt HEX 5E
+        - ^<Zeichen> bertr„gt die Zeichen HEX 00 bis HEX 1D
+                  @ ->  00
+                  A bis Z oder a bis z -> 01 bis 1A
+                  [ -> 1B
+                  \ -> 1C
+                  ] -> 1D
+          Beispiele : ^m sendet 0D (RETURN)
+                      ^g sendet 07 (Klingelzeichen)
+                      ^[[2J sendet die Escapesequenz ESC [ 2 J
+
+3.5 Extras
+
+3.5.1 Einstellungen
+Unter diesem Menpunkt erscheint ein weiteres Men mit folgenden Eintr„gen:
+  Telefonbuch: Dateiauswahl fr die DBF Datei mit Telefonnummern
+  Modem: Auflegen, Initialisierung und Wahlpr„fix editieren
+  Port: Baudrate, Datenbits, Stopbit, Parit„t einstellen
+  Handshake: Selektion eines oder mehrerer Handshakearten
+
+3.5.2 Zoom
+Erm”glicht die Anzeige in verschiedenen Schriftarten. Zur Hilfestellung kann
+das Navigationsfenster eingeblendet werden (siehe 3.2.2). Das Navigieren
+erfolgt mit Shift-Cursor (kleine Schritte) und Psion-Shift-Cursor(groáe Schritte)
+
+3.5.3 Exit
+Beendet das Programm.
+
+4. Zusammenfassung
+Nachfolgend sehen Sie eine šbersicht des Hauptmens:
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º Kommunkation     Display   šbertragung   Makro   Extras        º
+ÇÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¶
+º Initialisierung  L”schen   Protokoll     W„hlen  Einstellungen º
+º W„hlen           Anzeige   Senden        ndern  Zoom          º
+º Auflegen         TTY       Empfangen             Exit          º
+º                            Logdatei ein                        º
+º                                                                º
+º                                                                º
+º                                                                º
+º                                                                º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+Nachfolgend sehen Sie eine šbersicht des Mens EINSTELLUNGEN:
+ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ»
+º Einstellungen   º
+ÇÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¶
+º Telefonbuch     º
+º Modem           º
+º Port            º
+º Handshake       º
+º                 º
+ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼
+
+Unterschiede der Version 1.2B zu 1.1B
+
+Der Initialisierungsstring "atz" wurde ge„ndert in "atz^M", wobei auch das AT
+ge„ndert werden kann.
+Der Fehler in der Darstellung bei der Initialisierung ist behoben.
+In der englischen Version ist das Wort "Databits" korrigiert worden.
+Das Programm ist auf einem englischen Serie3a getestet worden und fehlerfrei
+gelaufen.
+
+Anhang A
+
+Einschr„nkungen der Shareware Version
+
+"W„hlen aus einer Datei"
+Die Einstellungen um aus einer Datei zu w„hlen werden abgespeichert, jedoch
+wird nicht die markierte Nummer gew„hlt
+
+"Einstellung der Portparameter"
+Die Baudrate ist maximal 2400
+             (registrierte Version 9600)
+             (Vollversion 19200)
+
+"Bildschirmgr”áe bei VT100 Modus"
+nderungen werden nicht bernommen
+
+"Dialog ANZEIGE"
+nderungen werden nicht bernommen
+
+"Makro w„hlen"
+Makros lassen sich editieren aber nicht ausfhren
+
+"šbertragung"
+Dateibertragung ist nicht m”glich
+
+"Zoom"
+Nur in registrierter oder Vollversion m”glich
+
+Anhang B
+
+Funktion der Listendarstellung
+
+- Bewegen in der Tabelle mit Cursor oder Shift-Cursor
+- Suchen durch Eingabe der Zeichenfolge
+- Suche abbrechen mit ESC
+- Dialog verlassen und bernehmen der Nummer mit Enter
+- Dialog verlassen ohne zu bernehmen mit Shift-ESC
+
+Anhang C
+
+Notwendige Dateien und Verzeichnisse
+
+\APP\terminal.app               Applikation
+\APP\TERMINAL\term03.rsc        Resourcedatei (deutsch)
+\APP\TERMINAL\term01.rsc        Resourcedatei (englisch)
+\APP\TERMINAL\dbftable.dyl      Listendarstellung einer Datenbankdatei
+
+Anhang D
+
+Initialisierungs Datei
+Beim ersten Aufruf wird ein Verzeichnis M:\INI\ erstellt und eine Datei
+TERMINAL.INI erzeugt. Diese Datei ist im Textmodus gespeichert und kann
+jederzeit editiert werden. Die Reihenfolge der Zeilen ist beliebig.
+Bemerkungen k”nnen mit anfhrendem ! eingefgt werden. Dieses Verzeichnis
+kann zusammen mit der Datei auf eine SSD bewegt werden, wobei nur eine
+RAM SSD zu empfehlen ist. Beim folgenden Aufruf wird das Verzeichnis \INI\
+zun„chst auf der internen Disk und dann auf A und B gesucht. Wird kein
+Verzeichnis gefunden, wird eines auf der internen Disk erstellt.
+
+Anhang E
+
+Registrierung
+
+Sie drfen diese Software ohne Registration fr eine Dauer von 30 Tagen
+benutzen.  Nach dieser Zeit sind Sie verpflichtet die Software registrieren zu
+lassen.  Sie drfen die Sharewareversion des VT100 Emulators kopieren, indem
+Sie ALLE Dateien kopieren.  Sie drfen die Dateien keinesfalls „ndern.
+
+Eine Registerung der Shareware Version erm”glicht Ihnen eine Baudrate bis zu
+9600 Baud und die Zoomfunktion.
+
+Mit einem Upgrade zur Vollversion erm”glicht Ihnen eine Baudrate bis zu 19200
+Baud, die Zoomfunktion, Dateibertragung, Wahl aus einer Datei, Makros,
+Port B bis F und ALLE der in diesem Dokument aufgelisteten Funktionen.
+
+Ein Upgrade ist zeitgleich mit einer Registrierung m”glich. Nach der
+Registrierung k”nnen Sie kein Upgrade durchfhren und Sie mssen die Vollversion
+kaufen.
+
+Bei Registrierung, Upgrade oder Erwerb der Vollversion k”nnen Sie eine der
+folgenden Methoden benutzen:
+
+IN DEUTSCHLAND
+Bar oder Euroscheck 'Psion GmbH' (oder pro 5,- DM eine Kiste Ferrero Ksschen
+an 'Psion GmbH Abteilung Technik').  Wir liefern auch per Nachname.
+
+Shareware Registration: 30,- DM    Upgrade: 100,- DM    Vollversion: 130,- DM
+
+
+IN EUROPA
+Euroscheck an 'Psion GmbH'. Bar wird nur in folgenden W„hrungen akzeptiert:
+                                                                DM, Sterling
+
+Shareware Registration: 30,- DM    Upgrade: 120,- DM    Vollversion: 150,- DM
+                       œ15                  œ50                      œ70
+
+DER REST DER WELT
+Bar an 'Psion GmbH'.  Wir akzeptieren folgende W„hrungen:
+                                               DM, Sterling oder US Dollar.
+
+Shareware Registration: 30,- DM    Upgrade: 150,- DM    Vollversion: 180,- DM
+                       œ15                  œ60                      œ80
+                       $20                  $80                     $100
+
+
+Unsere Adresse ist:
+
+                        Psion GmbH
+                        Saalburgstr. 157
+                        61350 Bad Homburg
+                        Deutschland
+
+
+Support bekommen Sie unter folgenden Nummern:
+
+PSION Hotline             +49 6172 9654-28
+PSION Mailbox             +49 6172 37090
+PSION Fax                 +49 6172 39192
+
+
+Haftungsbegrenzungs
+
+Psion und das Psion-Logo sind eingetragene Warenzeichen, Psion Serie3,
+Psion Serie3a, SSD und Solid State Disk sind Warenzeichen von Psion PLC.
+
+Alle Warenzeichen anerkannt.
+
+Weder der Autor, noch Psion GmbH sind verantwortlich fr Datenverluste
+die als Folge der Benutzung dieser Software auftreten.
+

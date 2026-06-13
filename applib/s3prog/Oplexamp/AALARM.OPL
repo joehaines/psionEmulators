@@ -1,0 +1,85 @@
+PROC aalarm:
+    local r%,acb%,aactive%,astat%
+    local k%(2),kstat%,kactive%
+    local t1&,t2&,m$(20),ztsm$(22)
+    local dat&,tim&,atype%
+    local warning&
+    r%=ioopen(acb%,"ALM:",-1)
+    if r% :raise r% :endif
+    atype%=2
+    gBorder 4
+    busy "Any key sets alarm"
+    while 1
+        if kactive%=0
+            keya(kstat%,k%(1))
+            kactive%=1
+        endif
+        iowait
+        if aactive% and astat%<>-46
+            aactive%=0
+            giprint ""
+            busy "Any key sets alarm"
+            continue
+        endif
+        busy off
+        if k%(1)=27
+            giprint "Bye..."
+            pause -30
+            stop
+        endif
+        kactive%=0
+        if aactive%
+            iow(acb%,4,#0,#0)
+            iowaitstat astat%
+            aactive%=0
+            dInit "Edit alarm"
+        else
+            t2&=timenow&:+3600
+            warning&=15
+            m$="Don't forget!"
+            dInit "Set alarm"
+        endif
+        dEdit m$,"Text message"
+        crack:(addr(t2&),addr(dat&),addr(tim&))
+        dDate dat&,"Date",days(day,month,year),days(31,12,2049)
+        dTime tim&,"Time",0,0,datetosecs(1970,1,1,23,59,59)
+        dLong warning&,"Advance time",0,10080
+        dChoice atype%,"Alarm type","Date only,Time and date"
+        if dialog
+            t2&=combine&:(addr(dat&),addr(tim&))
+            t1&=t2&-warning&*60
+            ztsm$=m$+chr$(0)
+            ioa(acb%,atype%,astat%,t1&,#addr(ztsm$)+1)
+            aactive%=1
+            giprint "Alarm queued"
+            busy "Any key edits alarm"
+        else
+            busy "Any key sets alarm"
+        endif
+    endwh
+ENDP
+
+PROC timenow&:
+REM returns LONG giving system time
+    local ax%,bx%,cx%,dx%,si%,di%,st&
+    ax%=$0200
+    os($89,addr(ax%))   rem TimGetSystemTime
+    pokew addr(st&),bx% :pokew addr(st&)+2,ax%
+    return(st&)
+ENDP
+
+PROC crack:(ast%,adat%,atim%)
+REM cracks system time into day-sec format
+    local dat&,tim&
+    local cx%,dx%
+    cx%=peekw(ast%+2)
+    dx%=peekw(ast%)
+    call($0489,0,cx%,dx%,0,addr(dat&))  rem TimSystemTimeToDaySeconds
+    pokel adat%,dat&
+    pokel atim%,tim&
+ENDP
+
+PROC combine&:(adat%,atim%)
+REM combines day-sec format into system time format
+    return(86400.0*(peekl(adat%)-25567.0)+peekl(atim%))
+ENDP

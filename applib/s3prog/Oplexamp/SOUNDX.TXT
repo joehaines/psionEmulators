@@ -1,0 +1,33 @@
+==========
+psion/opl #2069, from stevegodfrey, 631 chars, Jul 23 14:44 95
+Comment to 2067.
+----------
+Re: playing DTMF from OPL
+ 
+A better idea would be to re-enable the sound system before
+you dial the number, and restore the sound system afterwards.
+ 
+You can do this as follows (requires GLOBAL st%):
+ 
+PROC sound:(e%)
+ local ax%,bx%,cx%,dx%,si%,di%
+ 
+ if e%
+   st%=call($0f8b)         rem read sound flags into st%
+   bx%=(st% and 31) or 4
+ else
+   bx%=st%
+ endif
+ 
+ ax%=$1000
+ os($8b,addr(ax%))         rem set sound flags using bx%
+ENDP
+ 
+Using sound:(1) will store the current sound setting in
+st% and enable the sound, and sound:(0) will restore the
+sound setting to that in st%.
+ 
+Cheers
+ 
+Steve
+

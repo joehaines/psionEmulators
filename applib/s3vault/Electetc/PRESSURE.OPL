@@ -1,0 +1,47 @@
+PROC test:
+	local a,b,c,d,e,f,g,a1,b1,c1,d1,e1,f1,g1
+	do
+	dinit "Pressures"
+	dfloat a,"Bar    - ",0,100000
+	dfloat b,"mBar   - ",0,100000
+	dfloat c,"inWG   - ",0,100000
+	dfloat d,"PSI    - ",0,100000
+	dfloat e,"inHg   - ",0,100000
+	dfloat f,"mmWG   - ",0,1000000
+	dfloat g,"Pa     - ",0,10000000
+	dialog
+	if g <> g1
+	b=g*.01 :g1=g
+	endif
+	if a <> a1
+	a1=a :b=a*1000 :c=a*401.462 :d=a*14.50374 :e=a*29.52756 :f=a*10197.1348
+	b1=b :c1=c :d1=d :e1=e :f1=f
+	elseif b <> b1
+	b1=b :a=b/1000 :c=b*.401462 :d=b*.01450374 :e=b*.02952756 :f=b*10.1971348
+	a1=a :c1=c :d1=d :e1=e :f1=f
+	elseif c <> c1
+	c1=c :a=c*.00249089 :b=c*2.49089 :d=c*.03612736 :e=c*.0735548 :f=c*25.4
+	a1=a :b1=b :d1=d :e1=e :f1=f
+	elseif d <> d1
+	d1=d :a=d*.06894763 :b=d*68.94763 :c=d*27.678059 :e=d*2.03599 :f=d*703.0226986
+	a1=a :b1=b :c1=c :e1=e :f1=f
+	elseif e <> e1
+	e1=e :a=e*.0338666 :b=e*33.8666 :c=e*13.5953 :d=e*.49116 :f=e*345.32062
+	a1=a :b1=b :c1=c :d1=d :f1=f
+	elseif f <> f1
+	f1=f :a=f*.000098066 :b=f*.098066762 :c=f*.039370078 :d=f*.001422429 :e=f*.002895859
+	a1=a :b1=b :c1=c :d1=d :e1=e
+	else
+	at 1,1 :print"Enter 0 to quit"
+	endif
+	a=val(fix$(a,3,9))
+	b=val(fix$(b,3,9))
+	c=val(fix$(c,3,9))
+	d=val(fix$(d,3,9))
+	e=val(fix$(e,3,9))
+	f=val(fix$(f,3,10))
+	g=val(fix$(g,3,11))
+	a1=a :b1=b :c1=c :d1=d :e1=e :f1=f :g=b*100 :g1=g
+	until f=0
+ENDP
+

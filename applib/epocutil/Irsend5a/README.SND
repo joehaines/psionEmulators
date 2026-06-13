@@ -1,0 +1,192 @@
+                         IRSEND Read Me File
+                            Version 0.5a
+                             7/26/1997
+
+==============================================================================
+NOTE: The shareware version of IRSEND is limited to sending files of less than
+      2048 bytes. Please register to receive the full unlimited version.
+===============================================================================
+What's new in version 0.5?
+  Add in support for TM0 thru TM3 external adapter chips.
+  After five attempts to connect at current baud rate drop down to next fastest
+  baud rate. When running under OS/2 Warp I have found that the maximum rate is
+  limited to 57,600 baud where as in pure DOS I can run at 115,200 baud. Once
+  you have found that you need to run at a slower baud rate than the maximum
+  for your Psion you should use the "SET IRSPEED=" DOS command to limit the
+  initial Infrared speed. In my case I type SET IRSPEED=57 at the DOS prompt
+  when running in an OS/2 DOS window.
+
+What's new in version 0.5?
+  Support for Psion Series 5 IR protocol. Program now auto-detects Series 5
+  from 3c/Siena and uses appropriate protocol.
+  Support for Infrared link speeds up to 115200 baud for 3c and Series 5.
+  Support data packet sizes up to 2K when sending to Series 5.
+  Fix bug that prevented small size files from being transferred.
+
+What's new in version 0.4?
+  Support for Actisys IR220L, Jeteye, and Redeye external adapters and the
+  Temic TOIM3232 chip. Support for environment variable IRTYPE.
+
+What's new in version 0.3?
+  Support for Adaptec Airport 1000/2000 external IR adapters. Support for
+  environment variables IRPORT and IRSPEED.
+
+What does IRSEND do?
+  IRSEND allows you to send files (text or binary) from your PC to your Siena
+  or 3c using the native Psion IR protocol and IR Receive key on the keyboard.
+  No additional software is required on your Psion. Just follow the directions
+  in your Psion manual for receiving a file from another Psion. The IRSEND.COM
+  program allows your PC to mimic the Psion protocol.
+
+What doesn't IRSEND do?
+  IRSEND does not handle sending multiple files at one time. You also can not
+  overwrite an existing file. Sending the same name file as an existing
+  one results in a dialog box with options to only rename or abort.
+
+  The program IRCOPY solves both of these short comings as well as preserving
+  a files original date and time.
+
+How is the data protected?
+  Each data block transferred is protected by a 16 bit CRC check code
+  (x^0+x^5+x^12+x^16) and a 3 bit sequence number. Bad and missing blocks are
+  automatically resent until received correctly by the Psion. (Although this
+  early version may need some work in this area.)
+
+What baud rate is used to send the files?
+  The initial negotiations start at 9600 baud per the IRDA spec and then go to
+  19,200 or higher for the actual header and file transfer.  The speed can be
+  limited to 9,600 baud by setting the environment variable IRSPEED=9600.  At
+  the DOS prompt type:  "set irspeed=9600".  If you experience problems sending
+  files try limiting the baud rate to 9600.
+
+What IR hardware works with IRSEND?
+   This version now supports the Adaptec AIRport 1000/2000, Actisys IR220L,
+   Redeye, and Jeteye external adatpers.
+
+Where can I get the latest version?
+   A web site has been setup at:
+
+       http://www.geocities.com/SiliconValley/Lakes/3947
+
+   It has the latest version of IRSEND plus access to other Psion IR programs
+   and information about current and future plans.
+
+IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT
+==============================================================================
+It is highly recommended that you verify the accuracy of a few large files
+after doing your first IRSEND. The companion program IRSAVE can be used to
+transfer the same file back to your PC for comparision. If you have text files,
+open an editor and view the file, checking the beginning and end for
+correctness. If you have a binary compare program try comparing the copied
+version of a program with its original.
+==============================================================================
+                             DISCLAIMER
+Use this software at your own risk. I will not be held responsible for any
+damage to you, your machine and/or your information as a result of using
+IRSEND.
+==============================================================================
+
+Requirements:
+  PSION: Siena, 3c, or Series 5
+  PC   : x86 with IRDA compliant IR port
+  Operating System: DOS, Windows 3.1, WIN95 (MS-DOS mode only)
+
+Files in this package:
+  IRSEND.COM      Program that sends files to your Psion.
+  README.SND      This file.
+
+Installation:
+  Load IRSEND.COM on your PC.
+
+Running IRSEND.
+  Be sure to set the IR Link to run at HIGH power.  From the system screen
+  press Psion-L select Infrared then Power setting to HIGH.  Then type IRSEND
+  followed by the COM number for your IR port, the name of the file to be sent
+  and the Psion "save as" name.  For the Siena and 3c the Psion name should be
+  complete including "LOC::M:"  for the internal drive or "LOC::A:"  or
+  "LOC::B:"  for your external drives.  The path on the Psion will be created
+  if it does not exist.  For the Series 5 the Psion name should only be the
+  file name (ie test.txt) and the file is saved into the current folder.  Your
+  Psion does not allow overwriting the same file so you must delete an old copy
+  before sending a newer one with the same name.  If you try to send the same
+  file name it will be received into a temporary location and the user is
+  prompted for a new name.  If you find a way to copy over a file please let me
+  know how you did it.  The Series 5 does allow the user the option to
+  overwrite the current file.
+
+  If a file transfer gets hung up you can terminate the IRSEND by holding
+  down both shift keys on the PC. If after aborting your Psion IR send and
+  receive keys no long work just go to the System screen, select
+  Special/Communications, disable the IR link, and exit. Then go back and
+  reenable the IR link. This seems to do a complete reset of the IR Link.
+
+  Saved files will have the current date and time not the date and time of
+  the original file on your PC. Sorry, the Psion native protocol does not
+  include this information.
+
+  Syntax of IRSEND.COM:
+
+     irsend <IR port> <PC File Name> <full Psion file name> </trace> </AIRport>
+                                                                     </ACTisys>
+                                                                     </Jeteye >
+                                                                     </Redeye >
+                                                                     </Psion  >
+                                                             </TM0,TM1,TM2,TM3>
+    Examples: (3c or Siena)
+      irsend 2 test.opl loc::m:\opl\testnew.opl
+      irsend 3e8:9 test.opl loc::m:\opl\testnew.opl (custom IRQ )
+      irsend 1 d:\psion\app\chess.opa loc::m:\app\chess.opa /trace
+
+    Examples: (Series 5)
+      irsend 2 test.opl test.opl (file gets saved into current folder)
+
+  You can set the environmet variable IRPORT to avoid having to type the
+  IR port information on the command line each time. At the DOS prompt type:
+  "set IRPORT=2" or "set IRPORT=3e8:9" (Of course use the correct values
+  for your IR port.) You can also use the environment variable IRTYPE to
+  avoid having to type the adapter type. At the DOS prompt type:
+  "set IRTYPE=Redeye" (replace Redeye with your adatper type).
+
+Aborting the program:
+  To abort IRSEND on the PC just hold down both the left and right shift
+  keys for a few seconds.
+
+Improvements:
+  If you have any suggestions for improvements please email me with them.
+
+Registration:
+  If you find this program useful please register your copy. Registered users
+  will receive the full version that supports sending any size file.
+
+  To register both IRSEND and IRSAVE online for $21.50 goto:
+
+     http://www.swregnet.com/855p.htm
+
+Jim Pollock <jpollock@ix.netcom.com>
+
+History:
+   0.1  2/11/1997  First release
+   0.2  2/12/1997 -Improved retry for noisy Infrared links.
+                  -Skip statistics if program aborted by user.
+                  -When using comports 1,2,3, or 4 the interrupt level
+                   used is based on the I/O port value (ie 3E8=>IRQ4) not
+                   the comport number. Better for systems that have missing
+                   comports (ie 1 and 3 but not 2).
+                  -Have NOT been able to make it work with an external IR
+                   adapter under OS/2.
+   0.3  5/19/1997 -Support Adaptec Airport 1000/2000 external adapters.
+                   Now works under OS/2 with an AIRport IR adapter.
+                  -Support environment variable IRPORT.
+                  -Support environment variable IRSPEED.
+   0.4  6/ 1/1997 -Support Actisys IR220L, Jeteye, and Redeye external adapters.
+                  -Support environment variable IRTYPE.
+   0.5  7/25/1997 -Support Series 5 IR protocol
+                  -Support baud rates up to 115200
+                  -Fix bug when sending very small files.
+   0.5a 7/26/1997 -Add in support for TM0 thru TM3 adapters
+                  -After five attempts to connect to Psion at current baud rate
+                   drop down to next fastest baud rate.
+                  -Support limiting baud rate to values less than maximum that
+                   Psion supports.
+===========================End of Readme======================================
+

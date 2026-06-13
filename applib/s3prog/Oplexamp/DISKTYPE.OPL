@@ -1,0 +1,60 @@
+==========
+psion/opl #1714, from mrudin, 1620 chars, Dec 24 0:12 94
+Comment to 1712.
+----------
+For disk details, here's another bit out of HyPy which uses 
+FilStatusDevice:...
+getDev:("LOC::A:\")
+...
+proc getDev:(path$)
+  REM Assign Dsize&, Dfree& and Dmedia& for the disk
+  REM specified in path$.
+  REM P_DINFO struct, 64 bytes:
+  local vers%,media%,remov%,size&,free&
+  local vo,lu,na,me,batt%,sp,ar
+
+  Zts$=path$+CHR$(0)
+  REM FilStatusDevice:
+  if CALL($0A87,ADDR(Zts$)+1,ADDR(vers%),0,0,0)
+    gIPRINT "Can't access disk"
+    Dsize&=0  REM signal to calling proc.
+  else
+    Dsize&=size&
+    Dfree&=free&
+    Dmedia%=media%
+  endif
+endp
+...
+medTy%=Dmedia% AND $F
+...
+medTy% has values 1..6, corresponding to:
+
+  MedTys$(1)="Floppy"
+  MedTys$(2)="Hard Disk"
+  MedTys$(3)="Flash"
+  MedTys$(4)="Ram"
+  MedTys$(5)="Rom"
+  MedTys$(6)="Protected"
+
+Note that if an SSD is "Protected", i.e. the write-protect switch is on, 
+then you can't tell if it's RAM or Flash.
+
+
+> 2) Is there in any benefit in purchasing the basic SDK?
+
+For OPL programming, the main part that's useful is the "EPOC O/S System 
+Services" manual from Vol.2 of the SDK.  This is roughly 150 pages (about 
+a tenth of the whole SDK documentation).  To go with this, you also need 
+some of the include-files (to explain structures and constants) which are 
+provided on floppies with the SDK.
+
+In both these cases Psion *could* upload everything to CIX - hint, hint, 
+David - can you persuade TPTB to let you? :)
+
+Most of the rest of the SDK is only relevant to C, but there are several 
+short sections explaining file formats, programming conventions etc., 
+which are generally useful.
+
+Mike.
+
+

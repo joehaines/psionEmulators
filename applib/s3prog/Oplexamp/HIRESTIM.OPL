@@ -1,0 +1,73 @@
+
+ Bob,
+
+    I wouldn't want you to get desperate. I've knocked up a quick example for you that I believe is usable. You'll have to copy it to your OPL editor and translate it. It also is a good (I hope) example of how to use FRC:. There are some long lines here, so open your window wide when viewing.
+
+ -------------------------------------------
+
+ Proc Frc:
+ local h%,start%,can%,read%
+ local pmode%,arg&
+ local hr%,m%,s%,k%,fon%,mywin%
+ local hr$(2),mn$(2),sec$(4)
+
+ rem Pelican Software Inc.
+ rem The FRC: device driver can only be used by one program at a time.
+ rem The accuracy is to the 1/1024 of a second.
+ rem I wrote this quickly, so it may not be perfect. I think it is
+ rem accurate though, and I haven't gotten any errors when running it.
+
+ start%=15    rem P_FSTART
+ can%=4       rem P_FCANCEL
+ read%=1      rem P_FREAD
+ pmode%=0     rem E_FRC_COUNTING
+
+ guse 1 :gsetwin 0,0,0,0
+ mywin%=gcreate(0,0,480,160,1,1)       rem need a grey window for buttons
+ fon%=gloadfont("ROM::sa37snd.fon")    rem use nice numbers
+ gfont fon%
+ IOOPEN(h%,"FRC:",-1)                  rem open FRC: dev driver
+ start::
+ IOW(h%,can%,#0,#0)                    rem cancel for next time around
+ IOW(h%,start%,pmode%,#0)              rem P_FSTART
+ cls
+ giprint "FRC: Device Driver open"
+ gfont 7
+ gat 145,100 :gbutton "Elapsed",1,80,25,0    rem must have buttons
+ gat 260,100 :gbutton "Stop",1,80,25,0
+ top::
+ gfont fon%
+ do
+    IOW(h%,read%,arg&,#0)        rem P_FREAD
+    hr$=right$("00"+fix$(arg&/1024.0/1024.0/1024.0,0,3),2)
+    mn$=right$("00"+fix$(arg&/1024.0/1024.0,0,3),2)
+    s%=arg&/1024.0
+    sec$=right$("0000"+fix$(arg&-(int(arg&/1024.0)*1024.0),0,4),4)
+    gat 5,70
+    gprintb hr$+":"+mn$+":"+right$("00"+fix$(int(arg&/1024.0),0,4),2)+"."+sec$,gwidth-1 0,3
+    k%=key
+ until k%=%e or k%=%s or k%=27
+ gfont 7
+ press:(k%)
+ if k%=%e
+    gat 5,150
+    gprintb"(Elapsed: "+hr$+":"+mn$+":"+right$("00"+fix$(int(arg&/1024.0),0,4),2)+"."+sec$+")",gw idth-10,3
+    goto top
+ endif
+ IOCLOSE(h%)
+ Endp
+
+ Proc press:(k%)
+ if k%=%s or k%=%S
+    gat 260,100 :gbutton "Stop",1,80,25,2
+    pause 3
+    gat 260,100 :gbutton "Stop",1,80,25,0
+ elseif k%=%e or k%=%E
+    gat 145,100 :gbutton "Elapsed",1,80,25,2
+    pause 3
+    gat 145,100 :gbutton "Elapsed",1,80,25,0
+ endif
+ Endp
+
+
+  -Mark Esposito

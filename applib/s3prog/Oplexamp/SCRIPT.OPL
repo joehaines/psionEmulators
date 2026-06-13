@@ -1,0 +1,127 @@
+REM -------------------------------------------------------------------------
+REM    Name        : SCRIPT
+REM ------------------------------------------------------------------------- 
+
+REM   Author     :  DP
+
+REM   Description:  Runs a named script file from an OPL program
+
+
+PROC script:
+
+
+REM                 --------------------------- 
+REM                 Local Variable Declarations  
+REM                 --------------------------- 
+
+	LOCAL appn$(128)	REM  full application name and path
+	LOCAL cmdl$(128)	REM  full command line
+	LOCAL ppid%		REM  process id (handled by OS)
+	LOCAL ret%		REM  return value for errors
+
+REM		  --------------------------- 
+REM 		             Notes            
+REM		  --------------------------- 
+
+REM The application to use for scripts is "LOC::C:\APP\COMMS.APP"
+REM for OPO or OPA files use "ROM::SYS$PRGO.IMG" and for other ROM
+REM based applications use "ROM::DATA.APP" for DATA "ROM::WORD.APP"
+REM for WORD etc.
+
+REM The command line consists of the following syntax.
+
+REM For OPOs:
+REM  cRunOpl+CHR$(0)+<aliasInfo>+CHR$(0)+<fullPathOpo>
+REM For OPAs:
+REM  c<familyName>+CHR$(0)+<aliasInfo>+CHR$(0)+<fullPathUsedFile>+CHR$(0)+<fullPathOPA>
+REM For APPs
+REM  c<familyName>+CHR$(0)+<aliasInfo>+CHR$(0)+<fullPathUsedFile>
+
+REM Where:
+REM       c	= command byte ('C' for create 'O' for open)
+REM       	  NB.  command byte ignored for OPOs.
+REM       CHR$(0) = zero byte terminate the strings
+
+REM       <familyName> is as defined in APP keyword of OPA or
+REM       	     apllication name of APP.
+REM       	     NB. This string must only have the first letter in upper case
+
+REM       <aliasInfo>  the file extension the APP or OPA looks for 
+
+REM       <fullPathUsedFile> file that OPA or APP is to open or create
+
+REM NB. all parameters in <> are optional
+
+
+REM              --------------------------- 
+REM                     Procedure Code       
+REM              --------------------------- 
+
+	appn$="LOC::C:\APP\COMMS.APP"
+	cmdl$="OComms"+CHR$(0)+".SCO"+CHR$(0)+"LOC::C:\SCO\_CIX.SCO"+CHR$(0)
+	ret%=runapp%:(appn$,cmdl$,addr(ppid%))              
+
+	REM The above code passes the name of the script file to be run
+	REM which is _cix.sco on the 'C' device
+
+ENDP
+
+REM --------------------------------------------------------------------------
+REM     Name        : RUNAPP%
+REM ----------------------------------------------------------------------------
+REM     Description : Runs a named application.
+
+REM     Parameters  : appname$ = full path name of application image file.
+REM                   cmdline$ = command line to the application
+REM                   ppid%    = pointer to integer to receive process id
+
+REM     Returned    : zero for success, else -ve error number
+REM     Conditions  : The file must exist and be a valid image.
+REM     Effects     : None
+
+REM     Errors      : File not found
+REM                   Invalid file
+REM     Panics      : None
+REM  -------------------------------------------------------------------------- */
+
+PROC runapp%:(appname$,cmdline$,ppid%)
+
+REM                   --------------------------- */
+REM                    Local Variable Declarations */ 
+REM                   --------------------------- */
+
+  local ax%,bx%,cx%,dx%,si%,di%
+  local ret%,flags%
+  local cmdl$(128),img$(128)
+
+REM                    --------------------------- */
+REM                         Procedure Code        */
+REM                    --------------------------- */
+
+  cmdl$=cmdline$+chr$(0)         REM must be zero terminated
+  img$=appname$+chr$(0)
+
+  REM -- first create the application --
+  REM
+  ax%=$0100                   REM set AH = 1 for "FilExecute" call
+  bx%=addr(img$)+1            REM set BX = pointer to application name
+  cx%=addr(cmdl$)             REM set CX = pointer to legth byte of command line
+  di%=ppid%                   REM set DI = address to take process id
+  flags%=os(135,addr(ax%))    REM call "FilExecute"
+  if (flags% and 1)
+    ret%=(ax% and $FF)-256    REM error returned from O/S call in AL
+  else
+    REM -- now run the created application --
+    REM
+    ax%=$0600                   REM set AH = 6 for "ProcResume" call
+    bx%=peekw(ppid%)            REM set BX = process id
+    flags%=os(136,addr(ax%))    REM call "ProcResume"
+    if (flags% and 1)
+      ret%=(ax% and $FF)-256    REM error returned from O/S call in AL
+    else
+      ret%=0                    REM return success
+    endif
+  endif
+  return ret%
+ENDP
+

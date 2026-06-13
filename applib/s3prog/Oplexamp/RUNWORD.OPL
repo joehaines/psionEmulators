@@ -1,0 +1,45 @@
+==========
+Usenet/comp.sys.psion #14828, from stevegodfrey@cix.compulink.co.uk, 1172 chars, Jul 31 9:55 95
+Comment to 14718.
+----------
+Article: 14828 of comp.sys.psion
+Newsgroups: comp.sys.psion
+Path: cix.compulink.co.uk!usenet
+From: stevegodfrey@cix.compulink.co.uk ("Steve Godfrey")
+Subject: Re: Starting Word / a text viewer from OPL
+Message-ID: <DCKrL5.Mp2@cix.compulink.co.uk>
+Organization: Psion PLC
+References: <1995Jul27.162845.13580@schbbs.mot.com>
+Date: Mon, 31 Jul 1995 09:55:53 GMT
+X-News-Software: Ameol
+
+The following OPL program will run Word for you. Pass the *full*
+filename to be loaded (ie: loc::m:\wrd\test.asc):
+
+PROC runword:(file$)
+  local a%,c$(128),f$(128)
+  local ax%,bx%,cx%,dx%,si%,di% : rem keep together
+
+  f$="rom::word.app"+chr$(0)    : rem application to start
+  
+  c$="O"                        : rem O=open file, C=create file
+  c$=c$+"TextView"+chr$(0)      : rem app name shown in status win
+  c$=c$+".asc "                 : rem default extension
+  c$=c$+"$"+chr$(0)             : rem WORD type ($=text, O=OPL, S=Script)
+  c$=c$+file$+chr$(0)
+  
+  ax%=$0100
+  bx%=uadd(addr(f$),1)
+  cx%=addr(c$)
+  dx%=0
+  di=addr(a%)
+  
+  os($87,addr(ax%))
+  call($0688,a%)                : rem start word process
+ENDP
+
+Cheers
+
+SteveG
+Psion PLC
+

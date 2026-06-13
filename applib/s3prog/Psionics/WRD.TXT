@@ -1,0 +1,195 @@
+PSIONICS FILE - WORD.FMT
+========================
+Format of Word files
+Last modified 1994-03-28
+========================
+
+A word file begins with a header of the following form:
+  Offset  0 (cstr): "PSIONWPDATAFILE"
+  Offset 16 (word): format version number
+  Offset 18 (word): unknown, 0 if not encrypted, 1 if encrypted
+  Offset 20 to  28: unknown, presumably encrypted magic value
+  Offset 29 to  35: copy of offset 20 to 26
+  Offset 36 (word): $EAEA if not encrypted, zero if encrypted
+  Offset 38 (word): unused
+
+The format version number is 1 for non-passworded files and 256 for passworded
+files. @Offset 18 is probably an encryption algorithm version number. Apart
+from the header, encryption affects only the data of record type 8 (see
+below).@
+
+The rest of the file consists of records. All records have the form:
+  Offset  0 (word): record type
+  Offset  2 (word): size of data portion (L)
+  Offset  4 to L+3: data portion
+
+Word files have record types 1 to 9; the word processor application creates
+them in numerical order of type. Exactly one record of each type is used,
+except that there may be more than one record of types 6 and 7.
+
+All distances and font sizes are in units of 0.05 points (i.e. a value of
+1440 represents one inch). All font names are represented by standard code
+numbers:
+    -1 = Inherited (where permitted)
+     0 = Courier              17 = Emperor              40 = Greek
+     1 = Pica                 18 = Madeleine            41 = Kana
+     2 = Elite                19 = Zapf Humanist        42 = Hebrew
+     3 = Prestige             20 = Classic              44 = Russian
+     4 = Letter Gothic        24 = Times Roman          48 = Narrator
+     5 = Gothic               25 = Century              49 = Emphasis
+     6 = Cubic                26 = Palatino             50 = Zapf Chancery
+     7 = Lineprinter          27 = Souvenir             52 = Old English
+     8 = Helvetica            28 = Garamond             55 = Cooper Black
+     9 = Avant Garde          29 = Caledonia            56 = Symbol
+    10 = Spartan              30 = Bodoni               57 = Line Draw
+    11 = Metro                31 = University           58 = Math 7
+    12 = Presentation         32 = Script               59 = Math 8
+    13 = APL                  33 = Script PS            60 = Dingbats
+    14 = OCR A                36 = Commercial Script    61 = EAN
+    15 = OCR B                37 = Park Avenue          62 = PC Line
+    16 = Standard Roman       38 = Coronet
+
+Record type 1 holds information about the file. It is always 10 bytes:
+  Offset  0 (word): cursor position within text record (type 8)
+  Offset  2 (byte): each set bit indicates a character type should be shown
+                    as symbols:
+    Bit 0: tabs
+    Bit 1: spaces
+    Bit 2: carriage returns
+    Bit 3: soft hyphens
+    Bit 4: forced line breaks
+  Offset  3 (byte): (Series 3a only)
+    Bits 0 to 1: status window: 0=none, 1=narrow, 2=wide
+    Bits 4 to 5: zoom state: 0=smallest, ... 3=largest
+  Offset  4 (byte): 0=style bar off, 1=style bar on
+  Offset  5 (byte): 0=file type is paragraph, 1=file type is line
+  Offset  6 (byte): outlining level
+  Offset  7 (byte): unused
+  Offset  8 (word): unused
+
+Record type 2 holds information about printer set-up. It is
+always 58 bytes:
+  Offset  0 (word): page width
+  Offset  2 (word): page height
+    (Note: the above fields assume that the paper orientation is "portrait")
+  Offset  4 (word): left margin
+  Offset  6 (word): top margin
+  Offset  8 (word): width of printing area
+  Offset 10 (word): height of printing area
+    (Note: these four fields have only been checked for portrait)
+  Offset 12 (word): header offset (bottom of header to top of text)
+  Offset 14 (word): footer offset (bottom of footer to bottom of text)
+  Offset 16 (word): paper orientation: 0=portrait, 1=landscape
+  Offset 18 (word): unknown
+  Offset 20 (word): first page to print (1=first page)
+  Offset 22 (word): last page to print ($FFFF=end of file)
+  Offset 24 (word): header font code number
+  Offset 26 (byte): header style
+    Bit 0: underline
+    Bit 1: bold
+    Bit 2: italic
+    Bit 3: superscript
+    Bit 4: subscript
+  Offset 27 (byte): unused
+  Offset 28 (word): header font size
+  Offset 30 (byte): header alignment:
+    0 = left
+    1 = right
+    2 = centered
+    3 = justified
+    4 = two column
+    5 = three column
+  Offset 31 (byte): header on first page: 0=no, 1=yes
+  Offset 32 to  39: as 24 to 31, but apply to footer, not header
+  Offset 40 (word): page number of first page minus 1
+  Offset 42 (word): number of pages
+  Offset 44 (word): page number style: 0="1,2,3", 1="I,II,III", 2="i,ii,iii"
+  Offset 46 (word): base font code number
+  Offset 48 (byte): base style (as offset 26)
+  Offset 49 (byte): unused
+  Offset 50 (word): base font size
+  Offset 52 (byte): paper size code:
+    0 = A4        (11906 x 16838)
+    1 = Custom
+    2 = Executive (10440 x 15120)
+    3 = Legal     (12240 x 20160)
+    4 = Letter    (12240 x 15840)
+    5 = Monarch   ( 5580 x 10800)
+    6 = DL        ( 6236 x 12472)
+  Offset 53 (byte): widows/orphans allowed: 0=no, 1=yes
+  Offset 54 (long): unused
+The base font code, style, and font size are unused by Word (and should be set
+to code 0, style 0, size 240). Other applications using this record layout may
+use them and provide means to set them.
+
+Record type 3 holds information about the printer driver:
+  Offset  0 (byte): printer driver model number
+  Offset  1 (cstr): printer driver library
+A printer driver library can support several similar printers; the model number
+specifies which is selected.
+
+Record types 4 and 5 hold cstrs giving the header and footer text respectively.
+
+Record types 6 and 7 have a similar layout. Record type 6 describes a style
+and uses all 80 bytes. Record type 7 describes an emphasis and uses only the
+first 28 bytes.
+  Offset  0 to   1: short code, as uppercase letters
+  Offset  2 (cstr): full name
+  Offset 18 (byte):
+    Bit 0: 0=style, 1=emphasis
+    Bit 1: set if style or emphasis undeletable
+    Bit 2: set for default style or emphasis
+  Offset 19 (byte): unused
+  Offset 20 (word): font code number (can be inherited)
+  Offset 22 (byte): style (bits inherited must be clear in this byte)
+    Bit 0: underline
+    Bit 1: bold
+    Bit 2: italic
+    Bit 3: superscript (available in emphasis only)
+    Bit 4: subscript   (available in emphasis only)
+  Offset 23 (byte): unused
+  Offset 24 (word): font size
+  Offset 26 (byte):
+    Bit 0: inherit underline setting
+    Bit 1: inherit bold setting
+    Bit 2: inherit italic setting
+    Bit 3: inherit superscript setting (available in emphasis only)
+    Bit 4: inherit subscript setting   (available in emphasis only)
+  Offset 27 (byte): unused
+  Offset 28 (word): left indent
+  Offset 30 (word): right indent
+  Offset 32 (word): first line indent
+  Offset 34 (word): alignment: 0=left, 1=right, 2=centred, 3=justified
+  Offset 36 (word): line spacing
+  Offset 38 (word): space above paragraph
+  Offset 40 (word): space below paragraph
+  Offset 42 (byte): spacing controls:
+    Bit 0: set to keep with next
+    Bit 1: set to keep together
+    Bit 2: set to start new page
+  Offset 43 (byte): unused
+  Offset 44 (word): Outline level (1 to 9)
+  Offset 46 (word): number of tab stops set
+  Offset 48 (word): position of first tab stop
+  Offset 50 (word): type of first tab stop: 0=left, 1=right, 2=centred
+  Offset 52 to  55: as offsets 48 to 51 for second tab stop
+  Offset 56 to  79: as offsets 48 to 51 for third to eighth tab stops
+
+Record type 8 holds the actual text. The following bytes have special
+meanings:
+   0 = paragraph separator
+   7 = unbreakable hyphen
+  14 = soft hyphen (displayed only if used to break line)
+  15 = unbreakable space
+
+Record type 9 consists of a sequence of blocks giving the style and emphasis
+for the text; each block covers some number of consecutive bytes, and the
+blocks between them cover the entire text. No block crosses a paragraph
+boundary, but the last block of the paragraph includes the zero byte separating
+it from the next paragraph. Each block is 6 bytes:
+  Offset  0 (word): number of bytes covered
+  Offset  2 to   3: shortcode of style applied
+  Offset  4 to   5: shortcode of emphasis applied
+The last block should cover an extra byte (an imaginary extra zero separator),
+so that the sum of the bytes covered is one more than the size of the type 8
+record.

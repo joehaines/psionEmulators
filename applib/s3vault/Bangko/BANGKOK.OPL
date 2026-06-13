@@ -1,0 +1,648 @@
+APP Bangkok
+	TYPE $1000
+	ICON "a:\opl\bangkok.pic"	              
+ENDA
+PROC T30:
+	global dieval%(7),scrval%(6),dx%,sx%,SprID%
+	global lwx%,rwx%,newdice%,chosen%,score%
+	global InBonus%,Bonus%,NrPl&,S3a%,IsDrawn%(8)
+	global pname$(5,5),scores%(5),GameLmt&,pl%,S3aPl%
+	global WaitSw%, WinX%(13),lWinID%(7),rWinID%(7)
+	global BIsDrwn%,Sound%,HandPos%
+	local key%,i%,hiscore%,hix%
+	
+	REM Main program loop
+
+	if GSetup%:<>0
+		pl%=1
+		do
+			ShowPl:(pl%)
+			key%=Player%:
+			if key%<>27
+				if InBonus%=0
+					scores%(pl%)=scores%(pl%)+(30-score%)
+				else
+					i%=1
+					while i%<=NrPl&
+						if i%<>pl%
+							scores%(i%)=scores%(i%)+score%
+						endif
+						i%=i%+1
+					endwh			
+				endif
+			endif
+			i%=1 :hiscore%=-1
+			while i%<=NrPl&
+				if scores%(i%)>hiscore%
+					hiscore%=scores%(i%)
+					hix%=i%
+				endif
+				i%=i%+1
+			endwh
+			pl%=pl%+1
+			if pl%>NrPl&
+				pl%=1
+			endif
+		until key%=27 or hiscore%>=gameLmt&
+	endif
+	if hiscore%>0
+		ShowPl:(hix%)
+		if Sound%=1
+			playwve:("*Woody")
+		endif
+		dINIT "Game Over"
+		dTEXT "",PName$(hix%)+" pays for the beer"
+		dBUTTONS "OK",13
+		DIALOG
+	endif
+ENDP
+
+REM Display current player
+
+PROC ShowPl:(pl%)
+	local i%
+	i%=1
+	while i%<=NrPl&
+		gstyle 2
+		gtmode 3
+		gat 5+(i%-1)*50,50 :gprint "                "
+		if i%=pl%
+			gstyle 1+2+32
+		endif
+		gfont 6
+		gat 5+(i%-1)*50,50 :gprint PName$(i%)
+		gstyle 0
+		gat 5+(i%-1)*50,65 :gprint num$(scores%(i%),-5)
+		gfont $9a
+		i%=i%+1
+	endwh
+ENDP
+
+REM Global setup (only at start of program)
+
+PROC GSetup%:
+	local i%, s$(50)
+	
+	defaultwin 1
+	gborder 1
+	gat 1,1 
+	ggrey 1
+	gpatt -1,gwidth,gheight,0
+	ggrey 0
+	gat 1,30
+	gfont 8
+	gstyle 1+8
+	gprint "Tina's Tumblers"
+rem	gprint "Bangkok"
+	gstyle 1
+	gfont $9a
+	gat gwidth-98,0 :gbox 97,gheight
+	ggmode 0
+	gat gwidth-98,gheight-20 :glineto gwidth,gheight-20
+	gat gwidth-97,gheight-19
+	gfill 95,18,0
+	i%=1
+	while i%<=5
+		scores%(i%)=0
+		i%=i%+1
+	endwh
+	S3a%=1
+	NrPl&=2
+	GameLmt&=51
+	WaitSw%=-1
+	dINIT "Define Players"
+	dLONG NrPl&, "No. Players", 1, 5 
+	dCHOICE S3a%, "S3a?", "Yes,No"
+	dCHOICE Sound%, "Sound?", "Yes,No"
+	dLONG GameLmt&,"End Game:", 10,100
+	dBUTTONS "Abort",-27,"OK",13
+	i%=DIALOG
+	IF i% <= 0
+		return 0
+	endif
+	if S3a%=1
+		PName$(NrPL&)="S3a"
+		S3aPl%=NrPl&
+	else
+		S3aPl%=0
+	endif
+	PName$(1)="Ralph"
+	dINIT "Name Players"
+	i%=1
+	while i%<=NrPl&
+		if S3a%=1 and i%=NrPl&
+			dTEXT "Player"+num$(i%,1)+":",PName$(i%)
+		else
+			dEDIT PName$(i%),"Player"+num$(i%,1)+":"
+		endif	
+		i%=i%+1
+	endwh
+	dBUTTONS "Abort",-27,"OK",13
+	i%=DIALOG
+	IF i% <= 0
+		return 0
+	endif
+	gfont 1
+	gat 180,20 :gprint "(Game ends"
+	gat 180,30 :gprint "at "+num$(GameLmt&,2)+" points)"
+	s$="¸ RNSoft"
+	gstyle 0
+	i%=(gwidth-100)-gtwidth(s$)
+	gat i%, gheight-15 :gprint s$
+	s$="Ralph Nolte"
+	i%=(gwidth-100)-gtwidth(s$)
+	gat i%, gheight-5 :gprint s$
+	gfont $9a
+	gstyle 2
+	i%=1
+	while i%<=NrPl&
+		gat 5+(i%-1)*50,50 :gprint PName$(i%)
+		i%=i%+1
+	endwh
+	return -1
+ENDP
+
+REM Process current player (rolls+bonus)
+
+PROC Player%:	
+	local key%
+
+	Setup:
+	key%=Process%:
+	Cleanup:
+	UnDraw:(-1)
+	return key%
+ENDP
+
+REM Setup per Player
+
+PROC Setup:
+	dx%=6 :sx%=0 :lwx%=0 :rwx%=0 :chosen%=0 :InBonus%=0
+	HandPos%=1
+	randomize minute*60+second
+	return -1
+ENDP
+
+PROC Cleanup:
+ENDP
+
+REM Display score/bonus in lower right corner
+
+PROC DiScore:(s%)
+	local s$(3)
+	gat gwidth-97,gheight-19
+	gfill 95,18,0
+	gtmode 1
+	s$=num$(s%,3)
+	gfont 6
+	gat gwidth-49-(gtwidth(s$)/2),gheight-10+5
+	gprint s$
+	gtmode 3
+	gfont $9a
+ENDP
+
+REM Guts of player processing
+
+PROC Process%:
+	local i%,key%,s$(255), prvkey%,x%,t$(8),u$(5),r$(1)
+	
+	key%=0
+	newdice%=-1
+	while key<>0		REM flush keyboard buffer
+	endwh
+	while key%<>27 and dx%>0
+		DrawDice:
+		newdice%=0
+		key%=Choose%:
+		UnDraw:(0)
+		if key%=27 or key = 27
+			key%=CkAbort%:
+		endif
+	endwh
+	if key%=27 or key = 27
+		key%=CkAbort%:
+	endif
+	if key%=27
+		return key%
+	endif
+	DrawDice:
+	s$=" Score: "+num$(score%,2)+" .. "
+	if S3a%=1 and pl%=S3aPl%
+		u$="I"
+		r$=""
+	else
+		u$=PName$(pl%)
+		r$="s"
+	endif
+	if score% > 30
+		giprint s$+u$+" get"+r$+" bonus with '"+num$(score%-30,2)+"'... ",1
+	elseif score%=30
+		giprint s$+"No change",1
+	else
+		if score%=29
+			t$=" point "
+		else
+			t$=" points "
+		endif
+		giprint s$+u$+" receive"+r$+" "+num$(30-score%,2)+t$,1
+	endif
+	pause -40
+	if key%<>27 and score% > 30
+		Bonus% = score%-30
+	  gtmode 3
+	  gfont 5 
+	  s$="BONUS ("+num$(Bonus%,1)+") for "+PName$(pl%)
+	  gat 180,10
+	  gstyle 1
+	  gprint s$
+	  gfont $9a
+	  gstyle 0
+		UnDraw:(-1)
+		score%=Bonus%
+		InBonus%=-1 
+		key%=0
+		newdice%=-1
+		dx%=6
+		sx%=0
+		while key%<>27 and dx%>0 and key%<>-2
+			DrawDice:
+			if WaitSw%=0
+				giprint "Press any key",1
+				get
+			else
+				pause WaitSw%
+			endif
+			key%=Choose%:
+			if key%=-1
+				if newdice%=-1
+					if SprID%<>0
+						closesprite SprID%
+						SprID%=0
+					endif
+					giprint " Total Bonus: "+num$(score%,2)+" ", 1
+					pause -50
+					UnDraw:(0)
+					key%=-2
+				else
+					UnDraw:(0)
+				endif
+				newdice%=-1
+			else
+				UnDraw:(0)
+				newdice%=0
+			endif
+			if key = 27 or key%=27
+				key%=CkAbort%:
+			endif
+		endwh
+		if dx%=0
+			DrawDice:
+			giprint " Total Bonus: "+num$(score%,2)+" ", 1
+			pause -50
+		endif
+	  gtmode 1
+		gstyle 1
+	  gfont 5
+	  s$="BONUS ("+num$(Bonus%,1)+") for "+PName$(pl%)
+	  gat 180,10
+	  gprint s$
+	  gfont $9a
+		gtmode 3
+	  gstyle 0
+	endif
+	return key%
+ENDP
+
+REM Undraw dice (at left or all)
+
+PROC UnDraw:(isall%)
+	local i%
+	while lwx%>0
+		gclose(lWinID%(lwx%))
+		lwx%=lwx%-1
+	endwh
+	if isall%<>0
+		while rwx%>0
+			gclose(rWinID%(rwx%))
+			IsDrawn%(rwx%)=0
+			rwx%=rwx%-1
+		endwh
+		BisDrwn%=0
+	endif
+ENDP
+
+REM get die choice from player or S3a
+
+PROC Choose%:
+	local i%,key%,j%,ii%,tmp%, BonusX%
+
+	if HandPos%=0
+		HandPos%=1
+	elseif HandPos%>dx%
+		HandPos%=dx%
+	endif
+	if InBonus%<>0
+		i%=1
+		while i%<=dx%
+			if dieval%(i%)=Bonus%
+				break
+			endif
+			i%=i%+1
+		endwh
+		if i% > dx%
+			return -1
+		endif
+		DrawHand:(i%)
+		pause -20
+		closesprite(SprID%)
+		SprID%=0
+		sx%=sx%+1										REM move to
+		scrval%(sx%)=dieval%(i%)		REM   score area
+		j%=i%												REM squeeze out
+		while j%<dx%								REM   of die area
+			dieval%(j%)=dieval%(j%+1)
+			j%=j%+1
+		endwh
+		dx%=dx%-1										REM now 1 less die
+		chosen%=chosen%+1
+		HandPos%=i%
+		return i%
+	else
+		i%=HandPos%
+		DrawHand:(i%)
+	endif
+	if pl%=S3aPl%
+		i%=PlayS3a%:
+		if i%>0
+			MoveHand:(i%)
+			key%=13				REM pick die per i%
+		else
+			key%=32				REM reroll
+		endif
+	else
+		key%=get
+	endif
+	if key = 27 or key% = 27
+		key%=CkAbort%:
+	endif
+	while key%<>27				REM wait for esc
+		if key%=258					REM right arrow
+			i%=i%+1						REM increment
+			if i%>dx%
+				i%=1
+			endif
+		elseif key%=259			REM left arrow
+		  i%=i%-1						REM decrement
+		  if i%=0
+		  	i%=dx%
+		  endif
+		elseif key%=32			REM space
+			if chosen%=0
+				giprint " Choose at least 1 die with <- -> and 'Enter'! ",3
+			else
+				tmp%=newdice%
+				newdice%=-1
+				UnDraw:(0)
+				HandPos%=1
+				i%=1
+				DrawDice:
+				newdice%=tmp%
+				chosen%=0				REM force choice
+			endif
+		elseif key%=13								REM die chosen
+			sx%=sx%+1										REM move to
+			scrval%(sx%)=dieval%(i%)		REM   score area
+			j%=i%												REM squeeze out
+			while j%<dx%								REM   of die area
+				dieval%(j%)=dieval%(j%+1)
+				j%=j%+1
+			endwh
+			if pl%=S3aPl%
+				pause -20
+			endif
+			dx%=dx%-1										REM now 1 less die
+			if SprID%<>0
+				closesprite SprID%
+				SprID%=0
+			endif
+			chosen%=chosen%+1
+			HandPos%=i%
+			return key%
+		endif
+		MoveHand:(i%)
+		if pl%=S3aPl%
+			i%=PlayS3a%:
+			if i%>0
+				MoveHand:(i%)
+				key%=13				REM pick die per i%
+			else
+				key%=32				REM reroll
+			endif
+		else
+			key%=get
+		endif
+		if key = 27 or key% = 27
+			key%=CkAbort%:
+		endif
+	endwh
+	if SprID%<>0
+		closesprite SprID%
+		SprID%=0
+	endif
+	HandPos%=i%
+	return key%
+ENDP
+
+REM make choice for S3a
+
+PROC PlayS3a%:
+	local i%,max%,maxx%
+	i%=1 :max%=0
+	while i%<=dx%
+		if dieval%(i%)>max%
+			max%=dieval%(i%)
+			maxx%=i%
+		endif
+		i%=i%+1
+	endwh
+	if max%=6 or chosen%=0 or (max%=5 and dx%<3)
+		return maxx%
+	endif
+	return -1			REM cause reroll
+ENDP
+
+REM Draw hand if not on screen
+
+PROC DrawHand:(AtDie%)
+	local bit$(6,255)
+
+	if SprID%<>0
+		MoveHand:(AtDie%)
+		return
+	endif
+	SprID%=CREATESPRITE
+	bit$(1)="" :bit$(2)="" :bit$(3)="Bangkok.pic"
+	bit$(4)="" :bit$(5)="" :bit$(6)=""
+	appendsprite 5,bit$(),0,0
+	bit$(1)="" :bit$(2)="" :bit$(3)=""
+	bit$(4)="" :bit$(5)="" :bit$(6)=""
+	appendsprite 5,bit$(),0,0
+	drawsprite 10+(AtDie%-1)*50,70
+ENDP
+
+REM Move hand if already on screen
+
+PROC MoveHand:(AtDie%)
+	if SprID%=0
+		DrawHand:(AtDie%)
+	endif
+	possprite 10+(AtDie%-1)*50,70
+ENDP
+
+REM Get arithm. remainder of a division
+
+PROC mod%:(v1%, v2%)
+	return v1% - v1% / v2% * v2%
+ENDP
+
+REM Draw dice on screen
+
+PROC DrawDice:
+	local i%,x%,y%,tmp%
+	
+	if newdice%<>0
+		if SprID%<>0
+			closesprite SprID%
+			SprID%=0
+		endif
+		giprint "Rolling dice...",0
+		if Sound%<>1
+			pause -20
+		else			
+			if dx%=1
+				playwve:("*die")
+			else
+				playwve:("*dice")
+			endif
+		endif
+		if SprID%=0
+			DrawHand:(HandPos%)
+		endif
+	endif
+	if InBonus%<>0 and BIsDrwn%=0
+		BIsDrwn%=-1
+		i%=newdice%
+		newdice%=0
+		drawdie%:(Bonus%, 335, 5)
+		newdice%=i%
+	endif
+	i%=1							REM Draw active dice lower left
+	while i% <= dx%
+		dieval%(i%)=drawdie%:(dieval%(i%),10+(i%-1)*50,115)
+		i%=i%+1
+	endwh
+	if InBonus%=0
+		score%=0
+	else
+		score%=Bonus%
+	endif
+	i%=1							REM Draw scoring dice right
+	while i% <= sx%
+		if IsDrawn%(i%)=0
+			IsDrawn%(i%)=-1
+			x%=gwidth-(1+mod%:(i%,2))*45
+			y%=(((i%+1)/2)-1)*45+5
+			tmp%=newdice%		REM Override generation
+			newdice%=0			REM of new dice in score area
+			drawdie%:(scrval%(i%),x%,y%)
+			newdice%=tmp%
+		endif
+		score%=score%+scrval%(i%)
+		i%=i%+1
+	endwh
+	DiScore:(score%)
+ENDP
+
+REM Draw a single die 
+
+PROC drawdie%:(i%,x%, y%)
+	local id%, die%
+
+	id%=gcreate(x%,y%,40,40,1)
+	guse 1
+	gtmode 3
+	gat gwidth/2, 20
+	if x% < gwidth-100 and y% > gheight / 2
+		guse id%		
+		lwx%=lwx%+1
+		lWinID%(lwx%)=id%
+	else
+		guse id%
+		rwx%=rwx%+1
+		rWinID%(rwx%)=id%
+	endif
+	gborder 3
+	if newdice%<>0
+		die%=1+int(rnd*6)
+	else
+		die%=i%
+	endif
+	if die%=1
+		gat 17,17 :gfill 3,3,0
+	elseif die%=2
+		gat 7,7 :gfill 3,3,0
+		gat 28,28 :gfill 3,3,0
+	elseif die%=3
+		gat 17,17 :gfill 3,3,0
+		gat 7,7 :gfill 3,3,0
+		gat 28,28 :gfill 3,3,0
+	elseif die%=4
+		gat 7,7 :gfill 3,3,0
+		gat 7,28 :gfill 3,3,0
+		gat 28,7 :gfill 3,3,0
+		gat 28,28 :gfill 3,3,0
+	elseif die%=5
+		gat 7,7 :gfill 3,3,0
+		gat 7,28 :gfill 3,3,0
+		gat 28,7 :gfill 3,3,0
+		gat 28,28 :gfill 3,3,0
+		gat 17,17 :gfill 3,3,0
+	elseif die%=6
+		gat 7,7 :gfill 3,3,0
+		gat 7,28 :gfill 3,3,0
+		gat 28,7 :gfill 3,3,0
+		gat 28,28 :gfill 3,3,0
+		gat 7,17 :gfill 3,3,0
+		gat 28,17 :gfill 3,3,0
+	endif
+	guse 1
+	return die%
+ENDP
+PROC playwve:(wfn$)
+	local name$(128),p%,ret%
+	p%=peekw($1c)+6
+	name$=wfn$+chr$(0)
+	ret%=call($1f86,uadd(addr(name$),1),0,0)
+	if peekw(p%) and 1
+		return ret% or $ff00
+	endif
+ENDP
+PROC Ckabort%:
+	local i%
+	dINIT "Abort Game"
+	dTEXT "", "Terminate Game?",2
+	dBUTTONS "NO!!",-27,"Yes",13,"Sound",-83
+	i%=DIALOG
+	if i% > 0
+		if i%=13
+			stop
+		elseif i%=83 or i%=115
+			if Sound%=1
+				Sound%=2
+			else
+				Sound%=1
+			endif
+		endif	
+	endif
+	return 0
+ENDP

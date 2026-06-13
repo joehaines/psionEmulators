@@ -1,0 +1,122 @@
+rem -- Original code written in C by Colly
+rem -- Adapted and translated into OPL by Tom Dolbilin
+rem -- Version 1.0
+
+PROC main:
+local pM%		rem Pointer to MESS struct
+local clntPid%		rem PID of Bring client
+local wsrvPid%		rem PID of Window server
+local buf$(255)		rem Buffer to send data from
+local fmt&		rem Message buffer
+local state%		rem Server state
+local mtype%		rem Message type
+local arg1%, arg2%	rem Message arguments
+local mStat%, kStat%, event%(6)
+local ret%, name$(15)
+
+print "Link Paste Server 1.0"
+print "Press Psion-Esc to exit"
+
+rem --- Initialise messaging with MessInit
+ret% = call( $83, $404, 0, 0, 0, 0 )
+if ret% < 0
+	panic:( "Failed to initialise messaging", ret% )
+endif
+
+rem --- Get Window Server's pid
+name$ = "SYS$WSRV.*"
+wsrvPid% = call( $188, addr( name$ ) + 1 )
+
+rem -- Queue console event
+ioa( -2, 14, kStat%, event%(1), #0 )
+
+call( $183, addr( pM% ), 0, 0, 0, addr( mStat% ) ) rem MessReceiveAsynchronous
+
+while 1
+	iowait
+	if mStat% <> -46
+
+		rem --- We have received a message
+		if mStat% <> 0 : panic:( "Bad message", ret% ) : endif
+		mtype% = peekw( pM% + 4 )
+		arg1% = peekw( pM% + 8 )
+		arg2% = peekw( pM% + 10 )
+
+		if mtype% = $21
+			rem --- Someone wants some data
+			if clntPid% = 0
+				rem --- First request
+				fmt& = peekl( addr( arg1% ) )
+				ret% = -4
+				if fmt& and 7 : rem Do we support the requested format?
+					clntPid% = peekw( pM% + 6 )
+					rem Have WServer inform us if the client dies
+					call( $883, clntPid%, $22 )
+					state% = 0
+					ret% = 0
+				endif
+			else
+				rem --- Subsequent request
+				if arg1% = 0
+					rem --- Client requests no data
+					state% = 1
+				endif
+
+				if state%
+					rem --- End of conversation
+					ret% = -36
+					rem No longer interested if the client dies
+					call( $983, clntPid%, $22 )
+					clntPid% = 0
+				else
+					rem --- Send information over to client
+					buf$ = datim$ : rem Create dummy information
+					ret% = min( len( buf$ ), arg2% ) : rem How much to send
+					call( $92, clntPid%, ret%, 0, addr( buf$ ) + 1, arg1% ) rem ProcCopyToById
+					state% = state% + 1
+				endif
+			endif
+
+		elseif mtype% = $22
+			rem --- Our client has died
+			clntPid% = 0
+
+		else
+			rem --- Unsupported message
+			ret% = -4
+		endif
+
+		call( $783, pM%, ret% ) rem MessFree
+
+		rem --- Get another message
+		call( $183, addr( pM% ), 0, 0, 0, addr( mStat% ) ) rem MessReceiveAsynchronous
+
+	elseif kStat% <> -46
+		rem --- We have received a console event
+		if kStat% <> 0 : panic:( "Bad event", ret% ) : endif
+
+		if event%(1) = $402
+			rem --- Going to background
+			fmt& = $16 rem Prepared to render in any format
+			rem --- Inform the window server
+			ret% = call( $683, wsrvPid%, 3, 0, addr( fmt& ) ) rem MessSendReceiveWithWait
+			if ret% < 0
+				panic:( "", ret% )
+			endif
+		endif
+
+		rem Queue another console event
+		ioa( -2, 14, kStat%, event%(1), #0 )
+	endif
+endwh
+get
+ENDP
+
+PROC panic:( mess$, err% )
+print mess$
+if err%
+	print err$( err% )
+endif
+get
+stop
+ENDP

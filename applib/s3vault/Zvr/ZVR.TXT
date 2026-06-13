@@ -1,0 +1,54 @@
+ZVR V1.1.0
+Compressed Vertical Reader
+Ian A Young
+9 Apr 1995
+What is ZVR?
+This vertical reader is based on V1.1 (Feb 93) of the vertical reader written by Ewan Paton <paton@vmark.co.uk>.  You should already be familiar with Ewan's program, and have a copy installed, before installing my version.  My main contribution has been to add the ability to read specially prepared ".ZVR" compressed files, and make it possible to generate files in that format on  sufficiently beefy workstations.  I have also made a few cosmetic changes and fixed a couple of problems which affected me:
+*	reformatted so that I can follow it better (I suspect Ewan had to work on his Psion; I have the advantage of being able to do most work on the PC-based emulator, which gives me a much larger screen)
+*	added decompression
+*	application name changed to "ZVR" (was "VR3a")
+*	file path changed to "\txt\books" (was "\vr")
+*	extension changed to ".zvr" (was ".txt")
+*	RC file moved to "\opd\zvr.rc" (was "\vr\vrinit.rc")
+*	different font default (matter of taste)
+*	default Psion+J jump line is now top line, not current line in file (i.e., 2 pages later...)
+*	fixed Psion+F and Psion+G so that they actually work (seems to have been a problem in Ewan's original code stemming from the introduction of the behind-the-scenes painting of the next page)
+Note that the changes to the RC file, application name and file defaults mean that this program should be able to coexist with Ewan's original.  Note that the VPRINT library is used, unchanged, by both programs.
+Contents of ZVR110.ZIP
+*	ZVR.OPA	new application: install wherever you put VR3A.OPA.
+*	ZVR.WRD	this file
+*	ZVR.OPL	in case you want to modify the application
+*	ALAD10.ZVR	a file to read
+*	ZVR.C	compression program source
+*	DECOMP.C	decompression program source
+Compression Overview
+My requirement is to be able to carry around a reasonable number of etexts (perhaps half a dozen or more) to read on trips.  I found that uncompressed texts from Project Gutenberg or similar sources were too large for this, by perhaps a factor of two, even given that I have a 2MB flash SSD.  My aim was to develop a compression system which could be added to an OPL vertical reader to achieve a 50% reduction in file size without significantly affecting reading speed.
+Although many efficient compressors already exist, most of these require a decompressor to operate on an input bit-string and make use of large and complex tree structures at decompression time.  Although these compression schemes would have more than met my 50% compression target, I don't believe that the corresponding decompressor would be a practical proposition in OPL, from either the complexity or speed point of view.
+The form of compression implemented is very simple: each line of the input is replaced by a line of compression symbols whose definitions together constitute the original line.  A dictionary of the definitions of the compression symbols is prefixed to the compressed file.
+The tricky part is generating a good set of definitions for the compression symbols.  I played around with this for a few days and came up with the algorithm used in my zvr compression program.  This repeatedly scans the whole text looking for the most common digraph (pair of symbols) including previously generated compression symbols.  This technique usually gets close to 50% compression, which is acceptable for me, but I'm sure a less brute-force algorithm would be able to do better.  Whether it is worth the effort is another question: I'm sure someone will eventually come out with a reader capable of processing ZIP files or the equivalent (written in C) and then we can all junk this program and move on to something better.
+Using the ZVR Compressor
+Compile the zvr.c file on any 32-bit flat memory model system to give an executable called zvr.  Let's say you want to compress a Project Gutenberg text called thing10.txt.  First, edit the original text file to remove the Project Gutenberg banner at the start.  Obviously, one benefit of this is that you remove around 10K of text right away, which may be significant in small files.  A second benefit is that the banner contains many strange characters which can't be used as compression symbols, and that removing them will improve the compression ratio of the rest of the text.  For example, with the banner, the alad10 text compresses by 49.3%, while with the banner removed, the remaining text compresses by 55.5%.
+To actually perform the compression:
+	zvr thing10.txt thing10.zvr
+The program lets you know how it is doing and what compression symbols it is choosing as it goes along.
+How the ZVR Compressor Works
+The program starts by loading the file into memory and filtering it if desired (there is a #define for this).  The filtering operation performs changes on the text which make it more readable on a vertical reader:
+*	removes trailing blanks from lines
+*	undoes end-of-line hyphenation
+*	standardises paragraphs so that all paragraphs are separated by exactly one blank line
+*	re-paragraphs so that lines are as long as possible without exceeding 250 characters: this improves compression by improving the chance that the beginning or end of a word will not fall against a line boundary
+*	removes spaces from sequences of dots or stars
+After this, the compression algorithm proper is invoked.  While there are unused compression symbols available, the program chooses the most profitable digraph to replace, and performs that replacement.
+Using the DECOMP Decompressor
+You can get straight text back from a compressed file by compiling the decomp program and running the text through it:
+	decomp <file.zvr >file.txt
+Note that this will only get back the original text if you have turned off filtering in your copy of zvr.
+ZVR File Format
+A ZVR compressed vertical reader file (ZVR file) normally has the extension ".ZVR".  However, the format is self-identifying and any other extension may be used in practice.
+A ZVR file consists of a series of lines of text, each of which ends with an end of line sequence.  The end of line sequence may be either CR or LF alone, or CR+LF.  This is compatible with the Psion 3a's concept of text files.  It makes sense to use the Unix convention of LF alone whenever possible to save space in the compressed file.
+The first 256 lines of a ZVR file comprise the decompression dictionary, with one entry for each possible 8-bit symbol in the compressed file.  If the line is blank, the compression symbol is defined as itself; i.e., its expansion is a single character.  If a dictionary line is not blank, the corresponding compression symbol is defined to expand to the literal contents of the line.  Note that symbol definitions are not recursive.
+After the dictionary comes the compressed text as a sequence of lines which extend until the end of the file.  Each compressed line corresponds to a single uncmpressed text line whose length is never longer than 255 characters.  The uncompressed text is reconstituted by concatenating the dictionary entries for each symbol in the compressed line.
+A number of compression symbols never appear in the compressed text: 0 (NUL), 10 (LF), 13 (CR) and 26.  These all have an undesired significance to Psion's IOREAD function.  Their dictionary entries are all left blank except for that for symbol 0, which is set to the literal string "!!Compressed!!".  This definition appears as the first line in a compressed file, and can therefore be used to detect the ZVR file format.
+Contact Addresses
+Home:	Ian A Young <ian@rats.demon.co.uk>
+Work:	Ian A Young <iay@threeL.co.uk>

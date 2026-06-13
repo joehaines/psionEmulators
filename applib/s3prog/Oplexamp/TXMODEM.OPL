@@ -1,0 +1,301 @@
+REM Module - TXMODEM.OPL
+REM XModem transmission demo.
+
+REM Written by Jezar at Psion.
+REM You have a royalty free right to
+REM use and distribute this software
+REM in any way you see fit, provided
+REM you agree that neither Jezar nor
+REM Psion will be held responsible 
+REM for the consequences of you
+REM using it.
+
+REM Use at your own risk.
+REM No warranties.
+
+REM See the Series 3 programming
+REM manual for details of how to
+REM change the serial port 
+REM parameters; this demo uses 
+REM the default settings.
+
+REM Please use your knowledge and
+REM experience to use the techniques
+REM illustrated in a more formal and
+REM flexible way. This demo has been
+REM kept simple for clarity.
+
+REM Note that the "XMD:" device
+REM is an "attached driver" - it 
+REM opens ON TOP of the serial port,
+REM and thus needs TWO IoClose's;
+REM one to close the attached driver
+REM and another to close the serial
+REM port itself.
+
+REM This example is much better
+REM structured than yesterdays
+REM Ymodem one. It also has some
+REM more general-purpose routines.
+
+REM Suitable for all Series 3
+REM machines.
+
+REM Hope this is useful to you,
+REM jezar@cix.compulink.co.uk
+
+PROC XMdemo%:
+	LOCAL serial%,name$(130)
+	LOCAL mode%,type%,ret%,o%(8)
+	
+	PRINT "Xmodem demo."
+	PRINT "Type a filename to send:"
+	TRAP INPUT name$
+	IF ERR=-114
+		STOP
+	ENDIF
+	
+	REM Get XMD: device if needed:
+	ONERR Done::
+	IF NOT LDexist%:("XMD")
+		LoadLDD%:("C:\IMG\Sys$xmym")
+	ENDIF
+
+	REM Open the serial port:
+	REM (this example assumes port "A")
+	ONERR KillLDD::
+	serial%=IoOpen%:(0,"TTY:A",-1)	
+
+	REM Open attached driver:
+	ONERR CloseSP::
+	serial%=IoOpen%:(serial%,"XMD:",-1)
+	
+	REM Connect:
+	PRINT "Connecting.."
+	type%=0 :REM Transmit (use 0 for receive)
+	REM mode could be 1 for CRC or 2 for checksum.
+	mode%=0 :REM means use either!
+	REM Leave next line out for 128 byte frames
+	REM mode%=mode% OR $8000 :REM Use 1024 byte frames
+	ret%=IOW(serial%,10,type%,mode%)
+	ONERR DisCon::
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	PRINT "Sending.."
+	SendFil%:(name$,serial%)
+	RAISE 0
+	
+DisCon::
+	ONERR CloseXMD::
+	REM Disconnect: (cannot fail)
+	IOW(serial%,11,#0,#0)
+	
+CloseXMD::
+	ONERR CloseSP::
+	IoClose%:(serial%)
+
+CloseSP::
+	ONERR KillLDD::
+	IoClose%:(serial%)
+	
+KillLDD::
+	ONERR Done::
+	RemLDD%:("XMD") :REM Always safe
+
+Done::
+	ONERR OFF
+	IF ERR
+		PRINT "ERROR! -",ERR$(ERR)
+	ENDIF
+	PRINT "Finished - press a key"
+	GET
+ENDP
+
+PROC SendFil%:(name$,serial%)
+	LOCAL buf$(128)
+	LOCAL file%
+	
+	ONERR done::
+	file%=IoOpen%:(0,name$,$0200)
+	
+	WHILE 1 :REM Send out the file data:
+		buf$=IoRead$:(file%,128)
+		IoWrite%:(serial%,buf$)
+		PRINT "*";
+	ENDWH
+	
+done::
+	ONERR OFF
+	IoClose%:(file%)
+	IF ERR<>-36
+		RAISE ERR
+	ENDIF
+	IoWrite%:(serial%,"")
+	PRINT "Done!"
+ENDP
+	
+PROC IoRead$:(hand%,len%)
+REM  Self-raising IOREAD
+	
+	LOCAL ret%,buf%(130),bufadr%
+
+	IF len%>254
+		RAISE -43 :REM Too large
+	ENDIF
+
+	ret%=IOREAD(hand%,ADDR(buf%(2)),len%)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	
+	bufadr%=ADDR(buf%(1))
+	POKEB bufadr%,ret%+1
+	
+	RETURN MID$(PEEK$(bufadr%),2,ret%)
+ENDP
+
+PROC IoWrite%:(hand%,data$)
+REM  Self-raising IOWRITE
+	
+	LOCAL ret%,buf%(130),len%
+	
+	len%=LEN(data$)
+	
+	IF len%>254
+		RAISE -43 :REM Too large
+	ENDIF
+	
+	POKE$ ADDR(buf%(1)),"#"+data$
+	
+	ret%=IOWRITE(hand%,ADDR(buf%(2)),len%)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+ENDP
+
+PROC IoClose%:(hand%)
+REM  Self-raising IOCLOSE
+	
+	LOCAL ret%
+	
+	ret%=IOCLOSE(hand%)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+ENDP
+
+PROC IoOpen%:(oldhand%,name$,mode%)
+REM  Self-raising IOOPEN
+REM  This version also works for 
+REM  attached drivers too
+REM  (the original Series 3 version
+REM  could not).
+	
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(130)
+	
+	POKE$ ADDR(name%(1)),"#"+name$
+	ax%=0
+	bx%=ADDR(name%(2))
+	cx%=mode%
+	dx%=oldhand%
+	IF OS($0085,ADDR(ax%)) AND 1
+		RAISE (ax% OR $FF)
+	ENDIF
+	
+	RETURN ax%
+ENDP
+
+PROC LDexist%:(name$)
+REM  This function returns TRUE
+REM  if the device you name exists
+REM  in the system.
+REM  (don't include the colon!)
+		
+	GLOBAL LDxst%
+	
+	FindLDD%:("LDxeng",name$)
+	RETURN LDxst%
+ENDP
+
+PROC LDxeng%:(name$)
+REM  Private to above procedure..
+	LDxst%=-1
+	RETURN -1
+ENDP
+
+PROC LoadLDD%:(fname$)
+REM  Logical device-driver loader.
+	
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(130)
+	
+	POKE$ ADDR(name%(1)),"#"+fname$
+	ax%=$0600 :REM DevLoadLDD
+	bx%=ADDR(name%(2))
+	IF OS($0085,ADDR(ax%)) AND 1
+		RAISE (ax% OR $FF)
+	ENDIF
+ENDP
+
+PROC RemLDD%:(dname$)
+REM  Logical device-driver unloader.
+REM  This is always safe; they won't
+REM  unload if they're not meant to.
+REM  'dname' is specified WITHOUT
+REM  the colon at the end.
+	
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(130)
+	
+	POKE$ ADDR(name%(1)),"#"+dname$
+	ax%=$0800 :REM DevDelete
+	bx%=ADDR(name%(2))
+	dx%=$dd01 :REM ID for an LDD
+	
+	REM We don't care if this fails:
+	OS($0085,ADDR(ax%))
+ENDP
+
+PROC FindLDD%:(func$,match$)
+REM  Logical device-driver finder.
+REM  (allows wildcards)
+REM  Calls back your function with
+REM  a matching device name as a
+REM  a parameter for you.
+	
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL buf%(10),bufLBC%,regs%
+	LOCAL match%(130),ret%
+	
+	ONERR done::
+	bufLBC%=ADDR(buf%(1))
+	regs%=ADDR(ax%)
+	POKE$ ADDR(match%(1)),"#"+match$
+	
+	dx%=$dd01 :REM ID for an LDD
+	si%=ADDR(buf%(2))
+	di%=ADDR(match%(2))
+	
+	WHILE 1
+		bx%=ax%
+		ax%=$0A00
+		IF (OS($85,regs%) AND 1)
+			RAISE (ax% OR $FF00)
+		ENDIF
+		POKEB bufLBC%,1+CALL($B9,0,0,0,0,si%)
+		IF @%(func$):(MID$(PEEK$(bufLBC%),2,254))
+			RAISE 0
+		ENDIF
+	ENDWH
+
+done::
+	ONERR OFF
+	IF ERR<0 AND ERR<>-41
+		RAISE ERR
+	ENDIF
+ENDP
+
+REM End of file - Txmodem.opl
+

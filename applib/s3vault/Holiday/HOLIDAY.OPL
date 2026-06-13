@@ -1,0 +1,111 @@
+PROC holiday:
+GLOBAL peop,cost,free,discnt,dispce,fltsup,under
+GLOBAL dis,full,supp,occ,tot,resort$(15),ans%,vers,titl$(20)
+GLOBAL broch$(15),pge
+LOCAL dys
+titl$="Holiday Pricer"
+vers=8.10
+start:
+go::
+CLS
+occ=0:dys=0:under=0
+dINIT titl$
+dEDIT resort$,"Hotel Name"
+dEDIT broch$,"Travel Company"
+dFLOAT pge,"Page No.",1,800
+DIALOG
+dINIT titl$
+dFLOAT peop,"No. full paying passengers",1,20
+dFLOAT cost,"Cost per person (œ)",1,9999
+dFLOAT fltsup,"Flight supplement (œ)",0,100
+DIALOG
+dINIT titl$
+dFLOAT occ,"Under occupancy perday (œ.p)",0,20
+dFLOAT dys,"No. of days",0,999
+dFLOAT free,"No. free passengers",0,6
+dFLOAT discnt,"No. discounted passengers",0,6
+dFLOAT dispce,"Discounted price (œ)",0,9999
+DIALOG
+IF occ>0
+under=occ*dys*peop
+ENDIF
+calc:
+disp:
+PAUSE -200
+GET
+prnt:
+dINIT titl$
+dCHOICE ans%,"Another","Yes,No"
+DIALOG
+IF ans%=1
+GOTO go
+ELSE stop
+ENDIF
+ENDP
+
+PROC start:
+CLS
+gMOVE 40,10
+gLINEBY 160,0
+gLINEBY 0,-5
+gLINEBY -5,0
+gLINEBY 0,55
+gLINEBY -150,0
+gLINEBY 0,-55
+gLINEBY -5,0
+gLINEBY 0,5
+gAT 45,25:gFONT 2
+gPRINT "          Holiday   Pricer"
+gAT 45,35
+gPRINT "           by Keith Pirie"
+gAT 45,45
+gPRINT "             Version ",vers
+gAT 45,55
+gPRINT "                   @1994"
+PAUSE -100
+CLS
+ENDP
+
+PROC prnt:
+LOCAL p%,pr%
+pr%=1
+dINIT titl$
+dCHOICE pr%,"Print Data","No,Yes"
+p%=DIALOG
+p%=pr%
+IF p%=2
+LOPEN "par:a"
+LPRINT "Travel Company",broch$,"  Page",pge
+LPRINT "Holiday at ";resort$
+LPRINT peop;" Paying full fare      œ",full
+LPRINT free;" Travelling free"
+LPRINT discnt; " Travelling discounted œ",dis
+LPRINT "Flight supplements      œ",supp
+LPRINT "Under Occupancy         œ",under
+LPRINT
+LPRINT "Total > œ";tot
+LCLOSE
+ENDIF
+ENDP
+
+PROC disp:
+CLS
+PRINT "Travel Company",broch$,"  Page",pge
+PRINT "Holiday at ";resort$
+PRINT peop;" Paying full fare      œ",full
+PRINT free;" Travelling free"
+PRINT discnt; " Travelling discounted œ",dis
+PRINT "Flight supplements      œ",supp
+PRINT "Under Occupancy         œ",under
+PRINT
+PRINT "Total > œ";tot
+ENDP
+
+
+PROC calc:
+full=peop*cost
+dis=discnt*dispce
+supp=fltsup*(peop+discnt)
+tot=full+dis+supp+under
+ENDP
+

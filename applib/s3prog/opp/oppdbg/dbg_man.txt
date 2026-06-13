@@ -1,0 +1,477 @@
+                            OPPDBG
+                  The Psion 3a OPL Debugger
+                         version 1.1
+
+INTRODUCTION
+------------
+
+OPPDBG is a run-time OPL source level debugger for the Psion 3a/3c
+and Siena computers. It may be used when developing applications
+on the Psion in the OPL language.
+
+Ordinarily when debugging OPL applications it is necessary
+to add PRINT statements within the source code to find out
+what code is being executed and the values of variables.
+This can be a time consuming and error prone process since
+it often requires the code to be retranslated many times in
+order to pinpoint where a problem is occurring.
+
+With OPPDBG debugging OPL applications is much more
+straightforward, you can see exactly which lines of code are
+being executed, and the values of all local variables
+without the need for print statements or retranslating the
+code multiple times. You simply write you application using
+standard OPL, translate the code once under debug and then
+use the debugger to track down what exactly is happening
+within the running application.
+
+OPP
+---
+
+A pre-requisite of OPPDBG is a separate utility called OPP.
+OPP is available separately, so if you do not already have a
+copy you will need to obtain OPP version 1.4F and install it
+before using OPPDBG.
+
+ !!!OPPDBG will not work without OPP or with versions of OPP
+                      prior to 1.4F!!!
+
+OPP builds on top of the standard OPL translator providing
+additional commands and directives when you write OPL code.
+The main facilities OPP provides are:
+
+- Preprocessor facilities (#define, #include,...)
+- Support for multi-dimensional arrays
+- C style structures
+- C style comments, i.e. /* a comment */
+- C style operators such as i%++
+- Hooks for OPPDBG to allow the debugging of a program
+
+Using OPP it is possible to create a debug version of an OPL
+program. This debug version will work exactly like the
+normal application but includes additional hooks which the
+debugger uses to interrogate which lines of code are being
+executed and the values of variables.
+
+INSTALLATION
+------------
+
+A typical installation of OPPDBG would consist of the
+following files in the given directories:
+
+        \APP\OPPDBG.OPA
+        \APP\OPPDBG\OPPDBG.TTL
+        \APP\OPPDBG\OPPDBG.HLP
+        \OPP\INCLUDE\OPPDBG.OPH
+
+It does not matter whether the files are installed on the
+internal drive, or an SSD in drive A or B provided that all
+the files are installed on the same drive.
+
+Copy the above files onto the Psion in the given
+directories. Next go to the Psion system screen and install
+the main application (OPPDBG.OPA). This may be done by
+selecting the "Apps->Install" menu option on the system
+screen.
+
+The OPPDBG.TTL and OPPDBG.HLP files are optional and provide
+a startup title screen and on-line help. Start by installing
+these, you can later remove them if you are short of space.
+
+The file OPPDBG.OPH is used with OPP and should be installed
+into the standard OPP system include file directory.
+
+REGISTRATION
+------------
+
+OPPDBG is bundled with OPP in the OPP SDK. The OPP SDK is
+shareware, which means that if you continue to use it you
+should register with the author. Registering the SDK gives
+you access to both OPP and OPPDBG.
+
+Refer to the the manual supplied with OPP for instructions on
+how to register the OPP SDK.
+
+USING OPP TO TRANSLATE WITH DEBUG
+---------------------------------
+
+The first step in debugging an OPL program is to create a
+debug version of the program. OPPDBG will not work unless at
+least some part of the program has been translated with
+debug enabled.
+
+First ensure that the system include file OPPDBG.OPH which
+is supplied has been installed into \OPP\INCLUDE.
+Next add the following line so that it is the very first
+line in the source code for the program you want to debug:
+
+        #pragma debug
+
+The above command is a standard OPP directive which tells
+OPP to translate the program with debug enabled. The
+resultant program will include some additional hooks which
+allows the debugger to track what line of the program is
+being executed.
+
+The following line should also be added as the very last
+line in the same source file:
+
+        #include <OPPDBG>
+
+This line instructs OPP to include the source from the
+installed OPPDBG.OPH file. This contains a small section of
+code which is used within the translated program to
+communicate with the debugger.
+
+The following shows an example of what is required, which
+you can use to test the debugger:
+
+        #pragma debug
+        PROC main:
+                local i%, s$(10)
+                s$="Hello"
+                while i%<3
+                        i%++
+                        print s$,i%
+                endwh
+                print test1$:
+                get
+        ENDP
+        PROC test1$:
+                local t$(10)
+                t$="OK"
+                return t$
+        ENDP
+        #include <OPPDBG>
+
+Now translate the program using OPP as instructed within the
+OPP manual. The program will be translated as normal. Note
+the following line should be displayed to indicate that
+the program has been translated with debug turned on:
+
+                 Translating with debug
+
+STARTING TO DEBUG A PROGRAM
+---------------------------
+
+Before running the debug version of the program make sure
+that you are not editing the source for the program in the
+OPP editor or with any other application. If you are editing
+the source file the debugger will not be able to access the
+file and so will not be able to display each source line
+which is being executed. In this case it will function as
+normal but will simply display the source line numbers for
+the program. For this reason it is best not to run the
+program to be debugged from the OPP editor directly, instead
+exit from OPP and run it from the RunOpl icon.
+
+Once you have a debug version of the program start it up
+using the normal mechanism. If the program is an OPO file
+then it may be started from the RunOpl icon, if it is an OPA
+file then it may be installed and run as a normal
+application.
+
+When the program starts it will automatically start up the
+debugger. If it fails for any reason check that you have
+installed all the files correctly and have enough memory to
+start both the program and the debugger. As a rough guide
+you need at least 40K of free memory to start the debugger
+plus whatever memory your program requires.
+
+After a short pause the debugger should open the source file
+and display the first line of source.
+                              
+The current active source line will be highlighted by a grey
+line. There is also a cursor which is indicated by a black
+square, which initially will be at the start of the current
+active line. You can move the cursor around the source file
+which is displayed using cursor keys , Pg Up, Pg Dn, Home,
+End, Psion-up and Psion-down. If required you can also view
+the contents of another file by selecting the "File->Open"
+menu option. The editor for the debugger is different from
+the Psion Word or Program editors in that it does not load
+the entire file into memory. This means that very large
+files can be viewed within the debugger, unlike with the
+Psion Word editor which is limited to files smaller than
+40K.
+
+The "find text" and "find again" menu options may be used to
+find a given string within the current source file. The
+search is case independent and will start from the line
+after the line on which the cursor is positioned.
+The "jump to line" command may be used to jump to a given
+line number. The "jump to current" will jump to the current
+active line.
+
+The "preferences" option controls the size of the tab
+stops within the debugger, and the display of optional
+line numbers and breakpoints.
+
+The "zoom in" and "zoom out" options allow you to alter the
+font used by the debugger.
+
+When the debugger first starts the program being debugged will
+start in a suspended state at the line indicated by the grey
+line.
+
+If you switch to the program screen you see that it is
+blank, this is because the program has not had a chance to
+do anything yet. Note that it is useful if you assign a
+button to both the debugger and the program being debugged
+using the Psion system screen "Apps->Assign button" menu,
+e.g. CTRL-sheet for the debugger and CTRL-calc for the
+RunOpl icon. This then makes switching between the debugger
+and program screens much easier.
+
+VIEWING LINES AS THEY EXECUTE
+-----------------------------
+
+Step into
+---------
+
+To see exactly what lines are being executed you can step
+through each line as it executes. The main command to do
+this is the "step into" command. The "step into" command
+allows the program to execute the current line of source
+and then pauses, waiting for the next command from the
+debugger. The current active line is indicated by the
+grey horizontal bar. The active line will not be executed
+until you request it. There are a three ways of accessing
+the "step into" command, (or any command within the
+debugger):
+
+- Select the menu option, "Run->Step into".
+- Press the keyboard shortcut for the menu option, Psion-s.
+- Simply press the "s" key.
+
+All of the menu options may be accessed directly using a
+single key press.
+
+Step over
+---------
+
+The "step over" command is a variant of the "step into"
+command. The difference occurs when the current active line
+contains one or more procedure calls. In this case "step
+into" will step into the procedures and start displaying the
+lines from the procedures as they execute. The "step over"
+command will execute all the procedures called from the
+current line completely and then pause on the next line in
+the current procedure.
+
+Run
+---
+
+The "run" command allows the program to run without
+displaying each line as it executes. When this command is
+used the debugger will automatically switch to the
+background in order that you can see any output from the
+program. You can manually switch screens if required. The
+program may be interrupted by pressing the Esc key with
+the debugger screen active. The program will also halt if
+it reaches a breakpoint (see later).
+
+Step to cursor
+--------------
+
+The "step to cursor" command is similar to the "run"
+command in that it allows the program to execute a number
+of lines. When the program reaches the line the cursor is
+on (the small black square, not the grey line) it will
+stop and wait for the next command. If the line the
+cursor is on is never reached then the program will not
+stop unless the Esc key is pressed. So for example, if
+the cursor is on an ENDIF line and the inside of the IF
+section is not executed then the program will not halt.
+
+EXITING THE DEBUGGER
+--------------------
+
+The "exit" command may be used to exit the debugger. Note that
+if the program being debugged is still running it will be
+killed.
+
+BREAKPOINTS
+-----------
+                              
+Breakpoints allow you to run a program until it reaches a
+specified line of source code. You can specify a number of
+breakpoints and then set the program running using the "run"
+command, as soon as one of the breakpoints is reached the
+program will pause and the debugger will refresh to display
+the active source file and line.
+
+To set a breakpoint move the cursor to the appropriate line
+and select the "set breakpoint" command. There is an
+option on the preference dialog which controls whether
+lines with breakpoints are marked.
+
+To view and jump to a breakpoint select the "show/goto"
+command.
+
+To remove a breakpoint select the "clear" command.
+
+VIEWING AND SETTING VARIABLES
+-----------------------------
+
+Any local variable may be viewed or set from the debugger.
+Note that in the current version of the debugger it is not
+possible to set or view global variables or procedure
+arguments.
+
+To view a local variable move the cursor to the variable so
+that the cursor is somewhere within the variable name. Then
+select the "show variable" command. A dialog box will appear
+showing the memory address for the variable and its current
+value. In the case of strings it also displays the maximum
+length possible for the string.
+                              
+To set a local variable proceed as with viewing a variable
+but select the "set variable" command.
+
+The "show memory" and the "set memory" commands may be used
+to view and set memory within the running programs data
+segment. The default address given with these options will
+be the location where the current procedures local variables
+are stored. Memory may be viewed by type (e.g. a byte,
+integer, string,...) or as a block of bytes showing the
+decimal values and character values.
+
+Be very careful when setting variables or memory using the
+debugger!
+
+RESTRICTIONS
+------------
+
+The following restrictions apply when writing OPL
+applications which are to be debugged:
+
+- The debugger uses a local variable called oppdbgstk%,
+  so don't use a variable with this name in your code!
+
+- The debugger relies on three debug procedures so you
+  must not use procedures with the same name within your own
+  code:
+
+                DBGL:
+                DBGP:
+                DBGINIT:
+
+- The debugger stores information at location 38 in a
+  processes low memory error. This location is normally used
+  with the Psion SDK C debugger and so should not cause a
+  problem with normal OPL code.
+
+- The debugger uses message passing to communicate with
+  the running program. It uses the Psion OS calls MessInit,
+  MessSignal and MessSendReceiveWithWait. If you use these low-
+  level calls within your own programs it may interfere with
+  the debugging of the program. Let me know if this cause a
+  problem with a particular program you are writing.
+
+It is possible to work around all of the above
+restrictions (except the first) by making changes to the
+supplied OPPDBG.OPH file. This file is an already
+preprocessed OPP include file. I have a commented and
+formated copy (not supplied) which is easier to read and
+understand. Let me know if any of the above restrictions
+cause a problem with a particular program you are writing
+so that I can advise how to modify OPPDBG.OPH.
+
+ADVANCED DEBUGGING
+------------------
+
+Using OPP directives to control debug translation
+-------------------------------------------------
+
+To write your code so that debugging can be turned on and
+off easily use something like the following:
+
+        /* comment out next line to prevent building program
+           under debug */
+        #define DEBUG
+
+        #ifdef DEBUG
+                #pragma debug
+        #endif
+
+        ...
+
+        #ifdef DEBUG
+                #include <OPPDBG>
+        #endif
+
+Debugging a small section of code
+---------------------------------
+
+When using the debugger it is best to translate the entire
+program under debug so that all sections of code can be
+followed. However this is not required in order to use the
+debugger. You may, if you wish, just translate one procedure
+or a small number of procedures under debug. In this case
+the application will run as normal until it gets to one of
+the debugged procedures. At that point the debugger will
+spring into action and pause the program. You may then view
+and control the execution of the debugged procedures. Note
+that in this case if the code makes a call to a non-debug
+procedure you will not be able to view or control the
+execution until it returns back to a debugged procedure.
+
+The #pragma debug command has the following syntax:
+
+        #pragma debug [on|off]
+
+By default without an "on" or "off" qualifier debug is
+turned on, the off option may be used to turn off debugging
+of the code from that point onwards. So by turning debug on
+and off between two points in the code it is possible to
+control which sections of code are translated with debug
+enabled.
+
+Note that the debug pragma should be used in-between
+procedures, not within the middle of a procedure!
+
+Debugging large applications
+----------------------------
+
+For large applications one of the following techniques is
+often used:
+
+1.One large application built using the OPP #include
+  facility.
+
+2.A main application module which loads other modules
+  using the OPL LOADM command.
+
+The debugger will work with either of these scenarios and
+can handle the case where the source code is split over a
+number of files. The debugger will automatically open and
+display each source file as the program executes provided
+that you have not moved the source file in-between
+translating and running the program.
+
+In the first case add the #pragma debug command either as
+the first line of source or at appropriate points throughout
+the code (using the #pragma debug on and #pragma debug off
+options). The #include <OPPDBG> line may appear anywhere
+within the source (except before the first procedure),
+provided that it appears once.
+
+For the second technique the same rules apply, i.e. the
+sections of code to be debugged should be controlled using
+the #pragma debug OPP directive. The #include <OPPDBG> line
+should preferable appear in the first module, although
+provided that no debug code is called prior to loading a
+module it may also be placed within a secondary module.
+
+Using the Series 3a Emulator on a PC
+------------------------------------
+
+The debugger may be run on a PC using the Psion Series 3a
+emulator. This has the advantage that it allows the
+editor screen to display more lines of code (provided the
+screen size has been adjusted) and the editor displays
+source much more quickly.
+
+
+

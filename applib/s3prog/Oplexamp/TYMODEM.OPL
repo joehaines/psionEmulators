@@ -1,0 +1,235 @@
+REM Module - TYMODEM.OPL
+
+REM Written by Jezar at Psion.
+REM You have a royalty free right to
+REM use and distribute this software in
+REM any way you see fit, provided you
+REM agree that neither Jezar nor Psion
+REM can be held responsible for the
+REM consequences of using it.
+REM Use at your own risk.
+REM There ARE some little bugs in this.
+REM No warranties.
+
+REM See the Series 3 programming
+REM manual for details of how to
+REM change the serial port parameters
+REM This demo uses the default settings
+
+REM This demo is EXTREMELY simplistic.
+REM You should use your knowledge and
+REM experience to use the techniques
+REM illustrated in a more formal and
+REM flexible way. This demo has been
+REM kept simple for clarity.
+
+REM Note that the "XMD:" device driver
+REM is an "attached driver" - it opens
+REM ON TOP of the serial port, and thus
+REM needs one IOCLOSE to remove it, and
+REM ANOTHER IOCLOSE to close the serial
+REM port itself.
+
+REM Note also, that connecting and
+REM disconnecting is NOT a symetrical
+REM action; you only disconnect ONCE!
+REM A connect followed by a null
+REM filename, followed by an immediate
+REM disconnect signals a QUIT!
+
+REM Hope this is useful to you,
+REM jezar@cix.compulink.co.uk
+REM 02:37am 21/11/1994 (yawn!)
+
+
+PROC YMdemo:
+	LOCAL d$(130),serial%,ym%,name$(130)
+	LOCAL mode%,type%,atch%
+	
+	ONERR Done::
+	PRINT "Type a directory name to send"
+	PRINT "all the files from:";
+	TRAP INPUT d$
+	IF ERR=-114
+		STOP
+	ENDIF
+	
+	REM Make sure it's a directory!
+	IF RIGHT$(d$,1)<>"\"
+		d$=d$+"\"
+	ENDIF
+	
+Port::
+	REM Open the serial port:
+	REM (this example assumes port "A")
+	serial%=IoOpen%:(0,"TTY:A",-1)
+	
+	REM The "XMD:" driver does YModem too!
+	ONERR GetLDD::
+	serial%=IoOpen%:(serial%,"XMD:",-1)
+	atch%=1
+	GOTO Files::
+	
+GetLDD:: :REM No XMD:? Get it off link.
+	ONERR Done::
+	REM You shouldn't use C: and TTY:
+	REM at the same time, so:
+	Check%:(IOCLOSE(serial%),0)
+	
+	REM Load the X/YModem driver off the 3-Link
+	LoadLDD%:("C:\IMG\Sys$xmym")
+	GOTO Port::
+	
+Files::
+	DO
+		name$=DIR$(d$) :d$=""
+		PRINT "Transmitting ";
+		IF name$=""
+			PRINT "last frame"
+		ELSE
+			PRINT name$
+		ENDIF
+		SendFil%:(name$,serial%)
+		PRINT "Done!"
+	UNTIL name$=""
+	
+	REM Disconnect (never returns an error):
+	IOW(serial%,11,#0,#0)
+	
+Done::
+	REM Unbolt the attached "XMD:" driver:
+	IF atch%
+		Check%:(IOCLOSE(serial%),0)
+	ENDIF
+	
+	REM Close the serial port:
+	Check%:(IOCLOSE(serial%),0)
+	
+	REM Unload the driver.
+	RemLDD%:("XMD")
+	
+	PRINT "Finished - press any key"
+	GET
+ENDP
+
+PROC SendFil%:(name$,serial%)
+	LOCAL buf%(514),mode%,type%,flen&,zero&
+	LOCAL file%,ret%,bname$(14),o%(8)
+	
+	IF name$<>""
+		REM Get basic filename:
+		PARSE$(name$,"",o%())
+		bname$=MID$(name$,o%(4),14)
+	
+		REM Open file:
+		Check%:(IOOPEN(file%,name$,$0200),0)
+	
+		REM Get file length:
+		Check%:(IOSEEK(file%,2,flen&),0)
+		Check%:(IOSEEK(file%,1,zero&),0)
+	ENDIF
+	
+	REM YModem connect:
+	type%=0 :REM Transmit. (use 1 for receive)
+	mode%=3 :REM YModem. (use 4 for YModem-G)
+	REM Leave next line out for 128 byte frames
+	mode%=mode% OR $8000 :REM Use 1024 byte frames
+	Check%:(IOW(serial%,10,type%,mode%),0)
+	
+	REM Send filename frame:
+	REM You could also add the file date
+	REM By adding a space, and an octal STRING
+	REM representing the date in seconds
+	REM since midnight 1/1/70
+	POKE$ ADDR(buf%(1))," "+bname$+CHR$(0)+GEN$(flen&,20)
+	Check%:(IOWRITE(serial%,ADDR(buf%(2)),128),0)
+	
+	REM Were we just transmitting a quit?
+	IF name$=""
+		RETURN
+	ENDIF
+	
+	DO :REM Send out the file data:
+		ret%=Check%:(IOREAD(file%,ADDR(buf%(1)),1024),-36)
+		IF ret%>=0
+			Check%:(IOWRITE(serial%,ADDR(buf%(1)),ret%),0)
+		ENDIF
+		PRINT "*";
+	UNTIL ret%=-36
+	
+	REM Write end of data transmission:
+	Check%:(IOWRITE(serial%,ADDR(buf%(1)),0),0)
+	
+	REM Close disk file
+	Check%:(IOCLOSE(file%),0)
+ENDP
+
+PROC Check%:(err%,accept%)
+	IF err%<0 AND err%<>accept%
+		PRINT "ERROR! -",ERR$(err%)
+		RAISE err%
+	ENDIF
+	RETURN err%
+ENDP
+
+PROC IoOpen%:(oldhand%,name$,mode%)
+REM  This is needed for the original
+REM  Series 3. In the Series 3a the
+REM  normal IOOPEN will do this job.
+	
+	REM Safe IOOPEN
+	REM Works for attached drivers too.
+	
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(65)
+	
+	POKE$ ADDR(name%(1)),"#"+name$
+	ax%=0
+	bx%=ADDR(name%(2))
+	cx%=mode%
+	dx%=oldhand%
+	IF OS($0085,ADDR(ax%)) AND 1
+		Check%:((ax% OR $FF),0)
+	ENDIF
+	
+	RETURN ax%
+ENDP
+
+PROC LoadLDD%:(name$)
+REM  Logical device-driver loader.
+REM  Used to load the "XMD:" device driver
+REM  This is needed for the original
+REM  Series 3. In the Series 3a the
+REM  "XMD:" driver is in the main ROM
+	
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(65)
+	
+	POKE$ ADDR(name%(1)),"#"+name$
+	ax%=$0600
+	bx%=ADDR(name%(2))
+	IF OS($0085,ADDR(ax%)) AND 1
+		Check%:((ax% OR $FF),0)
+	ENDIF
+ENDP
+
+PROC RemLDD%:(name$)
+REM  Logical device-driver unloader,
+REM  used to unload "XMD:"
+REM  (This is safe; it won't unload
+REM   if it's not meant to.)
+	
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(65)
+	
+	POKE$ ADDR(name%(1)),"#"+name$
+	ax%=$0800
+	bx%=ADDR(name%(2))
+	dx%=$dd01 :REM ID for logical devices.
+	
+	REM We don't care if this fails:
+	OS($0085,ADDR(ax%))
+ENDP
+
+REM End of file - TYMODEM.OPL
+

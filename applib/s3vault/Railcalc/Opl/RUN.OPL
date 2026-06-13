@@ -1,0 +1,59 @@
+PROC start:
+	GLOBAL file$(128),sex&
+	LOCAL p%,hr,m,mn,hr$(2),mn$(2),tm$(16)
+	LOCAL last$(20),idC%
+		file$="*.sel"
+		dINIT
+		dTEXT "","Select Timeable",$302
+		dFILE file$,"Destination",8
+		DIALOG
+		IF EXIST (file$)
+	OPEN file$,A,nm$,idx$,ml,stop$,tabA,tabD,timA,timD
+		FIRST
+		hr=INT(A.tabD/3600)
+		m=A.tabD-hr*3600
+		mn=INT(m/60)
+		hr$=GEN$(hr,2)
+		mn$=GEN$(mn,2)
+		tm$="AT  ---  "+hr$+" : "+mn$
+	LAST
+		last$=A.nm$
+	idC%=gCREATE(212,5,120,16,1)
+	gCLOCK ON,10,0,"%6%:%T%:%S%7",11
+	gUSE 1
+	gFONT 8
+	gSTYLE 41
+	gAT 65,90
+	gPRINT "Start"
+	gAT 360,90
+	gPRINT "Switch"
+		dINIT
+		dTEXT "","Start Journey",$302
+		dTEXT "Leaves for",last$,$101
+		dTEXT "",tm$,$102
+		dBUTTONS "START",13,"Cancel",-27
+		p%=DIALOG
+			IF p%=0
+				gCLOCK OFF
+				gCLOSE idC%
+				gUSE 1
+				gCLS
+				CLOSE
+				RETURN
+			ELSEIF p%=13
+				sex&=(HOUR*INT(3600))+(MINUTE*60)+SECOND
+				FIRST
+				A.timD=sex&
+				UPDATE
+				sort:
+				gCLOCK OFF
+				gCLOSE idC%
+				gUSE 1
+				gCLS
+				LOADM "\OPO\TRAIN\Draw"
+				draw:
+				UNLOADM "\OPO\TRAIN\Draw"
+			ENDIF
+		ENDIF
+ENDP
+

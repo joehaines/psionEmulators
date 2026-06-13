@@ -1,0 +1,917 @@
+8. INCLUDE FILES
+
+Other OPP files may be included into the file being translated using
+the #include directive. This takes one of two forms as shown in the
+following examples:
+
+        #include <os\calls>
+        #include "my_procs.oph"
+        
+The first #include will cause the pre-processor to search for a file
+in the following locations:
+
+        M:\OPP\INCLUDE\OS\CALLS.OPH
+        A:\OPP\INCLUDE\OS\CALLS.OPH
+        B:\OPP\INCLUDE\OS\CALLS.OPH
+        
+Or in the case of the MSDOS version the file will be searched for in
+the directory...
+
+       C:\OPP\INCLUDE\
+       
+...unless the -I option is used on the OPP command line, e.g.
+
+       OPP -iD:\PSION\OPP\INCLUDE TEST.OPP
+       
+If the file is found it will be included into the translation at that
+point. This form of include is used for system include files. These
+include files are generic files which are not written for any one
+specific OPP program.
+
+Note that by default the OPH extension is assumed for system include
+files, although this may be overridden by explicitly stating the
+extension in the include filename.
+
+The second form of include, which uses the delimiters "" rather than
+<>, is for specifying include files which are specific to the program
+being translated. The processor will default to looking in the same
+directory as the program being translated and will look for a file
+with the same extension. A full filename which includes a path and
+file extension may be given to override this.
+
+Usually include files only contain pre-processor directives such as
+macro definitions, in which case the file extension OPH should be
+used rather than OPP. The OPH editor is supplied to allow include
+files to be listed on the system screen separate from any OPP and OPL
+files.
+
+8.1 System include files
+------------------------
+A large number of system include files are supplied with OPP with
+lots of useful pre-defined macro definitions. There are macro
+definitions for the operating system calls available in the Psion
+ROM, macros used with Psion's OOP methods, symbolic macros used with
+various OPL commands and various other useful macros. For example:
+
+Macro name                  Purpose
+
+ESC                         Represents escape character, 27
+P_FUPDATE                   Used with the OPL command ioopen()
+FilExecute                  OS call number
+SPRINTF(buf,format,args)    Uses OS call along lines of C sprintf()
+
+The macros are for use with EPOC16 and on the whole will be of no
+use if you are using OPP with EPOC32 code.
+
+Origin and organisation of include files
+----------------------------------------
+Starting from version 1.5F of OPP the system include files used with
+OPP are based on the system include files supplied with the Psion C
+SDK. These files were originally copyright Psion and are supplied
+with kind permission from Psion. The OPP versions of the include
+files contain exactly the same macros and structures which are
+defined in the SDK include files. The OPP include files also have
+similarly names to the C SDK include files. However with OPP the
+include files are organised slightly differently. The OPP files are
+split into a number of directories (in the SDK all are located in a
+single directory) as follows:
+
+Directory                           Contents
+
+\OPP\INCLUDE\LIB\                   OPP library files. See section 10.3
+                                    for details.
+\OPP\INCLUDE\OO\                    OOP defines. These are used when
+                                    making use of Psion's Object
+                                    Oriented Programming technique. The
+                                    files include category handles and
+                                    method numbers. In the SDK these
+                                    defines are mixed with the other
+                                    files, I have split them out to
+                                    reduce the memory requirements for
+                                    the files.
+\OPP\INCLUDE\OPP\                   OPP specific additions. These are
+                                    my own includes with some useful
+                                    OPL specific definitions.
+\OPP\INCLUDE\OS\                    These include files contain defines
+                                    used when accessing the OS
+                                    functions available in the Psion
+                                    ROM. Function and sub-function
+                                    numbers are defined.
+\OPP\INCLUDE\P\                     These are based entirely on the SDK
+                                    p_* includes. Note that the leading
+                                    p_ has been stripped off and that
+                                    any OOP defines removed and placed
+                                    in the OO directory includes to
+                                    save memory.
+\OPP\INCLUDE\SDK\                   The remaining SDK includes.
+
+OO include files
+----------------
+The include files within the OO directory contain definitions used
+with the object oriented libraries in the Psion ROM, i.e. category
+and method numbers. To use these files you need to be familiar with
+the Object Oriented Programming (OOP) techniques used with the Psion.
+The Psion SDK contains detailed information on using OOP. There is
+one publicly available source of information on using OOP techniques,
+this is in the form of a Microsoft Word file which contains an early
+copy of one of the manuals from the SDK. This manual discusses
+programming using the HWIM library which is built into the Psion ROM.
+Most Psion archive sites contain this file as the archive
+OODOC201.ZIP.
+
+OPP include files
+-----------------
+The files in the OPP directory contain macros used with general OPL
+commands:
+
+Include file  Usage
+
+debug.oph     debug macros for tracing code
+dialog.oph    macros used with OPL dialogue boxes
+envars.oph    environment variables
+graphics.oph  macros used with OPL graphics functions
+hw.oph        defines S3t if OPP used on Series 3, S3a is used on a
+              Series 3a
+keys.oph      key code definitions, e.g. #define ESC 27
+limits.oph    Psion datatype limits, e.g. #define INT_MAX 32767
+misc.oph      various macros, e.g. #define TRUE -1
+opa.oph       used when building OPA's, e.g. #define OPA_3AICON $1000
+process.oph   used when accessing a processes low memory addresses
+
+OS include files
+----------------
+There are a large number of useful operating system functions
+available in the Psion ROM that may called from OPL. The OPL commands
+CALL and OS provide access to these functions. When using these
+commands you need to know the function and sub-function numbers of
+the function you are calling. For example, there is a function called
+FilExecute, which allows you to start another application from OPL,
+this function is identified by function number $87 and sub-function
+$01. OS calls are grouped by function number, so file related
+functions have the same $87 function number.
+
+The include files with the OS\ prefix contain OS call function and
+sub-function numbers and OS call macros. These are grouped by
+function number, so the file related functions are in OS\FIL.OPH.
+Rather than writing code using the numbers $87 and $01, you should
+make use of the #defines for these numbers in order to make the code
+more readable. So in the case of the FilExecute function the
+following two #defines, which are declared in OS\FIL.OPH, should be
+used:
+
+        #define FilManager $87
+        #define FilExecute $0100
+        
+The best source of information on how to use Psion OS calls, defines
+or programming for Psion in general is the software development kit
+(SDK) available from Psion. There is also a publicly available source
+of information on the Psion operating system calls. The "" include
+many details about the OS calls in the Psion ROM as well as file
+formats used by the internal applications. These files are available
+from the usual archives of Psion software (Imperial College archive,
+Frontiernet, CompuServe, CIX, 3Lib,...). Refer to these files for
+further information on how to use the operating system calls.
+
+The file OS\CALLS.OPH contains some useful macros to use when making
+OS calls. For example, to determine the locale of the Psion being
+used (English, German, French,...) there is the GenGetLangauge OS
+call. To use this call without OPP you would write code as follows:
+
+        PROC getlang:
+                local axreg%,bxreg%,cxreg%,dxreg%,sireg%,direg%,osflags%
+                axreg%=$1B00
+                osflags%=OS($8B,addr(axreg%))
+                PRINT axreg%
+        ENDP
+        
+The following shows how the OS\CALL.OPH and OS\GEN.OPH files can be
+used with OPP to do the same thing:
+
+        #include <os\call>
+        #include <os\gen>
+        PROC getlang:
+                local OSREGS
+                OSSUB(GenManager,GenGetLanguageCode)
+                PRINT AX
+        ENDP
+        
+Refer to the comments within the OS\CALL.OPH file for further details
+on how to use the OSSUB() and OSFN() macros.
+
+Other system include files
+--------------------------
+The files in the P and SDK directories are based on the include files
+from the Psion C SDK. For information on these include files refer to
+the SDK documentation.
+
+8.2 OPP_INIT.OPH
+----------------
+Whenever OPP translates a file it will automatically include the
+following file before reading any OPP code:
+
+        OPP_INIT.OPH
+        
+With the Psion version of OPP this file should be in the \OPP\INCLUDE
+directory on any drive. With the MSDOS version of OPP this file
+should be on the C: driver or in the directory specified with the -i
+command line option.
+
+If there are any OPP directives which are used in all OPP code then
+the OPP_INIT.OPH file is a good place to put them without having to
+explicitly use a #include <opp_init>.
+
+8.3 Building large applications using #include
+----------------------------------------------
+The source code limits imposed by the MSDOS based OPL translators
+mean that the following technique is restricted to the Psion based
+version of OPP only.
+
+Using the #include directive it is possible to build large programs
+where the total size of the OPP source code exceeds the 40K limit
+imposed by the Psion based program editor.
+
+Take the real example of the project planning application for the
+Psion 3a called  - plugging another shareware program I have written
+:-). This currently consists of three main OPP source files
+(PLAN.OPP, PLAN1.OPP and PLAN2.OPP), all of which are around 35K in
+size. One way to handle this is to use the LOADM OPL command to load
+PLAN1.OPO and PLAN2.OPO modules from the main PLAN.OPA module.
+However using the pre-processor one single large file could be
+created by translating a three line file containing the following:
+
+        #include "PLAN.OPP"
+        #include "PLAN1.OPP"
+        #include "PLAN2.OPP"
+        
+The advantages of this approach are as follows:
+
+   -  the resultant one file is easier to distribute and install than
+      three separate files,
+      
+   -  it saves a small amount of code required to find and load the
+      separate modules and check the versions are compatible,
+      
+   -  it saves up to 40K of RAM during translation since only the one
+      three line source file is resident in the Program editor during
+      translation. This can be useful if you are short of RAM when
+      translating.
+
+9. PRAGMAS
+
+The #pragma directive controls a number of features of the OPL pre-
+processor. The following options are available:
+
+       #pragma no_revtran
+       #pragma stop_on [warn|error|never]
+       #pragma show_input [on|off]*
+       #pragma show_output [on|off]*
+       #pragma show_macros*
+       #pragma show_procs*
+       #pragma check_procs*
+       #pragma to_file filename
+       #pragma pause*
+       #pragma font size**
+       #pragma pack size
+       #pragma debug [on|off]
+       #pragma translator [s3atran|s3tran|watran|hctran]***
+       #pragma epoc32
+       
+* These pragma's are disabled when using the MSDOS version of OPP
+with ODE. This is because these pragma pause output and request a key
+to be pressed. User input is not possible when using ODE since OPP is
+called behind the scenes. The thing which controls the disabling of
+this pragma is the definition of an ODE macro, i.e.
+
+       #define ODE
+       
+The recommended way to define the ODE macro is when configuring the
+ODE.INI file, (see setting of Trandef option in installation
+section).
+
+** The font pragma is not available with the MSDOS version of OPP.
+
+*** The translator pragma is only available with the MSDOS version of
+OPP.
+
+9.1 No_revtran
+---------------
+Revtran is a program which allows OPO files to be reverse translated
+back into OPL source code. The no_revtran pragma may be used to
+prevent the reverse translation of the no_revtran line. The way it
+works is to insert some OPL code into the translation which causes
+the Revtran program to fall over.
+
+Note that I cannot guarantee that the no_revtran option will stop
+future versions of Revtran from working, or that it will keep
+sufficiently determined people from reverse translating your
+programs. The no_revtran option has been tested against Revtran 3.3a.
+
+The "#pragma no_revtran" line should appear within a procedure at the
+top of the OPP file. Revtran will be able to reverse translate up to
+this line but no further.
+
+9.2 Stop_on
+-----------
+Use "#pragma stop_on never" to instruct the pre-processor to display
+any pre-processor error or warning messages and to continue
+processing the OPP code. Use "#pragma stop_on error" to stop whenever
+an error occurs but continue if there is a warning. "#pragma stop_on
+warn" will cause the pre-processor to stop on both warnings and
+errors. The default mode is "error", in which case as soon as a pre-
+processor error is detected control will return to the OPP editor.
+
+The "never" switch could be used whenever you want to find all errors
+within a newly written include file in one go, rather than fixing
+each one individually. It may also be useful if any error occurs
+within an include file and you need to pinpoint exactly which line
+the error was on.
+
+9.3 Show_input
+--------------
+Use "#pragma show_input on" (the on part is optional) to instruct the
+pre-processor to display lines as they are read from the program
+editor from that point onwards. Use #pragma show_input off to switch
+the display off.
+
+Do not use this pragma when using OPP with ODE.
+
+9.4 Show_output
+---------------
+Use "#pragma show_output on" (the on is optional) to instruct the pre-
+processor to display lines as they are sent to the OPL translator,
+i.e. after pre-processing. Use #pragma show_output off to switch
+output off.
+
+Do not use this pragma when using OPP with ODE.
+
+9.5 Show_macros
+---------------
+"#pragma show_macros" will instruct the pre-processor to print out
+all defined macros at that point in the translation.
+
+Do not use this pragma when using OPP with ODE.
+
+9.6 Show_procs
+--------------
+When this pragma is encountered OPP will print out the name of each
+procedure as it is defined. This is useful if you want to see the
+progress of the translation and which procedures have been included.
+Do not use this pragma when using OPP with ODE.
+
+9.7 Check_procs
+---------------
+When OPP processes OPL source it records the procedures which have
+been defined and those which have been called. The check_procs pragma
+instructs OPP to check the list of procedures called against the list
+of defined procedures. If OPP finds any procedures which have been
+called but not defined then it will list them. OPP will also list any
+procedures which are defined but never explicitly called. Note that
+in this later case OPP cannot detect procedure calls which are made
+using a string variable (refer to the Psion Programming Manual,
+Advanced Topics section). The best place for this pragma is at the
+end of the OPL source.
+
+Do not use this pragma when using OPP with ODE.
+
+9.8 To_file
+-----------
+"#pragma to_file preproc.opl" would instruct the pre-processor to
+send pre-processed lines both to the translator and the file
+preproc.opl. This may be used to extract pre-processor directives and
+macros from an OPP source file. Note that the filename does not
+include quotes.
+
+9.9 Pause
+---------
+"#pragma pause" will pause the pre-processor until a key is pressed.
+This could be used at the end of the OPP source file or immediately
+after a show_macros pragma.
+
+Do not use this pragma when using OPP with ODE.
+
+9.10 Font
+---------
+"#pragma font 1" will set the font used by OPP to the font with id 1.
+The number specifies the font id which should be in the range 1 to 13
+inclusive. Refer to the OPL Programming Manual for a list of font
+types and associated font id's. Although this pragma may appear
+anywhere within an OPP file the best place for it is in the
+OPP_INIT.OPH file mentioned in section 8.
+
+Do not use this pragma when using the MSDOS version of OPP.
+
+9.11 Pack
+---------
+The use of this pragma statement is strongly discouraged. If you
+think you may need to use it then contact me for a full explanation.
+
+"#pragma pack 2" will set the structure packing size to 2 bytes. The
+packing size controls how OPP packs fields into structures and the
+alignment of fields within a structure. The default pack size is 1
+which means that OPP packs structures so that there are no spaces
+between fields.
+
+9.12 Debug
+----------
+This pragma statement instructs OPP to add in-line debug statements
+to the translated program. This is for use with a run-time source
+level debugger called OPPDBG. OPPDBG is available separately as a
+complimentary utility to OPP. OPPDBG allows you to debug a running
+OPL program as follows:
+
+   -  View each source line as it executes.
+   -  Single step through each line or step over entire procedures.
+   -  Set breakpoints so that the program stops at given lines.
+   -  View and set local variables by name in the running program.
+   -  View and set any memory location in the programs data segment.
+
+To use OPPDBG you need to add the following line as the very first
+line in the source file:
+
+        #pragma debug
+
+At the bottom of the source include the file OPPDBG.OPH, i.e. use the
+line:
+
+        #include <OPPDBG>
+        
+This assumes OPPDBG.OPH has been installed into the OPP system
+include directory \OPP\INCLUDE\.
+
+When you start the OPL program it will automatically start up the
+debugger and allow you to debug the program.
+
+Do not use this pragma if you do not have OPPDBG installed or use the
+statement for a program which is to be distributed as a finished
+application.
+
+Refer to the user manual with OPPDBG for further details.
+
+9.13 Translator
+---------------
+This pragma directive controls which translator is used with the
+MSDOS version of OPP. By default OPP will call S3ATRAN to create the
+resultant OPO or OPA file. To use an alternative translator such as
+S3TRAN, WATRAN or HCTRAN use this pragma, e.g.
+
+       #pragma translator s3tran
+       #pragma translator watran
+       #pragma translator hctran
+
+9.14 Epoc32
+-----------
+
+This pragma is provided for writing EPOC16 and EPOC32 portable
+code. It allows you to write one set of OPP code that can be used
+with both EPOC16 and EPOC32 machines.
+
+The basic problem with writing EPOC16 and EPOC32 code is that on
+EPOC16 pointers are 16bits wide, whereas on EPOC32 pointers should
+be 32bits wide. Pointers are used when allocating memory dynamically
+and using OPP's C style structure facility.
+
+To solve the problem OPP introduces a new pointer variable type
+identified with an @ character. Depending upon whether the epoc32
+pragma has been used any variables declared with the @ symbol will
+be converted by OPP automatically into either 16bit or 32bit
+integers.
+
+The following OPP code demonstrates this:
+
+	#ifdef EPOC32
+	#pragma epoc32
+	#endif
+	STRUCT s
+		int%
+		ptr@
+	ENDS
+	PROC main:
+		local <s*>p@
+		p@=alloc(SIZEOF(s))
+		p@->int%=1
+		p@->ptr@=p@
+	ENDP
+
+With EPOC32 defined you get the following out of OPP:
+
+	PROC main:
+		local p&
+		p&=alloc(6)
+		pokew p&,1
+		pokel p&+2,p&
+	ENDP
+
+With EPOC32 not defined you get the following out of OPP:
+
+	PROC main:
+		local p%
+		p%=alloc(4)
+		pokew p%, 1
+		pokew uadd(p%,2),p%
+	ENDP
+
+10. LANGUAGE EXTENSIONS
+
+OPP provides a number of extensions to the OPL language. These
+facilities are in addition to the normal pre-processor directives
+discussed in the preceding sections.
+
+10.1 Multi-dimensional arrays
+-----------------------------
+With standard OPL only one dimensional arrays are supported, for
+example:
+
+        local a%(5)        /* 1-d array of integers */
+        local a$(5,8)      /* 1-d array of 5x8 character strings */
+        a%(1)=1
+        a%(2)=2
+        a$(1)="abcdefgh"
+        
+When using OPP multi-dimensional arrays may be used, for example:
+
+        local a%(5,3)      /* 2-d array of integers */
+        local a$(2,5,8)    /* 2-d array of 8 character strings */
+        a%(1,1)=1
+        a%(1,2)=2
+        a$(1,1)="abcdefgh"
+        
+OPP supports arrays with up to 20 dimensions!
+
+The memory structure for a multi-dimensional array is such that the
+if you add one to the last subscript then this will be located in
+memory adjacent to the previous array element, for example a%(2,3) is
+stored as:
+
+        a%(1,1)  a%(1,2)  a%(1,3)  a%(2,1)  a%(2,2)  a%(2,3)
+        
+Multi-dimensional arrays may be declared as local or global
+variables. However in the case of global variables an additional
+syntax is required in order to be able to access any variables which
+are outside the scope of the current OPL file. Suppose for example
+you have the following in one OPL module or source file:
+
+        global        a%, b%(2,3)
+        
+In a separate OPL module which may be loaded into memory using the
+standard LOADM OPL function you can reference the global variables
+from the first module:
+
+        a%=1
+        b%(2,1)=2
+        
+In the case of the variable a% there is no problem with the above
+code, however in the case of the 2d array b%() OPP needs to know what
+the definition of the array was in order to work out where the
+element (2,1) is in memory. This is accomplished using an external
+variable definition:
+
+        extern        b%(2,3)
+        
+The extern declaration syntax behaves exactly like a local or global
+OPL definition but is used merely to declare to OPP the dimensions of
+global multi-dimension arrays which are outside the scope of the
+current file.
+
+10.2 Structures
+---------------
+This section describes OPP support for standard C style structures
+and pointers. Casual and incorrect use of some of the techniques
+described here could cause anything from a program crash or even a
+soft reset and data loss. You have been warned!
+
+The following sample code shows how structures are declared and used:
+
+        STRUCT user_data
+                id%
+                forename$(40)
+                surname$(40)
+                char_data#
+                int_data%
+                long_data&
+                float_data
+                string_data$(50)
+        ENDS
+        PROC main:
+                local <user_data*>p@
+                p@ = make@:
+                show(p@)
+                destroy:(p@)
+        ENDP
+        PROC make@:
+                local <user_data*>ptr@
+                ptr@=alloc(SIZEOF(user_data))
+                if ptr@=0
+                        stop
+                endif
+                ptr@->id%=1
+                ptr@->forename$="Andy"
+                ptr@->surname$="Clarkson"
+                ptr@->char_data#=%a
+                ptr@->int_data%=1
+                ptr@->long_data&=123
+                ptr@->float_data=1.23
+                ptr@->string_data$="Some data"
+                return ptr@
+        ENDP
+        PROC show:(<user_data*>ptr@)
+                print ptr@->id%
+                print ptr@->forename$
+                print ptr@->surname$
+                print ptr@->char_data#
+                print ptr@->int_data%
+                print ptr@->long_data&
+                print ptr@->float_data
+                print ptr@->string_data$
+        ENDP
+        PROC destroy%:(<user_data*>ptr@)
+                freealloc ptr@
+        ENDP
+        
+A structure is used to access a block of memory. The structure
+defines a number of fields which represent locations within the block
+of memory into which data may be written and from which may be read.
+
+The STRUCT line starts a structure definition and names the
+structure. The structure name is used later when defining pointers or
+variables which point to a location in memory which contains data in
+the given format. The structure name must be unique amongst all
+structure definitions.
+
+The structure and field names may contain any characters used in a
+normal OPL variable plus the underscore character. Unlike OPL
+variables the names may be of any length.
+
+The STRUCT line is followed by the names of the fields within the
+structure, with one line per field. These field names are used when
+referencing the memory within a structure. The ENDS line marks the
+end of the structure.
+
+Like standard OPL variables the last character of a field name
+defines the type of the field and the amount of memory the field
+represents. The standard int (%), long (&), float (no special
+terminator) and string ($) types are supported as field types. An
+additional field type is also supported by OPP which is marked by a
+terminating # character. This type occupies a single byte in memory
+and can hold a value in the range 0 to 255.
+
+A field may also be declared as a 1-dimensional array using the
+normal bracket notation (note: multi-dimensional arrays are not
+supported in structure field definitions).
+
+The STRUCT/ENDS definition does not generate any code, it simply
+tells OPP about the size and shape of a structure. To use a structure
+you must declare a pointer to a structure of the given type and then
+allocate some memory of the correct size.
+
+Any global, local, extern or procedure variable may be declared as a
+pointer to a structure of a named type by preceding the variable with
+the structure name within angle brackets. A "*" character should
+follow the structure name to indicate the variable is a pointer to a
+structure (note for C programmers: pointers to structures are
+supported at this release, not structure variables). Structure
+pointers should be declared using the @ character so that they
+are automatically converted to short or long integers on
+EPOC16/EPOC32, i.e. ptr@ not ptr&, ptr or ptr$ (see epoc32 pragma).
+
+An N-dimensional array of pointers may be declared as well as a
+single pointer, e.g. the following declares an array of 10 pointers
+to 10 separate structures:
+
+        local <user_data*>ptrs@(10)
+        
+Once a structure pointer variable has been declared some memory of
+the correct size should be allocated to hold the data and the pointer
+set to the start of the block of memory. e.g.
+
+        ptr@=alloc(SIZEOF(user_data))
+        ptrs@(1)=alloc(SIZEOF(user_data))
+        
+SIZEOF() is a built-in macro which gives the size of a named
+structure. This is required when allocating memory, as shown above.
+The memory should freed when it is no-longer required, e.g.
+
+        freealloc ptr@
+        freealloc ptrs@(1)
+        
+To assign a value to a field within the allocated structure use the
+pointer variable name and the field name separated by the "->"
+notation, e.g. ptr%->id%=1
+
+Be particularly careful when assigning values to string fields and
+field arrays, consider:
+
+        STRUCT a_struct
+                name$(4)
+                array@(2)
+        ENDS
+        etc...
+        ptr%->name$="12345"
+        ptr%->array@(3)=1
+        
+Both of the above would write data outside the memory for the fields
+and cause corruption of data. These types of errors will not be
+trapped by the OPL interpreter when the program runs.
+
+To read a field value use the same "->" notation, e.g.
+
+        if (ptr@->id%>1)
+        
+There is one other built in OPP macro which is used with structures.
+OFFSETOF(struct,field) will give the offset of the field called
+"field" within the structure called "struct". So for example
+OFFSETOF(user_data, int_data%) gives 85 since the int_data% field is
+offset 85 bytes into the user_data structure. The OFFSETOF() macro is
+typically used when you need to access the memory address of a given
+field directly, e.g. you could write:
+
+        peekw uadd(ptr@,OFFSETOF(user_data,int_data%))
+        
+...which would be equivalent to...
+
+        ptr@->int_data%
+        
+C programmers who are familiar with C style structures should note
+the following restrictions in OPP at this release:
+
+   -  Nested structures are not supported.
+   
+   -  If you want to include a field within a structure which is a
+      pointer to another structure, use a standard OPL integer variable
+      such as ptr%, not the <user_data*>ptr% notation.
+      
+   -  When defining a string field of size N within a structure the
+      actual space it occupies is N+1 since the first byte is used to store
+      the length of the string. Such a string can store up to and including
+      N characters.
+      
+   -  The C style operators such as ++ which are discussed later are
+      not supported with structure fields.
+      
+10.3 Procedure libraries
+------------------------
+OPP supports a special type of procedure which is designed to enable
+procedure source libraries to be built. A library procedure is
+defined using LIBPROC rather than PROC, e.g.:
+
+        LIBPROC test:
+                print "test"
+        ENDP
+        
+A library procedure is identical to a normal procedure with one
+exception. When OPP processes an OPL source file it records which
+procedures have been called. When OPP finds a library procedure it
+checks the list of procedures which have been used and only includes
+the procedure if it has been called.
+
+The library procedure allows a number of useful procedures to be
+grouped into a single OPL source file and then the file included as a
+whole in a number of separate programs. Only the procedures actually
+used within a program will be translated and included in the final
+OPO or OPA module.
+
+Note that OPP processes source serially so that if a LIBPROC appears
+in the source code but is not referenced until later in the file then
+it will not be included.
+
+Sample procedure libraries
+--------------------------
+To demonstrate the use of procedure libraries there are some sample
+files supplied with OPP in the \INCLUDE\LIB\ directory which
+demonstrate the following:
+
+   -  How to use the standard Psion print engine from OPL (providing
+      a print and print preview facility). Refer to the comments in the
+      printlib.opp file for details. To see the code in action translate
+      and run the following:
+      
+          #include <lib\printlib.oph>
+          PROC main:
+              ptest:
+          ENDP
+          #include <lib\printlib.opp>
+          #include <lib\util_lib.opp>
+          
+   -  Various utility procedures, handling C<->OPL string
+      conversions, copying blocks of memory,.
+
+10.4 'C' style operators
+------------------------
+OPP provides a number of facilities which are normally found in C
+code.
+
+The OPL pre-processor will look for the characters '|' and '0x'
+within the OPP code and will convert them into something which the
+OPL translator will recognise. This feature is provided for greater
+compatibility with standard C include files.
+
+The '|' character (entered into the OPP editor using the key
+combination CTRL-124) is used in C code, and is equivalent to the bit-
+wise OR operator in OPL, i.e. the following line...
+
+        #define        FLAG        (&1 | &4 | &32)
+        
+...is equivalent to...
+
+        #define        FLAG        (&1 OR &4 OR &32)
+        
+Note that when using bit-wise operations which make use of the
+OPPEVAL() macro or in #if statements it is vital that the values are
+explicitly forced to integer values by preceding them with & or $. If
+this is not done then it can result in a logical OR operation rather
+than a bit-wise OR, consider:
+
+        OPPEVAL(1 | 2)
+        OPPEVAL(&1 | &2)
+        
+The first will use a logical OR since 1 and 2 are treated as floating
+point numbers and will give a result of -1, whereas the second will
+use a bit-wise OR and give the result 3. Logical and bit-wise OR's
+are discussed at the back of the Psion Programming Manual.
+
+OPL uses the $ and & characters as prefixes for short and long
+hexadecimal numbers respectively. In 'C' 0x is used as the prefix.
+For convenience the pre-processor will convert any 0x to $ or &, so
+the following line...
+
+        #define        FLAGS        (0x100|0x00000400)
+        
+...is equivalent to...
+
+        #define        FLAGS        ($100 OR &00000400)
+        
+If there are more than 4 digits following the 0x characters a long
+hexadecimal will be generated (using the & prefix), otherwise a short
+will be used (using the $ prefix).
+
+A number of other C style operators which are found in normal C code
+are also supported by OPP:
+
+   Operator                  Purpose              Example
+      ++         set variable=variable+1          i%++
+      --         set variable=variable-1          i%--
+      +=         set variable=variable+value      i%+=2
+      -=         set variable=variable-value      i%-=2
+      *=         set variable=variable*value      i%*=2
+      /=         set variable=variable/value      i%/=2
+
+11. HISTORY
+
+16 May 95   V1.0B           First beta release
+
+7 June 95   V1.0F           First release
+
+25 Aug 95   V1.1B           Beta release
+
+6 Sep 95    V1.1F           Second release.
+                            Multi-dimensional arrays.
+                            LIBPROCs added.
+                            Option to check for undefined procedures.
+                            show_procs pragma.
+                            New C style operators .
+                            OPPEVAL() macro.
+                            __PROC__ macro.
+                            Bug fix for use of comma as decimal
+                            character.
+                            no_revtran updated to defeat Revtran 3.3a.
+                            
+3 Dec 95    V1.2B           Beta release.
+
+17 Jan 96   V1.2F           Third release.
+                            Added structure definitions.
+                            Added structure pointers.
+                            #elif now supported.
+                            Added #pragma font size.
+                            Added #pragma pack size.
+                            Line continuation character support.
+                            Anti-revtran mechanism made much more
+                            robust.
+                            Some additions to system include files
+                            #pragma check_procs also reports procedures
+                            not called.
+                            A few minor bug-fixes.
+                            
+25 Feb 96   V1.3F           Added hooks for run-time debugger (OPPDBG).
+                            Couple of minor bug-fixes.
+                            
+9 Mar 96    V1.4F           Now uses additional lines available when
+                            using S3a emulator.
+                            Couple of minor bug-fixes for debugger and
+                            multi-dimensional arrays.
+                            
+17 Aug 96   V1.5B           Beta release.
+
+10 Sep 96   V1.5F           Added MSDOS version of OPP.
+                            Psion C SDK based system include files.
+                            Much smaller and faster.
+
+14 Sep 96   V1.6F	    Bug fix release
+
+02 Nov 97   V1.7F	    Added some support for EPOC32 to the MSDOS
+			    version of OPP
+
+12. FURTHER DEVELOPMENT
+
+If you have any comments, suggestions or find any bugs then let me
+know. Also if you write any useful include files or expand upon any
+of the system include files it would be worth considering having them
+added to a future version of OPP.

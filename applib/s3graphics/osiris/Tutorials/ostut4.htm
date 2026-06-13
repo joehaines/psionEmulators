@@ -1,0 +1,171 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head>
+ <title>Osiris Tutorial 4: Extending Osiris</title>
+ <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+ <meta http-equiv="content-language" content="en-GB">
+ <meta http-equiv="published" content="Sat, 22 Apr 2000">
+ <meta http-equiv="build" content="April 2000">
+ <meta http-equiv="author" content="T J Atherton (tj_atherton@yahoo.com)">
+ <meta name="generator" content="!HTML3 3.34b for RiscOS">
+ </script>
+ </head>
+ <body > 
+ <a name="top"></a>
+ <a href="index.htm">[Back]</a>&nbsp;<a href="#bottom">[Bottom]</a>
+<hr>
+<H1>Tutorial 4: Utilities - Extending Osiris</H1>
+<P>
+As you have seen in earlier tutorials, Osiris provides the ability to extend it's functionality through "utilities". These can provide mathematical features not related to graphs or a quick way to plot a commonly used graph. This tutorial describes how you can write your own utilities using the Program application built into your Psion, with only some experience of OPL. As an example, we shall see how the <i>Quadratic Equation Solver</i> was written.
+<P>If you would like more information on how to program, you should consult the "Programming Manual" which was supplied with some Psion computers or available direct from Psion. An alternative source of programming information is the 3-Lib website at <a href="www.3-lib.co.uk">www.3-lib.co.uk</a> .
+<P>
+When you originally installed Osiris, a file called "Utility.opl" should have been placed into your OPL directory if you copyed everything across correctly - it should appear in the list beneath the "Program" icon. This file provides a template which you can use to write your own utilities.
+<UL>
+<LI><B>If you have since deleted this file or never copyed it across, you should intall it now. (You can find it in the "Distrib/OPL" folder inside the Osiris archive.</B>
+<LI><B>Copy the file "Utility.opl" to a new file "Quadrat.opl" under the Program icon. Do NOT delete "Utility.opl" - you will need it yourself.</B>
+<LI><B>Open the Quadrat file in Program by pressing Enter with the highlight over it.</B>
+</UL>
+<P>
+The file should contain the following:
+<CODE><PRE>
+PROC startutl:
+  REM Your main program code</TT>
+ENDP
+
+PROC title$:
+  REM Return the name of your utility</TT>
+  RETURN ""
+ENDP
+</PRE>
+</CODE>
+<P>
+The procedure <TT>title$:</TT> as the name suggests,&nbsp;simply returns the name of the utility for Osiris to show in the Utility list. To be consistant, the title should have the first letter capitalised and the remainder in lower case.
+<UL>
+<LI><B>Complete this procedure for our utility by typing "Quadratic equation solver" between the quote marks.</B>
+</UL>
+<P>
+The <TT>startutl:</TT> procedure is called by Osiris when the utility is run from the "Utility" option in the "Tools" menu. The utility is only loaded into memory when required and unloaded immediately after it has finished. Utilities are relatively protected - normal errors in a utility will not bring down Osiris but panics will.
+<P>
+The real solutions for the quadratic equation <IMG SRC="images/ostut4/Exp1.gif" ALIGN=MIDDLE HEIGHT=25 WIDTH=119 ALT="ax^2 + bx + c = 0"> are given by the formula
+<P ALIGN=CENTER><IMG SRC="images/ostut4/Eqn2.gif" ALIGN=MIDDLE ALT="equation" HEIGHT=35 WIDTH=109 ALT="(-b +/- SQRT(b^2 - 4ac))/2a">
+<P>
+If <IMG SRC="images/ostut4/Exp3.gif" ALIGN=MIDDLE HEIGHT=27 WIDTH=101 ALT="(b^2 - 4ac)<0">, the solution has no real roots, but complex roots are given by
+<P ALIGN=CENTER><IMG SRC="images/ostut4/Eqn4.gif" ALIGN=MIDDLE ALT="equation" HEIGHT=35 WIDTH=114 ALT="-b/2a +/- j(SQRT(4ac - b^2))/2a">
+<P>
+ The utility must:
+<OL>
+<LI>Present a dialog to get the necessary values of a, b and c.
+<LI>Calculate <IMG SRC="images/ostut4/Exp8.gif" ALIGN=MIDDLE HEIGHT=27 WIDTH=59 ALT="(b^2 - 4ac)">.
+<LI>Use this to determine which formula to use.
+<LI>Calculate it and display the result in a dialog.
+<LI>Offer the user a chance to plot a graph of the equation they described.
+</OL>
+<P>
+To construct the <TT>startutl:</TT> procedure, we must first decide on our variables. One should choose meaningful names where possible, and in the context of this utility the below seem the logical choice.
+<UL>
+<LI><TT>a</TT> - Holds the coefficient of the <IMG SRC="images/ostut4/Exp9.gif" ALIGN=MIDDLE HEIGHT=25 WIDTH=15 ALT="x^2"> term.</DL>
+<LI><TT>b</TT> - Holds the coefficient of the <i>x</i> term.
+<LI><TT>c</TT> - Holds the constant term.
+<LI><TT>a$</TT> - Used in the dialog to input the coefficient of the <IMG SRC="images/ostut4/Exp9.gif" ALIGN=MIDDLE HEIGHT=25 WIDTH=15 ALT="x^2"> term.
+<LI><TT>b$</TT> - Used in the dialog to input the coefficient of the <i>x</i> term.
+<LI><TT>c$</TT> - Used in the dialog to input the constant term.
+<LI><TT>dret%</TT> - Used to hold the value returned from the <tt>DIALOG</tt> keyword.
+<LI><TT>er$</TT> - Used to hold any error messages.
+</UL>
+<P><UL><LI><B>Enter the code below in the <tt>startutl:</tt> procedure.</B>
+<code><pre>LOCAL a,b,c,a$(255),b$(255),c$(255),dret%,er$(50)</pre></code></UL>
+<P>As we shall be using the <tt>EVAL</tt> keyword, we should make sure that an error handler is in place. If this is not done, any errors from this will cause the utility to stop with a "Error in utility" message - not very user-friendly! In addition, we shall provide the ability to display an error message to help the user identify the problem.
+<P><UL><LI><B>Enter the code below after the <tt>LOCAL</tt> line.</B>
+<code><pre>ONERR quaderr::
+quaderr::
+IF er$<>"" :GIPRINT er$ :ENDIF</pre></code></UL>
+<P>
+We need to declare extra string variables for <i>a</i>,<i>b</i> and <i>c</i> in order to use <TT>dEDIT</TT> in the dialog. Doing so allows the user to type in an expression rather than a value. In this case, the user may wish to specify their values in terms of constants which they have defined. This technique is <em>strongly</em> recommended to the programmer in developing Utilities on account of extra usability and consistancy with Osiris's user interface.
+<P>
+Our utility must first get the values of <i>a</i>,<i>b</i> and <i>c</i> and we shall use a dialog to do this. We shall need the value returned by <tt>DIALOG</tt> later, so this is stored in the variable <tt>dret%</tt>. More advanced programmers may be concerned at the lack of <tt>LOCK ON</tt> and <tt>LOCK OFF</tt> around the <tt>DIALOG</tt> line - these are not necessary as they are called before and after the utility is run.
+<P><UL><LI><B>Enter the following code after the previous section.</B>
+<code><pre>
+dINIT "Quadratic equation solver"
+dTEXT "","A quadratic equation has the form:",0
+</pre></code>
+</UL>
+<UL><LI><B>The next line contains a graphics character - enter</B><tt> dTEXT "","ax</tt> <B>and then, holding down Ctrl, type 253. A 'squared' symbol should have appeared. You can now type the rest of the line: </B><tt>+bx+c=0",2</tt>
+<code><pre>
+dEDIT a$,"Value for a",20
+dEDIT b$,"Value for b",20
+dEDIT c$,"Value for c",20
+dBUTTONS "Cancel",27,"Find x",13
+dret%=DIALOG
+</pre>
+</UL>
+</code> 
+<p>If the user chose to "Find x" from the dialog, we need to transfer the contents of <tt>a$</tt>, <tt>b$</tt> and <tt>c$</tt> to the variables <tt>a</tt>, <tt>b</tt> and <tt>c</tt> making them numbers on the way. Osiris allows a utility to replace any constants the user may have included with appropriate numbers so that the utility can then simply <tt>EVAL</tt> the result by means of the pre-processor. This is invoked by calling the <tt>pproces$:(string$)</tt> procedure where <tt>string$</tt> is the string to pre-process. The result can be stored in another string or <tt>EVAL</tt>uated. The pre-processor also converts a number of extra operators and functions into a form which can be <tt>EVAL</tt>uated - the use of these can be completely transparent to the utility.
+<p>If the pre-processor finds an error, a non-existant constant for example, it will return the string "ERROR". We do not need to worry about this at this stage as this will simply cause the <tt>EVAL</tt> function to raise an error throwing the program back to the beginning. If we set <tt>er$</tt> before each <tt>EVAL</tt> then we can also display an error message indicating where the problem lies.
+<P><UL><LI><B>Enter the code below after the <tt>dret%=DIALOG</tt> line. Do not add an <tt>ENDIF</tt> yet - we still have to calculate and display the results.</B>
+<code><pre>IF dret%=13
+  er$="Error in a"
+  a=EVAL(pproces$:(a$))
+  er$="Error in b"
+  b=EVAL(pproces$:(b$))
+  er$="Error in c"
+  c=EVAL(pproces$:(c$))
+  ONERR OFF</pre></code></UL>
+<p>Based on this, the program needs to decide whether the roots are complex and display them. We shall test whether <IMG SRC="images/ostut4/Exp3.gif" ALIGN=MIDDLE HEIGHT=27 WIDTH=101 ALT="(b^2 - 4ac)<0"> and generate appropriate dialogs.
+<P><UL><LI><B>Enter the code below after <tt>c=EVAL(pproces$:(c$))</tt>.</B>
+<code><pre>IF (b**2-4*a*c)<0 :REM Roots are complex
+  dINIT "Complex Roots"
+  dTEXT "x=",GEN$(-b/(2*a),10)+" + i("+GEN$(SQR(4*a*c-b**2)/(2*a),10)+")"
+  dTEXT "or x=",GEN$(-b/(2*a),10)+" - i("+GEN$(SQR(4*a*c-b**2)/(2*a),10)+")"
+ELSE
+  dINIT "Real Roots"
+  dTEXT "x=",GEN$((-b+SQR(b**2-4*a*c))/(2*a),10)
+  dTEXT "or x=",GEN$((-b-SQR(b**2-4*a*c))/(2*a),10)
+ENDIF
+</pre></code></UL>
+<p>We also want to offer the user a chance to plot a graph in both cases, so we shall add buttons to do this.
+<UL><LI><B>Enter the code below after the code you just entered.</B>
+<code><pre>dBUTTONS "Plot Graph",%p,"Continue",27
+dret%=DIALOG
+</pre></code></UL>
+<p>To actually plot the graph we need to use one of Osiris's library routines <tt>inserteq:(type$,eq$,pc%,ll,ul,st)</tt> which adds an equation to the list. The meaning of the parameters which this takes are explained below.
+<CENTER><TABLE WIDTH=80% border=1 align="center">
+<TR><TD><TT>type$</TT></TD><TD>The plugin identity string which identifies what is to be plotted. This is "1" for a Cartesian equation, "2" for a Polar equation, "3" for parametric equations and "4" for a data point. Note that the format for data points is significantly different from the other plugins.</TD>
+<TR><TD><TT>eq$</TT></TD><TD>The equation(s) to be plotted, eg "SIN(x*2*#pi)" for a Cartesian equation.<br>For parametric equations, the two equation should be separated by the "Tab" character <tt>CHR$(9)</tt> with the x equation first.<br>For data points, this should be the X ordinate as a string.</td>
+<tr><TD><TT>pc%</TT></TD><TD>The plot colour of the item, 1 for Black and 2 for Grey.</TD>
+<tr><TD><TT>ll</TT></TD><TD>The lowest value of the parameter.<br>This is ignored for Cartesian equations<br>For data points, this should be equal to the value of the absolute error in the X value</td>
+<tr><TD><TT>ul</TT></TD><TD>The highest value of the parameter.<br>This is ignored for Cartesian equations<br>For data points, this should be equal to the Y ordinate.</td>
+<tr><TD><TT>st</TT></TD><TD>The step or interval by which the parameter is increased at speed 1.<br>This is ignored for Cartesian equations<br>For data points, this should be equal to the absolute error in the Y value.</td>
+</TABLE></CENTER>
+<p><UL><LI><B>Enter the code below after the code you last added.</B>
+<code><pre>  IF dret%=%p
+    inserteq:("1",GEN$(a,10)+"*x^2+"+GEN$(b,10)+"*x+"+GEN$(c,10),1,FLT(0),FLT(0),FLT(0))
+    GIPRINT "Added quadratic equation"
+  ENDIF
+ENDIF
+ONERR OFF
+</pre></code></UL>
+<p>Note the use of <tt>FLT</tt> to protect the types of the arguments passed. The utility is now complete - you can translate it with "Translate" from the "Prog" menu in Program (PSION-T). If you choose to run the program, it will not work correctly as the Osiris routines are not present. Nonetheless, you should usually run the program in this way as a quick check that there are no major errors: mis-typed variable names, for example, can be quickly rooted out if you get the "Undefined externals" error.
+<p>You must now copy the translated file from the "\OPO" directory to the "\APP\Osiris" directory.
+<p><UL><LI><B>Move to the System screen by pressing the "System" button</B>
+<li><b>Use the arrow keys to move to the RunOpl icon, under which you should find a file called "Quadrat". Use the arrow keys to highlight this file</b>
+<li><b>Choose "Copy file" from the "File" menu (PSION-C).</b>
+<li><b>Move down to the "To file" line of the dialog using the arrow keys.</b>
+<li><b>Press "Tab" to open the file selector</b>
+<li><b>Use this to find the "\APP\OSIRIS" directory and highlight it (it must be shown in bold at the top of the display). If you do not know how to use this, please consult your "User Guide" which was supplied with the computer.</b>
+<li><b>Press Enter. A message should be shown of the form "Path is..." which ends in "\APP\OSIRIS"</b>
+<lI><b>Now fill in the "To file" line with a name such as "tutorial.utl". This <em>must</em> end in ".utl" as Osiris recognises utilities in this way.</b>
+<lI><b>Complete the dialog by pressing "Enter".</b>
+</UL>
+<P>Once the copying is complete, move to (or start) the Osiris application. If you select "Utility" from the "Tools" menu, you should see that the "Quadratic equation solver" has appeared. If it was already installed (from when you installed the complete package), you should get a second copy listed. Try running it!
+<P><h2>If you have problems...</h2>
+<P>Please check your typing very carefully - have you followed all the instructions? If the utility stops unexpectedly, Osiris will show an error message. This should help you find the error: "Undefined Externals" usually means you mistyped a variable name for example.
+<P>If you still can't see the problem, the complete source is provided in the "Tutorials" directory of the ZIP archive as the file "Quadsrc.opl". You can open this with a text editor or, indeed, the Program application. Check your copy line by line.
+<p><h2>Ideas for Experimentation</h2>
+<ul>
+<li>Try modifying the Quadratic equation solver utility. You could for example try to get it to explicitly tell the user if they have an undefined constant. [HINT: What will <tt>pproces$:</tt> return in this case? Can you modify the code to check what it returns?]
+<li>Write a utility of your own. The concepts used to make the "Quadratic Equation Solver" are applicable elsewhere. If you have a particular graph you plot very often, for example, you could use the <tt>inserteq:</tt> procedure to add it just by running the utility. If it can take a variety of parameters, use a dialog to get these beforehand (remember to <tt>pproces$:</tt> them!). Don't forget to <a href="index.htm#contact">send it to the author</a> when you've finished or indeed if you need any help.
+<li>Try adding constants through your utility. You should call <tt>addcons:(con$,valu)</tt> to do this. <tt>con$</tt> is the name of the constant <em>without</em> the # symbol. <tt>value</tt> is the value of the constant.
+</ul>
+<hr>
+<a name="bottom"></a>
+<a href="index.htm">[Back]</a>&nbsp;<a href="#top">[Top]</a>
+</body></html>

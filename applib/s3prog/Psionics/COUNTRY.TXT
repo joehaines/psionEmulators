@@ -1,0 +1,70 @@
+PSIONICS FILE - COUNTRY.FMT
+===========================
+Format of Country information files
+Last modified 1994-09-08
+===================================
+
+The ROM:: filing system contains files which hold localization data.
+These files have names like SYS$CTRY.~01, where the number is the locale code
+(the built-in language file, English on my machine, is SYS$CTRY.CFO).
+
+These files appear to have the following format (note that the first 40
+bytes have the same format as used by system call Fn $8B Sub $05):
+  Offset   0 (word): country code (e.g. UK is 44) of locale
+  Offset   2 (word): current offset from GMT in minutes (+ is ahead)
+  Offset   4 (byte): date format (0 = MDY, 1 = DMY, 2 = YMD)
+  Offset   5 (byte): time format (0 = am-pm, 1 = 24 hour)
+  Offset   6 (byte): currency symbol position (0 = before, 1 = after)
+  Offset   7 (byte): currency symbol separated with space (0 = yes, 1 = no)
+  Offset   8 (byte): currency decimal places
+  Offset   9 (byte): currency negative format (0 = minus, 1 = brackets)
+  Offset  10 (byte): currency separate thousands
+                     (0 = no, 1 = yes, 4 = 10000 and over)
+  Offset  11 (byte): thousands separator
+  Offset  12 (byte): decimal separator
+  Offset  13 (byte): date separator
+  Offset  14 (byte): time separator
+  Offset  15 to  23: zero terminated currency symbol
+  Offset  24 (byte): start of week (0 = Mon, 1 = Tue, ... 6 = Sun)
+  Offset  25 (byte): summer times: 2 = European, 4 = Northern, 8 = Southern
+  Offset  26 (byte): clock type (0 = analogue, 1 = digital)
+  Offset  27 (byte): number of letters in day abbreviation (0 to 6)
+  Offset  28 (byte): number of letters in month abbreviation (0 to 255)
+  Offset  29 (byte): workdays (the set bits indicate the workdays)
+    Bit 0: Monday
+    Bit 1: Tuesday
+    Bit 2: Wednesday
+    Bit 3: Thursday
+    Bit 4: Friday
+    Bit 5: Saturday
+    Bit 6: Sunday
+    Bit 7: unused, always zero
+  Offset  30 (byte): units (0 = inches, 1 = centimetres)
+  Offset  31 to  39: unknown, always zero
+  Offset  40 (word): locale code
+  Offset  42 (cstr): suffix for ordinal 1 ("st" in English)
+  Offset  45 (cstr): suffix for ordinal 2 ("nd" in English)
+  ...
+  Offset 132 (cstr): suffix for ordinal 31 ("st" in English)
+  Offset 135 (cstr): suffix for 12-hour clock times before midday
+  Offset 138 (cstr): suffix for 12-hour clock times after midday
+  Offset 141 to 396: character type table - entry i describes character i:
+    Bit 0: set if an uppercase letter
+    Bit 1: set if a lowercase letter
+    Bit 2: set if a decimal digit
+    Bit 3: set if a cursor movement code
+    Bit 4: set if an other graphic character
+    Bit 5: set if a control code
+    Bit 6: set if a hexadecimal digit
+    Bit 7: space
+  Offset  397 to  652: table to convert to uppercase
+  Offset  653 to  908: table to convert to lowercase
+  Offset  909 to 1164: table to fold character (see below)
+  Offset 1165 to 1996: unknown [looks like a table of words]
+  Offset 1997 (word) : unknown [$A088]
+  Offset 1999 (word) : unknown [$9C8 (Eng), $9B5 (Fre), $9EB (Ger), $9CF (Ita)]
+  Offset 2001 to EOF : table of error messages, all qstrs
+
+Folding characters (offset 909) converts the character to a form which omits
+accents and case; by convention (but not required) folded characters are always
+uppercase.

@@ -1,0 +1,428 @@
+Rem Add-on procedures for the Calculator
+Rem Copyright ¸ James Wilkinson 1996.
+
+Rem When we check equality of a calculated floating point number,
+Rem we check that the difference is less than (say) 1e-10
+Rem (depending on the calculation) to allow for rounding errors.
+
+PROC Thankyou:
+	GIPrint "Don't mention it",1
+	Busy "Out Of Cheese Error",3
+	Pause 70
+	Busy Off
+EndP
+
+Rem These procedures come from the definitions
+
+Proc Cross:(x1,y1,z1,x2,y2,z2)
+	m1=Det2:(y1,z1,y2,z2)
+	m2=-Det2:(x1,z1,x2,z2)
+	m3=Det2:(x1,y1,x2,y2)
+	Return m1
+EndP
+
+Proc Det2:(a1,a2,b1,b2)
+	Return a1*b2-a2*b1
+EndP
+
+Proc Det3:(a1,a2,a3,b1,b2,b3,c1,c2,c3)
+	Local d
+	d=a1*det2:(b2,b3,c2,c3)
+	d=d-a2*det2:(b1,b3,c1,c3)
+	d=d+a3*det2:(b1,b2,c1,c2)
+	Return d
+EndP
+
+Proc Det4:(a1,a2,a3,a4,b1,b2,b3,b4,c1,c2,c3,c4,d1,d2,d3,d4)
+	Local d
+	d=a1*det3:(b2,b3,b4,c2,c3,c4,d2,d3,d4)
+	d=d-a2*det3:(b1,b3,b4,c1,c3,c4,d1,d3,d4)
+	d=d+a3*det3:(b1,b2,b4,c1,c2,c4,d1,d2,d4)
+	d=d-a4*det3:(b1,b2,b3,c1,c2,c3,d1,d2,d3)
+	Return d
+EndP
+
+Proc Fact:(x1)
+	Local c%,x,i
+	x=abs(intf(x1))
+	Rem You can't change a procedure's parameter Ä so we must
+	Rem copy the value to another variable
+	Rem Check for various definitions
+	If x=0
+		Return 1
+	ElseIf x<3
+		Return x
+	ElseIf x>1e5
+		Rem Out of range?
+		Rem 1e5 is arbitrary. It takes long enough to find this. You can
+		Rem make the limit larger, but you will have to divide by 1e100
+		Rem sooner Ä watch out for this.
+		Raise -7
+	EndIf
+	Busy "Calculating"
+	Rem Integers are faster Ä but not when you have to convert them
+	Rem each time you multiply, so i is real.
+	i=x-1
+	Rem c% Ä how many times you divide by 1e100
+	c%=0
+	Do
+		x=x*i
+		Rem x getting too large?
+		If x>1e94
+			x=x*1e-100
+			c%=c%+1
+		EndIf
+		i=i-1
+	Until i=1
+	Rem Did we divide once too often?
+	If x<1
+		c%=c%-1
+		x=x*1e100
+	EndIf
+	Busy Off
+	If c%>0
+		Rem >1e100
+		m1=c%
+		GIPrint "See manual: "+gen$(x,16)+"*10^"+gen$(c%,5)+"00"
+	EndIf
+	Return x
+EndP
+
+Proc Frac:(x1)
+	Local i,j%,k%,x
+	x=abs(x1)
+	i=1
+	j%=0
+	k%=1
+	Do
+		Do
+			i=i+1
+			k%=k%+1
+			Rem i is the denominator. We try it out by seeing if it gives a 
+			Rem reasonable numerator.
+			If abs(intf(x*i+.00005)-x*i)<.0001
+				Rem if it does, make j% the numerator
+				j%=int(x*i+.0005)
+				Rem and we've done it.
+				Break
+			EndIf
+		Until k%=200
+		Rem Show update every 200
+		GIPrint gen$(i,10),2
+		k%=0
+	Until (j% or i>10000)
+	Rem Make sure we leave somewhere...
+	Rem Now...should one number be negative?
+	If x1<0
+		j%=-j%
+	EndIf
+	Rem Print the answer
+	GIPrint gen$(j%,10)+"/"+gen$(i,10),2
+	Rem Assign it to memory
+	m1=i
+	m2=j%
+	Return j%
+EndP
+
+Rem As in the manual
+
+Proc mod:(a,b)
+	Return a-Int(a/b)*b
+EndP
+
+Proc Muller:(f$,xa,xb,xc)
+	Rem This is how I was taught it in Numerical Analysis.
+	Rem It works. See a text-book if you want to know how...
+	Local f2,f0,f1,x2,x0,x1,a,b,c,h,x,s,t
+	s=m1
+	x2=xa
+	x0=xb
+	x1=xc
+	If x2>x0
+		t=x0
+		x0=x2
+		x2=t
+	EndIf
+	If x0>x1
+		t=x0
+		x0=x1
+		x1=t
+	EndIf
+	If x2>x0
+		t=x0
+		x0=x2
+		x2=t
+	EndIf
+	m1=x2
+	f2=eval(f$)
+	m1=x0
+	f0=eval(f$)
+	m1=x1
+	f1=eval(f$)
+	Do
+		c=f0
+		h=x1-x0
+		b=(f1-f2)/(x1-x2)
+		a=(f1-b*h-c)/h**2
+		If b>0
+			x=x0-(2*c)/(b+sqr(b*b-4*a*c))
+		Else
+			x=x0-(2*c)/(b-sqr(b*b-4*a*c))
+		EndIf
+		m1=x
+		m1=eval(f$)
+		If abs(f2)>abs(f1)
+			If x>x0
+				x2=x0
+				f2=f0
+				x0=x
+				f0=m1
+			Else
+				x2=x
+				f2=m1
+			Endif
+		Else
+			If x<x0
+				x1=x0
+				f1=f0
+				x0=x
+				f0=m1
+			Else
+				x1=x
+				f1=m1
+			Endif
+		EndIf
+		GIPrint gen$(x,14)+"   "+gen$(f0,14)
+	Until abs(f0)<1e-10
+	m1=s
+	Return x0
+EndP
+
+Proc Newton:(f$,f2$,x1)
+	Local s,f,d,i%,x
+	Rem s `saves' the value of M1, so you can still use it afterwards
+	s=m1
+	m1=x1
+	Rem Evaluate fn & diff at start point
+	f=eval(f$)
+	d=eval(f2$)
+	x=x1
+	Rem If either are zero, we'll have a problem
+	If f*d=0
+		Raise -79
+	EndIf
+	Rem i% counts the iterations and stops us going on forever
+	i%=0
+	Do
+		Rem Newton-Raphson formula:
+		x=x-f/d
+		m1=x
+		Rem calculate new fn & diff at new point
+		f=eval(f$)
+		d=eval(f2$)
+		i%=i%+1
+		Rem Tell the user what's happening
+		GIPrint "x"+num$(i%,3)+" = "+gen$(x,16)
+	Until i%>=50 or abs(f)<1e-10
+	Rem The procedure should have converged by 50 or not at all 
+	Rem Put m1 back to what it was
+	m1=s
+	Return x
+EndP
+
+Proc ncr:(n1,r1)
+	Local p,r,n,i,k
+	Rem get n & r within reasonable range
+	n=abs(intf(n1))
+	r=abs(intf(r1))
+	If n<0 or r<0 or r>n
+		Raise -2
+	Elseif r=0 or r=n
+		Return 1
+	EndIf
+	Busy "Calculating..."
+	Rem nCr=nC(n-r): this line decreases calculations
+	If r<n/2
+		r=n-r
+	EndIf
+	i=n-r
+	Rem p=product: we're calculating n!/(n-r)! = n * (n-1) * ... * (n-r+1)
+	p=1
+	Rem k counts how many times we have to divide by 1e100
+	k=0
+	Do
+		i=i+1
+		p=p*i
+		If p>1e90
+			k=k+1
+			p=p/1e100
+		EndIf
+	Until i=n
+	i=1
+	Rem and divide by r!
+	Do
+		i=i+1
+		p=p/i
+		Rem and now multiply the 1e100 back in
+		If p<1
+			p=p*1e100
+			k=k-1
+		EndIf
+	Until i=r
+	Busy Off
+	Rem if k is not zero, the answer is too large for Calc
+	If k
+		Raise -7
+	EndIf
+	Return p
+EndP
+
+Proc npr:(n,r)
+	Local p,i
+	If n<>abs(intf(n)) or r<>abs(intf(r)) or r>n
+		Raise -2
+	EndIf
+	Busy "Calculating..."
+	i=n-r
+	Rem p=product: we're calculating n!/(n-r)! = n * (n-1) * ... * (n-r+1)
+	p=1
+	Do
+		i=i+1
+		p=p*i
+	Until i=n
+	Rem If p goes over 1e100, let Calc raise the error Ä someone will
+	Rem have to do it, and we can't give it any more grace.
+	Busy Off
+	Return p
+EndP
+
+Proc Pois:(x,lambda)
+	Rem Is x a non-negative integer?
+	If x=intf(abs(x))
+		Raise -2
+	EndIf
+	If rnd>.9
+		GIPrint "Marine biologist..."
+	EndIf
+	Rem Def'n of the Poisson process
+	Return lambda**x*exp(-x)/fact:(x)
+EndP
+
+Proc Prime:(n)
+	Local max&,i
+	Rem Is n an integer?
+	If n<>intf(n)
+		Raise -2
+		Rem Is it in a reasonble calculating range?
+		Rem (Note 1e12 is above long integer range, so we use
+		Rem floating-point variables)
+	ElseIf n<1 or n>1e12
+		Raise -7
+	ElseIf n=1
+		GIPrint "1 is not prime"
+		Return 0
+		Rem Check 2 Ä then we only need to check odd numbers
+	ElseIf abs(intf(n/2)*2-n)<1e-10
+		GIPrint "False"
+		Return 2
+	EndIf
+	Busy "Calculating..."
+	Rem If there isn't a factor less than sqr(n), then there won't be one
+	Rem greater than sqr(n). This saves a lot of time!
+	max&=sqr(n)
+	i=3
+	Do
+		Rem Check each i
+		If abs(intf(n/i)*i-n)<1e-10
+			Busy Off
+			GIPrint "False"
+			Return i
+		EndIf
+		Rem Add 2 Ä we know no even numbers will work
+		i=i+2
+	Until i>max&
+	Busy Off
+	GIPrint "True"
+	Return 1
+EndP
+
+Proc Quad:(a,b,c)
+	Local d
+	Rem d = determinant = b**2-4*a*c
+	Rem determines whether the answer is real, repeated, or complex.
+	If a=0
+		Rem the formula doesn't work
+		Rem and the expression isn't quadratic
+		If b=0
+			Rem the expression isn't even linear
+			Rem and something has gone wrong
+			If c=0
+				Rem Infinitely many answers
+				GIPrint "0=0..."
+				Return 0
+			Else
+				Rem No answers
+				GIPrint gen$(c,5)+"=0?"
+			EndIf
+		Else
+			Rem Linear equation
+			m1=-c/b
+			GIPrint "Linear equation"
+			Return m1
+		EndIf
+	Else
+		Rem True quadratic
+		d=b*b-4*a*c
+		If d>0
+			Rem We've already found b*b-4*a*c ... no sense in wasting it.
+			d=sqr(d)
+			GIPrint "Two real roots"
+			m1=(-b+d)/(2*a)
+			m2=(-b-d)/(2*a)
+			Return m2
+		ElseIf d=0
+			GIPrint "Repeated roots"
+			Rem We know sqr(d)= 0 so the equation simplifies to...
+			m1=-b/(2*a)
+			m2=m1
+			Return m1
+		Else
+			GIPrint "Complex roots"
+			Rem sqr(-d)=i*sqr(d)
+			m1=-b/(2*a)
+			m2=sqr(-d)/(2*a)
+			Return m1
+		EndIf
+	EndIf
+EndP
+
+Proc cosh:(x)
+	Return (exp(x)+exp(-x))/2
+EndP
+
+Proc sinh:(x)
+	Return (exp(x)-exp(-x))/2
+EndP
+
+Proc tanh:(x) 
+	Return (exp(x)-exp(-x))/(exp(x)+exp(-x))
+EndP
+
+Proc acosh:(x)
+	If x<1
+		Raise -2
+	EndIf
+	Return ln(x+sqr(x*x-1))
+	Rem x**2 wasn't exactly 1 when x=1. I've no idea why.
+EndP
+
+Proc asinh:(x)
+	Return ln(x+sqr(x*x+1))
+EndP
+
+Proc atanh:(x)
+	If abs(x)>=1
+		Raise -2
+	EndIf
+	Return .5*ln((1+x)/(1-x))
+EndP

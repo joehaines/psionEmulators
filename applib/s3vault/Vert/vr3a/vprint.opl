@@ -1,0 +1,181 @@
+PROC vPRINT:(sp%)
+LOCAL p%,y%,last%,c%,n%,c$(1),ix%,iy%,lin%(1),pos%,wid%,sav%
+ONERR abort
+last%=$20
+y%=gHeight
+p%=0
+PokeB ADDR(c$),1
+n%=0:WHILE n%<PEEKB(sp%)
+	n%=n%+1
+	c%=PEEKB(sp%+n%)
+	IF last%=$20 OR last%=%-
+		IF vMODE%>=3
+			IF last%=c% AND last%=$20
+				CONTINUE
+			ENDIF
+			y%=gY
+			p%=n%
+		ENDIF
+	ENDIF
+	if c%<$20
+		pos%=1
+		wid%=0
+	else
+		POKEB ADDR(c$)+1,c%
+		wid%=gTWIDTH(c$)
+		last%=c%
+		pos%=PEEKB(ADDR(vMAP&())+c%)
+	endif
+	IF pos%=0
+		vN%=MIN(vN%+1,100)
+		POKEB ADDR(vMAP&())+c%,vN%
+		pos%=vN%
+		sav%=gIDENTITY
+		gUSE vTMP%
+		gAT 0,vINFO%(1)-vINFO%(2)
+		gPRINTB c$,vINFO%(3),2
+		gUSE vBIT%
+		iy%=0:DO
+			lin%(1)=0
+			gPEEKLINE vTMP%,0,iy%,lin%(),wid%
+			lin%(1)=lin%(1) AND $7fff
+			ix%=0:DO
+				IF (lin%(1) AND 1) =1
+					gAT iy%,((pos%-1)*vINFO%(3)+wid%-ix%-1)
+					gLINEBY 0,0
+				ENDIF
+				lin%(1)=lin%(1)/2
+				ix%=ix%+1
+			UNTIL ix%=wid% OR lin%(1)=0
+			iy%=iy%+1
+		UNTIL iy%=vINFO%(1)
+		gUSE sav%
+	ENDIF
+	IF gY<wid%
+		IF vMODE% =1
+			n%=PEEKB(sp%)
+			CONTINUE
+		ELSEIF vMODE%>=3 AND y%<>gHEIGHT
+			gSCROLL vINFO%(1)+1,gHEIGHT-y%,gX,gY,vINFO%(1),y%-gY
+			gAT gX+vINFO%(1)+1,gHEIGHT-(y%-gY)
+			IF gX>gWIDTH-vINFO%(1)
+				gFILL vINFO%(1),gHEIGHT-gY,1
+				n%=p%-1
+				vPAGE:(1)
+				CONTINUE
+			ENDIF
+		ELSE
+			gAT gX+vINFO%(1)+1,gHEIGHT
+		ENDIF
+		y%=gHeight
+		IF gX>gWIDTH-vINFO%(1)
+			vPAGE:(1)
+		ENDIF
+	ENDIF
+	gMOVE 0,-wid%
+	gCOPY vBIT%,0,vINFO%(3)*(pos%-1),vINFO%(1),wid%,3
+ENDWH
+IF vMODE% <>4
+	gAT gX+vINFO%(1),gHEIGHT
+	IF gX>gWIDTH-vINFO%(1)
+		vPAGE:(1)
+	ENDIF
+ELSEIF n%=0
+	gAT gX+(1+vINFO%(1)),gHEIGHT-gTWIDTH("  ") 
+	IF gX>gWIDTH-vINFO%(1)
+		vPAGE:(1)
+	ENDIF
+ELSEif last%<>%-
+	gMOVE 0,-gTWIDTH(" ")
+ENDIF
+abort::
+ENDP
+
+PROC vPAGE:(sw%)
+LOCAL k%,a$(5)
+ONERR abort
+k%=sw%
+IF sw%=1 and gRANK=1
+	gUSE vWID%(2)
+	k%=0
+ELSEIF sw%<>0
+	DO
+		k%=2
+		k%=@%(vHDLR$):
+	UNTIL k%<>0
+ENDIF
+abort::
+IF k%=0
+	gCLS
+	gAT 0,gHEIGHT
+ELSEIF k%=1
+	vSWITCH:
+	gUSE vWID%(2)
+	gCLS
+	gAT 0,gHEIGHT
+ELSEIF k%=2
+	gUSE vWID%(1)
+	gCLS
+	gAT 0,gHEIGHT
+	ONERR OFF
+	RAISE -114
+ENDIF
+ENDP
+
+PROC vSWITCH:
+LOCAL tmp%
+	tmp%=vWID%(1)
+	vWID%(1)=vWID%(2)
+	vWID%(2)=tmp%
+	gORDER vWID%(1),1
+ENDP
+
+PROC vFONT:(fid%,style%)
+LOCAL i%(32),w%,h%
+gUSE 1
+w%=gWIDTH
+h%=gHEIGHT
+gFONT fid%
+gSTYLE style%
+gINFO i%()
+vINFO%(1)=i%(3)
+vINFO%(2)=i%(4)
+vINFO%(3)=i%(7)
+if vWID%(1)<>0 and vWID%(1) <> 1
+	gUSE vWID%(1)
+	if w%<>gWIDTH OR h%<>gHEIGHT
+		gCLOSE vWID%(1)
+		vWID%(1)=gCREATE(0,0,w%,h%,1)
+	endif
+	gFONT fid%
+	gSTYLE style%
+elseif vWID%(2)<>0 and vWID%(2) <> 1
+	gUSE vWID%(2)
+	if w%<>gWIDTH OR h%<>gHEIGHT
+		gCLOSE vWID%(2)
+		vWID%(2)=gCREATE(0,0,w%,h%,1)
+	endif
+	gFONT fid%
+	gSTYLE style%
+elseif vWID%(2)=0
+	vWID%(1)=1
+	vWID%(2)=gCREATE(0,0,w%,h%,1)
+	gFONT fid%
+	gSTYLE style%
+endif
+vN%=64:WHILE vN%>0
+	vMAP&(vN%)=0
+	vN%=vN%-1
+ENDWH
+IF vBIT%<>0 : gCLOSE vBIT% : ENDIF
+vBIT%=gCREATEBIT(vINFO%(1),100*vINFO%(3))
+gCLS
+IF vTMP%<>0 : gCLOSE vTMP% : ENDIF
+vTMP%=gCREATEBIT(vINFO%(3),vINFO%(1))
+gFONT fid%
+gSTYLE style%
+gCLS
+gORDER vWID%(1),1
+gUSE vWID%(1)
+ENDP
+

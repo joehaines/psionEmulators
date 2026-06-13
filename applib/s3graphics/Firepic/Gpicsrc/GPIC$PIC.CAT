@@ -1,0 +1,33 @@
+LIBRARY gpic$pic
+
+EXTERNAL olib
+
+INCLUDE olib.g
+INCLUDE hwimman.g
+
+CLASS gpic root
+    {
+    ADD version                 Return version info about DYL
+    ADD info                    Return info about image file
+    ADD load                    Inititalise load image from file
+    ADD doload                  Repeat call to process load
+    ADD save                    Initialise save image to file
+    ADD dosave                  Repeat call to process save
+    PROPERTY
+        {
+        HANDLE file;            Handle of open file
+        VOID *bhead;            Pointer to header of black plane
+        INT by;                 Current scanline in black plane
+        VOID *ghead;            Pointer to header of black plane
+        INT gy;                 Current scanline in grey plane 
+        VOID *inbuf;            P_FBLKSIZE input buffer;
+        LONG done;              Bytes done;
+        UWORD crc;              CRC total;
+        INT bid;              
+        W_OPEN_BIT_SEG bhand;
+        INT gid;                
+        W_OPEN_BIT_SEG ghand;
+        UINT rwid;              Real width (uncompressed)
+        UINT rheight;           Real height (uncompressed)
+        }
+    }

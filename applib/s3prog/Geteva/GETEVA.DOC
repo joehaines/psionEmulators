@@ -1,0 +1,150 @@
+Comments on geteva.opl
+======================
+
+This program demonstrates:
+    * An asynchronous form of GETEVENT
+    * How to keep a clock ticking over on the screen, once each
+second, that measures only time in foreground (and only time when the
+machine is switched on), without burning round in a continuous loop
+    * At the same time, the program is ready to respond at once to
+any keypresses received
+    * How to peek the system time to within 1/32 of a second.
+
+The program can also be viewed simply as an example of asynchronous
+i/o, iowait, status words, and iosignal.  These techniques allow very
+powerful results.  For general background to these techniques, see in
+the first instance the chapter "Fundamental Programming Guidelines"
+in the "General Programming Manual" of SDK 1.10.  (This is written
+for C programmers, but all the same concepts carry over into Opl.)
+
+How the clock updates
+---------------------
+The clock starts at "0:00" and ticks over once each second. 
+Unfortunately, there are no flags for GCLOCK to achieve this (these
+system clocks always display an "hours" field, and can only have
+their offsets from the real time set in minutes, not in seconds).
+
+The clock is updated every time a timer expires.  Beforehand, the
+timer is primed to expire when the next second starts - ie when the
+next multiple of 32 ticks starts (there are 32 ticks to a second on
+SIBO computers).
+
+The current tick value can be read from location $41c from the O/S
+dataspace, using CALL($078b).  In the program, 10 contiguous bytes
+are read from this location:
+    the first two give a value in ticks (read into t%)
+    the next four (read into j&) are ignored
+    the final four (read into t&) give the current time in seconds.
+Note that the declaration
+    local t%,j&,t&
+is crucial to having these three Opl variables stored contiguously,
+so that the one CALL($078b) reads all three at once.
+
+The calculation of how long to wait until the next second starts is
+    tint&=10-((t% and $1f)*10)/32
+where the answer is in 1/10 of a second - because this is how timers
+are queued.  (The conversion between 1/32 and 1/10 is unfortunate,
+but there you have it.)
+
+The effect of
+    ioa(tcb%,1,tstat%,tint&,#0)
+is that a timer completion event should occur after tint& tenths of a
+second.  The final parameter #0 is just to keep the translator happy
+(some ioa calls require a final parameter).  The second parameter, 1,
+indicates that a RELATIVE timer is required - which will NOT waken
+the computer up.  The first parameter, tcb%, is the handle of the
+timer control block opened with the prior call
+    ioopen(tcb%,"TIM:",-1)
+where the final -1 is again just to keep the translator happy.
+
+The parameter tstat% in the ioa call gets set to -46 when the call is
+made, and gets set to some other value (0 in this case in fact) when
+the event has occurred.
+
+How the elapsed time is calculated
+----------------------------------
+The elapsed time is calculated as
+    e&=o&+t&-s&
+where t& is the current time in seconds (see above), s& was the time
+in seconds when the program last received a foreground or on message
+(see below), and o& is the amount of "old" or previous time carried
+forward from the last time the program was in foreground or the
+computer was switched on.
+
+The asynchronous version of GETEVENT
+------------------------------------
+While waiting for the next timer to expire, the program also needs
+to be able to respond to normal keypresses, and also to special
+messages such as background, foreground, and on.
+
+In general, the program cannot of course predict which type of event
+will happen next - timer expiry or keypress.  Hence the requirement
+for asynchronous i/o:
+    queue a timer
+    queue a GETEVENT
+    call IOWAIT
+    then find out which type of event has actually occurred - by
+testing the values of the "status words" tstat% and cstat%.  (The
+status word has value -46 while the event remains pending, ie
+incomplete).
+
+Were it not for the need to service foreground, background, and on
+events, the simple call
+    keya(cstat%,k%(1))
+would have sufficed.  However, this does not include these special
+sorts of keypresses.
+
+The solution is to call
+    ioa(-2,14,cstat%,k%(1),#0)
+instead:
+    the handle -2 has the special meaning of the console handle.  In
+contrast to the timer handle, tcb%, you don't have to do an ioopen,
+since the Opl runtime has already opened the console, on your behalf.
+
+The service 14 is actually P_EVENT_READ - see the Console chapter of
+the I/O Devices Reference in the SDK for full details.  This is the
+console service GETEVENT relies upon.
+
+You may be able to guess that the Opl call
+    GETEVENT(k%(1))
+is just shorthand for
+    iow(-2,14,k%(1),#0)
+
+Other details
+-------------
+The remainder of the program is just trickery of various sorts.
+To start with, a read is queued only to the console.
+The first event received will always be a foreground message ($401),
+which has the effect of starting the timer off.  (The call to
+IOSIGNAL just has the effect of ensuring that the next IOWAIT returns
+at once.)
+
+On passing into background ($402), the timer is suspended:
+    iow(tcb%,4,#0,#0)
+    iowaitstat tstat%
+and the timer part of the code won't be entered again until tstat%
+becomes different from -46 again.  This will be effected in the code
+handling foreground or on events.
+
+Note that an on message ($403) is treated in code as being like a
+background message ($402) followed by a foreground message ($401).
+
+Other notes
+-----------
+If you rearrange this code, you may find your program terminates with
+an "exit 73".  This means the O/S has shot you because you have
+requeued a request to an i/o device while the last one was still
+outstanding.
+
+The program won't run properly on a SIBO emulation on a PC, since
+ticks are different from 1/32 of a second in this case.
+
+If this program called up a dialog or a menu, it would have to switch
+the timer off first.  This is because you won't receive any special
+messages while a dialog or menu is current.
+
+Geteva will of course keep your Series3 turned on indefinitely, since
+it neglects to call
+    call ($138b,0,0,0,0,0) :rem GenMarkNonActive
+
+These notes prepared by DavidW on 24/6/92.

@@ -1,0 +1,154 @@
+The object of the exercise was to produce a program for an EPOC32 machine
+to convert Psion Series 3x OPL database files into their OPL32 equivalent.
+It does not produce files for the Series 5/Geofox Data applications.
+These programs are really meant for database programmers who wish to
+convert a Psion Series 3x database application into a Series 5 or Geofox
+version.
+
+The program CONV_DBF.OPO was designed to read a straight .ODB file produced
+by an EPOC16 OPL program. It should also read files from the EPOC16 DATA
+application. Initially the application will list the total number of fields
+in the database, and the types (string, integer, long, and float), and then
+process each record. A text file is produced in the form:
+
+"Apples","","3.6","10779","",""
+"Prunes","Dried","4.2","23119","",""
+
+The above example, there are six fields, the values are surrounded by
+double quotes ("), and the fields delimited by commas.
+In the case of OPL database files, all fields are shown, even if they
+contain no data. For DATA files, which have 32 string fields by default,
+all empty fields after the last non-empty field are omitted.
+
+There are two ways this file can be used. Firstly the file is suitable
+for importing into OPL32 DATA (File->More->Import text file), as it conforms
+to DATA's default import layout. You need to create an empty DATA file with
+field types and names to suit the file. In the above example, all fields might
+be strings, or the third field could be a float, the fourth a number, etc.
+
+Secondly the files could be converted into an OPL32 database file. I have
+included a converter for this purpose, text2odb32.opo, which reads both
+the binary log file and the CSV text file produced by conv_dbf.opo.
+
+The main CONV_DBF.OPO program should be copied to a suitable folder on your
+Psion 5 or Geofox. It will initially look in the same folder for OPL16
+database files, so you can put them there as well. Series 3x database files
+should be copied to this folder - there is no need to try any sort of file
+conversion before or during the copy (e.g. with PsiWin).
+
+The dialog produced on running the OPO will have a file selector, and at the
+bottom, a choice field: View file or Write CSV file. View will allow you to 
+examine each record without writing any files, Write will process each record 
+without stopping.
+
+After making your choices, you will first see a list showing the type of
+each field in the database. For EPOC16 DATA files, there will normally be
+32 string fields, although not all may be used. For OPL database files,
+the actual number of fields will be shown - which can be either string,
+integer, long integer, or floating number.
+
+Pressing Esc will abort here, or any other key will read through the data
+a record at a time, step by step (View), or continuous (Write), as selected 
+earlier. In the View mode, you can stop by pressing Esc at any time.
+If the records are large, they might overflow the screen.
+At the end of the file, a short summary is shown, which lists the total
+number of records found, and the highest number field used. This data is
+written to a *.log file.
+
+TEXT2ODB32.OPO
+
+This file should be copied to the same folder as CONV_DBF.OPO.
+
+I am grateful to Otfried Cheong for his OPLDB1.OPX which this program uses.
+
+On running the program, a dialog will request the name of the *.log file.
+Only these log files are shown in the file selector.
+
+Next, you will be prompted for a table name. The default is "table1", but
+you may enter any name up to 12 characters.
+
+Next, you will be asked for a name for each field. A short name is advisable
+as there is an overall limit of about 230 characters for the total list of 
+names.
+
+Note the table and field names you enter. These will be needed when you
+write code to use the new database, although you may be able to read the
+names with Otfried Cheong's OPX.
+
+There are a couple of limitations to this program.
+The size of each string field will be limited to the maximum found for each
+field in the initial OPL16 database. This means that if you write any more
+records to the new OPL32 database, you cannot write string data above these
+limits. 
+
+Furthermore, the new file will have only those fields actually used in the
+original. So if you start with a 32 field Series 3a Data file, and only
+the first 10 fields are used, then the new file will have only 10 fields.
+
+The limits are stored in the *.log file, so I have included a small
+program EDLOG.OPO which allows you to increase the size of the text fields,
+and add new fields.
+
+Note that this program may crash if the log and CSV files are invalid.
+
+The output file name will have the extension .odb32 and so you may need to
+rename your file to something sensible.
+
+FILES
+
+The files in the archive should be:
+CONV_DBF.OPO    the program file.
+TESTDB.ODB      an example OPL16 database file.
+TEXT2ODB32.OPO  which reads the CSV and log files, and writes an OPL32
+                database file.
+EDLOG.OPO		a log file editor.
+
+All the above files should be copied to the same folder. It is a good idea
+to create a folder for you file conversions, where all files used and
+produced will be kept.
+
+OPLDB1.OPX      Copy this to c:\system\opx\
+
+
+LIMITATIONS
+
+These limitation apply to EPOC16 DATA files:
+
+Only text fields of less than 256 characters are handled.
+
+Addresses from a Series 3x DATA files will separate into one field per line
+of orginal address. This may result in data in the wrong fields! These 
+programs are really intended for use on OPL16 database files!
+
+Only type 1 records are handled (these are normal records).
+
+Field labels will be lost.
+
+DISCLAIMER
+
+These program are fairly rudimentary, and not guaranteed to be suitable
+for any task. The user installs and uses the programs at her/his own risk.
+The author will not be held responsible for loss of data, or any ill effects
+on any computer it is held or used on.
+
+I apologise for any mistakes in this readme file, hopefully the programs
+will be self explanatory.
+
+SOURCE CODE
+
+The source code may be obtained by email from the author.
+
+COPYRIGHT
+
+OPLDB1.OPX is Copyright Otfried Cheong and RMR Software 1998. Without this file, 
+it would not be possible to create TEXT2OPD32.OPO.
+
+CONV_DBF.OPO, Edlog.opo, and TEXT2ODB32.OPO are Copyright Roger Muggleton 1998.
+You may use and distribute the files in the archive freely.
+
+COMMENTS
+
+Comments etc. to the author:
+Roger Muggleton
+email: hzk@cix.co.uk
+

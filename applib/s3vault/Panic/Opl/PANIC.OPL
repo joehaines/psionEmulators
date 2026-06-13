@@ -1,0 +1,29 @@
+APP Panic
+	type $1000
+	icon "m:\pic\dp.pic"
+ENDA
+
+PROC panic:
+	global a%(6),id%,sn$(16)
+	sn$="a:\wve\on.wve"+chr$(0)
+	id%=gloadbit("a:\pic\panic.pic",0,0)
+	guse 1
+	gat 74,24
+	gcopy id%,0,0,332,110,0
+	gclose id%
+	call($6c8d)
+	gupdate
+	while 1
+	  do
+	    getevent a%()
+	    if a%(1)=$404 or a%(1)=$278
+	      stop
+	    endif
+	  until a%(1)=$403
+	  call($198d,0,0)
+	  gupdate
+	  call(&1f86,uadd(addr(sn$),1),0)
+	  call($198d,100,0)
+	  gupdate
+	endwh
+ENDP

@@ -1,0 +1,156 @@
+PROC basexy:
+LOCAL o$(100)
+LOCAL a&,b&,i$(12), p1
+LOCAL s1$(70),s2$(70), ib$(20)
+ib$="   in base   "
+
+	
+start::
+	i$=""
+	o$=""
+	a&=10
+	b&=16
+	dINIT "BaseXY"
+	dLONG a& , "Input Base:", 2,16
+	dEDIT i$, "Input Number:",16
+	dLONG b& , "Output Base:",2,16
+	DIALOG
+	if i$="" 
+		STOP
+	ENDIF
+	
+	i$=UPPER$(i$)
+	
+	IF valid%:(i$, a&) <>0
+		GOTO FIN
+	ENDIF
+	
+	p1=part1:(a&,i$)
+	o$=part2$:(b&,p1)
+
+	dINIT "Basexy"
+	s1$=i$ +ib$ + gen$(a&,2)
+	s2$=o$ +ib$ + gen$(b&,2)
+	dTEXT ""," ",$102
+	dTEXT "",s1$,$102
+	dTEXT ""," ",$102
+	dTEXT "", "is", $102
+	dTEXT ""," ",$102
+	dTEXT "",s2$,$102
+	dTEXT ""," ",$102
+	DIALOG 
+FIN::
+	CLS
+	GOTO start
+ENDP
+
+PROC part1:(base&, string$)
+REM Convert from string to number 
+REM in base 10
+
+LOCAL i%, l%, value, ba, v&
+value=0
+i%=LEN(string$)
+l%=i%
+ba=1
+DO
+	v&=change%:(MID$(string$,l%,1))
+	value=value+ba*v&
+	l%=l%-1
+	ba=ba*base&
+UNTIL l%=0
+RETURN value
+ENDP
+
+
+PROC part2$:(base&,n)
+REM Convert from number in base 10
+REM to string in new base
+LOCAL i%,maxim,r,this&, o$(100)
+
+r=n
+i%=0
+maxim=1
+	
+DO
+	maxim=maxim*base&
+	i%=i%+1
+UNTIL maxim > n
+
+maxim=maxim/base&
+i%=i%-1
+	
+WHILE i%>=0
+	this&=r/maxim
+	o$= o$+ch$:(this&)
+	r=r-this&*maxim
+	maxim=maxim/base&
+	i%=i%-1
+ENDWH
+RETURN o$
+ENDP
+
+PROC ch$:(num&)
+REM return char in from number
+IF num& >=0 AND num& <=9
+	RETURN CHR$(48+num&)
+ELSEIF num&>9 AND num& <=15
+	RETURN CHR$(55+num&)
+ELSE
+	RETURN "?"
+ENDIF
+ENDP
+
+PROC change%:(c$)
+REM return a number 0 to 15
+LOCAL  a%,d%
+a%=ASC(c$)
+IF a%>=48 AND a% <=57
+	RETURN a%-48
+ELSEIF a%>=65 AND a%<=70
+	RETURN a%-55
+ENDIF
+ENDP
+
+PROC valid%:(string$,b&)
+REM validate string
+LOCAL a%,c$(1),l%
+l%=LEN(string$)
+	
+DO
+	c$=MID$(string$,l%,1)
+	a%=ASC(c$)
+		
+	IF b& <= 9
+		IF a% < 48 OR a% >= 48+b&
+			invalid:(c$)
+			RETURN 1
+		ENDIF
+	ELSEIF b& > 9
+		IF a%>=48 AND a%<48+b&
+			RETURN 0
+		ENDIF
+		IF a% >= 65 AND a% < 55+b&
+			RETURN 0
+		ENDIF
+		invalid:(c$)
+		RETURN 1
+	ENDIF
+	
+	l%=l%-1
+UNTIL l%=0
+RETURN 0
+ENDP
+
+
+PROC invalid:(c$)
+REM print error message
+LOCAL s1$(70)
+dINIT "Error"
+dTEXT "","  ",$102
+s1$="Invalid character:  " + c$
+dTEXT "",s1$,$102
+dTEXT "","  ",$102
+DIALOG 
+ENDP
+

@@ -1,0 +1,173 @@
+==========
+DPMime 3.0
+==========
+Copyright (c)1996-1997 Daniel Pfund
+   -FREE for non commercial use-
+
+Email: Pfund@POBoxes.com
+WEB: http://www.planet-pfund.com
+
+Other programs I have writen
+============================
+DPBank   - The easiest to use bank account manager program on the Psion,
+           be sure to give it a try. Available in english, french,
+           german, norwegian, hungarian. S3a/3c
+DPSwitch - Allows you to switch between open applications on the touch
+           of a button. S3/3a/3c
+Splitz   - Splits/rejoins large text files to circumvent Word's 40k limit.
+           S3a/3c
+
+All my programs are written with maximum speed & minimal memory
+requirements in mind. Of course, you can't have both, but I always
+try to optimize my code.
+
+My programs are available from my homepage or probably where you
+got this one from.
+
+Abstract
+========
+DPMime is a program that decodes MIME email attachments that are encoded
+with the world standard base64 encoding. It is useful if your mail
+program cannot handle MIME attachments (but most new ones do now since
+MIME is becoming an Internet standard). The program will work on the
+Psion Series 3a/3c/Siena (and maybe the Series3 "Classic"?).
+
+Usage
+=====
+Simply install the OPO file into one of your \OPO\ directories and run
+it from the RunOpl icon (it's not an OPA and thus has no icon to save
+space). If you don't have a RunOpl icon, you must first install it with
+"Install Standard" (Psion-j) from your System screen; you will then see
+DPMime appear under the OPL bubble icon.
+
+Usage is simple: you must specify an IN file and then one (or several)
+OUT file(s). See below as to what the IN file must contain.
+
+Once you've done that, DPMime will decode the IN file and save the
+results to the OUT file... how strange, no? ;-)
+
+You can use the program over a network with REM:: drives but bear in
+mind that the transfer speeds will be very slow (19k2 at best on a 3a)
+so it may take quite a while to decode the program!
+
+DPMime will work with DOS (CRLF), Amiga/UNIX (LF) or Mac (CR) end of
+lines.
+
+The IN file
+===========
+You may ask: what does a MIME attachment look like? It is usually a big
+chunck of text of 76 characters wide. It uses only alphabetical
+characters (upper and lower case), numbers and "+/". It may look
+something like this:
+
+Q2lYICdQc2lvbi9GaWxlcycgdG9waWMuDQo9PT09PT09PT09PT09PT09PT09PT09PT0NCg0KTm90
+ZSB0aGF0LCBvYnZpb3VzbHksIGFsbCBTZXJpZXMgMyBwcm9ncmFtcyB3aWxsIGFsc28gd29yayBv
+.....
+
+Usually at the beginning of an email, you'd have the following header (but
+note that you don't see it with MIME aware email programs):
+
+MIME-Version: 1.0
+Content-type: application/octet-stream; name="archive.zip"
+Content-transfer-encoding: base64
+Content-description:
+
+The Content-Type: may be different and of course, the name will most
+certainly not be "archive.zip" ;-)
+
+Unfortunately, there is no start/stop indicator unlike UUencoding. But
+instead there are blank lines that delimit the base64 data chunk.
+
+*These blank lines must be present or DPMime will not work!*
+
+What you must do is save your email message as pure ascii into a file.
+This is the "in" file. If you don't know what name to give to the "out"
+file, you may get a hint by looking at the MIME header ("name"...) which
+is displayed by DPMime if it's available.
+
+The OUT file
+============
+This is the processed 8bit binary file that will result from decoding.
+You may call it whatever you like, but most of the time, you should know
+what the file is for and call it the appropriate way (ie: if it's a ZIP
+compressed file, you should use the .zip extension...).
+
+How does base64 encoding work?
+==============================
+Base64 encoding was intended to be the most versatile encoding type in
+order to be transported to every computer in the whole world without
+being corrupted by different ASCII implementations. It must thus use
+only the most common letters available on every computer system (ASCII
+codes <128).
+
+I suppose for the discussion that you know your bits from your bytes,
+otherwise skip this part ;-)
+
+The base64 encoding lookup table is formed of the standard alphabet
+letters in both upper and then lower case, then the 10 arabic numbers
+and finally "+/", so it looks like this:
+
+ABC...XYZabc...xyz0123456789+/
+
+This makes the 64 encoding base letters used (hence the name "base64").
+
+You will notice that the base64 only has 64 letters and that you can
+encode numbers 0-63 with only 6bits in binary base. (Where "A"=0 and
+"/"=63)
+
+All we have do is transform the 8bits binary data into 6bits offsets.
+This is done by concatenating 3*8bits into 4*6bits. For example, imagine
+that you wanted to encode the 3 letters: "heu" (only 7 bits are used for
+display reasons here).
+
+h=104 (ASCII) = 01101000
+e=101         = 01100101
+u=117         = 01110101
+
+Those 3*8bit bytes would then be concatenated into:
+011010000110010101110101 and split up into 4*6bits bytes:
+     ^     ^     ^     ^
+
+011010 = 26 = "a" in base64 offset table
+000110 = 06 = "G"
+010101 = 21 = "V"
+110101 = 53 = "1"
+
+So the output would be "aGV1". You can see that the final size will be
+4/3 of the original 8bit binary file but at least you will be able to
+copy the file to every machine and being sure that it will always look
+the same on any computer.
+
+What DPMime does is exactly the contrary: it splits up 4 6bit bytes into
+3 8bit bytes.
+
+Legal section
+=============
+DPMime is provided "as is" and I cannot be held responsible if it
+crashes your Psion or of any other misbehavings it may occasion. I have
+tested the program myself and I used it on some different MIME programs
+(although I don't need it myself, because my mail program (Pine) has
+MIME attachments included ;-) and it seemed to work flawlessly.
+
+But you never know, if you have encoutered a problem, please report it
+immediately to me so I can take correct action against it in future
+versions.
+
+You may not use the program or any part of it in your own programs
+without my prior consentement. Definitively do not attempt reverse
+translation or your Psion will blow up!!! ;-)
+
+I hope you'll like the program. Mail me any comments you may have to:
+Pfund@POBoxes.com or 101743.775@compuserve.com
+
+History
+=======
+
+ver Date    Comments
+--------------------
+1.0 15Jul96 First public release
+2.0 29Oct96 Added automatic file parsing + fixed problem with lines
+            containing more or less than the "standard" 76 characters.
+2.1 30Oct96 Made dialogs smaller so they work on the Siena
+3.0 18Mar97 Added multipart handling + MIME header display
+3.1 19Mar97 Fixed long integer bug with very large files

@@ -1,0 +1,55 @@
+
+� Area: [FIDO] PSION echo 컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+  Msg#: 8361                                         Date: 05-24-93  13:24
+  From: Bj봱n Felten                                 Read: Yes    Replied: No 
+    To: Andy Parkins                                 Mark:                     
+  Subj: Was: Emulator -- Now: Running APP's from OPL
+컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+ -=> Quoting Bj봱n Felten to Andy Parkins <=-
+
+ > call the comms app and run a script.
+
+ BF> This is exactly what's described in RUNSCO.OPL. Looks like this:
+
+ BF> proc runcomm:
+ BF> local pid%,fname$(128),timeout&
+ BF> fname$="\sco\*.sco"
+ BF> timeout&=10
+ BF> dInit "Run comms"
+ BF> dFile fname$,"Script:",0
+ BF> dLong timeout&,"Stop after (secs)",5,300
+ BF> if dialog
+ BF> pid%=runsco%:(fname$)
+ BF> if pid%
+ BF> pause timeout&*20
+ BF> call($998d,0,0)         rem wClientPosition
+ BF> giPrint "Terminating comms..."
+ BF> call($0d88,pid%,0,0,0)  rem ProcTerminate
+ BF> endif
+ BF> pause 40
+ BF> endif
+ BF> giPrint "Bye..."
+ BF> pause 40
+ BF> ENDP
+
+ BF> PROC runsco%:(sco$)
+ BF> rem Execute script sco$ and return pid% if successful
+ BF> local pid%
+ BF> local cmdl$(128),appname$(128)
+ BF> local ret%
+ BF> appname$="LOC::C:\APP\COMMS.APP"+chr$(0)
+ BF> cmdl$="OComms"+chr$(0)+".SCO "+chr$(0)+sco$+chr$(0)
+ BF> ret%=call($0187,addr(appname$)+1,addr(cmdl$),0,0,addr(pid%))
+ BF> if ret%<0
+ BF> print(err$(ret%))
+ BF> pid%=0
+ BF> else
+ BF> call($0688,pid%,0,0,0,0)
+ BF> endif
+ BF> return pid%
+ BF> ENDP
+
+ BF> -!-
+ BF>  ! Origin: -=P=I=X=- / Psion Info Xchange (+46-31-960447) (2:203/208)
+
+

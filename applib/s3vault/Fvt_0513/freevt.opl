@@ -1,0 +1,1224 @@
+APP FreeVT
+	TYPE $1002
+	PATH "\fvt"
+	EXT "fvt"
+	ICON "\opd\freevt.pic"
+ENDA
+
+PROC freevt:
+	GLOBAL ver$(3),proc$(8)
+	GLOBAL col%,row%,w1%,w2%,w3%,scrs%,scre%,stat%,bdr%,i%(32),curs%
+	GLOBAL baud%,datab%,pari%,sbit%,handsh%,proto%,le%,cap%,capha%
+	GLOBAL backs%,enter%,fvt$(128)
+	GLOBAL backs$(2),enter$(2),mini$(21),mhang$(21),mdiap$(21),mdias$(21)
+	GLOBAL mcon$(21),merr$(21),moerr$(21),mbusy$(21)
+	GLOBAL ba%(16),lineset%,dtout&,dmaxtry&,gnumb$(21)
+	GLOBAL serial%,SupChgd%
+	LOCAL ent%,n%,n$(3,1),m$(1),c$(7),off%(6),last$(8)
+	LOCAL f%,s%,ky%,km%,t$(4),address%,alen%
+	LOCAL li$(255),lit$(255),p$(255),q$(255)
+	REM setup cache
+	CACHE 5000,7000
+
+	REM clear screen, let user know something is happening
+	CLS
+	GIPRINT "Initialising...",1
+
+	REM Initialise all GLOBAL parameters that are not loaded from 
+	REM settings file
+	ver$="0.5" :REM FreeVT version number
+	col%=1	:REM startcolumn
+	row%=1	:REM startrow
+	scrs%=1	:REM start default scrollingregion
+	scre%=25:REM end
+	lineset%=0			REM line drawing set not selected
+	SupChgd%=0	REM no setup changes yet
+
+	REM load the library .opo file
+	ONERR libhand
+	n$(1)="M"   REM drives to look in
+	n$(2)="A"
+	n$(3)="B"
+	n%=0
+	WHILE n%<=3    REM look through drives for freelib.opo file
+		n%=n%+1
+		IF EXIST("LOC::"+n$(n%)+":\OPO\freelib.opo")
+			BREAK
+		ENDIF
+	ENDWH
+	IF n%>3    REM raise file not found error if n%>3
+		RAISE -33
+	ENDIF
+	LOADM "LOC::"+n$(n%)+":\OPO\freelib.opo"
+	ONERR OFF
+
+	REM open com port - report error if unable to
+	ONERR comhand
+	serial%=IoOpen%:(serial%,"TTY:A",$0000)
+	ONERR OFF
+
+	REM create main window and setup font
+	w1%=gCREATE(0,0,480,150,1,0)
+	gUSE w1%
+	gAT 0,5
+	gFONT 13:gSTYLE 0
+	gINFO i%()
+	vtdef:
+	setcurs:
+
+	REM create status window and setup font
+	w2%=gCREATE(0,151,480,9,1,0)
+	gUSE w2%
+	gAT 0,0
+	gLINETO 480,0
+	gFONT 4:gSTYLE 4
+	gAT 0,8:gPRINT "                         FreeVT v"+ver$+"                         "
+	gAT 0,8
+	gLINETO 480,8
+
+	REM check if we have to open or create a file, and then load
+	REM or save settings as required
+	IF CMD$(3)="O"
+		loadp:(CMD$(2))
+		GIPRINT """"+Nice$:(ParseF$:(fvt$))+""" opened"
+	ELSEIF CMD$(3)="C"
+		savep:(CMD$(2))
+		GIPRINT """"+Nice$:(ParseF$:(fvt$))+""" created"
+	ENDIF
+
+	REM update status, draw border (if required), set port
+	pstat:
+	vtbdr:
+	rsset:(baud%,pari%,datab%,sbit%,11,&FFFFFFFE)
+
+	REM all init is finished, use main window and switch off update
+	gUSE w1%
+	gUPDATE OFF
+
+	REM this is the main loop, switch lock on
+	ONERR errhand
+	LOCK ON
+	recover::					REM Error recovery point
+	DO
+		t$=""
+		ky%=KEY					REM Get key from user IF pressed
+		km%=KMOD				REM Get key modifier as well
+		IF ky%>0 AND ky%<255
+			t$=CHR$(ky%)
+		ENDIF
+
+
+		REM Get line of input from port
+		REM following line changed as was causing a "string to long" error
+		alen%=Check%:(bread%:(UADD(ADDR(li$),1),254,0),0)
+		IF alen%>0
+			POKEB ADDR(li$),alen%
+			REM captures the input if enabled
+			IF (cap% AND 1)=1
+				cap:(li$)
+			ENDIF
+		ELSE
+			li$=""
+			gUPDATE ON
+			gUPDATE OFF
+		ENDIF
+
+		REM local echo routine
+		REM The enter and backspace translates are
+		REM also taken into consideration
+		IF le%=1 AND t$<>""
+			IF t$=CHR$(13)
+				li$=li$+enter$
+			ELSEIF t$=CHR$(8)
+				li$=li$+backs$
+			ELSE
+				li$=li$+t$
+			ENDIF
+		ENDIF
+		IF li$<>""
+			p$=RIGHT$(li$,1)
+			IF ASC(p$)<32
+				li$=LEFT$(li$,LEN(li$)-1)
+			ENDIF
+		ENDIF
+
+		IF li$<>""
+			gAT ((col%-1)*6),((row%*6)-1)
+			IF (col%+LEN(li$))>81
+				lit$=LEFT$(li$,81-col%)
+				li$=RIGHT$(li$,LEN(li$)-(81-col%))
+				IF lineset%	REM Convert to lines
+					str2gph:(ADDR(lit$))
+				ENDIF
+				gPRINTB lit$,(6*LEN(lit$))
+				col%=1
+				row%=row%+1
+				IF row%>scre%
+					gSCROLL 0,-6,0,scrs%*6,479,(scre%*6)-(scrs%*6)
+					REM gSCROLL 0,-6
+					row%=25
+				ENDIF
+				gAT ((col%-1)*6),((row%*6)-1)
+			ENDIF
+			IF lineset%	REM Convert to lines
+				str2gph:(ADDR(lit$))
+			ENDIF
+			gPRINTB li$,LEN(li$)*6
+			col%=col%+LEN(li$)
+		ENDIF
+
+		REM handle all control characters.
+		REM this will work for any length of
+		REM p$ due to the while/endwh loop
+		REM important so we can handle CR+LF as one string
+		IF p$<>""
+			q$=p$					REM store p$ in q$
+			WHILE LEFT$(q$,1)<>""	REM loop till q$ finished
+				p$=LEFT$(q$,1)		REM p$ = first char in q$
+				q$=RIGHT$(q$,LEN(q$)-1)	REM reduce q$ by 1
+				IF ASC(p$)<32
+					IF p$=CHR$(27)			REM Check for escape sequence
+						intervt:
+					ELSEIF p$=CHR$(13)	REM CR
+						col%=1
+					ELSEIF p$=CHR$(10)	REM LF
+						row%=row%+1
+					ELSEIF p$=CHR$(9)		REM	TAB
+						col%=((((col%-1)/8)+1)*8)+1
+					ELSEIF p$=CHR$(8)		REM BS
+						backsp:
+					ELSEIF p$=CHR$(7)		REM BELL
+						BEEP 5,300
+					ENDIF
+				ELSE
+					IF p$=CHR$(127)			REM DEL
+						delete:
+					ENDIF
+				ENDIF
+				gAT ((col%-1)*6),((row%*6)-1)
+				p$=""
+			ENDWH
+		ENDIF
+
+		REM scroll screen and set limits
+		IF col%<1
+			col%=1
+		ELSEIF col%>81
+			col%=1
+			row%=row%+1
+		ENDIF
+		IF row%<scrs%
+			row%=scrs%
+		ELSEIF row%>scre%
+			gSCROLL 0,-6,0,scrs%*6,479,(scre%*6)-(scrs%*6)
+			REM gSCROLL 0,-6
+			row%=scre%
+		ENDIF
+
+		REM handle special user input
+		IF ky%>255
+			IF ky%>255 AND ky%<260
+				t$=CHR$(27)+"["+CHR$(ky%-191)
+			ELSEIF ky%=290			REM Menu
+				ky%=vtmenu:(0)
+			ELSEIF ky%=291 and km%=0	REM Help
+				vthelp:(1,1)
+			ELSEIF ky%=291 and km%=8	REM Dial
+				mdial:
+			ELSEIF ky%>512 AND ky%<768 AND ky%<>632
+				IF km%=10
+					ky%=ky%-(%a-%A)
+				ENDIF
+				ky%=vtmenu:(ky%)
+			ENDIF
+		ENDIF
+		IF t$<>""
+			ent%=0
+			IF t$=CHR$(8)
+				t$=backs$				
+			ELSEIF t$=CHR$(13)
+				t$=enter$				
+				ent%=-1
+			ENDIF
+			alen%=LEN(t$)
+			IOA(serial%,2,stat%,#UADD(ADDR(t$),1),alen%)
+			IOSIGNAL
+		ENDIF
+	UNTIL (ky%=632)
+
+	REM End of program
+	REM Check if settings have changed and inform user if so
+	IF SupChgd%
+		DO
+			dINIT "Settings have changed: save?"
+			dBUTTONS "No",%N,"Yes",%Y
+			ky%=lastKey:(DIALOG)
+			IF ky%=291
+				vthelp:(6,1)
+			ELSEIF ky%=%y
+				ky%=saveSet:
+				IF ky%=27  REM force loop when saveSet quit with Esc
+					ky%=291
+				ENDIF
+			ENDIF
+		UNTIL ky%<>291 
+	ENDIF
+	LOCK OFF
+	Check%:(IOCLOSE(serial%),0)
+	UNLOADM "\opo\freelib.opo"
+	STOP
+
+	errhand::		REM Error handling for main loop
+	errdia:("General FreeVT error","Caught in PROC "+proc$,ERR$(ERR))
+	GOTO recover
+
+	comhand::  REM Error handler for opening com port
+	errdia:("Cannot open comms port",ERR$(ERR),"")
+	STOP
+
+	libhand::  REM Error handler for opening library file
+	errdia:("Cannot open library file",ERR$(ERR),"")
+	STOP
+ENDP
+
+REM Procedure to interpret vt100 sequences
+REM It currently waits until it receives a valid LAST character
+PROC intervt:
+	LOCAL i$(255),vs$(100),t$(100),px%,py%,m%,ti%
+	LOCAL setchar%,last$(8)
+	last$=proc$
+	proc$="intervt"
+	ti%=SECOND
+	ti%=ti%+2		REM 2 second wait for vt100 escape sequence
+	IF ti%>60
+		ti%=ti%-60
+	ENDIF
+	setchar%=0
+	vs$=""
+
+	DO
+		i$=""		REM Reset i$
+		REM Read one char, no wait; set string size
+		POKEB ADDR(i$),Check%:(bread%:(UADD(ADDR(i$),1),1,0),0)
+		IF i$<>""
+			REM captures the input if enabled
+			IF (cap% AND 1)=1
+				cap:(i$)
+			ENDIF
+			vs$=vs$+i$
+			IF i$="("		REM selecting char set
+				setchar%=1
+			ELSEIF setchar% AND LOC("0B",i$)
+				BREAK
+			ENDIF
+		ENDIF
+	UNTIL (i$<>"") AND (LOC("RSnHrqxCDABfhlIEu=)mgKJPLMic>",i$)) OR ti%=SECOND
+
+	IF vs$="(A" OR vs$="(B"						REM select standard char set
+		lineset%=0
+	ELSEIF vs$="(0"										REM select line drawing
+		lineset%=1
+	ELSEIF vs$="[J" OR vs$="[0J"			REM Clear to end of page
+		gSCROLL 0,(26-row%)*6,0,row%*6,479,(26-row%)*6
+		gAT (col%-1)*6,(row%*6)-1
+		gPRINTB "",((81-col%)*6)
+		gAT (col%-1)*6,(row%*6)-1
+	ELSEIF vs$="[1J"							REM Erase beginning of screen to CURSOR
+		gSCROLL 0,-6*(row%-1),0,0,479,6*(row%-1)
+		gAT 0,((row%*6)-1)
+		gPRINTB "",((col%-1)*6)
+		gAT (col%-1)*6,(row%*6)-1
+	ELSEIF vs$="[2J"							REM Clear screen
+		gCLS
+		REM col%=1
+		REM row%=1
+	ELSEIF vs$="[7m"							REM Inverse on
+		gSTYLE 4
+	ELSEIF vs$="[4m"							REM Underline on
+		gSTYLE 2
+REM	ELSEIF vs$="[1m"							REM Bold on
+REM		gSTYLE 1
+	ELSEIF vs$="[m" OR vs$="[0m"	REM Reset to normal
+		gSTYLE 0
+	ELSEIF vs$="[c" OR vs$="[0c"
+		wmodem:(CHR$(27)+"[?1;0c")
+	ELSEIF LEFT$(vs$,1)="[" AND RIGHT$(vs$,1)="A"	REM Up
+		IF (LEN(vs$)-2)>0
+			t$=MID$(vs$,2,LEN(vs$)-2)
+			row%=row%-VAL(t$)
+		ELSE
+			row%=row%-1
+		ENDIF
+		IF row%<scrs%
+			row%=scrs%
+		ENDIF
+	ELSEIF LEFT$(vs$,1)="[" AND RIGHT$(vs$,1)="B"	REM Down
+		IF (LEN(vs$)-2)>0
+			t$=MID$(vs$,2,LEN(vs$)-2)
+			row%=row%+VAL(t$)
+		ELSE
+			row%=row%+1
+		ENDIF
+		IF row%>scre%
+			row%=scre%
+		ENDIF
+	ELSEIF LEFT$(vs$,1)="[" AND RIGHT$(vs$,1)="C"	REM Right
+		IF (LEN(vs$)-2)>0
+			t$=MID$(vs$,2,LEN(vs$)-2)
+			col%=col%+VAL(t$)
+		ELSE
+			col%=col%+1
+		ENDIF
+		IF col%>80
+			col%=80
+		ENDIF
+	ELSEIF LEFT$(vs$,1)="[" AND RIGHT$(vs$,1)="D"	REM Left
+		IF (LEN(vs$)-2)>0
+			t$=MID$(vs$,2,LEN(vs$)-2)
+			col%=col%-VAL(t$)
+		ELSE
+			col%=col%-1
+		ENDIF
+		IF col%<1
+			col%=1
+		ENDIF
+	REM Cursor positioning
+	REM use only this code for cursor positioning
+	ELSEIF LEFT$(vs$,1)="[" AND ((RIGHT$(vs$,1)="f") OR (RIGHT$(vs$,1)="H"))
+		vs$=MID$(vs$,2,LEN(vs$)-2)
+		m%=LOC(vs$,";")
+		IF m%=0
+			IF LEN(vs$)=0		REM just [H
+				col%=1
+				row%=1
+			ELSE			REM for [nH
+				col%=1
+				row%=VAL(vs$)
+			ENDIF
+		ELSE
+			IF m%>1			REM for [n;H
+				row%=VAL(LEFT$(vs$,(m%-1)))
+				IF row%<1
+					row%=1
+				ENDIF
+			ELSEIF m%=1	REM for [;nH
+				row%=1
+			ENDIF
+			IF m%<LEN(vs$)
+				col%=VAL(RIGHT$(vs$,LEN(vs$)-m%))
+				IF col%<1
+					col%=1
+				ENDIF
+			ELSE			REM For [n;H
+				col%=1
+			ENDIF
+		ENDIF
+	ELSEIF vs$="[K" OR vs$="[0K"	REM Clear to end of line
+		gAT (col%-1)*6,(row%*6)-1
+		gPRINTB "",((81-col%)*6)
+		gAT (col%-1)*6,(row%*6)-1
+	ELSEIF vs$="[1K"		REM Clear from beg. of line to CURSOR
+		gAT 0,((row%*6)-1)
+		gPRINTB "",((col%-1)*6)
+		gAT (col%-1)*6,(row%*6)-1
+	ELSEIF vs$="[2K"		REM Clear entire line, don't move CURSOR
+		gAT 0,((row%*6)-1)
+		gPRINTB "",(80*6)
+		gAT (col%-1)*6,(row%*6)-1
+					REM Insert 1 to n lines
+	ELSEIF LEFT$(vs$,1)="[" AND RIGHT$(vs$,1)="L"
+		py%=1
+		IF LEFT$(vs$,1)="[" AND LEN(vs$)>2
+			vs$=MID$(vs$,2,LEN(vs$)-2)
+			py%=VAL(vs$)
+		ENDIF
+		gSCROLL 0,py%*6,0,row%*6,479,(scre%*6)-((row%*6)-1)
+					REM Set scrolling-region
+	ELSEIF LEFT$(vs$,1)="[" AND RIGHT$(vs$,1)="r"
+		vs$=MID$(vs$,2,LEN(vs$)-2)
+		IF vs$<>"" AND LOC(vs$,";")
+			m%=LOC(vs$,";")
+			scrs%=VAL(LEFT$(vs$,m%-1))
+			scre%=VAL(RIGHT$(vs$,LEN(vs$)-m%))
+			IF scrs%>25
+				scrs%=25
+			ELSEIF scrs%<1
+				scrs%=1
+			ENDIF
+			IF scre%>25
+				scre%=25
+			ELSEIF scre%<1
+				scre%=1
+			ENDIF
+			row%=1
+			col%=1
+			gAT ((col%-1)*6),((row%*6)-1)
+		ENDIF
+	ELSEIF vs$="D"			REM Line feed
+		row%=row%+1
+		IF row%>scre%
+			row%=scre%
+			gSCROLL 0,-6,0,scrs%*6,479,(scre%*6)-(scrs%*6)
+		ENDIF
+	ELSEIF vs$="M"			REM Reverse line feed
+		row%=row%-1
+		IF row%<scrs%
+			row%=scrs%
+			gSCROLL 0,6,0,(scrs%-1)*6,479,(scre%*6)-(scrs%*6)
+		ENDIF
+	ELSEIF vs$="E"			REM CR and LF
+		row%=row%+1
+		IF row%>scre%
+			gSCROLL 0,6,0,(scrs%-1)*6,479,(scre%*6)-(scrs%*6)
+			REM gSCROLL 0,-6
+			row%=scre%
+		ENDIF
+	ELSEIF vs$="c"			REM Reset
+		gUSE w1%
+		gCLS
+		row%=1
+		col%=1
+		gAT ((col%-1)*6),((row%*6)-1)
+		gSTYLE 0
+		scrs%=1
+		scre%=25
+		CURSOR w1%,5,6,6,1
+	ELSEIF vs$="[?25l" OR vs$="[?50l"
+		CURSOR OFF
+	ELSEIF vs$="[?25h" OR vs$="[?50h"
+		CURSOR w1%,5,6,6,1
+	ENDIF
+	proc$=last$
+ENDP
+
+PROC delete:
+	LOCAL last$(8)
+	last$=proc$
+	proc$="delete"
+	col%=col%-1
+	IF col%<1
+		col%=80
+		row%=row%-1
+		IF row%<scrs%
+			row%=scrs%
+			col%=1
+		ENDIF
+	ENDIF
+	gAT ((col%-1)*6),((row%*6)-1)
+	proc$=last$
+ENDP
+
+PROC backsp:
+	LOCAL last$(8)
+	last$=proc$
+	proc$="backsp"
+	col%=col%-1
+	IF col%<1
+		col%=80
+		row%=row%-1
+		IF row%<scrs%
+			row%=scrs%
+			col%=1
+		ENDIF
+	ENDIF
+	gAT ((col%-1)*6),((row%*6)-1)
+	proc$=last$
+ENDP
+
+
+PROC vtmenu:(key%)
+	LOCAL men%,ky%,bdr$(3),fi$(128),last$(8)
+	LOCAL temp$(10),temp2$(10),x%(5)
+	LOCAL t1%,t2%,t3%,t4%
+	LOCAL ret%,handle%,mode%,ctrl%,cap$(3)
+	LOCAL mdnum$(20),mrepeat&,mdelay&
+	last$=proc$
+	proc$="vtmenu"
+	ky%=0
+
+	REM border menu text
+	IF bdr%=1
+		bdr$="off"	REM is on, now turn off
+	ELSE
+		bdr$="on"	REM is off, now turn on
+	ENDIF
+
+	REM Capture menu text
+	IF cap%=1 AND 1
+		cap$="off"
+	ENDIF
+
+	IF key%=0
+		mINIT
+		mCARD "File","Load settings",%L,"Save settings",%o
+		mCARD "Screen","Clear screen",%y,"Reset terminal",%R,"Border "+bdr$,%n
+		mCARD "Transfer","Protocol",%p,"Transmit",%t,"Receive",%r,"Capture "+cap$,%c
+		mCARD "Modem","Initialize",%i,"Dial",%d,"Setup-modem",%u,"Setup-dial",%N
+		mCARD "Special","Port",%j,"Handshakes",%k,"Translates",%f,"Hangup",-%h,"About",%a,"Exit",%x
+		men%=lastkey:(MENU)
+	ELSE
+		men%=key%-512
+	ENDIF
+
+	IF men%=%L	REM File Load Settings
+		fi$=fvt$
+		DO
+			dINIT "Load settings"
+			dFILE fi$,"From",208
+			ky%=lastkey:(DIALOG)
+			IF ky%=291
+				vthelp:(6,1)
+			ELSEIF ky%<>27
+				loadp:(fi$)
+				pstat:
+				vtbdr:
+			ENDIF
+		UNTIL ky%<>291
+
+	ELSEIF men%=%o	REM File Save Settings
+		saveSet:
+
+	ELSEIF men%=%y	REM Screen Clear screen
+		gCLS
+		row%=1
+		col%=1
+		gAT ((col%-1)*6),((row%*6)-1)
+
+	ELSEIF men%=%R	REM Screen Reset terminal
+		gUSE w1%
+		gCLS
+		row%=1
+		col%=1
+		gAT ((col%-1)*6),((row%*6)-1)
+		gSTYLE 0
+		scrs%=1
+		scre%=25
+		setcurs:
+
+	ELSEIF men%=%n	REM Screen Border on/off
+		REM toggle border on/off
+		IF bdr%=1 
+			bdr%=0
+		ELSE
+			bdr%=1
+		ENDIF
+		SupChgd%=-1
+		vtbdr:
+
+	ELSEIF men%=%C  REM Screen Cursor
+		REM cursor options are bit-mapped.
+		REM see setcurs:
+		t1%=((curs% AND 2)/2)+1
+		curs%=(curs% AND 48)/16
+		DO
+			dINIT "Select cursor"
+			dCHOICE curs%,"Cursor","Block,Underline,Bar"
+			dCHOICE t1%,"Blink","On,Off"
+			ky%=lastKey:(DIALOG)
+			IF ky%=291
+				vthelp:(7,1)
+			ELSEIF ky%<>27
+				SupChgd%=-1
+				curs%=(curs%*16) OR ((t1%-1)*2)
+				setcurs:
+			ENDIF
+		UNTIL ky%<>291
+
+	ELSEIF men%=%p	REM Transfer Protocol
+		DO
+			dINIT "Select protocol"
+			dCHOICE proto%,"","ASCII,Xmodem,Xmodem CRC,Xmodem CRC (1K),Xmodem Checksum,Ymodem,Ymodem (1K),YModem-G,Ymodem-G (1K)"
+			ky%=lastkey:(DIALOG)
+			IF ky%=291
+				vthelp:(8,1)
+			ELSEIF ky%<>27
+				SupChgd%=-1
+			ENDIF
+		UNTIL ky%<>291
+
+	ELSEIF men%=%t	REM Transfer Transmit
+		sendfl:
+
+	ELSEIF men%=%r	REM Transfer Receive
+		recvfl:
+
+	ELSEIF men%=%c	REM Transfer Capture
+		IF cap% AND 1
+			REM if on, toggle off, keep ctrl setting
+			cap%=cap% AND 6
+			Check%:(IOCLOSE(capha%),0)
+			GIPRINT "Capture off"
+		ELSE
+			t1%=(cap% AND 4)+1
+			t2%=(cap% AND 2)+1
+			fi$="\WRD\fvtcap.txt"
+			DO
+				dINIT "Capture to file"
+				REM Use edit box, prompt existing files
+				dFILE fi$, "To", 3
+				dCHOICE t1%,"Append","No,Yes"
+				dCHOICE t2%,"Show control chars","No,Yes"
+				ky%=lastKey:(DIALOG)
+				IF ky%=291
+					vthelp:(8,1)
+				ELSEIF ky%=27
+					proc$=last$
+					RETURN men%
+				ENDIF
+
+				REM check for file exist and no append
+				IF ky%<>291 AND t1%=1 AND EXIST(fi$)
+					ky%=fiOvWr:
+					IF ky%=27
+						ky%=291	REM force loop back
+					ELSEIF ky%=%n
+						proc$=last$
+						RETURN men%
+					ENDIF
+				ENDIF
+
+				REM open file
+				IF ky%<>291
+					IF IOOPEN(capha%,fi$,257+t1%)
+						errdia:("Cannot open capture file",ERR$(ret%),"")
+						ky%=291	REM force loop back
+					ENDIF
+				ENDIF
+			UNTIL ky%<>291
+			cap%=((t1%-1)*4) + ((t2%-1)*2) + 1		REM store choices
+			IF cap%<>t3%  REM register if changed
+				SupChgd%=-1
+			ENDIF
+		ENDIF
+		pstat:
+
+	ELSEIF men%=%i	REM Modem Initialize
+		wmodem:(mini$)
+
+	ELSEIF men%=%d	REM Modem Dial
+		mdial:
+
+	ELSEIF men%=%u	REM Modem Setup-modem
+		DO
+			dINIT "Setup modem"
+			dTEXT "","'~' = CR (13), '^' = LF (10)",$200
+			dEDIT mini$,"Init",20
+			dEDIT mhang$,"Hangup",20
+			dEDIT mcon$,"Connect string",20
+			dEDIT merr$,"Modem error",20
+			dEDIT moerr$,"Other error",20
+			dEDIT mbusy$,"Busy string",20
+			ky%=lastkey:(DIALOG)
+			IF ky%=291
+				vthelp:(9,1)
+			ELSEIF ky%<>27
+				SupChgd%=-1
+			ENDIF
+		UNTIL ky%<>291
+
+	ELSEIF men%=%N	REM Modem Setup-dial
+		REM Note that the "dial timeout" has been changed to include
+		REM time BETWEEN dials.  Modems already have their own timeout.
+		REM Someone who wants to try dialing every minute would set
+		REM the timeout to 60.
+		DO
+			dINIT "Setup dial"
+			dTEXT "","'~' = CR (13), '^' = LF (10)",$200
+			dEDIT mdiap$,"Dial prefix",20
+			dEDIT mdias$,"Dial suffix",20
+			dLONG dtout&,"Dial timeout (sec)",30,300
+			dLONG dmaxtry&,"Dial max-tries",1,100
+			IF ky%=291
+				vthelp:(9,1)
+			ELSEIF ky%<>27
+				SupChgd%=-1
+			ENDIF
+		UNTIL ky%<>291
+
+	ELSEIF men%=%j	REM Special Port
+		pari%=pari%+1
+		datab%=datab%-4
+		DO
+			dINIT "Set Serial port"
+			dCHOICE baud%,"Baud rate","50,75,110,134,150,300,600,1200,1800,2000,2400,3600,4800,7200,9600,19200"
+			dCHOICE datab%,"Data bits","5,6,7,8"
+			dCHOICE sbit%,"Stop bits","1,2"
+			dCHOICE pari%,"Parity","None,Even,Odd"
+			ky%=lastKey:(DIALOG)
+			IF ky%=291
+				vthelp:(10,1)
+			ENDIF
+		UNTIL ky%<>291
+		pari%=pari%-1
+		datab%=datab%+4
+		IF ky%<>27
+			SupChgd%=-1
+			pstat:
+			rsset:(baud%,pari%,datab%,sbit%,handsh%,&FFFFFFFE)
+		ENDIF
+
+	ELSEIF men%=%k	REM Special Handshakes
+		REM handshaking control
+		REM $nn = hex value!!
+		REM OBEY_XOFF $01 /* respond to received XOFF (and XON) if set */
+		REM SEND_XOFF $02 /* send XOFF/XON to control receive buffer if set */
+		REM IGN_CTS   $04 /* ignore the state of CTS if set */
+		REM OBEY_DSR  $08 /* obey the state of DSR if set */
+		REM FAIL_DSR  $10 /* fail if DSR goes OFF if set */ (NOT USED)
+		REM OBEY_DCD  $20 /* obey the state of DCD if set */
+		REM FAIL_DCD  $40 /* fail if DCD goes OFF if set */ (NOT USED)
+		t1%=(handsh% AND 3)+1
+		t2%=(handsh% AND 4)+1
+		t3%=(handsh% AND 8)+1
+		t4%=(handsh% AND 32)+1
+		DO
+			dINIT  "Set serial handshake"
+			dCHOICE t1%,"Xon/Xoff","Off,On"
+			dCHOICE t2%,"Rts/Cts","On,Off"	REM IGN_CTS, thus inverted
+			dCHOICE t3%,"Dtr/Dsr","Off,On"
+			dCHOICE t4%,"Dcd","Off,On"
+			ky%=lastkey:(DIALOG)
+			IF ky%=291
+				vthelp:(10,1)
+			ELSEIF ky%<>27
+				SupChgd%=-1
+				handsh%=((t1%-1)*3) + ((t2%-1)*4) + ((t3%-1)*8) + ((t4%-1)*32)
+				rsset:(baud%,pari%,datab%,sbit%,handsh%,&FFFFFFFE)
+			ENDIF
+		UNTIL ky%<>291
+
+	ELSEIF men%=%f	REM Special Translates
+		REM convert enter$ and backs$ to text strings
+		cvtsshx:(enter$,ADDR(temp$))
+		cvtsshx:(backs$,ADDR(temp2$))
+		trans::
+		DO
+			dINIT "Translate options"
+			dCHOICE le%,"Local echo","On,Off"
+			dEDIT temp$,"Enter key"
+			dEDIT temp2$,"Backspace key"
+			ky%=lastKey:(DIALOG)
+			IF ky%=291
+				vthelp:(10,1)
+			ELSEIF ky%=27
+				proc$=last$
+				RETURN men%
+			ENDIF
+		UNTIL ky%<>291
+
+		SupChgd%=-1
+		REM convert enter
+		IF cvthxs:(temp$,ADDR(enter$))
+			GIPRINT "Invalid value"
+			GOTO trans::
+		ENDIF
+		REM convert backspace
+		IF cvthxs:(temp2$,ADDR(backs$))
+			GIPRINT "Invalid value"
+			GOTO trans::
+		ENDIF
+
+	ELSEIF men%=%h	REM Special Hangup
+		BUSY "Disconnecting..."
+		rsset:(baud%,pari%,datab%,sbit%,4,&FFFFFFFE)
+		PAUSE 40
+		rsset:(baud%,pari%,datab%,sbit%,handsh%,&FFFFFFFE)
+		PAUSE 10
+		REM this would be better done using an embedded "pause" char in mhang$
+		REM it would allow user defined "attention" characters
+		wmodem:("+++")
+		PAUSE 20
+		wmodem:(mhang$)
+		PAUSE 10
+		BUSY OFF
+
+	ELSEIF men%=%z	REM Special Zoom in
+		sorry:("Zoom in")
+
+	ELSEIF men%=%Z	REM Special Zoom out
+		sorry:("Zoom out")
+
+	ELSEIF men%=%a	REM Special About
+		DO
+			dINIT "FreeVT  v"+ver$	
+			dTEXT "","VT100 terminal emulator for the Psion 3a",2
+			dTEXT "","This program is freeware !",2
+			dTEXT ""," "
+			dTEXT "","Main idea and program by Nils Faerber",2
+			dTEXT "","Additions by Jochen Siegenthaler and Darren Smith",2
+			dTEXT ""," ",2
+			dTEXT "Support:","ml-freevt@vespa.unix-ag.uni-siegen.de",2
+			dTEXT "On the Web:","http://vespa.unix-ag.uni-siegen.de/~nils/freevt.html",2
+			ky%=lastkey:(DIALOG)
+			IF ky%=291
+				vthelp:(3,1)
+			ENDIF
+		UNTIL ky%<>291
+
+	ELSEIF men%=%x	REM Special Exit
+		men%=632
+
+	ELSEIF men%=291	REM Help
+		vthelp:(4,1)
+
+	ENDIF
+
+	proc$=last$
+	RETURN men%
+ENDP
+
+REM Receive one file
+PROC recvfl:
+	LOCAL buffer%(512),len%,address%,ret%,last$(8)
+	LOCAL fi$(128),handle%,mode%,type%,framesz%
+	LOCAL pmt$(8),ky%
+	last$=proc$
+	proc$="recvfl"
+	address%=ADDR(buffer%())
+	framesz%=1024
+	fi$="\wrd\"
+	DO
+		dINIT "Receive file"
+		IF proto%<6
+			pmt$="To Name"
+			REM Use edit box, prompt existing files
+			mode%=1+16
+		ELSE
+			pmt$="To Dir"
+			REM edit box, directories only
+			mode%=1+2+4
+		ENDIF
+		dFILE fi$, pmt$, mode%
+		ky%=lastkey:(DIALOG)
+		IF ky%=291
+			vthelp:(8,1)
+		ENDIF
+	UNTIL ky%<>291
+
+	IF ky%=27	REM return if Esc was pressed
+		proc$=last$
+		RETURN
+	ENDIF
+
+	ONERR Done
+	IF proto%>1		REM X or Ymodem
+		BUSY "Connecting..."
+		IF NOT LDexist%:("XMD") OR NOT LDexist%:("YMD")
+			LoadLDD%:("C:\IMG\Sys$xmym")
+		ENDIF
+		ONERR KillLDD
+		IF proto%<6	REM Open XModem driver
+      serial%=IoOpen%:(serial%,"XMD:",-1)
+		ELSE				REM Open YModem driver
+      serial%=IoOpen%:(serial%,"YMD:",-1)
+		ENDIF
+		ONERR CloseDrv
+		type%=1			REM receive
+		REM set framesize & mode
+		VECTOR proto%
+			LAS
+			LXM,LXC,LXCK,LXCS
+			LYM,LYK,LYG,LYGK
+		ENDV
+		LAS::
+			goto endlist	REM default action
+		LXM::
+			REM XModem CRC IF supported, otherwise checksum
+			framesz%=128
+			mode%=0			:goto endlist
+		LXC::
+			REM XModem CRC
+			framesz%=128
+			mode%=1			:goto endlist
+		LXCK::
+			REM XModem CRC (1K)
+			mode%=$8001	:goto endlist
+		LXCS::
+			REM XModem Checksum
+			framesz%=128
+			mode%=2			:goto endlist
+		LYM::
+			REM YModem Error correcting
+			framesz%=128
+			mode%=3			:goto endlist
+		LYK::
+			REM YModem (1K)
+			mode%=$8003	:goto endlist
+		LYG::
+			REM YModem-G
+			framesz%=128
+			mode%=4			:goto endlist
+		LYGK::
+			REM YModem-G (1K)
+			mode%=$8004
+		endlist::
+		REM make connection
+		Check%:(IOW(serial%,10,type%,mode%),0)
+		ONERR DisCon
+		IF proto%>5	REM Ymodem
+			REM get first frame, timeout after 20 secs
+			len%=Check%:(bread%:(address%,128,20),0)
+			REM Get filename from Ymodem frame
+			fi$=fi$+PEEK$(address%)
+		ENDIF
+	ENDIF
+	REM create/replace file ($0002), update($0100)
+	mode%=$0002 OR $0100
+	Check%:(IOOPEN(handle%,fi$,mode%),0)
+	ONERR CloseFl
+	BUSY "Receiving..."
+	DO
+		REM read upto framesz% chars, 10 sec timeout
+		len%=Check%:(bread%:(address%,framesz%,10),0)
+		IF len%>0
+			Check%:(IOWRITE(handle%,address%,len%),0)
+		ENDIF
+	UNTIL len%=0 OR KEY=27
+	BUSY OFF
+	IF len%=0
+		errdia:("Transfer complete","","")
+	ELSE
+		errdia:("Transfer interrupted","","")
+	ENDIF
+
+CloseFl::
+	ONERR DisCon
+	REM Close received file
+	Check%:(IOCLOSE(handle%),0)
+DisCon::
+	IF proto%>1
+		ONERR CloseDrv
+		REM disconnect
+		IOW(serial%,11,#0,#0)
+CloseDrv::
+		ONERR KillLDD
+		REM close wrapped driver
+		Check%:(IOCLOSE(serial%),0)
+KillLDD::
+		ONERR Done
+		REM Remove Logical Driver(s)
+		RemLDD%:("XMD") :REM Always safe
+		RemLDD%:("YMD") :REM Always safe
+	ENDIF
+Done::	
+	BUSY OFF
+	ONERR OFF
+	IF ERR
+		errdia:("Could not receive file",ERR$(ERR),"")
+	ENDIF
+	proc$=last$
+ENDP
+
+REM Send file(s)
+PROC sendfl:
+	LOCAL fi$(128),ky%,last$(8)
+	last$=proc$
+	proc$="sendfl"
+	ONERR Done
+	fi$="\wrd\*.*"
+	DO
+		dINIT "Transmit file"
+		REM Use matching file selector
+		dFILE fi$, "From", 0
+		ky%=lastkey:(DIALOG)
+		IF ky%=291
+			vthelp:(8,1)
+		ENDIF
+	UNTIL ky%<>291
+
+	IF ky%=27 REM return if Esc was pressed
+		proc$=last$
+		RETURN
+	ENDIF
+
+	IF proto%>1		REM X or Ymodem
+		REM Load driver
+		IF NOT LDexist%:("XMD") OR NOT LDexist%:("YMD")
+			LoadLDD%:("C:\IMG\Sys$xmym")
+		ENDIF
+		ONERR KillLDD
+		IF proto%<6	REM Open XModem driver
+      serial%=IoOpen%:(serial%,"XMD:",-1)
+		ELSE				REM Open YModem driver
+      serial%=IoOpen%:(serial%,"YMD:",-1)
+		ENDIF
+		ONERR CloseDrv
+	ENDIF
+	REM Support for sending multiple files would go here
+	REM (Connection for each file is done by sendone)
+	sendone%:(fi$)
+	IF proto%>5	REM Ymodem
+		sendone%:("")	REM send Ymodem Quit
+	ENDIF
+DisCon::
+	IF proto%>1
+		ONERR CloseDrv
+		REM disconnect after file(s) has been sent
+		IOW(serial%,11,#0,#0)
+CloseDrv::
+		ONERR KillLDD
+		REM close wrapped driver
+		Check%:(IOCLOSE(serial%),0)
+KillLDD::
+		ONERR Done
+		REM Remove Logical Driver(s)
+		RemLDD%:("XMD") :REM Always safe
+		RemLDD%:("YMD") :REM Always safe
+	ENDIF
+Done::
+	ONERR OFF
+	IF ERR
+		errdia:("Could not send file",ERR$(ERR),"")
+	ENDIF
+	proc$=last$
+ENDP
+
+REM Send named file
+PROC sendone%:(fi$)
+	LOCAL buffer%(512),len%,address%,ret%,last$(8)
+	LOCAL handle%,type%,mode%,framesz%
+	LOCAL bname$(14),o%(8),flen&,zero&,i%
+	last$=proc$
+	proc$="sendone"
+	ONERR Done
+	address%=ADDR(buffer%())
+	framesz%=1024
+	IF fi$<>""
+		REM open existing file, share mode
+		mode%=$0000 OR $0400
+		Check%:(IOOPEN(handle%,fi$,mode%),0)
+		REM get basic file name & length for Ymodem
+		PARSE$(fi$,"",o%())
+		bname$=MID$(fi$,o%(4),14)
+		IOSEEK(handle%,2,flen&)
+		IOSEEK(handle%,1,zero&)
+	ENDIF
+	IF proto%>1		REM X or Ymodem
+		BUSY "Connecting..."
+		type%=0			REM transmit
+		REM set framesize & mode%
+		VECTOR proto%
+			LAS
+			LXM,LXC,LXCK,LXCS
+			LYM,LYK,LYG,LYGK
+		ENDV
+		LAS::
+			goto endlist	REM default action
+		LXM::
+			REM XModem CRC IF supported, otherwise checksum
+			framesz%=128
+			mode%=0			:goto endlist
+		LXC::
+			REM XModem CRC
+			framesz%=128
+			mode%=1			:goto endlist
+		LXCK::
+			REM XModem CRC (1K)
+			mode%=$8001	:goto endlist
+		LXCS::
+			REM XModem Checksum
+			framesz%=128
+			mode%=2			:goto endlist
+		LYM::
+			REM YModem Error correcting
+			framesz%=128
+			mode%=3			:goto endlist
+		LYK::
+			REM YModem (1K)
+			mode%=$8003	:goto endlist
+		LYG::
+			REM YModem-G
+			framesz%=128
+			mode%=4			:goto endlist
+		LYGK::
+			REM YModem-G (1K)
+			mode%=$8004
+		endlist::
+		REM make connection
+		Check%:(IOW(serial%,10,type%,mode%),0)
+	ENDIF
+	IF proto%>5		REM Ymodem
+		REM send initial Ymodem frame
+		REM filename is a NULL terminated c-string
+		POKE$ address%,bname$+CHR$(0)+gen$(flen&,20)
+		Check%:(bwrite%:(address%,128),0)
+	ENDIF
+	REM Did we just send a Ymodem quit?
+	IF fi$=""
+		proc$=last$
+		RETURN
+	ENDIF
+	BUSY "Sending..."
+	DO
+		REM read upto framesz% bytes
+		len%=Check%:(IOREAD(handle%,address%,framesz%),-36)
+		IF len%>=0
+			REM write len% bytes to device
+			Check%:(bwrite%:(address%,len%),0)
+		ENDIF
+	UNTIL len%=-36 OR KEY=27
+	IF proto%=1		REM ASCII
+		DO	REM flush input buffer
+			ret%=Check%:(bread%:(address%,1024,0),0)
+		UNTIL ret%=0
+	ELSEIF proto%>5	REM Ymodem
+		REM Transmit end of data
+		Check%:(bwrite%:(address%,0),0)
+	ENDIF
+	BUSY OFF
+	IF len%=-36
+		errdia:("Transfer complete","","")
+	ELSE
+		errdia:("Transfer interrupted","","")
+	ENDIF
+
+CloseFl::
+	ONERR Done
+	REM close file
+	Check%:(IOCLOSE(handle%),0)
+Done::
+	BUSY OFF
+	ONERR OFF
+	IF ERR
+		errdia:("Error in sendone:",ERR$(ERR),"")
+	ENDIF
+	proc$=last$
+ENDP
+
+PROC errdia:(t$,l1$,l2$)
+	REM A standard little error dialog.
+	REM Use this to raise any errors.
+	REM No help support, 1 continue button
+	REM Supply title, but l1$ and l2$ are optional
+	REM (use l1$ and l2$ for comments and ERR$!)
+	REM t$  = title
+	REM l1$ = line 1
+	REM l2$ = line 2
+	dINIT t$
+	IF l1$<>"" :dTEXT "",l1$,2 :ENDIF
+	IF l2$<>"" :dTEXT "",l2$,2 :ENDIF
+	dBUTTONS "Continue",-27
+	DIALOG
+ENDP
+
+REM Translates a string into graphic chars
+REM You MUST send the address of a string or bad things happen!
+PROC str2gph:(addr%)
+	LOCAL set1fr$(11),set1to$(11),last$(8)
+	LOCAL len%,i%,pos%
+	last$=proc$
+	proc$="str2gph"
+	set1fr$="lkmjnxqtuvw"
+	set1to$="Ú¿ÀÙÅ³ÄÃ´ÁÂ"
+	i%=1
+	len%=PEEKB(addr%)		REM len stored in first byte
+	WHILE	i%<=len%
+		pos%=LOC(set1fr$,MID$(PEEK$(addr%),i%,1))
+		IF pos%>0
+			POKEB UADD(addr%,i%),PEEKB(UADD(ADDR(set1to$),pos%))
+		ENDIF
+		i%=i%+1
+	ENDWH
+	proc$=last$
+ENDP
+

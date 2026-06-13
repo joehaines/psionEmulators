@@ -1,0 +1,72 @@
+!
+! Improved logon script for CIX and Dacom Quad modem
+!
+    INFO "Improved CIX Logon"
+    SETUP ( Baud=9600 :Stop=1 :Parity=none :Handshake=XonXoff,RtsCts
+    	    Fail=None :Timeout=20 :Echo=off :Data=8 )
+    ON send fail goto bad
+    SET c1=4
+rAlive:
+    SEND "AT"
+    WAIT 20 ( ON reply "OK<$d><$a>" GOTO alive )
+    ON c1 GOTO rAlive
+    GOTO merror
+alive:
+    SENDWAIT 10 "AT&F","OK<$d><$a>" GOTO merror
+    SENDWAIT 10 "AT\N0","OK<$d><$a>" GOTO merror
+    SENDWAIT 10 "AT&J2","OK<$d><$a>" GOTO merror
+    SET C1=3
+    GOTO reDial
+wait100:
+    INFO "Waiting to redial"
+    WAIT 60
+reDial:
+    SEND "ATD<CixNumber>"
+    WAIT 60 (
+	ON reply "CONNECT" GOTO letsgo
+	ON reply "NO DIALTONE" GOTO tele
+	ON reply "NO CARRIER" GOTO nocar
+	ON reply "ERROR" GOTO black
+	ON reply "BUSY" GOTO again )
+    GOTO merror
+again:
+    ON c1 GOTO wait100
+    ALERT "Line busy" : EXIT
+letsGo:
+    INFO "CONNECTED..."
+    SENDWAIT 60 "<$d>";,"login:" GOTO noLog
+    SENDWAIT 60 "qix<$d>";,"new user)" GOTO noUser
+    SENDWAIT 30 "<CixUserName>","Password:" GOTO noPass
+    SEND "<CixPassword>"
+tryAgain:
+    WAIT 40 (
+	ON REPLY "Main:" GOTO gotMain
+	ON REPLY "More" GOTO gotMore )
+    ALERT "SOMETHING STRANGE"
+gotMain:
+    EXIT
+gotMore:
+    WAIT 1
+    SEND "n"
+    GOTO tryAgain
+
+black:
+    ALERT "Number dialled too many times" : EXIT
+nocar:
+    ALERT "No connection made" : EXIT
+tele:
+    ALERT "Check connected to telephone" : EXIT
+merror:
+    ALERT "Check modem connected" : EXIT
+bad:
+    ALERT "Check RS232 lead connected" : EXIT
+noLog:
+    ALERT "No Login received" : EXIT
+noUser:
+    ALERT "No user name" : EXIT
+noPass:
+    ALERT "No password" : EXIT
+noMain:
+    ALERT "No main"
+    EXIT
+

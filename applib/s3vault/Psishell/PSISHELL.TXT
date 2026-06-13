@@ -1,0 +1,358 @@
+
+        PSISHELL
+        ÿÿÿÿÿÿÿÿ
+
+    PSIshell is a command line interpreter (also known as a
+`shell'): that is, it reads commands you type in, and executes them.
+It can copy, move, delete and display files, create or delete
+directories, display messages, etc. It has variables, command
+aliases (like macros), filename substitution, online help, and can
+read commands from batch files. If you've ever used any of the DOS
+or Unix varieties, there'll be no surprises here. In fact, PSIshell
+was designed to look like Unix, although it should be familiar to
+DOS users too.
+
+    I'm no good at writing manuals, so this will just be a brief
+guide. There is online help available within the program, so you can
+find out what the commands are, what they do and how to use them.
+
+
+        WARNING!
+        ÿÿÿÿÿÿÿÿ
+    PSIshell is in development: I'm still adding new features and
+ironing out bugs. I thought it best to put this version out now,
+rather than wait for a `finished product' that will probably never
+happen! Although I'm happy that this version is safe, I'm afraid I
+can't accept any responsibility for any problems you may have,
+although I'll try to help. You can do quite some damage with it
+(e.g. typing `delete *.*' to wipe all your files), so be careful. If
+you do this by accident, or if aliens capture you while you're using
+PSIshell and lock you in a cell along with Elvis and Glenn Campbell,
+don't blame me!
+
+
+        HOW TO USE IT
+        ÿÿÿÿÿÿÿÿÿÿÿÿÿ
+    You will need the three files PSISHELL.APP, PSI_SH_1.OPO and
+PSI_SH_2.OPO. Put the first in any \APP directory (although it can
+go anywhere you like), and the other two should be in an \OPO
+directory. Then install the .APP file from the system screen, and
+run it! You should get a clear screen, with a `$' prompt and a
+flashing cursor. Type in a command and you're away! Try anything you
+like: if the shell can't understand you or carry out your command,
+it will tell you exactly why. A good first step is to type `help',
+which lists all the commands you can use.
+
+    Also supplied is a sample startup batch file (see later). Create
+a \BATCH directory and put PSISHELL.BAT in it. To edit batch files,
+copy PSI_EDIT.ALS to an \APP directory and install it on the system
+screen.
+
+
+        COMMANDS
+        ÿÿÿÿÿÿÿÿ
+    I won't list all the commands here, as you can find them all out
+by typing `help'. You can follow `help' by the name of a command,
+and it will tell you the syntax and a (very) brief description of
+what it does. Try some commands. (But be careful: you can delete
+files with the `rm' command or any of its aliases).
+
+    Most commands need some more information before they can be
+carried out: you put this after the command name, separated by a
+space. If there are several pieces of information, put them all,
+separated by spaces. The order is usually important here: check the
+`help' message to see what parameters a command expects. If there is
+something obviously wrong, PSIshell will print up a (hopefully)
+helpful message. You can put several commands on the same line, if
+you separate them with a semi-colon.
+
+
+        BATCH FILES
+        ÿÿÿÿÿÿÿÿÿÿÿ
+    A batch file is a text file which contains a list of commands
+for the shell to execute, just as if you'd typed them in. If you
+type in a command that PSIshell doesn't recognise, it tries to
+execute a batch file with that name: this is why if you get a
+command name wrong, it prints a rather cryptic message like "File
+not found reading a:/batch/hepl". To store batch files, PSIshell has
+it's own directory, called (not surprisingly) /BATCH. You can store
+them anywhere you like, but PSIshell will look for them here first. I
+suggest you name all your batch files something.BAT, so you can tell
+what they are easily.
+
+
+        STARTUP FILE
+        ÿÿÿÿÿÿÿÿÿÿÿÿ
+    There is one special batch file, called `PSISHELL.BAT'. If it
+exists, it is executed automatically whenever PSIshell starts up.
+There is an example startup file supplied, which prints up the
+version number, sets the prompt a couple of aliases (of which, more
+later). You could put anything in here, but it's safest just to put
+these sorts of commands.
+
+
+        EDITING BATCH FILES
+        ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+    A batch file is just a plain text file, and can be created or
+edited using the program editor or word processor (be sure to save
+as `plain text'). I've also included a batch file `file list' which
+can be installed on the system screen, PSISHELL.ALS.
+
+
+        ALIASES
+        ÿÿÿÿÿÿÿ
+    You can set up an alternative name for a command: for example,
+the Unix command to copy a file is `cp', which may not be
+immediately obvious to DOS users, so you can set up an alias called
+`copy' for it. In fact, PSIshell already contains several aliases
+with the names of standard DOS commands. You can go further than
+this, though: an alias can also include parameters, and more than
+one command. For example, in the sample startup file, an alias is
+set up with the name `..' and the value `cd ..; ls'. Whenever you
+then type `..', it will substitute that value. In this case, it
+contains two commands, to change directory to the previous one in the
+directory tree, and list all the files in it.
+    Because aliases can include others, be careful not to get caught
+in circular logic, e.g.:
+        alias a b
+        alias b a
+PSIshell doesn't check for this: next time you type `a' the shell
+subvstitutes `b', then `a', then `b', and so on until it runs out of
+memory. Don't worry, you won't lose anything: you'll simply see the
+message `No system memory', and a prompt.
+
+
+        PARSING
+        ÿÿÿÿÿÿÿ
+    Exactly how does PSIshell interpret the commands you type? The
+mechanism for this is actually quite complicated, but you can ignore
+most of this if you're not technically-minded. The parsing is based,
+as far as I can make it, on that of the standard `sh' shell used on
+all Unix systems, although `sh' is a big beastie and only some of it
+is implemented here.
+
+    The basic unit of text is a word, which is a series of
+characters separated by one or more spaces. The first word of a
+command is the command name: this can be an inbuilt command, an
+alias, or the name of a batch file. The other words are parameters
+which are passed to the named command or file. Commands can be
+separated by semi-colons.
+
+    So far, so good. Problems come when you want to include a space
+as part of a parameter. So there are various methods of `quoting' a
+parameter. The simplest is to put ' ' or " " around it. The ' ' or
+" " aren't counted as part of the parameter; they are just used to
+tell the shell where it starts and finishes. For example:-
+        set var1 "The cat sat on the mat."
+
+    What if you want to include a quote character inside such a
+word? You can't simply put it inside, as the shell will think you're
+ending the word there. So you put two of them together:
+        echo "He said, ""Really?"", and left."
+
+or you can use the other sort of quote to delimit the word:
+        echo 'He said, "Really?", and left.'
+
+The difference between " " and ' ' is that variables are not
+expanded inside ' ', but they are inside " " (see later).
+An alternative method is to use the backslash character, \.
+Any character following a backslash is taken literally:
+        set var1 Hello\ there!
+or
+        echo "He said, \"Really?\", and left"
+or even
+        echo He\ said,\ \"Really?\",\ and\ left
+
+Yes I know, it's complicated. But that's how `sh' does it, and it's
+been a challenge to try to recreate!
+
+
+        COMMENTS
+        ÿÿÿÿÿÿÿÿ
+    Any command starting with a hash, #, is ignored. This is very
+useful in a batch file, so you can include comments to remind you
+what it does.
+
+
+        VARIABLES
+        ÿÿÿÿÿÿÿÿÿ
+    A variable stores a series of characters. It has a name, and can
+be assigned, set or destroyed using the `set' command. It can be
+used (almost) anywhere in a command: just precede the variable name
+with a dollar sign. For example:-
+        set old m:/dat/datafile.opd
+        set new a:/dat/datafile.opd
+        mv $old $new
+moves the file from disk m: to a:.
+You can display the value of a variable either with the `show'
+command (which can also show all existing variables), or
+with the common `echo' command:-
+        show file
+        echo $file
+
+Variable substitution can be more complex than this, though.
+The other formats use brace characters:-
+        ${var}
+                    as $var
+        ${var:-abc}
+                    if $var doesn't exist, use 'abc'.
+        ${var:=abc}
+                    if $var doesn't exist, set it to 'abc' and use it.
+        ${var:?abc}
+                    if $var doesn't exist, print 'abc' as error message.
+        ${var:+abc}
+                    if $var exists, use 'abc', else use blank.
+In these examples, abc can be any string, even including
+furher variables.
+
+Some variables are set automatically by the shell:-
+    COLUMNS, LINES
+        the width and height of the screen, in characters
+    TIME, DATE
+        the current time and date
+    DEVICE, DRIVE, PATH, PWD
+        the current directory
+    HOME
+        the PSIshell home directory, the default for `cd'
+    PS1
+        the prompt (printed when the shell is ready for user input)
+    SHELL
+        the full filename of PSISHELL.APP
+    VERSION
+        the number of this version of PSIshell
+
+    Some of these can be altered by you (PS1 and HOME). PS1 is
+particularly useful. The sample startup file sets this to
+'$DRIVE:$PATH> ' which shows the current directory. So each time you
+change it with `cd', the prompt will change automatically to show
+you where you are.
+
+    Inside a batch file, some more variables are set to reflect any
+parameters.  $1 is the first, $2 the second, and so on.  $0
+contains the name of the batch file, $# contains the number of
+parameters, and $* and $@ both contain the full command line.
+(Yes, they're not very memorable names, but I didn't choose
+them!)
+
+
+        FILE NAMES
+        ÿÿÿÿÿÿÿÿÿÿ
+    The Psion file system is based on the MS-DOS file system that
+runs on PCs. But Unix systems have a slightly different one. They
+both use files and directories, but the naming varies slightly:-
+Unix name:
+        /Directory_1/dir2/filenameaslongasyoulike
+MS-DOS name:
+        D:\DIRECTOR.Y_1\DIR2\FILENAME.ASL
+Becuse PSIshell is designed to look like the Unix `sh' shell, it
+converts \ to / and upper to lower case.
+The Psion filing also prefixes the filename with a device name.
+The internal drive, and the two cartridge slots are on device
+`LOC::'.  There is also a `ROM::' device which contains all the
+system files that your Series 3a uses (have a look if you're
+interested in how your Psion works!), and if you have the
+serial link you may be able to access the remote drive on your
+PC on the `REM::' device.
+
+    To save you typing in lots of different filenames, you can put
+*s or ?s which PSIshell will then expand into as many files as
+match. A ? matches any individual character, while a * matches any
+number. (If no files match, the word is left intact).
+
+
+        EXAMPLES
+        ÿÿÿÿÿÿÿÿ
+Print the time and date:
+        echo $TIME, $DATE.
+
+Pause with a message until the user presses a key:
+        pause "Now press a key to continue..."
+
+Display a (text) file:
+        more info.txt
+You can press ESCAPE to stop displaying a file, or any other key to
+pause.
+
+Display a (binary) file:
+        dump file.bin
+Ditto.
+
+Include the time in the prompt:
+        set PS1 '$TIME. $DRIVE:$PATH> '
+or:
+        prompt '$TIME. $DRIVE:$PATH> '
+
+Copy all files in \DIR1 into \DIR2:
+        copy /dir1/*.* /dir2
+
+Move all files and subdirectories in \DIR1 into the root directory:
+        mv -r /dir1/*.* /
+
+
+
+        FURTHER INFORMATION
+        ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+    Before lots of people write in (I should be so lucky!), I'll
+mention some of the problems I know about.
+    I use a proportional font for the screen display: much more
+information fits on, and it looks neater most of the time. The
+side-effects, though, are that occasionally spaces `stretch' (set a
+very long prompt and see what I mean). Also, the line you're typing
+in can get a bit messy if you move left and right and edit too much.
+One of these days I'll write my own input routine to cope with this,
+but at the moment OPL's `edit' command doesn't. However, the lists
+from `ls', `show', `help' etc. all line up neatly.
+    If you type `redo', PSIshell recalls your last command for you
+to edit and re-enter.  With the proportional font this is a
+nightmare, so for this I switch to the standard font, and then back
+again.  This clears the screen, yes, I know, it's very messy, but
+it's there if you need it.  Hopefully to be fixed soon.  Then I'll
+be able to include full `history' editing just like other shells.
+    You may find you can set or unset system variable you shouldn't
+be able to: also to be fixed.
+
+Other possible future developments:
+    More system variables.
+    Ability to nest batch files.
+    Ability to remove the status window.
+    File redirection (input or output to/from files rather than the
+        keyboard and screen) and pipelines (this is a real biggie!)
+    More options for some of the commands.
+    User input into variables.
+    Ability to execute .APP,  .OPA,  .OPO,  and  .IMG  programs  (if
+        anyone can tell me how!)
+    ...any requests?!
+
+
+    Please distribute this program to your friends, BBSs, etc. The
+only restrictions are that you keep all these files together, and
+you don't alter them in any way.
+
+    As I mentioned earlier, PSIshell is not a finished product, but
+I'm happy with what's here, and I hope it's of use to someone out
+there! If you like PSIshell, if you have any comments, or additions
+you'd like made to it, please let me know! I can be contacted:
+
+        Andrew Giddings
+
+        71 Tyrone road
+        Thorpe Bay
+        Essex  SS1 3HD
+        ENGLAND
+
+        081-534 5544 x2185 (daytime)
+
+        0702-585228 (evening and weekend)
+
+
+                ----  SHARE AND ENJOY!  ----
+
+
+`Psion', `Series 3a', `Unix' and `MS-DOS' are probably registered
+trademarks.
+
+Special thanks to Steve Litchfield for 3-Lib, the best Psion PD and
+shareware library!
+
+
+(c) 1994 UK  Andrew Giddings.

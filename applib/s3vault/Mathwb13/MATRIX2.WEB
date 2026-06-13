@@ -1,0 +1,244 @@
+
+<opts>
+<isrc>cell</isrc>
+<iname>inputa</iname>
+<iecho>no</iecho>
+<odest>screen</odest>
+<oname>output</oname>
+<onewl>lf</onewl>
+<scrfont>swiss13</scrfont>
+<statwin>on</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>inptr</rtype>
+<rfmt>\n\N</rfmt>
+<rall>no</rall>
+<starg>input</starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>4</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>5.0000</xmax>
+<xmin>-5.0000</xmin>
+<ymax>5.0000</ymax>
+<ymin>-5.0000</ymin>
+<xintrvls>5</xintrvls>
+<yintrvls>5</yintrvls>
+<xycells>home,home</xycells></opts>
+<cell>
+<cname>a01</cname>
+<val>1.0000</val></cell>
+<cell>
+<cname>a02</cname>
+<val>0.0000</val></cell>
+<cell>
+<cname>a03</cname>
+<val>0.0000</val></cell>
+<cell>
+<cname>a04</cname>
+<val>0.2790</val></cell>
+<cell>
+<cname>a05</cname>
+<val>0.0000</val></cell>
+<cell>
+<cname>a06</cname>
+<val>1.0000</val></cell>
+<cell>
+<cname>a07</cname>
+<val>0.0000</val></cell>
+<cell>
+<cname>a08</cname>
+<val>-0.8267</val></cell>
+<cell>
+<cname>a09</cname>
+<val>0.0000</val></cell>
+<cell>
+<cname>a10</cname>
+<val>0.0000</val></cell>
+<cell>
+<cname>a11</cname>
+<val>1.0000</val></cell>
+<cell>
+<cname>a12</cname>
+<val>-2.4665</val></cell>
+<cell>
+<cname>a13</cname>
+<val>0.0935</val></cell>
+<cell>
+<cname>a14</cname>
+<val>0.0169</val></cell>
+<cell>
+<cname>a15</cname>
+<val>-0.0340</val></cell>
+<cell>
+<cname>a16</cname>
+<val>-0.2011</val></cell>
+<cell>
+<cname>a17</cname></cell>
+<cell>
+<cname>a18</cname></cell>
+<cell>
+<cname>a19</cname></cell>
+<cell>
+<cname>a20</cname></cell>
+<cell>
+<cname>a21</cname></cell>
+<cell>
+<cname>a22</cname></cell>
+<cell>
+<cname>a23</cname></cell>
+<cell>
+<cname>a24</cname></cell>
+<cell>
+<cname>a25</cname></cell>
+<cell>
+<cname>b1</cname>
+<val>0.6333</val></cell>
+<cell>
+<cname>b2</cname>
+<val>-0.3367</val></cell>
+<cell>
+<cname>b3</cname>
+<val>-0.7675</val></cell>
+<cell>
+<cname>b4</cname>
+<val>-0.2342</val></cell>
+<cell>
+<cname>b5</cname></cell>
+<cell>
+<cname>cdx</cname>
+<val>3.0000</val></cell>
+<cell>
+<cname>home</cname>
+<text>This web illustrates the use of Mathweb's builtin functions rref() and gaussj() for manipulating matrices.
+
+The cell 'row_reduce' contains a script which demonstrates the use of the Mathweb builtin function rref(), which converts a matrix to its reduced row echelon form.
+
+The cell 'inverta' has a script which illustrates the use of the Mathweb builtin function gaussj() which, among other things, inverts a square matrix.
+
+The cell 'solveab' demonstrates the use of gaussj() to solve the matrix equation:
+        Mx=b
+where M is a 4X4 matrix, and b is 4X1 column matrix.</text>
+<val>0.00</val></cell>
+<cell>
+<cname>inputa</cname>
+<text>12 8 -7 14 
+-3 21 -9 4 
+-1 -3 -6 17 
+5.5 6 -3 -1 
+</text>
+<script>set inname to 'inputa'
+for(rdx=0 to (%1-1)) {
+    for(cdx=0 to (%2-1)) {
+         in(a01[rdx*%2+cdx])
+    } #endfor
+} #endfor
+outputa(%1,%2)
+</script></cell>
+<cell>
+<cname>inputb</cname>
+<text>7
+-3
+1
+4
+</text>
+<script>set inname to 'inputb'
+for(rdx=0 to (%1-1)) {
+    for(cdx=0 to (%2-1)) {
+         in(b1[rdx*%2+cdx])
+    } #endfor
+} #endfor
+outputb(%1,%2)
+</script></cell>
+<cell>
+<cname>inverta</cname>
+<text>To generate the inverse of a square matrix, gaussj() may be called with two arguments:
+
+      A quoted cell name, which tells which cell is the first cell    
+      in the matrix to be inverted.
+    
+      An expression which evaluates to the number of rows
+      and columns in the square matrix.
+
+The cells of the matrix are laid out in row-column order in the sequence of cells beginning with the quoted cellname.
+</text>
+<script>out("\nInput matrix")
+inputa(4,4)
+if(gaussj("a01",4)=0) {
+    out("\nInverse matrix")
+    outputa(4,4)
+} else {
+    out("\nMatrix is singular")
+}
+</script></cell>
+<cell>
+<cname>OUTPUT</cname>
+<text>
+1 2 -4 3 
+7 -4 1 2 
+-6 3 2 1 
+1 3 -1 0 </text></cell>
+<cell>
+<cname>outputa</cname>
+<script>for(rdx=0 to (%1-1)) {
+    out("\n")
+    for(cdx=0 to (%2-1)) {
+        out(a01[rdx*%2+cdx]," ")    
+    } #endfor
+} #endfor</script></cell>
+<cell>
+<cname>outputb</cname>
+<script>for(rdx=0 to (%1-1)) {
+    out("\n")
+    for(cdx=0 to (%2-1)) {
+        out(b1[rdx*%2+cdx]," ")    
+    } #endfor
+} #endfor</script></cell>
+<cell>
+<cname>rdx</cname>
+<val>2.0000</val></cell>
+<cell>
+<cname>row_reduce</cname>
+<text>This cell puts an 3X4 matrix into its reduced row echelon form.  This technique will work with matrices with up to 60 or 70 total cells.
+
+The function rref() takes two arguments:
+1)  The quoted name of the cell which begins the matrix to be reduced.
+2)  The number of rows in the matrix to be reduced.
+3)  The number of columns in the matrix to be reduced.
+
+Cells with values below a certain delta are assumed to have zero value.  To set delta, set the number of decimal places in the Numeric Preferences.  For Fixd and Scientific type numbers, delta is half of 10E-d, where d is the number of decimal places.  For general type numbers, delta is 0.5*10E-14.</text>
+<script>out("\nMatrix to reduce")
+inputa(3,4)
+out("\n\nReduced row echelon form")
+rref("a01",3,4)
+outputa(3,4)
+</script></cell>
+<cell>
+<cname>solveab</cname>
+<text>In this cell, gaussj() is used to compute the solution to four linear equations in four unknowns.  The method can easily be expanded to support 7 or eight equations in as many unknowns.
+
+The linear equation coefficients are represented by the value of the matrix which begins at cell "a01".  The right hand sides of the equations are contained in the column vector which starts at cell "b1".
+
+Gaussj is called with four arguments:
+
+1)  The quoted name of the cell that begins the matrix.
+2)  An expression which evaluates to the  number of rows and columns in the square matrix.
+3) The name of the cell which begins the column matrix containing the right hand side(s) of the equations.
+(It is possible to solve for the unknowns using more than one set of right hand side values.  This example uses only one set.)
+4) The number of right-hand side column vectors
+
+Gaussj() returns zero when it succeeds, and -1 if the matrix supplied is singular.</text>
+<script>out("\nInput matrix")
+inputa(4,4)
+out("\nInput vector")
+inputb(4,1)
+if(gaussj("a01",4,"b1",1)=0) {
+    out("\nSolution vector")
+    outputb(4,1)
+} else {
+    out("\nMatrix is singular")
+}</script></cell></eof>

@@ -1,0 +1,52 @@
+REM Sample OPL File to run a MACRO ( MACRO SYSTEM is required!)
+REM Could use this with NEWCRON Event Scheduler
+REM This is not supported by the Author of JAM so use at your own risk
+
+PROC main:
+global opa$(128), mco$(128),free&
+
+REM Check enough memory first
+
+free&=call($0080)
+free&=free&*16
+
+if free&<50000 rem May need to change this
+	giprint "No Memory"
+	pause 20
+	stop
+endif
+
+
+opa$ = "M:\app\macro.opa"
+if not load:
+	alert( "Macro application not found" )
+	stop
+else
+	trap loadm opa$
+	if err
+		alert( err$( err ) )
+		stop
+	endif
+	mco$ = "A:\macro\mco\jam.mco"
+	runmacro:( mco$, "macro" )
+endif
+ENDP
+
+proc load:
+if exist(opa$)
+	return 1
+else
+	opa$="A:\app\macro.opa"
+	if exist(opa$)
+		return 1
+	else
+		opa$="B:\app\macro.opa"
+		if exist(opa$)
+			return 1
+		else
+			return 0
+		endif
+	endif
+endif
+endp
+

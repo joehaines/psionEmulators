@@ -1,0 +1,121 @@
+#define CALIMG_OPH
+
+#ifndef OLIB_OPH
+#include <sdk\olib>
+#endif
+
+#ifndef WLIB_OPH
+#include <sdk\wlib>
+#endif
+
+/* Constants for calimg */
+
+#define CI_MAX_MONTH 12
+#define CI_GRIDY TRUE
+#define CI_GRIDX FALSE
+#define CALIMG_CURSOR_NO_FLASH 0x01
+#define CALIMG_DOW_EVERY_ROW 0x02
+#define CALIMG_FONT_DATA_KNOWN 0x04
+#define CALIMG_LEFT 0x00
+#define CALIMG_HOME 0x01
+#define CALIMG_PREV_DAY 0x02
+#define CALIMG_PREV_MONTH 0x03
+#define CALIMG_RIGHT 0x04
+#define CALIMG_END 0x05
+#define CALIMG_NEXT_DAY 0x06
+#define CALIMG_NEXT_MONTH 0x07
+#define CALIMG_UP 0x08
+#define CALIMG_PAGEUP 0x09
+#define CALIMG_PREV_WEEK 0x0A
+#define CALIMG_PREV_YEAR 0x0B
+#define CALIMG_DOWN 0x0C
+#define CALIMG_PAGEDN 0x0D
+#define CALIMG_NEXT_WEEK 0x0E
+#define CALIMG_NEXT_YEAR 0x0F
+#define CALIMG_GOTO_TODAY 0x10
+#define CALIMG_WEST 0x01
+#define CALIMG_EAST 0x02
+#define CALIMG_NORTH 0x03
+#define CALIMG_SOUTH 0x04
+#define CALIMG_ADJ_DAY 0x01
+#define CALIMG_ADJ_MONTH 0x02
+#define CALIMG_ADJ_YEAR 0x04
+
+/* Types for calimg */
+
+STRUCT CI_EXT_FONT
+	title_ascent#
+	title_lht#
+	dow_ascent#
+	dow_lht#
+	mth_ascent#
+	mth_lht#
+	day_ascent#
+	day_lht#
+	daygapx#
+	daywidth#
+ENDS
+
+STRUCT CI_FONT_DATA
+	fid%
+	style%
+	leading%
+ENDS
+
+STRUCT IN_CALIMG
+	wid%
+	width%
+	tl#(SIZEOF(P_POINT))
+	mrow#
+	mcol#
+	flags%
+	title#(SIZEOF(CI_FONT_DATA))
+	month#(SIZEOF(CI_FONT_DATA))
+	dow#(SIZEOF(CI_FONT_DATA))
+	day#(SIZEOF(CI_FONT_DATA))
+	daygap%
+	mthgapx#
+	hscrlm#
+	startm%
+	days&
+	font#(SIZEOF(CI_EXT_FONT))
+ENDS
+
+STRUCT CI_CURSOR
+	year#
+	month#
+	pos#(SIZEOF(P_POINT))
+ENDS
+
+STRUCT I_DATE
+	year%
+	month%
+	day%
+ENDS
+
+/* Property of calimg */
+
+STRUCT PRS_CALIMG
+	rect#(OPPEVAL(SIZEOF(P_RECT)*12))
+	title_rect#(SIZEOF(P_RECT))
+	crs#(SIZEOF(CI_CURSOR))
+	day#
+	startOfWeek#
+	thisyear#
+	thismth#
+	thisday#
+	ystart#
+	bwidth#
+	filler#
+	dayNameAbbrev#(7)
+	deftitle#(3)
+	title%
+	emphasised%
+	img#(SIZEOF(IN_CALIMG))
+	bmid%
+ENDS
+
+STRUCT PR_CALIMG
+	root#(SIZEOF(PRS_ROOT))
+	calimg#(SIZEOF(PRS_CALIMG))
+ENDS

@@ -1,0 +1,475 @@
+SHELL v2.5 ... die Shell fÅr den Psion Serie 3a .. von Marko Schuster 1994
+
+NEWS: siehe am Ende des Files!
+                    
+                    0. Copyright
+
+Diese Version von Shell ist nicht Public Domain, sondern FD.
+Das Copyright bleibt weiterhin bei mir. Das Prg. darf jedoch
+frei kopiert werden. Nein, es MUSS sogar frei kopiert werden,
+es darf nicht verkauft werden.
+Der Source lieg Åbrigens dem Programm _nicht_ bei,
+Hinweise, Tips, Tricks, Prozeduren, WÅnsche ... bitte an mich.
+
+
+                    1. Wozu eine Shell ?
+                    
+Der (eigentlich ja 'die'... egal) Psion Serie 3a (ab sofort als PS3a abgekÅrzt)
+hat zwar umfangreiches Dateimanagement in der OberflÑche eingebaut, aber
+es gibt doch noch ein paar richtige Computerfreaks, die es bevorzugen,
+ihre Dateien 'von Hand' zu kopieren. Zu so einem gehîr ich auch. Au·erdem
+ist SHELL leicht erweiterbar, bzw. mittlerweile sehr vielseitig schon
+erweitert.
+
+
+                    2. Was kann die Shell?
+                    
+* alle von Tischcomputern her bekannte gÑngigen Shell-Befehle
+* PICs anzeigen, mit/ohne grey-planes, ver. Bitmaps etc.
+* Batch-Dateien ausfÅhren
+* OPO/OPAs laden und Prozeduren starten
+* Befehl-Puffer
+* WVE-Datein abspielen
+* verschiedene Fonts benutzen
+
+
+ 
+                    3. Wie arbeite ich mit der SHELL?
+                    
+Ganz einfach: Die Befehle eingeben. Dies geschieht mittels des
+OPL-Befehls "EDIT". Das hei·t, da· am Ende der Eingabezeile keine
+neue Zeile angefangen wird, sondern die Zeile durchscrollt. Editieren
+des Textes ganz normal mit den Cursor-Tasten usw. und ein RETURN (ENTER)
+fÅhrt den Befehl aus, wÑhrend ein ESC die Zeile lîscht.
+DrÅckt man nun, wÑhrend die Zeile leer ist, nocheinmal ESC, kann man dadurch
+die letzten 9 Eingaben durchblÑttern (Befehl-Puffer). So ist es also
+ganz einfach mîglich, im nachhinein Tippfehler auszubessern, oder zu
+verÑndern. Wenn man ganz durch ist, wird wieder von vorne (bzw. von hinten..)
+angefangen.
+Diesen Puffer kann man sich auch auf einmal anzeigen lassen mit dem
+Befehl "+". Es wird dann per Dialog-Box alle verfÅgbaren, max. 9, Buffer-
+Zeilen angezeigt und es kann die ausgewÑhlt werden, die neu editiert werden
+soll. Sie erscheint dann beim nÑchsten Prompt in der nÑchsten Eingabezeile.
+Der Befehl "+" wird dabei nicht in den Puffer Åbernommen.
+
+Ausgabeumleitung: Ab v2.5 kann eine Ausgabeumleitung in ein File
+gemacht werden. Dabei mu· als 2. Wort, also direkt nach dem Befehl
+ein >file stehen. file ist dabei der filename, bei NIL: oder NUL: wird die
+Ausgabe unterdrÅckt. Beispiel: dir >dir.txt M:\OPL\ wÅrde die Filenamen des
+Verzeichnisses M:\OPL\ in die datei dir.txt schreiben. 
+
+                    
+                    4. Hinweise
+                    
+Das Prg. "EXPWIN2.OPA" muss in M:\APP\ vorhanden sein. Es ist eine kleine
+Prozedur (eigentlich zwei) fÅr sog. 'exploding windows'. 
+Falls eine Batch-Datei 'M:\autoexec.bat' besteht, wird diese ausgefÅhrt,
+sie kann z.B. wie in dem Beispiel in diesem Archiv, den PROMPT-Befehl
+enthalten, FONTs umschalten etc. Ferner ist im Archiv ein Prg. ED_BAT.ALS,
+das ein Alias-File der Word-Applikation ist, und reine ASCII-Datein im
+Verzeichnis \BAT mit der Endung .bat erstellen/Ñndern lÑ·t (autoexec.bat
+kann man editieren, wenn man TAB drÅckt und das File im Hauptverzeichnis
+anwÑhlt!)
+Wenn der Befehl nicht vorhanden ist, wird nach .OPO, .OPA und .BAT in
+den einschlaegigen Verzeichnissen gesucht. OPOs und OPAs werden dabei
+nur NACHGELADEN (LOADM), nicht gestartet. Achtung: Wenn das aktuelle
+Verzeichnis auf REM:: liegt, wird in REM::A:, REM::B: und REM::M: gesucht..
+Bei den eingebauten Befehlen, die einen Parameter benîtigem kann man diese
+ganz einfach anzeigen lassen, indem man einfach den Befehl ohne jegliche
+Parameter eingibt. (Auf 'normalen' DOS/SHELLs mÅ·te man da ja -? oder /?
+angeben.) Beispiel: COPY zeigt COPY <source> <dest>
+                    
+                    
+                    5. Die Befehle (Kommandos)
+
+Wie in Anleitungen Åblich: <parameter> bedeutet: der Parameter _mu·_
+angegeben werden, wÑhrend [<parameter>] freiwillig ist.
+Beim Befehlsnamen mÅssen zumindest die gro·geschriebenen Buchstaben
+eingegeben werden. Beispiel: RemDir bedeutet, da· man entweder REMDIR
+oder RD eingeben kann. SelbstverstÑndlich ist die GrO·/kLeInScHrEiBuNg
+egal.. kann also auch rd oder rEmdIr oder sonstwie eingegeben werden.
+Ebenfalls vernachlÑssigt werden SPACES vor dem Befehl, nach dem Befehl
+und zwischen den Parametern (Zwischen den Parametern MUSS mind. 1 Space
+sein, wenn mehrere dabei sind, werden sie ignoriert. Ebenfalls darf ein
+Parameter KEINE Spaces enthalten. Das hat z.Z. leider noch den Nachteil,
+da· bei Filenamen mit Leerzeichen das Leerzeichen durch ? ersetzt
+werden mu·... wobei wir auch gleich bei den Jokern wÑren: ? ersetzt
+ein beliebiges Zeichen, ein * ersetzt beliebig viele. Die Ausgabe
+kann man - wie in OPL-Programmen Åblich - mit CTRL (STRG) - S anhalten.
+
+
++
+        Siehe oben .. listet den Zeilenpuffer, also die zuletzt eingegebenen
+        Befehle/Zeilen. Die gewÅnschte Aussuchen und ENTER, oder ESC zum
+        Abbruch. 
+
+*
+        LÑ·t die Shell in den Background verschieben, so da· man sich
+        den Druck auf die System-taste spart..
+        
+?      
+        listet alle verfÅgbaren Befehle auf.
+        
+#
+        Entspricht dem Befehl DIAL, nÑheres siehe dort.
+        
+;<comment>
+        Diese Zeile zÑhlt als Bemerkung und wird nicht bearbeitet.
+        NÅtzlich fÅr Batch-Dateien. Entspricht praktisch dem OPL-Befehl REM...
+        Beispiel: ;diese zeile wird nicht interpretiert
+                 
+<proc>: [<parameter>]
+        Startet die Prozedur <proc>. Es kann EIN parameter (STRING)
+        Åbergeben werden.
+        Beispiel:  TEST:     entspricht dem OPL-Befehl TEST:
+                   TEST: ab  entspricht dem OPL-Befehl TEST:("ab")
+                   
+        
+        
+ALIAS [<alias_in> [<alias_out>] ]
+        Befehl-aliasse.. alias_in ist dabei das alias und alias_out
+        der befehl, der ausgefÅhrt werden soll.
+        ALIAS ohne parameter listet alle Aliasse auf
+        ALIAS <alias_in> zeigt den Befehl von <alias_in>
+        ALIAS mit beiden parameter setzt bzw. Åberschreibt einen Alias.
+        Der Alias-Befehl selbst kann 10 Zeichen lang sein, der Befehl
+        dafÅr max. 128. Es kînnen max. 20 Aliasse definiert werden.
+        Ein @ im alias_out sorgt dafuer, dass die parameter von alias_in
+        miteingefuegt werden.. ist dumm zu beschreiben, also Beispiele:
+        ALIAS c copy @  - setzt den Befehl "c" als "copy @".
+        Man kann nun anstatt copy <filenames> einfach c <filenames>
+        eingeben .. also beispielsweise:  c test.opl test.bak
+        wuerde dann umgewandelt werden in copy test.opl test.bak und so
+        ausgefÅhrt. ALIAS C wuerde ausgeben "copy @". 
+        Unix'er kînnten z.B. ALIAS ls dir @ machen, ALIAS ll ldir @,
+        ALIAS more type @ etc. (siehe auch UNIX.BAT)
+        Ein guter Platz fÅr ALIAS ist natÅrlich die M:\AUTOEXEC.BAT ...
+       
+[CD] <path>
+        wechseln des aktuellen Pfades. Achtung: Jedes Directory
+        mu· mit einem \ enden! Mit CD \OPL z.B. wÅrde man nicht
+        in das OPL-Verzeichnis wechseln!! Es _MUSS_ also CD \OPL\
+        hei·en!  Beim Wechseln der Laufwerke bei CD A: z.B. wird
+        jedoch auch automatisch das Verzeichnis beibehalten,
+        sofern es existiert. ein \ am Anfang bedeutet immer das
+        Root-Directory. Das letzte Verzeichnis (Parent) kann _nicht_
+        wie beim PC mittels .. angedeutet werden. (noch nicht :-) )
+        DafÅr kann man "CD" weglassen, sofern der angegebene Pfad nicht
+        mit einem anderen Befehl oder einem File identisch ist.
+        CD kann weggelassen werden, wenn der Pfad mit \ oder :: endet.
+        Wenn der Pfad nur mit : endet, mu· CD mit angegeben werden, weil
+        sonst ja nach einer Prozedur gesucht wird..
+        Beispiel: aktueller Pfad= M:\OPL\ 
+                        cd a:
+                  neuer Pfad= A:\OPL\
+                  oder eben weggelassen: \APP\
+
+ChangeTaskPri <prozess-id> <prioritÑt>
+        éndert die PrioritÑt vom Task mit der angegebenen prozess-id.
+        Achtung: Der S3a Ñndert die PrioritÑten seiner Tasks teilw.
+        selbststÑndig. So bekommen OPOs/OPAs wenn sie im Vorder- bzw.
+        Hintergrund kommen immer eine bestimmte PrioritÑt zugewiesen.
+        Desweiteren ist mir noch kein Systemaufruf bekannt, mit dem
+        ich die PrioritÑten der Tasks anzeigen lassen kînnte ..
+
+CLS     lîscht den Bidlschirm
+
+COPY <source> <dest>
+        kopiert das File SOURCE als File DEST. Es wird nicht angezeigt,
+        welche Files letztendlich kopiert wurden (bei Verwendung von Jokern).
+        Beispiel: aktueller Pfad= M:\AGN\
+                        copy agenda.agn agenda.bak    (sicherheitskopie)
+                        copy agenda.agn a:            (kopiert die Datei nach
+                                                       A:\AGN\Agenda.agn)
+                                                       
+DATE    Gibt Datum und Zeit im Format WWW TT MMM JJJJ SS:MM:SS aus.
+        Beispiel: Sam 15 Mai 1993 22:20:54   (so spÑt ist's jetzt..)
+        Gleichbedeutend mit dem Befehl TIME...    
+    
+Dir [<path>]
+        zeigt die Directory des aktuellen Pfades oder des <path> an.
+        Die Anzeige erfolgt in x Spalten. Um die Anzeige anzuhalten,
+        mu· CTRL-S gedrÅckt werden. Als <path> kann natÅrlich auch eine
+        Datei stehen, z.B.  DIR a*.*  wÅrde alle EintrÑge auflisten,
+        die mit a anfangen. Am Ende werden die FilelÑngen noch zusammen-
+        gezÑhlt und angezeigt.
+        Das mit den Spalten ist z.Z. noch sehr unbefriedigend, da nicht
+        font-sensitiv. Bei folgenden Fonts jedoch passt der Aufbau:
+        1, 4, 5, 10, 11, 13, 8225 (8225 sind die kleinen Gro·buchstaben, die
+        in der Tabellenkalkulation benutzt werden (bei kleinstem ZOOM) ..)
+        Bei anderen Fonts stimmen leider die ZeilenlÑngen nicht (bei einer
+        der nÑchsten Versionen wird dies behoben sein..), aber wer benutzt
+        auch schon so riesige Fonts :-) )
+        .. um auch Unterverzeichnisse anzuzeigen .. siehe Befehl SDir        
+        .. um Datum, Zeit und Attribute anzuzeigen .. siehe Befehl LDir        
+
+DELete  <file>
+        lîscht das File file. Ganze Directory lîschen geht mit DELete *.*
+        ! Achtung !   Es erfolgt keine Sicherheitsabfrage! Und auch keine
+        Anzeige, welche Files denn nun alles gelîscht wurden.
+        
+DIAL <number>
+        WÑhlt die eingebene Nummer, die keine Leerzeichen enthalten darf,
+        mittels der im Psion eingebauten Mehrfrequenzton-erzeugung.
+        Der Befehl kann auch mit dem Zeichen # abgekÅrzt werden, welches
+        man bei einer Zeileneingabe auch durch DrÅcken der HILFE-Taste
+        erreichen kann!
+        Beispiel: DIAL 3942*39AB#
+                  # 2093
+
+ECHO [<text>]
+        Gibt den Text <text> aus, wenn kein Text eingegeben wurde, wird
+        eine Leerzeile ausgegeben. NÅtzlich fÅr Batch-Dateien.
+
+EVAL <term>
+        berechnet den mathematischen Term term. Ausgabe erfolgt dezimal.
+        Beispiel: EVAL 2*&F    .. ergibt: 30
+        
+EXecute <batch>
+        die Batch-Datei batch ausfÅhren. Wenn die Datei im \BAT\ -
+        oder aktuellem Verzeichnis steht, kann man sich EX sparen.
+        Beispiel: ex \test.bat    .. startet die Batch-Datei \test.
+                  ed      .. startet die Batch-Datei ed.bat, sofern sie
+                             in \BAT\ oder aktuellem Verzeichnis steht.
+
+eXit
+        Beendet die Shell und ist gleichbedeutend mit Quit
+
+Font <font-id> [<style>]
+        Wechselt den Font. Die verfÅgbaren Standard-fonts und deren
+        IDs werden aufgelistet, wenn man einfach Font eingibt.
+        Style ist dabei der Style des Fonts. Bei Proportionalfonts
+        sollte man also als Style 16 = unproportional angeben.
+        Beispiel: f 5 16  - nimmt einen kleinen 8er font, so da· man
+                            80 Zeichen pro Zeile hat.
+                  f 13 16 - das gleiche, nur mit der Hîhe 6.
+        OPL-Standard ist Åbrigens 4 (Mono8).
+  
+HELP
+        zeigt eine kleine Hilfe an ..
+
+INFO [<dev>]
+        zeigt Informationen Åber das aktuelle Device bzw. dev.
+        (bisher: Name, Grî·e, freier Platz)
+        Beispiel: INFO ROM:: ... oder INFO M:
+
+LDir [<path>]
+        entspricht dem DIR-Befehl, nur da· hier Erstellungszeit,
+        -datum und File-attribute angezeigt werden. Weiterhin erfolgt
+        die Anzeige mit 1 Eintrag pro Zeile, kann also bei jedem Font
+        benutzt werden..
+
+Load <OPO/OPA-File>
+        lÑdt ein OPO oder OPA File in den Speicher. Wenn die Date im
+        \OPO\ bzw. \OPA\ bzw. aktuellem Verzeichnis steht, sollte man
+        auf Load verzichten kînnen. Falls es aber doch mal nicht geht,
+        einfach ein L und ein Leerzeichen vor den Filenamen setzen..
+        Beispiel: L test.opo
+        Prozeduren kînnen dann einfach gestartet werden, in dem man
+        den Prozedurnamen eingibt, gefolgt von einem :. 
+        
+LoadFont <font-filename> 
+        lÑdt einen Font nach und gibt die ID aus.
+        Beispiel: lf M:\fon\script.fon   .. zeigt an -16377
+                  f -16377 16            .. wechselt den Font
+
+MakeDir <path>
+        Erstellt ein Verzeichnis
+        Beispiel: md \pic    .. erstellt das Verzeichnis \PIC
+
+MEM     zeigt den freien Speicher
+
+MOVE <source> <dest>
+        Entspricht den Befehlen COPY und DELETE hintereinander.
+        Wenn source und dest auf der selben Diskette ist, sollte man
+        stattdessen den Befehl REName verwenden.
+        Beispiel: move *.opo A:
+        
+PAUSE <delay>
+        Entspricht dem OPL-Befehl PAUSE, also durch angabe von 0
+        wird ein Tastendruck abgewartet.
+
+Play <file> [<duration>]
+        Spielt eine WVE-Datei aus, die mit der Applikation RECORDER
+        aufgezeichnet wurde. Optional kann noch angeben werden, wie lang
+        gespielt werden soll. Mit einem Tastendruck kann das abspielen
+        auch abgebrochen werden.
+        Beispiel: p rom::sys$al01.wve
+
+PROMPT <prompt>
+        éndert den Prompt.. Folgende Strings kînnen zusÑtzlich
+        eingesetzt werden:
+         %B = Backspace, lîscht das letzte Zeichen
+         %D = Wochentag
+         %E = Name des Wochentags
+         %F = freier Speicherplatz (entspr. MEM)
+         %H = Stunde
+         %I = Minute
+         %K = Wartet auf einen Tastendruck
+         %M = Monat
+         %N = Neue Zeile       
+         %O = Name des Monats
+         %P = aktueller Pfad
+         %S = Sekunde
+         %Txx= Style, MUSS zweistellig sein. 02=unterstreichen 04=invers
+               32=kursiv .. siehe auch im Programmierhandbuch (g)STYLE
+         %W = Woche
+         %Y = Jahr (4stellig)
+         %Z = Jahr (2stellig)
+        Beispiel:  prompt [%e%b, %d.%m.%z / %h:%i:%s]%n%p >
+                   .. ergibt folgenden prompt (z.B.):
+                   [Fr, 01.10.93 / 13:45:26]
+                   M:\OPL\ >
+                   
+Quit
+        Beendet die Shell und ist gleichbedeutend mit eXit
+
+RemDir <path>
+        Lîscht ein (leeres) Verzeichnis
+        Beispiel: rd M:\opl\tests   .. lîscht M:\opl\tests
+        
+REName <old> <new>
+        Umbennenen eines Programms. Old=Alter Name, New=Neuer Name.
+        Der neue Name kann auch Pfade enthalten, sofern diese auf
+        der gleichen Diskette sind.
+        Beispiel: ren test.txt wichtig.txt
+                  ren \opl\shell.opl \opl\anwend\shell.opl
+                  
+Run <opo-file>
+        Starten eines OPO-Files. Die Shell wird dadurch NICHT
+        blokiert. Das OPO-File lÑuft also parallel zur Shell.
+        
+
+SET [<var> [<value>]]
+        Gibt einer Variable den Wert value. Bisher kann man nur UNIX
+        auf ON bzw. OFF setzen. Unix heisst, da· in der Eingabe / durch \
+        ersetzt werden, um so UNIX bzw. Amiga-Pfade zu simulieren. Wenn
+        UNIX auf ON ist, kann man z.B. anstatt M:\OPL\ auch M:/OPL/
+        eingeben. Bei ECHO, PROMPT, ALIAS, EVAL findet keine Konvertierung
+        nicht statt. In einer der nÑchsten Versionen wird man auch mehrere
+        Variablen setzen kînnen, die dann auch von Batchfiles aus
+        gelesen und genutzt werden kînnen.
+
+SDir [<path>]
+        Aktuelles Verzeichnis rekursiv auflisten, also mit den
+        Unterverzeichnissen und Unter-Unter-Verzeichnissen.
+        Die Namen der Verzeichnisse werden dabei jeweils kursiv angezeigt.
+        Am Schlu· werden dann noch mal alle Bytes zusammengezÑhlt.
+        Beispiel: SD M:\
+
+TASKS
+        Zeigt Tasks mit Prozess-IdentitÑtsnummer an.
+
+TIME
+        Entspricht dem Befehl DATE und zeigt Datum und Zeit an.
+
+Type <filename> [HEX]
+        Zeigt ein Text-File an. Wenn HEX angegeben, wird die
+        Datei in Hex & Ascii ausgegeben. In letzterem Fall wird
+        dabei darauf geachtet, wieviele Zeichen mit dem eingestellten
+        Font angezeigt werden kînnen, so da· die Ausgabe bei jedem Font
+        korrekt erscheint.
+        Beispiel: type M:\autoexec.bat
+                  t rom::agenda.app hex
+                  
+UnLoad <OPO-File>
+        Ein zuvor mit Load geladenes Prg. kann damit wieder
+        aus dem Speicher entfernt werden.
+
+UnloadFont <font-id>
+        Entfernt den Font mit angegebener ID aus dem Speicher.
+        Beispiel: uf -16377
+        
+View <filename> [<x> <y>] [<bitmap>] [Grey]
+        Zeigt ein Bild an. X und Y optionale Angabe der
+        Grî·e des Bildes. Bei normalen Bildern wird die X und Y - Grî·e
+        aus dem File geholt, dies funktioniert aber nur bei PIC-Files,
+        also Files, deren ersten drei Zeichen "PIC" sind. (Nachzusehen
+        mit TYPE .... HEX ) Es funktioniert also nicht bei APPs oder IMGs.
+        Bitmap=welche bitmap geladen werden soll.
+        Soll die darauffolgende Bitmap als Grey-Plane dazugeladen werden,
+        mu· ganz hinten ein G oder GREY stehen.
+        Beispiel: view \pic\psion.pic
+                  view \pic\psion.pic grey
+                  view \pic\psion.pic 40 80
+                  view rom::world.app 400 120 2
+                  v rom::sys$shll.img 4
+                  v rom::sys$wsrv.img 60 50 4 g
+                  
+
+                    6. Was ich noch machen will..
+                    
+Statt LDIR, SDIR und DIR einen neuen DIR Befehl mit Parameter, Format-
+eingabe etc. (z.B. Dir [-l -r -fxxxxxxxx] ), ferner das ganze Font-sensitiv
+
+ParameterÅbergabe bei Batch-Dateien wÑren nicht schlecht.
+
+".." als 'vorheriges Verzeichnis' in pfaden einbauen
+
+Statt immer COPY&DELete sollte der MOVE-Befehl RENAME verwenden, wenn
+Quelle und Ziel auf dem gleichen Laufwerk ist.
+
+bei RUN prÅfen, welches art von file es ist, und dann die entsprechende
+Applikation starten (z.B. RUN xxx.wrd startet die Word-Applikation mit
+dem File xxx.)
+
+Tja, und was mir sonst noch so einfÑllt bzw. mi·fÑllt ..  :-)
+
+
+                    
+                    7. How to contact me
+                    
+Tja, da gÑbs diverse Mîglichkeiten:
+1. per EMAIL an ns103@fim.uni-erlangen.de
+2. In meiner Mailbox unter dem Namen Sysop (Lonely Times 0911/3939034)
+3. per Voice-Call 0911/3939031
+4. per Sack-post, die adresse findet sich im englisch DOC-File.. (fies, wa?)
+         
+
+                    8. History .. geschichtlicher RÅckblick
+
+
+v2.5   * Neuer Befehl: TASKS - Zeigt Tasks und ihre PID (process-id)
+       * Neuer Befehl: ChangeTaskPri - éndert die PrioritÑt eines Tasks
+       * Type hat nicht funktioniert. Funktioniert wieder & schneller
+       * View&Play arbeiten jetzt auch mit Jokern
+       * bei delete, copy und move: Ausgabe der filenamen bei Joker-BenÅtzung
+       * Ausgabeumleitung >FILE bzw. NIL: / NUL: fuer keine Ausgabe
+       
+v2.44  * ALIAS-Befehl
+       * AusfÅhren einer Batch-datei von einer Batch-datei funktioniert jetzt
+       * SET UNIX ON fÅr / -> \ - Konvertierung
+       * MEM zeigt den freien Speicherplatz
+       * INFO zeigt Infos Åber Devices
+       * neu im Prompt: %F zeigt den freien Speicher
+       
+v2.43  * Neuer Dir-Befehl LDIR - zeigt Datum, Zeit und Attribute
+       * Statt des Zeileneditors gibts jetzt ein ed-bat.als - file..       
+
+v2.42  * OPO-Files auch starten mit RUN
+       * Erste Ma·nahmen fÅr Ausgabeumleitung geschaffen (ab v2.5!)
+       * Statistiken im Dir-Befehl (dirs, files, ..)
+       * kein CD-try bei 'unknown command'
+
+v2.41  * PLAY hat nicht richtig funktioniert .. bug fixed
+       * CD wird nicht mehr benîtigt.. einfach \pfad\ eingeben.. (bzw. dev::)
+
+v2.40  * Angepasst an den 3a
+       * Font-UnterstÅtzung (wirkt sich auch auf's TYPE-Commando aus)
+       * WVE-Files abspielen
+       * Der VIEW-Befehl wurde verbessert (grî·e) und erweitert (grey..)           
+       * Telefonnummern wÑhlen
+       * Verbessertes Buffer-handling
+       * Befehl, um die Shell in den Background verschwinden zu lassen
+       * Neuer DIR-Befehl, um auch Sub-Directories anzeigen zu lassen
+       * Ebenfalls wird am DIR-Befehl die 'total-bytes' eines Dirs angezeigt
+       * Wenn es einen Befehl nicht gibt, wird ein CD versucht, der CD
+         Befehl kann nun also oft weggelassen werden       
+       * Die verfÅgbaren Befehle werden jetzt mit ? angezeigt,
+         HELP zeigt nun eine kleine Hilfe..
+       * Im Prompt kînnen nun auch Styles gewÑhlt werden (Invers, Kursiv,..)
+       * Eine kleine Doku in Englisch wurde erstellt..
+       * \APP\TOOLS.OPA wird nicht mehr benîtigt, stattdessen
+         \APP\EXPWIN2.OPA ...
+       * Neuer Befehl PAUSE (brauchbar fÅr Batch-Dateien)                    
+       

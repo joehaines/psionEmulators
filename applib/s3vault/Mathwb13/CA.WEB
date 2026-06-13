@@ -1,0 +1,214 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss11</scrfont>
+<statwin>on</statwin>
+<cfmt>~%ca0 %ca1 %ca2 %ca3 %ca4 %ca5 %ca6 %ca7 %ca8 %ca9 %caa</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>inptr</rtype>
+<rfmt>\n\N</rfmt>
+<rall>yes</rall>
+<starg></starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>general</nfmt>
+<ndec>0</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>1.23</xmax>
+<xmin>-3.21</xmin>
+<ymax>1</ymax>
+<ymin>-1</ymin>
+<xintrvls>6</xintrvls>
+<yintrvls>6</yintrvls>
+<xycells>home,home</xycells>
+<cell>
+<cname>ca0</cname>
+<val>1</val>
+<script>ocf &lt;> oc1</script></cell>
+<cell>
+<cname>ca1</cname>
+<val>0</val>
+<script>oc0 OR NOT  oc2</script></cell>
+<cell>
+<cname>ca2</cname>
+<val>1</val>
+<script>NOT (oc1 AND oc3)</script></cell>
+<cell>
+<cname>ca3</cname>
+<val>0</val>
+<script>oc2 = oc4</script></cell>
+<cell>
+<cname>ca4</cname>
+<val>0</val>
+<script>oc3 AND NOT oc5</script></cell>
+<cell>
+<cname>ca5</cname>
+<val>1</val>
+<script>(oc4 OR oc6) </script></cell>
+<cell>
+<cname>ca6</cname>
+<val>1</val>
+<script>NOT oc5 OR oc7</script></cell>
+<cell>
+<cname>ca7</cname>
+<val>1</val>
+<script>oc6 = oc8</script></cell>
+<cell>
+<cname>ca8</cname>
+<val>0</val>
+<script>(NOT oc7) AND oc9</script></cell>
+<cell>
+<cname>ca9</cname>
+<val>1</val>
+<script> oca OR oc8</script></cell>
+<cell>
+<cname>caa</cname>
+<val>0</val>
+<script>NOT ocb AND oc9</script></cell>
+<cell>
+<cname>cab</cname>
+<val>0</val>
+<script>oca &lt;>  occ </script></cell>
+<cell>
+<cname>cac</cname>
+<val>0</val>
+<script>NOT ocb OR ocd</script></cell>
+<cell>
+<cname>cad</cname>
+<val>0</val>
+<script> (oce AND occ)</script></cell>
+<cell>
+<cname>cae</cname>
+<val>0</val>
+<script>ocd OR NOT ocf</script></cell>
+<cell>
+<cname>caf</cname>
+<val>1</val>
+<script>NOT oce OR oc0</script></cell>
+<cell>
+<cname>home</cname>
+<text>This web illustrates some behavior of small boolean cellular automata, including the existance of various different limit cycles.
+
+Each time the home cell is executed, it sets the initial values of the automaton cells to a different random collection of ones and zeros.
+
+Then it causes new values for each automaton cell to be computed from the boolean expression in its script.
+
+Recomputation is repeated fifty times, allowing plenty of repetitions for observing the different limit cycles possible with the collection of boolean expressions provided. 
+
+The current values of the automaton cells ca0, ca1, ca2,... are computed from the previous values of their nearest neighbors (previous values are kept in the cells oc0, oc1, oc2,...)
+
+The cell seed contains a seed for the random number generator, and the value of home is used as a general purpose loop index.
+
+If you get stuck with the same pattern every time, put a new value into seed.  That should break you out of the rut.
+
+Try different boolean expressions in the scripts to see how that affects the patterns.
+
+To run the demo, execute the script of this home cell.</text>
+<val>11</val>
+<script>#
+# Initialize cell values
+#
+set NumDec to 0
+rand(seed())
+for(home=0 to 15) {
+    if(100*rand()&lt;50) {
+           set ca0[home] to 0
+    } else {
+           set ca0[home] to 1
+    } # endif
+} #endfor
+#
+# apply ca rules 50 times
+#
+for(home=0 to 50) {
+#
+# save previous cell values
+#
+    set oc0 to ca0
+    set oc1 to ca1
+    set oc2 to ca2
+    set oc3 to ca3
+    set oc4 to ca4
+    set oc5 to ca5
+    set oc6 to ca6
+    set oc7 to ca7
+    set oc8 to ca8
+    set oc9 to ca9
+    set oca to caa
+    set ocb to cab
+    set occ to cac
+    set ocd to cad
+    set oce to cae
+    set ocf to caf
+#
+# compute and output new values
+#
+   out("\n", ca0!,ca1!,ca2!,ca3!,ca4!,ca5!,
+    ca6!,ca7!,ca8!,ca9!,caa!,cab!,
+    cac!,cad!,cae!,caf!)
+} #endfor</script></cell>
+<cell>
+<cname>oc0</cname>
+<val>0</val></cell>
+<cell>
+<cname>oc1</cname>
+<val>0</val></cell>
+<cell>
+<cname>oc2</cname>
+<val>1</val></cell>
+<cell>
+<cname>oc3</cname>
+<val>0</val></cell>
+<cell>
+<cname>oc4</cname>
+<val>0</val></cell>
+<cell>
+<cname>oc5</cname>
+<val>0</val></cell>
+<cell>
+<cname>oc6</cname>
+<val>1</val></cell>
+<cell>
+<cname>oc7</cname>
+<val>1</val></cell>
+<cell>
+<cname>oc8</cname>
+<val>1</val></cell>
+<cell>
+<cname>oc9</cname>
+<val>0</val></cell>
+<cell>
+<cname>oca</cname>
+<val>1</val></cell>
+<cell>
+<cname>ocb</cname>
+<val>1</val></cell>
+<cell>
+<cname>occ</cname>
+<val>1</val></cell>
+<cell>
+<cname>ocd</cname>
+<val>0</val></cell>
+<cell>
+<cname>oce</cname>
+<val>0</val></cell>
+<cell>
+<cname>ocf</cname>
+<val>1</val></cell>
+<cell>
+<cname>seed</cname>
+<text>This cell is used to seed the random number generator.  It is changed by each execution of the home cell.</text>
+<val>21</val>
+<script>if(seed&lt;19) {
+     seed+ca0+ca3+ca6+ca9+caof+caoc+caoa
+} else {
+     seed-cae-ca4-caa-cao1-ca05
+} #endif</script></cell></eof>

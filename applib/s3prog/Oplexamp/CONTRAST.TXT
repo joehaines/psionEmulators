@@ -1,0 +1,75 @@
+==========
+psion/chatter #232, from psioncorp, 1649 chars, Aug  3 09:50 94
+Comment to 221. 
+----------
+Here's two short procedures, one to return the current contrast setting 
+and the other to increase or decrease the LCD contrast.
+
+Dave (psioncorp)
+
+/*  Routine to return the current LCD contrast setting  
+
+    Author :  DP
+    Started:  03/03/93
+
+    The range of values returned is from 0 (lightest) to 15 (darkest)
+*/
+
+
+#define HardwareManager $008e
+#define HwReadLcdContrast       $1300
+
+
+PROC LcdCont:
+
+        LOCAL ax%,bx%,cx%,dx%,si%,di%
+        LOCAL flags%,err%
+        LOCAL ret$(32)
+
+        ax% = HwReadLcdContrast
+
+        flags% = OS(HardwareManager,ADDR(ax%))
+
+        IF flags% AND 1                         
+                err% = ax% OR $ff00             
+                PRINT ret$ = ERR$(err%)         
+                GET           
+        ELSE 
+                ax% = ax% AND $000f     
+                PRINT ax%               /*  Current contrast setting  */
+                GET
+        ENDIF
+ENDP
+
+
+/*  Prcedure to either darken or lighten the screen
+    depending upon whether a +ve or -ve value is passed in ax%  
+
+    Author:     DP
+    Started:    03/03/93
+*/
+
+
+#define HardwareManager $008e
+#define HwLcdContrastDelta      $1200
+
+
+proc lcdIncr:
+
+        LOCAL ax%,bx%,cx%,dx%,si%,di%
+        LOCAL flags%,err%
+        LOCAL ret$(32)
+
+        ax% = HwLcdContrastDelta             /*  +ve, darker  */
+rem     ax% = HwLcdContrastDelta  OR $0080   /*  -ve, lighter  */        
+
+        flags% = OS(HardwareManager,ADDR(ax%))
+
+        IF flags% AND 1                         
+                err% = ax% OR $ff00             
+                PRINT ret$ = ERR$(err%)         
+                GET           
+        ENDIF
+ENDP
+
+

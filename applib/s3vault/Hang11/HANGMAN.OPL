@@ -1,0 +1,96 @@
+Proc hangman:
+Rem Original programm by: ?
+Rem Enhancements by: Rolf Aeschbacher (Contact: Compuserve 100116,3357)
+Rem Version 1.1
+Global diff%,hity%,hitn%,f$(1),debug%,count%
+Local res%,end
+debug%=0
+end=0
+init:
+Do
+	play:
+	res%=query:
+	if res%=0
+		end=-1
+	endif
+Until end
+Close
+Endp
+
+Proc init:
+Local res%,f%
+Randomize (Second)
+GAT 100,50 :GSTYLE 8 :GPRINT "HANGMAN" :PAUSE 30
+gCls
+dInit
+dtext "","Setup",$302
+f%=2 :Rem file = hangman+f%
+dChoice f%,"Word file","Hangman1,Hangman2"
+res%=3
+dChoice res%,"Number of guesses","4,5,6,7,8"
+If Dialog
+	diff%=res%+3
+	f$=Fix$(f%,0,1)
+	Open "\DAT\HANGMAN"+f$+".DBF",A,Z$
+	Else Stop
+Endif
+Endp
+
+Proc play:
+Local A$(20),W$(20),U$(8),G$(1),D$(20),I%,pos%
+Print "SELECTING THE WORD....." :PAUSE 30
+U$="" :D$=""
+Rem LAST :POSITION RND*POS+1
+pos%=(1+Int(Rnd*Count))
+If debug%=1
+	Giprint Fix$(pos%,0,4)
+Endif
+Position pos%
+W$=A.Z$ :A$=W$
+DO :D$=D$+"*"
+Until Len(D$)=Len(W$)
+Cls :gAt 20,20 :Gprint D$
+Do
+	Do
+		G$=Upper$(Get$)
+	Until Asc(G$)>64 And Asc(G$)<91 And Loc(U$,G$)=0 And Loc(D$,G$)=0
+	I%=Loc(W$,G$)
+	If I%
+  	Do
+			W$=Left$(W$,I%-1)+"*"+Right$(W$,Len(W$)-I%)
+			D$=Left$(D$,I%-1)+G$ +Right$(D$,Len(W$)-I%)
+			gCls :gAt 20,20 :Gprint D$
+			At 4,5 :Print "USED LETTERS = ";U$ :I%=Len(U$)
+			At 30,5 :Print "LEFT = ";(diff%-I%)
+			I%=Loc(W$,G$)
+		Until I%=0
+		IF Loc(D$,"*")=0
+			At 24,2 :Print " YOU HAVE GOT IT! "
+			hity%=hity%+1
+			I%=-1
+		Endif
+		Else
+		U$=U$+G$ :At 4,5 :PRINT "USED LETTERS = ";U$ :I%=Len(U$)
+		AT 30,5 :Print "LEFT = ";(diff%-I%)
+		IF I%=diff% :At 22,2 :Print "THE WORD WAS "
+			hitn%=hitn%+1
+			AT 23,3 :Print "> ";A$;" <"
+			I%=-1
+		Endif
+	Endif
+Until I%=-1
+At 4,7 :Print "Hit" :Print "   ";hity%
+At 34,7 :Print "Dud" :At 33,8 :Print " ";hitn%
+Endp
+
+Proc query:
+Local b1$(5),b2$(5),res%
+dInit
+dPosition 0,1
+b1$="Again"
+b2$="Quit"
+dButtons b1$,13,b2$,-27
+res%=Dialog
+Return res%
+Endp
+

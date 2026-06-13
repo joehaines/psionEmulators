@@ -1,0 +1,53 @@
+>Ah, excellent. The text in question is the bible, 4.5M long
+>uncompressed. The dictionary derived from this is about 14000
+>words, the dictionary file is 112k.
+
+>I understand a 4M flash is due soon, but it will still be 
+>more costly than the 2M one of course.
+
+You should definitely consider huffman-coding.  For one thing, you need it.
+I'm afraid you won't get sufficient compression without it - to fit in the
+2M flash.
+Secondly, it is very, very easy, because you have a known text.  That means
+you can hardwire the decoding tables, and the decoding logic will be
+extremely simple.
+
+How to do this: (this is actually a simplified version of an algorithm which
+I think is in the comp.compression faq, the faq algorithm gives denser
+tables with slightly more complex code). 
+
+Encode the most frequent x words, where x is the largest x for which the
+longest huffman-code will fit in 8 bits (or 9 bits, or 7 bits, whatever
+seems appropriate).  Include in the decoding program a table of length 256
+(2**8).  To decode a symbol, just index the table with the 8 next bits in
+input, to find in the table 1) The next symbol in input, and 2) The length
+of this symbol.  Advance input with the length, use the symbol, and repeat.
+
+Writing the table: For each code c, eg. c=10111, representing a symbol s, do
+  for all possible values of xxx, let c' = xxxc = xxx11101
+	table[c'].length = length(c) = 5
+	table[c'].symbol = s
+
+If I haven't said this already: Encode "letter-words" and "non-letters
+words" separately. - That means with separate huffman tables, too.
+
+Probably the space character will be so frequent that it's information
+contents is a fraction of a bit, but spaces will still cost you 1 bit each
+with huffman coding.  Arithmetic coding would handle this, but is much more 
+complex.  You might handle this heuristically.
+
+The characters in literals (eg. in the dictionary) might also be
+huffman-coded.  If you don't do that, at least pack the 52 letters in 6
+bits.
+
+If you want your encoded text to include other things besides word indices,
+such as literal words or end-of-text markers, then don't use flag bits:
+This will be very wasteful, as word indices will be much more frequent than
+anything else: Instead include these possibilities as "special symbols" in
+the huffman code for word indices.
+
+Hope this helps.  Please give me some feedback on how this works for you;
+frankly, I haven't implemented half of this myself.
+
+Anders Munch		|  Department of Computer Science
+juul@diku.dk		|  University of Copenhagen, Denmark

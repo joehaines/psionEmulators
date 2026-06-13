@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!-- File        : swi/apoll.html -->
+<!-- Date        : 10-Jun-99 -->
+<!-- Author      : © Alexander Thoukydides, 1998, 1999 -->
+<!-- Description : Part of the PsiFS documentation. -->
+<HTML>
+<HEAD>
+<TITLE>PsiFS Documentation - SWI Calls [PsiFS_AsyncPoll]</TITLE>
+<LINK REV=MADE HREF="mailto:psifs@thouky.tcp.co.uk">
+<LINK REL=PARENT HREF="index.html">
+<META NAME=DESCRIPTION CONTENT="PsiFS Documentation - SWI Calls [PsiFS_AsyncPoll]">
+</HEAD>
+<BODY TEXT="#000000" BGCOLOR="#FFFFFF" LINK="#0000FF" VLINK="#004499" ALINK="#FF0000">
+<CENTER>
+<H1><FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT>: SWI Calls</H1>
+<B>PsiFS_AsyncPoll</B> </CENTER>
+<HR>
+<TABLE WIDTH="100%"><TR><TD COLSPAN=4 ALIGN=RIGHT><FONT COLOR="#DD0000"><TT><B>PsiFS_AsyncPoll</B></TT><BR><TT>(SWI&nbsp;&amp;520C7)</TT></FONT></TD></TR><TR VALIGN=TOP><TD></TD><TD COLSPAN=3>Poll the status of an asynchronous remote operation</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;entry:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>the previously allocated handle for this operation</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>On&nbsp;exit:</B></FONT></TD><TD>R0&nbsp;=</TD><TD COLSPAN=2>status of the operation</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R1&nbsp;=</TD><TD COLSPAN=2>pointer to null terminated description of status</TD></TR>
+<TR VALIGN=TOP><TD></TD><TD>R2&nbsp;=</TD><TD COLSPAN=2>pointer to null terminated details, or 0 if none</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Interrupts:</B></FONT></TD><TD COLSPAN=3>Interrupt status is undefined<BR>Fast interrupts are enabled</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Processor&nbsp;mode:</B></FONT></TD><TD COLSPAN=3>Processor is in SVC mode</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Re-entrancy:</B></FONT></TD><TD COLSPAN=3>SWI is not re-entrant</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Use:</B></FONT></TD><TD COLSPAN=3>
+Poll the status of a previously started asynchronous remote operation. The possible values for the status are:
+<TABLE BORDER=1 ALIGN=CENTER>
+<TR><TH>Value</TH><TH>Meaning</TH></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;0000</TD><TD>completed successfully</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;0001</TD><TD>completed with error</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;0002</TD><TD>aborted</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;0100</TD><TD>operation starting</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;0101</TD><TD>operation in progress</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;1000</TD><TD>reading list of open files</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;1001</TD><TD>reading command line for an open file</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;1002</TD><TD>closing a file</TD></TR>
+<TR VALIGN=TOP><TD ALIGN=RIGHT>&amp;1003</TD><TD>opening a file</TD></TR>
+</TABLE>
+<P>
+If an error has been produced, then R2 will point to the text of the error.
+<P>
+The returned pointers only remain valid until the next call of this SWI. If the values need to be kept then they must be copied immediately.
+</TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Related&nbsp;SWIs:</B></FONT></TD><TD COLSPAN=3><TT><A HREF="astrt.html" TITLE="PsiFS_AsyncStart">PsiFS_AsyncStart</A></TT>, <TT><A HREF="aend.html" TITLE="PsiFS_AsyncEnd">PsiFS_AsyncEnd</A></TT>, <TT><A HREF="actrl.html" TITLE="PsiFS_AsyncControl">PsiFS_AsyncControl</A></TT></TD></TR>
+<TR VALIGN=TOP><TD COLSPAN=4><BR></TD></TR><TR VALIGN=TOP><TD NOWRAP><FONT COLOR="#DD0000"><B>Related&nbsp;vectors:</B></FONT></TD><TD COLSPAN=3>None</TD></TR>
+</TABLE>
+<HR> <TABLE WIDTH="100%">
+<TR VALIGN=TOP>
+<TD>
+[<A HREF="../index.html" TITLE="Contents">Contents</A>]
+[<A HREF="index.html" TITLE="Up">Up</A>]
+</TD>
+<TD ALIGN=RIGHT>
+<FONT SIZE=-1><I><A HREF="../legal/copy.html" TITLE="Copyright">Copyright</A> &copy; <A HREF="mailto:psifs@thouky.tcp.co.uk" TITLE="Send email to Alexander Thoukydides">Alexander Thoukydides</A>, 1998, 1999</I></FONT>
+</TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>

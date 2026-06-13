@@ -1,0 +1,36 @@
+PROC Mandel:
+	LOCAL xres%,yres%,i%,j%,l%,k%
+	LOCAL A,B,U,V,X,Y,W
+	REM screen size (2*xres+1)(2*yres+1)
+	xres%=90 :yres%=80
+	i%=-xres%
+	gCLS :gUPDATE OFF
+	BUSY "Fractating",2,6
+	DO
+		A=(-0.55)+1.65*i%/(xres%)
+		j%=0
+		DO
+			B=1.4*j%/(yres%)
+			X=A :Y=B
+			k%=1 :REM Init k% for iteration steps
+			DO
+				U=X*X :V=Y*Y :W=2*X*Y
+				X=U-V+A :Y=W+B
+				IF (U+V)>16 :GOTO LBL::
+				ENDIF
+				k%=k%+1 :REM incr k%
+			UNTIL k%>40 :REM max no. of iterations.
+			LBL::
+			k%=k%-INT(k%/2)*2 :REM =k mod 2
+			gGMODE k%
+			gAT 120+i%,40+j% :gLINEBY 0,0
+			gAT 120+i%,40-j% :gLINEBY 0,0
+			gGMODE 0
+			k%=0 :j%=j%+1
+		UNTIL j%>yres%
+		i%=i%+1
+	UNTIL i%>xres%
+	BUSY OFF
+	gUPDATE ON
+	GET
+ENDP

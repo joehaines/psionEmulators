@@ -1,0 +1,3 @@
+@echo off
+rcom bak
+

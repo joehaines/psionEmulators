@@ -1,0 +1,34 @@
+#include "dbs.oph"
+
+
+PROC Main:
+	IF (chckver%:(1.00)=0)
+		PRINT "The new version needs to be installed..."
+	ELSE
+		PRINT "No new version needs installing..."
+	ENDIF
+	GET
+ENDP
+
+
+PROC chckver%:(newVer)
+
+rem Checks whether a new version of DBS needs to be installed
+rem over any existing version
+rem Returns 0 if the new version needs to be installed or non-zero otherwise
+
+	LOCAL v%,oldVer$(8)
+
+	LOADM "\opo\database.opo"
+
+	IF (DbsConnect(0)<>0)
+		RETURN 0
+	ENDIF
+	DbsVersion(v%,oldVer$)
+	DbsDisconnect
+	IF (EVAL(oldVer$)<newVer)
+		RETURN 0
+	ENDIF
+	RETURN 1
+ENDP
+

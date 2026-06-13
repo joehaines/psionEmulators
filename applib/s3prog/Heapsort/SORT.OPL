@@ -1,0 +1,112 @@
+REM *************   HeapSort algorithm **************
+REM It requires minimum additional memory. It doesn't
+REM sense initial order, thus it works better on
+REM random data.
+REM *************************************************
+REM Parameters:
+REM    buf%   - address of array to sort
+REM    cmpf$  - name of the function to compare items
+REM    count% - number of items to sort
+REM    size%  - size of one item in bytes
+REM
+REM See test: and cmpint%: for example of use
+REM *************************************************
+REM NOTE 1: If you have only one compare function,
+REM  it is better to modify this sources to call
+REM  it directly. For 1000 numbers it takes 49 sec
+REM  with indirect call, 41 sec. with direct call,
+REM  23 sec. with inline comparision.
+REM
+REM NOTE 2: This function doesn't check that ALLOC
+REM  was successful.
+REM
+REM NOTE 3: Cache dramatically improves speed.
+REM *************************************************
+REM This function was translated from FORTRAN
+REM Optimized by replacing multiplications
+REM with additions.
+REM Written by Konstantin Saliy
+REM Use it on your own risk without warranty
+
+REM *********** Next 2 functions for test only ***********
+proc test:
+  local a%(1000),i%,n%,time&
+  TRAP CACHE 2000,2000
+  do
+    print "Enter a number between 2 and 1000:";
+    input n%
+  until 2<=n% and n%<=1000
+  i%=1
+  while i%<=n%
+    a%(i%)=1+INT(RND*n%)
+    i%=i%+1
+  endwh
+  if n%<=20 :i%=1 :while i%<=n% :print a%(i%), :i%=i%+1 :endwh :endif
+  print "Wait..."
+  time&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+  HeapSort:(addr(a%()),"cmpint",n%,2)
+  time&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)-time&
+  print time&,"seconds for",n%,"numbers"
+  if n%<=20 :i%=1 :while i%<=n% :print a%(i%), :i%=i%+1 :endwh :endif
+  get
+endp
+
+proc cmpint%:(a1%,a2%)
+  return peekw(a1%)-peekw(a2%)
+endp
+
+REM ************* The only function you need *************
+proc HeapSort:(buf%,cmpf$,count%,size%)
+  local n%,k%,l%,m%
+  local tmp%
+  local AX%,BX%,CX%,DX%,SI%,DI%
+
+  if count%<=1 :return :endif
+  BUSY "Sorting",1,1
+  CX%=size%         REM for BufCopy call
+  tmp%=ALLOC(size%) REM I do not check for success
+  n%=(count%-1)*size%
+  k%=(count%/2)*size%
+M11::
+  k%=k%-size%
+  SI%=UADD(buf%,k%) :DI%=tmp% :OS($A1,addr(AX%))
+  goto M30
+M25::
+  SI%=UADD(buf%,n%) :DI%=tmp% :OS($A1,addr(AX%))
+  SI%=buf% :DI%=UADD(buf%,n%) :OS($A1,addr(AX%))
+  n%=n%-size%
+
+M30::
+  l%=k%
+
+M31::
+  m%=l%+l%+size%
+  if     m%>n% :goto gtzero
+  elseif m%=n% :goto zero
+  endif
+
+REM  if peekw(UADD(buf%,m%+size%))>=peekw(UADD(buf%,m%))
+REM  if cmpint%:(UADD(buf%,m%+size%),UADD(buf%,m%))>=0
+  if @%(cmpf$):(UADD(buf%,m%+size%),UADD(buf%,m%))>=0
+    m%=m%+size%
+  endif
+
+zero::
+REM  if peekw(tmp%)>peekw(UADD(buf%,m%))
+REM  if cmpint%:(tmp%,UADD(buf%,m%))>0
+  if @%(cmpf$):(tmp%,UADD(buf%,m%))>0
+    goto gtzero
+  endif
+  SI%=UADD(buf%,m%) :DI%=UADD(buf%,l%) :OS($A1,addr(AX%))
+  l%=m%
+  goto M31
+
+gtzero::
+  SI%=tmp% :DI%=UADD(buf%,l%) :OS($A1,addr(AX%))
+  if k%>0 :goto M11 :endif
+  if n%>=size% :goto M25 :endif
+
+  FREEALLOC tmp%
+  BUSY OFF
+endp
+

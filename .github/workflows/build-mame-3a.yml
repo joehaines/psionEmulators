@@ -1,0 +1,104 @@
+name: Build MAME Series 3a Bundle
+
+# Manual trigger only — never runs on push so normal deploys stay fast.
+# Trigger from: GitHub → Actions → "Build MAME Series 3a Bundle" → Run workflow
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # contents:write is required to create/update the GitHub Release
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential python3 python-is-python3 zip
+
+      # ── MAME 0.253 source ──────────────────────────────────────────────────
+      # Shallow-clone of the mame0253 tag; cache is keyed to a fixed string
+      # because the tag never changes — one warm cache lasts forever.
+
+      - name: Cache MAME 0.253 source tree
+        id: cache-mame-src
+        uses: actions/cache@v4
+        with:
+          path: ~/mamedev/mame0253
+          key: mame-0253-source-v1
+
+      - name: Clone MAME 0.253
+        if: steps.cache-mame-src.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/mamedev
+          git clone --branch mame0253 --depth 1 \
+            https://github.com/mamedev/mame.git \
+            ~/mamedev/mame0253
+
+      # ── Emscripten SDK 3.0.0 ──────────────────────────────────────────────
+      # Pinned to 3.0.0 — newer emsdk versions are not compatible with MAME 0.253.
+
+      - name: Setup Emscripten SDK 3.0.0
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.0.0'
+          actions-cache-folder: .emsdk-cache-3.0.0
+
+      # ── MAME wasm object cache ─────────────────────────────────────────────
+      # Keyed by the build script hash so it invalidates if build flags change,
+      # but survives unrelated repo commits. restore-keys gives a warm partial
+      # hit on the first run after an invalidation.
+
+      - name: Cache MAME wasm build objects
+        uses: actions/cache@v4
+        with:
+          path: ~/mamedev/mame0253/build
+          key: mame-0253-wasm-obj-${{ hashFiles('scripts/build-mame-3a.sh') }}
+          restore-keys: mame-0253-wasm-obj-
+
+      # ── Build ──────────────────────────────────────────────────────────────
+      # OPTIMIZE=3 / SYMBOLS=0 for a production-sized wasm. The unoptimised
+      # debug build can reach 200 MB+ which exceeds GitHub's hard push limit.
+
+      - name: Build MAME psion3aweb bundle
+        env:
+          OPTIMIZE: '3'
+          SYMBOLS: '0'
+        run: bash scripts/build-mame-3a.sh
+
+      # ── Persist artefacts ──────────────────────────────────────────────────
+      # Primary: a GitHub Release whose assets the deploy workflow downloads.
+      # The wasm bundle is too large to commit to git (75-80 MB), so we store
+      # it here instead. The deploy workflow fetches it with gh release download.
+
+      - name: Publish bundle to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Replace any previous release so the deploy always gets the latest build.
+          gh release delete mame-3a-bundle --yes 2>/dev/null || true
+          gh release create mame-3a-bundle \
+            --title "MAME Series 3a WebAssembly Bundle" \
+            --notes "Psion Series 3a · MAME 0.253 · built by the 'Build MAME Series 3a Bundle' workflow. Downloaded automatically by the deploy workflow on each deploy." \
+            frontend/public/mame-3a/psion3aweb.js \
+            frontend/public/mame-3a/psion3aweb.wasm \
+            frontend/public/mame-3a/psion3aweb.data \
+            frontend/public/mame-3a/psion3aweb.data.js
+
+      # Secondary: 90-day workflow artifact as a backup.
+      - name: Upload bundle as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mame-3a-bundle
+          path: frontend/public/mame-3a/psion3aweb.*
+          retention-days: 90
+

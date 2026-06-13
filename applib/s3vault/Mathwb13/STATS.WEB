@@ -1,0 +1,277 @@
+
+<opts>
+<isrc>cell</isrc>
+<iname>data</iname>
+<iecho>no</iecho>
+<odest>screen</odest>
+<oname>data</oname>
+<onewl>lf</onewl>
+<scrfont>swiss11</scrfont>
+<statwin>on</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N\T</rfmt>
+<rall>yes</rall>
+<starg>tt</starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>1</ndec>
+<nang>degrees</nang>
+<pltng>on</pltng>
+<xmax>10.0</xmax>
+<xmin>0.0</xmin>
+<ymax>100.0</ymax>
+<ymin>0.0</ymin>
+<xintrvls>10</xintrvls>
+<yintrvls>10</yintrvls>
+<xycells>bin,prcnt</xycells></opts>
+<cell>
+<cname>b01</cname>
+<val>2.0</val></cell>
+<cell>
+<cname>b02</cname>
+<val>1.0</val></cell>
+<cell>
+<cname>b03</cname>
+<val>2.0</val></cell>
+<cell>
+<cname>b04</cname>
+<val>2.0</val></cell>
+<cell>
+<cname>b05</cname>
+<val>11.0</val></cell>
+<cell>
+<cname>b06</cname>
+<val>18.0</val></cell>
+<cell>
+<cname>b07</cname>
+<val>8.0</val></cell>
+<cell>
+<cname>b08</cname>
+<val>2.0</val></cell>
+<cell>
+<cname>b09</cname>
+<val>3.0</val></cell>
+<cell>
+<cname>b10</cname>
+<val>1.0</val></cell>
+<cell>
+<cname>bin</cname>
+<val>9.5</val></cell>
+<cell>
+<cname>binwidth</cname>
+<val>1.5</val></cell>
+<cell>
+<cname>clearbins</cname>
+<script>for(indx=0 to 9) {
+    set b01[indx] to 0
+}</script></cell>
+<cell>
+<cname>count</cname>
+<val>50.0</val></cell>
+<cell>
+<cname>data</cname>
+<text>11.9 8.3 13.5 12.5 11.4 13.6 6.9 10.8 14.2 12.0 11.9 12.4 4.3 11.0 7.6 12.7 16.1 12.8 14.6 14.7 12.7 10.8 12.9 10.5 12.5 14.8 4.2 12.4 11.1 11.9 11.7 12.7 14.2 11.0 10.9 14.5 14.0 11.7 10.0 19.0 16.5 12.4 10.6 9.2 10.7 11.7 12.5 13.6 16.4 11.1 </text></cell>
+<cell>
+<cname>distribution</cname>
+<text>This cell prints descriptive statistics and plots a frequency distribution of the samples currently in the text field of cell "data". 
+
+There are ten bins in the frequency distribution.  The plot shows the percentage of numbers falling within each bin versus the bin number.
+
+</text>
+<script>set outtype to screen
+clearbins()
+initstats()
+set inname to "data"
+set binwidth to srange()/10
+set smean to smean/count
+set inname to "data"
+while(not eof) {
+    in(temp)
+    set var to var+pow(temp-smean,2)
+    set indx to 0
+    while(indx&lt;10) {
+        if(temp&lt;=(smin+(indx+1)*binwidth)) {
+              set b01[indx] to 1+b01[indx]
+              set indx to 10
+        } else {
+             set indx to indx+1
+        } #endif
+    } #endwhile
+} #endwhile
+for(bin=0.5 to 9.5) {
+     set  prcnt to 100*b01[bin]/count
+}#endfor
+statsout()</script></cell>
+<cell>
+<cname>exponential</cname>
+<text>This cell generates Num random numbers that are exponentially distributed with the exponential distribution parameter lambda.
+
+The numbers are written to the text field of cell data, which is the input field for the script in cell distribution, which plots the distribution function and prints descriptive statistics.
+
+For a different collection of numbers, change the seed in the first call to the Rand() function.
+
+WARNING:  The execution of this script overwrites the contents ofthe text field of cell data. But first it copies the contents of the text field of that cell to the cell backup.</text>
+<val>0.1</val>
+<script>set outtype to cell
+set outname to data
+Rand(3)
+for(indx=1 to Num) {
+     out(-ln(rand()) /lambda," ")
+}</script></cell>
+<cell>
+<cname>home</cname>
+<text>This web provides some handy statistical tools.
+
+Enter a collection of numbers into the text field of cell "data", and you can get descriptive statistics, and a plot of frequency distribution by executing the script of cell "distribution".
+
+For descriptive statistics only, execute cell "stats".
+
+To generate random numbers from known probability distributions, execute the scripts of cells "uniform","normal", or "exponential".  These scripts will overwrite the contents of the text field of cell "data", so save them first if you want to keep them.
+
+</text>
+<val>17</val></cell>
+<cell>
+<cname>indx</cname>
+<val>10</val></cell>
+<cell>
+<cname>initstats</cname>
+<script>set var to 0
+set smin to 1000000000
+set smax to -1000000000
+set smean to 0
+set count to 0
+set var to 0
+</script></cell>
+<cell>
+<cname>lambda</cname>
+<val>10</val></cell>
+<cell>
+<cname>normal</cname>
+<text>This cell generates Num random numbers that are normally distributed with a mean close to the value in cell normMean, and a standard deviation that is close to the value in cell normSigma.
+
+The numbers are written to the text field of cell data, which is the input field for the script in cell distribution, which plots the distribution function and prints descriptive statistics.
+
+For a different collection of numbers, change the seed in the first call to the Rand() function.
+
+WARNING:  The execution of this script overwrites the contents ofthe text field of cell data. </text>
+<val>0.9</val>
+<script>set outtype to cell
+set outname to data
+Rand(0)
+for(indx=1 to Num) {
+    do {
+        set u1 to -ln(rand())
+        set u2 to -ln(rand())
+    } while (2*u1&lt;sqrt(u2-1))
+    if(rand()&lt;0.5) {
+        set u2 to -u2
+    }
+  out(normSigma*u2+normMean," ")
+}</script></cell>
+<cell>
+<cname>normMean</cname>
+<text>This is the mean to use in the generation of normally distributed random numbers</text>
+<val>12</val></cell>
+<cell>
+<cname>normSigma</cname>
+<text>This is the standard deviation to use in the generation of normaly distributed random numbers (see cell normal)</text>
+<val>2</val></cell>
+<cell>
+<cname>Num</cname>
+<text>The value field of this cell contains the number of data items to write into the text field of cell "data" from the normal, exponential, or uniform cells.</text>
+<val>50</val></cell>
+<cell>
+<cname>prcnt</cname>
+<val>2.0</val></cell>
+<cell>
+<cname>smax</cname>
+<val>19.0</val></cell>
+<cell>
+<cname>smean</cname>
+<val>12.0</val></cell>
+<cell>
+<cname>smin</cname>
+<val>4.2</val></cell>
+<cell>
+<cname>srange</cname>
+<val>14.8</val>
+<script>while(not eof) {
+    in(temp)
+    set count to count+1
+    set smean to smean+temp
+    if(temp&lt;smin) {
+       set smin to temp
+   }
+    if(temp>smax) {
+        set smax to temp
+    } 
+}
+smax-smin
+</script></cell>
+<cell>
+<cname>stats</cname>
+<text>This cell prints to the output screen descriptive statistics of the numbers in the text field of cell "data"</text>
+<script>set inname to data
+set outtype to screen
+initstats()
+srange()
+set smean to smean/count
+set inname to "data"
+while(not eof) {
+    in(temp)
+    set var to var+pow(temp-smean,2)
+} #endwhile
+statsout()</script></cell>
+<cell>
+<cname>statsout</cname>
+<script>out("\nNumber of Samples=",count)
+out("\nMin=",smin," max=",smax," range=",srange," mean=",smean)
+if(count>1) {
+    set var to var/(count-1)
+    set stdev to sqrt(var)
+    out("\nVariance=",var," Std dev=",stdev)
+    out(" Coefficient of variation=",100*stdev/smean,"%")
+}</script></cell>
+<cell>
+<cname>stdev</cname>
+<val>2.7</val></cell>
+<cell>
+<cname>temp</cname>
+<val>11.1</val></cell>
+<cell>
+<cname>u1</cname>
+<val>0.2</val></cell>
+<cell>
+<cname>u2</cname>
+<val>-0.5</val></cell>
+<cell>
+<cname>uniform</cname>
+<text>This cell generates Num random numbers that are uniformly distributed on the interval [uniMin,uniMax]
+
+The numbers are written to the text field of cell data, which is the input field for the script in cell distribution, which plots the distribution function and prints descriptive statistics.
+
+For a different collection of numbers, change the seed in the first call to the Rand() function.
+
+WARNING:  The execution of this script overwrites the contents ofthe data cell text field.</text>
+<val>1.0</val>
+<script>set outtype to cell
+set outname to data
+rand(16)
+for(indx=1 to Num) {
+    out("\n",uniMin+(uniMax-uniMin)*rand())
+} #endfor</script></cell>
+<cell>
+<cname>uniMax</cname>
+<text>This cell contains the maximum size of the uniformly distributed numbers generated by uniform.</text>
+<val>10</val></cell>
+<cell>
+<cname>uniMin</cname>
+<val>5</val></cell>
+<cell>
+<cname>var</cname>
+<val>7.4</val></cell></eof>

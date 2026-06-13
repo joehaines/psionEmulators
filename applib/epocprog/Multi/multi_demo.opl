@@ -1,0 +1,124 @@
+REM last modified 13th Feb, 1998
+INCLUDE "z:\System\OPL\System.oxh"
+
+PROC main:
+	GLOBAL pBuffAddr&  REM buffer address
+	GLOBAL text$(255)  REM string variable
+	GLOBAL name$(50)   REM dEDIT string
+	GLOBAL pLen&       REM points to length of buffered text
+	GLOBAL pText&      REM points to start of buffered text
+	GLOBAL App&        REM holds app thread id
+	GLOBAL Temp&       REM holds previous thread id
+	
+	REM Initialise strings:-
+	name$="Steven Smith"
+	text$="English Grade A"+CHR$(13)+CHR$(10)+"Maths Grade C"
+
+	REM get thread id for this OPO file
+	Temp&=0
+	App&=GetThreadIDFromOpenDoc&:(cmd$(1),temp&)
+
+	DO
+		IF multi%:  REM repeat dialog until exit pressed
+			STOP
+		ENDIF
+	UNTIL 0
+ENDP
+
+PROC multi%:
+	REM procedure to display dialog
+	LOCAL Size&       REM size of buffer
+	LOCAL KeyPress%   REM value of exit key
+	LOCAL Written%    REM characters written
+
+	Size&=260              REM size of buffer
+
+	pBuffAddr&=ALLOC(size&)  REM create buffer
+
+	IF pBuffAddr&=0
+		ALERT("Allocation failed")
+		STOP
+	ENDIF
+	
+	pLen&=pBuffAddr&            REM pointer to length
+	pText&=pBuffAddr&+4         REM pointer to text
+
+	Written%=To_buffer%:   REM now copy text into buffer
+	
+	POKEL pLen&,written%   REM poke total written into buffer
+
+	dINIT "dEDITMULTI demo",0
+	dEDIT name$,"Name",30
+	dEDITMULTI pLen&,"Notes:",30,5,255
+	dBUTTONS "Save",%s,"Cancel",27,"Exit",%e
+
+	SendKeyEventToApp&:(App&,0,4105,17,0,0)
+	SendKeyEventToApp&:(App&,0,4098,14,KModifierCtrl&,0)
+	SendKeyEventToApp&:(App&,0,4105,16,0,0)
+	
+ 	KeyPress%=DIALOG
+ 	
+	IF KeyPress%=%s OR Keypress%=%e  REM if 'Save' button pressed
+		Written%=To_string%:   REM copy buffer to string
+		POKEB ADDR(text$),Written%  REM poke string length byte
+	ENDIF
+
+	FREEALLOC(pBuffAddr&)    REM destroy buffer
+
+	IF Keypress%=%e      REM if exit button pressed
+		RETURN -1          REM tell main to exit
+	ELSE
+		RETURN 0           REM normal return
+	ENDIF
+ENDP
+
+PROC To_buffer%:
+	REM procedure to copy string to buffer
+	LOCAL i%          REM counter, bytes read
+	LOCAL j%          REM counter, bytes written
+	LOCAL Char%       REM buffer for coping characters
+	LOCAL Length%     REM length of text$
+
+	Length%=LEN(text$)          REM get text$ length
+	DO
+		Char%=PEEKB(ADDR(text$)+1+i%)  REM get character
+		IF Char%=13                    REM if it's a CR
+			POKEB pText&+j%,6            REM write CHR(6) to buffer
+			j%=j%+1                      REM increment write count
+		ELSEIF Char%=10                REM if it's a linefeed
+			REM ignore linefeeds        
+		ELSE                           REM any other character
+			POKEB pText&+j%,Char%        REM write to buffer
+			j%=j%+1                      REM increment write counter
+		ENDIF
+		i%=i%+1                        REM increment read counter
+	UNTIL i%=Length%
+	RETURN j%                        REM return chars written
+ENDP
+
+PROC To_string%:
+	REM procedure to copy buffer to string
+	LOCAL Length%  REM length of bufferred text
+	LOCAL Char%    REM buffer for copying characters
+	LOCAL i%       REM read counter
+	LOCAL j%       REM write counter
+	
+	Length%=PEEKL(pLen&)  REM get length of chars buffered
+	DO
+		Char%=PEEKB(pText&+i%)       REM read char from buffer
+		IF Char%=6                   REM if EPOC32 EOL char
+			POKEB ADDR(text$)+1+j%,13  REM write CR
+			j%=j%+1                    REM increment write count
+			IF j%>255 :BREAK :ENDIF    REM exit loop if string filled
+			POKEB ADDR(text$)+1+j%,10  REM write LF
+			j%=j%+1                    REM increment write count
+		ELSE
+			POKEB ADDR(text$)+1+j%,Char%  REM write character
+			j%=j%+1                    REM increment write count
+		ENDIF
+		IF j%>255 :BREAK :ENDIF      REM exit loop if string filled
+		i%=i%+1                      REM increment read count
+	UNTIL i%=Length%
+	RETURN j%                      REM return chars written
+ENDP
+

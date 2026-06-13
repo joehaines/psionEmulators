@@ -1,0 +1,34 @@
+/* Alarm server constants */
+
+#define HASRV_OPH
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#define TypeTimedAlarm 1   /* Timed diary type alarm */
+#define TypeUnTimedAlarm 2 /* Untimed diary type alarm */
+#define OldMaxAlarmText 65 /* S3 Maximum size of alarm text including zts */
+#define MaxAlarmText 161   /* Maximum size of alarm text including zts */
+
+/* ALM: i/o functions as well as P_FCLOSE and P_FCANCEL */
+
+#define A_FUNTIMED P_FREAD
+#define A_FTIMED P_FWRITE
+#define A_FUNTIMED_X P_FSEEK
+#define A_FTIMED_X P_FSETEOF
+
+#define TIME_TO_ALERT 0  /* First time is when to raise the alert */
+#define TIME_EVENT_DUE 1 /* Second time is when the actual event is due */
+
+STRUCT SE_SND
+	len#
+	name#(8)
+	zero_term#
+ENDS
+
+STRUCT AXDATA
+	absTime&
+	dueTime&
+	sound#(SIZEOF(SE_SND))
+ENDS

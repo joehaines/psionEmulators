@@ -1,0 +1,37 @@
+PROC timer:
+	LOCAL min&,sec&,secs&,i%
+	dINIT "Countdown timer"
+	dLONG min&,"Minutes",0,&7FFFFFFF/60-1
+	dLONG sec&,"Seconds",1,59
+	dBUTTONS "Cancel",-27,"Start",13
+	IF DIALOG=13
+		STATUSWIN ON
+		SCREEN 30,9,1,1
+		gSETWIN 0,0,179,79
+		secs&=sec&+60*min&
+		WHILE secs&
+			PAUSE -20
+			REM a key gets us out
+			IF KEY
+				RETURN
+			ENDIF
+			secs&=secs&-1
+			AT 13,4 :PRINT GEN$(secs&/60,-2);"m"
+			AT 17,4 :PRINT GEN$(mod&:(secs&,int(60)),-2);"s"
+		ENDWH
+		DO
+			BEEP 5,300
+			PAUSE 10
+			IF KEY :BREAK :ENDIF
+ 			i%=i%+1
+		UNTIL i%=10
+	ENDIF
+ENDP
+
+
+
+PROC mod&:(a&,b&)
+	REM modulo function
+	REM computes (a&)mod(b&)
+	RETURN a&-(a&/b&)*b&
+ENDP

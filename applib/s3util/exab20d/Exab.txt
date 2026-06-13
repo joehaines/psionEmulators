@@ -1,0 +1,141 @@
+*** Info for ExAb v.2.0d - 21 January 1998 ***
+
+*** ExAb is also available for the Psion S5 ***
+
+NEW IN VERSION 2
+
+a* Added Look4it support. Macro Look4it added in the ZIP.
+a* Added multi-item definitions.
+b* Language fix.
+c* Minor fixes.
+d* Minor fixes. Added Psion S5 statement 
+UPGRADERS SEE BELOW
+
+DESCRIPTION
+
+ExAb is a MacSys macro to EXtend ABbreviations. It uses self-maintained databases of your abbreviations. By positioning the cursor at the end of your abbreviation and hitting the hot key, ExAb searches the database and, if found, extends the abbreviation. If not found, ExAb enables you to add an extension to the database.
+
+ExAb is freeware. You are free to use, modify and copy the macro. However, in case you pass ExAb on to others, I would like you to pass on only this unmodified version. If you improve on ExAb or add interesting options, please inform me about it. 
+
+I've used ExAb on my English 1 Mb Psion 3a, where it performed flawlessly. However, needless to say, I don't give guarantees and you cannot hold me responsible in case anything goes wrong.
+
+
+INSTALLATION
+
+ExAb requires Tom Dolbilin's MACRO program (v.2). MACSYS.ZIP is freeware and can be downloaded from Tom's homepage at http://www.livetext.com/macsys/ and many other Psion-related Internet places or from me by e-mail (see my address below).
+
+Copy EXAB.MCR to directory \MACRO\MCR\. Using MACRO, open source file EXAB.MCR (Psion-e) and translate it (Psion-t). After installation assign a convenient hot-key (I use <Psion-Enter>). ExAb is now ready for use. After using the hot-key for the first time, ExAb will prompt you to accept or update the default configuration and will create configuration file M:\OPD\EXAB.INI. ExAb therefore assumes that this directory exists. If necessary, it will create the database file to store your data. Extension .EXB is used for the ExAb database files and EXAB.EXB is created by default. If you upgrade from a 1.8 or earlier version and wish to keep your old abbreviations, rename file EXAB.DBF to EXABOLD.EXB. You can configure ExAb to use this file as the standard database.
+
+To make full use of ExAb's possibilities, Tom Dolbilin gave me permission to include his CHARM program in this ZIP. Also, my macros NDcode and Look4it are included as ExAb plug-ins, but may be used as stand-alone macros as well. Please refer to the corresponding TXT files for information. 
+
+When in WORD, typing "exab" in lower case (by default, ExAb is set to case-sensitive) and hitting the hot-key, will extend a brief introduction onto the screen. In fact, these lines are written to the file from which you called ExAb, and you may want to delete them afterwards. The macro also works in the other Psion programs, although long extensions, like ExAb's introduction, may not fit there.
+
+For a detailed description of ExAb's possibilities refer to the DETAILS section underneath.
+
+
+NOTES
+
+1. ExAb will not work when its database is opened by another program like DATA. It will offer to try to close the database. Closure will be impossible if ExAb's database was opened via MACRO, like in the case of a previously improper ending of ExAb. In this case you'll have to close down and reopen MACRO.
+
+2. After having used other programs, the first use of ExAb often results in MACRO's message: "GetText$: Bring server has no data available....". Choose "Stop" (<Esc>), deselect your abbreviation and call ExAb again. This problem is caused by MACRO and at present I have no solution for this. See also the note under DETAILS - REVERSE OPERATION.
+
+3. ExAb heavily relies on Psion's "Bring" function. However, "Bring" is not supported by the same key combination in different language versions. E.g. the "Bring" command, <Psion-b> on English Psions, has the equivalent <Psion-j> on German machines. To enable ExAb (and other macros) to properly function on Psions configured for other languages, you should modify the MACRO program file according to Tom Dolbilin's specifications, which are included in this ZIP file (PUTTEXT.TXT). 
+
+4. Sometimes updating to a new version results in premature halting of the program. This may be the result of an improper updating of the configuration file. In this case, deleting file M:\OPD\EXAB.INI may solve the problem.
+
+
+DETAILS
+
+NDCODE, LOOK4IT, AND PLUG-IN SUPPORT
+Plug-ins are special macros that can be run from ExAb. Ideally, these macros would be designed to work with selected text strings. My macros NDcode (1.3) and Look4it (1.0) are such macros. When ExAb is configured to support plug-ins (Configuration menu 2), exabbing on a selected text string will present a dialog from which a plug-in can be selected. "ExAb" is set as the default; <Enter> will continue ExAb with reverse operation (see below). Choosing "NDcode" from the plug-in menu starts NDcode, which will ENcode the selected string using the key that you supply. Similarly, Look4it will locate the highlited word in a database of your choice. For words ending with the double colon character (:) in the selected string, Look4it will open your address database file (ADDRESS.DBF by default) and find the record containing the located word (without the double colon). For words without the ":" at the end, Look4it searches in the default database NOTES.DBF. These filenames may be changed by modifying LOOK4IT.MCR according to the instructions at the top of the MCR file. 
+This version of ExAb recognizes NDcode encrypted strings and Look4it compatible strings (only those ending with ":"). When exabbing with the cursor at the end of such strings ExAb will automatically start NDcode or Look4it to DEcode or find the string, respectively. For details on NDcode and Look4it, see the corresponding TXT files. ExAb has room for 5 plug-ins. You may want to try my other plug-in Conveq, a self-configurable conversion macro. If you have other ideas or suggestions for plug-ins, or if you would like to write your own plug-ins, please contact me for information. 
+
+REVERSE OPERATION
+Choosing "ExAb" from the dialog after exabbing on highlited text enables you to enter the appropriate abbreviation for the selected text extension. Only the first 254 characters are stored. ExAb will only use the first 10 characters of the abbreviation you enter. ExAb checks the database and refuses to store the new definition if the abbreviation is already in use. Note: If you want linefeeds in your extension, make sure to use <Shift-Enter> instead of <Enter>. <Enter> alone (paragraph end) will result in only the part in front of the first <Enter> to be stored.
+Note: Psion's Bring function remembers the selection in the program that was last opened. This may cause a problem when using ExAb on selected text. E.g. When your cursor is on an item in your AGENDA it is selecting that text string. When you would then return to WORD, select a piece of text and use ExAb's hot key to add another abbreviation, the AGENDA's item would be used as the extension, instead of your selection in WORD. To avoid this, you may deselect (<Esc>) the string in WORD and select it again. This way the last program with a selected string is changed from AGENDA to WORD.
+
+OPENING FILES IN OTHER PROGRAMS 
+ExAb can open files, search for text strings in files of Psion programs DATA, WORD, AGENDA and SHEET, and bring text from these files. You may either enter the filename (including extension) to open the file or enter the program's special code. Thus, hot-keying on "address.dbf" would open this file in DATA, while exabbing on ".w" presents a dialog in which you can specify the WORD file to use. The special codes for opening the Psion programs are ".b" for DATA, ".w" for WORD, ".a" for AGENDA and ".s" for SHEET. Also, a text string to search for can be entered in the dialog. Alternatively, the string (without spaces) can be entered in front of the filename before exabbing. E.g., exabbing on "Huub:address.dbf" will present my e-mail address in your address database - a good opportunity to request for free future ExAb updates. 
+The "Find text" dialog displayed when exabbing on a filename only, can be switched off in the Configuration menu.
+Exiting, using <Psion-x> (not when exiting from the menu!) returns to the application from which ExAb was used. If in the closing program text was selected (highlited), it will be inserted at the position of the cursor.
+
+INFO MENU
+Exabbing on ".?" opens the Info menu showing the current ExAb database and gives access to several submenus. 
+"(L)ist" opens the viewer showing the definitions accumulated in the database. With the cursor keys you can move through the definitions and paste the current extension into your document. Also the <Tab> and letter keys can be used.
+"(C)odes" presents a menu showing the special codes that you can use in your text. There are codes to access the Info menu, to add special characters using CHARM, to stamp the date or time, or to open files in other PSION programs.
+"(O)pen DB" opens ExAb's database in DATA for editing, while "(S)ort DB" enables alphabetical sorting on the abbreviations field. This also compacts the database. When "manually" editing the databases, please bear in mind that abbreviations may be only 10 characters long. Also, by default ExAb is set to handle a maximum of 200 records. If by accident, you would enter an abbreviation longer than 10 characters or more than 200 records would be entered, this would crash ExAb.
+"(Q) Settings" opens the configuration menu, to enable you to modify the default settings. With the "Change database" option you can select existing or create additional ExAb databases.
+"(I)nfo" presents a screen to remind you that you can easily obtain free ExAb updates.
+
+WHOLE TEXT EXTENSION
+Abbreviations to which the plus character (+) is added can be extended in one go after finishing the text. Therefore, type ++ at the beginning of the text containing the abbreviations, followed by the hot-key. E.g. In the following text, 
+	++..txttxt.. sy+ ..txttxt.. br+ ..txttxt.. 
+positioning the cursor after ++ and hitting the hot-key will extend abbreviations "sy" and "br" and at the same time remove all "+" characters.
+
+LINEFEEDS AND TABS
+ExAb needs special codes to handle Linefeeds and Tabs correctly. When editing definitions in the extension input screen, insert forward-slash (/) characters at positions where Linefeeds are required and carat (^) characters for Tabs. Thus, "^ExAb/^Huub Linthorst/^E-mail: linthors@chem.leidenuniv.nl" would be extended as:
+	ExAb
+	Huub Linthorst
+	E-mail: linthors@chem.leidenuniv.nl
+
+MULTI ITEM EXTENSIONS
+I obtained this useful addition from Valerio Russo. When ExAb encounters a definition with items separated by the "&" character it presents an additional dialog from which the item of your choice can be selected and pasted at the cursor position in the text. I use this option to quickly enter particular accented or mathematical characters. E.g. I have a definition that after exabbing on "a" offers a dialog from which I can choose any accented "a". The extension in this case is &À&Á&Â&Ã&Ä&Å&Æ&à&á&â&ã&ä&å&æ. Using the configuration menu you may exchange the "&" separator with a character of your choice.
+
+CHAINING AND CURSOR POSITIONING
+ExAb can automatically chain a following extension onto the presently extended one. This allows extension of text strings longer than 254 characters. When the last word of the extension (max. 9 characters) is followed by the ">" symbol, ExAb will use this word (without the ">") as a new abbreviation to extend. E.g. suppose you have two definitions in your database: 
+	def1: The following text will be def2>
+	def2: chained to this line of text.
+Extension on "def1" will result in the concatanation of the two extensions:
+	The following text will be chained to this line of text.
+This way the chain feature also offers the possibility to open another program file by one use of the hot-key. E.g. When "aa" is the abbreviation for "ADDRESS.DBF>", your address database will be opened by hot keying on "aa". Note, when used for file opening there is no 9 characters max. limit.
+When definitions contain ".d>" or ".t>" codes, these will be extended to the system date and time, respectively. Thus, when the definition for "tst" is:
+	This is the date: .d>, and this is the time: .t>. 
+exabbing on "tst" will result in:
+	This is the date: 22-5-1997, and this is the time: 22:23:56.
+(at least, it did at the time I wrote this)
+By adding a tilde (~) character in the extension string, the cursor will jump there after extension of your abbreviation. E.g., when abbreviation "txt1" is defined as: "abc txt2~ xyz", exabbing will result in the cursor jumping to the position of the tilde (the tilde itself will not be shown). Combined with the chain character this enables secondary extension on abbreviations in the middle of the primary string. Thus, when the extension of abbreviation "txt2" is: "mno", while the extension for "txt1" is "abc txt2>~ xyz", exabbing first results in "abc txt2> xyz", with ">" serving as an indicator to extend "txt2", finally resulting in "abc mno xyz".
+
+
+RESPONSES
+Not only Julia Marchwood, in her article on increasing WORD's efficiency in issue 12 of Palmtop Magazine, was delighted with ExAb. Following is a list of responses from enthousiatic ExAb users, which I couldn't resist to include:
+
+...Calling ExAb a macro is like calling the Queen Elizabeth II a boat. I can't contain my enthusiasm. It's more useful than most of the shareware programs I use!...
+
+...I downloaded and installed ExAb : a very nice macro, an example for simple, short and very useful programming ... and freeware !...
+
+...I have downloaded your Macro from Toms homepage. It is great...
+
+...Great little macro...
+
+...I've been using ExAb for several months now and think it's a great macro...
+
+...This is an excellent little macro. Thank you, from a grateful user...
+
+From a famous Psion programmer and sysop:
+...Ok, I've uploaded ExAb. I tried it out too, and it's very nice...
+
+...The program keeps getting better!  The whole text feature in particular is terrific...
+
+...I just want to tell you that I find the idea behind the program brilliant !...
+
+...I think it's the most usefull macro on my Psion...
+
+...I've only been using it for a day and so far it's managed to help me use more abbreviations whilst note taking in my lectures. As far as I'm concerned it's a killer app...
+
+I like this one in particular:
+...Although it's shooting myself in the foot to say it, I think ExAb is so good it ought to be shareware not freeware!...
+ 
+Even in Dutch:
+...Nogmaals mijn complimenten voor dit staaltje van fantastisch programmeerwerk...
+
+
+FINALLY
+
+Even with the release of the sophisticated Psion 5, there will be a large number of 3a and 3c addicts, who will stick to their proven external brains for a while. Up till now I've modified and extended ExAb regularly and I think that this may continue in the near future. However, I cannot anticipate how often these updates will be uploaded. I'm hesitant to stress the sysops of the Psion-related websites too much and I certainly don't want to annoy users with "daily" minor updates. However, when you send me your E-mail address, I'll add your name to the growing list of ExAb users who will receive all future (major and minor) updates by E-mail.
+
+Thanks to Tom Dolbilin for his excellent MACRO program, a subroutine and his agreeing with the addition of CHARM in the ZIP. Ben Clifford is acknowledged for the initial spark that ignited ExAb. ExAb would not be half of what it is now without the helpful comments of many users (thanks Jochen!). Therefore, if you like this macro, miss anything, or have useful suggestions, please give me feed-back so I can continue to improve ExAb. 
+
+You may also want to try my macros CodeSafe and ConvEq. CodeSafe stores your sensitive information in encrypted form and ConvEq is a small, self-configurable number conversion macro.
+
+Huub Linthorst
+E-mail: linthors@chem.leidenuniv.nl

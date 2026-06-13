@@ -1,0 +1,20 @@
+PROC flow:
+	LOCAL a%,b%,c%,d%,fa(7),fb(5),n,v
+	fa(1)=1 :fa(2)=0.001 :fa(3)=0.000001 :fa(4)=0.028316847 :fa(5)=0.000016387 :fa(6)=0.004546090 :fa(7)=0.001
+	fb(1)=3600 :fb(2)=60 :fb(3)=1
+	do
+	rem a%=1 :b%=1 :c%=1 :d%=1
+	dINIT "Flow Rate Calculations"
+	dPOSITION 1,0
+	dFLOAT v,"Value :",0,1000000
+	dTEXT "","From....",$100
+	dCHOICE a%,"Volume Unit:","mü,dmü,cmü,ftü,inü,gal(UK),litres"
+	dCHOICE b%,"Per Time Unit:","sec,min,hrs"
+	dTEXT "","To......",$100
+	dCHOICE c%,"Volume Unit:","mü,dmü,cmü,ftü,inü,gal(UK),litres"
+	dCHOICE d%,"Per Time Unit:","sec,min,hrs"
+	DIALOG
+	n=((v*fa(a%)*fb(b%))/fa(c%))/fb(d%)
+	print n
+	UNTIL v=0
+ENDP

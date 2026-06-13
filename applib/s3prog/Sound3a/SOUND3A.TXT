@@ -1,0 +1,369 @@
+PROVISIONAL DOCUMENTATION of SND:
+
+Introduction
+============
+On all machines sound can be generated from an internal speaker driven
+by the SND: device driver. In addition all machines with the
+exception of the Series3a include a built-in piezo-electric buzzer
+that can be used for emitting warning beeps and other simple sounds.
+The buzzer has the advantage that it requires much less power to drive
+it. The Series3a includes a buzzer emulator that drives the speaker.
+In all cases the buzzer is controlled using the p_sound routine.
+
+In all machines output to the sound channel is disabled if either the
+E_SOUND_DEVICE bit of the sound flag is clear or the E_SOUND_DISABLE
+bit of the sound flag is set. These flags are manipulated by the
+p_getsnd and p_setsnd functions, described in the PLIB Reference 
+manual.
+
+Sound on MC and HC machines
+---------------------------
+MC and HC machines can emit sound from either a piezo-electric buzzer
+or an amplifier-driven loudspeaker. In normal circumstances the
+buzzer output is controlled by the PLIB p_sound function and the SND:
+sound device driver controls output to the speaker.
+
+As a power-conserving strategy, all sound output is directed to the
+buzzer if the main battery voltage is less than the warning voltage
+level and no mains supply is connected.
+
+The speaker is a two voice output device, that is, it can play
+two-note chords. This means that DTMF tone dialing is possible.
+
+The sound services provide for the generation of a wide range of notes
+or note sequences.
+
+Sound on Series3 machines
+-------------------------
+The Series3 can emit sound from either a piezo-electric buzzer or an
+amplifier-driven loudspeaker. In all circumstances the buzzer output
+is controlled by the PLIB p_sound function and the SND: sound device
+driver controls output to the speaker.  The Series3 sound device
+driver services are limited to providing either DTMF dialling tones
+or simple alarm sounds. The user who wishes to generate more complex
+sounds must load a suitable device driver - an example, SNDFRC.LDD,
+can be found on the SIBOSDK disk included with this manual.
+
+Sound on Series3a machines
+--------------------------
+The Series3a can emit sounds from an amplifier-driven loudspeaker,
+using either the SND: sound device driver, or the built-in buzzer
+emulator. In all circumstances the buzzer emulator output is
+controlled by the PLIB p_sound function. The Series3a speaker is a
+two voice output device that can play two distinct notes at the same
+time. The SND: sound device driver provides the same services as on
+the HC and MC machines thus allowing for the generation of a wide
+range of notes or note sequences.
+
+The Series3a can also record and play .WVE digital sound files - see
+the General System Services chapter of the Plib Reference manual.
+These are especially useful for use as custom alarm sounds.
+
+Panics
+------
+All services (with the exception of p_open) will cause the calling
+process to be panicked if the passed channel handle is not valid.
+Other panics are described under the particular service to which they
+apply.
+
+Sound services
+==============
+Except where noted below, the services listed in this section are
+available on all SIBO machines.
+
+INT p_open(VOID **pcb, "SND:", -1);
+-----------------------------------
+Open a channel to sound device.
+Returns zero if successful, or one of the following errors:
+  E_FILE_ALLOC        failed to allocate memory for the control block
+  E_GEN_FAIL          sound device is disabled
+  E_FILE_LOCKED or    port is already open or in use
+  E_GEN_INUSE
+
+INT p_close(VOID *pcb);
+-----------------------
+Close the sound channel.
+Returns zero.
+
+INT p_iow(VOID *pcb, P_FCANCEL);
+--------------------------------
+Cancel any outstanding write request. Performing a cancel is harmless
+if no write request is outstanding.
+Returns zero.
+
+INT p_iow(VOID *pcb, P_FSENSE, E_SOUND *psound);
+------------------------------------------------
+Sense the sound channel characteristics.
+
+The E_SOUND struct is defined in epoc.h as:
+  typedef struct
+      {
+      UBYTE beatsPerMinute;
+      UBYTE volume;
+      } E_SOUND;
+
+The value of beatsPerMinute has no significance for the Series3
+machine. On HC, MC and Series3a machines beatsPerMinute may vary from
+E_SOUND_MIN_BPM (2) to E_SOUND_MAX_BPM (240). The default value is
+120.
+
+On HC, MC and Series3a machines volume may vary from
+E_SOUND_MAX_VOLUME (0) to E_SOUND_MIN_VOLUME (5). On Series 3
+machines the value is restricted to the range 1 to 4 inclusive. On
+the Series3a volumes 1 and 2 are identical, as are 4 and 5 - there are
+thus only four actual volumes. In all cases a smaller value of volume
+gives a louder sound. The default value is 1.
+
+Returns zero.
+
+INT p_iow(VOID *pcb, P_FSET, E_SOUND *psound);
+----------------------------------------------
+Set the sound channel characteristics from the data in the E_SOUND
+struct, as described for the P_FSENSE service. Setting a value for
+beatsPerMinute has no effect for the Series3 machine.
+
+To set one sound characteristic without changing the other you should
+call P_FSENSE before P_FSET. For example:
+  E_SOUND sound;
+
+  p_iow(pcb,P_FSENSE,&sound);
+  sound.volume = 2;
+  p_iow(pcb,P_FSET,&sound);
+
+will set volume without changing beatsPerMinute.
+
+Returns zero if successful, or E_GEN_ARG if either of the
+characteristics is out of range.
+
+VOID p_ioc(VOID *pcb, E_FALARM, WORD *pstat, UWORD *palarm);
+------------------------------------------------------------
+INT p_iow(VOID *pcb, E_FALARM, UWORD *palarm);
+----------------------------------------------
+Write one of the two standard alarm note sequences.
+The alarm note sequence is selected by *palarm:
+  0  'rings' sequence
+  1  'chimes' sequence
+
+For example,
+  UWORD alarm;
+
+  alarm=1;
+  p_iow(pcb,E_FALARM,&alarm);
+
+Panics if an E_FALARM, E_FSSOUNDCHANNELn or E_FDIAL request is
+currently outstanding, or if pcb is not a valid channel handle.
+
+The completion status code is returned by the synchronous
+p_iow(E_FALARM) and written to *pstat by asynchronous calls. The
+completion status code is zero if the P_FWRITE request completed
+successfully, or E_FILE_CANCEL if the write was cancelled by a call to
+the P_FCANCEL service.
+
+VOID p_ioc(VOID *pcb, E_FSSOUNDCHANNELn, WORD *pstat, WORD *pnotes, WORD *plen);
+--------------------------------------------------------------------------------
+INT p_ioc4(VOID *pcb, E_FSSOUNDCHANNELn, WORD *pstat, WORD *pnotes, WORD *plen);
+--------------------------------------------------------------------------------
+Write *plen notes to voice n (n may be 1 or 2) of the sound channel.
+The value of *plen must be less than or equal to 16384 (0x4000).
+
+** This service is available only on HC, MC and Series3a machines. **
+
+The parameter pnotes should point to an array of *plen notes. A note
+consists of two WORDs, the first giving the note frequency in Hz
+(middle A is 440Hz) and the second gives the note duration in beats.
+By default there are 120 beats per minute, but this value may be
+changed using P_FSET. A zero frequency corresponds to silence.
+
+To allow the output to both voices to be synchronised, neither output
+will start until both E_FSSOUNDCHANNEL1 and E_FSSOUNDCHANNEL2 have
+been called. The following will output a rising and falling scale
+(known as the ice-cream van at Psion):
+
+  WORD notes1[] =
+      {1048,24,524,12};
+  WORD notes2[] =
+      {1048,4,1320,4,1568,4,2092,4,1568,4,1320,4,1048,12};
+  WORD s1_status;
+  WORD len1,len2;
+  INT i;
+
+      len1 = sizeof(notes1)/4;
+      len2 = sizeof(notes2)/4;
+      p_ioc5(psoundcb,E_FSSOUNDCHANNEL1,&sndstat1,&notes1,&len1);
+      p_ioc4(psoundcb,E_FSSOUNDCHANNEL2,&sndstat2,&notes2,&len2);
+      i = -1;
+      do
+          {
+          p_iowait();
+          i++;
+          }
+      while (sndstat1 == E_FILE_PENDING && sndstat2 == E_FILE_PENDING);
+      if (sndstat1 == E_FILE_PENDING)
+          p_waitstat(&sndstat1);
+      else
+          p_waitstat(&sndstat2);
+
+      while (i--)
+          p_iosignal();
+
+If you only require to use one of the voices then set len2 to zero.
+
+Panics if an E_FSSOUNDCHANNELn (on the same channel) or an E_FALARM
+request is currently outstanding, or if pcb is not a valid channel
+handle.
+
+The completion status codes are written to by the asynchronous
+p_ioc5(E_FSSOUNDCHANNELn) routines. The requests must not be made
+using the alternative asynchronous p_ioa and p_ioa5 routines as these
+do not guarantee completion - in the event of a low battery these
+requests will never complete. Similarly the requests must not be made
+snchronously. The completion status code is zero if the P_FWRITE
+request completed successfully, or E_FILE_CANCEL if the write was
+cancelled by a call to the P_FCANCEL service.
+
+VOID p_ioc(VOID *pcb, E_FDIAL, WORD *pstat, TEXT *pstr, E_DIAL *pdial);
+-----------------------------------------------------------------------
+INT p_iow(VOID *pcb, E_FDIAL, TEXT *pstr, E_DIAL *pdial);
+---------------------------------------------------------
+Write a DTMF tone sequence from the zero terminated string *pstr, with
+timing as specified by the content of the E_DIAL struct pointed to by
+pdial. This struct is defined in epoc.h as:
+  typedef struct
+      {
+      UBYTE toneLengthTicks;    /* tone length in 1/32 sec */
+      UBYTE delayLengthTicks;   /* inter-tone delay in 1/32 sec */
+      UWORD pauseLengthTicks;   /* pause length in 1/32 sec */
+      } E_DIAL;
+
+** This service is available only on Series3 and Series3a machines. **
+
+DTMF tones are produced for the following valid characters:
+  the digits 0 to 9
+  upper or lower case alphabetic characters in the range A to F
+  the characters # (0x23) and * (0x2A) which are converted to F and E 
+respectively.
+
+Space and comma characters generate a pause of length specified by the
+E_DIAL struct element pauseLengthTicks. All other characters are
+ignored.
+
+The string at pstr may be of any length, but the total number of valid
+tone and pause generating characters characters in it may not exceed
+26. 
+
+For example, assuming a dial-out code of 9, 
+  E_DIAL dial;
+  TEXT digits[10];
+
+  dial.toneLengthTicks=8;
+  dial.delayLengthTicks=8;
+  dial.pauseLengthTicks=48;
+  p_scpy(&digits[0],"9,0711234");
+  p_iow(pcb,E_FDIAL,&digits[0],&dial);
+
+will emit the DTMF dialling tones to dial the external number 071 1234.
+
+Panics if an E_FDIAL or E_FALARM request is currently outstanding, or
+if pcb is not a valid channel handle.
+
+The completion status code is returned by the synchronous
+p_iow(E_FDIAL) and written to *pstat by asynchronous calls. The
+completion status code is zero if the P_FWRITE request completed
+successfully, or one of the following errors:
+
+E_FILE_CANCEL the write was cancelled by a call to the P_FCANCEL service
+E_GEN_ARG     the string contains too many valid characters
+
+Example
+=======
+The following code implements a simple tone dialing system for HC or
+MC machines.
+
+  #include <plib.h>
+  #include <p_cons.h>
+  #include <wskeys.h>
+
+  GLREF_D VOID *winHandle;
+  
+  LOCAL_D WORD tones1[] =    
+  {941,1,697,1,697,1,697,1,770,1,770,1,770,1,852,1,852,1,852,1,941,1,941,1};
+
+  LOCAL_D WORD tones2[] =    
+  {1336,1,1209,1,1336,1,1447,1,1209,1,1336,1,1447,1,1209,1,1336,1,1447,1,1209,1,1477,1};
+
+
+  LOCAL_C VOID dial(VOID *psoundcb,INT tone)
+      {
+      WORD len = 1;
+      WORD s1_status;
+      WORD *ptone1,*ptone2;
+
+      if(tone >= 0 && tone <= 11)
+          {
+          ptone1 = &tones1[0] + tone*2;
+          ptone2 = &tones2[0] + tone*2;
+          p_ioc5(psoundcb,E_FSSOUNDCHANNEL1,&s1_status,ptone1,&len);
+          p_iow4(psoundcb,E_FSSOUNDCHANNEL2,ptone2,&len);
+          p_waitstat(&s1_status);
+          }
+      }
+
+  GLDEF_C INT main(VOID)
+      {
+      INT c,tone,err;
+      VOID *psoundcb;
+      UWORD func;
+      P_RECT  rect;
+      E_SOUND sound;
+
+      if ((err=p_open(&winHandle,"CON:",-1))!=0)
+          {
+          p_notifyerr(err,"No Console device",NULL,NULL,NULL);
+          p_exit(1);
+          }
+      rect.tl.x = rect.tl.y = 0; /* set the screen size */
+      rect.br.x = 25;
+      rect.br.y = 9;
+      func = P_SCR_WSET;
+      p_iow4(winHandle,P_FSET,&func,&rect);
+      p_printf("Tone dial demo");
+      if ((err=p_open(&psoundcb,"SND:",-1))!=0)
+          {
+          p_notifyerr(err,"Cannot open sound device",NULL,NULL,NULL);
+          p_close(winHandle);
+          p_exit(1);
+          }
+      sound.volume = 3;
+      sound.beatsPerMinute = 76;
+      p_iow3(psoundcb,P_FSET,&sound);
+      FOREVER
+          {
+          c = p_getch();
+          if (c==W_KEY_RETURN);
+              break;
+          p_putch(c);
+          if(c=='*')
+              tone = 10;
+          else if(c=='#')
+              tone = 11;
+          else
+              tone = c - '0';
+          dial(psoundcb,tone);
+          }
+      p_close(psoundcb);
+      p_printf("\r\nDemo finished");
+      p_printf("Press any key to exit");
+      p_getch();
+      p_close(winHandle);
+      return(0);
+      }
+
+Values of some constants:
+=========================
+  P_FCANCEL             4
+  P_FSET                7
+  P_FSENSE              8
+  E_FALARM              9
+  E_FSSOUNDCHANNEL1     1
+  E_FSSOUNDCHANNEL2     2
+  E_FDIAL              10

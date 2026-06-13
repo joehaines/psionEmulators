@@ -1,0 +1,51 @@
+==========
+psion/2_series3 #1793, from dw2, 2232 chars, Sep 27 11:04 93
+Comment to 1787. 
+----------
+Determining whether you're running on an S3 or an S3a
+---------------------------------------------------
+Several people have asked about this.
+
+The "official" (and simplest) way is to CALL($18b) (no parameters)
+and look at the bottom byte ("AL") of the return value.  This gives
+the so-called "LCD type", which is 5 for the 240x80 S3 screen, and 11
+for the 480x160 S3a screen.
+
+This is adequate for many purposes.  But it has the limitations that
+   (*) it doesn't work on a PC emulator (since the PC screen has a
+different LCD size)
+   (*) there's no telling, for sure, what the LCD type of future
+machines in the S3 range may be.
+
+A second line to consider is finding the Window Server version
+number.  To do this, PEEKB(PEEKW($18)+13), and consider the value
+obtained in terms of its high nibble and its low nibble.  The high
+nibble is the "machine type", and would be $00 for the MC, $10 for
+the S3, $20 for the HC, and $40 for the S3a.  More relevant is the
+low nibble, which is guaranteed to increase monotonically as more
+functionality is added into the Window Server.  Thus a "version 2"
+Window Server has low nibble 0, a "version 3" (as runs on the S3
+classic) has low nibble 1, and a "version 4" Window Server (as runs
+on the S3a) has low nibble 2.
+
+The special advantage of this is, as I said, that you could test the
+low nibble for >=2 (say), and be guaranteed future-proof.  The
+DISadvantage, however, is that it only works after your program has
+connected to the Window Server.  (For Opl programs, there is *no*
+problem here, since the connection to the Window Server takes place
+before the first line of user code is executed.)
+
+Some notes: $18 is the location of the handle of the Window Server
+channel control block for any process, in the dataspace of that
+process.  Incidentally, as an experiment, you can try either of the
+above mechanisms IN THE CALCULATOR (ie go there and just evaluate eg
+CALL($18b).)
+
+A *third* approach, which is probably the most powerful, is to check
+whether the file "ROM::XADD.DYL" exists (use the FilStatusGet O/S
+service, call($887), as described on p39 of the O/S services manual
+in the SDK).  This can, clearly, be tested prior to connecting to the
+Window Server.
+
+Regards, DavidW
+

@@ -1,0 +1,935 @@
+REM *** (c) 1993,4,5 Takoyaki Software Ltd ***
+REM *** Programmed by Dylan Cuthbert       ***
+
+APP WaveMod
+	TYPE $1002
+	PATH "\WVE"
+	EXT "WVE"
+	ICON "\opd\wavemod.pic"
+ENDA
+
+PROC wavemod:
+
+global fname$(128),iadd
+global wwin%,vol%,swin%,bwin%
+global tf$(128),buf%(512),b%
+global rperc1&,rperc2&,chg%
+global bf$(128),bfn$(128)
+global ct%(4098),et%(256)
+global reg%,reg$(32),sp,sl
+global fillen&,filthr&
+
+rem *** Change reg% to 1 for registered version
+	
+	reg%=1
+	reg$="Dylan Cuthbert"
+	
+	cache 4096,4096
+	cls
+
+rem *** make sure the various directories exist
+
+	trap mkdir "\WVE"
+	trap mkdir "\OPD"
+	setpath "\wve\"
+	fname$="*.wve"
+
+rem *** set the temporary file's name
+
+	tf$="\OPD\wm_temp.tmp"
+
+rem *** set the backup file's name
+
+	bf$="\OPD\backup.tmp"
+
+	b%=addr(buf%(1))
+
+rem *** load up the modules
+	
+	loadm "\OPO\wavefunc.opo"
+	loadm "\OPO\waveshow.opo"
+	loadm "\OPO\wavetabs.opo"
+
+rem *** generate the A-law compression/decompression tables	
+
+	gentabs:
+
+	fname$=cmd$(2)
+	
+	if cmd$(3)="C"
+		if newwave%:(fname$) = 0 : return : endif
+	endif
+
+	swin%=gcreate (0,100+34,gwidth,16,1)
+	wwin%=gcreate (0,32,gwidth,100,1)
+	
+	showwave:(fname$)
+	
+	if reg%=0 : showinfo: : endif
+	
+	selarea:
+
+	trap delete tf$
+	trap delete bf$
+	
+endp
+
+rem *** cut a section out of a sample
+
+proc scut:(in$,out$,rx,rw)
+
+local hdr%(16),in%,out%,h%
+local len&,ret%,px&,pw&
+
+	h%=addr(hdr%(1))
+	
+	ioopen(in%,in$,$600)
+	ioopen(out%,out$,$102)
+	
+	ioread(in%,h%,32)
+	len&=peekl(uadd(h%,18))
+	pokel uadd(h%,18),int(rw)
+	pokew uadd(h%,24),0
+	pokew uadd(h%,22),0
+	iowrite(out%,h%,32)
+	
+	px&=rx+32 : pw&=rw
+
+	while pw&>0
+		ioseek(in%,1,px&)
+		ret%=ioread(in%,b%,1024)
+		if ret%=0 : break : endif
+		px&=px&+ret%
+		if pw&<1024
+			iowrite(out%,b%,pw&)
+		else
+			iowrite(out%,b%,1024)
+		endif
+		pw&=pw&-1024
+	endwh
+	
+	ioclose(in%) : ioclose(out%)
+
+endp
+
+rem *** insert into a sample
+
+proc sins:(in$,in2$,rx,rw,delin2%)
+
+local hdr%(16),in%,in2%,tmp%,h%
+local len&,len2&,ret%,px&,pw&
+local fn$(130),inp&,n&,hdr2%(16),h2%
+
+	h%=addr(hdr%(1))
+	h2%=addr(hdr2%(1))
+
+	ret% = ioopen(in%,in$,$600) rem *** File to insert into
+	if ret%<0 : showerr:(ret%) : return : endif
+	ret% = ioopen(in2%,in2$,$600) rem *** File to insert
+	if ret%<0 : showerr:(ret%) : return : endif
+	ret% = ioopen(tmp%,addr(fn$),$104) rem *** File to output to
+	if ret%<0 : showerr:(ret%) : return : endif
+
+rem *** Read the 32 byte sound file header
+
+	ioread(in%,h%,32)
+	ioread(in2%,h2%,32)
+	len&=peekl(uadd(h%,18))
+	len2&=peekl(uadd(h2%,18))
+	if rw<>0 and len2&>rw
+		len2&=int(rw)
+	endif
+	
+rem *** Modify the length
+	pokel uadd(h%,18),len2&+len&
+	iowrite(tmp%,h%,32)
+	
+	px&=32 : inp&=32 : n&=int(rx)
+	
+rem *** Copy beginning of file
+
+	while n&>0
+		ioseek(in%,1,px&)
+		if n&>1024
+			ret%=ioread(in%,b%,1024)
+		else
+			ret%=ioread(in%,b%,n&)
+		endif
+		iowrite(tmp%,b%,ret%)
+		px&=px&+ret% : n&=n&-ret%
+	endwh
+
+
+rem *** Copy paste buffer in
+
+	n&=len2&
+	
+	while n&>0
+		ioseek(in2%,1,inp&)
+		if n&>1024
+			ret%=ioread(in2%,b%,1024)
+		else
+			ret%=ioread(in2%,b%,n&)
+		endif
+		iowrite(tmp%,b%,ret%)
+		inp&=inp&+ret% : n&=n&-ret%		
+	endwh
+	
+rem *** Copy rest of file ***
+	while 1
+		ioseek(in%,1,px&)
+		ret%=ioread(in%,b%,1024)
+		if ret%<=0 : break : endif
+		iowrite(tmp%,b%,ret%)
+		px&=px&+ret%
+	endwh
+	
+	ioclose(tmp%)
+	ioclose(in%)
+	ioclose(in2%)
+
+	if delin2%=1 : delete in2$ : endif
+	trap copy fn$,in$
+	if err
+		giprint "Disk full!"
+	endif
+	delete fn$
+
+endp
+
+rem *** delete a section of a sample
+
+proc sdel:(in$,rx,rw)
+
+local hdr%(16),in%,tmp%,h%
+local len&,ret%,px&,pw&
+local fn$(130),n&
+
+	h%=addr(hdr%(1))
+
+	ret% = ioopen(in%,in$,$600) rem *** File to insert into
+	if ret%<0 : showerr:(ret%) : return : endif
+	ret% = ioopen(tmp%,addr(fn$),$104) rem *** File to output to
+	if ret%<0 : showerr:(ret%) : return : endif
+
+rem *** Read the 32 byte sound file header
+
+	ioread(in%,h%,32)
+	len&=peekl(uadd(h%,18))
+	
+rem *** Modify the length
+	pokel uadd(h%,18),len&-rw
+	iowrite(tmp%,h%,32)
+	
+	px&=32 : n&=int(rx)
+	
+rem *** Copy beginning of file
+
+	while n&>0
+		ioseek(in%,1,px&)
+		if n&>1024
+			ret%=ioread(in%,b%,1024)
+		else
+			ret%=ioread(in%,b%,n&)
+		endif
+		iowrite(tmp%,b%,ret%)
+		px&=px&+ret% : n&=n&-ret%
+	endwh
+	
+	px&=px&+rw
+
+rem *** Copy rest of file ***
+	while 1
+		ioseek(in%,1,px&)
+		ret%=ioread(in%,b%,1024)
+		if ret%<=0 : break : endif
+		iowrite(tmp%,b%,ret%)
+		px&=px&+ret%
+	endwh
+	
+	ioclose(tmp%) : ioclose(in%)
+
+	copy fn$,in$
+	delete fn$
+
+endp
+
+rem *** play a sample (taken from OPL manual)
+
+proc playw:(inname$,ticks%,vol%)
+
+	local name$(128),p%,ret%
+	
+	p%=peekw($1c)+6
+	name$=inname$+chr$(0)
+	ret%=call ($1f86, uadd(addr(name$),1),ticks%,vol%)
+	if peekw(p%) and 1
+		return ret% or $ff00
+	endif
+
+endp
+
+rem *** set up the header for a new sample file
+
+proc newwave%:(n$)
+local s$(16),ret%,hdr%(17),h%,f%
+
+	s$="ALawSoundFile**"
+	
+	sp=0 : sl=0
+
+	h%=addr(hdr%(2))
+	if ioopen(f%,n$,$101)=0
+		poke$ usub(h%,1),s$
+		pokew uadd(h%,16),$100f
+		iowrite(f%,h%,32)
+		ioclose(f%)
+		chg%=0
+		return 1
+	else
+		return 0
+	endif
+
+endp
+
+rem *** open an existing sample
+
+proc openwave:(p$)
+local d%,f%
+
+	if p$="O" : f%=64 : endif
+	if p$="C" : f%=1+8 : endif
+	
+	dinit "Waveform?"
+	dfile fname$,"File:",f%
+	if dialog
+		if not exist(fname$)
+			d%=newwave%:(fname$)
+		else
+			sp=0 : sl=0
+			d%=1
+		endif
+	else
+		d%=0
+	endif
+	
+	if d%=1
+		chg%=0
+	endif
+	
+	return d%
+endp
+
+rem *** as copied from OPL manual
+
+PROC recordw:(i$,s%)
+	local n$(128),p%,r%
+	p%=peekw($1c)+6
+	n$=i$+chr$(0)
+	r%=call($2286,uadd(addr(n$),1),s%)
+	if peekw(p%) and 1
+		return r% or $ff00
+	endif
+ENDP
+
+proc setvol:
+
+	vol%=vol%+1
+	dinit "Set Volume"
+	dchoice vol%,"Volume:","Loud,Semi-Loud,Medium,Semi-Low,Low"
+	dialog
+	vol%=vol%-1
+
+endp
+
+rem *** process a region with the specified function
+
+proc function:(in$,func$,rx,rw)
+
+local hdr%(16),in%,tmp%,h%
+local len&,ret%,px&,pw&,err%
+local fn$(130),n&,total&,rw&
+
+	h%=addr(hdr%(1))
+	
+	ret% = ioopen(in%,in$,$600) rem *** File to insert into
+	if ret%<0 : showerr:(ret%) : return : endif
+	ret% = ioopen(tmp%,addr(fn$),$104) rem *** File to output to
+	if ret%<0 : showerr:(ret%) : return : endif
+
+	busy "Processing..."
+rem *** Read the 32 byte sound file header
+
+	ioread(in%,h%,32)
+	len&=peekl(uadd(h%,18))
+	
+	if rw=0 : rw&=len& : else : rw&=int(rw) : endif
+
+	px&=32 : n&=rx : total&=n&
+	
+rem *** Copy beginning of file
+
+	while n&>0
+		ioseek(in%,1,px&)
+		ret%=readbuf%:(in%,n&)
+		iowrite(tmp%,b%,ret%)
+		px&=px&+ret% : n&=n&-ret%
+	endwh
+
+	total&=total&+@&(func$):(in%,tmp%,px&,rw&)
+	px&=0 : ioseek(in%,3,px&) : rem get current pos in file
+
+rem *** Copy rest of file ***
+	while 1
+		ioseek(in%,1,px&)
+		ret%=ioread(in%,b%,1024)
+		if ret%<=0 : break : endif
+		iowrite(tmp%,b%,ret%)
+		px&=px&+ret% :  total&=total&+ret%
+	endwh
+	
+	ioclose(tmp%) : ioclose(in%)
+	
+	if sp+sl>total&
+		if sp<>0 : sl=total&-sp : else : sl=0 : endif
+	endif
+
+rem *** Now to copy the temporary file over and delete it ***
+	ioopen(tmp%,fn$,$600)
+	ioopen(in%,in$,$102)
+	
+	pokel uadd(h%,18),total&
+	iowrite(in%,h%,32)
+
+	n&=total&
+	
+	while n&>0
+		ret%=readbuf%:(tmp%,n&)
+		iowrite(in%,b%,ret%)
+		n&=n&-ret%
+	endwh
+	
+	ioclose(tmp%) : ioclose(in%)
+	delete fn$
+	
+	busy off
+
+endp
+
+
+proc readbuf%:(in%,n&)
+	return readbfn%:(in%,n&,int(1024))
+endp
+
+
+proc readbfn%:(in%,n&,len&)
+local ret%
+	if n&>len&
+		ret%=ioread(in%,b%,len&)
+	else
+		ret%=ioread(in%,b%,n&)
+	endif
+	if ret%<0 : ret%=0 : endif
+	return ret%
+endp
+
+proc readj:(cx&)
+local nx%
+	if iadd : nx%=(cx&-sp)/iadd : else : nx%=gwidth/2 : endif
+
+	return nx%
+endp
+
+proc readjw:(cx&)
+local nx%
+	nx%=1
+	if iadd : nx%=cx&/iadd :  endif
+	if nx%=0 : nx%=1 : endif
+
+	return nx%
+endp
+
+proc bakchk:
+local d%
+
+	if chg%=0
+		dinit
+		dtext "","Make a backup copy before continuing?",2
+		dbuttons "No",%n,"Yes",%y
+		d%=dialog
+		if d%=0 : return 0 : endif
+		if d%=%y
+			trap copy fname$,bf$
+			if err
+				giprint "Unable to make backup copy!!"
+				return 0
+			else
+			bfn$=fname$
+			endif
+		endif
+	endif
+	
+	chg%=1
+	
+	return 1
+
+endp
+
+proc unimp:
+
+	dinit
+	dtext "","Unimplemented in this version.",2
+	dialog
+	
+endp
+
+proc selarea:
+
+local cw%,cx%,cx&,cw&,k%,km%,fn$(128)
+local len&,len%,ev%(6),c$(128),acc%,n%
+
+	cw%=1:cx%=gwidth/2
+	
+	gupdate off
+
+	while 1
+		drawcurs:(cx%,cw%)
+
+		lock off
+		
+		getevent ev%()
+
+		if ev%(1)=$404
+			c$=getcmd$
+			if left$(c$,1)="X"
+				return
+			endif
+			if left$(c$,1)="C"
+				if newwave%:(mid$(c$,2,128))
+					fname$=mid$(c$,2,128)
+					showwave:(fname$)
+					cx%=gwidth/2 : cw%=1
+				endif
+			endif
+			if left$(c$,1)="O"
+				if exist(mid$(c$,2,128))
+					fname$=mid$(c$,2,128)
+					showwave:(fname$) : chg%=0
+					cx%=gwidth/2 : cw%=1
+				endif
+			endif
+			continue
+		else
+			k%=ev%(1)
+			km%=ev%(2) and $ff
+			if km% and 4
+				km%=km% and (not 4)
+				acc%=8
+			else
+				acc%=1
+			endif
+		endif
+		
+		lock on
+		
+		if km% and 8
+			km%=km% and (2+4)
+			if (km% and 2) and k%>=%a+512 and k%<=%z+512
+				k%=k%-(%a-%A)
+			endif
+		endif
+
+		if k%=290
+			k%=domenu:+512
+			if k%>=512+%A and k%<=512+%Z
+				km%=2
+			else
+				km%=0
+			endif
+		endif
+
+		drawcurs:(cx%,cw%)
+
+		if k%=291
+			dohelp:
+		endif
+
+		if k%=%v+512 and km%=0
+			setvol:
+		endif
+
+		if (k%=%l+512 and km%=0) or (k%=%L+512 and km%=2)
+			if bakchk:
+				dinit "Noise Filter"
+				dchoice n%,"Frequency:","50Hz,100Hz,500Hz"
+				dlong filthr&,"Amplitude",0,100
+				dtext "","(Range 0-100%)",2
+				if dialog
+					filthr&=(4096*filthr&)/100
+					if n%=1 : fillen&=8192/50 : endif
+					if n%=2 : fillen&=8192/100 : endif
+					if n%=3 : fillen&=8192/500 : endif
+					if k%=%L+512
+						function:(fname$,"filter",cx%*iadd+sp,cw%*iadd)
+					else
+						function:(fname$,"filter",0.0,0.0)
+					endif
+					cx&=cx%*iadd+sp : cw&=cw%*iadd
+					showwave:(fname$)
+					cx%=readj:(cx&) : cw%=readjw:(cw&)
+				endif
+			endif
+		endif
+
+		if (k%=%s+512 and km%=0) or (k%=%S+512 and km%=2)
+			if bakchk:
+				dinit "Phase Wave"
+				dlong fillen&,"Extent:",1,512
+				dtext "","(1-512)",2
+				if dialog
+					if k%=%S+512
+						function:(fname$,"smooth",cx%*iadd+sp,cw%*iadd)
+					else
+						function:(fname$,"smooth",0.0,0.0)
+					endif
+					cx&=cx%*iadd+sp : cw&=cw%*iadd
+					showwave:(fname$)
+					cx%=readj:(cx&) : cw%=readjw:(cw&)
+				endif
+			endif
+		endif
+
+		if ( k%=%d+512 or k%=8 ) and km%=0 and cw%>1
+			if bakchk:
+				busy "Cutting region..."
+				scut:(fname$,tf$,cx%*iadd+sp,cw%*iadd)
+				sdel:(fname$,cx%*iadd+sp,cw%*iadd)
+				cx&=cx%*iadd+sp
+				busy off
+				showwave:(fname$)
+				cx%=readj:(cx&)
+				cw%=1
+			endif
+		endif
+
+		if k%=259 and km%=0 and cx%-acc%>=0
+			cx%=cx%-acc%
+			cw%=1
+		endif
+				
+		if k%=258 and km%=0 and cx%+acc%<gwidth
+			cx%=cx%+acc%
+			cw%=1
+		endif
+
+		if k%=258 and km%=2 and cx%+cw%+acc%<gwidth
+			cw%=cw%+acc%
+		endif
+
+		if k%=259 and km%=2 and cw%>acc%
+			cw%=cw%-acc%
+		endif
+		
+		if k%=263 and km%=2 and cw%>acc%
+			cx%=cx%+acc%
+			cw%=cw%-acc%
+		endif
+	
+		if k%=262 and km%=2 and cx%>acc%-1
+			cw%=cw%+acc%
+			cx%=cx%-acc%
+		endif
+		
+		if k%=262 and km%=0
+			cx%=0
+			cw%=1
+		endif
+		
+		if k%=263 and km%=0
+			cx%=gwidth-1
+			cw%=1
+		endif
+		
+		if k%=%i+512 and cw%=1
+			if bakchk:
+				if exist(tf$)
+					busy "Inserting..."
+					at 1,15
+					sins:(fname$,tf$,cx%*iadd+sp,0.0,0)
+					cx&=cx%*iadd+sp
+					showwave:(fname$)
+					cx%=readj:(cx&)
+					busy off
+				else
+					giprint "Nothing to insert!"
+				endif
+			endif
+		endif
+
+		if k%=%I+512 and cw%=1
+			if bakchk:
+				c$=fname$
+				dinit "Insert File"
+				dfile c$,"File:",64
+				if dialog
+					busy "Inserting..."
+					sins:(fname$,c$,cx%*iadd+sp,0.0,0)
+					cx&=cx%*iadd+sp
+					showwave:(fname$)
+					cx%=readj:(cx&)
+					busy off
+				endif
+			endif
+		endif
+		
+		if k%=%o+512 and km%=0
+			if openwave:("O")
+				showwave:(fname$)
+				cx%=gwidth : cw%=1
+			endif
+		endif
+
+		if k%=%n+512 and km%=0
+			if openwave:("C")
+				showwave:(fname$)
+				cx%=gwidth : cw%=1
+			endif
+		endif
+
+		if k%=%N+512 and km%=2
+			c$=fname$
+			dinit "Rename File"
+			dfile fname$,"From:",64
+			dfile c$,"To:",1+8
+			if dialog
+				giprint "Renaming..."
+				trap rename fname$,c$
+				if not err
+					fname$=c$
+				endif
+				showwave:(fname$)
+			endif
+		endif
+
+		if k%=%C+512 and km%=2
+			c$=fname$
+			dinit "Copy File"
+			dfile fname$,"From:",64
+			dfile c$,"To:",1+16+64
+			if dialog
+				giprint "Copying..."
+				trap copy fname$,c$
+				if not err
+					fname$=c$
+				else
+					giprint "Unable to copy file!"
+				endif
+				showwave:(fname$)
+			endif
+		endif
+		
+		if k%=%c+512 and cw%>1
+			giprint "Copied"
+			scut:(fname$,tf$,cx%*iadd+sp,cw%*iadd)
+		endif
+
+		if k%=%P+512 and km%=2 and cw%>1
+			busy "Playing Region..."
+			scut:(fname$,tf$,cx%*iadd+sp,cw%*iadd)
+			playw:(tf$,0,vol%)
+			delete tf$
+			busy off
+		endif
+		
+		if k%=%p+512 and km%=0
+			busy "Playing whole sample..."
+			playw:(fname$,0,vol%)
+			busy off
+		endif
+		
+		if k%=%w+512 and cw%>1
+			dinit "Write region to which file?"
+			fn$="*.wve"
+			dfile fn$,"File:",64+16+1
+			if dialog
+				if fn$=fname$
+					giprint "Cannot write to viewed file!"
+				else
+					busy "Writing region..."
+					scut:(fname$,fn$,cx%*iadd+sp,cw%*iadd)
+					busy off
+				endif
+			endif
+		endif
+		
+		if k%=%r+512 and km%=0
+			if bakchk:
+				dinit "Record sample"
+				dlong len&,"Seconds?",1,100
+				if dialog
+					dinit "Press Y to begin sampling"
+					dbuttons "No",%n,"Yes",%y
+					if dialog=%y
+						busy "Recording..."
+						len%=len&*4
+						if recordw:(tf$,len%)
+							busy off
+							giprint "Disk Full!"
+						else
+							sins:(fname$,tf$,cx%*iadd+sp,0.0,1)
+							busy off
+							showwave:(fname$)
+						endif
+					endif
+				endif
+			endif
+		endif
+		
+		if k%=%R+512 and km%=2 and cw%>1
+			if bakchk:
+				sdel:(fname$,cx%*iadd+sp,cw%*iadd)
+				dinit "Record over marked region?"
+				dbuttons "No",%n,"Yes",%y
+				if dialog=%y
+					busy "Recording..."
+					len%=((cw%*iadd)+2047)/2048
+					recordw:(tf$,len%)
+					sins:(fname$,tf$,cx%*iadd+sp,cw%*iadd,1)
+					busy off
+					showwave:(fname$)
+				endif
+			endif
+		endif
+		
+		if k%=%g+512 and km%=0
+			if bakchk:
+				function:(fname$,"dblspd",0.0,0.0)
+				cx&=cx%*iadd+sp : cw&=cw%*iadd
+				showwave:(fname$)
+				cx%=readj:(cx&) : cw%=readjw:(cw&)
+			endif
+		endif
+
+		if k%=%T+512 and km%=2
+			if bakchk:
+				function:(fname$,"revrse",cx%*iadd+sp,cw%*iadd)
+				cx&=cx%*iadd+sp : cw&=cw%*iadd
+				showwave:(fname$)
+				cx%=readj:(cx&) : cw%=readjw:(cw&)
+			endif
+		endif
+
+		if k%=%t+512 and km%=0
+			if bakchk:
+				function:(fname$,"revrse",0.0,0.0)
+				cx&=cx%*iadd+sp : cw&=cw%*iadd
+				showwave:(fname$)
+				cx%=readj:(cx&) : cw%=readjw:(cw&)
+			endif
+		endif
+
+		if (k%=%F+512 and km%=2) or (k%=%f+512 and km%=0)
+			if bakchk:
+				dinit "Fade up/down"
+				dlong rperc1&,"Start",0,200
+				dlong rperc2&,"End",0,200
+				dtext "","(Range 0-200%)",2
+				if dialog
+					if k%=%F+512
+						function:(fname$,"fade",cx%*iadd+sp,cw%*iadd)
+					else
+						function:(fname$,"fade",0.0,0.0)
+					endif
+					cx&=cx%*iadd+sp : cw&=cw%*iadd
+					showwave:(fname$)
+					cx%=readj:(cx&) : cw%=readjw:(cw&)
+				endif
+			endif
+		endif
+
+		if k%=%G+512 and km%=2
+			if bakchk:
+				function:(fname$,"dblspd",cx%*iadd+sp,cw%*iadd)
+				cx&=cx%*iadd+sp : cw&=cw%*iadd
+				showwave:(fname$)
+				cx%=readj:(cx&) : cw%=readjw:(cw&)
+			endif
+		endif
+
+		if k%=%h+512 and km%=0
+			if bakchk:
+				function:(fname$,"hlfspd",0.0,0.0)
+				cx&=cx%*iadd+sp : cw&=cw%*iadd
+				showwave:(fname$)
+				cx%=readj:(cx&) : cw%=readjw:(cw&)
+			endif
+		endif
+
+		if k%=%H+512 and km%=2
+			if bakchk:
+				function:(fname$,"hlfspd",cx%*iadd+sp,cw%*iadd)
+				cx&=cx%*iadd+sp
+				showwave:(fname$)
+				cx%=readj:(cx&)
+			endif
+		endif
+		
+		if (k%=%V+512 and km%=2) or (k%=%u+512 and km%=0)
+			if bfn$=fname$
+				dinit "Revert to backup"
+				dtext "","Are you sure?",2
+				dbuttons "No",%n,"Yes",%y
+				if dialog=%y
+					giprint "Reverting..."
+					trap copy bf$,fname$
+					if err
+						giprint "Unable to revert!!"
+					else
+						showwave:(fname$)
+						cx%=gwidth/2 : cw%=1
+					endif
+				endif
+			else
+				giprint "Nothing to revert to!"
+			endif
+		endif
+
+		if k%=%Z+512 and km%=2 and sl<>0
+			giprint "Zooming Out (x2)"
+			cx&=cx%*iadd+sp : cw&=cw%*iadd
+			sp=sp-sl/2 : sl=sl*2
+			if sp<0 : sp=0 : endif
+			showwave:(fname$)
+			cx%=readj:(cx&) : cw%=readjw:(cw&)
+		endif
+
+		if k%=%z+512 and km%=0
+			if cw%>1
+				giprint "Zooming Marked Region"
+				sp=sp+cx%*iadd : sl=cw%*iadd
+				showwave:(fname$)
+				cx%=0 : cw%=1
+			else
+				giprint "Zooming Out (Full)"
+				sp=0 : sl=0
+				showwave:(fname$)
+			endif
+		endif
+		
+		if k%=%a+512
+			showinfo:
+		endif
+
+		if k%=%x+512
+			return
+		endif
+		
+		if not iadd
+			cw%=1
+		endif
+	
+	endwh
+
+endp
+
+

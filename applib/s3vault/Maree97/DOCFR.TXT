@@ -1,0 +1,227 @@
+MAREE97
+Version 1.1F (novembre 1996)
+par Jean-Yves Pontailler
+
+AVERTISSEMENT
+
+Ce programme a été testé et doit tourner sans problème sur votre
+Series 3a. Vous pouvez le copier et le distribuer à votre gré
+à condition de ne pas le modifier. Je décline toutefois toute
+responsabilité en cas de mauvais fonctionnement. Si vous naviguez
+en vous aidant de ce programme, ajoutez toujours une marge de
+sécurité confortable aux estimations fournies.
+
+Installation
+Copiez le fichier MAREE97.OPO dans le répertoire \OPO\ de n'importe
+quel disque. Copiez ensuite le fichier COEF97.DAT dans le répertoire
+\OPD\ de n'importe quel disque. Si vous souhaitez bénéficier d'une
+aide, copiez le fichier MARFR.RSC dans le répertoire \OPD\ de n'importe
+quel disque. Vous pouvez renommer MAREE97 mais pas les deux autres
+fichiers. L'utilisation de SSD Flash ne pose pas de problème
+particulier.
+
+Généralités
+J'ai réalisé ce programme pour mes besoins personnels, afin de
+connaître précisément le niveau de la marée lors de mes sorties
+en mer. Il peut rendre quelques services, aussi bien en navigation
+qu'en cartographie marine. Le programme calcule la hauteur d'eau
+au-dessus du zéro des cartes marines (niveau des plus basses mers)
+et l'affiche en continu. L'écran est rafraîchi chaque minute.
+
+De la théorie à la pratique
+Le phénomène de marée paraît plutôt compliqué dès qu'on cherche à le
+décrire précisément en tout point du globe. Sa cause est astronomique,
+c'est l'attraction de l'eau des océans par la lune et, dans une moindre
+mesure, par le soleil. En théorie, il doit y avoir deux marées en
+24 heures et 50 minutes, durée d'une rotation apparente de la lune
+pour un observateur terrien.
+ **** Heure de la marée
+La pleine mer doit intervenir deux fois pendant cette période, une fois
+lorsque la lune est à la verticale du point considéré et une fois
+lorsqu'elle est complètement à l'opposé, mais les obstacles que
+constituent les continents rendent la réalité plus complexe. En Manche,
+par exemple, l'onde de marée devrait théoriquement mettre moins d'une
+heure pour aller du Pas de Calais à la pointe de Bretagne (d'est en
+ouest, sens du passage des astres), mais elle va en fait dans le sens
+inverse et il lui faut 8 heures en tout !
+ **** Amplitude de la marée
+L'intensité du phénomène varie en fonction de la position respective
+de la lune et du soleil (leurs effets pouvant s'additionner ou se
+contrarier), mais dépend aussi de la forme du rivage et de la dimension
+des bassins océaniques.
+ **** L'option choisie par MAREE97
+Un programme de calcul pourrait assez facilement prendre en compte les
+données astronomiques que je viens d'évoquer mais il serait incapable
+de prédire l'heure et la hauteur de la marée : il lui faudrait pour cela
+connaître les caractéristiques (complexes) de chaque site étudié,
+vis-à-vis du phénomène de marée. 
+Tout ceci nous mènerait à un programme compliqué qui ne serait
+applicable à un pays ou à un continent entier que s'il était couplé à
+une imposante base de données.
+Je n'ai pas suivi cette voie, j'ai pensé qu'il était plus pertinent de
+faire appel, dans chaque port, aux données locales précises qui sont
+facilement et gratuitement accessibles : l'heure de la marée haute,
+le marnage maximal et le coefficient de marée. Les deux premieres sont
+disponibles presque partout. Par contre, le coefficient de marée n'est 
+utilisé qu'en France.
+ **** Le coefficient de marée
+Il est calculé par le service hydrographique de la marine nationale.
+Sans unité, variant de 20 à 120, il intègre deux fois par jour les
+composantes astronomiques de la marée. Ce coefficient n'est pas
+applicable partout mais il donne satisfaction sur les côtes de
+l'atlantique et de la manche, bien au-delà des frontières françaises.
+En France, le coefficient de marée est disponible partout, il passe
+même à la télévision. Ce n'est pas le cas à l'étranger et j'ai donc
+décidé que le programme allait, chaque jour, vous le fournir
+(pour 1997).
+ **** Mode de calcul
+L'onde de marée est assimilée à une sinusoïde dont on peut faire varier
+la période et l'amplitude. La période est en général de 12 heures
+25 minutes dans le cas le plus courant (marée semi-diurne). L'amplitude
+dépend de la localité et de la date, le programme utilise le marnage
+maximal (coefficient 120) fourni par l'utilisateur et le pondère en
+fonction du coefficient actuel. Il est bien connu que la période est
+plus courte en vive-eau qu'en morte-eau et le programme en tient compte.
+Par contre, le programme n'est pas adapté aux marées présentant une
+forte inégalité journalière (marée du matin très différente de celle du
+soir). Ce phénomène est sensible sur la côte est des Etats-Unis aux
+solstices (juin et décembre), mais il peut être négligé en Europe
+de l'ouest.
+Ainsi réalisé, le programme occupe environ 6k (11k avec les fichiers
+associés). Il dispose toutefois de quelques fonctions qui lui permettent
+de bien coller à la réalité, même si l'onde de marée est dissymétrique
+(flux plus court que le reflux) ou si la marée est de type diurne (cycle
+de 24 heures). Une fois connues quelques constantes simples,
+caractéristiques de votre port favori, vous n'aurez plus besoin que de
+l'heure de la haute mer pour le faire tourner.
+
+Démarrage
+Au démarrage, vous devez rentrer au moins trois paramètres:
+ - l'heure de la marée haute du jour considéré, passée ou à venir, en
+format 24 heures. Choisissez celle qui est la plus proche de l'heure de
+l'utilisation. Si la marée haute a lieu après minuit, c'est à dire en
+fait le lendemain de la soirée où vous comptez naviguer, vous pouvez
+quand même l'utiliser mais vous devez l'entrer en lui ajoutant 24 H
+(par exemple 27 pour 3 heures du matin).
+ - le coefficient de marée correspondant (20-120). Pour l'année 1997,
+le coefficient du jour est proposé par le programme.
+ - le marnage maxi, qui est l'écart maximal entre la hauteur de la
+pleine mer et celle de la basse mer en coefficient 120. Il s'agit d'un
+paramètre local. Vous pouvez le trouver dans  l'indicateur des marées
+de la région oÚ vous vous trouvez. Toutefois, les marées de 120 étant
+exceptionnelles, vous serez sûrement amené à extrapoler à partir de
+niveaux fournis pour des marées un peu plus faibles (vous pouvez
+multiplier par 1.2 le marnage observé en coefficient 100). Ceux qui
+sont habitués à "l'unité de hauteur" pourront l'utiliser en la
+multipliant par 2.4.
+Après validation de la boite de dialogue, la hauteur d'eau est affichée
+à côté d'un diagramme qui permet de visualiser le niveau atteint entre
+les deux bornes que constituent le maximum et le minimum du jour. Dès
+ce stade, vous pouvez utiliser les touches "Menu" et "Aide".
+Après une minute d'initialisation, l'écran de votre Séries 3a vous
+indique si la marée monte, descend ou bien est étale. Le critère retenu
+pour l'étale est un changement de niveau inférieur à 1 cm par minute.
+De ce fait, la durée de l'étale n'est pas constante et apparaîtra plus
+grande par petit coefficient ou dans les régions à faible marnage.
+Ce n'est pas parfait mais cette indication sera le signe de courants
+de marée modérés. 
+
+Type de marée
+Deux types sont traités (les plus répandus):
+ - les marées semi-diurnes (par défaut) : deux cycles toutes les
+24 heures 50 min, soit 6 heures 12 min entre la marée haute et la marée
+basse qui la suit. C'est le cas de la manche et du littoral atlantique. En méditerranée, réservez la précieuse capacité mémoire de votre Séries 3a à des programmes plus utiles... 
+ - les marées diurnes (un cycle toutes les 24 heures 50 min) sont plus
+rares, mais si vous voyagez un peu... Les marées diurnes sont souvent
+dissymétriques (flot plus long que le reflux ou inversement) et vous
+devrez faire appel à la fonction de dissymétrie décrite plus loin.
+Il existe aussi des marées plus complexes dites "mixtes" (par exemple
+aux Antilles et sur la côte ouest des Etats-unis) et l'usage de ce
+programme est dans ce cas tout à fait déconseillé.
+
+Prise en compte de la dissymétrie
+L'avant-dernière ligne du dialogue principal vous permet d'entrer
+l'écart entre la durée de la marée descendante et celle de la montante.
+La valeur par défaut est 0. Cette correction n'est valide que depuis la
+marée basse qui précède la haute mer considérée (que vous avez choisie)
+et la basse mer qui la suit. Au delà de ces limites, le programme
+repasse en mode symétrique, mais vous ne vous en apercevrez sans
+doute pas car cela se produit à l'étale de basse mer. L'asymétrie est
+négligeable sur les côtes atlantiques, modérée en manche ouest
+(+20 min environ) et plus forte en manche est (plus de 30 min).
+
+Correction barométrique
+La pression atmosphérique a une influence sur le niveau des marées.
+Le niveau de l'eau est d'autant plus bas que la pression est élevée.
+Le programme applique une correction de -1cm par millibar excédentaire.
+La pression par défaut est 1013 millibars (ou hectopascals). Si la
+correction n'est pas appliquée, l'erreur peut atteindre 30 cm.
+
+Précision
+Elle est assez satisfaisante pour la bonne raison que le programme
+utilise des paramètres locaux. L'imprécision vient en partie du fait
+que la période peut être légèrement différente de la valeur utilisée
+dans le calcul. Ceci cause une erreur pouvant aller jusqu'a 30 cm à
+mi-marée les jours de forte amplitude (coefficient élevé). Le vent
+et la pression atmosphérique sont aussi la cause d'erreurs.
+Dans les régions à fort marnage, l'erreur totale par grande marée peut
+atteindre 60 à 70 cm dans les cas les plus défavorables.
+
+Azimut du soleil
+Connaître la direction ou l'on voit le soleil peut s'avérer utile
+en navigation. Cette fonction utilise les données de l'option MONDE,
+en particulier la longitude de la ville de base et le décalage GMT.
+Il faut donc veiller à ce que la ville choisie pour base soit assez
+proche du lieu de navigation (au moins par sa longitude). Rien ne
+s'oppose d'ailleurs à ce que vous rentriez comme ville de base un
+point situé en mer. L'estimation proposée ici ne tient pas compte
+de "l'équation du temps", qui permet de prendre en considération
+l'écart entre la position vraie du soleil et celle calculée d'après
+l'heure locale, le décalage GMT et la longitude (heure solaire moyenne).
+Un désaccord peut donc être observé entre l'azimut fourni par MAREE97
+et celui calculé par d'autres programmes plus sophistiqués.
+Ce désaccord ne doit pas dépasser 1.5° en été et 4° en hiver
+(pour l'hémisphère nord).
+
+Heure d'été
+Le calcul de marée utilise l'heure système : l'heure d'été est donc
+prise en compte sans que l'utilisateur ait à intervenir. Par contre,
+le calcul de l'azimut du soleil fait appel au décalage GMT de "MONDE"
+qui ignore l'heure d'été. L'option "Activer heure d'été" permet
+simplement la prise en compte de l'heure d'été dans le calcul de
+l'azimut du soleil. En aucun cas les choix définis dans "HEURE" ne
+s'en trouvent modifiés.
+
+Estimation différée
+Le programme permet également de calculer la hauteur d'eau correspondant
+à une heure autre que l'heure système. Choisir pour cela l'option
+"autre heure" dans le menu rapide du bas de l'écran.
+
+Voici les marnages maxi pour quelques ports :
+Calais : 7.80 m
+Dieppe : 10.70 m
+Le Havre : 8.00 m
+Cherbourg : 6.55 m
+St-Malo : 13.60 m
+Roscoff : 9.45 m
+Brest : 7.70 m
+Concarneau : 5.30 m
+St-Nazaire : 6.15 m
+La Rochelle : 6.25 m
+Royan : 5.35 m
+Côte landaise : 4.60 m
+************
+
+Je tiens à remercier Mike Rudin et Simon Pooley pour leur aide efficace.
+Un grand merci également au SHOM (Service Hydrographique et
+Océanographique de la Marine) pour avoir autorisé la diffusion d'un
+fichier de coefficients de marées parmi les utilisateurs de Series 3a.
+Je reste ouvert à toute suggestion. Parmi les développements envisagés,
+on peut citer une connexion GPS, un fichier d'initialisation pour
+sauver les règlages et une sauvegarde des données. J'espère que vous
+prendrez du plaisir avec ce programme. Vous pouvez me contacter à :
+jean-yves.pontailler@eco.u-psud.fr
+Une version anglaise est également disponible : TIDE97.ZIP.
+
+
+

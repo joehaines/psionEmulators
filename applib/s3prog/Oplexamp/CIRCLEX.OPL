@@ -1,0 +1,81 @@
+
+� Area: [FIDO] PSION echo 컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+  Msg#: 7345                                         Date: 03-30-93  17:55
+  From: Bj봱n Felten                                 Read: Yes    Replied: No 
+    To: Michael Cronsten                             Mark:                     
+  Subj: Ringplotting.
+컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+Hi MiCro, 
+ 
+   In the swedish PSION-conference, you asked for a routine to draw a circle on
+the S3. I hope you don't mind my answering your question here in the int'l
+ditto to make the information available to more than the few readers of our
+swedish conference. 
+ 
+   There are several tricks you can use to get a circle procedure that don't
+take all day to draw a circle. 
+ 
+   Pro primo, you only calculate one eighth of the coordinates, the symmetry of
+the circle makes it possible to get the other coordinates by means of a simple
+combination of positive and negative numbers. 
+ 
+   Pro secundo, you avoid trigonometric functions since they are very time
+consuming. 
+ 
+   Another trick to use is setting up varios kinds of arrays, but I will not go
+into that here. You also can experiment with gPOLY to get slightly faster
+procedures. 
+ 
+   Below you find an example using the first two tricks (CIRCLE.OPL also can be
+downloaded/requested from -=P=I=X=-): 
+ 
+ 
+proc TestCirc: 
+  Circle:(120, 40, 30) 
+  get 
+endp 
+ 
+proc Circle:(x0%, y0%, r%) 
+rem Fast code for drawing a circle. Doesn't use any trigonometric functions. 
+rem Based on the circle's equation (x - x0)^2 + (y - y0)^2 = r^2, where 
+rem (x0, y0) is the center and r the radius. 
+ 
+local x%, y%, r2%, x2%, y2% 
+ 
+  r2% = r% * r% 
+  x%  = r% 
+  x2% = r2% - x% 
+ 
+  while x% + 1 > y% 
+    Put8Pix:(x0%, y0%, x%, y%) 
+    y2% = y2% + y% + y% + 1 
+    y%  = y% + 1 
+    if x2% > (r2% - y2%) 
+       x2% = x2% - x% - x% + 1 
+       x%  = x% - 1 
+    endif 
+  endwh 
+endp 
+ 
+proc Put8Pix:(x0%, y0%, x%, y%) 
+rem Thanks to the symmetry of the circle, we can put eight 
+rem pixels from one set of values. 
+ 
+  PutPix:(x0%+x%, y0%+y%) 
+  PutPix:(x0%-x%, y0%+y%) 
+  PutPix:(x0%+x%, y0%-y%) 
+  PutPix:(x0%-x%, y0%-y%) 
+  PutPix:(x0%+y%, y0%+x%) 
+  PutPix:(x0%-y%, y0%+x%) 
+  PutPix:(x0%+y%, y0%-x%) 
+  PutPix:(x0%-y%, y0%-x%) 
+endp 
+ 
+proc PutPix:(x%, y%) 
+  gAT x%, y% 
+  gLINEBY 0, 0 
+endp  
+  
+-!-
+ ! Origin: -=P=I=X=- / Psion Info Xchange  +46-31-960447 (2:203/208)
+

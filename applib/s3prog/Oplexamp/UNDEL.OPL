@@ -1,0 +1,515 @@
+PROC Start:
+REM  =====
+REM THIS PROGRAM UNDELETES DELETED DATABASE RECORDS AND WRITES
+REM THEM INTO A NEW DATABASE. JUNK RECORDS SHOULD THEN BE
+REM DELETED FROM THIS NEW DATABASE, BEFORE LINK-PASTEING OR
+REM MERGING SOME OF ITS CONTENTS BACK INTO (SAY) THE ORIGINAL
+REM DATABASE. THE DUFF RETRIEVED RECORDS ARE STYLE RECORDS
+REM WHOSE STRUCTURE FOLLOWS THE VALID MAIN RECORD STRUCTURE.
+REM RETRIEVAL OF A FEW OF THESE IS UNAVOIDABLE SINCE, ONCE A
+REM RECORD HAS BEEN DELETED IT IS IMPOSSIBLE TO TELL ITS
+REM ORIGINAL TYPE. ALL THAT CAN BE DONE IS A VERIFCATION THAT ITS
+REM STRUCTURE IS CORRECT FOR MAIN RECORDS (TYPE 1).
+REM THE PROGRAM ONLY WORKS WITH FILES THAT THE PERSONAL DATABASE
+REM WILL ACCEPT.
+REM DATE: 7/2/91   AUTHOR:NJB
+REM
+REM execution starts here, and finishes at the end of this proc
+	GLOBAL Outch%,Inpch%   :REM output and input files
+	GLOBAL Wrkbuf$(255)    :REM used generally for file reads
+	GLOBAL Infname$(255)   :REM input file name
+	GLOBAL Ofname$(255)    :REM where undeleted 'deleted' records go
+	GLOBAL Undels%         :REM undeletions made
+	GLOBAL Unrecog%        :REM num of deleted recs definitely 
+REM  													not of type 1
+	LOCAL ret%
+	LOCAL tret%
+
+
+	SCREEN 50,15
+	
+	ONERR inerrs::
+	Undels%=0   :REM initialise globals 
+	Unrecog%=0
+	Outch%=0
+	Inpch%=0
+	tret%=0
+	
+	REM Open files as binary files since normal OPL database
+	REM handling can only see 32 fields, a database can have more
+	REM Temporary usage of the database open calls is used to create
+	REM the heade of the new file, sadly it cannot be used on
+	REM the input file to check validity, because CLOSE removes
+	REM deleted records.
+	
+	ret%=OpenChs:  
+	IF ret%<>0
+		RAISE ret%
+	ENDIF
+	CLS
+	PRINT "UNDELETING..."
+	PRINT "INPUT FILE: ";Infname$
+	PRINT "OUTPUT FILE: ";Ofname$
+	
+	ONERR stderrs::
+
+
+	REM Check FIR directly using I/O file handling
+	REM also check file signature and version nos
+	ret%=CheckVal:
+	IF ret%<>0
+		RAISE ret%
+	ENDIF
+	REM come out of this positioned at start of first main record
+	
+	REM parse for deleted records and write them into new file
+	ret%=Retr:
+	IF ret%<>0
+		RAISE ret%
+	ENDIF
+	
+	stderrs::
+	tret%=CloseChs:   :REM can't raise an error
+
+	inerrs::
+	REM report completion status
+	
+	ONERR OFF
+	CLS
+	PRINT "COMPLETION REPORT"
+	PRINT "-----------------"
+	PRINT
+	PRINT "INPUT FILE: ";Infname$
+	PRINT "OUTPUT FILE: ";Ofname$
+  IF tret%<0
+  	PRINT "COULD NOT CLOSE NEW FILE"
+  ELSEIF ERR=0
+		PRINT "COMPLETED SUCCESSFULLY"
+	ENDIF
+  IF ERR<0
+		PRINT "ERROR:",ERR$(ERR)
+	ELSEIF ERR>0
+		REM special errors
+		PRINT "ERROR:",ErrStr:(ERR)   :REM error string in Wrkbuf
+		PRINT Wrkbuf$
+	ENDIF
+	PRINT "UNDELETED",Undels%,"RECORDS"
+	IF Unrecog%>0
+		PRINT  Unrecog%,"DELETED RECORDS COULD NOT BE OF TYPE 1"
+	ENDIF
+	PRINT
+	PRINT "PRESS <ENTER> TO EXIT"
+	INPUT Wrkbuf$
+	
+ENDP 
+REM end of Start
+
+REM ======= PROCEDURES CALLED BY MAIN PROCEDURE ========
+
+PROC OpenChs:
+REM  =======
+REM opens the file to read from, and creates file to write to
+REM Uses global buffer Wrkbuf$
+REM > Returns 0 if all OK, else error number
+	LOCAL opfail%
+	LOCAL ret%
+	
+	ONERR operrs::
+	opfail%=0
+	
+	REM 	open the input file
+	PRINT "NAME INPUT FILE>"
+	INPUT Infname$
+	REM		open with read and seek access, as an existing binary file
+	ret%=IOOPEN(Inpch%,Infname$,$0200)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+		
+	REM open output file, creating header using OPL CREATE call
+	PRINT "NAME OUTPUT FILE>"
+	INPUT Ofname$
+	IF EXIST(Ofname$)
+		DELETE Ofname$
+	ENDIF
+	opfail%=-1
+	CREATE Ofname$,A,c$,d$ :REM get OPL header creation for free
+	opfail%=0
+	CLOSE
+	REM		reopen with read, write and seek access, as an existing binary file
+	ret%=IOOPEN(Outch%,Ofname$,$0303)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	
+	operrs::
+	ONERR endop::
+	IF opfail%=-1
+		CLOSE :REM raise occured during CREATE
+	ENDIF
+	endop::
+	ONERR OFF
+	RETURN ERR
+ENDP     
+REM OpenChs
+
+PROC Retr:
+REM  =========
+REM Retrieves deleted records and puts them into new file
+REM > Returns 0 if OK, else an error code
+	LOCAL ret%
+	LOCAL contlen%
+	LOCAL rectype%
+	LOCAL typlen%
+	
+	ONERR reterrs::
+	WHILE -1
+		ret%=ReadHead:
+		IF ret%=-36
+			ret%=0
+			BREAK
+		ENDIF
+		typlen%=PEEKW(ADDR(Wrkbuf$)+1)  
+		IF ret%<>0
+			RAISE ret%
+		ENDIF
+		rectype%=(typlen% AND $F000)  :REM top nibble of this is type code
+		contlen%=(typlen% AND $0FFF)
+		IF (rectype%<>0) OR (contlen%=0)
+			ret%=SkipCont:(contlen%)
+			IF ret%<>0
+				RAISE ret%
+			ENDIF
+			REM just go round the loop again
+		ELSE
+			REM read, check, then write new record
+			ret%=ChkWrite:(contlen%)
+			IF ret%<>0
+				RAISE ret%
+			ENDIF
+		ENDIF
+	ENDWH
+	
+	reterrs::
+	ONERR OFF
+	RETURN ERR
+ENDP  
+REM Retr
+
+PROC ChkWrite:(contlen%)
+REM  =========
+REM  read record content from current position twice to validate
+REM  it, then read it again and write it to the new file
+REM  increments global variables Undels% and Unrecog%
+REM  if the record was undeleted, or had invalid structure
+REM  to be a type=main record
+REM  the input file is positioned at the next byte after the
+REM  end of the record on exit
+REM  > returns error code on error
+	LOCAL ret%
+	LOCAL lines%
+	LOCAL toread%
+	LOCAL todo%
+	LOCAL stpos&
+	
+	ONERR chkwerrs::
+	stpos&=0
+	ret%=IOSEEK(Inpch%,3,stpos&) :REM save position for 2nd pass
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	
+	REM Pass 1 - check that all record may be read
+	todo%=contlen%
+	WHILE todo%>0
+		toread%=255 :REM read in a buffer full at a time
+		IF todo%<toread%
+			toread%=todo%
+		ENDIF
+		ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,toread%)
+		IF ret%<0
+			RAISE ret%
+		ELSEIF ret%<>toread%
+			ret%=100   :REM file must be corrupt!
+			RAISE ret%
+		ENDIF
+		todo%=todo%-toread%
+	ENDWH
+	
+	REM Pass 2 - check it is formed of up to 128 leading byte
+	REM          strings, and that are no 00 or 01-valued bytes
+	ret%=IOSEEK(Inpch%,1,stpos&) :REM seek to start of content
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	lines%=0	
+	todo%=contlen%
+	WHILE todo%>0
+		ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,1)
+		IF ret%<0
+			RAISE ret%
+		ENDIF
+		POKEB ADDR(Wrkbuf$),1
+		toread%=ASC(Wrkbuf$)
+		todo%=todo%-1
+		IF todo%<toread%
+			REM cannot be main type record - is a descriptive record
+			ret%=8000 :REM must not raise with this, since its not an error
+			RAISE 0
+		ENDIF
+		ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,toread%)
+		IF ret%<0
+			RAISE ret%
+		ELSEIF ret%<>toread%
+			ret%=101   :REM file error - certainly should not occur
+			RAISE ret%
+		ENDIF
+		POKEB ADDR(Wrkbuf$),toread%
+		todo%=todo%-toread%
+		ret%=ChkLine:(toread%)
+		lines%=lines%+1
+		IF lines%>128
+			REM can't have been a main type record
+			ret%=8000
+			RAISE 0
+		ENDIF
+		IF ret%=8000 :REM may be returned by ChkLine 
+			RAISE 0    :REM cant have beena main type record
+		ENDIF
+	ENDWH
+
+	REM Read 3 - read it again, and write it to the new file
+	ret%=WriteHd:(contlen%)
+	IF ret%<0
+		REM write error to new file
+		RAISE ret%
+	ENDIF
+	ret%=IOSEEK(Inpch%,1,stpos&) :REM seek to start of content
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	todo%=contlen%
+	WHILE todo%>0
+		toread%=255
+		IF todo%<toread%
+			toread%=todo%
+		ENDIF
+		ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,toread%)
+		IF ret%<0
+			RAISE ret%
+		ELSEIF ret%<>toread%
+			ret%=102   :REM Should not occur: so could not form record
+			RAISE ret%
+		ENDIF
+		todo%=todo%-toread%
+		ret%=WriteDat:(toread%)
+		IF ret%<0
+			REM write error to new file
+			RAISE ret%
+		ENDIF
+	ENDWH
+	Undels%=Undels%+1
+
+	chkwerrs::
+	ONERR OFF
+	IF ret%=8000
+		REM raise used to break when record deduced to be a Descriptive record
+		Unrecog%=Unrecog%+1
+	ENDIF
+	ret%=ERR
+	IF ret%=0
+		REM position to start of next record
+		ret%=IOSEEK(Inpch%,1,stpos&)
+		IF ret%=0
+			stpos&=contlen%
+			ret%=IOSEEK(Inpch%,3,stpos&)  :REM relative seek
+		ENDIF
+	ENDIF
+RETURN ret%
+ENDP		
+REM ChkWrite
+
+PROC ChkLine:(llen%)
+REM  ===============
+REM  checks that the line stored in the global buffer does
+REM  not have bytes equalling 00 and 01, which are used
+REM  in the edit box displaying database records for control
+REM  purposes.
+REM  The record we're looking at may have been a descriptive
+REM  record, and might parse as if it were a main record, but
+REM  this additional check will prevent a deleted descriptive
+REM  record being reconstructed as a main record with content
+REM  that would confuse the edit boxes (there's still a chance
+REM  of a descriptive record getting through but it would be
+REM  harmless)
+REM  > returns 0 if OK, or error code indicating not a main rec
+	LOCAL tmpstr$(255)
+	LOCAL ch%  :REM takes value of each byte in string in turn
+	LOCAL ret%
+	LOCAL chklen%
+	
+	REM No chance of a raise here
+	chklen%=llen%
+	ret%=0
+	WHILE chklen%>0
+		tmpstr$=RIGHT$(Wrkbuf$,chklen%)
+		ch%=ASC(tmpstr$)
+		IF ch%=0 
+			ret%=8000
+			BREAK
+		ELSEIF ch%=1
+			ret%=8000
+			BREAK
+		ENDIF
+		chklen%=chklen%-1
+	ENDWH
+	RETURN ret%
+ENDP		
+REM  ChkLine	
+
+PROC SkipCont:(contlen%)
+REM  ===================
+REM  Skip content of current record, and so position
+REM  to start of next record
+REM  > returns 0 for success, else error code
+	LOCAL ret%
+	LOCAL offset&
+	
+	offset&=contlen%
+	ret%=IOSEEK(Inpch%,3,offset&) :REM relative seek
+	RETURN ret%
+ENDP 		
+REM SkipCont
+
+PROC WriteDat:(contlen%)
+REM  ====================
+REM  Write the record containing in the global buffer
+REM  > returns error code or 0 if OK
+	LOCAL ret%
+	
+	ret%=IOWRITE(Outch%,ADDR(Wrkbuf$)+1,contlen%)
+	RETURN ret%
+ENDP		
+REM WriteDat
+
+PROC WriteHd:(contlen%)
+REM  ====================
+REM  Create record header and write it to file
+REM  > returns error code or 0 if OK
+	LOCAL ret%
+	LOCAL hdword%
+	
+	hdword%=contlen%+$1000   :REM makes it type 1
+	ret%=IOWRITE(Outch%,ADDR(hdword%),2)
+	RETURN ret%
+ENDP		
+REM WriteHd
+
+PROC ReadHead:
+REM  =========
+REM read header of record from current position in input file
+REM Writes data into the global buffer Wrkbuf$
+REM > Returns 0 if correctly read, else error number
+	LOCAL ret%
+	
+	ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,2) :REM MUST NOT RAISE SINCE THIS WOULD SET ERR
+	POKEB ADDR(Wrkbuf$),2                 :REM EOF=-36 WHICH MEANS COMPLETION NOT ERROR
+	IF ret%=0
+		ret%=100   :REM input file has corrupt record
+	ELSEIF ret%=1
+		ret%=100    
+	ELSEIF ret%=2
+		ret%=0
+	ENDIF
+	RETURN ret%
+ENDP	
+REM ReadHead
+
+PROC CloseChs:
+REM  ===========
+REM > returns error if failed to close new file
+	LOCAL ret%
+	
+	IOCLOSE(Inpch%) :REM should not have any problems with this
+	ret%=IOCLOSE(Outch%) :REM could fail if final flush failed
+	RETURN ret%
+ENDP
+REM CloseChs
+
+PROC CheckVal:
+REM  =========
+REM  
+REM 	check validity of opened file
+REM > returns 0 if successful, else error code
+	LOCAL offset&
+	LOCAL p%
+	LOCAL ret%
+	LOCAL cmp$(32)
+	LOCAL tmpbuf$(16)
+	
+	ONERR chkerrs::
+	ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,22)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	POKEB ADDR(Wrkbuf$),22
+	p%=PEEKW(ADDR(Wrkbuf$)+1+16+2)
+	tmpbuf$=LEFT$(Wrkbuf$,15)
+	IF tmpbuf$<>"OPLDatabaseFile"
+	   ret%=104 :REM not a valid database
+	   RAISE ret%
+	ENDIF
+	REM *** IDEALLY SHOULD CHECK VERSION NUMBERS ***
+	REM however program will not translate with version 1
+	offset&=p%
+	ret%=IOSEEK(Inpch%,1,offset&)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	REM Read FIR header
+	ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,2)
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+  POKEB ADDR(Wrkbuf$),2
+	REM		assume this is the F.I.R (always true for v1 and v2
+	REM   and should always be)
+	p%=PEEKW(ADDR(Wrkbuf$)+1)
+	p%=p% AND $0FFF
+	ret%=IOREAD(Inpch%,ADDR(Wrkbuf$)+1,p%)
+	POKEB ADDR(Wrkbuf$),p%
+	IF ret%<0
+		RAISE ret%
+	ENDIF
+	REM check that all fields specified are string fields
+	cmp$=REPT$(CHR$(3),p%)
+	IF Wrkbuf$ <> cmp$
+		ret%=103   :REM invalid FIR for pdb
+		RAISE ret%
+	ENDIF
+	
+	chkerrs::
+	ONERR OFF
+	REM If there were no errors, then we are at start of first
+	REM main or descriptive record
+	RETURN ERR
+ENDP     
+REM CheckVal
+
+PROC ErrStr:(errnum%)
+REM  ================
+REM  writes error string for program-specific error errnum
+REM  into general use string array
+	IF errnum%=100
+		Wrkbuf$="INPUT FILE CONTAINS A CORRUPT RECORD - HALTED"
+	ELSEIF errnum%=101
+		Wrkbuf$="ERROR READING INPUT FILE"
+	ELSEIF errnum%=102		
+		Wrkbuf$="READ ERROR MEANT COULD NOT WRITE TO OUTPUT CORRECTLY"
+	ELSEIF errnum%=103
+		Wrkbuf$="FILE HAS INVALID FIELDS FOR USE WITH PERSONAL DATABASE"
+	ELSEIF errnum%=104
+		Wrkbuf$="NOT AN OPL DATABASE FILE"
+	ENDIF
+ENDP		
+REM ErrStr

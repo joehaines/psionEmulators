@@ -1,0 +1,43 @@
+APP launch
+ENDA
+
+PROC start:
+
+	LOCAL						c$(255)
+	LOCAL						ev%(6)
+
+	STATUSWIN ON, 2
+	FONT -$3fff, 0
+	DEFAULTWIN 1
+	gTMODE 3
+	gBORDER 0
+	gAT 10,30
+	gPRINT "Translated for S3a"
+	gGREY 1
+	gAT 10,50
+	gPRINT "Here's some grey"
+	gGREY 0
+	WHILE 1
+		GETEVENT ev%()
+		gAT 10,70
+		gPRINT "Received event:", ev%(1), CHR$(ev%(1)), HEX$(ev%(1)), "        "
+
+		IF ev%(1) = $200 + %x
+			RETURN
+		ENDIF
+
+		IF ev%(1) = $404
+			c$ = GETCMD$
+			gAT 10,90
+			gPRINT "command="; c$
+	
+			IF LEFT$(c$, 1) = "X"
+				RETURN
+			ELSE
+				SETNAME mid$(c$, 2, 128)
+			ENDIF
+		ENDIF
+	ENDWH
+ENDP
+
+

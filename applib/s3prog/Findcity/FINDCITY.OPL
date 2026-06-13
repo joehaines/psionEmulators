@@ -1,0 +1,264 @@
+REM FindCity, by John Naylon, 5 Sep 1994
+REM A demonstration of accessing WLD: from OPL
+
+APP FindCity
+	TYPE $1000
+	ICON "\OPD\FINDCITY.PIC"
+ENDA
+
+PROC main:
+	REM code and data combined must be <32K
+	REM or pointer arithmetic goes wrong.  So do
+	REM not increase size of a$ too much!
+
+	GLOBAL a$(150,64)
+	GLOBAL co$(8), ci$(8)
+	GLOBAL matches%
+
+	matches%=0
+	display:
+ENDP
+
+PROC display:
+	REM main loop of program.  Display text and handle input.
+	REM Plenty of room for improvements here: page up/down
+	REM in list, border on window, status windows etc.
+
+	LOCAL k%,g%,i%,t%,info%(10),a%(6)
+	LOCAL wldfcb%
+	
+	t%=1
+	REM command FONT not supported on Series 3 - delete next line:
+	FONT 11,0
+	REM command SCREENINFO not supported on Series 3 - insert line
+	REM info%(4)=9
+	REM and delete next line:
+	SCREENINFO info%()
+	DO
+		IF matches%>0
+			CLS
+			i%=t%
+			DO
+				IF i%=t% AND t%<>1
+					REM not all fonts have character 24
+					PRINT CHR$(24)+" more..."
+				ELSEIF i%=t%+info%(4)-1 AND matches%>i%+1
+					REM not all fonts have character 25
+					PRINT CHR$(25)+" more..."
+				ELSE
+					PRINT a$(i%)
+				ENDIF
+				i%=i%+1
+			UNTIL i%=t%+info%(4) OR i%=matches%
+		ELSE
+			CLS
+			PRINT "No matches found, press Menu for options"
+		ENDIF
+			
+		DO
+			GETEVENT a%()
+			IF a%(1)=$404 AND LEFT$(GETCMD$,1)="X"
+				REM system has sent us a quit message
+				g%=27
+			ELSE
+				g%=a%(1)
+			ENDIF
+		UNTIL (g%=256 AND t%>1) OR (g%=257 AND t%+info%(4)<matches%) OR g%=27 OR g%=290 OR g%=$278 OR g%=$273
+		k%=0
+		IF g%=256 AND t%>1
+			REM up key pressed
+			t%=t%-1
+		ELSEIF g%=257 AND t%+info%(4)<matches%
+			REM down key pressed
+			t%=t%+1
+		ELSEIF g%=290
+			REM menu pressed
+			mINIT
+			mCARD "Special", "Search", %s, "Exit", %x
+			k%=MENU
+			IF k%=120
+				REM exit selected
+				g%=27
+			ELSEIF k%=115
+				REM search selected
+			ENDIF
+		ENDIF
+		IF g%=$273 OR k%=115
+			REM search selected by hot-key or menu
+
+			LOCK ON
+			IF (NOT(openWld%:(addr(wldfcb%))))
+				REM world device driver opened successfully
+
+				IF getNums%:
+					CLS
+					t%=1
+					find:(wldfcb%,info%(4))
+					GIPRINT "Search complete"
+					closeWld:(wldfcb%)
+					REM reset to top of list
+				ENDIF
+			ELSE
+				cantOpen:
+			ENDIF
+			LOCK OFF
+		ENDIF
+	UNTIL g%=27 OR g%=$278
+ENDP
+
+PROC openWld%:(phandle%)
+	REM open the WLD: device driver
+
+	LOCAL err%
+	err% = IOOPEN(#phandle%, "WLD:", $FFFF)
+	RETURN(err%)
+ENDP
+
+PROC closeWld:(phandle%)
+	REM close the WLD: device driver
+
+	IOCLOSE(phandle%)
+ENDP
+
+PROC getNums%:
+	REM get the input via a dialog box and verify that at least one
+	REM string has been entered
+	
+	LOCAL i%
+	DO
+		dINIT("Enter country and/or area code")
+		dEDIT co$, "Country code:"
+		dEDIT ci$, "Area code:"
+		i%=DIALOG
+		IF i%<>0 AND co$="" AND ci$=""
+			GIPRINT "You must complete at least one field!"
+		ENDIF
+	UNTIL i%=0 OR co$<>"" OR ci$<>""
+	RETURN i%
+ENDP
+
+PROC cantOpen:
+	REM display a dialog explaining that the WLD: device driver
+	REM can't be opened
+
+	dINIT "Can't open World device driver"
+	dTEXT "","Try closing the World application",2
+	dBUTTONS "Cancel", -27
+	DIALOG
+ENDP
+
+PROC find:(phandle%,lines%)
+	REM search the database for countries/cities matching the
+	REM strings entered
+
+	LOCAL t%,err%,k%
+	LOCAL wfr$(42), cid$(80), cod$(66), hom$(42)
+
+	BUSY "Esc to stop search"
+	matches%=0
+	POKEB ADDR(wfr$),42
+	REM get name of default city and country in wfr$
+	err%=IOW(phandle%,15,#(ADDR(wfr$)+1), t%)
+	hom$=wfr$
+	DO
+		REM now we iterate through every city in the database
+		REM should use UADD for pointer arithmetic on S3a, but
+		REM use arithemetic for S3 compatability (code+data size
+		REM too small for problems anyway)
+		
+		REM get details of current city in cid$
+		err%=IOW(phandle%,22,#(ADDR(cid$)+1),t%)
+		
+		REM get details of current country in cod$
+		err%=IOW(phandle%,23,#(ADDR(cod$)+1),t%)
+		
+		REM area dial code is at ADDR(cid$)+68
+		IF ci$="" OR streq%:(ci$, (ADDR(cid$)+ 68))
+
+			REM country dial code is at ADDR(cod$)+57
+			IF co$="" OR streq%:(co$,(ADDR(cod$)+57))
+				GIPRINT "Found a match"
+				matches%=matches%+1
+				
+				REM construct string for display
+				a$(matches%)=ztToOpl$:(ADDR(wfr$)+1)
+				a$(matches%)=a$(matches%)+", "+ztToOpl$:(ADDR(wfr$)+22)
+				a$(matches%)=a$(matches%)+": +"+ztToOpl$:(ADDR(cod$)+57)
+				a$(matches%)=a$(matches%)+" "+ztToOpl$:(ADDR(cid$)+68)
+				IF matches%<lines%
+					PRINT a$(matches%)
+				ELSEIF matches%=lines%
+					PRINT CHR$(25)+"more..."
+				ENDIF
+			ENDIF
+		ENDIF
+		err%=IOW(phandle%,13,#(ADDR(wfr$)+1),t%)
+		k%=KEY
+		IF k%=27
+			BUSY OFF
+			RETURN
+		ENDIF
+	UNTIL same%:(ADDR(hom$),ADDR(wfr$)) OR err% OR matches%=150
+	BUSY OFF
+	IF err%
+		RAISE err%
+	ENDIF
+ENDP
+
+PROC streq%:(t$, p%)
+	REM compare the OPL string t$ with the zero-terminated string
+	REM starting at p%
+	
+	LOCAL i%
+	i%=1
+	DO
+		IF ASC(MID$(t$,i%,1))<>PEEKB(p%+i%-1) OR PEEKB(p%+i%-1)=0
+			RETURN(0)
+		ENDIF
+		i%=i%+1
+	UNTIL i%>LEN(t$)
+	IF PEEKB(p%+i%-1) <> 0
+		REM then the string at p% is too long
+		RETURN(0)
+	ELSE
+		RETURN(-1)
+	ENDIF
+ENDP
+
+PROC same%:(pa%,pb%)
+	REM compare the two WR_FIND_RES structs at addresses pa%
+	REM and pb%; they consist of two ZTSs of max length 20
+
+	LOCAL i%
+	i%=1
+	DO
+		IF PEEKB(pa%+i%)<>PEEKB(pb%+i%)
+			RETURN(0)
+		ENDIF
+		i%=i%+1
+	UNTIL PEEKB(pa%+i%)=0
+	i%=22
+	DO
+		IF PEEKB(pa%+i%)<>PEEKB(pb%+i%)
+			RETURN(0)
+		ENDIF
+		i%=i%+1
+	UNTIL PEEKB(pa%+i%)=0
+	RETURN(-1)
+ENDP
+
+PROC ztToOpl$:(p%)
+	REM return the OPL string corresponding to the zero-terminated
+	REM string at p%
+	
+	LOCAL t$(255),i%
+	
+	t$=""
+	i%=0
+	WHILE PEEKB(i%+p%) <> 0
+		POKEB ADDR(t$)+i%+1, PEEKB(i%+p%)
+		i%=i%+1
+	ENDWH
+	POKEB ADDR(t$), i%
+	RETURN LEFT$(t$,i%)
+ENDP

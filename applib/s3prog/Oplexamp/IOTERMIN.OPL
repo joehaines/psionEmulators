@@ -1,0 +1,104 @@
+==========
+psion/4_series3 #177, from hzk, 2624 chars, Apr 21 13:36 95
+Comment to 150.
+----------
+I suppose this is really in the wrong topic, and a bit long, but it
+may be helpful to others following the thread.
+
+The following code is extracted from my PocPac packet program.  There
+may be the odd bit of redundant code, but it should emulate a basic
+terminal.  "Main" queues a 1 byte asynchronous event and serial read,
+which are read by "getser" and "getevnt" when they return.  The
+latter reads up to 255 bytes from the serial port buffer, and then
+starts the process again.  Alternatively, you could use a loop here.
+There may be more elegant ways of doing this, but it works OK, and
+doesn't hog the CPU bandwidth.
+
+Roger.
+
+PROC main:
+GLOBAL buf$(255),k%(6),h%
+GLOBAL sflag%,ser%,event%,readser%,rdevent%,c%
+IF IOOPEN(h%,"LOC::C:\*.*",$30)
+ALERT("Serial Lead Not Plugged In !!","Abort")
+STOP
+ENDIF
+LOPEN("TTY:A")
+        REM set 19200, No parity, 8bit data, RTS/CTS
+        set232:(11,0,8,0)
+rdevent%=1 :readser%=1
+FONT 1,16 : CURSOR ON
+DO
+c%=1
+                REM  see if serial read has returned & been processed
+                IF readser%=1
+ioa(-1,1,ser%,#UADD(ADDR(buf$),1),c%)
+readser%=0 : REM serial read queued
+ENDIF
+                REM  see if event has returned and been processed
+                IF rdevent%=1
+ioa(-2,14,event%,k%(1),#0)
+rdevent%=0 : REM event read queued
+ENDIF
+
+IOWAIT  : REM wait for any event
+
+                IF ser%<>-46  : REM serial read has returned
+readser%=1
+getser:
+ENDIF
+IF event%<>-46  : REM event has returned
+rdevent%=1
+getevnt:
+ENDIF
+UNTIL 0
+ENDP
+
+PROC getser:
+c%=1
+POKEB ADDR(buf$),c%  : REM get the serial byte
+PRINT buf$;
+IOW(-1,10,c%,#0)     : REM see how many bytes buffered
+IF c%>255 :c%=255 :ENDIF
+IF c%>0
+IOW(-1,1,#UADD(ADDR(buf$),1),c%)
+POKEB ADDR(buf$),c%
+PRINT buf$;
+ENDIF
+ENDP
+
+PROC getevnt:
+        IF k%(1)=$404 OR k%(1)=512+%x
+                REM stopped from system screen, or Psion-X
+LCLOSE
+STOP
+ELSEIF k%(1)<$400  : REM keyboard event occurred
+sendtxt:
+ELSE RETURN
+ENDIF
+ENDP
+
+PROC sendtxt:
+c%=1
+IF sflag%<>-46 : REM the last 'send' has returned
+                REM  send byte received from keyboard
+                IOA(-1,2,sflag%,#ADDR(k%(1)),c%)
+ELSE
+BEEP 1,1000
+gIPRINT "TX  Error!"
+ENDIF
+ENDP
+
+PROC set232:(baud%,parity%,data%,hand%)
+        REM This procedure c/o Psion programming maual
+REM assumes 1 stop bit.
+LOCAL srchar%(6),dummy%,r%,frame%
+frame%=data%-5
+IF parity% :frame%=frame% OR 32 :ENDIF
+srchar%(1)=baud% OR (baud%*256)
+srchar%(2)=frame% OR (parity%*256)
+srchar%(3)=(hand% AND 255) OR $1100
+srchar%(4)=$13
+IOW(-1,7,srchar%(1),dummy%)
+ENDP
+

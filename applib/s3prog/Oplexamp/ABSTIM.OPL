@@ -1,0 +1,65 @@
+proc abstim:
+rem Demonstrates absolute timers
+rem and spawning another Opl program
+	global tcb%,tstat%,tint%
+	global kstat%,key%(2)
+	ioopen(tcb%,"TIM:",-1)
+	settint:(1) :rem wakes up once every ten minutes
+	quekey:
+	do
+		quetim:
+		iowait
+		if kstat%=0 :rem keypress received
+			if key%(1)=27 :rem ESCAPE
+				stop
+			elseif key%(1)>=%1 and key%(1)<=%9
+				settint:(key%(1)-%0)
+				cantim:
+			quekey:
+			endif
+		elseif tstat%=0 :rem timer expired
+			runext:
+		endif
+	until 0
+endp
+
+proc settint:(m%)
+rem Set value of tint% and report to user
+	tint%=10*m%
+	print "Will run extpow once every",tint%,"minutes"
+endp
+
+proc quetim:
+	local s&
+	s&=datetosecs(year,month,day,hour,minute,second)
+	s&=(1+s&/(tint%*60))*(tint%*60)
+	while ioa(tcb%,2,tstat%,#addr(s&),#0)<0
+		s&=s&+tint%*60
+	endwh
+endp
+
+proc cantim:
+rem Cancel timer
+	iow(tcb%,4,#0,#0) :rem P_FCANCEL
+	iowaitstat tstat%
+endp
+
+proc quekey:
+	keya(kstat%,key%(1)) :rem queue keyboard read
+endp
+
+proc runext:
+rem Starts a copy of extpow running
+	local pid%
+	local cmdl$(128),appname$(128)
+	local ret%
+	appname$="ROM::SYS$PRGO"+chr$(0)
+	cmdl$="ORunOpl"+chr$(0)+chr$(0)+"LOC::M:\OPO\EXTPOW.OPO"+chr$(0)
+	ret%=call($0187,addr(appname$)+1,addr(cmdl$),0,0,addr(pid%))
+	if ret%<0
+		print(err$(ret%))
+	else
+		call($0688,pid%,0,0,0,0) :rem ProcResume
+	endif
+endp
+	

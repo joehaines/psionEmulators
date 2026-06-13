@@ -1,0 +1,698 @@
+REM
+REM ZVR V1.1.0
+REM
+REM This version of Ewan Paton's VR3a code is capable of
+REM processing ZVR compressed vertical reader files.
+REM
+REM Changes from the original code:
+REM
+REM		reformatted so that I can follow it better
+REM		added decompression
+REM		file path changed to \txt\books (was \vr)
+REM		extension changed to zvr (was txt)
+REM		RC file moved to \opd\zvr.rc
+REM			(was \vr\vrinit.rc)
+REM		different font default (matter of taste)
+REM		default Psion+J jump line is now top line,
+REM			not current line (i.e., 2 pages later...)
+REM		fixed Psion+F and Psion+G so that they actually
+REM			worked (seems to have been a problem in Ewan's
+REM			original code stemming from the introduction
+REM			of the behind-the-scenes painting of the next
+REM			page)
+REM
+REM Known problems:
+REM		Moving to the next page does not correctly
+REM			update vrTOP%, which means that exiting and
+REM			restarting a documents sometimes skips a
+REM			page or so.
+REM
+
+REM
+REM APP definition: note that the original program
+REM looked for its files in \VR rather than \TXT.
+REM
+APP ZVR
+	TYPE $9003
+	PATH "\txt\books"
+	EXT "zvr"
+	ICON "\opl\vr.pic"
+ENDA
+
+PROC main:
+	REM
+	REM Global variables used by the compression system
+	REM
+	GLOBAL zActive%							:REM <>0 if decompressing
+	GLOBAL zDict$(255,16)				:REM array of strings
+	GLOBAL zLine$(255)					:REM line just read
+
+	GLOBAL vrRC$(30)						:REM name of .rc file
+
+	GLOBAL vWID%(2)							:REM window IDs
+															:REM foreground/background
+
+	GLOBAL vINFO%(3),vHDLR$(8),vMODE%,vN%,vMAP&(64),vBIT%,vTMP%
+	GLOBAL vrFND$(30),vrFILE$(128),vrSTWIN%,vrFID%,vrSTYLE%,vrHDL%
+
+	GLOBAL vrLN%								:REM next unread line #
+	GLOBAL vrTOP%								:REM top visible line #
+
+	LOCAL f$(128),ret%,off%(6)
+
+	REM
+	REM Name of the file in which to hold bookmarks.
+	REM Ewan's original program put this file in
+	REM M:\VR, which is a bit unusual.  The name has
+	REM also changed.
+	REM
+	vrRC$ = "M:\OPD\ZVR.RC"
+
+	REM
+	REM Load the vertical printing library from the
+	REM LIB subdirectory of wherever this program was
+	REM loaded from.
+	REM
+	f$=CMD$(1)
+	f$=PARSE$("",f$,off%())
+	f$=left$(f$,off%(4)-1)+"LIB\VPRINT.OPO"
+	TRAP LOADM f$
+	IF ERR <> 0
+		dINIT
+		dTEXT "",f$
+		dTEXT "",ERR$(ERR)
+		LOCK ON
+		DIALOG
+		LOCK OFF
+		STOP
+	ENDIF
+
+	vHDLR$="handler"
+	vrFND$=""
+
+	REM
+	REM Open the requested file
+	REM
+	system:(CMD$(3)+CMD$(2))
+
+	gUPDATE OFF
+	ONERR catch
+catch::
+	ONERR OFF
+
+	vPAGE:(0)
+
+	DO
+		IF TESTEVENT
+			ONERR catch
+			IF handler%: <>0
+				ToFront:
+			ENDIF
+			ONERR OFF
+		ENDIF
+	
+		REM
+		REM read in the next line of the file
+		REM
+		ret% = zRdLine:
+
+		IF ret%>=0
+			vrLN%=vrLN%+1
+			vPRINT:(ADDR(zLine$))
+		ELSEIF ret%=-36
+			ONERR catch
+			if gRANK <>1
+				vPAGE:(1)
+			endif
+			vPAGE:(2)
+		ELSE
+			dINIT
+			dTEXT "",vrFILE$
+			dTEXT "",ERR$(ERR)
+			LOCK ON
+			DIALOG
+			LOCK OFF
+			procx:(%x)
+		ENDIF
+	UNTIL ret%=-36
+	ret%=IOCLOSE(vrHDL%)
+ENDP
+
+REM
+REM ToFront
+REM
+REM If the current drawable is not in the foreground,
+REM bring it to the foreground.
+REM
+PROC ToFront:
+	IF gRANK <> 1
+		vSWITCH:
+	ENDIF
+ENDP
+
+PROC handler%:
+	LOCAL sw%,k%,a$(5),a%(6)
+
+	GETEVENT a%()
+	sw%=0
+
+	IF (a%(1) AND $400) <> 0
+		IF a%(1) = $404
+			system:(GETCMD$) 
+			RAISE -114
+		ENDIF
+
+	REM
+	REM Help key pressed?
+	REM
+	ELSEIF a%(1)=291
+		help:
+
+	REM
+	REM Control-Menu pressed?
+	REM
+	ELSEIF a%(1)=290 AND((a%(2) AND $0004)=4)
+		IF vrSTWIN% = 0
+			vrSTWIN%=1
+			STATUSWIN ON
+		ELSE
+			vrSTWIN%=0
+			STATUSWIN OFF
+		ENDIF
+		FONT -$3fff,0
+		vFONT:(vrFID%,vrSTYLE%)
+		jump:(vrTOP%)
+		vPAGE:(0)
+		RAISE -114
+
+	REM
+	REM Menu pressed?
+	REM
+	ELSEIF a%(1)=290
+		mINIT
+		mCARD "File","Open",%o,"Review Bookmarks",%b,"About vr3a",%v
+		mCARD "Search","Count",%c,"Find text",%f,"Find again",%g,"Jump to Line",%j
+		mCARD "Special","Set preferences",%q,"Zoom in",%z,"Zoom out",%Z,"Exit",%x
+		k%=MENU
+		if k% AND (LOC("bocfgjqzxv",CHR$(k%))<>0)
+			a$="proc"+chr$(k%)
+			@(a$):(k%)
+		endif
+
+	REM
+	REM PSION+key pressed?
+	REM
+	ELSEIF (a%(1) AND $200) <>0 
+		k%=a%(1) AND $FF
+		IF a%(2) AND 2
+			k%=k% AND $DF
+		ENDIF
+		IF k% AND (LOC("bocfgjqzxv",CHR$(k%))<>0)
+			a$="proc"+chr$(k%)
+			@(a$):(k%)
+		ENDIF
+
+	REM
+	REM Space bar pressed?
+	REM
+	ELSEIF a%(1)=$20
+		sw%=1
+		vrTOP%=vrLN%
+	ENDIF
+ 
+	return sw%
+ENDP
+
+PROC procb:(k%)
+	LOCAL sw%
+	OPEN vrRC$,A,file$,top%,fid%,mode%,stwin%
+	ONERR abort
+	FIRST
+	DO
+		dINIT "Review Bookmarks"
+		dTEXT "",A.file$
+		dTEXT "","Line "+num$(A.top%,4)
+		dBUTTONS "Next",%n,"Prev",%p,"Delete",8
+		LOCK ON
+		sw%=DIALOG
+		LOCK OFF
+		if sw%=%n
+			NEXT
+			IF EOF
+				LAST
+			endif
+		elseif sw%=%p
+			BACK
+		elseif sw%=8
+			ERASE
+		endif
+	UNTIL sw%=0
+abort::
+	CLOSE 
+ENDP
+
+PROC procc:(k%)
+	dINIT
+	dTEXT "Lines",num$(count%:,5),1
+	LOCK ON
+	DIALOG
+	LOCK OFF
+ENDP
+
+REM
+REM procf: find text
+REM
+PROC procf:(k%)
+	LOCAL sw%
+	dINIT "Find"
+	dEDIT vrFND$,"Find text"
+	dCHOICE sw%,"Direction","Forwards,From Start of File"
+	LOCK ON
+	IF DIALOG
+		LOCK OFF
+		IF sw%=2
+			jump:(1)
+		ENDIF
+		procg:(0)
+	ENDIF
+	LOCK OFF
+ENDP
+
+REM
+REM procg: continue search
+REM
+PROC procg:(k%)
+	LOCAL ret%
+	GLOBAL zLine$(255)
+	BUSY "Searching",3
+	DO
+		REM
+		REM read in the next line of the file
+		REM
+		ret% = zRdLine:
+		IF ret%>=0
+			IF LOC(zLine$,vrFND$)<>0
+				BUSY OFF
+				vrTOP%=vrLN%
+				vrLN%=vrLN%+1
+				jump:(vrTOP%)
+				ToFront:
+				RAISE -114
+			ENDIF
+			vrLN%=vrLN%+1
+		ENDIF
+	UNTIL (ret%=-36)
+	BUSY OFF
+	GIPRINT "Not Found",3
+	jump:(vrTOP%) 
+	RAISE -114
+ENDP
+
+REM
+REM procj
+REM
+REM Called on Psion+j: jump to line
+REM
+PROC procj:(k%)
+	LOCAL ln%,ln&
+	ln& = vrTOP%
+	dINIT "Jump to line"
+	dLONG ln&,"Line",1,32000
+	LOCK ON
+	IF DIALOG
+		LOCK OFF
+		ln%=ln&
+		jump:(ln%)
+		vrTOP%=vrLN%
+		ToFront:
+		RAISE -114
+	ENDIF
+	LOCK OFF
+ENDP
+
+REM
+REM proco
+REM
+REM Called for PSION+O, and for the system's
+REM request to open a file.
+REM
+PROC proco:(k%)
+	LOCAL ret%,f$(128)
+	f$="\VR\*.txt"
+	if k%<>0
+		do
+			dInit "Select a file to read"
+			dFile f$,"Filename:",72
+			LOCK ON
+			if Dialog
+				LOCK OFF 
+			else
+				LOCK OFF
+				return
+			endif
+		Until f$<>""
+		putinf:
+		vrFILE$=f$
+	endif
+
+	REM
+	REM Close the open file, if there is one.
+	REM
+	IF vrHDL% <> 0
+		ret%=IOCLOSE(vrHDL%)
+	ENDIF
+
+	REM
+	REM Open the selected file
+	REM
+	ret%=IOOpen(vrHDL%,vrFILE$,$0620)
+	zRdDict:(vrHDL%)
+
+	vrLN%=1
+	getinf:
+	vFONT:(vrFID%,vrSTYLE%)
+	jump:(vrTOP%)
+	setname vrFILE$
+	if k% <> 0
+		RAISE -114
+	endif
+ENDP
+
+PROC procq:(k%)
+	LOCAL md%,fid%,style%
+	md%=vMODE%
+	fid%=(vrFID%-4)
+	IF vrSTYLE% AND 16
+		style%=2
+	ELSE
+		style%=1
+	ENDIF
+	dINIT "Set preferences"
+	dCHOICE fid%,"Font:","Roman 8,Roman 11,Roman 13,Roman 16,Swiss 8,Swiss 11,Swiss 13,Swiss 16"
+	dCHOICE style%,"Character widths","Proportional,Monospaced"
+	dCHOICE md%,"Display mode:","Line truncate,Line wrap,Word wrap,Paragraph"
+	LOCK ON
+	IF DIALOG
+		LOCK OFF
+		IF fid%<>(vrFID%-4) or vrSTYLE%<>(16*(style%-1))
+			vrSTYLE%= 16*(style%-1)
+			vrFID%=fid%+4
+			vFONT:(vrFID%,vrSTYLE%)
+		ENDIF
+		vMODE%=md%
+		jump:(vrTOP%)
+		RAISE -114
+	ENDIF
+	LOCK OFF
+ENDP
+
+PROC procv:(k%)
+	dINIT "About ZVR V1.1.0"
+	dTEXT "","by Ian Young <ian@rats.demon.co.uk>"
+	dTEXT "","   heavily based on..."
+	dTEXT "","Vertical Reader for Psion Series 3a"
+	dTEXT "","Version 1.1 - Feb '93"
+	dTEXT "","by Ewan Paton - paton@vmark.co.uk"
+	LOCK ON
+	DIALOG
+	LOCK OFF
+ENDP
+
+REM
+REM procx
+REM
+REM Called for PSION+x: Exit program
+REM
+PROC procx:(k%)
+	putinf:
+	STOP
+ENDP
+
+REM
+REM procz: zoom text
+REM
+PROC procz:(k%)
+	IF k%=%z
+		vrFID%=(((vrFID%-1) AND (NOT 3)) OR ((vrFID%) AND 3))+1
+	ELSE
+		vrFID%=(((vrFID%-1) AND (NOT 3)) OR ((vrFID%-2) AND 3))+1
+	ENDIF
+	vFONT:(vrFID%,vrSTYLE%)
+	vPAGE:(0)
+	jump:(vrTOP%)
+	RAISE -114
+ENDP
+
+PROC count%:
+	LOCAL ret%,hdl%,line%,buf$(255)
+	line%=1
+	ret%=IOOpen(hdl%,vrFILE$,$0620)
+	BUSY "Counting",3
+	zRdDict:(hdl%)
+	WHILE ret%>=0
+		ret%=IOREAD(hdl%,ADDR(buf$)+1,255)
+		line%=line%+1
+	ENDWH
+	ret%=IOCLOSE(hdl%)
+	BUSY OFF
+	return line%
+ENDP
+
+PROC getinf:
+	TRAP OPEN vrRC$,A,file$,top%,fid%,mode%,style%,stwin%
+	if ERR = 0
+		if FIND(vrFILE$)<>0
+			vrTOP%=A.top%
+			vrFID%=A.fid%
+			vMODE%=A.mode%
+			vrSTYLE%=A.style%
+			IF vrSTWIN%<>A.stwin%
+				IF vrSTWIN%=0
+					STATUSWIN ON
+					FONT -$3fff,0
+				ELSE
+					STATUSWIN OFF
+					FONT -$3fff,0
+				ENDIF
+				vrSTWIN%=A.stwin%
+			ENDIF
+		else
+			vrTOP%=1
+			vrFID%=10
+			vMODE%=4
+			vrSTYLE%=0
+		endif
+	ELSE
+		CREATE vrRC$,A,file$,top%,fid%,mode%,style%,stwin%
+		vrTOP%=1
+		vrFID%=10
+		vMODE%=4
+		vrSTYLE%=0
+	ENDIF
+	CLOSE
+ENDP
+
+PROC help:
+	dINIT "Help:Vertical Reader"
+	dTEXT "","Vr3a displays ascii text files in landscape orientation in a choice"
+	dTEXT "","of 8 builtin proportional fonts. Files in any /VR directories with" 
+	dTEXT "","a .TXT suffix will appear beneath the application icon."
+	dTEXT "","The last position and display preferences for any file displayed"
+	dTEXT "","with Vr3a are saved between invocations in the vrinit.rc file."
+	dTEXT "","Menu commands should be self explanatory."
+	dTEXT "","The Enter key scrolls the display one line and the Space key"
+	dTEXT "","displays the next page."
+	LOCK ON
+	DIALOG
+	LOCK OFF
+ENDP
+
+PROC jump:(ln%)
+	LOCAL off&,ret%,buf$(255)
+
+	REM
+	REM If we have gone too far, we must seek back
+	REM to the start of the file and then skip
+	REM forward again.
+	REM
+	IF ln% < vrLN%
+		off&=0
+		ret%=IOSEEK(vrHDL%,6,off&)
+		zRdDict:(vrHDL%)
+		vrLN%=1
+	ENDIF
+	BUSY "Seeking to line "+num$(ln%,4),3
+	WHILE vrLN% < ln%
+		ret%=IOREAD(vrHDL%,ADDR(buf$)+1,255)
+		vrLN%=vrLN%+1
+	ENDWH
+	BUSY OFF
+ENDP
+
+PROC putinf:
+	OPEN vrRC$,A,file$,top%,fid%,mode%,style%,stwin%
+	if FIND(vrFILE$)<>0
+		A.top%=vrTOP%
+		A.fid%=vrFID%
+		A.mode%=vMODE%
+		A.style%=vrSTYLE%
+		A.stwin%=vrSTWIN%
+		UPDATE
+	else
+		A.file$=vrFILE$
+		A.top%=vrTOP%
+		A.fid%=vrFID%
+		A.mode%=vMODE%
+		A.style%=vrSTYLE%
+		A.stwin%=vrSTWIN%
+		APPEND
+	endif
+	CLOSE
+ENDP
+
+PROC system:(msg$)
+	IF LEFT$(msg$,1)="O"
+		vrFILE$=mid$(msg$,2,128)
+		proco:(0)
+	ELSEIF LEFT$(msg$,1)="C"
+		putinf:
+		vrFILE$=mid$(msg$,2,128)
+		proco:(0)
+	ELSEIF LEFT$(msg$,1)="X"
+		procx:
+	ENDIF
+ENDP
+
+REM ##################################################
+REM ###                                            ###
+REM ###         D E C O M P R E S S I O N          ###
+REM ###                                            ###
+REM ##################################################
+
+REM
+REM zRdDict
+REM
+REM The argument handle% is the file handle for
+REM a text file which may or may not contain
+REM compressed information.  The file is currently
+REM positioned at the beginning.  This function
+REM determines whether the file contains compressed
+REM data by looking at the first line, which will be
+REM a magic string for a compressed file.  The next
+REM 255 lines after that are the compression
+REM dictionary.
+REM
+PROC zRdDict:(handle%)
+	LOCAL ret%
+	LOCAL i%
+	LOCAL off&
+	LOCAL line$(255)
+
+	REM
+	REM Assume uncompressed file by default
+	REM
+	zActive% = 0
+
+	REM
+	REM Read first line.
+	REM
+	ret% = IORead(handle%, ADDR(line$)+1,255)
+	IF ret% < 0 :RETURN	:ENDIF
+	PokeB ADDR(line$),ret%
+	REM
+	REM If this is not a compressed file, seek back
+	REM to the beginning again.
+	REM
+	IF line$ <> "!!Compressed!!"
+		off& = 0
+		ret%=IOSEEK(vrHDL%,6,off&)
+		RETURN
+	ENDIF
+
+	REM
+	REM Has magic tag; now read dictionary
+	REM
+	i% = 1
+	DO
+		REM
+		REM Read a dictionary entry
+		REM
+		ret% = IORead(handle%, ADDR(line$)+1, 255)
+
+		REM
+		REM If there is a problem, seek back to the
+		REM start and assume that the file is not
+		REM compressed after all.
+		REM
+		IF ret% < 0
+			off& = 0
+			ret%=IOSEEK(vrHDL%,6,off&)
+		RETURN
+
+		REM
+		REM An empty line means the symbol is defined
+		REM as itself.
+		REM
+		ELSEIF ret% = 0
+			line$ = CHR$(i%)
+
+		REM
+		REM Otherwise, the line is the symbol's
+		REM definition.
+		REM
+		ELSE
+			PokeB ADDR(line$), ret%
+		ENDIF
+		zDict$(i%) = line$
+		i% = i%+1
+	UNTIL i% = 256
+
+	REM
+	REM All has gone well: we can set decompression
+	REM active now.
+	REM
+	zActive% = 1
+ENDP
+
+REM
+REM zRdLine$
+REM
+REM Reads the next line from the currently open
+REM file, and decompresses it (if required) into
+REM the global variable zLine$.
+REM
+PROC zRdLine:
+	LOCAL ret%
+	LOCAL line$(255)
+	LOCAL q%, i%
+
+	IF zActive%
+		q% = ADDR(line$)
+	ELSE
+		q% = ADDR(zLine$)
+	ENDIF
+
+	ret% = IORead(vrHDL%,q%+1,255)
+	IF ret% >= 0
+		PokeB q%, ret%
+	ELSE
+		RETURN ret%
+	ENDIF
+
+	REM
+	REM We have read a line in.  If compression is
+	REM active, we have it in line$ and must decompress
+	REM into zLine$
+	REM
+	IF zActive%
+		zLine$ = ""
+		i% = ret%
+		WHILE i%
+			q% = q% + 1
+			zLine$ = zLine$ + zDict$(PeekB(q%))
+			i% = i% - 1
+		ENDWH
+	ENDIF
+	RETURN ret%
+ENDP
+

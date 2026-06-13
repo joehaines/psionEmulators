@@ -1,0 +1,133 @@
+REM Source file - EVENTMAN.OPL
+
+REM An Event Manager module,
+REM designed to simplify code and
+REM reduce application size.
+
+REM Written by Jezar at Psion, for
+REM The 1994 Psion Developers Conference
+
+
+
+PROC dummy:
+REM  (protects against being run)
+ENDP
+
+
+PROC EMmake:(Init$)
+REM  Create and activate the 
+REM  event dispatcher
+	
+	REM PRIVATE!!
+	GLOBAL EMmax%,EMfunc$(20,7)
+	GLOBAL EMpri%(20),EMslot%(20)
+	
+	REM Public
+	GLOBAL EMhand%(20),EMstat%(20)
+	GLOBAL EMuser1&(20),EMuser2&(20)
+	
+	@(Init$):
+	CACHE ON
+	EMwait:
+	CACHETIDY
+ENDP
+
+
+PROC EMadd%:(func$,pri%)
+REM  Add an event handler
+	
+	LOCAL i%,j%,slot%,idx%
+	
+	DO :REM Find a free slot
+		IF slot%=20 :REM This systems' limit
+			ALERT("No more event slots")
+			STOP
+		ENDIF
+		slot%=slot%+1
+	UNTIL EMfunc$(slot%)=""
+
+	EMmax%=EMmax%+1
+
+	DO :REM Find position in list
+		idx%=idx%+1
+		IF idx%=EMmax%
+			BREAK
+		ENDIF
+		j%=EMslot%(idx%)
+	UNTIL EMpri%(j%)<pri%
+	
+	REM Insert in list
+	i%=EMmax%
+	WHILE i%>idx%	
+		j%=i%
+		i%=i%-1
+		EMslot%(j%)=EMslot%(i%)
+	ENDWH
+	
+	REM Initialise slot
+	EMslot%(idx%)=slot%
+	EMfunc$(slot%)=func$
+	EMpri%(slot%)=pri%
+	RETURN slot%
+ENDP
+
+
+PROC EMrem:(slot%)
+REM  Remove an event slot
+
+	LOCAL i%,j%
+	
+	DO :REM Find the requested slot
+		IF i%=EMmax%
+			ALERT("Invalid slot removal")
+			STOP
+		ENDIF
+		i%=i%+1
+	UNTIL EMslot%(i%)=slot%
+	
+	REM Invalidate the slot:
+	EMfunc$(slot%)=""
+	EMhand%(slot%)=0
+	EMstat%(slot%)=0
+	EMuser1&(slot%)=0
+	EMuser2&(slot%)=0
+	
+	REM Copy down the other slots:
+	WHILE i%<EMmax%
+		j%=i%
+		i%=i%+1
+		EMslot%(j%)=EMslot%(i%)
+	ENDWH
+	
+	EMmax%=EMmax%-1
+ENDP
+
+
+PROC EMwait:
+REM  The event dispatcher itself.
+	
+	LOCAL i%,u%,slot%
+	
+	WHILE 1
+		IOWAIT
+		i%=0 :u%=0
+		WHILE i%<EMmax%
+			i%=i%+1
+			slot%=EMslot%(i%)
+			IF EMstat%(slot%)<>-46
+				IF @%(EMfunc$(slot%)):(slot%)
+					RETURN
+				ENDIF
+				u%=1
+				BREAK
+			ENDIF
+		ENDWH
+		IF u%=0
+			ALERT("Stray signal death")
+			STOP
+		ENDIF
+	ENDWH
+ENDP
+
+REM End of file
+

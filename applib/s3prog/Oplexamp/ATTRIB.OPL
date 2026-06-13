@@ -1,0 +1,102 @@
+    Rem Pelican Software Inc.
+    Rem ---------------------
+    Rem Here's the proc for setting attributes
+    Rem Getting Attrib's part is from Psion
+    Rem Setting is from Pelican Software Inc.
+    Rem Sorry it's not well structured
+
+PROC Attrib:
+local fname$(128),g%,ro%,hid%,sys%,mod%,mask%,win%,fl%
+local name$(128),fzts$(130)            :rem Zero Terminated String version of fname
+local e%                               :rem error from FilStatusGet
+local ver%,attrib%,size&,mdate&,spare& :rem Dont change order
+local yr%,mo%,dy%,hr%,mn%,sc%,yrday%   :Rem For parsing Date
+Win%=gcreate(0,0,60,80,1)              :Rem info window
+gborder 1
+fname$=cmd$(1)                         :Rem initialise to program name
+top::
+do
+fzts$=fname$+chr$(0)                   :Rem add zero
+e%=call($887,addr(fzts$)+1,addr(ver%),0,0,0)  :Rem FilStatusGet call
+cls
+if e%                                  :Rem if error
+  giprint err$(e%) :pause 30
+ else
+  ro%=0 :hid%=0 :sys%=0 :mod%=0        :Rem set our flags to zero for loop
+  guse win% :gcls :gborder 1           :Rem setup the info window
+  secstodate mdate&,yr%,mo%,dy%,hr%,mn%,sc%,yrday%     :Rem parse the date
+  fl%=0
+  if attrib% and $20 :gat 1,10 :gprintb"Mod",55,3 :mod%=2 :fl%=1 :endif
+  if attrib% and $4 :gat 1,20 :gprintb"Sys",55,3 :sys%=2 :fl%=1 :endif
+  if attrib% and $2 :gat 1,30 :gprintb"Hid",55,3 :hid%=2 :fl%=1 :endif
+  if (attrib% and $1)=0 :gat 1,40 :gprintb"RdOnly",55,3 :ro%=2 :fl%=1 :endif
+if fl%=0                                :Rem Set all flags after reading attributes
+ gat 5,35
+ gprintb"No Flags",50,3                 :Rem if no flags set display
+ gat 5,45
+ gprintb"Set!",50,3
+endif
+if len(parse$:(fname$,7))>13            :Rem truncate display of fname
+ name$=parse$:(fname$,8)+"..."+parse$:(fname$,6)
+else name$=fname$
+endif
+dinit"File: "+name$                     :Rem diplay dialog
+dtext"Size:",fix$(size&,0,12)
+dposition 1,1                           :Rem set window in lower right
+dchoice ro%,"Read Only:","No,Yes"
+dchoice hid%,"Hidden:","No,Yes"
+dchoice sys%,"Sys file:","No,Yes"
+dchoice mod%,"Modified:","No,Yes"
+dtext "Last modified",fix$(mo%,0,2)+"/"+fix$(dy%,0,2)+"/"+fix$(yr%,0,4)
+g%=dialog
+mask%=0                                 :Rem zero mask% int
+if ro%=2                                :Rem set flags and mask
+ ro%=$0
+else ro%=$ff :mask%=mask%+1
+endif
+if hid%=2 :hid%=$ff :mask%=mask%+2
+else hid%=0
+endif
+if sys%=2 :sys%=$ff :mask%=mask%+4
+else sys%=0
+endif
+if mod%=2 :mod%=$ff :mask%=mask%+$20
+else mod%=0
+endif
+  if g%
+ e%=call($987,addr(fzts$)+1,$27,0,0,0)      :Rem start by clearing flags
+ e%=call($987,addr(fzts$)+1,mask%,0,0,$ff)  :Rem FilStatusSet call
+if e%<0
+ giprint err$(e%)                           :Rem display errors
+endif
+ goto top
+  endif
+endif
+        dInit "Load file"                :Rem load next file
+        dPosition 1,1
+        dFile fname$,"File",0
+      until dialog=0
+ENDP
+
+Rem ----------- Start of new proc ---------------------
+
+PROC parse$:(fil$,req%)
+local b%(6),p$(128),rel$(8),fsys$(8)
+local dev$(2),path$(128),fn$(12),ext$(4)
+p$=parse$(fil$,rel$,b%())
+fsys$=mid$(p$,1,b%(2)-1)
+dev$=mid$(p$,b%(2),b%(3)-b%(2))
+path$=mid$(p$,b%(3),b%(4)-b%(3))
+fn$=mid$(p$,b%(4),b%(5)-b%(4))
+ext$=mid$(p$,b%(5),4)
+if req%=1 :Return fsys$
+elseif req%=2 :return dev$
+elseif req%=3 :return path$
+elseif req%=4 :return fn$
+elseif req%=5 :return ext$
+elseif req%=6 :return fn$+ext$
+elseif req%=7 :return fsys$+dev$+path$
+elseif req%=8 :return fsys$+dev$
+rem Add your own combinations here
+endif
+ENDP

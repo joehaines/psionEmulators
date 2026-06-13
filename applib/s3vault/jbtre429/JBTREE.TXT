@@ -1,0 +1,533 @@
+                                JBTree
+                            Version 4.2.7
+                           (c)JBSoft 1992-6
+
+This is a program which displays the directories and files on any disk
+(internal or external). It shows the current directory and other
+directories at the same level, plus any directories immediately
+subordinate to the directory on which the cursor is on. It also
+displays the files in the current directory - the date will take the
+same format as that set in the Time application. The program is free
+for your use but I retain all copyright on the code (where applicable
+- some of the Pack information was provided by Wolfgang Schirmer and
+Matt Millar - thanks).
+
+
+N.B. If you can't be bothered to plough through this document please
+     note that Copy, Move etc. only work after you have Marked the
+     file using the Space Bar or the Enter key. Also, for
+     installation, please read that section or you'll be sorry <g>!
+
+Background
+----------
+This utility was first started in the days of the Series 3 but I only
+got it to a reasonable state on the appearance of the Series 3a. It
+has been translated, and therefore will only run in its present state,
+on an S3a although I suspect it could be adapted to compile and run on
+an S3 with some compromises. There are some limitations which I
+suspect you will discover as you use it.
+
+Manual and Usage
+----------------
+This started as work in progress (I suppose, as I kept changing it for
+the first few years) and so it comes without a proper manual as I
+didn't start writing this until the program was too large to start
+documenting it from scratch (I don't really have the time or
+inclination to write a proper one). This document is getting close to
+turning into a manual as I expand on it. Help is available on the HELP
+key at most times and, as with most OPL programs, you can escape using
+Psion-Esc or Psion-X at almost any time.
+
+The history information is in a file called JBTHISTR.TXT.
+
+Installation
+------------
+The files listed below should be part of the JBTree ZIP file:-
+
+        JBTREE.OPA - The main part of the program
+          JBTL.DBF - Install if Launch is to be installed
+        JBTREE.DBF - Data file required for View/Run options
+        JBTREE.RSC - Help file.
+           JBT.DBF - My example file of JBTREE.DBF (included as part
+                     of the explanation - should not be installed
+        JBTREE.TXT - This file/manual
+      JBTHISTR.TXT - History text of changes
+
+Copy JBTREE.OPA to any directory (normally \APP\ but this is not
+mandatory) and install it in the usual way using Psion-I. If you
+require to view files using their native application then the file
+JBTREE.DBF should also be placed in the \APP\ directory. If help is
+required then JBTREE.RSC should be copied into the \APP\ directory
+also. When JBTree is first run the files are moved to a sub-directory
+off the directory JBTree is installed in called \JBTREE\ (e.g.
+\APP\JBTREE\).
+
+This sub-directory drive for the configuration files can be chosen
+and, if the JBTREE directory does not exist, then a dialog to choose
+the drive will be given. The directory should be created automatically
+- if not, it is permissible to generate it manually. Please note that
+if the parent directory (normally \APP\) does not exist then this
+automatic installation may fail.
+
+If you are updating your version then you will have to manually move
+the configuration files to the appropriate directory although it is
+not normally necessary to copy any of the other files unless the
+history file indicates the format of the files have altered. The
+program looks for these additional files in a directory off the
+directory that JBTREE.OPA is in (i.e. if JBTree is in \JBT\ then the
+configuration files MUST be in the directory path \JBT\JBTREE. This
+path can, however, be on a different drive to that of the OPA file.
+
+If you require the Launch menu then JBTL.DBF should also be placed in
+the \APP\ directory. This will be moved to the appropriate directory
+by the main program when it is first started.
+
+N.B. Care should be taken when upgrading the program - no datafiles
+     will be overwritten if they already exist in the \JBTREE\
+     directory when the program is started. If you wish to upgrade (or
+     replace) the datafiles then the original datafiles in the
+     \JBTREE\ directory must be deleted first or the files concerned
+     manually transferred to this directory.
+
+     JBTL.OPO which was required for version 4 and 4.1 is not now
+     needed and will be automatically deleted when JBTree is first
+     run.
+
+Starting the program
+--------------------
+To start the program place the cursor on the JBTree word and press
+Enter to start the program.
+
+After starting the program you are prompted for a Drive - if the 3-
+Link is active then, before the drive menu is accessed, a choice of
+Local or Remote is given. Remote means drives on the remote computer.
+If the drive you wish to access is not shown on the menu then press
+Esc and you can then select almost any drive (including the ROM) with
+the dialog displayed at this point.
+
+N.B. If the letter keys (e.g.'F') do not appear to work or do not work
+     as expected, check that you do not have CAPS LOCK on. The S3a is
+     case sensitive on the keys checking. Unfortunately, unlike the
+     good old Organiser II, it does not appear possible to alter the
+     state of the CAPS LOCK from within the program using OPL so
+     please be sure that this is switched off whilst using the
+     program.
+
+Status Window
+-------------
+It is possible to display a Status Window in a similar way to other
+Psion applications using Control-Menu to toggle through the options.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Keys Used
+=========
+
+                           General
+                           -------
+                            : Up
+                           : Down
+                        PgUp: Page Up
+                       PgDn: Page Down
+                 Ctrl-Psion-Up/Home: 1st Dir
+                Ctrl-Psion-Down/End: Last Dir
+                    Tab: Files/Dir switch
+                  Diamond: Files/Dir switch
+                    Psion-J: Info (About)
+                        Psion-S: Sort
+                  Shift-Psion-S: Sort types
+               Ctr-Menu: Display Status Window
+               #(character key): Goto dir/file
+                Psion-Shift-C: JBTree Config
+                 Psion-Shift-F: View Config
+              Psion-U: Update Directories/Files
+                     Psion-F: Pack Info
+                Shift-Psion-I: Directory Info
+               Shift-Psion-L: Launch sub-menu
+                        Psion-X: Exit
+
+                      In Directory Tree
+                      -----------------
+                    Psion-D: Change Drive
+                         : Sub-Dir
+                          : Up-Dir
+                      Psion-+: Add Dir
+                      Psion--: Del Dir
+                     Psion-C: Copy Dirs
+                     Psion-M: Move Dirs
+                     Psion-R: Rename Dir
+                 Shift-Psion-R: Rename Drive
+                 Shift-Psion-D: Delete Dirs
+                 Shift-Psion-Q: Format Drive
+                   Psion-L: Look for File
+                     Psion-A: Look again
+               Ctrl-A/B/M: Quick drive change
+
+                        In Files List
+                        -------------
+                 Psion-I: Toggle Files Info
+                   Psion-T: Mark All Files
+               Psion-Shift-T: Unmark All Files
+                   Space: Mark file toggle
+                <CR>: Mark toggle + Move down
+                   Psion-D/Delete: Delete
+                        Psion-C: Copy
+               Psion-(Shift)M: Move (& Rename)
+                       Psion-R: Rename
+                Psion-Shift-R: Copy & Rename
+                  Psion-A: File Attributes
+                        Psion-N: Info
+       Psion-(Shift)V/Psion-H: View file(in Word)/Hex
+
+
+Moving Around
+-------------
+Use the cursor keys in the normal way. To go to a sub-directory use the
+right arrow key, to go to the parent directory above the present one use
+the left arrow key. To flip between the Directory list and the Files list
+use Tab or the Diamond key. If in the Files list then Escape will also take
+you to the Directory list. To change the drive use Psion-D whilst in the
+directory list. An alternative, if just the local drives are required, is
+to use Ctrl-A -B or -M. This bypasses the dialogs and so speeds up the
+selection a little.
+
+It is possible to jump to a directory or file within the current list by
+using 'c' where 'c' is the first character of the name to find.
+
+Create/Delete/Rename Directories
+--------------------------------
+It is possible to create new directories by positioning on the directory to
+which the directory to be created will be subservient and then using Psion-
++ (the Psion key along with the '+' key). Deletion of a directory (which
+must be empty of files) is achieved by using Psion-- (the Psion key
+together with the '-' key). It is also possible to delete a whole sub-
+directory tree (including any files) using Psion-Shift-D. To rename a
+directory, place the cursor on the directory to be renamed and press Psion-
+R. A dialog will display showing the old name and prompting for the new one
+(the default display shows the same name as the old). After entering the
+new directory name, press return and (eventually) the screen will display
+showing the new directory name.
+
+Copying/Moving/Deleting
+-----------------------
+When in the File list the required files must be selected by using either
+the Space bar or Enter before any action can be taken. After marking the
+selection is denoted by a star beside the filename. The keys used for
+marking can also be used to deselect a file in the same way (they act as a
+toggle). All files in the current directory can be marked using Psion-T and
+deselected using Psion-Shift-T.
+
+Once the files have been marked then use of Psion + C/M/D will either
+copy/move or delete the selected files (you can also use the Delete key in
+place of Psion-D). If copy or move are selected then the display will re-
+display the directory tree and you should move to the appropriate
+destination drive and directory in the usual way before pressing Enter. You
+can create new directories whilst in this selection mode. Enter will
+activate the copy or move. If you require to Copy or Move together with
+Renaming the file - use Psion-Shift-R for Copy & Rename and Psion-Shift-M
+for Move and Rename.
+
+It is possible to bring up a dialog to enable the input manually of the
+destination directory. Use Ctrl-Psion + C/M to do this. If the destination
+as typed does not exist then the option to make it is shown. Escape at any
+point will take you back to the normal choice method of choosing the
+destination directory.
+
+The program will do bulk copying/moving/deleting of directories using
+Psion+C/M/Shift-D. When copying or moving an option is given to use the
+existing directory or not. What this means is that the data in the top
+directory chosen to copy or move will either go into the destination
+directory chosen or will create a directory below the destination directory
+and use that. (e.g. Source directory = A:\JBTREE : Destination directory =
+A:\DOS. If Existing is chosen then the files in the JBTREE directory will
+end up in the DOS directory and any sub-directories will be created below
+the DOS directory; If Existing is not chosen then a directory called JBTREE
+will be created as a sub-directory of DOS and the files moved accordingly.)
+
+The number of files marked and the combined size of them is displayed using
+Shift-Psion-I.
+
+Other options
+-------------
+Files can be renamed by highlighting them using the cursor and pressing
+Psion-R. A dialog is displayed allowing the name and/or the extension to be
+changed.
+File attributes can be reset using Psion-A once the files to be changed
+have been marked. If no file is marked then the attributes for the current
+file under the cursor is shown. If Escape is pressed (rather than return)
+when in the Set dialog then the viewing is abandoned. Changes are made
+using the Enter key once the dialog has been set as required. The
+attributes set will alter all the programs marked without further querying.
+This is primarily to facilitate bulk changing of attributes - alter the
+files on an individual basis if different attributes are to be set for each
+file.
+
+Finding a file
+--------------
+It is possible to find a file on a particular drive. By pressing Psion-L a
+dialog shows prompting for the file to find. This need not be the full name
+but just sufficient to identify the file. If the file is found the display
+will stop on that directory. If the search is be resumed use Psion-A to
+continue the existing search. Because of the potential for continuing the
+search I have had to get all the directory names before starting the search
+and the screen will reflect this delay before the search is commenced.
+
+Only the current drive is searched - to search other drives you must first
+move to the required drive before implementing the search. Wildcards are
+implemented.
+
+Viewing a file
+--------------
+One thing that may not be clear from the help page is that it is possible
+to View or Launch files with the aid of a configuration database file
+called JBTREE.DBF. This can be configured from within JBTree using Psion-
+Shift-F. It will Launch anything (including things like Notepad and Macro)
+given the correct configuration. There are four fields in the configuration
+file:
+
+1. Extension      - this is the extension the launch utility will use
+                    to determine which database record in JBTREE.DBF
+                    to use. When launching a file the database is
+                    searched for an extension which matches that of
+                    the file to launch.
+2. Run filename   - this is the program to run in conjunction with the
+                    file selected (e.g. WRD extension should use
+                    ROM::WORD.APP). Any OPO or OPA file should use
+                    ROM::SYS$PRGO.IMG.
+3. Extra filename - This field is for use with OPA files that use file
+                    lists (e.g. Notepad). If this field is used then
+                    it is probable that the Run filename will be
+                    ROM::SYS$PRGO.IMG.
+4. Alias Info     - currently the only program that would use this
+                    field is WORD unless there is a 3rd party
+                    application of which I am unaware.  The two .ALS
+                    files (PROGRAM and SCRIPT) in the ROM should not
+                    be called explicitly - they are loaded as required
+                    according to the alias data. Briefly:
+                    The first letter specifies Program or Script
+                    (either O or S) - the second letter specifies if
+                    RUN is allowed and the next three letters give
+                    both the top directory any compiled programs are
+                    placed in and also the files extension.
+                    A text editor can be started by using the alias
+                    character of $.
+
+For examples see the enclosed JBT.DBF file for examples of using the
+fields. This is actually my configuration file but gives you a clue as
+to what to do. The working configuration file should be called
+JBTREE.DBF and exist in a directory called JBTREE. This, in turn,
+should exist as a sub-directory off the directory in which JBTREE.OPA
+exists. It must also be on the same drive.
+If you are upgrading the program from a previous version then the new
+directory will be automatically made and the file moved. If this is a
+first installation then you could copy both the .APP and .DBF files to
+the same directory and the rest of the creation and moving will be
+automatic when the program is first run, or you could manually create
+the directory and move the file into it.
+
+Because I use the Data application to access this file for alteration,
+if my file is not used as a starter, then the Field titles will have
+to be typed in manually. I have included a JBTREE.DBF file which is a
+Data file with just the built-in applications and the field names
+included.
+
+To use the launch utility place the cursor on the file you require to
+view/run and press Psion-V. If the Extension does not exist in the
+database then an option to use Word will be given. It is also possible
+to force the use of Word at all times by using Psion-Shift-V instead
+of Psion-V.
+
+Once the file has been opened it must be closed in the normal way for
+that program (usually Psion-X) otherwise, once you return to the
+System screen, the file will still show as open, but not necessarily
+under its normal icon.
+
+N.B. There is a problem with any Icon or Title that is normally
+     displayed on a status screen when launching programs in this way.
+     This is very difficult to solve for every case as, to do so,
+     would rely on the program in question having been installed on
+     the System screen - those that are should have their icons
+     displayed correctly but others will not.
+
+     There does not appear to be a way round this problem (unless
+     someone knows of a fix of which I am unaware).
+
+Hex View/Edit
+-------------
+To view or edit in a Hex or 'Dump' format then use Psion-H. To exit
+from the procedure use Psion-X.
+
+Move around the display using the cursor keys and switch between the
+Hex and ASCII columns using the Tab key.
+
+To toggle between Edit and View use Psion-E. It is possible to edit in
+the ASCII display as well as the Hex display.
+
+To jump to a new location use Psion-J - the location should be
+inputted in Hex digits.
+
+To search within the file use Psion-F. If you are in the Hex part of
+the display then input Hex characters (0-9,A-F) - the A-F characters
+can be typed in lower case - the program will automatically convert.
+If in the ASCII section then ASCII characters can be searched for.
+Case is important in this instance. To search again for the same data
+use Psion-G.
+
+A menu similar to the others in this program has now been implemented
+which works in the usual Psion way and should be self-explanatory.
+
+N.B. For those of you who think in Hexadecimal - the hex figure given
+     for the end of the file may appear to be one less than that
+     reported on the files list and info. This is because, on the
+     HexEdit screen, the first byte is classed as zero rather than
+     one.
+
+
+
+Display
+-------
+There are two forms of display - one with file information shown and
+one without. The font size is altered accordingly and a larger font is
+used if the file information is not shown. To switch between the two
+formats use Psion-I. If the information is not displayed then
+individual file information can be shown by placing the cursor on the
+file and pressing Psion-N.
+
+The directories and files can either be shown sorted or unsorted. This
+toggle is operated by using Psion-S. The sort can be on the Name
+(default), on the size of the file, or the Time and Date. The type of
+sort is selected using Shift-Psion-S.
+
+Both of the above options can be made to be permanent so that the
+program always starts up in the same manner by using Shift-Psion-C.
+This displays a dialog with the two options. The result of this dialog
+is saved in a JBTREE.CFG file in the JBTREE sub-directory.
+
+To refresh to display (of use after an alteration which does not
+rewrite the screen) use Psion-U.
+
+SSD Pack information can be displayed using Psion-F. Please note that,
+although information on the Internal drive can be displayed, this may
+not be totally accurate in terms of size and amount left as the
+internal Ram is dynamically sized according to program requirements
+(i.e. the more programs you have running, the smaller the drive will
+be). The dialog may take a little time to appear as it has to
+calculate reclaimable space.
+
+The number of files and the space they occupy can be displayed using
+Shift-Psion-I - in the file display this will also show the number of
+marked files and their combined size.
+
+Launch Sub-Menu
+---------------
+There is an optional sub-menu available for Launching applications
+(APP/OPA/OPO). This option appears on the Sundry Menu and will only be
+shown if the file JBTL.OPO is present in the correct directory
+(normally JBTREE off the directory in which JBTree resides).
+
+On selecting this option (using Shift-Psion-L) a menu is displayed
+with up to 40 programs on it. They will be displayed in the order they
+appear in the JBTL.DBF database. The final two options on the menu
+cards are to return to JBTree or to configure the programs.
+
+The configure options are to Add or Edit. Edit will just run the
+machine's Data program with JBTL.DBF as the file to launch with. Add
+presents a dialog which allows selection of the Application (the
+default drive is actually ROM:: although the Drive is shown as
+Internal); the datafile (if required); and a key which will appear as
+the short-cut key on the menu. To provide a Psion+key short-cut use a
+lower case character - Upper case will give the Shift+Psion+key
+option. If a short-cut key is chosen that is already in use you will
+be thrown back to the dialog, otherwise, on pressing Enter, the new
+data is saved to the database and the Menu will be shown again.
+
+If the cursor is in the file list then you can use the highlighted
+file as the launched file with the selected item. To do this the file
+field in JBTL.DBF needs to be just a '*' character.
+
+Speed
+-----
+The program is not the fastest in the world (primarily because it is
+written in OPL rather than 'C'). The fastest setup would be with Sort
+and File information Off (although Sort does not effect the speed
+greatly). To achieve this fastest option - once in the directory tree
+press Psion-I and then Psion-S (or use the configuration option so
+that the program remembers the setup [^C]). The configuration file
+(JBTREE.CFG)  created when using ^C will exist in the same directory
+as the JBTREE.DBF file. The directory and file are created if they
+don't already exist. The .CFG file is not required for the running of
+the program and, if you never press Psion-Shift-C, it will not be
+created.
+
+Exiting the program
+-------------------
+You can exit instantly with Psion-Esc or Psion-X wherever you are in
+the program.
+
+Limitations
+-----------
+At present the program is limited to:
+                640 Directories
+                640 Sub-Directories
+                640 Files per Directory
+
+If these specifications are insufficient, please let me know - it is
+possible to increase them subject to RAM availability (and Operating
+System limitations) on your machine.
+
+The program uses about 60kb of RAM when running but this is somewhat
+dependant on the size of the SSD and the number of directories and
+files that are on it as variables are dynamically sized. Because of
+this, it is impossible to give accurate estimations of memory usage.
+The maximum I have come across is approximately 70kb but, if you have
+a larger sum, let me know and I'll update this section.
+
+There may be other limitations of which I have not thought - if you
+wish to augment this section please contact me by e-mail via the
+methods listed at the end of this document.
+
+Thanks
+------
+Thanks are especially due to Wolfgang Schirmer and also to Tom
+Dolbilin, Matthew Millar and Steve Litchfield for their continued help
+with my projects and assistance with debugging. Without people like
+these my programs would be unusable!
+
+Disclaimers
+-----------
+I presume there are still some bugs as it is a very complex program
+with many Procedures. I think I've cleared up most of the nasty ones
+though. If you have any questions regarding the operation of the
+program I will try to help you and I'm always open to suggestions for
+improvements (I reserve the right not to implement them though).
+Please report any bugs found as soon as possible so that I might try
+to clear them up.
+
+As is usual with programs of this sort, I shall not be held
+responsible for any loss of data (or damage to the hardware?), however
+caused, as a result of using this program. The user must take
+responsibility for his actions and uses the program at his own risk. I
+reserve all rights of copyright to the program although payment is not
+required to use it.
+
+If you have any suggestions for improvements please contact me via the
+e-mail options at the end of this file.
+
+Enjoy!
+
+
+Contact
+-------
+John Boyce
+CompuServe: 100014,1240
+CIX: jboyce@cix.compulink.co.uk

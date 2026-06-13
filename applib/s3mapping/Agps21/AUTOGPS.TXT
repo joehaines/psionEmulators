@@ -1,0 +1,435 @@
+--------------------------
+AutoGPS V2.1  User's Guide
+--------------------------
+
+Mike Rudin, March 1997
+
+
+Introduction
+~~~~~~~~~~~~
+AutoGPS is a Psion 3a/3c add-on for AutoRoute Express (UK) or 
+Automap Road Atlas (USA) which gives you a moving map, when you 
+connect up a Global Positioning System receiver.  It is intended 
+for use within the British Ordnance Survey National Grid area, and 
+in North America.
+
+Please note - this is not a program for the PC, and does not 
+interwork with any PC software.
+
+You need the following:
+
+o  a Psion Series 3a or 3c (512K or bigger)
+o  Microsoft AutoRoute Express, version 1.00, or
+   Microsoft Automap Road Atlas, version 1.00
+o  a GPS receiver with NMEA 0183(1.5 or higher) output,
+   including the $GPRMC sentence
+o  a Psion RS232 serial interface lead (as supplied with PsiWin).
+   Note: the 3a and 3c need different leads.
+o  a lead to connect the GPS receiver to the serial lead
+
+I have not tried AutoGPS on a Series 3c, but users report that it 
+works.  The backlit version of the 3c should be useful in a car at 
+night.  AutoGPS is not suitable for the Siena.
+
+If you're thinking of buying a GPS receiver, bear in mind that some 
+of the cheaper ones don't have a serial data output, nor an 
+external antenna input.  I use a Garmin GPS 45, and recommend the 
+newer 45XL. However, note that most of the Garmin models stop 
+generating position information at speeds above 90 kt.  If you have 
+internet access, try Usenet newsgroup sci.geo.satellite-nav, and 
+Peter Bennett's Web site:
+ftp://sundae.triumf.ca/pub/peter/index.html
+
+AutoRoute Express (TM) and Automap (R) Road Atlas are commercial 
+software supplied on SSD.  AutoRoute contains a fairly detailed 
+road map of Britain and Ireland, and Automap contains a less 
+detailed map of North America.  Both calculate road routes between 
+named places.
+
+AutoGPS observes the behaviour of AutoRoute/Automap by looking at 
+its working memory, and controls it by sending messages to it that 
+simulate key presses.  Because specific memory locations are 
+polled, this version of AutoGPS will not work any version of 
+AutoRoute Express or Autmap Road Atlas other than v1.00.
+
+
+
+
+Installation
+~~~~~~~~~~~~
+Create a directory \APP\AUTOGPS on any disk, and copy either 
+AGHELPUK.RZC or AGHELPUS.RZC into it.
+Copy AGPSUK.OPA or AGPSUS.OPA to any directory (e.g. \APP) on any 
+disk, and install it on the System screen.  If you like, you can 
+un-install (remove) AutoRoute, as AutoGPS will start it 
+automatically from either SSD slot or from the internal disk.
+AutoGPS will keep a record of settings in a small file, 
+\OPD\AUTOGPS.ODB, which it creates on the internal disk.
+
+If you travel between the USA and UK frequently, you can have both 
+sets of files on the Psion, but you'll need to "remove" one version 
+from the System screen and "install" the other when you change 
+country.
+
+Connect up the GPS receiver (see Appendix A) and get it to acquire 
+its satellites.  Adjust the receiver to output NMEA 0183 data 
+(preferably 2.0 for higher position resolution), using the WGS 84  
+map datum (or optionally the OSGB 36 map datum for the UK version).
+
+Start up AutoRoute Express or Automap Road Atlas temporarily, and 
+ensure that "Calculate dialog at startup" is set to "No" (in the 
+Psion-Q dialog).  This is to avoid a crash when AutoGPS starts up 
+AutoRoute/Automap; see "Known Problems".
+
+
+Use in a car
+~~~~~~~~~~~~
+It is dangerous and probably illegal to use the Psion 3a/3c while 
+driving; you need to keep your eyes on the road.  Please only use 
+AutoGPS as a passenger or when stopped.
+
+You may well get adequate GPS reception with the receiver's 
+internal antenna just inside the windscreen (but not touching it), 
+but you'll probably need an external antenna if you have a heated 
+windscreen.
+
+See Appendix A for notes on powering from the car battery.
+
+
+Starting AutoGPS
+~~~~~~~~~~~~~~~~
+If AutoRoute/Automap is already running, AutoGPS will connect to it 
+on startup.  Otherwise, AutoGPS will normally attempt to start 
+AutoRoute/Automap (looking for it on both SSDs).  In the second 
+case, the two applications are tied together; if you exit 
+AutoRoute/Automap, AutoGPS will exit, and vice versa.
+
+
+Switching between AutoGPS and AutoRoute/Automap
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If AutoGPS has started AutoRoute/Automap, then you can switch to 
+AutoGPS in one keystroke using Shift+System.  Alternatively you can 
+assign a button to AutoGPS (Psion-A in the System screen) to make 
+it easy to switch to.
+
+From AutoGPS, you can switch to AutoRoute/Automap using Esc or 
+Psion-A (or just "A").  AutoRoute/Automap will be started if it 
+isn't already running.
+
+Each time AutoGPS switches to AutoRoute/Automap (including at 
+startup), it will force the map window to become active, so gaining 
+control of the cursor position, as part of the process of keeping 
+track of what AutoRoute/Automap is doing (see "Known Problems").
+
+
+Jumping to a location
+~~~~~~~~~~~~~~~~~~~~~
+Switch to the AutoGPS screen, then use Psion-J (or just J) to move 
+the AutoRoute/Automap cursor to a specific location.
+
+For the UK version, type in a grid reference, which must be two 
+letters plus an even number of digits, with or without spaces.
+An Ordnance Survey road atlas is useful here, as it is clearly 
+marked with grid references, and has a place index with grid 
+references.  Also, A-to-Z street atlases often have 
+Eastings/Northings marked on their grid lines.
+
+For the USA version, type in a latitude and longitude.  Several 
+forms of input are acceptable, e.g. for latitude:
+
+Input      Interpreted as
+34         34.0000 degrees North
+-56.21S    56.2100 degrees North
++32 23.2   32 deg., 23.20 minutes North
+
+Longitude is measured positive East, so all longitudes in the USA 
+are negative.  However, in the Psion-J dialog, longitudes are by 
+default interpreted as negative for convenience.
+
+
+
+GPS position fixes
+~~~~~~~~~~~~~~~~~~
+When enabled (Psion-G), AutoGPS will attempt to receive NMEA data 
+from the GPS receiver.  Typical reasons for this failing are:
+
+o  Remote Link is already on; see Psion-L on the System screen.
+   On a 3c, select "none" or "IR" to make the serial lead
+   available to AutoGPS.
+o  The serial lead is not plugged in.
+o  You plugged in the serial lead while powered-up; try switching
+   the Series 3a/3c off and back on.
+o  The serial lead is not correctly connected to the GPS.
+o  The GPS receiver is not sending NMEA 0183 data.
+o  The NMEA data does not contain the $GPRMC sentence.
+o  There is no position fix (poor satellite coverage).
+
+The Series 3a serial lead is powered-up while getting a fix, but it 
+only takes about 10-20% more power than when AutoGPS is doing other 
+things.  If you want to maximise battery life and can put up with 
+infrequent updates, set a pause between getting GPS fixes (Psion-F 
+dialog).
+
+
+
+
+GPS Moving Map
+~~~~~~~~~~~~~~
+Each time a GPS fix is obtained, AutoRoute/Automap's cursor will 
+normally be forced to show the position.  AutoGPS can only do this 
+while AutoRoute/Automap is 'under control', i.e. when its map 
+window is active and there is no menu etc. displayed.
+
+In AutoRoute/Automap, you can use all the controls as normal.  If 
+you manually move the cursor away from the GPS position, AutoGPS 
+will detect this, and temporarily suspend its cursor-control 
+activity.  It will resume 20 seconds after you stop moving the 
+cursor, or the next time you switch from AutoGPS to 
+AutoRoute/Automap, whichever is the earlier.
+
+A "GPS" message is shown in the top left corner while the cursor 
+position is being controlled.  You can configure this (see Psion-D 
+dialog) to show position, speed, mileometer/odometer, and track 
+direction (figures and/or arrow); the arrow gives a coarse 
+indication of your track (north, south, east or west), and is 
+updated while you are moving faster than the limit set in the 
+Psion-F dialog.  Once you've been stationary for more than two 
+minutes, no track direction is shown.
+
+As the AutoRoute/Automap cursor nears the edge of the screen, 
+AutoGPS re-centres it; you can select the limit in "Screen around 
+cursor" in the Psion-D dialog.  One option is "Depends on track" - 
+if you select this, AutoGPS will average your track direction over 
+the past few minutes, and attempt to keep more map visible ahead of 
+you, at the expense of more frequent re-draws.
+
+
+Accuracy
+~~~~~~~~
+Your reported position will often appear off-road.  The two main 
+sources of error are:
+
+1.	AutoRoute/Automap's approximations in road positions; this can 
+be up to a couple of km in the UK, or worse in the USA, 
+especially outside big towns.  In Automap, the grid resolution 
+is 240 metres.
+
+2.	SA (Selective Availability) errors in the GPS signal 
+deliberately introduced by the US military.  At the time of 
+writing, this causes your apparent position to wander randomly, 
+with 100m root mean square "noise", meaning that occasionally 
+you may be a couple of hundred metres off.  Lobbying of the US 
+government may result in this corruption being turned off 
+permanently.
+
+3.	In the USA, AutoGPS's translation of lat/long to map position 
+may be inaccurate.  I'd particularly welcome feedback about such 
+inaccuracies, as I'm not in a position to try it out for real.  
+If you detect a systematic offset in your area, it would be 
+helpful if you can quote exact lat/long (together with map datum 
+used), and say where the cursor appears in relation to the true 
+point on the map, i.e. how many miles off to the southeast or 
+whatever.
+
+
+
+For best accuracy, you must ensure that the GPS's NMEA positional 
+output is adjusted to the WGS 84 or (UK only) OSGB 36 map datum, 
+and (UK only again) use the Psion-F dialog to make AutoGPS match 
+the one selected.  The UK version of AutoGPS converts lat/long 
+positions to grid-reference form slightly faster with OSGB NMEA 
+data, as there are fewer adjustments to make.
+
+On the Garmin GPS 38/40/45/90, for example, use the "Navigation 
+Setup" page to set the Map Datum to "WGS 84" or "Ord Srvy GB".
+
+In the UK, if you use WGS 84, and also set "Position Format" to 
+"British Grid", you may notice discrepancies of up to a few hundred 
+metres between the Garmin display and AutoGPS; most of this is due 
+to map datum differences.  Apart from this, AutoGPS's idea of a 
+position should agree with the GPS receiver to within about 15 
+metres over most of Britain.
+
+
+Mileometer/odometer
+~~~~~~~~~~~~~~~~~~~
+To calculate how far you've travelled since the last GPS fix, the 
+mileometer/odometer multiplies the current speed reported by the 
+GPS receiver by the time since the last successful fix, so the 
+accuracy is improved by making the fixes as frequent as possible 
+(pause time zero).
+
+If you turn off the Series 3a/3c, then turn it on some time later, 
+the mileometer/odometer will update to a very inaccurate value, as 
+it will assume you've been travelling at your current speed while 
+powered off.
+
+After you start up AutoGPS or turn on GPS fixes, the first 
+subsequent GPS fix is not counted in the calculation.
+
+When stationary, the mileometer/odometer will slowly clock up 
+distance due to a 'wandering' GPS position, especially when 
+Selective Availability errors are on.
+
+
+
+Track
+~~~~~
+The displayed track direction is true (not magnetic, nor grid), and 
+only gets updated when your speed is above that set in the Psion-F 
+dialog.  If you move slower than this, or stop getting GPS fixes, 
+the track display will vanish after two minutes.
+
+
+
+
+Copyright, feedback etc.
+~~~~~~~~~~~~~~~~~~~~~~~~
+AutoGPS is Copyright (c) 1996-1997 by Mike Rudin, its author.
+You use it on the condition that the author is not held responsible 
+for any loss or damage, however caused.
+
+AutoGPS may be freely distributed, provided that only minimal 
+charge is made for distribution, and provided that it remains 
+unaltered and is always accompanied by this file.
+There is no charge for using it, but please feel free to send 
+tokens of appreciation, as well as bug reports, comments etc. to:
+
+Mike Rudin
+26 Lovell Rd
+Cambridge
+England
+CB4 2QR
+
+Or email me at:
+mrudin@cix.co.uk
+
+
+
+Known Problems
+~~~~~~~~~~~~~~
+While AutoGPS is active (e.g. no menu displayed), the Series 
+3a/3c's auto-power-off is inactive.  This may be fixed in a future 
+release.
+
+If AutoGPS crashes (e.g. due to lack of system memory), it may 
+leave a copy of AutoRoute/Automap running, without it appearing on 
+the System screen.  You should be able to find it by stepping 
+through the running applications using Shift+System, or by re-
+starting AutoGPS.
+
+If you stop getting cursor movements and top-left-corner messages 
+in AutoRoute/Automap (this seems to happen after calculating a 
+route or switching the scale bar on/off), switching to AutoGPS and 
+back should restore operation.  Try zooming in one level if zoomed 
+right out.
+
+AutoGPS should only try to display messages and control the cursor 
+in AutoRoute/Automap when the map window is active.  However, in 
+AutoRoute/Automap if you press Menu and Help in that order, AutoGPS 
+will mistakenly send control messages.
+
+The running AutoRoute/Automap process is expected to have a name 
+like "ROUTE.$12".  This is unlikely to concern you, but if you've 
+somehow renamed the process, or you have another application that 
+starts up with that name, then there could be problems.
+
+I've not found a way to force a continuous display of grid 
+reference on the AutoRoute/Automap screen; it needs updating every 
+couple of seconds.  You get the best effect with zero pause between 
+GPS fixes, and a GPS receiver that sends $GPRMC sentences 
+frequently.
+
+If AutoRoute/Automap is set to display the "Calculate route" dialog 
+at startup, then AutoGPS will probably cause it to crash with Exit 
+number 158.
+
+
+
+Appendix A  - Connecting Up
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The most tricky part of getting AutoGPS to work is probably 
+connecting the GPS receiver.  Some of the following advice on how 
+to do it is due to Steve Litchfield, who has been through it all 
+for the moving-map feature in his excellent shareware application 
+"Mapper 3a".
+
+If you have a 3-Link serial lead for a Psion 3a, the most compact 
+arrangement is to have a cable directly from the GPS receiver to a 
+9-pin mini-DIN plug which plugs into the 3-Link "podule".  However 
+you may already have a lead from your receiver, and it might be 
+easier to connect the serial lead's PC or Mac cable to that.  In 
+any case, only the following two wires need be connected (see your 
+3-Link manual page 66):
+
+     GPS               9 pin mini-DIN         
+       Ground ---- Pin 5, SG (signal ground)
+Serial output ---- Pin 2, RD (received data)
+
+                      View of socket
+                         9  8   7
+                        6  5  4  3
+                           2  1
+
+If you have the newer serial lead for the Psion 3c, which does not 
+need the podule part, then the above does not apply, and you should 
+connect the GPS receiver to the female DB-9 connector.
+
+Steve Litchfield says that in the UK, Tony Denson or Peter Kitsen 
+at Positioning Ltd on 01403 271114 can help, as they have the 
+expertise and stock to put together all the elements you might 
+want, from cables to cradles.  Also Maritec, on 0141 5542492, do 
+cables from most GPS systems to the 3-Link podule.
+
+If you use AutoGPS in a car, I recommend you run the GPS receiver 
+and Series 3a/3c off a good-quality power regulator to save 
+batteries (while AutoGPS is running the Series 3a/3c draws about 
+twice as much current as when idle), but you need to be careful to 
+avoid damaging both devices.
+
+Don't use the car battery voltage directly on the Series 3a/3c, 
+because the voltage is too high.
+The Garmin GPS 45 will run directly from a car battery, but it is 
+risky to do so because a car's electrical system can sometimes 
+surge to very high voltages that can cause damage.  The almost 
+identical GPS 40, and the new GPS 38, definitely need an external 
+regulator.
+
+The negative side of the power input to the Series 3a/3c is 
+connected through the 3a/3c to the serial lead interface ground, so 
+if your GPS receiver also needs a positive supply relative to its 
+interface ground (the Garmin GPS 45 does), then it's OK to power 
+both machines from the same supply.  The Series 3a/3c needs a 9 
+Volt supply, and you may be able to run the GPS receiver off the 
+same supply; check the manuals for voltage details and possible 
+warranty problems if you use unapproved power regulators.
+
+
+
+The whole lot may look like this:
+
+Optional     _
+external    | |    9 Volt regulator
+antenna    _| |_   plugged into cigar
+  _____   |     |  lighter socket
+ |_____|  |     |
+    |     |_____|
+    |       | |
+ ___|___    | |
+|       |   | |
+|       |   | | +9 Volt Power to GPS and 3a/3c
+| O O O |   | |____________________________
+| O O O |   |                              |
+| _____ |   |                              |
+||     ||___|   _________     ___________  |
+||     ||______/         \___|           |_|
+||     ||  **  \_________/   |           |
+||_____||     Psion 3-Link   |___________|
+|_______|          ***     Psion Series 3a/3c
+GPS Receiver
+
+**  This bit might be two leads plugged together.
+*** This bit is not present on the 3c serial lead.
+
+[End of AUTOGPS.TXT]

@@ -1,0 +1,73 @@
+ >> I have spawned an application from within OPL and want to return automatically to the OPL code when I exit from the spawned application. <<
+
+ Ian,
+
+    This should happen automatically. But, to expand on what John said, if you are using an asynchronous getevent in your OPL program, you can use p_logona to request a message when the other app dies, and on receiving this message bring yourself foreground. Here's some code that I knocked up for you. Note that it looks on B: to launch an agenda file called Agenda.agn.
+
+    This example also shows how to use an asynchronous getevent instead of "GETEVENT" or "GET". When calling asynchronous services, status words are very important. It represents a type of mailbox where a note is dropped telling you that your request has completed. (Or not) In this case, Myword% is the status word for our request to be notified when the launched app dies. Keyword% is the status word for our console request. (Keypresses, system events.) Statuswords are set by the OS to -46 at the outset, so... (-46 = pending.) Check out the use of p_logona in the Launch: procedure.
+ This is the function that requests notification of death.
+
+
+ PROC main:
+ local keyword%,k%(3),active%
+ global myapp%,myword%
+ active%=launch:                 REM launch Agenda
+ IOA(-2,14,keyword%,k%(1),#0)    REM Asynch GETEVENT
+ do
+    at 1,1 :print"Waiting for an event..."
+    print
+    IOWAIT                      REM wait for some event to complete
+    if myword%<>-46 and active% REM our Agenda has died
+        call($9988,0,0)         REM  come to foreground
+        dinit
+        dtext"","Agenda Died",$302
+        dbuttons "Continue",13
+        dialog
+        active% = 0               REM set to zero so it won't continue to report
+    endif
+    if keyword%<>-46              REM a keyboard event has completed
+        IOA(-2,14,keyword%,k%(1),#0)
+        if k%(1) and $400         REM not a keypress
+            print"Event Received:  ",etype$:(k%(1)),"             "
+        else
+            print"Key Received ",chr$(k%(1)),"          "
+        endif
+    endif
+ until 0
+ Endp
+
+ Proc launch:
+ local app$(20),ext$(6),fname$(128),prog$(16)
+ local cmdl$(128),ret%
+ app$="OAgenda"+chr$(0)
+ ext$=".AGN "+chr$(0)
+ fname$="LOC::B:\AGN\Agenda.agn"+chr$(0)    REM Looks on B: for Agenda
+ prog$="ROM::AGENDA.APP"+chr$(0)
+ cmdl$=app$+ext$+fname$
+ ret%=call($0187,uadd(addr(prog$),1),addr(cmdl$),0,0,addr(myapp%))
+ if ret%<0
+    dinit
+    dtext"","Couldn't Launch App",$302
+    dtext"",err$(err),2
+    dbuttons "Continue",13
+    dialog
+ else
+    call($1a86,myapp%,0,0,0,addr(myword%))  REM p_logona
+    call($0688,myapp%)                      REM resume process
+    return 1
+ endif
+ Endp
+
+ Proc etype$:(i%)
+ if i%=$401
+    return "Foreground"
+ elseif i%=$402
+    return "Background"
+ elseif i%=$403
+    return "Switched ON"
+ elseif i%=$405
+    return "Date Change"
+ endif
+ Endp
+
+  -Mark Esposito

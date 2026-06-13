@@ -1,0 +1,70 @@
+DataImp MUSIC (c) Patrick Bell, 1996. --------------------------------------------------
+Please look at README.TXT and DATAIMP.TXT first as they contain information for all DataImp modules!
+
+Quick Start
+-----------
+1.	Copy DATAIMP.OPA and JBSORTB.IMG to \APP\
+2.	Copy DATAIMP.HLP, MUSIC.OVL and MUSIC.HLP to \APP\DATAIMP\
+3.	Install DATAIMP.OPA in the usual way (Psion-I)
+
+You should now have the DataImp icon with Music underneath it.  If you have installed any other modules such as VIDEO.OVL then these will also appear under the icon.
+
+The files JBSORTB.IMG, DATAIMP.OPA and DATAIMP.HLP are used for all the DataImp modules and only need to be loaded once.
+If you do download a newer version of any module you should also check you have the latest version of DATAIMP.OPA and DATAIMP.HLP and your other modules to ensure that the upgrade applies to all modules.
+
+MUSIC
+-----
+The Music module comprises 3 main screens:
+	
+Artist
+This shows the artist reference, the total number of tracks, the total number of releases, music type, artist name, alias and a comment.
+
+Releases
+This screen shows the release reference (comprising artist ref, copyright year and release number), the number of tracks on release, length of release, date entered/bought, music type, artist name, release name, comment and info.
+
+Matches
+This is identical to the releases screen but shows any releases you have selected via the Find menu option.  When you have created any matches a screen is allocated to them.  This uses another 9K of RAM but when you remove all the matches this memory is released.
+
+The menu options that are module specific are as follows (refer to DATAIMP.TXT for general instructions).
+[In the following the left hand column denotes the key press for the function]
+
+Data
+----
+A	Swap reference
+This enables you to give an artist a new reference and will automatically relabel all the releases stored on that tape.
+
+Release
+-------
+E	Change artist storage
+This will change the storage of the artist name and cut it to the length specified in the defaults.  If you set Artist compression length to zero and run this option then no artist names are stored in the release data file.  This saves memory but if you corrupt your artist data file the regenerator (see below) will fail to create artist names!  You can reset the compression length at any time and then run this routine thus recreating the artist names in the Release data file.  If the artist name is set too short then sorting by artist will not work properly.
+If you leave this set to 40 then the screen redraw is slightly faster and you guarantee to stoe the full artist name.
+
+E(Artist only)	Regenerator
+This function will create your artist data file based on your releases.  As stated above, the regenerator can only create the artist name as it exists in the Release data file.  This routine also adds up the total releases and tracks for each artist.
+
+E(Releases only)	Change artist storage
+This uses the artist compression length as set in the Default options to reduce or expand the artist name stored in the releases datafile.  The name is as stored in the artist data file.  Yoy should run this whenever you adjust the compression length setting.
+
+L	Track listing
+This accesses a submenu for tracks.  The options include:
+Search	Search all tracks entered.
+View	View tracks on this release.
+Edit	Enter / edit track listings.
+Delete	Delete track datafiel for this release.
+Exit	Return to norml screen.
+
+Config
+------
+Q	Defaults
+This allows you to choose:
+	
+Artist compression length - this sets the number of characters of the artist name to store in the release data file.  40 is the maximum length, 0 saves most memory whilst 12 is a good value for saving some memory whilst allowing the sort to operate (and probably gives enough information for the regenerator to function.
+plus the general DataImp choices.
+
+U	User defined lists
+The music type (Pop, Rock, Dance etc.), Format (CD Album, CD Single, Vinyl EP etc.), label  (Virgin, EMI, "Indie" etc.) and Special (Double set, Ltd edition, Re-release etc.) are editable by the user. The number that appears to the left of each description is the reference that will be stored in your datafile.  This means that if you swap Pop for Rock then all the releases that you had described as Pop will now be Rock - therefore alter these with care or your descriptions could become meaningless.
+
+General
+-------
+The only difference between this module and the others is when you edit the Artist.  If you change the name then a search is made to see if this artist exists.  If not then all the releases under the old name are changed to the new name.  If the new name does already exist then you are asked if you wish to add these releases to the new artist name.  This is useful if you have entered releases for one artist under two different names i.e. Holly, Buddy and Buddy Holly.
+Once you have merged two sets of releases together you cannot seperate them.

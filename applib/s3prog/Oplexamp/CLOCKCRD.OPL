@@ -1,0 +1,168 @@
+PROC clockcrd:
+	REM Written by Doug Sargeant 23/8/93.
+	REM Castle Computer Services. 0268 776158.
+	global in1&(5),out1&(5),in2&(5),out2&(5),cred&(5),deb&(5)
+	GLOBAL ANSWER%
+	global dayno%
+	global bftot&,cftot&
+	readbal:
+	hdprint:
+	dayno% =1
+	do
+	dinit "Select Day"
+	dchoice dayno%,"Day","Monday,Tuesday,Wednesday,Thursday,Friday,End"
+	dialog
+	if dayno%=6
+		break
+	endif
+	do
+		dayedit:
+		daycalc:
+		ANSWER%=OKDIAL%:
+	UNTIL ANSWER%
+	wkcalc:
+	until 0
+	get
+	writebal:
+ENDP
+
+proc dayedit:
+	dinit
+	dtime in1&(dayno%),"IN1:",0,0,99999999
+	dtime out1&(dayno%),"OUT1:",0,0,9999999
+	dtime in2&(dayno%),"IN2:",0,0,99999999
+	dtime out2&(dayno%),"OUT2:",0,0,99999999
+	dtime deb&(dayno%),"DEBIT:",2,0,43200
+	dtime cred&(dayno%),"CREDIT:",2,0,43200
+	if dayno%=1
+		dposition 0,-1
+	elseif dayno%<=4
+		dposition 1,-1
+	else
+		dposition -1,-1
+	endif
+	dialog
+endp
+
+proc hdprint:
+local bfdeb&,bfcred&
+cls
+print "    Mon  Tue  Wed  Thur Fri ";
+print "  B/F ";hhhmm$:(bftot&);
+print "In"
+print "Out"
+print "In"
+print "Out"
+print "Db"
+print "Cr"
+endp
+
+proc daycalc:
+	local daytot&,diff&
+	daytot&=out1&(dayno%)-in1&(dayno%)+out2&(dayno%)-in2&(dayno%)+cred&(dayno%)-deb&(dayno%)
+	DIFF&=DAYTOT&-(60*7+12)*60
+	at dayno%*5-1,2
+	print hhmm$:(in1&(dayno%));
+	at dayno%*5-1,3
+	print hhmm$:(out1&(dayno%));
+	at dayno%*5-1,4
+	print hhmm$:(in2&(dayno%));
+	at dayno%*5-1,5
+	print hhmm$:(out2&(dayno%));
+	at dayno%*5-1,6
+	print hhmm$:(deb&(dayno%));
+	at dayno%*5-1,7
+	print hhmm$:(cred&(dayno%));
+	at dayno%*5-1,8
+	print hhmm$:(daytot&);
+	at dayno%*5-1,9
+	PRINT HHMM$:(DIFF&);
+endp
+
+proc hhmm$:(secs&)
+	local Y%,Mo%,d%,H%,Mn%,sc%,yrday%
+	local h$(2),Mn$(2)
+	local sign$(1),secspos&
+	if secs& >= 0
+		secspos&=secs&
+		sign$=":"
+	else
+		secspos&=-secs&
+		sign$="-"
+	endif
+	secstodate secspos&,Y%,Mo%,d%,H%,Mn%,sc%,yrday%
+	h$=num$(h%,-2)
+	mn$=num$(mn%,-2)
+	if left$(mn$,1)=" "
+		mn$="0" + right$(mn$,1)
+	endif
+	return h$ + sign$ + mn$
+endp
+
+proc hhhmm$:(secs&)
+	local Y%,Mo%,d%,H%,Mn%,sc%,yrday%
+	local h$(3),Mn$(3)
+	local sign$(1),secspos&
+	if secs& >= 0
+		secspos&=secs&
+		sign$=":"
+	else
+		secspos&=-secs&
+		sign$="-"
+	endif
+	secstodate secspos&,Y%,Mo%,d%,H%,Mn%,sc%,yrday%
+	h$=num$((d%-1)*24 + h%,-3)
+	mn$=num$(mn%,-2)
+	if left$(mn$,1)=" "
+		mn$="0" + right$(mn$,1)
+	endif
+	return h$ + sign$ + mn$
+endp
+
+PROC OKDIAL%:
+	DINIT "CORRECT?"
+	DBUTTONS "Yes",%Y,"No",%N
+	if dayno%=5
+		dposition -1,0
+	elseif dayno%>=2
+		dposition 1,0
+	endif
+	return dialog=%y
+ENDP
+
+proc wkcalc:
+	local in1tot&,in2tot&
+	local out1tot&,out2tot&
+	local debtot&,credtot&
+	local dbtot&,crtot&
+	local stdhr&
+	local totcr&,totdb&
+	stdhr&=int(36)*60*60:rem int to force prevent o/flow
+	in1tot&=in1&(1)+in1&(2)+in1&(3)+in1&(4)+in1&(5)
+	out1tot&=out1&(1)+out1&(2)+out1&(3)+out1&(4)+out1&(5)
+	in2tot&=in2&(1)+in2&(2)+in2&(3)+in2&(4)+in2&(5)
+	out2tot&=out2&(1)+out2&(2)+out2&(3)+out2&(4)+out2&(5)
+	debtot&=deb&(1)+deb&(2)+deb&(3)+deb&(4)+deb&(5)
+	credtot&=cred&(1)+cred&(2)+cred&(3)+cred&(4)+cred&(5)
+	dbtot&=in1tot&+in2tot&+debtot&+stdhr&
+	crtot&=bftot&+out1tot&+out2tot&+credtot&
+	cftot&=crtot&-dbtot&
+	at 29,2:print hhhmm$:(in1tot&);" ====="
+	at 30,3:print "=====";hhhmm$:(out1tot&);
+	at 29,4:print hhhmm$:(in2tot&);" ====="
+	at 30,5:print "=====";hhhmm$:(out2tot&);
+	at 29,6:print hhhmm$:(debtot&);" =====";
+	at 29,7:print hhhmm$:(stdhr&);" ";hhhmm$:(credtot&);
+	at 29,8:print hhhmm$:(dbtot&);hhhmm$:(crtot&)
+	at 30,9:print " C/F ";hhhmm$:(cftot&);
+endp
+proc readbal:
+	open "clockbal",A,year%,week%,bal&
+	last
+	bftot&=A.bal&
+endp
+proc writebal:
+	A.bal&=cftot&
+	append
+endp
+

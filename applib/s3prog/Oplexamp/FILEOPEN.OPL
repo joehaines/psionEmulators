@@ -1,0 +1,52 @@
+==========
+psion/opl #1949, from twagstaff, 1180 chars, May 10 2:24 95
+Comment to 1942.
+----------
+>How can I find out which program has a file open, from within OPL.
+
+
+>----------------
+local i%, pid%(50), task$(50,15), path$(128)
+local d%
+
+ call( $d98d, 0, 0, 0, addr( pid%(1) ) ) rem wGetProcessList
+ i% = 1
+ while pid%( i% )
+ rem what file does it have, if any
+rem s3a  call($00dc, pid%(i%), 128, 0, $3e, uadd(addr(path$),1))
+  call($00dc, pid%(i%), 128, 0, $3e, addr(path$)+1)
+
+rem convert zts 
+  d%=1
+rem s3a while peekb(uadd(addr(path$),d%)) <> 0
+  while peekb((addr(path$)+d%)) <> 0
+   d%=d%+1
+  endwh
+  pokeb addr(path$), d%-1
+
+rem s3a  call($0a88, pid%(i%), 0, 0, 0, uadd(addr(task$(i%)),1)) rem ProcNameB-
+yId
+
+  call($0a88, pid%(i%), 0, 0, 0, addr(task$(i%))+1) rem ProcNameById
+
+rem convert zts 
+  d%=1
+rem s3a while peekb(uadd(addr(task$(i%)),d%)) <> 0
+  while peekb(addr(task$(i%))+d%) <> 0
+   d%=d%+1
+  endwh
+  pokeb addr(task$(i%)), d%-1
+  
+  if path$ <> "" rem if it has a file loaded
+   print task$(i%),path$
+  else
+   print task$(i%)+" has no file open"
+  endif
+  i% = i% + 1
+>----------------
+
+There is an OS  call to convert zts, a lot more elegant than what 
+I've used, but I can't remember what it is.
+
+Tony
+

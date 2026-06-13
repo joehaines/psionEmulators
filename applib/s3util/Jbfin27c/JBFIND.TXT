@@ -1,0 +1,421 @@
+                                JBFind
+                          (formerly Search)
+                             Version 2.7
+                           (c)JBSoft 1992-6
+                 with loads of help from Tom Dolbilin
+
+JBFind is a program that will search for files or text/hex within
+files, optionally down directory trees, across drives and within files
+that are open. Please report any bugs or funnies as soon as possible
+so that I can sort out any teething problems. Please not that all the
+code was written by me - Tom is the ideas man on this project. If you
+have any problems please direct them my way.
+
+The program is installed in the usual way by copying it to an \APP\
+directory using your preferred Link program, from the System screen,
+pressing Psion-I and selecting JBFIND.OPA. If you do not wish to use
+the program as an Application but as an .OPO file, simply place it in
+an \OPO\ directory and rename it to JBFind.OPO. It will then run just
+like any other OPO file and will appear under the RunOPL icon.
+
+The first options given when running the program is whether to search
+for a file, to search within files or go straight to the list viewer.
+Next, either the filename is prompted for, or the text to search for
+within files. If Search Within was selected then an option for case
+sensitivity is also available. Filenames permit wildcards (e.g.
+AGENDA.*).
+
+If you require a Hex search then input the Hex digits preceded by the
+`$' character and make sure that each digit comprises of two
+characters (e.g. $AB010020 would mean search for the digits AB 01 00
+20). The Hex stream will be converted to ASCII characters and the
+search will actually look for that string. You may keep a space
+between the hex characters if you wish but you should only use `$' at
+the start of the search string and _not_ before each Hex value.
+
+The drives to search are also selected at this stage - the choices are
+individual (A/B/M/ROM), selected (Choose), all (Every) drives or down
+a directory tree (Tree). The program is intelligent and only offers
+drives that exist. To select Choose or Tree select the option, keep
+the cursor on that line and press Enter.
+
+Although ROM:: has been included it is only implemented as a stand-
+alone search and cannot be included with other drives at present.
+
+If Choose is selected an additional dialog is given - push the buttons
+of the drives you wish to include in the search (a tick will appear to
+show selection). The buttons act as a toggle so deselection is also
+possible. Once the drive selection has been completed, press Escape
+and you will return to the previous dialog. Press Enter and the search
+will start.
+
+If the Tree option is chosen a dialog will be shown which allows a
+directory and drive to be chosen. This will be the start point for the
+search. To choose a directory you use Tab to enter the file system and
+then navigate to the desired start point. Once there, press Enter and
+the dialog will be automatically filled in.
+
+Sound can be chosen on the main dialog - the options are No/Yes or
+just beep On completion of the search - the default is sound off (No).
+If enabled (Yes), the computer will beep when files are found or if
+there is a problem.
+
+Closing Apps
+------------
+If searching within files has been selected then an option is included
+to enable the search of all files or only closed files. There are
+actually three options - All / Only Closed / Partial. If the All
+option is selected then all open Applications are closed before the
+search and opened up afterwards (if possible, any unsaved alterations
+will be saved when closing). Partial will only close those
+applications that have associated datafiles (e.g. Data, Agenda and
+Word).
+
+There is a limit as to how files can be opened up so, if you are in a
+Memo within the Agenda, after the search has ended you will be in the
+Agenda proper rather than the Memo. Also, with the Agenda, Data and
+other such files, although the application will be opened, you will
+not necessarily end up at the point at which you left it.
+
+In the Agenda the program will attempt to open you in the view (e.g.
+Day or Week) mode you left the Agenda in but, if your datafile takes
+more than 5 seconds to load you will end up in the Day mode regardless
+of which mode you were in originally.
+
+I have tried to keep the various guises of Word correct (e.g. Program
+and Word) but there may be occasions when the file is opened in the
+wrong mode. If you come across this please let me know and I will
+endeavour to rectify the situation. At present, it seems to work in
+every mode that I use.
+
+If only Closed or Partial files are chosen then any files that could
+not be searched will be displayed briefly as the program runs. When
+the option to save the results to a file has been taken then these
+unchecked files are also written to the file at the end of the list of
+found files.
+
+Filenames that match or contain the text being searched for are
+displayed in a window as the search progresses. It is possible to
+terminate the search early by pressing Escape.
+
+When the search is completed the list of files found or files that
+contained the search string are displayed in a simple viewer. Use the
+cursor controls to move around this list. A menu is available for
+additional options at this stage.
+
+N.B. If Word files are password protected then JBFind will fail to
+     find the data - this is not a fault of JBFind but due to Word
+     encryption which is activated when Password protection is used.
+
+Search Data
+-----------
+If search within was used then, on pressing Psion-I, some details of
+the find are shown. This shows where the string was found within the
+file and the part of the file that included the search string. Psion-I
+is a toggle - press it again to remove the information.
+
+New Search
+----------
+A new search can be started by pressing Psion-F. This option will
+ignore all currently found data and start again from scratch.
+
+Narrow Search
+-------------
+It is possible to narrow down the search once the initial search has
+ended by pressing Psion-N. This will prompt for a new search string
+and the options to search For or In a file. If In a file is selected
+then, if the files are not already closed, an option will be given to
+search within only closed files or all files. This works in the same
+way as the main search routine. An additional option is to deselect
+files found so the list shown after the Narrow search will show less
+the files found on the last search (e.g. If original list was a file
+search for *.OP? then an excluding search of *.OPL will leave just OPO
+and OPA files).
+
+N.B. The list of files previously found is not will not normally kept
+     - although, if a narrow search does not find any matching files,
+     the previous list is shown with the comment that no files were
+     found.
+
+
+Launch file
+-----------
+Psion-L (or Enter) will attempt to launch the highlighted file. When a
+file is launched and the Application is a built-in one, then the Find
+routine for that application should be accessed (all things being
+equal - they very rarely are), leaving you at the find position of the
+data within the file.
+
+You can also configure the program to open other applications using
+Psion-C to configure a database. The database used is the same as that
+for JBTree so, if you also use that program, any apps configured for
+use in JBTree will be automatically configured for JBFind. If the
+datafile doesn't already exist then it is automatically created on the
+drive of your choice in an \APP\JBTREE\ directory.
+
+There are four fields in the file:
+
+1. Extension      - this is the extension the launch utility will use
+                    to determine which database record in JBTREE.DBF
+                    to use. When launching a file the database is
+                    searched for an extension which matches that of
+                    the file to launch.
+2. Run filename   - this is the program to run in conjunction with the
+                    file selected (e.g. WRD extension should use
+                    ROM::WORD.APP). Any OPO or OPA file should use
+                    ROM::SYS$PRGO.IMG.
+3. Extra filename - This field is for use with OPA files that use file
+                    lists (e.g. Notepad). If this field is used then
+                    it is probable that the Run filename will be
+                    ROM::SYS$PRGO.IMG.
+4. Alias Info     - currently the only program that would use this
+                    field is WORD unless there is a 3rd party
+                    application of which I am unaware.  The two .ALS
+                    files (PROGRAM and SCRIPT) in the ROM should not
+                    be called explicitly - they are loaded as required
+                    according to the alias data. Briefly:
+                    The first letter specifies Program or Script
+                    (either O or S) - the second letter specifies if
+                    RUN is allowed and the next three letters give
+                    both the top directory any compiled programs are
+                    placed in and also the files extension.
+                    A text editor can be started by using the alias
+                    character of $.
+
+View in Hex Viewer
+------------------
+Psion-H will take you to a Hex viewer and, eventually, the search
+                    string will be found in this hex viewer. Although
+                    this viewer has been taken from JBTree, I have
+                    disabled the Edit function so this guise will only
+                    act as a viewer. To exit the viewer use Psion-X.
+
+Delete file
+-----------
+Psion-D will produce a dialog box which will enable you to delete the
+                    currently highlighted file. Be careful with this
+                    command as there is no way back once `Y' is
+                    pressed as a response to whether you wish to
+                    delete the file or not.
+
+Exclude File
+------------
+Psion-R will remove the currently highlighted file from the list (but
+                    will not delete the file).
+
+Sort List
+---------
+An option to sort the list of found files is available -  use Psion-S
+                    to access this option. It is possible to select a
+
+                    sort on the Filename, the Extension to the file,
+                    the Directory and the Drive.
+
+Save List
+---------
+The list of found files can be saved to a text file using Shift-Psion-
+                    S. The default file is M:\FIND.DAT but can be
+                    altered to anything you wish.
+
+Load List
+---------
+A previously saved list can be reloaded using the command Shift-Psion-
+                    L. Before loading the file this checks that the
+                    list is one created earlier with JBFind otherwise
+                    an error is displayed.
+
+Delete List file
+----------------
+Shift-Psion-D will delete a previously saved list of found files. This
+                    command works in exactly the same way as Psion-D
+                    but starts off by defaulting to M:\FIND.DAT.
+
+Other keys
+----------
+Psion-A will produce an About screen. To terminate the program use
+                    Psion-X.
+
+Limitations
+-----------
+There are limitations - these are the one's I've thought about!
+
+                  999 - Maximum Finds per search
+                  254 - Maximum Search string length
+
+                  56k - RAM required for File search (approximate)
+                  68k - RAM required for In File search (approximate)
+     plus there is a requirement for RAM for filename storage - this
+     is not predictable.
+
+If you come across any other limitations please let me know and I'll
+adjust the program or the documentation accordingly.
+
+Miscellaneous Information
+-------------------------
+One file may be temporarily created during the operation of this
+program - in the Root directory of the M: (Internal) drive. This is to
+keep a note of the files that have been closed when searching all
+files (this file is not created unless the Search All Files option is
+selected). This filename is SELECT.DAT. If the program crashes this
+file may still exist but can be deleted with no problems.
+
+I hope this program is what people want - if not, please let me know
+and I'll see what I can do...
+
+Thanks
+------
+My profound thanks to Tom Dolbilin for his continued assistance with
+my programming - his comments are what make my programs pretty and
+usable. The code was written by me - the interface look is primarily
+Tom's. Any remaining bugs are mine alone (I collect them you know
+<g>). Don't blame Tom for anything - blame me!
+
+Thank you also to Ian Greaves who suggested the Hex view.
+
+Version 2.0 (4/4/94)
+-----------
+1st public release
+
+
+
+Version 2.1 (5/4/94)
+-----------
+Added option for Case sensitive searching within files.
+Added option to switch off beeps when searching.
+Now finds all files as specified rather than just the first one in any
+directory.
+Fixed Search within files so that it actually works properly now!
+Reduced RAM overhead needed to run the file.
+More rigorous checking of available drives whilst the program is
+running.
+
+Version 2.2 (13/4/94)
+-----------
+Rewrote the search routines to account for Data files and to clean up
+the wildcard searches.
+Added an internal viewer for matches.
+Added information on finds within files.
+Added ability to launch some files.
+Added ability to have the launched files display the find (internal
+applications only).
+Added ability to delete a file.
+Now can start a new search from within the program.
+Allows for a narrowing of the search using only found files.
+
+Version 2.3 (8/6/94)
+-----------
+Missed Psion-S from documentation with version 2.2.
+Changed interface to pretty things up a bit.
+Changed display of Search Information within a file.
+Save to file option deleted from opening dialog - only available on
+Menu at end of search now.
+Able to select drives for searching independently now.
+Load file list added to Menu.
+Sort a list now available.
+Exclusion options added to the Narrow Search.
+Remove a file (without deleting it) from the list added.
+Ability to go straight to View List screen without search added.
+Tries to open Agenda in the view mode that was current when closed.
+Added ability to search a tree.
+Added option to delete a saved file list.
+Now opens up in the correct Word mode after closing down files.
+
+Version 2.3a (11/6/94)
+------------
+Fixed `terminal' bug in search within.
+
+Version 2.4 (1/7/94)
+-----------
+Spy now reports the program as JBFind (not SYS$PRGO)
+Added Hex search.
+Added search of ROM drive.
+Fixed not searching Directories with extension (it treated them as
+files)
+Fixed program thinking Files with no extension were directories!
+Fixed problem of starting a new search producing an error
+occasionally.
+
+Version 2.4a (26/9/94)
+------------
+Fixed problem of saved list not loading if it was a file list rather
+than a within file list.
+
+21/1/95
+Renamed from Search to JBFind.
+
+Version 2.4b (26/1/95)
+------------
+Fixed problem of application hanging when closing other applications.
+
+
+Version 2.5 (1/2/95)
+-----------
+Added Hex viewer.
+
+Version 2.6
+-----------
+Added ability to launch non-internal applications.
+Improved closedown and re-opening of programs erring on the side of
+caution.
+
+Version 2.7b
+------------
+Improved launching of non-internal applications.
+Fixed a couple of bugs to do with launching.
+
+Version 2.7c
+------------
+Fixed a problem with Jump within Hex viewer.
+Fixed a few things so it should work fine in any S3c.
+Fixed the beep sounding on every find even when set to completion.
+Fixed launching of found files in the ROM (didn't work).
+Fixed crashing of program when no files found and certain actions
+tried.
+
+Contact
+-------
+John Boyce
+CompuServe: 100014,1240
+CIX/Internet: jboyce@cix.compulink.co.uk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

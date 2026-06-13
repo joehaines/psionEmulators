@@ -1,0 +1,53 @@
+PSIONICS FILE - SOUND.FMT
+=========================
+Format of Sound files
+Last modified 1995-07-26
+========================
+
+Sound files hold recorded sounds, and can only be used by the Series 3a. The
+sound is played at 8000 entries per second. The file uses A-Law encoding.
+
+A sound file begins with a 32 byte header of the following form:
+  Offset  0 (cstr): "ALawSoundFile**"
+  Offset 16 (word): format version number
+  Offset 18 (long): number of samples in the file
+  Offset 22 (word): length of silence (in 1/32 seconds) to append on playback
+  Offset 24 (word): number of times to repeat on playback (0 and 1 both mean
+                    play once)
+
+The rest of the file is sound samples. Each byte represents a sound sample
+with a value between -4095 and +4095. This value is encoded in two steps:
+first the magnitude is reduced from 12 to 7 bits, and then alternate bits
+(including the least signficant one) are inverted. The most significant bit
+of the byte is set if the value is negative.
+
+Values are thus encoded by:
+
+    S0000000ABCDi -> S000ABCD -> S101APCQ
+    S0000001ABCDi -> S001ABCD -> S100APCQ
+    S000001ABCDii -> S010ABCD -> S111APCQ
+    S00001ABCDiii -> S011ABCD -> S110APCQ
+    S0001ABCDiiii -> S100ABCD -> S001APCQ
+    S001ABCDiiiii -> S101ABCD -> S000APCQ
+    S01ABCDiiiiii -> S110ABCD -> S011APCQ
+    S1ABCDiiiiiii -> S111ABCD -> S010APCQ
+
+and decoded by:
+
+    S000ABCD -> S101APCQ -> S001APCQ10000
+    S001ABCD -> S100APCQ -> S0001APCQ1000
+    S010ABCD -> S111APCQ -> S1APCQ1000000
+    S011ABCD -> S110APCQ -> S01APCQ100000
+    S100ABCD -> S001APCQ -> S0000001APCQ1
+    S101ABCD -> S000APCQ -> S0000000APCQ1
+    S110ABCD -> S011APCQ -> S00001APCQ100
+    S111ABCD -> S010APCQ -> S000001APCQ10
+
+(a bit shown as i is ignored; a bit shown as P is the inverse of the bit shown
+as B, and Q is the inverse of D).
+
+If the values are treated as fractions of full-scale deflection (by dividing
+them by 4096), then the following tables give mappings in each direction.
+
+@@ TO BE PROVIDED
+

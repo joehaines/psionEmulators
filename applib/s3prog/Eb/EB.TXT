@@ -1,0 +1,254 @@
+Edit box functions
+hEBOpen	Open an edit box
+VOID *hEBOpen(INT flags,H_EDIT_BOX *heb);
+Opens an edit box, as specified by flags and by *heb.
+Returns the handle of the edit box, if successful, or else NULL (in which case the user will already have been informed of the failure). The handle should be used to identify this edit box, as opposed to others an application may have, in subsequent hEBxxx calls.
+The H_EDIT_BOX struct is defined as follows:
+typedef struct
+    {
+    UWORD maxchars;
+    UWORD vulen;
+    UWORD vislines;
+    P_POINT pos;
+    UWORD win;
+    UWORD font;
+    UWORD style;
+    UWORD lead_tot;
+    UWORD lead_top;
+    } H_EDIT_BOX;
+It is not necessary for all the fields in this struct to be filled in before a call to hEBOpen is made. Default values are supplied for some of the fields. These defaults are overridden by the supplied values only if corresponding bits are set in flags.
+Possible bits set in flags are as follows:
+H_EDIT_BOX_CLIPBOARD
+The edit box is to allocate extra resources so that it can perform the clipboard functions Paste and Copy (with deleted text of size more than one character automatically being cut into the clipboard, as standard for Series 3 editors)
+H_EDIT_BOX_LEFT_CURSOR
+A triangular pointing cursor is to be displayed down the left hand side of the edit box, opposite the line with the flashing cursor
+H_EDIT_BOX_FONT
+The font and font style for the edit box are to be as specified in the fields font and style in *heb (the defaults are the system font with normal style); possible values might be W_FONT_BASE+1 for the bold font, and G_STY_ITALIC for an italic style
+H_EDIT_BOX_LEADING
+The leading for the edit box font is to be as specified in the fields lead_tot and lead_top in *heb (the defaults being 2 and 1 respectively): the former being the total extra vertical spacing between lines, in addition to the font height, and the latter being how much of the total leading applies at the top of each line.
+H_EDIT_BOX_VISLINES
+The edit box is to be heb->vislines lines high (the default is one line) - although in all cases, it will scroll vertically if enough text is added to form more lines than can be seen at once.
+The meanings of the remaining fields in the H_EDIT_BOX struct, which always have to be filled in by the caller, are as follows:
+maxchars
+The maximum number of characters in total that the edit box can contain (before beeping at the user and displaying a Maximum number of characters reached information message); paragraph ends count as one character each
+vulen
+The total visible width of the edit box, in pixels, including any margin required for a left cursor; this width also implicitly defines the wrapping margin for multi-line edit boxes
+win
+The ID of the enclosing window - which is usually the value MainWid returned by a call to uFindMainWid
+pos
+The offset of the top left of the edit box, relative to the enclosing window.
+The edit box may be further customised, before any keys are passed on to it, by means of many of the calls discussed below.
+hEBHandleKey	Pass a key to an edit box
+INT hEBHandleKey(VOID *ebH,INT keycode,INT modifier);
+Delivers the specified keypress to the edit box. This should be either a printable character or an editing key. In practice, ENTER keys should only be allowed through to multi-line editors.
+Returns zero for success, or a negative value for an error (in which case the user will already have been notified).
+Formatting in background
+Keys which cause a change in the location of line breaks due to word-wrap are treated slightly differently in Hwif editors than in editors used by the built-in applications:
+* in the built-in applications, only the line containing the cursor is reformatted and redrawn at once, before the edit box checks to see if another keypress is ready to be processed; lines further from the cursor are reformatted and redrawn, if needed, as a background activity in pauses between the receipt of incoming keys
+* in Hwif editors, any subsequent key is processed only when the edit box has been completely reformatted and redrawn.
+The difference in performance only becomes apparent for larger editors with longer paragraphs. For programmers wishing to increase the responsiveness of their editors to incoming keys, the following lines of code may be tried:
+GLREF_D UWORD _ebControlFormat;
+
+_ebControlFormat=TRUE;
+In this case, Hwif editors will, for any one call to hEBHandleKey, only reformat and redraw one line (except on receipt of a cursor key). This means it is the responsibility of the programmer to make a later call to hEBCompleteFormat (discussed below) at a suitable moment - for example, when a call to uKeyPressOutstanding next returns FALSE.
+hEBCompleteFormat	Complete edit box formatting
+INT hEBCompleteFormat(VOID *ebH);
+Ensures that the specified edit box is completely formatted and completely drawn. Does nothing if the formatting is already up to date.
+Only needs to be called explicitly by an application if the static variable _ebControlFormat has been set TRUE (see above).
+Returns zero for success, or a negative value if there was insufficient memory to complete formatting.
+hEBSenseText	Sense the text in an edit box
+TEXT *hEBSenseText(VOID *ebH);
+Returns a pointer to the buffer where the edit box is currently keeping its own copy of its text.
+This copy is always zero terminated, so its length can be obtained by a call to p_slen.
+The buffer may contain embedded \n's, representing paragraph ends.
+Note that the location of the buffer may change as more text is added into the edit box, so there is no point in an application trying to keep a permanent copy of this address.
+hEBSetText	Set the text in an edit box
+INT hEBSetText(VOID *ebH,TEXT *pb,INT blen);
+Sets the blen characters at *pb as the text for the specified edit box.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+hEBEmphasise	Emphasise an edit box
+VOID hEBEmphasise(VOID *ebH,INT flag);
+Either emphasises or de-emphasises the specified edit box, depending on the value of flag (TRUE to emphasise it, FALSE to de-emphasise it).
+An emphasised edit box displays:
+* a flashing text cursor (unless the width of the text cursor has been set to zero)
+* a triangular cursor in the left margin (if the flag H_EDIT_BOX_LEFT_CURSOR was set on initialisation)
+* a highlight between the cursor and anchor points of any select region.
+A de-emphasised edit box displays none of these features.
+By default, an edit box is de-emphasised.
+Applications may wish to surround edit boxes with curved borders, with varying degrees of shadowing to help indicate whether or not each edit box is currently emphasised. In this case, the application has the responsibility for drawing the borders (using the Wlib call gBorderRect).
+When edit boxes lose their cursor
+Note that edit boxes maintain their own record of whether they are emphasised, and do nothing if they receive an hEBEmphasise call instructing them to change their emphasis state to what it already is. Thus in the following sequence of code
+hEBEmphasise(ebH,TRUE);
+...
+hEBEmphasise(ebH,TRUE);
+the later hEBEmphasise call is ignored, unless a call hEBEmphasise(ebH,FALSE) has been made in the meantime.
+The significance of this is as follows: suppose that, in the meantime, a flashing text cursor is drawn elsewhere on the screen by the application. This may be as a result of an explicit call to wDrawTextCursor; more likely, it will be as a side effect of a call to uRunDialog or hPrintSetupDialog. In this case, the text cursor will be removed from the edit box - since there can only be one text cursor per application at any one time. When the intervening text cursor is cancelled - say as the result of the termination of the dialog - it is the responsibility of the application to re-activate the flashing cursor where it used to be (if that is still appropriate). However, in the light of what has just been explained, a simple call to hEBEmphasise will be insufficient to effect this.
+Accordingly, applications which contain an edit box as part of their main display, and which invoke dialogs with items which can also display a flashing cursor, need to use a layer of the following sort around calls to uRunDialog:
+LOCAL_C INT RunDialog(VOID)
+    {
+    INT ret;
+
+    hEBEmphasise(edit[emph],FALSE);
+    ret=uRunDialog();
+    hEBEmphasise(edit[emph],TRUE);
+    return(ret);
+    }
+A similar protective layer is needed around any calls to hPrintSetupDialog.
+hEBSetSelect	Set edit box select and cursor
+INT hEBSetSelect(VOID *ebH,INT aoff,INT coff);
+Sets the anchor point and cursor point of the specified edit box. Both positions are given as character offsets into the content of the edit box, starting at 0 for the position in front of the first character.
+Note that neither the anchor point nor the cursor point is permitted to come after the last character in the edit box.
+To set the cursor position without setting any highlighted select region, pass the value of aoff to be equal to that of coff.
+Returns zero for success or a negative error value (in which case the user will already have been notified).
+hEBSenseSelect	Sense edit box select and cursor
+INT hEBSenseSelect(VOID *ebH,UWORD *top);
+Returns the length of the select region of the specified edit box, and writes the character offset of the top of the select region to *top.
+If there is no select region, the value 0 is returned, and the character offset of the cursor point is written to *top.
+hEBSenseClipText	Sense edit box clipboard contents
+TEXT *hEBSenseClipText(VOID *ebH);
+Returns a pointer to the buffer where the clipboard of the edit box is currently keeping its own copy of its text.
+The form of this buffer is exactly the same as the buffer used for the main text of the edit box (see the discussion on hEBSenseText above).
+hEBSetClipText	Set edit box clipboard contents
+INT hEBSetClipText(VOID *ebH,TEXT *pb,INT blen);
+Sets the blen characters at *pb as the text for the clipboard of the specified edit box.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+hEBChangeWidth	Change width of edit box
+INT hEBChangeWidth(VOID *ebH,INT width);
+Changes the width of the specified edit box to width. The new width is specified in pixels and includes an allowance for any left margin required to display a left triangular cursor - exactly as for the vulen field of the H_EDIT_BOX struct used to initialise the edit box.
+In the case of a multi-line editor, the text is automatically re-formatted, wrapping to the new width. In all cases, the display is scrolled (vertically and/or horizontally) to expose the cursor position.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+Even if the return value is negative (indicating a failure to re-format the edit box to its new width), the record within the edit box of its width will be updated as requested.
+hEBSetCWidth	Set width of edit box cursor
+VOID hEBSetCWidth(VOID *ebH,INT cwidth);
+Changes the width of any flashing cursor displayed. The value of cwidth is in pixels.
+By default, the flashing cursor is two pixels wide.
+Passing cwidth as zero makes the flashing cursor invisible. This may be appropriate when, for example, highlighting some found text by means of the call hEBSetSelect.
+hEBInsert	Insert text buffer into edit box
+INT hEBInsert(VOID *ebH,TEXT *pb,INT blen);
+Inserts the blen characters at *pb into the edit box at the cursor position. Any select region is cancelled first. The cursor is positioned afterwards to the end of the inserted text.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+hEBReplace	Replace selection in edit box
+INT hEBReplace(VOID *ebH,TEXT *replace,INT backwards);
+Deletes any highlighted selection, into the clipboard if the edit box has one, and then inserts the contents of the ZTS *replace at the cursor position. The cursor is finally positioned at the end of the text inserted, unless backwards is TRUE, in which case it is placed at the beginning of the selected text.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+The routine was originally designed with the functionality of a Replace command in mind. See also the section below on hEBFind.
+hEBEvaluate	Evaluate edit box expression
+INT hEBEvaluate(VOID *ebH);
+Attempts to perform the standard Evaluate function on the specified edit box.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+Typical contents of the Evaluate routine called from the ManageCommand routine of an application would simply be as follows:
+if (!CheckEditing())          /* check focus is positioned suitably */
+    hEBEvaluate(ebH);         /* ignore any error */
+hEBCopy	Copy function for edit box
+INT hEBCopy(VOID *ebH);
+Attempts to perform the standard Copy function on the specified edit box.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+But if there is no select region (and hence nothing to copy into the clipboard), the special value 1 is returned.
+Typical contents of the Copy Text routine called from the ManageCommand routine of an application would accordingly be as follows:
+if (!CheckEditing())
+    {
+    if (hEBCopy(ebH)>0)
+        wInfoMsg("No text to copy");
+    else
+        wInfoMsg("Text copied");
+    }
+hEBPaste	Paste function for edit box
+INT hEBPaste(VOID *ebH);
+Attempts to perform the standard Paste function on the specified edit box.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+But if the clipboard is empty (and hence there is nothing to paste), the special value 1 is returned.
+Typical contents of the Paste routine called from the ManageCommand routine of an application would accordingly be as follows:
+if (!CheckEditing())
+    {
+    if (hEBPaste(ebH)>0)
+        wInfoMsg("No text to insert");
+    }
+hEBFind	Find text within edit box
+INT hEBFind(VOID *ebH,TEXT *str,INT flags);
+Attempts to find a copy of the ZTS *str in the contents of the specified edit box. If successful, returns TRUE and automatically creates a highlighted selection over the copy found. Otherwise returns FALSE (except if an error occurred, in which case the return value is negative, and the user will already have been notified).
+The following bits in flags determine how the search is done:
+HEB_FIND_BACKWARDS
+Search backwards from the cursor position (the default is to search forwards from the cursor position)
+HEB_FIND_CASESENS
+The search is case sensitive (the default is for a case insensitive search).
+hEBClearChanged	Clear edit box changed flag
+VOID hEBClearChanged(VOID *ebH);
+Clears the internal "changed" flag of the specified edit box.
+This flag is clear when the edit box is first initialised.
+This flag is set whenever the contents of the edit box change as a result of any of the calls hEBHandleKey, hEBInsert, hEBEvaluate, hEBPaste, or hEBReplace.
+Typically, an application might call hEBClearChanged following calls to hEBSetText or hEBSenseText.
+hEBSenseChanged	Sense if edit box contents have changed
+INT hEBSenseChanged(VOID *ebH);
+Returns the "changed" flag of the specified edit box. See above for some further discussion.
+hEBShowSymbols	Hide or show edit box symbols
+INT hEBShowSymbols(VOID *ebH,INT flag);
+Shows or hides end of paragraph symbols and visible space markers, depending on the value of flag (TRUE to show them, FALSE to hide them).
+These symbols are hidden by default.
+Returns zero for success, or a negative value if an error occurred (in which case the user will already have been notified).
+Even if the return value is negative (indicating a failure to re-format the edit box), the record within the edit box of whether to show these symbols will be updated as requested.
+hEBClose	Close an edit box
+VOID hEBClose(VOID *ebH);
+Frees the resources allocated for the specified edit box.
+Any application which uses an edit box throughout its lifetime has no need to close the edit box prior to exiting as any resources used will automatically be freed when the application terminates. However, it may be sensible to close an edit box explicitly if it is only used for a short period during the lifetime of the application. This avoids resources being tied up unnecessarily.
+hEBSenseDoc	Return handle of edit box document component
+VOID *hEBSenseDoc(VOID *ebH);
+This function returns the handle of the document component of an edit box allowing it to be manipulated by other Hwif functions.
+In some circumstances, the manipulation of the document component rather than the whole edit box can significantly reduce overhead (see hEDCapacity, hEDInsert, hEBDocChanged).
+The parameter ebh must contain the handle of the opened edit box whose document component is required.
+hEDCapacity	Set capacity of document component
+INT hEDCapacity(VOID *doc,UINT maxlen);
+This function sets the capacity of the document component of an edit box. In other words, it specifies the maximum size of the text that the edit box can hold.
+The parameter doc must contain the handle of the document component of the edit box as returned from a call to hEBSenseDoc. The maximum size of the text is specified in parameter maxlen.
+The function returns zero if successful or a negative value otherwise. If an error occurs, the user will already have been notified.
+hEDInsert	Insert text into document component
+INT hEDInsert(VOID *doc,UINT pos,VOID *buf,UINT len);
+This function inserts text into the document component of an edit box.
+The parameter doc must contain the handle of the document component of the edit box as returned from a call to hEBSenseDoc.
+The text to be inserted is located at buf and is len bytes long. The text is inserted at offset pos within the document component.
+The function returns zero if successful or a negative value otherwise. If an error occurs, the user will already have been notified.
+hEBDocChanged	Notify edit box that document has changed
+INT hEBDocChanged(VOID *ebh);
+Notifies the edit box that the content of its document component has changed. This causes the text to be re-formatted.
+The parameter ebh must contain the handle of the edit box to be notified.
+The function returns zero if successful or a negative value otherwise. If an error occurs, the user will already have been notified.
+Note that no attempt is made to validate the cursor position. It is the programmer's responsibility to set this correctly.
+hEBSetMargin	Set word-wrap margin
+INT hEBSetMargin(VOID *ebh,UINT right);
+This function allows the right hand word-wrap margin of an edit box to be set. This value, in effect, sets a limit on the amount of text that can be displayed on one line before being wrapped around onto the next line.
+The parameter ebh must contain the handle of the edit box whose margin is to be set. The margin itself is defined by the value in the parameter right; this value is measured in pixels.
+Setting right to a large value such as 4096, effectively turns off word-wrap. In fact this is the only sensible use of this function. If there were a need to set a margin smaller than the width of the edit box then it would be easier to use a smaller edit box.
+The following code fragment suggests how it might be used to turn off word-wrap:
+H_EDIT_BOX heb;
+VOID *     ebh;
+    ...
+ebh = hEBOpen(H_EDIT_BOX_VISLINES|H_EDIT_BOX_LEFT_CURSOR,&heb);
+hEBSetMargin(ebh,4096);
+    ...
+The function returns zero if successful or a negative value otherwise. If an error occurs, the user will already have been notified.
+hEBSenseMargin	Sense word-wrap margin
+UINT hEBSenseMargin(VOID *ebh);
+This function senses and returns the current value of the right hand word-wrap margin of an edit box whose handle is passed in ebh.
+hEBPosToXL	Convert position to line number and pixel offset
+UINT hEBPosToXL(VOID *ebh,H_SCRLAY_PLX *plx);
+This function converts a character position, within the text of the edit box whose handle is passed in ebh, to a position on the screen.
+The character position is passed in the pos member of the H_SCRLAY_PLX struct pointed to by plx. This struct is defined in hwif.h as:
+typedef struct
+    {
+    UWORD pos;
+    WORD line;
+    WORD x;
+    } H_SCRLAY_PLX;
+If the character position is visible on the screen, the line number and horizontal pixel offset within the line are written to plx->line and plx->x respectively and the function returns zero.
+If the character position is above the screen, a value of -30000 is written to plx->line and the function returns -1.
+If the character position is below the screen or beyond the end of the text, a value of +30000 is written to plx->line and the function returns +1. 
+PROGRAMMING IN HWIF
+
+	4  HWIF REFERENCE DOCUMENTATION
+
+ 
+
+	 
+
+	 
+
+

@@ -1,0 +1,94 @@
+REM Bio3 for the Psion Series3 By Les Hall
+REM Compuserve 71053,1676.
+
+PROC BIO3:
+Global G%,bday&,bioday&,BIO&,PH,EM,IN,BARP,BARE,BARI 
+	gat 0,0	REM Position the black background
+	gfill 240,14,2	REM Fill the background	
+	gat 7,10	REM Position the title
+	gtmode 1 :gstyle 1	REM How the title will look
+	gprint "BIO3/Biorhythms for the Series3."	REM The title
+	gat 7,24 : gstyle 1 :gtmode 0	REM Show user what to do
+	gprint "Use [Enter] key to plot a Biorhythm"
+	gat 0,27	REM Where draw the line?
+	glineby 240,0	REM Draw a line
+	gat 0,28	REM Draw another underneath to make
+	glineby 240,0	REM A thick line
+	gcreate(0,30,240,50,1)	REM Make a window
+do	REM Start the loop
+	g%=get	REM Get a keystroke
+	if g%=13	REM Was it Enter?
+		plot:		REM If it was got to proc Plot:
+	elseif g%=291	REM Or was it the Help key
+		help:		REM So go to help proc
+	endif		REM Take care of housekeeping
+until g%=27		REM Esc key pressed? Let's get...
+endp			REM Out of here
+
+Proc plot:
+local fd&
+fd&=days(1,1,1900)	REM oldest birthday allowed
+Dinit "Enter Birthday & Bio Details"	REM Init a dialog
+ddate bday&,"Enter your birthday:",fd&,73413.0	REM Set limits
+bioday&=days(day,month,year)	REM Pass today's date to dialog
+ddate bioday&,"Enter date for biorhythm:",fd&,73413.0
+fd&=bday&	REM If we redo the dialog, the birthday stays the same
+dialog	REM Hello dialog!
+BIO&=bioday&-bday&	REM The fun begins. Get number of days...
+PH=BIO&-(INT(BIO&/23.0)*23.0)	REM for Biorhythm. Work out the...
+EM=BIO&-(INT(BIO&/28.0)*28.0)	REM the cycles for Phys,Intel &...
+IN=BIO&-(INT(BIO&/33.0)*33.0)	REM Emotional states
+BARP=PERC:(PH,23.0)*100	REM Work out the percentages of each cycle
+BARE=PERC:(EM,28.0)*100
+BARI=PERC:(IN,33.0)*100
+gcls				REM Clear the screen for redraw
+gat 20,12 :GSTYLE 0	REM Set up type style & pos' of next line
+gprint "GOOD         FAIR         BAD         FAIR         GOOD"
+gstyle 17			REM Set typestyle to mono,bold
+gat 20,16			REM Where draw a 'bar'?
+gbox ABS(BARP*2.2),12	REM draw the bar for Physical
+gat 2,25			REM Name it Physical
+gprint "PH"			REM And so on for other bars
+gat 20,27				
+gbox ABS(BARE*2.2),12
+gat 2,36
+gprint "EM"
+gat 20,38
+gbox ABS(BARI*2.2),12
+gat 2,47
+gprint "IN"
+ENDP
+
+
+REM This is the procedure to provide limited help for user.
+
+proc help:
+dinit
+dtext "","BIO3 81993 LES HALL. CIS 71053,1676",$302
+dtext "","Use the [Enter] key to open the date dialog",2
+dtext "","box.Enter your birthday and then the date",2
+dtext "","you want a biorhythm reading for,today's",2
+dtext "","date being the default. BIO3 will create",2
+dtext "","a bar chart that reflects your Physical,",2
+dtext "","Emotional & Intellectual states.  /cont",2
+dialog
+dinit
+dtext "","BIORHYTHM THEORY",$302
+dtext "","The theory is that our lives are cont-",2
+dtext "","rolled by three different rhythms/cycles.",2
+dtext "","The three cycles all start on the day we",2
+dtext "","are born. Biorhythm followers maintain that",2
+dtext "","when cycles are crossing each other, one is",2
+dtext "","in a 'danger' period - so beware!",2
+dialog
+endp
+
+REM This procedure returns the percentages used in proc Plot:
+
+PROC PERC:(A,B)
+RETURN VAL(FIX$(SIN(RAD(360*A/B)),2,5))
+ENDP
+
+REM Les Hall
+REM Enjoy
+

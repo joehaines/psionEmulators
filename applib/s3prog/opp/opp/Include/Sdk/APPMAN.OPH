@@ -1,0 +1,172 @@
+#define APPMAN_OPH
+
+#ifndef VARRAY_OPH
+#include <sdk\varray>
+#endif
+
+/* Constants for cleanup */
+
+#define TY_CLEANUP_DYL		-5
+#define TY_CLEANUP_SHARED	-4
+#define TY_CLEANUP_VOID		-3
+#define TY_CLEANUP_ALLOC	-2
+#define TY_CLEANUP_IOCHAN	-1
+#define TY_CLEANUP_OBJECT	0
+
+/* Types for cleanup */
+
+STRUCT RC_CLEANUP
+	type#
+	level#
+	h%
+ENDS
+
+STRUCT SHARED_ALLOC
+	nref%
+ENDS
+
+/* Property of cleanup */
+
+STRUCT PRS_CLEANUP
+	level%
+ENDS
+
+STRUCT PR_CLEANUP
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+	vaflat#(SIZEOF(PRS_VAFLAT))
+	cleanup#(SIZEOF(PRS_CLEANUP))
+ENDS
+
+/* Constants for active */
+
+#define PRIORITY_ACTIVE_POSTER	100
+#define PRIORITY_ACTIVE_IPCS	80
+#define PRIORITY_ACTIVE_VOICE	70
+#define PRIORITY_ACTIVE_WSERV	60
+#define PRIORITY_ACTIVE_COMMAND	40
+#define PRIORITY_ACTIVE_SERIAL	20
+#define PRIORITY_ACTIVE_ALARM	0
+#define PRIORITY_ACTIVE_FILES	-20
+#define PRIORITY_ACTIVE_REPEATER-40
+#define PRIORITY_ACTIVE_PRINT	-60
+#define PRIORITY_ACTIVE_COMPUTE	-100
+
+/* Property of active */
+
+STRUCT PRS_ACTIVE
+	q#(SIZEOF(P_QUE))
+	priority#
+	isactive#
+	pcb%
+	stat%
+ENDS
+
+STRUCT PR_ACTIVE
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+ENDS
+
+/* Property of aidle */
+
+STRUCT PR_AIDLE
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+ENDS
+
+/* Types for rscfile */
+
+STRUCT PR_RSCFILE_HEAD
+	pos%
+	len%
+ENDS
+
+/* Property of rscfile */
+
+STRUCT PRS_RSCFILE
+	pcb%
+	ix#(SIZEOF(PR_RSCFILE_HEAD))
+	offset%
+	hftree&
+ENDS
+
+STRUCT PR_RSCFILE
+	root#(SIZEOF(PRS_ROOT))
+	rscfile#(SIZEOF(PRS_RSCFILE))
+ENDS
+
+/* Constants for system */
+
+#define IC_SYSTEM_ALLOC		0
+#define IC_SYSTEM_REMOVE	1
+#define IC_SYSTEM_REPLACE	2
+
+/* Property of system */
+
+STRUCT PRS_SYSTEM
+	pid%
+ENDS
+
+STRUCT PR_SYSTEM
+	root#(SIZEOF(PRS_ROOT))
+	system#(SIZEOF(PRS_SYSTEM))
+ENDS
+
+/* Property of ipcs */
+
+STRUCT PRS_IPCS
+	hd#(SIZEOF(P_QUE))
+ENDS
+
+STRUCT PR_IPCS
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	ipcs#(SIZEOF(PRS_IPCS))
+ENDS
+
+/* Constants for appman */
+
+#define FLG_APPMAN_CLEAN	0x01
+#define FLG_APPMAN_SYSTEM	0x02
+#define FLG_APPMAN_RSCFILE	0x04
+#define FLG_APPMAN_SRSCFILE	0x08
+#define FLG_APPMAN_IPCS		0x10
+#define FLG_APPMAN_ONLYONE	0x20
+#define FLG_APPMAN_NODBG	0x40
+#define RUN_ACTIVE_UNUSED	0
+#define RUN_ACTIVE_USED		1
+#define ERR_APPMAN_APPL		-512
+
+/* Property of appman */
+
+STRUCT PRS_APPMAN
+	clean%
+	system%
+	rcb%
+	srcb%
+	ipcs%
+	task#(SIZEOF(P_QUE))
+	stop%
+	nrid%
+	err%
+	spare1%
+	spare2%
+ENDS
+
+STRUCT PR_APPMAN
+	root#(SIZEOF(PRS_ROOT))
+	appman#(SIZEOF(PRS_APPMAN))
+ENDS
+
+#include <opp\process>
+
+/* AC:Load a resource into a buffer which MUST be big enough */
+
+#define LOAD_RESBUF(id,buf)	send(peekw(DatAppMan),O_AM_LOAD_RES_BUF,#id,buf)
+
+/* AC:Load a resource, allocating memory as required */
+
+#define LOAD_RESOURCE(id,ptr)	send(peekw(DatAppMan),O_AM_LOAD_RESOURCE,#id,ptr)
+#define FREE_RESOURCE(ptr)	freealloc(ptr)
+

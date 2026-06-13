@@ -1,0 +1,296 @@
+
+PROC mainprog: REM declare variables and main proc's
+
+GLOBAL lname$(10),rname$(10),lcolour$(1)
+GLOBAL ptime&,ltime&,rtime&,true%,false%,sbeep%,genbeep%,k%
+GLOBAL lturn%,first%,again%,winner$(10),sametim&
+true%=1 :false%=0
+first%=true%
+again%=false%
+ptime&=30
+lcolour$="b"
+sametim&=30
+sbeep%=false%
+genbeep%=false%
+
+maindis:
+again::
+getnames:
+infowin:
+runtime:
+
+IF again%=true%
+GOTO again
+ENDIF
+
+ENDP
+
+
+PROC maindis: REM Main display
+
+DEFAULTWIN 1
+gGREY 2
+gFONT 12
+gSTYLE 24
+gAT 166,34
+gPRINT "Chess Clock"
+gAT 160,2
+gDRAWOBJECT 0,2,154,38
+gAT 190,8 :gLINEBY 38,0
+gAT 267,8 :gLINEBY 25,0
+gAT 126,123
+gCLOCK ON,10,0,"%G%L%P%O%*E, %1 %2 %3 %6:%T:%S",8,8
+gAT 120,119
+gDRAWOBJECT 0,2,238,38
+gBORDER 1
+REM name boxes
+gAT 10,122 :gBORDER 1,100,30
+gAT 370,122 :gBORDER 1,100,30
+
+ENDP
+
+PROC infowin: REM initial start message
+LOCAL diawin%
+diawin%=gCREATE(90,55,300,60,1)
+gBORDER 1
+gAT 20,34
+gPRINT "Press SPACEBAR to start 'white' clock":
+GET
+gCLS
+gCLOSE 2
+ENDP
+
+
+PROC getnames: REM Establish names,colour & game time
+IF again%=false%
+dINIT "Names of players"
+dEDIT lname$, "Left side name:"
+DIALOG
+dINIT "Names of players"
+dEDIT rname$, "Right side name:"
+DIALOG
+REM display names
+gSTYLE 0 :gFONT 8
+gAT 16,146 :gPRINT lname$
+gAT 376,146 :gPRINT rname$
+ENDIF
+REM establish colour of left player
+IF lcolour$="w"
+lcolour$="b"
+ELSE
+lcolour$="w"
+ENDIF
+DO
+dINIT "Left player plays "
+dEDIT lcolour$, "White or Black"
+DIALOG
+lcolour$=LOWER$(lcolour$)
+UNTIL lcolour$ ="w" OR lcolour$ = "b"
+IF lcolour$="w"
+lturn%=true%
+ELSE :lturn%=false%
+ENDIF
+REM establish game time limit
+IF again%=true% :ptime&=sametim& :again%=false%
+ENDIF
+dINIT
+dTEXT "","Max Time each player"
+dTEXT "","in minutes 1-99"
+dLONG ptime&,"Mins",1,99
+DIALOG
+sametim&=ptime&
+REM display start times
+gFONT 12 :gSTYLE 24
+REM clear old times first
+gAT 10,76 :gFILL 70,40,1 :gBORDER 1,70,40
+gAT 400,76 :gFILL 70,40,1 :gBORDER 1,70,40
+gAT 12,110
+gPRINT ptime&;":00"
+gAT 402,110
+gPRINT ptime&;":00"
+REM clear time thermometer box
+gAT 10,55 :gFILL 120,15,1 :gBOX 120,15
+gAT 350,55 :gFILL 120,15,1 :gBOX 120,15
+REM set start times in secs
+ptime&=ptime&*60
+ltime&=ptime& :rtime&=ptime&
+REM display 'white' or 'black' in boxes
+gFONT 12 :gSTYLE 8
+REM make sure colour boxes are cleared
+gAT 10,10 :gFILL 120,40,1
+gAT 350,10 :gFILL 120,40,1
+IF lcolour$ = "w"
+gAT 10,10 :gFILL 120,40,1 :gBOX 120,40
+gAT 42,42 :gPRINT "WHITE"
+gAT 382,42 :gPRINT "BLACK"
+gAT 350,10 :gFILL 120,40,2
+ELSE
+gAT 42,42 :gPRINT "BLACK"
+gAT 10,10 :gFILL 120,40,2
+gAT 350,10 :gFILL 120,40,1 :gBOX 120,40
+gAT 382,42 :gPRINT "WHITE"
+ENDIF
+
+ENDP
+
+PROC runtime: REM run clocks and accept commands
+GLOBAL min&,sec&,min$(2),sec$(2)
+gFONT 12 :gSTYLE 24
+runwin:
+DO
+k%=0
+PAUSE 8
+REM all the ifs... p b s etc
+k%=KEY
+IF k%=115 REM seconds beep toggle
+IF sbeep%=true% :sbeep%=false%
+ELSE sbeep%=true% :ENDIF
+ENDIF
+IF k%=103 REM General beep toggle
+IF genbeep%=true% :genbeep%=false%
+ELSE genbeep%=true% :ENDIF
+ENDIF
+IF sbeep% = true% :BEEP 1,250 :ENDIF
+update:
+PAUSE 7
+IF k%=32 REM spacebar to switch clocks
+IF genbeep%=true% :BEEP 5,150 :ENDIF
+IF lturn%=true% :lturn%=false%
+ELSE lturn%=true% :ENDIF
+ENDIF
+IF k%=112 REM pause
+paused:
+ENDIF
+IF lturn%=true%
+ltime& = ltime&-1
+min&=INT(ltime&/60)
+sec&=ltime&-(min&*60)
+settime:  REM work out clock for display
+gAT 12,78 :gFILL 66,36,1
+gAT 12,110 :gPRINT min$;":";sec$
+ELSE REM right side player
+rtime&=rtime&-1
+min&=INT(rtime&/60)
+sec&=rtime&-(min&*60)
+settime:
+gAT 402,78 :gFILL 66,36,1
+gAT 402,110 :gPRINT min$;":";sec$
+ENDIF
+timetab:
+UNTIL k%=104 OR ltime&=0 OR rtime&=0
+timeup:
+
+ENDP
+
+PROC settime: REM writes to clocks
+IF min&<10
+min$=NUM$(min&,1)
+min$="0"+min$
+ELSE
+min$=NUM$(min&,2)
+ENDIF
+IF sec&<10
+sec$=NUM$(sec&,1)
+sec$="0"+sec$
+ELSE
+sec$=NUM$(sec&,2)
+ENDIF
+
+ENDP
+
+
+PROC runwin: REM Central main info win
+gFONT 6 :gSTYLE 0
+gAT 140,55 :gFILL 200,60,1
+gBORDER 1,200,60
+gAT 145,72
+gPRINT "'Spacebar' after making move"
+gFONT 5
+gAT 145,108 :gPRINT "'p'  pauses  and  'h'  stops  the   clocks"
+gAT 145,90 :gPRINT "Sound  's' for Secs"
+gAT 262,90 :gPRINT "'g' for Gen"
+update:
+gFONT 12 :gSTYLE 24
+ENDP
+
+PROC update: REM updates status of beeps in win
+gFONT 5 :gSTYLE 0
+gAT 238,78 :gFILL 20,15,1
+gAT 316,78 :gFILL 20,15,1
+IF sbeep%=true%
+gAT 240,90 :gPRINT "OFF"
+ELSE
+gAT 240,90 :gPRINT "ON"
+ENDIF
+IF genbeep%=true%
+gAT 318,90 :gPRINT "OFF"
+ELSE
+gAT 318,90 :gPRINT "ON"
+ENDIF
+gFONT 12 :gSTYLE 24
+ENDP
+
+
+PROC paused: REM display 'paused' and wait for key
+gFONT 8 :gSTYLE 0
+gAT 140,55 :gFILL 200,60,1
+gBORDER 1,200,60
+IF genbeep%=true% :BEEP 10,150 :ENDIF
+gAT 160,75 :gPRINT "*** PAUSED ***"
+gAT 158,100 :gPRINT "Any key to cont.."
+GET
+runwin:
+gFONT 12 :gSTYLE 24
+ENDP
+
+PROC timeup: REM One of the clocks has reached zero
+gFONT 8 :gSTYLE 8
+gAT 140,55 :gFILL 200,60,1
+gBORDER 1,200,60
+IF ltime&=0
+winner$=rname$
+ELSE :winner$=lname$
+ENDIF
+gAT 150,85
+IF k%<>104
+gPRINT winner$,"wins-default"
+IF genbeep%=true% :BEEP 10,150 :ENDIF
+gFONT 7 :gSTYLE 0
+IF ltime&=0 
+gAT 11,56 :gFILL 118,13,1
+gAT 18,68 :gPRINT "T  I  M  E   U  P"
+gAT 11,56 :gFILL 118,13,2
+ELSE
+gAT 351,56 :gFILL 118,13,1
+gAT 358,68 :gPRINT "T  I  M  E   U  P"
+gAT 351,56 :gFILL 118,13,2
+ENDIF
+ELSE
+gPRINT "*** Stopped game ***"
+IF genbeep%=true% :BEEP 10,150 :ENDIF
+ENDIF
+gSTYLE 0
+DO
+gAT 180,105 :gPRINT "Another game?"
+k%=KEY
+IF k%=110 or k%=78 :STOP :ENDIF
+UNTIL k%=121 OR k%=89
+gAT 140,55 :gFILL 200,60,1
+gFONT 12 :gSTYLE 24
+again%=true%
+ENDP
+
+
+PROC timetab: REM Time gone thermometers
+LOCAL fill,gone
+gAT 10,55
+gone=ptime&-ltime&
+fill=gone/ptime&*120
+gFILL fill,15,0
+gAT 350,55
+gone=ptime&-rtime&
+fill=gone/ptime&*120
+gFILL fill,15,0
+
+ENDP
+

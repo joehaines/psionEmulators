@@ -1,0 +1,92 @@
+#pragma debug off
+PROC dbgp:(file$,stack%,line%)
+local pos%,dbgdata%
+dbgdata%=peekw(38)
+if dbgdata%=0
+dbginit:
+dbgdata%=peekw(38)
+endif
+pos%=peekw(uadd(dbgdata%,2))
+poke$ peekw(pos%),file$
+pokew stack%,stack%
+dbgl:(stack%,line%)
+ENDP
+PROC dbgl:(stack%,line%)
+local axreg%,bxreg%,cxreg%,dxreg%,sireg%,direg%,osflags%,pos%,dbgdata%
+dbgdata%=peekw(38)
+pos%=peekw(uadd(dbgdata%,2))
+pokew uadd(pos%,2),stack%
+pokew uadd(pos%,4),line%
+bxreg%=peekw(dbgdata%)
+cxreg%=2
+sireg%=pos%
+axreg%=($0600 OR (axreg% and $ff)) :osflags%=os($83,addr(axreg%))
+ENDP
+PROC dbginit:
+local axreg%,bxreg%,cxreg%,dxreg%,sireg%,direg%,osflags%,prog$(14),cmdline$(255)
+local stat%,pid%,pos%,dbgdata%
+local dbgmess%
+onerr e
+dbgdata%=alloc(4)
+if dbgdata%=0
+raise (-10)
+endif
+pos%=alloc(6)
+if pos%=0
+raise (-10)
+endif
+pokew uadd(dbgdata%,2),pos%
+pokew pos%,alloc(129)
+if peekw(pos%)=0
+raise (-10)
+endif
+pokew 38,dbgdata%
+cmdline$="M:\APP\OPPDBG.OPA"
+if not exist(cmdline$)
+cmdline$="A:\APP\OPPDBG.OPA"
+if not exist(cmdline$)
+cmdline$="B:\APP\OPPDBG.OPA"
+if not exist(cmdline$)
+raise (-33)
+endif
+endif
+endif
+prog$="ROM::SYS$PRGO"+chr$(0)
+cmdline$="OOppdbg"+chr$(0)+chr$(0)+cmd$(1)+chr$(0)+cmdline$+chr$(0)
+bxreg%=uadd(addr(prog$),1) :cxreg%=addr(cmdline$) :dxreg%=addr(stat%) :direg%=addr(pid%) :axreg%=($0100 OR (axreg% and $ff)) :osflags%=os($87,addr(axreg%))
+if ((osflags% and 1)<>0) or (stat%<>0)
+raise (-20)
+endif
+#ifndef DBG_NOMESSINIT
+bxreg%=1
+axreg%=($0000 OR (axreg% and $ff)) :osflags%=os($83,addr(axreg%))
+if ((osflags% and 1)<>0)
+raise (-10)
+endif
+#endif
+bxreg%=pid%
+cxreg%=99
+axreg%=($0800 OR (axreg% and $ff)) :osflags%=os($83,addr(axreg%))
+if ((osflags% and 1)<>0)
+raise (-10)
+endif
+bxreg%=pid%
+axreg%=($0600 OR (axreg% and $ff)) :osflags%=os($88,addr(axreg%))
+if ((osflags% and 1)<>0)
+raise (-20)
+endif
+pokew dbgdata%,pid%
+bxreg%=addr(dbgmess%)
+axreg%=($0200 OR (axreg% and $ff)) :osflags%=os($83,addr(axreg%))
+if peekw(uadd(dbgmess%,4))=99
+raise (-20)
+endif
+bxreg%=dbgmess%
+cxreg%=0
+axreg%=($0700 OR (axreg% and $ff)) :osflags%=os($83,addr(axreg%))
+return
+e::
+onerr off
+alert("Debugger",err$(err))
+stop
+ENDP

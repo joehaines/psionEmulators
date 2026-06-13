@@ -1,0 +1,83 @@
+#define WLDSELWN_OPH
+
+#ifndef MATCHER_OPH
+#include <sdk\matcher>
+#endif
+
+#ifndef WR_IO_OPH
+#include <sdk\wr_io>
+#endif
+
+/* AC: add these next 2 includes */
+
+#ifndef WIN_OPH
+#include <sdk\win>
+#endif
+
+#ifndef LODGER_OPH
+#include <sdk\lodger>
+#endif
+
+/* Constants for wmatcher */
+
+#define GEOG_MAX_NAME 22
+#define PR_WMATCHER_INDETERMINATE 0x02
+
+/* Property of wmatcher */
+
+STRUCT PRS_WMATCHER
+	wfcb%
+	iscountry#
+	tleng#
+	tbuf#(GEOG_MAX_NAME)
+	res#(SIZEOF(WR_FIND_RES))
+	resco%
+ENDS
+
+STRUCT PR_WMATCHER
+	root#(SIZEOF(PRS_ROOT))
+	matcher#(SIZEOF(PRS_MATCHER))
+	wmatcher#(SIZEOF(PRS_WMATCHER))
+ENDS
+
+/* Constants for wldselwn */
+
+#define PR_WLDSELWN_COUNTRY 0x01
+#define PR_WLDSELWN_FIRST_PARTNER 0x02
+#define PR_WLDSELWN_NOT_IN_DIALOG 0x04
+#define PR_WLDSELWN_RESTRICTED 0x08
+#define IN_WLDSELWN_CITY 0
+#define IN_WLDSELWN_COUNTRY PR_WLDSELWN_COUNTRY
+#define IN_WLDSELWN_FIRST_PARTNER PR_WLDSELWN_FIRST_PARTNER
+#define IN_WLDSELWN_NOT_IN_DIALOG PR_WLDSELWN_NOT_IN_DIALOG
+#define IN_WLDSELWN_SECOND_PARTNER 0x10
+#define IN_WLDSELWN_SETHOME 0x20
+#define IN_WLDSELWN_SETDFLT 0x40
+
+/* Types for wldselwn */
+
+STRUCT IN_WLDSELWN
+	flags%
+	other%
+ENDS
+
+STRUCT SENSE_WLDSELWN
+	wfcb%
+	data#(SIZEOF(WR_EXTRA_DATA))
+ENDS
+
+/* Property of wldselwn */
+
+STRUCT PRS_WLDSELWN
+	mat%
+	tleng%
+	flags%
+	other%
+ENDS
+
+STRUCT PR_WLDSELWN
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	lodger#(SIZEOF(PRS_LODGER))
+	wldselwn#(SIZEOF(PRS_WLDSELWN))
+ENDS

@@ -1,0 +1,70 @@
+APP viewer
+ type 3
+ icon "\OPD\viewer"
+ path "\opd"
+ ext "pic"
+ENDA
+
+PROC start:
+ GLOBAL a%(6),k%,w$(128),id%,f$(100)
+ GLOBAL bid%,wid%,w%,h%
+ wid%=gCREATE(0,0,240,80,1) 
+ w$=cmd$(2)
+ fset:(cmd$(3))
+ do
+  k%=getk%:
+  print chr$(k%);
+ until (K% and $ffdf)=13
+endp
+
+proc getk%:
+ local t$(1)
+ do
+  while not testevent
+  endwh
+  getevent a%()
+  if a%(1)=$404
+   w$=getcmd$
+   t$=left$(w$,1)
+   w$=MID$(w$,2,128)
+   if t$="X"
+    endit:
+   elseif t$="C" or t$="O"
+    cls
+    if err
+     cls :print err$(err)
+     get :continue
+    endif
+    fset:(t$)
+   endif
+  endif
+ until not (a%(1) and $400)
+ return a%(1)
+endp
+
+proc fset:(t$)
+ local p%(6)
+ if t$="C"
+  Cls
+ elseif t$="O"
+  cls
+  REM Use bitmap, find size, use wind
+  REM and copy bitmap to it
+  gAT 0,0
+  bid%=gLOADBIT(w$)
+  gUSE bid%
+  w%=gWIDTH
+  h%=gHEIGHT
+  gUSE wid%
+  gPATT bid%,w%,h%,3
+ endif
+ if err
+  cls : print err$(err)
+  get : stop
+ endif
+ setname mid$(parse$(w$,"",p%()),p%(4),p%(5)-p%(4))
+endp
+
+proc endit:
+ stop
+ENDP

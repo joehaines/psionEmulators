@@ -1,0 +1,374 @@
+
+OPL programming for speed
+
+1. Graphics
+
+- 	Use gUPDATE OFF whenever possible.
+	During debugging you might want to disable this instruction
+
+- 	Complex drawings perform twice as fast in a invisible window or a bitmap.
+    	I found no substantial speed difference between invisible windows and bitmaps.
+	After drawing make the window visible with gVISIBLE ON.
+
+-	Using the gPOLY command can speed up the drawing of complex
+	line drawings considerably. The code will be somewhat longer and more
+	memory is required to hold the points but it is definitely worth it.
+
+2. Files
+
+- 	File accesses are faster on RAM or internal memory than on FLASH SSD.
+
+- 	Searching in a file:
+     	OPD files may not be suitable for all purposes, but they have an advantage 
+	when you are searching for a record.
+     	The FIND function advances to the next matching record, so you do not have to 			read every record.
+     	The problem with FIND is that it searches in any field of the record.
+     	If you want to restrict the search to certain fields, you have to analyse the record.
+     	The FINDFIELD function is supposed to search only in the fields specified,
+	but to my experiences it won't. Also, it is only available on S3a.
+
+- Compression:
+	 The PSION file system performs a compression for a OPD file whenever
+	 the file is closed (not for files on FLASH SSD). For large files
+	 this can be quite time consuming, as the whole file is scanned for
+	 deleted records and then rewritten.
+	 You can switch off compression (globally) with:
+
+	     pCtrl% = peekw($1c)+$1e			rem addr of control byte
+             pokeb pCtrl%,peekb(pCtrl%) or 1    	rem disable compression
+
+	 You can switch compression on again (globally) with:
+
+	     pCtrl% = peekw($1c)+$1e			rem addr of control byte
+	     pokeb pCtrl%,peekb(pCtrl%) and $fe  	rem enable compression
+
+	 Make sure to compress your files at least once per session -
+otherwise
+	 they will grow and grow and grow ...
+
+- When reading files with IO-functions (IOOPEN, IOREAD, etc.) don't read the file
+  byte by byte or word by word when you can avoid it. Reading a larger block into
+  a buffer and processing from that buffer is much faster.
+  If you want to search for a substring in a large buffer, use an operating system 	
+  function (must be used as OS-function not as CALL-function):
+
+	Fn $A9 Sub $00 (case sensitive)
+	Fn $AA Sub $00 (case insensitive)
+    		AX: -> offset of sub-string within buffer
+    		BX: length of sub-string
+   		CX: size of buffer
+    		DX:
+    		SI: ADDR(buffer to be searched)
+    		DI: ADDR(sub-string)
+    		CF: clear if sub-string found, set it not
+	
+3. Procedures
+
+	Intensive use of procedures can slow down a program considerably.
+	The reason for that is, that every time a procedure is invoked it is
+	copied from the disk into internal memory.
+	(In fact, the OPL runtime system copies the procedures in pieces
+	to a small internal buffer to execute them. The execution of a large
+	procedure can cause many copy operations.)
+	A typical value for a procedure call is about 5 msec on a S3a
+	where a typical string operation takes about 0.5 msec.
+
+	If you are using a PC for development, it is certainly a good idea to
+	replace small procedures by INCLUDEs and Macros, but the overall
+	code size will increase.
+ 	Note, that every procedure needs a minimum of 24 bytes for headers
+	and table entries, so defining procedures that contain only a few
+       	statements can increase the length of the code.
+
+
+	On the S3a there is the possibility of caching procedures.
+	I have made good experiences with caching. 
+	The overall speed improvement was usually 100%.
+	By using CACHE ON and CACHE OFF it is possible to restrict
+	caching to the most frequently used procedures, but it is also worth
+	to cache procedures that contain loops that range over more than a
+	few lines of code.
+
+	If you are using recursive procedures caching is a must and saves actually
+	memory. Without caching the code of a recursive procedure is appended
+	to the program area in the internal memory each time a new procedure level
+	is opened. Soon, there will be no memory left. With caching the procedure
+	is written only once into the cache and space is only consumed 
+	for the local variables (plus some control areas)
+
+	Note: Caching works only for modules compiled in S3a mode.
+
+	The position of a procedure in a module is also important. Each module
+	has a procedure list. This list is scanned whenever a procedure is
+	called (I am not sure if this happens for cached procedures, too).
+	A procedure defined at the beginning of the module will be
+	found faster. So frequently used procedures should be defined at the
+	beginning of a module.
+
+	If you have a complex application with more than one module you have to
+	look a bit inside LOADM and UNLOADM. 
+	Despite its name, LOADM does not load a module. 
+	It only loads the procedure list of the module into memory. 
+	When a procedure is called all procedure lists are scanned for the 
+	procedure name.
+	So it can improve performance to UNLOADM unused modules. 
+	But to many LOADMs and UNLOADMs can also slow down!
+	
+4. Arithmetic
+
+	For arithmetic the rule is simple: The shorter the faster.
+	Short integer is faster than long integer is much faster than floating point.
+
+	Examples:
+			if a% < b% : a% = b% : endif
+
+			is faster than a% = max(a%,b%)
+			
+			(max is a floating point operation, so you end up with three
+			 type conversions)
+
+			a% = iabs(b%) is definitely better than  a% = abs(b%)
+
+
+	We did not find noticable speed differences between integer addition 
+	and multiplication. For floating point however, multiplication is about twice
+	as slow as addition, and division even slower.
+
+		So for floating point it is better to write
+
+			A+A   instead of 2*A
+
+	and		A*0.1 instead of A/10.0
+
+	
+5. Lookup tables
+
+	If your lookup table is small you can hold it in a string and use the LOC
+	function to find an entry.
+	
+	Example: loc("3193,2001,4578,8900",ZIP) would search a 4-digit ZIP
+		   in the specified string.
+				 
+	Note: 	Make sure that there are no ambiguities. The LOC function works
+		case independent!
+
+	If lookup tables become larger it is worth trying some of the advanced techniques:
+
+		- binary search
+		- binary tree
+		- indexed access
+		- hashing
+		
+	You will find a description of these techniques in any book about
+	software engineering.
+
+6. Globals
+
+	Globals need some consideration, too.
+	Each time a procedure is called, the OPL-interpreter will try to resolve
+	the unresolved externals of the procedure. To do so, it will browse through
+	the whole call hierarchy of procedures and will scan the list of global names
+	for that particular name. If found, the reference is resolved. Otherwise it will
+	continue searching through the call hierarchy until the root procedure is reached.
+	Then you get an error message "Undefined external" and abuse yourself that you
+	did not use OPLLINT.
+
+	From the above it follows that the less global variables you have the better.
+	Obviously, shorter names will compare a bit faster than long ones
+	(they also take less space), and it is also a good idea to define globals used 
+	in frequently called procedures at the beginning of the global definitions.
+
+7. Control structures
+
+	DO...UNTIL is a fraction faster and shorter than WHILE ... ENDWH.
+	DO...UNTIL uses one conditional jump at the end of a loop, while
+	WHILE ... ENDWH uses a conditional jump at the beginning of the
+	loop and a unconditional jump back at the end of the loop.
+
+	Loop limits in DO or WHILE statements are always computed in full.
+	In
+		WHILE i% < len(t$)
+			i% = i%+1
+			.....
+		ENDWH
+
+	len(t$) is computed for each pass through the loop. It would be better
+	to write
+		l% = len(t$)
+		WHILE i% < l%
+			i% = i%+1
+			.....
+		ENDWH
+	or even
+		l% = len(t$)
+		WHILE l%
+			.....
+			l% = l%-1
+		ENDWH
+
+	And, of course, anything that can be computed outside of a loop should
+	indeed be computed outside of the loop.
+
+	Logic expressions like  A=B and ( B=C or C=D) are always evaluated in
+	full, so even if A <> B the runtime system would still evaluate the rest of
+	the expression. This is reassuring if you use procedures with side effects
+	in these expressions, but it can slow down.
+	It might be better to use nested IFs instead.
+
+	The fastest way to test conditions is the direct test of short integers:
+
+			IF a% : print "on" : else : print "off" : endif		(1)
+
+	This is 3 bytes shorter and faster than the equivalent
+
+			IF a% <> 0 : print "on" : else : print "off" : endif	(2)
+
+	This is only true for short integers.
+	Long integer or float variables used in a type 1 statement are always expanded by
+	the compiler to a type 2 statement. This is important if you test for the result of a 	
+	routine:
+
+			IF bool: : print "on" : endif
+
+	will be expanded to
+
+			IF bool: <> 0.0 : print "on" : endif
+
+	This is 10 bytes longer and slower then testing a integer routine - so its better to 		
+	define the routine as integer:
+
+			IF bool%: : print "on" : endif
+
+	Testing strings should be done with the len function.
+
+			IF len(t$)
+
+	is better than
+			IF t$ > ""
+
+	Testing the first character of a string should be done with the ASC function.
+
+			IF asc(t$) = %a
+
+	is better than
+
+			IF left$(t$,1) = "a"
+
+	but note that asc can be ambiguous: Both strings CHR$(0) and "" return
+0.
+
+
+	A very efficient control structure is VECTOR. Using VECTOR instead of lengthy
+	IF ... ELSEIF  ... ENDIF  structures saves time and space.
+
+8. Initialising variables
+	
+	When a new procedures is invoked, OPL automatically intialises all local and 		
+	global variables defined in that procedure. Numeric variables are initialised to 0 		
+	while string variables are initialised with the empty string "".
+	So you only need to initialise only variables with a differing init-value.
+
+Note: 	If you allocate heap memory with alloc, the allocated area will not be
+	initialised - you have to poke it to zero. I didn't find a system routine to initialise
+	a memory area, so here is an assembler routine that does the trick.
+
+		Global	pad&(3)
+		pad&(1)=&067CCBFF
+		pad&(2)=&E9004888
+		pad&(3)=&00CBFFF6
+
+		usr(addr(pad&()),ax%,bx%,cx%,0)
+
+	ax% points to beginning of the area to initialise
+	bx% is the length to initialise
+	cx% is the padding character (0 for clearing)
+
+9. Using system calls
+
+	There are some system calls that can reduce a lengthy and time consuming
+	OPL-call to a single call.
+
+	call($00a1,0,len,0,*from,*to)
+
+	copies (len) bytes from *from to *to. To our experience it handles even
+	overlapping fields in both directions flawlessly.
+
+	Example: (saves 2 OPL-loops with 999 iterations)
+
+		local a%(1000)
+		call($00a1,0,1998,0,addr(a%(2)),addr(a%(1)))
+		rem  copies elements 2-1000 to elements 1-999
+		call($00a1,0,1998,0,addr(a%(1)),addr(a%(2)))
+		rem  copies elements 1-999 to elements 2-1000
+
+	call($00ac,0,0,0,*from,*to)
+
+	copies a zero terminated string from *from to *to
+
+	call($00b9,0,0,0,0,*strng)
+
+	returns the length of a zero terminated string.
+
+	So to convert a zero terminated string into a OPL string:
+
+	call($00ac,0,0,0,from%,uadd(addr(to$),1))  : rem to$ must be 1 byte longer
+	pokeb addr(to$),call($00b9,0,0,0,0,from%) : rem to set length
+
+	Note: CALL works with 1 to 6 parameters. When less than 6 parameter
+	are used the runtime system will insert zero values for the missing parameter.
+	CALL will run faster and require less space when fewer parameters are
+	specified.
+
+
+10. Benchmarks
+
+	If in doubt, write a short routine to test the speed of an instruction.
+
+	Put the instruction inside a loop:
+	
+	proc benchm:
+	local t&,i%
+	t& = int(hour)*3600+minute*60+second
+	while i% < 10000
+		i% = i%+1
+		instruction to test
+	endwh
+	print (int(hour)*3600+minute*60+second - t&)/10.0,"msec"
+	get
+	endp
+
+	If you want to test procedure calls, reduce the number of passes to 1000
+	and remove the "/10.0".
+	If you want precise absolute time, run the program with an empty loop first.
+	Then subtract the result from the result for the test with the instruction.
+
+Berthold Daum, CIS: 100026,3365
+
+
+alord@tertio.co.uk wrote:
+: The only real problem with an OPL compiler is with the Dynamically
+: Scoped variables. Combined with the use if the @%(proName$): construct
+: and you have a language which can only be translated "up to a certain point"
+: at compile time, and the rest has to be done dymaically.
+
+Just out of interest this is technically incorrect.  The so called
+GLOBAL variables, which are, as alord correctly notes, really
+dynamically scoped variables, are compilable if you're using a stack
+based representation for function invocation: you can referecen the
+variable access address to the stack frame where it was declared.  
+
+The @ function indirection is harder, but I can imagine that it would be
+possible to restrict the construct in such a way as to make it a hash
+table lookup.  For example, enforce a declaration that all indirected
+function names will be of the form STRING1+STRING2, where STRING1 is
+some fixed character sequence, and STRING2 is some (single?) character
+from a fixed array (just like the actual example in the book).  Then a
+hash table can be generated, when @(FUNC) is encountered hash table
+lookup occurs and a mechanism equivalent to C's function pointers
+generates the function call.
+
+So, there's no in principle reason why these two constructs cannot be
+compiled - the real question is wether the underlying OPL/OPO
+architecture supports the necessary mechanisms...
+
+

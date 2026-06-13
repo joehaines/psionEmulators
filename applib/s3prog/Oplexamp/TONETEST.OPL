@@ -1,0 +1,66 @@
+REM translate in series 3 mode not 3a!
+APP  ToneTune
+TYPE $1
+ENDA
+
+PROC TONETUNE:
+local a,b,c,d,a$(50),file$(128)
+if year<1994
+dinit "error"
+dtext "","system date error"
+dialog
+goto end
+endif
+trap mkdir "loc::m:\app"
+trap mkdir "loc::m:\app\tonetune"
+file$="loc::m:\app\tonetune\tonetune.def"
+if not exist (file$)
+create file$,a,a,b
+print "Tone Tune - simple tone generator"
+print "---------"
+print "Thanks for loading this program -"
+print "I hope you find it useful."
+print ""
+print "vui@cix.compulink.co.uk"
+pause 100
+a.a=1000
+a.b=1
+append
+else
+open file$,a,a,b
+endif
+a=a.a
+b=a.b
+a$=chr$(184)+" vui@cix.compulink.co.uk "+num$(year,4)
+start::
+cls
+dinit "Tone Generator"
+dfloat a,"Frequency (Hz)",50,5000
+dfloat b,"Duration (s)",0,50
+giprint "0 duration to quit"
+rem giprint a$,2
+dialog
+busy off
+if b=0
+goto end
+endif
+d=b*32
+c=(512000/a)-1
+busy "Sound Queued!"
+beep d,c
+busy off
+goto start
+
+
+end::
+a.a=a
+a.b=1
+update
+dinit "ToneTune"
+dtext "","a simple tone generator"
+dtext "","freeware - please distribute"
+dtext "",a$
+giprint a$
+dialog
+ENDP
+

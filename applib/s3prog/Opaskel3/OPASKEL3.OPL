@@ -1,0 +1,903 @@
+
+REM Skeleton OPA Type 3 Application
+REM
+REM FOR SERIES 3 AND SERIES 3A
+REM --------------------------
+REM 
+REM This program is designed to be a
+REM starting point for you to develop
+REM your own applications.
+REM
+REM Translate it, and play with it.
+REM
+REM It does nothing. (except as
+REM an example, it displays `Data'
+REM files.)
+REM
+REM It contains the system message
+REM processing that all type 3
+REM applications require. Just add in
+REM your functionality, and remove
+REM surplus items (timers etc.)
+REM Use `Outline' mode in the program
+REM editor to get an overview.
+REM
+REM NOTE: The `File' menu
+REM IS IN COMPLETE WORKING ORDER
+REM (for OPL type data files *only*)
+REM
+REM Status Window (Control-Menu)
+REM also fully operational (3a too)
+REM
+REM This code could be streamlined
+REM much more. Particularly, I feel
+REM that the `File' menu choices need
+REM extra layering, as they are so
+REM similar to each other.
+REM 
+REM If you have got any other
+REM suggestions, or bug-reports, then
+REM please email me, jezar@cix
+REM
+REM Freely distributable, so;
+REM NO WARRANTIES GIVEN
+REM----------------------------------
+
+
+REM----------------------------------
+REM
+REM The APP name is the one that will
+REM appear under the icon in the 
+REM `System' screen. It does *not* 
+REM have to be the same as the 
+REM filename.
+
+APP OpaSkel3
+	REM Put icons etc. here too.
+	TYPE $1003 
+	
+	PATH "\SKL"
+	EXT  "SKL"
+	REM Change the above to anything.
+	REM but also the global `basenam$'
+ENDA
+REM----------------------------------
+
+
+REM----------------------------------
+
+PROC startup%:         REM Startup
+	GLOBAL init$(7,7),exit$(3,7),exit%
+	LOCAL i%
+	REM Link all PROCs with GLOBALs
+	i%=i%+1 :init$(i%)="initgen"
+	i%=i%+1 :init$(i%)="inimenu"
+	i%=i%+1 :init$(i%)="inidisp"
+	i%=i%+1 :init$(i%)="initime"
+	i%=i%+1 :init$(i%)="inifile"
+	i%=i%+1 :init$(i%)="main"
+	@%(init$(1)):(1)
+	RAISE -20
+ENDP
+
+
+PROC cleanup%:(er1%)   REM Cleanup
+	LOCAL er2%
+	REM Run any `cleanup' routines.
+	WHILE exit%
+		er2%=@%(exit$(exit%)):
+		exit%=exit%-1
+	ENDWH
+	
+	IF er1%
+		RAISE er1%
+	ELSEIF er2%
+		RAISE er2%
+	ENDIF
+	
+	STOP
+ENDP
+REM----------------------------------
+
+
+REM----------------------------------
+
+PROC main%:(this%)     REM Main proc
+	GLOBAL sStat%,sMsCode%,sMsKmod%
+	GLOBAL command$(130)
+	
+	REM Register our cleanup routine:
+	exit%=exit%+1 :exit$(exit%)="xitmain"
+	
+	REM Call asynchronous GETEVENT
+	IOA(-2,14,sStat%,sMsCode%,#0)
+	
+	REM Main loop - runs *forever*
+	WHILE 1
+		IOWAIT
+		REM What event has happened?
+		
+		REM Timer 1 ?
+		IF tstat1%=0
+			testim1%:
+		
+		REM Timer 2 ?
+		ELSEIF tstat2%=0
+			testim2%:
+			
+		REM Key or System event ?
+		ELSEIF sStat%<>-46
+			LOCK ON REM (block messages)
+			testmsg%:
+			LOCK OFF
+		ENDIF
+		
+	ENDWH
+	REM Code NEVER gets here..
+ENDP
+
+
+PROC testmsg%:
+	REM For performance reasons,
+	REM embed this code in main%:
+	REM I've seperated for clarity.
+	
+	REM Error? (unlikely)
+	IF sStat%<0
+		cleanup:(sStat%)
+	ENDIF
+	
+	REM Message from System screen:
+	IF sMsCode%=$0404
+		command$=GETCMD$
+		FileMngr:(LEFT$(command$,1),MID$(command$,2,130),1)
+		timlive%:
+		
+	REM Help key pressed:
+	ELSEIF sMsCode%=$0123
+		Help%:
+	
+	REM Psion-letter hotkey:
+	ELSEIF (sMsKmod% AND $08)
+		DoMenu:(sMsCode%)
+		
+	REM Menu key:
+	ELSEIF sMsCode%=$0122
+		REM With CTRL key?
+		IF sMsKmod% AND $04
+			togstat%: REM Status window
+		ELSE
+			showmen%: REM Menu display
+		ENDIF
+	
+	REM `Enter' key pressed
+	ELSEIF sMsCode%=13
+		
+		REM With SHIFT key?
+		IF sMsKmod% AND 2
+			IF POS<>1
+				BACK
+				redisp%: REM Show item.
+				
+			ELSE REM  Hit top of file.
+				gIPRINT "First entry"
+				BEEP 5,400
+			ENDIF
+			
+		REM ..or unshifted:
+		ELSE
+			NEXT 
+			IF EOF REM Hit *end* of file.
+				BACK REM (so skip back)
+				gIPRINT "No more entries"
+				BEEP 5,400
+				
+			ELSE   REM Show next entry.
+				redisp%:
+			ENDIF
+		ENDIF
+	
+	REM Program to back (app. key)
+	ELSEIF sMsCode%=$402
+		REM Stop pointless activity:
+		timdead%:
+	
+	REM   Prog to front (app. key)
+	ELSEIF sMsCode%=$401
+		REM In view again, start timers:
+		timlive%:
+	
+	REM Other (unused) special message:
+	ELSEIF sMsCode% AND $400
+		PRINT "System message: $",HEX$(sMsCode%)
+		BEEP 5,500
+	
+	REM Special (non-ASCII) keypress:
+	ELSEIF sMsCode% AND $FF00
+		PRINT "Special key:    $",HEX$(sMsCode%)
+		BEEP 5,500
+		
+	REM Normal ASCII keypress
+	ELSE
+		REM Ignore `Tab' etc., for now.
+		IF sMsCode%>=$20
+			PRINT CHR$(sMsCode%);
+		ENDIF
+	ENDIF
+	
+	REM Call GETEVENT (next key/event)
+	IOA(-2,14,sStat%,sMsCode%,#0)
+ENDP
+
+
+PROC xitmain%:
+	REM Any cleanup for `main' here.
+	REM mainly just cancelling IOA's
+	
+	IF sStat%=-46
+		IOW(-2,4,#0,#0)
+		IOWAITSTAT sStat%
+	ENDIF
+ENDP
+REM------------------------------------
+
+
+REM------------------------------------
+
+PROC inifile%:(this%)  REM File cont
+	REM GLOBALs for files.
+	GLOBAL filenam$(130),basenam$(9)
+	
+	REM It's a common mistake to think
+	REM That the APP details set the
+	REM following up. 
+	REM This isn't true, and usually
+	REM LOADS of problems occur. You 
+	REM *must* do it yourself.
+	
+	basenam$="\SKL\.SKL"
+	
+	REM The above is the only ref to
+	REM any hardcoded path & extension.
+	REM Note NO DRIVE NAME is fixed.
+	REM I think that is the best way.
+	
+	REM Link-in file cleanup routine:
+	exit%=exit%+1 :exit$(exit%)="xitfile"
+	
+	REM Open file from system screen:
+	FileMngr:(CMD$(3),CMD$(2),1)
+	
+	REM Link to next initializer:
+	@%(init$(this%+1)):(this%+1)
+ENDP
+
+
+PROC FileMngr:(command$,file$,showme%)
+	REM This is the file manager.
+	REM It opens/closes data files.
+	
+	LOCAL goodnam$(130),o%(6)
+	LOCAL goodpth$(130),here%,show%
+	show%=showme%
+	
+	REM Get position in case of error:
+	TRAP USE A :REM (avoid POS error)
+	IF ERR=0
+		here%=POS
+	ENDIF
+	
+	REM Close current file (if any)
+	TRAP CLOSE
+	
+	REM Set status window name
+	goodnam$=PARSE$(file$,basenam$,o%())
+	SETNAME goodnam$
+	
+	REM Make path for files
+	goodpth$=MID$(goodnam$,1,o%(4)-1)
+	TRAP MKDIR goodpth$
+	
+	REM If the above failed badly then
+	REM we're in big trouble, but
+	REM `File exists' is OK:
+	IF ERR=0 OR ERR=-32 
+		
+		REM This isn't used in this APP
+		SETPATH goodpth$
+		
+		IF command$="C" REM Create file
+			REM YOUR FILE FORMAT HERE!:
+			TRAP CREATE goodnam$,A,a1$,a2$,a3$,a4$
+		
+		ELSEIF command$="O" REM Open file
+			REM YOUR FILE FORMAT HERE!:
+			TRAP OPEN goodnam$,A,a1$,a2$,a3$,a4$
+	
+		ELSEIF command$="X" REM Exit
+			cleanup%:(0)
+		ENDIF
+	ENDIF
+	
+	REM Re-open previous file if error
+	IF dError%:(0)
+	
+		REM ..no previous file!
+		IF filenam$=""
+			cleanup%:(0)
+			
+		REM Reopen previous file.
+		ELSE
+			goodnam$=filenam$
+			filenam$=""
+			FileMngr:("O",goodnam$,0)
+			
+			REM Reposition to where we were
+			show%=(here%=0)
+			POSITION here%
+		ENDIF
+		
+	REM Success - set global filename.
+	ELSE
+		filenam$=goodnam$
+	ENDIF
+	
+	REM And refresh display
+	IF show%
+		redisp%:
+	ENDIF
+ENDP
+
+
+PROC ChoiceX%:
+	FileMngr:("X","",0)
+ENDP
+
+
+PROC ChoiceO%:
+	REM Open file (dead simple).
+	
+	LOCAL newname$(130)
+	newname$=filenam$
+	
+	dINIT "Open file"
+	dFILE newname$,"File:",0
+	IF DIALOG
+		FileMngr:("O",newname$,1)
+	ENDIF
+ENDP
+
+
+PROC ChoiceN%:
+	REM New file (tricky with template)
+	
+	LOCAL newname$(130),templ$(130),yt%,o%(6)
+	newname$=filenam$
+	
+	REM Create template path
+	templ$="\wdr\"
+	
+	dINIT "Create new file"
+	dFILE newname$,"File:",$11
+	dCHOICE yt%,"Use template","No,Yes"
+	dFILE templ$,"Template:",$21
+	IF DIALOG
+		IF newname$=filenam$
+			dError%:(-40)
+			RETURN
+		ENDIF
+		BUSY "Creating new file",1,1
+		TRAP DELETE newname$
+		IF yt%=2
+			TRAP COMPRESS templ$,newname$
+			IF dError%:(0)=0
+				FileMngr:("O",newname$,1)
+				BUSY OFF
+				RETURN
+			ENDIF
+		ENDIF
+		FileMngr:("C",newname$,1)
+	ENDIF
+	BUSY OFF
+ENDP
+
+
+PROC ChoiceA%:
+	REM Save as <name> (uses copying)
+	
+	LOCAL newname$(130),new%,here%
+	newname$=filenam$
+	
+	dINIT "Save as"
+	dFILE newname$,"File:",$11
+	dCHOICE new%,"Use new file","No,Yes"
+	
+	IF DIALOG
+		IF newname$=filenam$
+			dError%:(-40)
+			RETURN
+		ENDIF
+		
+		here%=POS
+		TRAP CLOSE
+		IF dError%:(0)=0
+			TRAP DELETE newname$
+			IF ERR=0 OR ERR=-33
+				BUSY "Saving",1,1
+				TRAP COMPRESS filenam$,newname$
+			ENDIF
+		ENDIF
+		
+		IF new%=1 OR dError%:(0)
+			FileMngr:("O",filenam$,0)
+		ELSE
+			FileMngr:("O",newname$,0)
+		ENDIF
+		POSITION here%
+	ENDIF
+	BUSY OFF
+ENDP
+
+
+PROC ChoiceD%:
+	REM Save as template
+	
+	LOCAL newname$(130),o%(6),here%
+	newname$=PARSE$("\WDR\",filenam$,o%())
+	
+	dINIT "Save as template"
+	dFILE newname$,"File:",$11
+	
+	IF DIALOG
+		IF newname$=filenam$
+			dError%:(-40)
+			RETURN
+		ENDIF
+		
+		here%=POS
+		TRAP CLOSE
+		IF dError%:(0)=0
+			TRAP DELETE newname$
+			IF ERR=0 OR ERR=-33
+				BUSY "Saving template",1,1
+				TRAP COMPRESS filenam$,newname$
+			ENDIF
+		ENDIF
+		
+		FileMngr:("O",filenam$,0)
+		POSITION here%
+	ENDIF
+	BUSY OFF
+ENDP
+
+
+PROC ChoiceM%:
+	REM Merge in
+	
+	LOCAL newname$(130),o%(6),here%,fend%
+	fend%=EOF
+	newname$=filenam$
+	
+	dINIT "Merge in"
+	dFILE newname$,"File:",$0
+	
+	IF DIALOG
+		IF newname$=filenam$
+			dError%:(-40)
+			RETURN
+		ENDIF
+		
+		here%=POS
+		TRAP CLOSE
+		IF dError%:(0)=0
+			BUSY "Merging",1,1
+			TRAP COMPRESS newname$,filenam$
+		ENDIF
+		
+		FileMngr:("O",filenam$,fend%)
+		POSITION here%
+	ENDIF
+	BUSY OFF
+ENDP
+
+
+PROC ChoiceK%:
+	REM NOTE THAT THE COMPRESS OPTION
+	REM IS NOT RECOMMENDED FOR OPL
+	REM PROGRAMS - ALL DATA FILES
+	REM ARE COMPRESSED AUTOMATICALLY
+	REM ON EXIT (except on Flash)
+	REM
+	REM This routine is provided as
+	REM an example for programs you
+	REM want to keep permanantly open
+	REM and would therefore need such
+	REM an option.
+	
+	LOCAL chan%,tmpname$(130),here%
+	tmpname$=filenam$
+	
+	REM Get a unique name:
+	IF IOOPEN(chan%,ADDR(tmpname$),4)=0
+		IOCLOSE(chan%)
+		TRAP DELETE tmpname$
+		IF dError%:(0) :RETURN :ENDIF
+		
+		here%=POS
+		TRAP CLOSE
+		IF dError%:(0) :RETURN :ENDIF
+		
+		BUSY "Compressing",1,1
+		TRAP COMPRESS filenam$,tmpname$
+		IF dError%:(0)=0
+			TRAP DELETE filenam$
+			IF dError%:(0)=0
+				TRAP RENAME tmpname$,filenam$
+				dError%:(0)
+			ELSE
+				TRAP DELETE tmpname$
+			ENDIF
+		ELSE
+			TRAP DELETE tmpname$
+		ENDIF
+		FileMngr:("O",filenam$,0)
+		POSITION here%
+	ENDIF
+	BUSY OFF
+ENDP
+
+
+PROC xitfile%:
+	REM Any file-system related cleanup here
+	TRAP CLOSE
+ENDP
+
+
+
+REM-----------------------------------------
+PROC help%:            REM Dialogs
+	LOCAL choose%
+	
+	REM Your help here (naturally :-)
+	dINIT
+		dTEXT "","Help: OPA Skeleton V3.21",$302
+		dTEXT "","þItem 1",$500
+		dTEXT "","þItem 2",$500
+		dTEXT "","þItem 3",$500
+	choose%=DIALOG
+	
+	REM You would typically VECTOR on
+	REM the choose% variable here for
+	REM further `help' items.
+ENDP
+
+
+PROC dError%:(error%)
+	REM User error notification of error
+	LOCAL errno%
+	
+	IF error%
+		errno%=error%
+	ELSE
+		errno%=ERR
+	ENDIF
+	
+	IF errno%
+		dINIT ERR$(errno%)
+			dBUTTONS "Continue",-27
+		DIALOG
+		RETURN errno%
+	ENDIF
+ENDP
+
+
+
+REM-----------------------------------------
+PROC inimenu%:(this%)  REM Menus
+	REM GLOBALs for menu
+	GLOBAL mFixP1&(7),mFixP2&(7),mdata&(8)
+	GLOBAL menuops$(10)
+	
+	REM Allowable menu hot-keys:
+	menuops$="NOAMKDX"
+	
+	REM Initialise MENU Series 3 bug-fix
+	REM Not needed on 3a, but harmless if run.
+	mFixP1&(1)=&8BF88BFC :mFixP1&(2)=&8B00121E
+	mFixP1&(3)=&778B205F :mFixP1&(4)=&E42AAC0C
+	mFixP1&(5)=&A5ABC88B :mFixP1&(6)=&75C084AC
+	mFixP1&(7)=&CBF8E2FB :mFixP2&(1)=&00B4F08B
+	mFixP2&(2)=&FC808BCD :mFixP2&(3)=&AD0D7330
+	mFixP2&(4)=&C932D08B :mFixP2&(5)=&CDD88BAD
+	mFixP2&(6)=&F8754ACF :mFixP2&(7)=&CB
+	
+	@%(init$(this%+1)):(this%+1)
+ENDP
+
+PROC showmen%:
+	LOCAL keycode%
+	
+	mINIT
+		mCARD "File","New file",%n,"Open file",%o,"Save as",%a,"Merge in",%m,"Compress",%k,"Save as template",%d
+		mCARD "Special","Exit",%x
+		
+	REM This machine code is to fix a ROM bug:
+	USR(ADDR(mFixP1&(1)),ADDR(mData&(1)),0,0,0)
+		keycode%=MENU
+	USR(ADDR(mFixP2&(1)),ADDR(mData&(1)),0,0,0)
+		
+	DoMenu:(keycode%)
+ENDP
+
+
+PROC DoMenu:(keycode%)
+	LOCAL k$(1)
+	
+	k$=CHR$(keycode% AND $DF)
+	IF LOC(menuops$,k$)
+		@%("Choice"+k$):
+	ENDIF
+ENDP
+
+
+
+REM-----------------------------------------
+PROC initgen%:(this%)  REM Other
+	REM Stick ESCAPE OFF in here, but
+	REM *ONLY* when fully debugged.
+	
+	REM Prevent this application from
+	REM keeping the machine turned on:
+	CALL ($138b) REM GenMarkNonActive.
+	
+	@%(init$(this%+1)):(this%+1)
+ENDP
+
+
+PROC inidisp%:(this%)  REM Displays
+	GLOBAL StWin%,S3a%
+	
+	REM This is presumtious I know:
+	S3a%=(gHEIGHT=160 AND gWIDTH=480)
+	
+	togstat%:
+	REM For this example only:
+	IF S3a%
+		SCREEN 50,11,2,2
+	ELSE
+		SCREEN 30,7,2,2
+	ENDIF
+	CURSOR ON
+	
+	PRINT "Use ENTER and SHIFT-ENTER"
+	PRINT "(existing data files only)"
+	PAUSE -30
+	
+	@%(init$(this%+1)):(this%+1)
+ENDP
+
+PROC togstat%:
+	REM Status window toggle.
+	LOCAL x%,y%,w%,h%
+	
+	gAT gWIDTH-2,0
+	gFILL 2,gHEIGHT,1
+	IF S3a%
+		REM My bizzare modulo command :-)
+		StWin%=LOC("20",CHR$(StWin%+%0))
+		
+		REM OS version of STATUSWIN x (3a)
+		CALL($6B8D,StWin%)
+		
+		REM Get status window size
+		CALL($F08D,-1,0,0,ADDR(x%))
+		
+	ELSE
+		StWin% = NOT StWin%
+		IF StWin% 
+			STATUSWIN ON 
+			w% = 50
+			x% = 189
+		ELSE
+			STATUSWIN OFF
+			w% = 0
+			x% = 240
+		ENDIF
+	ENDIF
+	
+	gSETWIN 0,0,x%,gHEIGHT
+	gAT gWIDTH-2,0
+	gFILL 2,gHEIGHT,1
+	gBORDER 0
+	redisp%:
+ENDP
+
+
+PROC redisp%:
+	REM Screen redrawing goes here.
+	
+	TRAP USE A REM Check file is open.
+	IF ERR :RETURN :ENDIF
+	CLS
+	prec%:(A.a1$)
+	prec%:(A.a2$)
+	prec%:(A.a3$)
+	prec%:(A.a4$)
+	PRINT ""; REM Move cursor
+ENDP
+
+
+PROC prec%:(rec$)
+	REM Print out a record, replacing
+	REM line breaks with commas.
+	
+	LOCAL nl%,onl%,brk$(255)
+	
+	brk$=rec$
+	onl%=1
+	
+	DO
+		IF nl%
+			PRINT ",",
+		ENDIF
+		brk$=MID$(brk$,onl%,254)
+		nl%=LOC(brk$,CHR$(21))
+		IF nl%=0
+			nl%=255
+		ENDIF
+		PRINT LEFT$(brk$,nl%-1);
+		onl%=nl%+1
+	UNTIL nl%=255
+	PRINT
+ENDP
+
+
+REM-----------------------------
+REM Additional example stuff:
+REM
+REM This next section, is taken from
+REM my "timers" example. It is a
+REM good example of how to slot in a
+REM new code section with globals.
+REM
+REM So.. Basically the only refs
+REM to this code, in ANY of the code 
+REM above are:
+REM
+REM initime%:
+REM testim*
+REM timlive%:
+REM timdead%:
+REM
+REM and the two status words tstat*
+REM
+REM You would probably strip this
+REM timer code out in a real app.
+REM (unless you need timers! :-)
+
+
+PROC initime%:(this%)  REM Timer demo
+	GLOBAL tenths1&,tenths2&
+	GLOBAL tchan1%,tchan2%
+	GLOBAL tstat1%,tstat2%
+	GLOBAL tbit%,cid%,tlive%
+	LOCAL width%
+	
+	REM remember current bitmap
+	cid%=gIDENTITY
+	width%=gWIDTH
+	
+	REM create a new bitmap
+	tbit%=gCREATE(width%-25,10,58,50,1)
+	gBORDER 1
+	gAT 4,14
+	gPRINT "Timers:"
+	
+	REM Our timer speeds:
+	tenths1&=5 :tenths2&=7
+	
+	REM Open two timer channels:
+	iocheck%:(IOOPEN(tchan1%,"TIM:",-1))
+	iocheck%:(IOOPEN(tchan2%,"TIM:",-1))
+	
+	REM Start the timers:
+	timlive%:
+	
+	REM Switch to original bitmap
+	gUSE cid%
+	
+	REM install timer cleanup:
+	exit%=exit%+1 :exit$(exit%)="xittim"
+	
+	REM and link to next initiator:
+	@%(init$(this%+1)):(this%+1)
+ENDP
+
+
+PROC testim1%:
+	REM test timer 1
+	LOCAL cid%
+	
+	REM remember current window
+	cid%=gIDENTITY
+	
+	REM switch to timer bitmap:
+	gUSE tbit%
+	
+	REM Render graphics for timer 1:
+	gAT 10,23
+	gINVERT 10,10
+	
+	REM We now restart this timer:
+	iocheck%:(IOA(tchan1%,1,tstat1%,tenths1&,#0))
+	
+	REM switch back to original bitmap
+	gUSE cid%
+ENDP
+
+
+PROC testim2%:
+	REM test timer 2
+	LOCAL cid%
+	
+	REM remember current window
+	cid%=gIDENTITY
+	
+	REM switch to timer bitmap:
+	gUSE tbit%
+	
+	REM render timer 2 graphics:
+	gAT 27,19
+	gINVERT 20,20
+	
+	REM We now restart this timer:
+	iocheck%:(IOA(tchan2%,1,tstat2%,tenths2&,#0))
+	
+	REM switch back to original bitmap
+	gUSE cid%
+ENDP
+
+
+PROC timlive%:
+	REM start both timers:
+	IF tlive%=0
+		iocheck%:(IOA(tchan1%,1,tstat1%,tenths1&,#0))
+		iocheck%:(IOA(tchan2%,1,tstat2%,tenths2&,#0))
+		tlive%=1
+		gIPRINT "Timers started"
+	ENDIF
+ENDP
+
+
+PROC timdead%:
+	REM Kill timers
+	IF tlive%
+		IOW(tchan2%,4,#0,#0)
+		IOWAITSTAT tstat2%
+		IOW(tchan1%,4,#0,#0)
+		IOWAITSTAT tstat1%
+		tlive%=0
+	ENDIF
+ENDP
+
+
+PROC xittim%:
+	REM Cancel everything:
+	timdead%:
+	
+	REM ..and close:
+	IOCLOSE(tchan2%)
+	IOCLOSE(tchan1%)
+	gCLOSE(tbit%)
+ENDP
+
+PROC iocheck%:(code%)
+	IF code%
+		cleanup%:(code%)
+	ENDIF
+ENDP
+
+
+REM ---- End of file ----
+
+

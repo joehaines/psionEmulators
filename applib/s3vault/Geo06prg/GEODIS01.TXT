@@ -1,0 +1,555 @@
+GeoDis v1.06
+============
+Overview
+========
+GeoDis (Geographical Display)  -  (c) 1995-97 Rolf Aeschbacher
+
+This  program  draws maps of different countries on the Psion Series 3a/3c. You
+can  move the map around, enlarge or reduce it (zooming) and you can search for
+and display places. Information such as distance between places, population and
+elevation of cities etc. can be viewed.
+
+GeoDis  uses  overlays to draw details such as roads, lakes, hotels etc. on the
+map. You can turn overlays on or off at any time.
+
+This  program  was  developed  specifically  for  the Psion Series 3a, with two
+objectives  in  mind:  low  disk  and memory usage and fast screen drawing. The
+first  goal  was achieved by using compact binary files that are only loaded by
+the  program  when  required.  The  second  goal,  fast  drawing speed, is more
+difficult  to achieve, as it is dependent on processor speed. Waiting time can,
+however, be reduced by interrupting screen-redraws by pressing ESC or any other
+active  key  (eg. pressing F interrupts screen drawing and goes straight to the
+"Find" menu).
+
+Note: Files that are contained in the full version only and functions that only
+the full version has, are marked with [*] below.
+
+Installation
+============
+If  you have installed an earlier version of GeoDis you should first delete all
+files  in the directory \APP\GEODIS\ as well as the file \APP\Geodis.opa. Also,
+remove the application from the system screen.
+Note:  Since  version  1.03  GeoDis  resides  in  \APP\GEODIS\  to make it more
+standard. Since version 1.05 each map has its own directory in \APP\GEODIS\.
+
+- in \APP\
+  Geodis.opa
+
+- all common files in \APP\GEODIS\
+  Geodis.pic
+  Georich.opo
+  Geosupp.opo
+  Geogps.opo (for GPS support, optional)
+  Geomsg.01 (English texts) or
+  Geomsg.03 (German texts)
+  Geohlp.01 (English online help, optional) or
+  Geohlp.03 (German online help, optional)
+  *.ini  the initialisation files of the maps you want to install
+
+About ini-Files and maps
+------------------------
+All  .ini  files  may  be  renamed  or  copied.  Thus if you copy Europa.ini to
+Europe.ini you can start both and have different views of the same map! In this
+case  I  also recommend assigning an application button to GeoDis - this allows
+you to switch between the views by just pressing a button.
+Maps  can  be  on any drive. GeoDis checks the drive from which it was started,
+then  the  drives  M,  A  and B (in that order) for \APP\GEODIS\Geodis.pic. The
+drive  on  which that file is first found must contain the common files Geomsg,
+Geohlp  and the .opo files. GeoDis can be started directly from a remote drive,
+for example from a DOS disk in the Cyclone drive.
+
+Installation Schweiz/Switzerland
+--------------------------------
+
+see separate file
+
+Installation Austria/Oesterreich
+--------------------------------
+
+see separate file
+
+Installation Germany/Deutschland
+--------------------------------
+
+see separate file
+
+Installation US-City
+--------------------
+
+see separate file
+
+Installation USA
+----------------
+(all states, largest cities)
+\APP\GEODIS\Usa.ini
+all other files in \APP\GEODIS\USA\
+Border.us
+County??.us
+Dist.us1
+Ewho.us
+City1?.us1 (3 files)
+Default.us3
+Mapinf01.us
+Overlays (optional, extensions us2 and us3):
+- Lakes	the big lakes
+- States	the states
+- Pun_*	the states with Capital Punishment (5 overlays)
+
+Installation Europe
+-------------------
+(Europe overview with largest cities, islands)
+\APP\GEODIS\Europa.ini
+all other files in \APP\GEODIS\EUROPA\
+Border.eu
+County??.eu
+City1?.eu1 (3 files)
+Dist.eu1
+Mapinf01.eu
+Overlays (optional, extensions eu2 and eu3):
+Country.eu2	Country borders
+Islands	Islands
+
+Installation M‚tro
+------------------
+(Paris subway, all stations)
+\APP\GEODIS\Metro.ini
+all other files in \APP\GEODIS\METRO\
+Border.me
+County01.me
+City??.me1 (6 files)
+Mapinf01.me
+Overlays (optional, extensions me2 and me3):
+Lines1	M‚tro lines
+Lines2	R.E.R. lines
+Saine	River, islands and city limits
+
+Installation France1
+--------------------
+(all departements with their numbers/names, no cities)
+\APP\GEODIS\France1.ini
+all other files in \APP\GEODIS\FRANCE1\
+Border.f1
+Overlays (optional, extensions f12 and f13):
+- Departem	all departements
+
+Installation Canaries
+---------------------
+(overview map of the Canary Islands)
+\APP\GEODIS\Canaries.ini
+all other files in \APP\GEODIS\CANARIES\
+Border.ci
+Mapinf01.ci
+Overlays (optional, extensions ci2 and ci3):
+Cities	Capital cities
+Islands	Names of the islands
+Longlat	Longitude/Latitude grid
+Peaks	Peaks, largest elevation
+
+Installation Vector
+-------------------
+(some vector graphics as overlays, of course with Zoom)
+\APP\GEODIS\Vector.ini
+all other files in \APP\GEODIS\VECTOR\
+Border.ve
+Overlays (optional, extensions ve2 and ve3):
+- Columbia	Space 'ship' Columbia
+- Illusion	Optical illusion
+- Krumm	Optical illusion
+- Lissajou	Lissajous
+- Maisha	Vector girl
+- Penrose	Optical illusion
+- Porsche	surprisingly, a Porsche
+- Skull	yes, a skull!
+- Spiral	Mega spiral
+- World	Globe
+
+Install Geodis.opa with Psion-I.
+--------------------------------
+
+Files not needed by the program
+-------------------------------
+Geocomp.opo	to create overlays [*]
+Geomanag.opo	Manager for GeoDis files [*]
+Geodis01.txt	English documentation (ASCII file)
+Geodis03.txt	German documentation (ASCII file)
+Geodis01.wrd	Doc in Psion WRD format (available on request)
+Geodis03.wrd	Doc in Psion WRD format (available on request)
+
+Configuration files
+-------------------
+The  files Geodis.??s and Geodis.reg are created automatically in the directory
+M:\OPD\. The former contains the setup and the latter the registration details.
+See also the section "Setup" below.
+
+Keys
+====
++ - 1 2 3 4 5 6 7: zoom in/out, select zoom level
+Arrows: scroll map, Psion-Arrows: scroll map in large steps
+ESC: stop drawing
+Space: full redraw
+Enter: redraw overlays
+Star *: center again
+Help key: online help. please read!!
+TAB: toggle scale ruler
+Diamond: much/few detail
+
+Display (A)
+===========
+To  make  the program more flexible and to save memory, the maps are subdivided
+into  up  to seven regions. Psion-M shows information about the loaded map when
+the relevant Mapinf file is present.
+
+Formulas (A)
+============
+Only  maps  with cities: The 'display' dialog has an entry 'Places by formula'.
+Activate it and you will be able to enter a formula. For the data of each place
+the  formula  is  computed (using EVAL). If the result gives TRUE that place is
+drawn on the map.
+
+Variable sized marks:
+---------------------
+If  you  choose  "variable"  from  "Display",  GeoDis uses different font sizes
+dependent on population for the place names. Small italic font means that there
+is no population data present. 8 different fonts are used.
+If  you  choose "outlined box" or "filled box", each place matching the formula
+is  drawn  as  a box on the map. The size of this box depends on the population
+and  the  elevation: the larger the population the wider the box and the larger
+the  elevation  the  taller the box. The boxes are between 1 to 16 pixels large
+(inclusive), where 1 pixel wide/tall means that the population/elevation is not
+known. You can as always press B to turn the text display on/off.
+
+Examples for formulas: see online help!
+---------------------------------------
+
+Diamond key
+===========
+Switch between much and few detail (all cities/large cities).
+
+Info about places (I)
+=====================
+The following information about cities is displayed:
+- Canton, state or country
+- Elevation (m or ft)
+- Population (for Switzerland based on the 1990 national census)
+- Swiss map: Coordinates (national grid), with a precision of 1 km
+- Swiss,  Austria & US-City map: Geographical coordinates (longitude/latitude),
+  calculated from the grid coordinates
+- Swiss  map:  Locator; a code which is used for HAM Radio and Packet Radio for
+  worldwide positioning, calculated from the geographical coordinates (example:
+  JN47HM)
+
+If  it  is  an item from an overlay you will see the name of the overlay in the
+title in angle-brackets [...].
+
+Distances (D, T)
+================
+Psion-D
+-------
+The 'distance as the crow flies' is calculated from the coordinates.
+
+Note:  Unfortunately  the  distances  calculated  for  the USA map are not very
+accurate. Use those figures with care.
+
+GeoDis also calculates the bearing which is the direction from one place to the
+other.
+
+Psion-T
+-------
+Many  GeoDis  maps  have distance tables. The program knows the distance on the
+road  between  the  cities  contained  in this list. Choose two such cities and
+press D for distance.
+
+
+Searching (F, L)
+================
+The  search  text  can  be  up to 30 characters long. It is case INsensitive by
+default and 'Umlauts' don't have to be entered. If you enter 'zur' GeoDis finds
+Zurich, Zurzach etc.
+GeoDis  always  searches  all parts (three for the Swiss map), whether they are
+activated  or  not  (see Psion-A, "places", to activate), however the activated
+parts are searched first.
+
+Psion-F
+-------
+F searches for places or for texts in overlays. You can press Psion-Enter after
+entering a search text to search through all overlays.
+
+Psion-L
+-------
+L  searches  for  cities only and presents all cities that have been found in a
+sorted list.
+
+Anchor city (N)
+===============
+You  can  anchor  a  place  that  is  already  displayed.  All further distance
+calculations will be made from that place.
+
+History (G)
+===========
+Places selected during a GeoDis session are stored in their own list, which can
+be  recalled  by pressing G. If a place is selected from this list, the program
+switches to the search function, using the place-name as search text.
+
+Overlays (O, P)
+===============
+Overlays  can  either  be  points (cities, hotels etc.) or lines (roads, lakes,
+rivers etc.). The former can be represented by a picture.
+
+Psion-O
+-------
+An  overlay  can be drawn black or grey. For 'point overlays' you can choose to
+display  it  as  picture  or  as   text   (Psion-A).   Psion-Enter   lets   you
+activate/deactivate all overlays.
+
+Psion-P
+-------
+This presents a list of all overlays. Choose one to see its description.
+
+Files  with the extension .??2 are overlays (the two ? stand for the map code -
+CH for Switzerland, US for USA etc.).
+The  extension  .??3  is used for the appropriate icons. These are standard PIC
+images,  which can easily be changed with a pixel editor. These pictures can be
+arbitrarily  large,  but  currently  the program places them correct on the map
+only if they are square.
+
+Currently  a maximum of 28 overlays can be displayed simultaneously (six in the
+unregistered version).
+
+Registered  users  can create their own overlays. The full version contains the
+program you need to do that: Geocomp.opo.
+
+GPS
+===
+If  you  connect  the Psion to a GPS (Global Positioning System) GeoDis will be
+able  to  display  the  current position and direction of movement on the Swiss
+map. You'll need an NMEA-0183 compatible GPS unit (I have the Garmin GPS 38), a
+serial cable for the GPS and a serial link for the Psion S3a/3c.
+
+Because  the Swiss map is based on a 1 kilometer grid the coordinates read from
+the GPS will be rounded up/down to a hole number of kilometers.
+
+Note that GPS support is only available when the file \app\geodis\geogps.opo is
+found at programstart.
+
+First  connect  the  GPS  with  the  Psion,  then activate GPS within GeoDis by
+pressing  Psion-Shift-G.  Turn  on the GPS and activate NMEA output. As long as
+the  GPS has no "fix" GeoDis will display "invalid fix" or "invalid data". Only
+when  GeoDis  receives  the  first  valid  position  the blinking cross will be
+displayed on the map.
+
+Press  SPACE  to  immediately read out the coordinates from the GPS even if the
+time  interval was not over yet. If position or direction has changed since the
+last readout the display will be changed accordingly.
+
+Should  the  logfile  (Gpstemp.*)  be  in  use  or  read-only  NO error will be
+generated - the data is simply not saved. This is because an error prompt would
+interrupt the running program. If GeoDis displays the coordinates at the bottom
+right  corner  together with "/log" then you can be sure that the data has been
+saved correctly. If just the course (magnetic heading) changes, no log entry is
+written.
+
+Simulator: Press Psion-Shift-G, then Psion-Enter. This shows how the moving map
+works without having to connect a GPS to the Psion.
+
+Setup
+=====
+The registered version automatically saves your setup when you quit the program
+(file  M:\OPD\Geodis.??s,  separate  for  each  map).  You  can set this file's
+attribute  to  'read only' once you are satisfied with your setup. I personally
+use Psion-Esc to quit GeoDis - although this means aborting the program you can
+do no harm to the Psion because GeoDis has only read access to its data.
+Zoom  setting and map position is also saved at program exit. If you cannot see
+the  map  after starting the program, try pressing 1 for smallest zoom. If this
+doesn't  help,   you   can   safely   delete   the   relevant   settings   file
+(M:\OPD\Geodis.??s)  so  GeoDis  will  use default settings when you next start
+that  map.  Of  course  you  can  also  press  F  and  search for a place, this
+automatically recenters the map.
+
+Memory
+======
+You  need max. 100k internal memory to fully use GeoDis with the Swiss map. The
+other maps run with less memory because they contain fewer cities.
+
+Updates
+=======
+1.02
+- the large screen in the S3a emulator is used automatically
+- keys 1 - 7 jump to a specific zoom
+- formulas (Psion-A)
+- extended overlay format
+1.03
+- several maps
+- Psion-Enter  from  the Info dialog can be used to save the coordinates of the
+  current place. Use the module Geocomp.opo to create your own overlays. [*]
+- language  independence  because  of  message  files. Currently there are only
+  codes  3  (German)  and  1 (English) supported. You can rename these files to
+  default  to  the other language (rename *.01 to *.03 or reversed). It is also
+  possible to press PSION while starting GeoDis - this swaps the language.
+- conversions between mi, km, ft, m
+1.04
+- max. 28 Overlays
+- enhanced searching (exact match)
+- Psion-Enter searches in all overlays
+- Swiss   border created again (some Swiss villages were placed in Germany...),
+  Border of Liechtenstein
+- new maps: France1, Vector
+- Geosupp.opo is now needed in any case
+- variable sized marks in the formula menu
+- Distance table for the USA map
+- Swiss map: HAM-Radio/Packet Radio Locator
+1.05
+- Overlays:  Firmen  (enterprises),  Best Western, McDonald's actualised (Swiss
+  map)
+- new maps: Germany, Europe, M‚tro, Canaries
+- conversion: m to ft is now calculated correctly
+- Info about maps: mapinf01.?? files (currently in English only)
+- display all/no overlays: Psion-O, then Psion-Enter
+- Bearing info when viewing distance between places
+- Each  map  has  now its own directory in \APP\GEODIS\. This makes handling of
+  the maps easier and also speeds up file access.
+- always  all  city  parts  all searched, but starting with the activated parts
+  (Psion-A, places)
+- introduced  language  specific  County  files:  County.xx  files  renamed  to
+  County??.xx where ?? is currently 01=English and 03=German. GeoDis checks the
+  presence  of  both  files  but uses the language which is in the Psion ROM in
+  preference.  Holding  the  Psion  key  down while GeoDis starts will swap the
+  language.
+- limitation  removed  in  the  unregistered  version:  diamond  key,  history,
+  distance table
+- better  display handling, less screen redraws needed when using overlays; use
+  SPACE for a full redraw and ENTER to redraw just overlays
+- Geomanag.opo:  lists  files which belong to a map or counts all GeoDis files.
+  Also shows the two letter extension code: city1a.ch1 - CH is the code for the
+  Swiss  map.  Geomanag  can  also  copy or delete a map. To stop the scrolling
+  display, use Ctrl-S to pause and Ctrl-Q to continue the output. [*]
+- Zoom setting and map position is also saved at program exit
+- Formulas (Psion-A): different font sizes dependent on population
+- Geocomp can not only compile point overlays but now also line overlays [*]
+1.06
+- Locator is now Psion-Y
+- Psion-P: number of objects and size of overlay is given in the title
+- Save  coordinates:  Psion-Shift-Enter  or  Psion-Enter;  always  saved in the
+  internal drive (Geotemp). This allows running GeoDis from a read only disk.
+- fixed a bug which prevented GeoDis from running from the Cyclone disk drive
+- Display places and formulas is now Psion-S - can have up to 7 city files (was
+  3)
+- changed county file format to include menu texts (Psion-S)
+- introduced geo_xx.opo files (map specific routines)
+- city search can be aborted by pressing ESC
+- Geocomp.opo:  new option will allows overlay source files to have the overlay
+  description on the first line of the source
+- Display routines made faster for cities and for point overlays
+- GeoDis logo appears only every 10 times (approx.) when the program starts
+- Place names and overlay texts can be turned on/off independently. Psion-J for
+  place  names  and Psion-K for overlay texts. Psion-B overrides J/K and always
+  switches between text display on/off.
+- GPS  support:  only  available  when  \app\geodis\geogps.opo  is   found   at
+  programstart.
+- Schweiz:  new  Overlay  Gourmet;  Overlay  Kantone:  cantons  in  the   usual
+  languages, with population; updated overlay Bowling
+- Germany:  Overlays  Inseln,  Berge,  KFZ (car registration), Laender (federal
+  states) with population
+- Europa:  new  overlay  Country;  overlay  Islands:  added  Malta  +  Elba and
+  capitals/area/country
+- New  Map: US-City. For technical reasons, there is no border with this map at
+  largest scale.
+- Fixed memory problem with the distance table: when Alloc fails, the heaps are
+  compressed,  followed  by another Alloc. When this fails, an error message is
+  given.
+- new map: Austria
+- Changes to the display routines to make GeoDis more Siena compatible
+
+Registration (R)
+================
+This  program is not free. You can try it out for two weeks without obligation.
+If  you  like the program, then you must register it after this time, or delete
+the program. Registration is through payment of a small fee (see below).
+
+What are the advantages of registration?
+----------------------------------------
+You  will  receive  a code which you can enter in the "Register" menu selection
+(Psion-R). This enables additional features as follows:
+
+- the limitation to six overlays disappears
+- your setup is saved
+- 100 instead of 20 found places can be viewed in a sorted list
+
+With  the  additional  program  "Geocomp"  you  will be able to create your own
+overlays.
+
+You  may  pass  this  program over to friends, but only complete and unchanged.
+However  you  are NOT allowed to copy the full version which you have paid for.
+Note  that, once registered, there is a file Geodis.reg which you must not copy
+- it contains your name.
+
+Please  support the shareware system! Only through your support can it survive.
+If  nobody registers the program, I have no motivation for further development,
+and  I  will  ask  myself  whether it would have been better to release it as a
+commercial product.
+
+Cost:
+-----
+Registration costs only CHF 20 or US$ 20 or GBP 15 in cash.
+
+The  small  maps (small in bytes) are fully included with the Shareware version
+and with the full version of GeoDis:
+USA, Europa, France1, Metro, Canaries, Vector.
+
+The big maps cost one registration fee each.
+Currently these maps are:
+- Schweiz (3000 places)
+- Austria (2400 places)
+- Germany (1500 places)
+- US-City (6400 places)
+
+For  one  registration  fee there is one of the above maps included. If you pay
+US$40  you  can choose two maps etc. Please notify the name(s) of the map you'd
+like to register to me when registering.
+
+Checks are very expensive to cash with the bank. So if you have to send a check
+please add 20 % to the amount.
+
+You  can  register  online  via  Compuserve (US$ 22): GO SWREG, then follow the
+instructions. The registration ID for GeoDis is 6320.
+
+In  Germany  GeoDis is distributed by PSIOlogic. If you credit their account by
+DM 30 you will be sent the full version and the registration code.
+PSIOlogic
+Michael Baas
+Taunusstrasse 4
+D-63589 Linsengericht
+Tel 06051 470065
+Fax 06051 470066
+Account 305006 Raiffeisenbank Gelnhausen (BLZ: 507 626 49)
+
+Delivery: on a PC DOS disc or for Compuserve members by binary e-mail.
+
+Registered  users  of GeoDis will receive updates free and automatically if the
+update can be sent by e-mail. If you don't have access to electronic mail I ask
+you to send a formatted DOS disc and a SAE (self-addressed envelope).
+
+If you cannot read ZIP compressed files, please tell me so with your order. You
+will then be sent a disc with the uncompressed files.
+
+Disclaimer
+==========
+GeoDis  has  been  tested  as  much  as  possible and all data has been entered
+carefully.  However  I cannot guarantee that this program works as expected and
+that  the information presented is correct in any case. The program is provided
+'as is', you use it at your own risk.
+
+Author
+======
+Rolf Aeschbacher
+Bacheggweg 2
+CH-8424 Embrach
+Switzerland
+
+E-Mail: 100116.3357@compuserve.com
+Compuserve: 100116,3357
+FidoNet: 2:301/811.26
+Homepage: http://ourworld.compuserve.com/homepages/aeschbi/
+National giro account (PC): 84-51241-4
+
+[End of file]
+

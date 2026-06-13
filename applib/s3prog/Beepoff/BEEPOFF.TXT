@@ -1,0 +1,114 @@
+Notes on BEEPOFF.OPL
+====================
+This Opl program makes a short sequence of beeps just before the S3
+switches off (in most cases).  It could certainly be improved, eg to
+play a customisable .WVE sound instead.
+
+As it stands, BEEPOFF.OPL works on either the S3a or the S3 classic.
+
+The program, and its accompanying notes, may also be of interest as:
+   * an example of multiple event source handling (asynchronous i/o)
+   * how to tell, in your program, whether the processor is busy
+   * how to tell if mains is plugged in, etc, etc.
+
+Background: switching off and capturing the "off event"
+-------------------------------------------------------
+There are four reasons why an S3(a) can switch off:
+   1 A program calls OFF explicitly
+   2 The user switches OFF
+   3 Auto-switchoff
+   4 Low power emergency switch off.
+
+BEEPOFF only catches cases 2 and 3.  It catches case 2 by "capturing"
+the off key press, which has the special value $2003.  It catches
+case 3 by monitoring a location ($40c) in operating system dataspace,
+which states how many seconds there are to go before auto-switchoff,
+and *pre-empting* auto-switchoff by a couple of seconds.
+
+Thus there is no question of BEEPOFF actually intercepting any "off
+event" (such as device drivers can do): this is, frankly, far too
+dangerous a thing to do, and is also far beyond the scope of this
+discussion (it also turns out that, for most purposes, what is done
+in BEEPOFF is perfectly sufficient to meet the requirements).
+
+Monitoring auto-switchoff
+-------------------------
+The routine TIMELFT%: contains the core logic here.
+
+First it calls NOTIFM%: (NOT IF no auto-switchoff if on Mains), since
+if this condition applies (discussed below), there will no be
+auto-switchoff.
+
+Next, it uses GenGetOsData to read four bytes from $40a in O/S
+dataspace:
+    $40a is the "auto-switchoff value", in seconds (-1 if disabled)
+    $40c is how many seconds are left before auto-switchoff.
+
+Preventing BEEPOFF's activity from counting
+-------------------------------------------
+Note that for this approach to have any relevance, BEEPOFF must
+itself avoid counting as "activity that resets the auto-switchoff
+counter".  This is achieved by calling GenMarkNonActive in startup
+code.
+
+Handling the "If no external power" setting (S3a only)
+------------------------------------------------------
+This is the role of NOTIFM%:.
+The main call here is GenGetAutoMains, which returns 1 if this
+applies.  In this case, NOTIFM%: must go on to call MAINSIN%: to see
+whether mains are present.
+
+Note that GenGetAutoMains is *not supported* on the S3 classic.
+If you call it on that, your program will panic.
+Hence the test on the Window Server type number at the start of
+NOTIFM%:.
+
+Capturing the OFF key:
+----------------------
+The line of code
+    call($c58d,$2003,$e08)
+does this.  The BX parameter is clearly the keycode value.  The CL
+parameter (8) is the *required* modifier value (ie Psion modifier
+down).  The CH parameter ($e) also contains the Shift and Control
+modifiers.  The result of this call is that (eg) Shift-Off or
+Control-Off are *not* captured.
+
+Thus (eg) Control-Off will switch the S3 off without code in BEEPOFF
+getting to hear about it.  Which is probably useful.
+
+Handling multiple events
+------------------------
+BEEPOFF must watch out for either of two things:
+   * the off key being delivered
+   * the auto-switchoff counter going under two seconds.
+
+One approach here would be continuous polling, but that would be
+strongly contrary to the power-saving philosophy of Epoc.
+
+Instead, I use a (relative) timer to waken the program up when a
+suitable duration has elapsed, and an asynchronous keyboard request
+(KEYA) to waken the program up when a key has been delivered.
+
+At any one time, the program always has a keyboard read outstanding,
+and also a relative timer outstanding.  It then calls IOWAIT to wait
+for either of these events "completing".  When it comes out of the
+IOWAIT, it then tests the two associated "status words" to see which
+event has actually occurred.
+
+"Stray signal" panic
+--------------------
+If you wish to rearrange this code, you'ld probably best keep this
+check in, to alert you as quickly as possible to bugs you may
+introduce in the central "get-event" logic.
+
+The call to GenTickle
+---------------------
+The routine DOBEEP: starts by calling GenTickle, to *explicitly*
+reset the inactivity counter - to prevent the S3 switching off
+partway through the subsequent sound sequence (not that it would,
+given the code as it stands, but if you change it, you may be
+grateful for this call).
+
+These notes prepared by:
+------------------------
+David Wood, 18th October 1993.

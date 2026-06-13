@@ -1,0 +1,88 @@
+==========
+psion/opl #2608, from jdawson, 1770 chars, Jan 19 19:12 96
+Comment to 2604.
+----------
+The following program will print out the names of the fields in a DBF
+file. Note this has been simplified, and doesn't  include error
+handling, etc. See page 141 of the S3A programming Manual for further
+info about database info.
+
+APP dbflabel
+TYPE $1004
+PATH "\dat"
+EXT "dbf"
+ENDA
+PROC dbflabel:
+  LOCAL info%(4),len%,ptr%,header%
+  LOCAL ax%,bx%,cx%,dx%,si%,di%
+  rem 
+  rem Open DBF file
+  rem
+  OPEN CMD$(2),A,f1$,f2$
+  rem 
+  rem Get DBF info
+  rem
+  ODBINFO info%()
+  rem 
+  rem DBF Handle
+  rem
+  bx%=PEEKW(info%(1))
+  rem 
+  rem Read Descriptive Record
+  rem
+  ax%=$1700
+  OS($D8,ADDR(ax%))
+  rem 
+  rem Length of record returned in AX
+  rem
+  len%=ax%
+  rem 
+  rem Get pointer to start of record
+  rem (skip 2 byte header)
+  rem
+  ptr%=UADD(PEEKW(UADD(info%(1),8)),2)
+  rem 
+  rem Loop until end of record
+  rem
+  WHILE len%
+    rem
+    rem Get header of next descriptive
+    rem record field. Top nibble is field
+    rem type, rest is field length
+    rem
+    header%=PEEKW(ptr%)
+    rem
+    rem labels are in type 4 fields
+    rem
+    IF header%/$1000=4
+      len%=header% AND $FFF
+      rem
+      rem point to first field name
+      rem
+      ptr%=UADD(ptr%,2)
+      WHILE len%
+        rem
+        rem Print label
+        rem
+        PRINT PEEK$(ptr%)
+        rem
+        rem Advance to next label
+        rem
+        len%=len%-PEEKB(ptr%)-1
+        ptr%=UADD(ptr%,PEEKB(ptr%)+1)
+      ENDWH
+      GET
+      STOP
+    ELSE
+      rem
+      rem Skip to next field in descriptive
+      rem record
+      rem
+      len%=len%-(header% AND $FFF)-2
+      ptr%=UADD(ptr%,(header% AND $FFF)+2)
+    ENDIF
+  ENDWH
+ENDP
+
+Please do contact me if you would like further help or explanation.
+

@@ -1,0 +1,106 @@
+
+<opts>
+<isrc>cell</isrc>
+<iname>Input</iname>
+<iecho>no</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss11</scrfont>
+<statwin>on</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N</rfmt>
+<rall>yes</rall>
+<starg></starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>2</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>100.00</xmax>
+<xmin>0.00</xmin>
+<ymax>1.00</ymax>
+<ymin>-1.00</ymin>
+<xintrvls>10</xintrvls>
+<yintrvls>10</yintrvls>
+<xycells>index,iir</xycells>
+<cell>
+<cname>fir</cname>
+<text>This cell contains an example of a so-called finite impulse response filter.   Evaluate this cell to compute and show the result of applying this fir filter to the input signal defined in the text field of cell >INPUT.</text>
+<val>1.00</val>
+<script>set tap1 to 0
+set tap2 to 0
+set tap3 to 0
+out("\nFIR Filter Example")
+out("\ninput signal, output signal")
+while(not  eof) {
+     in(INPUT)
+     set tap3 to tap2
+     set tap2 to tap1
+     set tap1 to INPUT
+     set fir to tap1/4+tap2/2+tap3/4  
+     out("\n",INPUT,",",fir)
+}</script></cell>
+<cell>
+<cname>home</cname>
+<text>The cell called >iir contains a script that performs a so-called infinite impulse response filter operation on the input defined in the cell called INPUT.
+
+The cell called >fir contains a script which performs a so-called finite impulse response filter operation on the input defined in the cell called INPUT.
+</text></cell>
+<cell>
+<cname>iir</cname>
+<text>This cell contains an example of a so-called infinite impulse response filter.  This is the simplest possible such filter.
+Evaluate this cell to compute and show the result of applying this iir filter to the input signal defined in the text field of cell >INPUT.</text>
+<val>0.76</val>
+<script>set iir to 0
+while(not eof) {
+     set index to index+1
+     in(INPUT)
+     set iir to (iir+INPUT)/2
+     out("\n",INPUT,",",iir)
+}</script></cell>
+<cell>
+<cname>index</cname>
+<val>55.00</val></cell>
+<cell>
+<cname>INPUT</cname>
+<text>0
+1
+1
+1 
+1
+0
+0
+0
+0
+1
+1
+1
+1
+0
+0
+0
+0
+1
+1
+1
+1
+0</text>
+<val>1</val></cell>
+<cell>
+<cname>j</cname>
+<val>20.00</val></cell>
+<cell>
+<cname>tap1</cname>
+<val>1</val></cell>
+<cell>
+<cname>tap2</cname>
+<val>1</val></cell>
+<cell>
+<cname>tap3</cname>
+<val>1</val></cell></eof>

@@ -1,0 +1,81 @@
+/* AC: added these 3 include files */
+
+#ifndef P_EPOC_OPH
+#include <sdk\epoc>
+#endif
+
+#ifndef P_SERIAL_OPH
+#include <p\serial>
+#endif
+
+#ifndef P_MODEM_OPH
+#include <p\modem>
+#endif
+
+#define NCLINK_VERSION_NUMBER       3
+#define NCLINK_MINOR_VERNO          1
+
+/* Informational data obtained by supervisory reads */
+
+#define PHYS_LINK_FAILED        0       /* Link layer has failed*/
+#define PHYS_CONNECT_FAILED     1       /* Waiting for connection failed */
+#define PHYS_CHARS_FAILED       2       /* Setting serial characteristics failed */
+#define PHYS_INIT_FAILED        3       /* Initialization of modem failed */
+#define PHYS_DIAL_FAILED        4       /* Dialling phone number failed */
+#define PHYS_MDMCONFIG_FAILED   5       /* additional modem config failed */
+#define PHYS_PHYS_LINK_ESTABLISHED 6    /* A physical link established */
+#define PHYS_WAITING_FOR_CALL   7       /* Physical layer waiting for call */
+#define PHYS_DIALLING_NUMBER    8       /* Physical layer dialling */
+#define PHYS_CONFIGURING_MODEM  9       /* configuring modem */
+#define PHYS_NCP_LINK_ESTAB_OK  10       /* Ncp link established OK */
+#define PHYS_NCP_LINK_ESTAB_NEW_NCP 11  /* Talking to different Ncp */
+#define PHYS_NCP_LINK_ESTAB_INVALID_VER  12 /* Remote NCP is V1.0 !!*/
+#define PHYS_NCP_LINK_END 13            /* remote NCP is terminating */
+#define PHYS_SERCONFIG_FAILED   14      /* serial port not there */
+
+#define MAX_DVR_NAME    10   /* Max device driver name size (incl zero term) */
+#define MAX_PHONE_NO    40   /* Max phone number length */
+#define MAX_MODEM_CMD   40   /* Max extra modem config */
+
+/* Control functions to perform */
+
+#define NCLINK_CTRL_RETRY   0
+#define NCLINK_CTRL_EXIT    1
+#define NCLINK_CTRL_NEWNCP_OK   2
+#define NCLINK_CTRL_NEW_CONFIG  3
+
+STRUCT DVRS
+	sch#(SIZEOF(P_SRCHAR))
+	mch#(SIZEOF(P_MDMCHR))
+	errcorrect%
+	connectbaud%
+	serdvr#(MAX_DVR_NAME)
+	mdmdvr#(MAX_DVR_NAME)
+	masdvr#(MAX_DVR_NAME)
+	lnkdvr#(MAX_DVR_NAME)
+	phoneno#(MAX_PHONE_NO)
+	mdmconf#(MAX_MODEM_CMD)
+ENDS
+
+STRUCT REM_NCP
+	vers%
+	id&
+ENDS
+
+STRUCT PHY_INFO
+	dummy#(OPPEVAL(max(SIZEOF(REM_NCP),SIZEOF(DVRS))))
+ENDS
+
+STRUCT NCLINK_INFO
+	cmdtype%
+	errno%
+	p#(SIZEOF(PHY_INFO))
+ENDS
+
+STRUCT NCLINK_SREC
+	chanused%
+	xmitK&
+	recvK&
+	procname#(E_MAX_NAME+2)
+ENDS
+

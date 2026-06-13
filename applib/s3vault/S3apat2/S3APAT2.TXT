@@ -1,0 +1,29 @@
+Patch to fix Serial Link power monitor problem.
+
+I'm sorry to report that the current patch to fix the problem with 
+the Serial Link recording a high current useage after the link has 
+been closed has shown up an (otherwise harmless) bug in the built in
+serial driver.
+
+The effect of the bug is for an open such as IoOpen("TTY:A") to hang 
+if no device is present. If the hanging program is then terminated 
+with spy or Psion+Shift+K from the shell then subsequent call to open
+would forever return "Device in use error".
+
+The problem shows up when there are two PDDs for the Serial driver
+with the same name. The fix is simply to change the name of the PDD 
+installed by the patch program. This we have done.
+
+This is the reason for some of the problems reported just recently on 
+Cix and Compuserve.  Thanks to all reports, especially to ANDYSC @
+CIX for a precise description of circumstances when things went wrong.
+
+As the patch is a permanent patch it will be necessary to soft-reset 
+the S3a before applying the updated patch. The dates on the updated 
+patch are both 15th November 1993. The patch program itself claims to 
+be V1.01F.
+
+As a matter of interest the patch program will not apply the patch to 
+a version of the OS that does'nt need it. In EPOC terms this is any 
+version greater than V318F. In terms of the ROM version number this 
+is any version greater than V320F.

@@ -1,0 +1,38 @@
+Simon,
+
+You didn't mention whether you are using OPL or C. Here is some OPL code
+which I use which shows how to print to the destination set in the Psion system
+screen "Printer configuration" dialog. After calling the procedure you can use
+the standard OPL LPRINT command to print.
+
+PROC einitp$:
+	local a$(3),b%(6),r%,d%,f$(P_FNAMESIZE)
+	a$="P$D"
+	r%=call($218b,0,0,3,addr(b%()),uadd(addr(a$),1))
+	if b%(1)=48
+		lopen "par:a"
+		f$="parallel port"
+	elseif b%(1)=49
+		lopen "tty:a"
+		a$="P$S"
+		r%=call($218b,0,0,3,addr(b%()),uadd(addr(a$),1))
+		if r%=12
+			iow(-1,7,b%(1),d%)
+		endif
+		f$="serial port"
+	else
+		a$="P$F"
+		r%=call($218b,0,0,3,uadd(addr(f$),1),uadd(addr(a$),1))
+		if r%>0 and r%<129
+			pokeb addr(f$),r%
+		else
+			f$="\p.lis"
+		endif
+		lopen f$
+	endif
+	return f$
+ENDP
+
+Regards,
+
+Andy

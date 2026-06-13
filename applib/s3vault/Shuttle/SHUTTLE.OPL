@@ -1,0 +1,62 @@
+rem TITLE - SHUTTLE.OPL
+rem 
+rem Copyright (c) Psion PLC 1992.
+rem 
+rem  Ver    Date    By  Description
+rem ===== ======== ==== ===========
+rem 0.10A 30/01/92 RMP  Pre-release
+rem 
+
+PROC shuttle:
+
+	LOCAL pP%,pOldP%,f%
+	LOCAL i%,s%,psize%,nPairs%,mapID%,scrnID%
+	LOCAL save$(20),dev$(2)
+	LOCAL screenX%,screenY%,mode%
+	LOCAL poly%(3000)
+	LOCAL ky%
+
+	onerr E::
+	screenX%=160
+	screenY%=80
+        save$= "\shuttle.pic"
+	dev$= "m:"
+	if not exist(dev$+save$)
+		dev$= "a:"
+		if not exist(dev$+save$)
+			dev$= "b:"
+			if not exist(dev$+save$)
+				stop
+			endif
+		endif
+	endif
+ 
+	scrnID%=gIdentity
+	gGmode 0
+	do
+		mapID%=gLoadBit(dev$+save$,1,f%)
+		f%=f%+1 :if f%>65 :f%=0 :endif
+		gUse scrnID%                         :rem Switch back to screen
+		gCopy mapID%,0,0,screenX%,screenY%,3 :rem Copy to screen with replace
+		gClose mapid%
+		ky%= key
+		if ky%<>0
+			if (ky%=32) or (ky%=27)
+				stop
+			else    rem/* wait for another keypress */
+				get
+			endif
+		endif
+		continue
+
+	E::     
+		if (err=-36)
+			f%=0
+			continue
+		endif
+		print err,err$(err)
+		get
+		stop
+	until (ky%=32) or (ky%=27)
+	stop
+ENDP

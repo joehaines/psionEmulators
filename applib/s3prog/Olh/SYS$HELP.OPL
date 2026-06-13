@@ -1,0 +1,440 @@
+rem OPL Help System 2.0
+rem Copyright © Tom Dolbilin 1994
+
+
+PROC hstub:
+local fname$(128), scr%, pos%
+local n$(10), ret%
+fname$ = "\help.hlp" : scr% = 0 : pos% = 1
+n$ = "OplHelp"
+call( $c88, call( $88, 0, 0, 0, 0, 0 ), 0, 0, 0, addr( n$ ) + 1 )
+
+while 1
+	dinit
+	dtext "", " "
+	dtext "", "OPL Help System for Psion S3a", $102
+	dtext "", "Version 2.0", 2
+	dtext "", "© Tom Dolbilin 1994", 2
+	dtext "", " ", $200
+	dfile fname$, "Help file:", 16
+	if dialog = 0
+		stop
+	endif
+	ret% = help%:( addr( fname$ ) )
+	if ret% < 0
+		giprint err$( ret% )
+	endif
+endwh
+ENDP
+
+
+PROC help%:( ptr% )
+local fname$(128), scr%, pos%
+local num%, ret%
+onerr uhoh
+
+fname$ = peek$( ptr% )
+scr% = max( 0, peekw( ptr% + 129 ) )
+pos% = max( 0, peekw( ptr% + 131 ) )
+if pos% = 0
+	poke$ ptr%, "2.0"
+	return
+endif
+
+openr fname$, a, n%, str$
+
+ret% = hdowin%:( scr%, pos% )
+trap close
+return min( ret%, 0 )
+
+uhoh::
+trap close
+return err
+ENDP
+
+
+PROC hdowin%:( s%, p% )
+global pstr%(128)
+global type%, hid%, grey%
+global num%, scr%, pos%, oldpos%, first%, last%, lines%, w%, redraw%
+local i%, event%(6), ret%
+
+scr% = s%
+pos% = p%
+grey% = 1
+ret% = hwininit:
+if ret% = -10
+	if type% = 1
+		hdialog:
+		return
+	else
+		grey% = 0
+		ret% = hwininit:
+		if ret% = -10
+			hdialog:
+			return
+		elseif ret%
+		return
+		endif
+	endif
+elseif ret%
+	return
+endif
+
+rem ---------- Main Event Loop
+while 1
+	getevent event%()
+	if ( event%(1) and $400 )
+		rem ----- the event is a system message
+		if event%(1) = $404 and left$( getcmd$, 1 ) = "X"
+			hcleanup:
+			trap close
+			return $404
+		endif
+ 	else
+		rem ----- the event is a key-press
+		ret% =  hdokey%:( event%(1), event%(2) and $ff, event%(2) / 256 )
+		if ret%
+			hcleanup:
+			return ret%
+		endif
+	endif
+
+endwh
+
+uhoh::
+ret% = err
+hcleanup:
+return ret%
+ENDP
+
+
+PROC hdokey%:( k%, kmod%, arep% )
+local ret%
+if k% = 9
+	rem ---------- Tab
+elseif k% = 13
+	rem ---------- Enter
+	if type% = 1
+		hselect:( pos% )
+		gxborder grey%, $104
+		ret% = hdowin%:( pos%, 1 )
+		guse hid%
+		hselect:( pos% )
+		gxborder grey%, $103
+		return ret% + ( ret% > 0 )
+	endif
+elseif k% = 27
+	rem ---------- Esc
+	if kmod% and 4
+		return type%
+	else
+		return 1
+	endif
+elseif k% < 264
+	rem ---------- Arrow and printable keys
+	oldpos% = pos%
+	vector k% - 255
+		Up, Down, Right, Left
+		PgUp, PgDn, Home, End
+	endv
+	goto Z
+Up::
+Left::
+	pos% = max( pos% - arep%, 1 )
+	goto Z
+Down::
+Right::
+	pos% = min( pos% + arep%, num% )
+	goto Z
+PgUp::
+	pos% = max( pos% - lines% + 1, 1 )
+	if kmod% and 4
+		pos% = 1
+	endif
+	goto Z
+PgDn::
+	pos% = min( pos% + lines% - 1, num% )
+	if kmod% and 4
+		pos% = num%
+	endif
+	goto Z
+Home::
+	goto Z
+End::
+Z::
+	hredraw:
+elseif k% = 291
+	rem ---------- Help key
+	if type% = 1
+		hselect:( pos% )
+		gxborder grey%, $104
+		ret% = hdowin%:( num%, 1 )
+		guse hid%
+		hselect:( pos% )
+		gxborder grey%, $103
+		return ret% + ( ret% > 0 )
+	endif
+endif
+ENDP
+
+
+PROC hwininit:
+local w%, h%, top$(100), about%, ret%
+onerr uhoh
+
+first
+num% = a.n% / $200 + 1
+scr% = min( abs( scr% ), num%  )
+type% = ( scr% = 0 ) + 2
+
+if scr% = 0
+	first
+	top$ = a.str$
+	w% = a.n% and $1ff
+	next
+else
+	if scr% = num%
+		about% = 1
+		top$ = "About Help"
+		num% = 4
+		w% = 234
+	else
+		position scr% + 1
+		top$ = a.str$
+		position a.n%
+		num% = a.n% / $200
+		w% = a.n% and $1ff
+	endif
+endif
+lines% = min( num%, 8 )
+w% = w% + 27 - 7 * ( num% > 8 )
+h% = lines% * 15 + 36
+hid% = gcreate( 240 - w% / 2, 80 - h% / 2, w%, h%, 0, grey% )
+gxborder grey%, $103
+gat 9, 25 : glineby gwidth - 18, 0
+gfont 11 : gstyle 1 : gat 10, 21
+gprintb "Help: " + top$ , w% - 18 + 7 * ( num% > 8 ), 3
+gstyle 2 - type%
+
+hlist:( about% )
+pos% = 1
+first% = 1
+last% = min( first% + lines% - 1, num% )
+oldpos% = pos%
+redraw% = 1
+hredraw:
+gvisible on
+hselect:( pos% )
+if ( last% < num% )
+	gat gwidth - 15, gheight - 12 : gprint chr$(13)
+endif
+return
+
+uhoh::
+ret% = err
+giprint err$( ret% )
+hcleanup:
+return ret%
+ENDP
+
+
+PROC hredraw:
+local i%, oldf%, oldl%, dy%, to%, entry$(100)
+oldf% = first%
+oldl% = last%
+pos% = min( pos%, num% )
+if pos% <> oldpos%
+	hselect:( oldpos% )
+endif
+last% = min( first% + lines% - 1, num% )
+first% = max( last% - lines% + 1, 1 )
+if pos% < first%
+	first% = pos%
+	last% = min( first% + lines% - 1, num% )
+elseif pos% > last%
+	last% = pos%
+	first% = max( last% - lines% + 1, 1 )
+endif
+if ( last% <> oldl% ) or ( first% <> oldf% )
+	gtmode 1 + ( first% > 1 )
+	gat gwidth - 15, 39 : gprint chr$(30)
+	gtmode 1 + ( last% < num% )
+	gat gwidth - 15, gheight - 12 : gprint chr$(13)
+	gtmode 0
+	dy% = ( max( -8, min( 8, oldf% - first% ) ) ) * 15
+	gscroll 0, dy%, 9, 27 - min( 0, dy% ), gwidth - 18 + 7 * ( num% > 8 ), gheight - 36 - abs( dy% )
+	redraw% = 1
+else
+	dy% = lines% * 15
+endif
+if redraw%
+	redraw% = 0
+	if dy% >= 0
+		i% = first% - 1
+		to% = first% + dy% / 15 - 1
+	else
+		i% = last% + dy% / 15
+		to% =  last%
+	endif
+	while i% < to%
+		i% = i% + 1
+		gat 15 + 6 * ( type% = 1 ), ( i% - first% ) * 15 + 39
+		entry$ = peek$( pstr%( i% ) )
+		if type% = 1
+			entry$ = "ÿ" + entry$
+		endif
+		gprintb entry$, gwidth - 24 - 6 * ( type% = 1 ) + 7 * ( num% > 8 ), 2, 1, 1, 2
+	endwh
+endif
+if pos% <> oldpos%
+	hselect:( pos% )
+endif
+gupdate
+ENDP
+
+
+PROC hselect:( i% )
+if type% = 1
+	gat 9, ( i% - first% ) * 15 + 27
+	ginvert gtwidth( "ÿ" + peek$( pstr%( i% ) ) ) + 3, 15
+else
+	gtmode 2
+	gat 11, ( i% - first% ) * 15 + 39
+	gprint chr$(28)
+endif
+ENDP
+
+
+PROC hlist:( about% )
+local i%, oldp%, about$(4,36)
+if about%
+	about$(1) = "To choose a topic:  " + chr$(24) + chr$(25) + "  then Enter"
+	about$(2) = ""
+	about$(3) = "Esc returns to previous Help screen"
+	about$(4) = "Control-Esc exits Help"
+	while i% < 4
+		i% = i% + 1
+		pstr%( i% ) = alloc( len( about$( i% ) ) + 1 )
+		if pstr%( i% ) = 0 : raise -10 : endif
+		poke$ pstr%( i% ), about$( i% )
+	endwh
+	return
+endif
+
+i% = 0
+while i% < num% + ( type% = 1 )
+	i% = i% + 1
+	pstr%( i% ) = alloc( len( a.str$ ) + 1 )
+	if pstr%( i% ) = 0 : raise -10 : endif
+	poke$ pstr%( i% ), a.str$
+	next
+endwh
+
+if type% = 1
+	rem Add About Help to list of topics
+	i% = i% + 1
+	about$(1) = "About Help"
+	pstr%( i% ) = alloc(11)
+	if pstr%( i% ) = 0 : raise -10 : endif
+	poke$ pstr%( i% ), about$(1)
+endif
+ENDP
+
+
+PROC hcleanup:
+local i%
+while i% < num%
+	i% = i% + 1
+	freealloc pstr%( i% )
+endwh
+trap gclose hid%
+ENDP
+
+
+PROC hdialog:
+global title$(100), num%, lines%, level%, pos%, start%
+local d%, screen%
+onerr uhoh
+
+first
+screen% = min( abs( scr% ), a.n% / $200 )
+level% = ( screen% = 0 ) + 2
+type% = 2
+position screen% + 1
+title$ = a.str$
+pos% = 1
+
+if screen% = 0
+	num% = a.n% / $200
+	start% = 2
+	position start%
+else
+	start% = a.n%
+	position start%
+	num% = a.n% / $200
+endif
+hlist:(0)
+
+while 1
+	d% = hmakedlg:
+	if d% = -1
+		break
+	elseif d%
+		if level% = 1
+			scr% = pos% + d% - 2
+			hcleanup:
+			hdialog:
+			position start%
+			hlist:(0)
+		endif
+	endif
+endwh
+uhoh::
+hcleanup:
+ENDP
+
+
+PROC hmakedlg:
+local i%, up%, down%, d%, entry$(100)
+
+dinit "Help: " + title$
+
+if pos% > 1
+	up% = 1
+	dtext "", chr$(24), $401
+endif
+
+if pos% + 7 < num%
+	down% = 1
+endif
+
+lines% = min( 8 - up% - down%, num% - pos% + 1 )
+
+while i% < lines%
+	entry$ = peek$( pstr%( pos% + i% ) )
+	if entry$ = ""
+		entry$ = " "
+	endif
+	if level% = 1
+		dtext "", "ÿ" + entry$, $500
+	else
+		dtext "", entry$
+	endif
+	i% = i% + 1
+endwh
+
+if down% : dtext "", chr$(25), $401 : endif
+d% = dialog
+if d%
+	if ( d% = 2 ) and ( up% = 1 )
+		pos% = pos% - 6 + ( pos% = 8 )
+	elseif ( d% = 9 ) and ( down% = 1 )
+		pos% = pos% + lines%
+	else
+		return d% - up%
+	endif
+else
+	return -1
+endif
+ENDP

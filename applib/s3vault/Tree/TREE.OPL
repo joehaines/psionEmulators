@@ -1,0 +1,251 @@
+REM Tree utility for Series 3.
+REM based on MS-DOS (yeuch) utility.
+REM Rick Andrews May 1992
+
+
+PROC Tree:
+REM Global array of names and depth.
+	GLOBAL gaName$(99,12)
+	GLOBAL gaDepth%(99)
+
+REM Max & actual number of entries.
+	GLOBAL GMAXENT%,gEntry%
+
+REM Entry level used to calc depth.
+	GLOBAL gLevel%
+
+	LOCAL disk$(4),c%
+
+	GMAXENT%=99
+	gEntry%=1
+	disk$="AMBC" :c%=2
+	dINIT "Tree"
+	dCHOICE c%,"Disk:","A,M,B,C"
+	IF DIALOG=0
+		RETURN
+	ENDIF
+
+	Descend:(MID$(disk$,c%,1)+":")
+	BUSY OFF
+
+	ShowTree:
+	GET
+ENDP
+
+
+PROC Descend:(path$)
+REM Search filesystem.
+	LOCAL branch$(128),prev$(128)
+	LOCAL dummy$(128)
+	LOCAL dummyc%,curdep%
+
+	gLevel%=gLevel%+1
+
+	prev$=path$+"\"
+	branch$=DirChk$:(prev$)
+
+	IF branch$="NotDir!"
+		AddEntry:(FileN$:(path$))
+		gLevel%=gLevel%-1
+		RETURN
+	ENDIF
+
+REM Show user how hard we're working!
+	BUSY DirN$:(path$)
+	AddEntry:(DirN$:(path$))
+
+	curdep%=0
+	WHILE branch$<>""
+REM do children (recursive!)
+		Descend:(branch$)
+
+REM Do peers, by restoring dir state.
+		dummy$=DIR$(prev$)
+		dummyc%=0
+		WHILE dummyc%<curdep%
+			dummy$=DIR$("")
+			dummyc%=dummyc%+1
+		ENDWH
+		curdep%=curdep%+1
+		branch$=DIR$("")
+	ENDWH
+	gLevel%=gLevel%-1
+	RETURN
+ENDP
+
+
+PROC FileN$:(p$)
+REM Get name of file.
+	LOCAL a$(128)
+	LOCAL off%(6)
+	a$=PARSE$(p$,"",off%())
+	RETURN RIGHT$(a$,LEN(p$)-off%(4)+1)
+ENDP
+
+
+PROC DirN$:(p$)
+REM Get name of directory.
+	LOCAL l%,c%
+	IF LOC(p$,"\")=0
+		RETURN p$+"\"
+	ENDIF
+REM Scan backwards for '\'
+	l%=LEN(p$)
+	DO
+		l%=l%-1
+		c%=c%+1
+	UNTIL MID$(p$,l%,1)="\"
+	RETURN RIGHT$(p$,c%)+"\"
+ENDP
+
+
+PROC DirChk$:(p$)
+REM Looking for directory.
+	LOCAL d$(128)
+	ONERR NoDir::
+	d$=DIR$(p$)
+	RETURN d$
+NoDir::
+	ONERR OFF
+REM -42 = "Directory does not exist".
+	IF ERR<>-42
+		ALERT(ERR$(ERR))
+		STOP
+	ENDIF
+	RETURN "NotDir!"
+ENDP
+
+
+PROC AddEntry:(name$)
+REM Store entry details.
+	IF gEntry%=GMAXENT%
+		GIPRINT "Too many entries - ignored"
+		gaName$(GMAXENT%)="somelost"
+	ELSE
+		gaDepth%(gEntry%)=gLevel%
+		gaName$(gEntry%)=name$
+		gEntry%=gEntry%+1
+	ENDIF
+	RETURN
+ENDP
+
+
+PROC ShowTree:
+REM Display file system structure.
+	GLOBAL gTrunk%(20)
+ REM max depth 20 levels.
+
+	LOCAL level%,file%
+	LOCAL pause%,index%
+
+	gaDepth%(gEntry%)=0
+	PRINT gaName$(1)
+
+	index%=2
+	DO
+		level%=gaDepth%(index%)
+		IF level%=0
+			BREAK
+		ENDIF
+
+		IF GetPeer%:(index%)
+			gTrunk%(level%-1)=2 REM tee
+		ELSE
+			gTrunk%(level%-1)=1 REM bend
+		ENDIF
+
+		PRINT GeTrunk$:(level%);
+		PRINT gaName$(index%)
+
+REM If not a directory...
+		IF RIGHT$(gaName$(index%),1)<>"\"
+			file%=file%+1
+		ENDIF
+
+		index%=index%+1
+		pause%=pause%+1
+		IF pause%=8
+			BUSY CHR$(4),2
+REM Page symbol in top-right corner.
+			pause%=0
+			IF GET=27 REM 'Esc' to abandon.
+				RETURN
+			ENDIF
+			BUSY OFF
+		ENDIF
+	UNTIL level%=0
+
+	IF file%=1
+		PRINT file%,"file"
+	ELSE
+		PRINT file%,"files"
+	ENDIF
+	IF gaName$(GMAXENT%)<>""
+		PRINT "(Some entries lost)"
+	ENDIF
+	RETURN
+ENDP
+
+
+PROC GeTrunk$:(depth%)
+REM Get trunk shape.
+	LOCAL i%,trunk$(40),b2%
+	LOCAL tee$(1),pipe$(1)
+	LOCAL bend$(1),dash$(1),spc$(1)
+
+	pipe$=CHR$(179)
+	bend$=CHR$(192)
+	tee$=CHR$(195)
+	dash$=CHR$(196)
+
+	spc$=CHR$(32) REM Space.
+
+	IF depth%<=1
+		RETURN ""
+	ENDIF
+
+	IF depth%=2
+		IF gTrunk%(1)=2
+			RETURN tee$+dash$
+		ELSE
+			RETURN bend$+dash$
+		ENDIF
+	ENDIF
+
+REM depth is 3 or more.
+	b2%=depth%-2
+	trunk$=""
+	i%=1
+	DO
+		IF gTrunk%(i%)=2
+			trunk$=trunk$+pipe$+spc$
+		ELSE
+			trunk$=trunk$+spc$+spc$
+		ENDIF
+		i%=i%+1
+	UNTIL i%>b2%
+
+	IF gTrunk%(depth%-1)=2
+		trunk$=trunk$+tee$+dash$
+	ELSE
+		trunk$=trunk$+bend$+dash$
+	ENDIF
+
+	RETURN trunk$
+ENDP
+
+
+PROC GetPeer%:(index%)
+REM Any peers?
+	LOCAL curlev%,chklev%,i%
+	curlev%=gaDepth%(index%)
+	i%=index%+1
+	DO
+		chklev%=gaDepth%(i%)
+		IF chklev%=curlev%
+			RETURN -1
+		ENDIF
+		i%=i%+1
+	UNTIL chklev%<curlev%
+	RETURN 0
+ENDP

@@ -1,0 +1,59 @@
+proc extpow:
+	global tcb%,tstat%,tint&
+	global kstat%,key%(2)
+	nonactv:
+	ioopen(tcb%,"TIM:",-1)
+	quetim:
+	quekey:
+	iosignal :rem force first iowait to return at once
+	do
+		iowait
+		if tstat%=0 :rem timer expired
+			quetim:
+		elseif kstat%=0 :rem keypress received
+			if key%(1)=27 :rem ESCAPE
+				stop
+			elseif key%(1)>=%1 and key%(1)<=%9
+				setauto:(60*(key%(1)-%0))
+			elseif key%(1)=%0
+				setauto:(-1) :rem disable switch-off
+			endif
+			quekey:
+		endif
+		print right$(datim$,8),
+		print "Power:",getextp%:,
+		print "Auto off:",getauto%:
+	until 0
+endp
+
+proc quetim:
+	tint&=100 :rem 10 seconds from now
+	ioa(tcb%,1,tstat%,#addr(tint&),#0) :rem P_FRELATIVE
+endp
+
+proc quekey:
+	keya(kstat%,key%(1)) :rem queue keyboard read
+endp
+
+proc nonactv:
+rem Don't keep the machine on just because of this app
+	call ($138b,0,0,0,0,0) :rem GenMarkNonActive
+endp
+
+proc getextp%:
+rem returns 1 if mains present, else 0
+	local esup%(3),bx%
+	bx%=addr(esup%())
+	call ($118e,bx%,0,0,0,0) :rem HwGetSupplyStatus
+	return(esup%(3))
+endp
+	
+proc getauto%:
+rem returns auto-switch off time, in seconds
+	return call($178b,0,0,0,0,0) :rem GenGetAutoSwitchOffValue
+endp
+
+proc setauto:(aut%)
+rem sets the auto-switch off time, in seconds
+	call($188b,aut%,0,0,0,0) :rem GetSetAutoSwitchOffValue
+endp

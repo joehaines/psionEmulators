@@ -1,0 +1,52 @@
+APP CostSell
+	TYPE 0
+	ICON "\opd\costsell"
+ENDA
+
+Proc XCOST:
+LOCAL g$(1),X,P,v,vat,sell,mup,cost$(30)
+cost$="0" :sell=0 :mup=0 :vat=17.5
+cls
+do
+m1=0 :m2=0 :m3=0 :m4=0
+dINIT
+dTEXT "","Cost/Sell/Mark-up",$302
+dEDIT cost$,"Cost Equation",10
+dFLOAT sell,"Selling Price",0,32768
+dFLOAT mup,"Mark-up %",0,100
+dFLOAT vat,"VAT Rate %",0,100
+IF DIALOG=0
+	STOP
+ENDIF
+m1=eval(cost$)
+m2=sell
+m3=mup
+v=1.0+(vat/100)
+M2=M2/v
+IF M1=0
+X=M3
+X=(X/100)+1:M1=M2/X
+ENDIF
+IF M2=0
+X=M3
+X=(X/100)+1:M2=M1*X
+ENDIF
+IF M3=0
+M3=((M2-M1)/M1)*100
+ENDIF
+X=((M2-M1)/M2)*100
+P=M2-M1
+M2=M2*v
+dINIT : REM"Cost/Sell/Mark-up"
+dTEXT "Equation",cost$,$200
+dTEXT "Cost Price","œ"+FIX$(M1,2,7)+" (+VAT=œ"+fix$((m1*v),2,7)+")"
+dTEXT "Sell Price","œ"+FIX$(M2,2,7)+" (-VAT=œ"+fix$((m2/v),2,7)+")"
+dTEXT "Profit","œ"+FIX$(P,2,7)+" (Disc="+FIX$(X,2,7)+"%)"
+dTEXT "Mark-up",FIX$(M3,2,7)+"%"
+if DIALOG=0
+	return
+endif
+until 0
+endp
+
+

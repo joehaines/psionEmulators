@@ -1,0 +1,1109 @@
+APP Hexplode
+   TYPE $1001
+   ICON "\OPD\HEXP11.PIC"
+ENDA
+
+PROC Main:
+   GLOBAL bd%(25),w(25),m%(25)
+   GLOBAL x%,y%           REM positie
+   GLOBAL sc1%,sc2%,pt%   REM totale score
+   GLOBAL pl%,k%,cd%      REM -1=pl, 1=comp
+   GLOBAL st%,cs%,lz%,td%
+   GLOBAL cp%,cc%
+   GLOBAL gm1%,gm2%
+   GLOBAL name$(16)
+   GLOBAL nm$(5,16),sc%(5),dt$(5,21)
+   LOCAL i%,z1%,d%
+   LOCAL tt1&,tt2&,lt&
+   CACHE 6000,6000
+   CACHE OFF
+   DEFAULTWIN 1
+ nw:: 
+   z1%=1
+   st%=3:cs%=2:lz%=1
+   cp%=2:td%=1
+   gm1%=0:gm2%=0
+   of:
+   dm:
+   Init:
+   IF sc1%=0
+     sc1%=999
+   ENDIF
+   Setup:
+   IF sc1%=999
+     sc1%=0
+   ENDIF
+   IF cp%=1
+     cc%=2
+   ELSE  
+     cc%=1
+   ENDIF
+ start::
+   pl%=z1%
+   z1%=z1%*-1
+   sc1%=0:sc2%=0:pt%=0
+   IF pl%=-1
+     d%=-1
+   ELSE
+     d%=0
+   ENDIF
+   tt1&=0:tt2&=0
+   Pbd:
+   gTMODE 3
+   CACHE ON
+   DO
+     lt&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+     pl%=pl%*-1
+     IF pl%=-1
+       x%=2 : y%=2
+       hk:(x%,y%,0)
+       d%=sc2%
+     ELSE
+       pt%=pt%+sc2%-d%-1
+     ENDIF
+     IF td%=3
+         gGREY cp%
+         gAT 360,85
+         gPRINT pt%
+     ENDIF  
+     DO
+       IF pl%=1 
+         czet:
+         IF lz%=1
+           gGREY cc%
+           gAT 15,40
+           gPRINT CHR$(y%+65);x%+1;
+         ENDIF
+         GOTO nz
+       ENDIF
+       gAT 25,130
+       gGREY cc%
+       gPRINT "         ",
+       BUSY OFF
+       gAT 25,130
+       gGREY cp%
+       gPRINT "YOUR move";
+       GIPRINT "Your move",0
+       gGREY 2
+       CACHE OFF
+       Toets:
+       IF k%=999
+         i%=1
+         DO
+           bd%(i%)=0
+           i%=i%+1
+         UNTIL i%>25
+         IF sc1%=0
+           ui:
+           CLOSE
+           GOTO nw
+         ENDIF
+         gm1%=gm1%+1
+         GOTO start
+       ENDIF
+       CACHE ON
+nz::
+     UNTIL co:(x%,y%)
+     hk:(x%,y%,1)
+     IF pl%=1
+       tt1&=tt1&-lt&+DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+       IF td%>1
+         prtt:(tt1&,1)
+       ENDIF
+       sc1%=sc1%+1 
+     ELSE 
+       tt2&=tt2&-lt&+DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+       IF td%>1
+         prtt:(tt2&,2)
+       ENDIF
+       sc2%=sc2%+1
+     ENDIF
+   UNTIL exp:(x%,y%)
+CACHE OFF
+BUSY OFF
+pt%=pt%+sc2%-d%-1
+IF pl%=-1
+   IF td%=3
+     rf:
+     x%=pt%+(260+(130*st%)-(4*sc2%)-(2*sc2%*st%))+((60*st%)-tt2&)
+     IF x%>sc%(5)
+       dINIT "Congratulations!!"
+       dTEXT "","You reached the top list",$202
+       dTEXT ""," Won  : "+NUM$(FLT(pt%),6)+ " remains "+NUM$(FLT(pt%),6)+" points"
+       dTEXT ""," Score: "+NUM$(FLT(sc2%),6)+"   makes "+NUM$(FLT(260+(130*st%)-(4*sc2%)-(2*sc2%*st%)),6)+" points"
+       dTEXT ""," Time : "+NUM$(FLT(tt2&),6)+" secs is "+NUM$(FLT((60*st%)-tt2&),6)+" points"
+       dTEXT "","TOTAL: "+NUM$(FLT(x%),6)+" POINTS!",2
+       dTEXT "","What is your name?",2
+       dEDIT name$,"Name: "
+       DIALOG
+       i%=1
+       WHILE i%<26
+         POSITION i%
+         IF A.lv%=st%
+           IF A.nm$=nm$(5)
+             IF A.dt$=dt$(5)
+               IF A.sc%=sc%(5)
+                 A.nm$=name$
+                 A.sc%=x%
+                 A.dt$=LEFT$(DATIM$,21)
+                 UPDATE
+                 i%=26
+               ENDIF
+             ENDIF
+           ENDIF
+         ENDIF
+         i%=i%+1
+       ENDWH
+     ENDIF
+     rf:
+     dINIT "HIGH SCORE TABLE FOR LEVEL "+NUM$(FLT(st%),2)+" !"
+     dTEXT "","1. "+nm$(1)+"   "+NUM$(FLT(sc%(1)),4)+"   on "+dt$(1),2
+     dTEXT "","2. "+nm$(2)+"   "+NUM$(FLT(sc%(2)),4)+"   on "+dt$(2),2
+     dTEXT "","3. "+nm$(3)+"   "+NUM$(FLT(sc%(3)),4)+"   on "+dt$(3),2
+     dTEXT "","4. "+nm$(4)+"   "+NUM$(FLT(sc%(4)),4)+"   on "+dt$(4),2
+     dTEXT "","5. "+nm$(5)+"   "+NUM$(FLT(sc%(5)),4)+"   on "+dt$(5),$202
+     dTEXT "","Your score was " + NUM$(FLT(pt%),4) + " + " + NUM$(FLT(260+(130*st%)-(4*sc2%)-(2*sc2%*st%)),6) + " + " + NUM$(FLT((60*st%)-tt2&),6) + " = " + NUM$(FLT(x%),6) + " points!",$102
+     LOCK ON
+       i%=DIALOG
+     LOCK OFF
+   ENDIF
+   gm2%=gm2%+1
+   d%=pt%+260+(130*st%)-(4*sc2%)-(2*sc2%*st%)+(60*st%)-tt2&
+   dINIT "You win"
+   dTEXT "","With " + NUM$(FLT(pt%),4) + " + " + NUM$(FLT(260+(130*st%)-(4*sc2%)-(2*sc2%*st%)),6) + " + " + NUM$(FLT((60*st%)-tt2&),6) + " = " + NUM$(FLT(d%),6) + " points!",$102
+ELSE
+   gm1%=gm1%+1
+   dINIT "Computer wins"
+ENDIF
+dTEXT "","Do you want another game?",2
+IF gm1%>gm2%
+   dTEXT "","You are now " + NUM$(FLT(gm1%-gm2%),3) + " games behind!",$202
+ELSEIF gm1%=gm2%
+   dTEXT "","You are equal again, now for the decision!",$202
+ELSE
+   dTEXT "","You are in the winning mood (+"+NUM$(FLT(gm2%-gm1%),3)+") !",$202
+ENDIF
+dBUTTONS "No",%N,"Yes",%Y
+LOCK ON
+   i%= DIALOG
+LOCK OFF
+IF i%=121
+  i%=1
+  DO
+    bd%(i%)=0
+    i%=i%+1
+  UNTIL i%>25
+  GOTO start::
+ENDIF
+ui:
+CLOSE
+ENDP
+
+PROC br:(i%,j%,n%)
+IF bd%(i%+1+(j%*5)) = 0 
+  RETURN 0
+ENDIF
+IF (bd%(i%+1+(j%*5))-n%) <= (m%(i%+1+(j%*5))*-1)
+  RETURN -1 
+ELSE 
+  RETURN 0
+ENDIF
+ENDP
+
+PROC br2t:(i%,j%,n%)
+IF j%>0
+  IF brt:(i%,j%-1,n%) 
+    RETURN -1 
+  ENDIF
+  IF i%<4
+    IF brt:(i%+1,j%-1,n%)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF j%<4
+  IF brt:(i%,j%+1,n%)
+    RETURN -1 
+  ENDIF
+  IF i%>0
+    IF brt:(i%-1,j%+1,n%)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF i%<4
+  IF brt:(i%+1,j%,n%)
+    RETURN -1 
+  ENDIF  
+ENDIF
+IF i%>0
+  IF brt:(i%-1,j%,n%)
+    RETURN -1 
+  ENDIF
+ENDIF
+RETURN 0
+ENDP
+
+PROC brt:(i%, j%, n%)
+IF j%>0
+  IF br:(i%,j%-1,n%) 
+    RETURN -1 
+  ENDIF
+  IF i%<4
+    IF br:(i%+1,j%-1,n%)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF j%<4
+  IF br:(i%,j%+1,n%)
+    RETURN -1 
+  ENDIF
+  IF i%>0
+    IF br:(i%-1,j%+1,n%)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF i%<4
+  IF br:(i%+1,j%,n%)
+    RETURN -1 
+  ENDIF  
+ENDIF
+IF i%>0
+  IF br:(i%-1,j%,n%)
+    RETURN -1 
+  ENDIF
+ENDIF
+RETURN 0
+ENDP
+
+PROC co:(i%, j%)
+IF (bd%(i%+1+(5*j%))*pl%) >= 0
+  RETURN -1
+ENDIF
+RETURN 0
+ENDP
+
+PROC czet:
+LOCAL i%,j%,n%,h
+gAT 25,130
+gGREY cp%
+gPRINT "         ";
+gGREY cc%
+gIPRINT "COMP move ("+NUM$(FLT(st%),1)+")",0
+BUSY "Thinking",0,5
+gAT 25,130
+gPRINT "COMP move";
+gGREY 2
+AT 22,17
+IF sc1% + sc2% > 10 
+   Dw2:
+ELSE
+   Dw:
+ENDIF
+cd% = 1
+i%=0
+DO
+  j%=0
+  DO
+    IF bd%(i%+1+(j%*5)) < 0 
+       w(i%+1+(j%*5)) = -99: GOTO ver3
+    ENDIF
+    IF bd%(i%+1+(j%*5)) = 0 
+       w(i%+1+(j%*5)) = w(i%+1+(j%*5)) + 1
+    ENDIF
+    IF (bd%(i%+1+(j%*5))+1 >= m%(i%+1+(j%*5)))
+      IF ((bd%(i%+1+(j%*5))=1) OR (bd%(i%+1+(j%*5))=2)) 
+        IF brt:(i%, j%, 3) OR et:(i%, j%, 4)
+          IF sc1% + sc2% < 10
+            w(i%+1+(j%*5)) = w(i%+1+(j%*5)) / 4 - 5
+          ELSE
+            IF NOT (et:(i%, j%, 2) OR brt:(i%, j%, 2))
+              w(i%+1+(j%*5)) = w(i%+1+(j%*5)) / 4 - 6
+            ENDIF 
+          ENDIF
+        ENDIF
+      ENDIF
+    ENDIF
+    IF bd%(i%+1+(j%*5)) + 1 >= m%(i%+1+(j%*5))
+      w(i%+1+(j%*5)) = w(i%+1+(j%*5)) + 4
+      IF st% > 1 
+        w(i%+1+(j%*5)) = w(i%+1+(j%*5)) + gg:(i%, j%) * 1.5
+      ENDIF
+      IF brt:(i%,j%,1)
+        w(i%+1+(j%*5)) = w(i%+1+(j%*5))+8
+      ELSE
+        IF brt:(i%,j%,2) 
+           w(i%+1+(j%*5)) = w(i%+1+(j%*5))-6
+        ENDIF
+      ENDIF
+      IF br2t:(i%, j%, 1)
+         w(i%+1+(j%*5)) = w(i%+1+(j%*5)) - 5
+      ENDIF
+    ELSE
+      IF brt:(i%, j%, 1) 
+        w(i%+1+(j%*5)) = w(i%+1+(j%*5)) - 8
+      ENDIF
+      IF (st%>3 AND sc1%+sc2%>8) OR (sc1%+sc2%>30 AND st%=3) 
+         w(i%+1+(j%*5)) = w(i%+1+(j%*5)) + gg:(i%, j%) / .7
+      ENDIF
+    ENDIF
+    IF br2t:(i%, j%, 1)
+      IF brt:(i%, j%, 2)
+         w(i%+1+(j%*5)) = w(i%+1+(j%*5)) - 1
+      ENDIF
+    ENDIF
+    n% = m%(i%+1+(j%*5)) - bd%(i%+1+(j%*5))
+    IF n% < 3
+      IF brt:(i%, j%, n%) 
+        w(i%+1+(j%*5)) = w(i%+1+(j%*5)) + 2
+      ENDIF
+    ENDIF
+ver3:: 
+    j%=j%+1
+    IF cs%=1
+      PRINT ".";
+    ENDIF  
+  UNTIL j%>4
+i%=i%+1
+UNTIL i%>4
+h = -99
+RANDOMIZE SECOND
+i%=0
+DO
+  j%=0
+  DO
+    IF w(i%+1+(j%*5))>h OR (w(i%+1+(j%*5))=h AND RND>.5)
+       h = w(i%+1+(j%*5))
+       x% = i% : y% = j%
+     ENDIF
+     j%=j%+1
+  UNTIL j%>4
+  i%=i%+1
+UNTIL i%>4
+cd% = 0
+IF cs%=1
+  AT 1,17
+  PRINT "Status:",
+  h=INT(h*100)
+  PRINT (h/100);" (";st%;")  ",
+  AT 22,17
+  PRINT "                          ";
+ENDIF
+ENDP
+
+PROC eig:(i%, j%, n%)
+IF bd%(i%+1+(j%*5)) + n% >= m%(i%+1+(j%*5)) 
+   RETURN -1 
+ELSE 
+   RETURN 0
+ENDIF
+ENDP
+
+PROC et:(i%, j%, n%)
+IF j%>0
+  IF eig:(i%,j%-1,n%) 
+    RETURN -1 
+  ENDIF
+  IF i%<4
+    IF eig:(i%+1,j%-1,n%)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF j%<4
+  IF eig:(i%,j%+1,n%)
+    RETURN -1 
+  ENDIF
+  IF i%>0
+    IF eig:(i%-1,j%+1,n%)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF i%<4
+  IF eig:(i%+1,j%,n%)
+    RETURN -1 
+  ENDIF  
+ENDIF
+IF i%>0
+  IF eig:(i%-1,j%,n%)
+    RETURN -1 
+  ENDIF
+ENDIF
+RETURN 0
+ENDP
+
+PROC exp:(i%, j%)
+IF NOT co:(i%, j%)
+   IF pl%=-1
+      sc2%=sc2%+IABS(bd%(i%+1+(j%*5)))
+      sc1%=sc1%-IABS(bd%(i%+1+(j%*5)))
+   ELSE
+      sc2%=sc2%-IABS(bd%(i%+1+(j%*5)))
+      sc1%=sc1%+IABS(bd%(i%+1+(j%*5)))
+   ENDIF
+ENDIF
+bd%(i%+1+(j%*5)) = (IABS(bd%(i%+1+(j%*5)))+1)*pl%
+IF IABS(bd%(i%+1+(j%*5))) < m%(i%+1+(j%*5))
+  IF cd% <> 1 
+      phx:(i%,j%)
+  ENDIF
+  RETURN 0
+ENDIF
+bd%(i%+1+(j%*5)) = 0
+IF cd% <> 1 
+    phx:(i%,j%)
+ENDIF
+IF j%>0
+  IF exp:(i%,j%-1) 
+    RETURN -1 
+  ENDIF
+  IF i%<4
+    IF exp:(i%+1,j%-1)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF j%<4
+  IF exp:(i%,j%+1)
+    RETURN -1 
+  ENDIF
+  IF i%>0
+    IF exp:(i%-1,j%+1)
+      RETURN -1
+    ENDIF  
+  ENDIF
+ENDIF
+IF i%<4
+  IF exp:(i%+1,j%)
+    RETURN -1 
+  ENDIF  
+ENDIF
+IF i%>0
+  IF exp:(i%-1,j%)
+    RETURN -1 
+  ENDIF
+ENDIF
+IF (sc2%<=0) OR (sc1%<=0) 
+   RETURN -1
+ENDIF
+RETURN 0
+ENDP
+
+PROC gg:(i%, j%)
+LOCAL dum%(25),d%,dg,d1%,d2%,fact
+dg = 0: fact = 4
+d% = 1
+DO
+  dum%(d%) = bd%(d%)
+  d%=d%+1
+UNTIL d%>25
+d1% = sc1%
+d2% = sc2%
+IF co:(i%,j%)
+  IF exp:(i%,j%)
+    dg = 50
+  ENDIF 
+ENDIF
+IF dg <> 50 
+    dg=((sc2%-d2%)/fact)-gg2:(i%,j%)/(fact*1.2) 
+ENDIF
+d% = 1
+DO
+   bd%(d%)=dum%(d%)
+   d%=d%+1
+UNTIL d%>25
+sc1%= d1%
+sc2%= d2%
+RETURN dg
+ENDP
+
+PROC gg2:(i%, j%)
+LOCAL dum%(25),d%,maxv,geg,d3%,d4%,k%,l%
+pl% = pl% * -1: geg = 0
+maxv=-99
+k%=0
+DO
+  l%=0
+  DO
+      geg = 0
+      d%=1
+      DO
+        dum%(d%) = bd%(d%)
+        d%=d%+1
+      UNTIL d%>25
+      d3% = sc1%
+      d4% = sc2%
+      IF co:(k%, l%)
+        IF exp:(k%, l%)
+          pl% = pl% * -1
+          RETURN 50
+        ENDIF
+      ENDIF
+      IF pl% = -1
+        IF sc1% - d3% > maxv
+          maxv = sc1% - d3% 
+        ENDIF
+      ELSE
+        IF sc2% - d4% > maxv 
+          maxv = sc1% - d4%
+        ENDIF
+      ENDIF
+      IF pl% = -1 AND st% > 4 AND maxv <> 50
+        maxv = maxv+((gg2:(i%,j%))/0.9)
+      ENDIF
+      d%=1
+      DO
+        bd%(d%) = dum%(d%)
+        d%=d%+1
+      UNTIL d%>25
+      sc1% = d3%
+      sc2% = d4%
+     l%=l%+1
+    UNTIL l%>4
+  k%=k%+1
+UNTIL k%>4
+pl% = pl% * -1
+RETURN maxv
+ENDP
+
+PROC Dw:                          
+   w(1)=8.1  :w(2)=3   :w(3)=3.1   :w(4)=3  :w(5)=5.07
+   w(6)=3    :w(7)=1   :w(8)=1     :w(9)=1  :w(10)=3
+   w(11)=3.1 :w(12)=1  :w(13)=2.05 :w(14)=1 :w(15)=3.1
+   w(16)=3   :w(17)=1  :w(18)=1    :w(19)=1 :w(20)=3
+   w(21)=5.07 :w(22)=3 :w(23)=3.1  :w(24)=3 :w(25)=8.1
+ENDP      
+   
+PROC Dw2:                          
+   w(1)=4.1  :w(2)=2     :w(3)=2.1   :w(4)=2     :w(5)=3.07
+   w(6)=2    :w(7)=1.05  :w(8)=1     :w(9)=1.05  :w(10)=2
+   w(11)=2.1 :w(12)=1    :w(13)=1.35 :w(14)=1    :w(15)=2.1
+   w(16)=2   :w(17)=1.05 :w(18)=1    :w(19)=1.05 :w(20)=2
+   w(21)=3.07 :w(22)=2   :w(23)=2.1  :w(24)=2    :w(25)=4.1
+ENDP      
+   
+PROC dm:
+   m%(1)=2  :m%(2)=4  :m%(3)=4  :m%(4)=4  :m%(5)=3
+   m%(6)=4  :m%(7)=6  :m%(8)=6  :m%(9)=6  :m%(10)=4
+   m%(11)=4 :m%(12)=6 :m%(13)=6 :m%(14)=6 :m%(15)=4
+   m%(16)=4 :m%(17)=6 :m%(18)=6 :m%(19)=6 :m%(20)=4
+   m%(21)=3 :m%(22)=4 :m%(23)=4 :m%(24)=4 :m%(25)=2
+ENDP   
+
+PROC Init:
+   LOCAL i%
+   STATUSWIN ON
+   gSETWIN 1,1,415,160
+   SCREEN 52,17
+   gBORDER $201
+   dINIT "Hexplode playing information  v1.1"
+   dTEXT "","Hexplode is played on 25 hexagons. One hexagon",2
+   dTEXT "","can contain as many counts as the number of",2
+   dTEXT "","neighbours it has. When this is reached, it will",2
+   dTEXT "","(h)explode. This way you can win extra counts by",2
+   dTEXT "","overflowing others. When you or the computer is ",2
+   dTEXT "","out of counts, the other wins the game! ",2
+   dTEXT "","Find out your own best strategy!",$202
+   dTEXT "","Freeware:  "+CHR$(184)+"Andre van Linden ",2
+   LOCK ON
+      i%= DIALOG
+   LOCK OFF
+ENDP
+
+PROC ad:
+   LOCAL i%
+stad::   
+   dINIT
+   dTEXT "","OOPS! You pressed EXIT!",2
+   dTEXT "","Do you really want to quit?",2
+   dTEXT "","(Didn't get chicken, didn't you?)",$202
+   dBUTTONS "No",%N,"Yes",%Y
+   LOCK ON
+     i%= DIALOG
+   LOCK OFF
+   IF i%=121
+      ui:
+      CLOSE
+      STOP
+   ENDIF
+   IF i%=0
+      GOTO stad
+   ENDIF
+ENDP
+
+PROC Setup:
+     LOCAL i%
+     dINIT "Hexplode setup adaptation"
+     dTEXT "","Higher skill is time consuming",2
+     IF (td%<3 OR sc1%=999) 
+       dCHOICE st%,"Skill","1,2,3,4,5"
+     ENDIF
+     dCHOICE cs%,"Status","On,Off"
+     dCHOICE lz%,"Last move","On,Off"
+     If sc1%=999
+       dCHOICE cp%,"Player plays ","Grey,Black"
+     ENDIF
+     IF sc1%=999
+       dCHOICE td%,"Show time","Off,On,Qualify"
+     ELSE
+       IF td%<3
+          dCHOICE td%,"Show time","Off,On"
+       ENDIF
+     ENDIF
+     LOCK ON
+       i%=DIALOG
+     LOCK OFF
+     IF cs%=2
+      AT 1,17
+       PRINT "                                           ";
+     ENDIF
+     IF lz%=2
+        gAT 15,40
+        gPRINT "  ";
+        gAT 15,60
+        gPRINT "  ";
+     ENDIF
+     IF td%=1
+       gAT 45,40
+       gPRINT "      ";
+       gAT 45,60
+       gPRINT "      "; 
+     ENDIF
+ENDP   
+
+PROC Pbd:
+   LOCAL i%,j%
+   gGMODE 0
+   gGREY 2
+   gCLS
+   gAT 100,20
+   gFONT 12
+   gSTYLE 16
+   gPRINT "H E X P L O D E"
+   gFONT 1
+   i%=0
+   DO
+      j%=0 
+      DO
+        gAT 100+(22*i%)+(22*j%),85-(10*j%)+(10*i%)
+        gLINEBY 8,10
+        gLINEBY 14,0
+        gLINEBY 8,-10
+        gLINEBY -8,-10
+        gLINEBY -14,0
+        gLINEBY -8,10
+        j%=j%+1
+      UNTIL j%>4
+      i%=i%+1
+   UNTIL i%>4
+   i%=1
+   DO
+      gAT 78+(i%*22),92+(i%*10)
+      gPRINT i%
+      gAT 322-(i%*22),86-(i%*10)
+      gprint 6-i%
+      gAT 78+(i%*22), 86-(i%*10)
+      gPRINT chr$(i%+64)
+      gAT 322-(i%*22),92+(i%*10)
+      gPRINT (chr$(70-i%))
+      i%=i%+1
+   UNTIL i%>5
+   gAT 322,11
+   gPRINT "Points:"
+   gFONT 10
+   gGREY cc%
+   gAT 320,28
+   gPRINT "Comp";
+   gAT 320,46
+   gGREY cp%
+   gPRINT " You";
+   gGREY 2
+   gAT 310,13
+   gBOX 55,19
+   gAT 310,32
+   gBOX 55,19
+   gAT 365,13
+   gBOX 40,19
+   gAT 365,32
+   gBOX 40,19
+   gGREY 2
+   IF gm1%+gm2%>0
+     gFONT 1
+     gAT 330,105
+     gPRINT "Games:"
+     gFONT 10
+     gGREY cc%
+     gAT 320,123
+     gPRINT "Comp";
+     gAT 375,123
+     gPRINT gm1%;
+     gAT 320,141
+     gGREY cp%
+     gPRINT " You";
+     gAT 375,141
+     gPRINT gm2%;
+     gGREY 2
+     gAT 310,107
+     gBOX 55,19
+     gAT 310,126
+     gBOX 55,19
+     gAT 365,107
+     gBOX 40,19
+     gAT 365,126
+     gBOX 40,19
+   ENDIF
+   gFONT 11
+ENDP
+
+PROC hk:(i%,j%,kl%)
+    gGMODE kl%
+    gAT 101+(22*i%)+(22*j%),85-(10*j%)+(10*i%)
+    gLINEBY 7,9
+    gLINEBY 14,0
+    gLINEBY 7,-9
+    gLINEBY -7,-9
+    gLINEBY -14,0
+    gLINEBY -7,9
+    gGMODE 2
+    IF lz%=1
+      gAT 15,60
+      gGREY cp%
+      gPRINT CHR$(j%+65);i%+1;
+      gGREY 2
+    ENDIF
+ENDP
+
+PROC toets:
+   LOCAL h$(8),a$(5)
+   h$="gnsxtrah"
+   DO
+      k%=GET
+      IF k%=$122
+        mINIT
+        mCARD "Game","Give up",%g,"New",%n,"Setup",%s,"Exit",%x
+        mCARD "Score","Table",%t,"Reset",%r
+        mCARD "Hexplode","About",%a,"Help",%h
+        k%=MENU
+        IF k% AND (LOC(h$,CHR$(k%))<>0)
+           a$="p"+CHR$(k%)
+           @(a$):
+        ENDIF
+      ELSEIF k% AND $200
+        k%=k%-$200
+        IF LOC(h$,CHR$(k%))
+           a$="p"+CHR$(k%)
+           @(a$):
+        ENDIF
+      ELSEIF (k%>255) and (k%<260)
+        IF (k%=256) AND (x%>0)     REM UP
+          x%=x%-1
+          hk:(x%+1,y%,1)
+          hk:(x%,y%,0)
+        ELSEIF (k%=257) AND (x%<4) REM DOWN
+          x%=x%+1
+          hk:(x%-1,y%,1)
+          hk:(x%,y%,0)
+        ELSEIF (k%=258) AND (y%<4) REM RIGHT
+          y%=y%+1
+          hk:(x%,y%-1,1)
+          hk:(x%,y%,0)
+        ELSEIF (k%=259) AND (y%>0) REM LEFT
+          y%=y%-1
+          hk:(x%,y%+1,1)
+          hk:(x%,y%,0)
+        ENDIF
+      ENDIF  
+    UNTIL (k%=13) OR (k%=999)
+ENDP
+
+PROC pn:
+  k%=998
+  pg:
+  IF k%=999
+    sc1%=0
+  ENDIF
+ENDP
+
+PROC pg:
+   LOCAL i%
+ stn::   
+   dINIT
+   IF k%=998
+     dTEXT "","OOPS! You pressed NEW!",2
+   ELSE
+     dTEXT "","OOPS! You pressed GIVE UP!",2
+   ENDIF
+   dTEXT "","Do you really want to start new?",2
+   dTEXT "","(And loose all you did so far?)",$202
+   dBUTTONS "No",%N,"Yes",%Y
+   LOCK ON
+     i%= DIALOG
+   LOCK OFF
+   IF i%=121
+     k%=999   
+   ENDIF
+   IF i%=0
+     GOTO stn
+   ENDIF
+ENDP
+
+PROC ps:
+  Setup:
+  IF cp%=1
+     cc%=2
+   ELSE  
+     cc%=1
+   ENDIF
+ENDP
+
+PROC px:
+  ad:
+ENDP
+
+PROC pt:
+  LOCAL i%,l%
+  l%=st%
+  dINIT "Looking in high score tables"
+  dTEXT "","You can only look for one level at a time",$202
+  dCHOICE l%,"What skill level do you want?","1,2,3,4,5"
+  LOCK ON
+   i%=DIALOG
+  LOCK OFF
+  hst::
+  i%=st%
+  st%=l%
+  rf:
+  st%=i%
+  dINIT "HIGH SCORE TABLE FOR LEVEL "+NUM$(FLT(l%),2)+" !"
+  dTEXT "","1. "+nm$(1)+"   "+NUM$(FLT(sc%(1)),4)+"   on "+dt$(1),2
+  dTEXT "","2. "+nm$(2)+"   "+NUM$(FLT(sc%(2)),4)+"   on "+dt$(2),2
+  dTEXT "","3. "+nm$(3)+"   "+NUM$(FLT(sc%(3)),4)+"   on "+dt$(3),2
+  dTEXT "","4. "+nm$(4)+"   "+NUM$(FLT(sc%(4)),4)+"   on "+dt$(4),2
+  dTEXT "","5. "+nm$(5)+"   "+NUM$(FLT(sc%(5)),4)+"   on "+dt$(5),$202
+  l%=1
+  dCHOICE l%,"What skill level do you want (0=stop)?","0,1,2,3,4,5"
+  LOCK ON
+   i%=DIALOG
+  LOCK OFF
+  IF l%>1
+    l%=l%-1
+    GOTO hst
+  ENDIF
+ENDP
+
+PROC pr:
+   LOCAL i%
+   dINIT
+   dTEXT "","OOPS! You pressed RESET!",2
+   dTEXT "","Do you really want to reset all tables?",2
+   dTEXT "","(And loose all your nice scores?)",$202
+   dBUTTONS "No",%N,"Yes",%Y
+   LOCK ON
+     i%= DIALOG
+   LOCK OFF
+   IF i%=121
+     CLOSE
+     DELETE "\OPD\hexplode.odb"
+     cf:
+   ENDIF
+ENDP
+
+PROC pa:
+  LOCAL i%
+  dINIT "About Hexplode v 1.1"
+  dTEXT "","Last update: August 1998",2
+  dTEXT "","Last can be found on Internet:",2
+  dTEXT "","<http://www.alinden.demon.nl/psion/>",2
+  dTEXT "","Email: <andre@alinden.demon.nl>",$202
+  dTEXT "","Freeware:  "+CHR$(184)+"Andre van Linden",2
+  LOCK ON
+     i%=DIALOG
+  LOCK OFF
+ENDP
+
+PROC ph:
+  Init:
+ENDP
+
+PROC phx:(i%,j%)
+gAT 110+(j%*22)+(i%*22),90-(j%*10)+(i%*10)
+IF bd%(i%+1+(j%*5)) <> 0
+   gPRINT " "
+   gAT 110+(j%*22)+(i%*22),90-(j%*10)+(i%*10)
+   IF pl%=-1
+     gGREY cp%
+   ELSE
+     gGREY cc%
+   ENDIF  
+   gPRINT IABS(bd%(i%+1+(j%*5))) 
+ELSE 
+   gPRINT " "
+ENDIF
+gAT 370,28
+gGREY cc%
+gPRINT sc1%;" ";
+gAT 370,46
+gGREY cp%
+gPRINT sc2%;" ";
+gGREY 2
+ENDP
+
+PROC prtt:(t&,d%)
+local s&,m&
+m&=INT(t&/60)
+s&=t&-(m&*60)
+gFONT 10
+IF d%=1
+  gGREY cc%
+  gAT 45,40
+ELSE
+  gGREY cp%
+  gAT 45,60
+ENDIF
+IF m&<10 
+  gPRINT "0";
+ENDIF
+gPRINT m&;":";
+IF s&<10 
+  gPRINT "0";
+ENDIF
+gPRINT s&;"  ";
+gGREY 2
+gFONT 11
+ENDP
+
+PROC of:
+  IF NOT EXIST ("\OPD\hexplode.odb")
+    cf:
+      ELSE
+    OPEN "\OPD\hexplode.odb",A,lv%,nm$,dt$,sc%
+    ri:
+  ENDIF  
+ENDP  
+
+PROC cf:
+  LOCAL i%,j%
+  CREATE "\OPD\hexplode.odb",A,lv%,nm$,dt$,sc%
+  A.lv%=10+st%
+  A.nm$=name$
+  A.dt$="Hexplode version 1.1"
+  A.sc%=(cs%-1)+(2*(lz%-1))+(4*(cp%-1))+(8*(td%-1))
+  APPEND
+  i%=1:j%=1
+  DO
+    DO
+      A.lv%=i%
+      A.nm$="Andre"
+      A.dt$=Left$(DATIM$,21)
+      A.sc%=j%*20+i%
+      APPEND
+      j%=j%+1
+    UNTIL j%>5
+    j%=1
+    i%=i%+1
+  UNTIL i%>5
+  FIRST 
+ENDP
+
+PROC rf:
+   LOCAL i%,j%
+   i%=1:j%=1
+   FIRST
+   DO
+     IF A.lv%=st%
+        nm$(j%)=A.nm$
+        dt$(j%)=A.dt$
+        sc%(j%)=A.sc%
+        j%=j%+1
+        IF j%>5
+           j%=5
+        ENDIF
+     ENDIF
+     i%=i%+1
+     IF i%<27
+       NEXT
+     ENDIF
+   UNTIL i%>26
+   sf:
+ENDP
+
+PROC sf:
+  LOCAL d$(20),m$(21),l%,i%,j%
+  i%=1
+  WHILE i%<5
+    j%=i%+1
+      WHILE j%<6
+        IF sc%(i%)<sc%(j%)
+          d$=nm$(i%) : m$=dt$(i%) : l%=sc%(i%)
+          nm$(i%)=nm$(j%) : dt$(i%)=dt$(j%) : sc%(i%)=sc%(j%)
+          nm$(j%)=d$ : dt$(j%)=m$ : sc%(j%)=l%
+        ENDIF
+      j%=j%+1
+      ENDWH
+    i%=i%+1
+  ENDWH
+ENDP    
+
+PROC ri:
+   LOCAL i%,j%
+   i%=1
+   FIRST
+   DO
+     IF A.lv%>10
+       st%=A.lv%-10
+       name$=A.nm$
+       j%=A.sc%
+       IF j%>15
+         td%=3
+         j%=j%-16
+       ELSEIF j%>7
+         td%=2
+         j%=j%-8
+       ELSE
+         td%=1
+       ENDIF
+       IF j%>3
+         cp%=2
+         j%=j%-4
+       ELSE
+         cp%=1
+       ENDIF
+       IF j%>1
+         lz%=2
+         j%=j%-2
+       ELSE
+         lz%=1
+       ENDIF
+       cs%=j%+1
+       i%=26
+     ENDIF
+     i%=i%+1
+     IF i%<27
+       NEXT
+     ENDIF
+   UNTIL i%>26
+ENDP
+
+PROC ui:
+  LOCAL i%
+  i%=1
+  FIRST
+  DO
+     IF A.lv%>10
+       A.lv%=10+st%
+       A.nm$=name$
+       A.dt$="Hexplode version 1.1"
+       A.sc%=(cs%-1)+(2*(lz%-1))+(4*(cp%-1))+(8*(td%-1))
+       UPDATE
+       i%=26
+     ENDIF
+     i%=i%+1
+     IF i%<27
+       NEXT
+     ENDIF
+  UNTIL i%>26
+ENDP
+

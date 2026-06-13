@@ -1,0 +1,243 @@
+A brief history of !ArcLink5
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Versions below 1.00 are beta-test versions.
+
+
+v0.13a    (13th Jun 1999)
+          a) Fixed bug where ArcLink5 occasionally locked up when
+             directly transferring a file from the Psion into a
+             RISC OS application such as Pipedream.
+          b) Added translation where SHIFT-SPACEs are converted to
+             normal spaces when converting Word files into Text
+             files.
+      
+v0.13     (13th Jun 1999)
+          a) Re-coded main display window so that full details
+             are given instead of large icons.
+          b) Fixed a couple of bugs to stop you trying to delete
+             'open' files on the Psion.
+          c) MAJOR NEW ADDITION - Added rudimentary file conversion
+             to save Acorn text files as 'Word' files on the Psion
+             and vice versa.
+          d) Error no longer given if you try to create a directory
+             which already exists on the Psion.
+          e) Fixed bug whereby replacing a file on the Psion
+             now updates the Acorn filer display correctly, rather
+             than adding a second entry.
+          f) Added code to prevent two copies of ArcLink5 running
+             at once.
+          g) Made sort on Name case-insensitive.
+          h) MAJOR NEW ADDITION - Added recursive, hiararchical
+             copying from the Acorn to the Psion.
+          i) Added some more error checking conditions.
+          j) Added support for more Psion error messages.
+          k) Added support for !SparkFS so that you can drag
+             archives to ArcLink5 to automatically extract the
+             files into a new directory.
+          l) MAJOR NEW ADDITION - Added rudimentary file conversion
+             to read OPL files from the Psion and convert them to 
+             Acorn text files.
+
+v0.12     (17th Nov 1998)
+          a) Fixed silly bug where I forgot to reset the baud
+             rate correctly when you saved choices and then
+             re-loaded them. This created serial frame errors
+             next time you loaded ArcLink5.
+          b) Extended serial delay slightly to allow for the
+             Psion opo file to quit correctly when you have
+             changed the baud rate and then quit the Acorn end.
+          c) Re-designed the Psion.opo file for additional
+             screen clarity, including current baud rate display.
+
+v0.11     (10th Nov 1998)
+          a) Fixed bug where ArcLink5 failed to set the correct
+             baud rate on loading, if a different baud rate was
+             saved in the choices.
+          b) Fixed bug where serial ports other than 0 (on fast
+             (serial port cards) failed to work correctly.
+             
+v0.10     (30th Oct 1998)
+          a) Made slight alteration to registration code.
+          b) Adjusted so that Risc OS version is read correctly,
+             even if you have installed the new window manager
+             on pre Risc PC machines.
+          c) Serial port is only reset when if exit, if you've
+             actually contacted the Psion, else ArcLink5 should
+             exit neatly.
+          d) Amended block driver initialisation so that any
+             remaining problems should be fixed.
+          e) Added error logging (if 'debug' turned on) so that
+             any errors are logged in the ArcLink5 scrap dir.
+          f) Initialisation/error handling updated to allow
+             ArcLink5 to turn off SerialDevs if choices were 
+             saved to on, and then ArcLink5 reloaded with no
+             Serial card present.
+          g) Modified date reading routines so that additional
+             modules such as "SensibleTime" should work ok.
+          h) Amended to allow faster baud rates than 19200 on
+             A5000 machines with Atomwide Serial cards fitted.
+          i) Amended ArcLink5 to only work at 9600 baud until
+             registered.
+
+v0.09     (2nd Sep 1998)
+          a) Tidied up !SerialDev routines so that ArcLink5 is
+             more stable at detecting the existence of Serial
+             cards fitted to the machine.
+          b) Removed calls to SerialDev if no serial device
+             driver is selected to prevent unexpected crashes.
+          c) Fixed bug in file date sorting routine.
+             
+v0.08     (27th Jul 1998)
+          a) Added (and tested) support for the Atomwide dual
+             serial port cards. Thanks are due to Chris Manning
+             who very kindly loaned me his serial card in order
+             to test this facility.
+          b) Tidied up some of the menu options to give a neater
+             display on pre-Risc PC machines.
+          c) Fixed a minor bug which sometimes resulted in an
+             incorrect directory listing from the Psion being
+             displayed.
+          d) Tidied up some internal transfer routines in order
+             to make the transfer a bit neater and hopefully much
+             more reliable.
+          e) Fixed superfluous file occasionally appearing inside
+             the Acorn viewer window when looking at empty
+             directories on the Psion.
+          f) Fixed registration code to work with overseas time
+             codes.
+             
+v0.07     (26th Feb 1998)
+          a) Fixed bug in changing baud rate code with SerialDev.
+          b) Fixed bug in grabbing directories containing lots of
+             files.
+          c) Speeded directory grabbing up a bit.
+          d) Fixed bug where if no SerialDev was selected they were
+             all permanently greyed out and you couldn't turn them
+             back on.
+          e) Updated Psion ArcLink5.opo slightly.
+
+v0.06a    (20th Feb 1998)
+          a) Removed some debugging code inadvertantly left in v0.06
+          
+v0.06     (18th Feb 1998)
+          a) Fixed bug where if a differing baud rate to 19200 was 
+             saved in the choices, the baud rate failed to sync with
+             Psion next time you load ArcLink5. ArcLink5 now transmits
+             the new baud rate on initialisation.
+          b) The baud rate is reset to 19200 when you quit ArcLink5
+             (this is mainly for debugging purposes, so can be ignored)
+          c) Fiddled around with "Resetserial" procedure to fix serial
+             port corruption at high speeds (introduced in v0.05)
+             
+v0.05     (30th Jan 1998) - Archive cover disc (March 1998) version
+          a) Speeded up getting directories from Psion.
+          b) Added extra configuration options into 'Messages' file
+             (see manual for details)
+          c) Fixed bug in international routine. Foreign message and
+             template files should now work.
+          d) Changed menu structure to allow for foreign language menus.
+          e) Added iconsprites command to !Run file to ensure that
+             ArcLink5 has it's icon, even if it has been run directory
+             from a !Boot or application launcher sequence.
+          f) Added (hopefully) support for !SerialDev and Atomwide fast
+             serial ports (I don't have one, so please give feedback as
+             I've coded this blindly from the specs.)
+          g) Started to add error checking on the Psion end. If a fatal
+             error occurs on the Psion, it should survive and send the
+             relevant error code back to the Acorn.
+             N.B. This will be improved as ArcLink5 becomes more stable.
+          h) Added support for 'inaccessible' files on the Psion. These
+             appear an an unknown filetype (file_xxx) in the Acorn filer
+             display.
+          i) Fixed bug where directory window always appears on left of
+             screen instead of where you dragged it to.
+          j) Changed default directory opening position to be relative
+             to the current screen mode.
+          k) Fixed bug where empty directories were displayed containing
+             a single file (which didn't actually exist)
+          l) Implemented display sorting options in Acorn filer window.
+          m) Added 'Abort!' option to main menu as an emergency abort of
+             directory transfers.
+          n) Implemented copying whole directories from the Psion to the
+             Acorn (N.B. Sub-directories are not yet copied!)
+          
+v0.04a    (19th Jan 1998)
+          a) Fixed minor bug in filetype conversion so that the filetype
+             is no longer case-sensitive.
+          b) Implemented moving files by holding SHIFT down when dragging
+             files.
+          c) Fixed minor bug which caused a slight delay at the end of
+             transferring a new directory from the Psion.
+
+v0.04     (15th Jan 1998)
+          a) Extended maximum directory size/depth from 77 to 255 files.
+          b) Added user-defined character translations when converting
+             filenames to and from Psion<->Acorn filename formats.
+             (Codings are inside !ArcLink5.Resources.Trans)
+          c) Extended menu structure to allow for 'Display'
+             (when supported!)
+          d) Extended menu structure to allow for filer 'Options'.
+             ('Newer' is not yet supported)
+          e) Extended 'unregistered' timeout period from 1st Feb 1998 to
+             15th Feb 1998.
+          f) Added filetype mapping table to help convert Psion file
+             extensions into suitable Acorn filetypes.
+          g) Implemented datestamp reading.
+          h) Designed a sprite file (and Acorn filetype of 090) for Psion
+             OPO files. (Please feel free to improve upon the sprite!)
+
+v0.03     (9th Jan 1998)
+          a) Added support for dragging directly from applications to the
+             Psion window. This will transfer data straight from the app
+             to the Psion. The reverse is also possible, so you could drag
+             a file from the Psion window straight into !Zap for instance.
+          b) Set filetype icon correctly when dragging a file across to 
+             the Psion and the Acorn window is updated.
+          c) Fixed bug (icons getting corrupted when given the option to
+             delete a long filename file from the Psion)
+          d) Improved transfer speed TO Acorn. It is now as fast as going
+             TO the Psion. 100k files now transfer in under 30 seconds.
+          d) Added code so that all baud rates up to 115200 baud are
+             supported (registered version only)
+          e) Fixed bug where some directories displayed on the Acorn as
+             empty, and gave a "Folder not found" error on the Psion.
+          f) Added International support for foreign language messages 
+             and templates.
+          g) Added 'Choices' menu.
+          h) Converted spaces in Psion filenames to "_" (underscore) when
+             converting to Acorn file format.
+          i) Made Acorn end multi-task while doing transfers
+             (optional - controlled by 'Choices.Multitask' menu option)
+          j) Added warning before overwriting Acorn files.
+          k) Amended filer display to look the same as the Risc OS filer
+             windows.
+          m) Added option to quit the Psion prog at the same time as the
+             Acorn application ('Choices.Quit opo')
+          n) Fixed bug in rename so that non Acorn filer characters are
+             correctly converted.
+          o) Implemented 'Count' for seeing how long Psion files are.
+          p) Amended Psion opo so as not to switch the machine off
+             through no use when transferring files.
+          q) Added SHIFT-doubleclick to load files straight from Psion
+             filer window into text editor.
+          r) Modified menu widths to look ok on pre-Risc PC machines.
+          s) Tested ok on RISC OS 3.1 machines (subject to serial port
+             wiring)
+
+v0.02     (3rd Jan 1997)
+          - Fixed a few silly bugs and added a couple of features
+          
+          a) Extended 'Rename' entry field to allow up to 255 characters
+             (rather than 10 previously)
+          b) Fixed bug in that sending files over 16k to the Psion got
+             truncated at 16k
+          c) Added support for creating new directories.
+          d) Correctly closes filer window when a new device (C: or D:)
+             is opened.
+
+v0.01     (2nd Jan 1998) - FIRST BETA TEST VERSION
+          Original release version (seems to work ok!)
+          - There may be a few bugs, but I thought I'd let people
+            play around with it and suggest additional comments.
+
+©Paul Vigay

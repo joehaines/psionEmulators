@@ -1,0 +1,116 @@
+==========
+psion/opl #1148, from jezar, 2974 chars, May  6 10:32 94
+Comment to 1136. 
+----------
+
+TITLE: Text scrolling
+
+This is a user-interface to an
+offline reader that never saw the light of day. It needs to
+be translated in Series 3 Classic mode but it illustrates
+really nice *smooth* scrolling with the arrow keys. Just press them
+and see what happens.
+
+----------------------------------------------------
+PROC temp:
+        Global ypos%, count%
+        Local key%, text$(30)
+
+        ypos%=10
+        gSetWin 0,20,240,60
+        gCreate (6,1,228,13,1)
+        gBorder $02
+        gAt 8,9
+        gPrint "Sarah - CIX offline reader by jezar@cix"
+        gUse 1
+        Screen 38,5,2,2
+        gBorder $01
+
+        while 1
+                count%=count%+1
+                gBorder $01
+                key% = Get
+                if key%=$100
+                        text$="This is a top "
+                        text$=text$+gen$(count%,10)
+                        prnt:(1,text$)
+                elseif key%=$101
+                        text$="This is a bottom "
+                        text$=text$+gen$(count%,10)
+                        prnt:(0,text$)
+                elseif key%=$122
+                        mymenu:
+                endif
+        endwh
+ENDP
+
+Proc prnt:(top%,text$)
+        if top%
+                gAt 4,10
+                scroll:(0)
+                gXPrint text$,0
+                if ypos%<60
+                        ypos%=ypos%+9
+                endif
+        else
+                if ypos%<60
+                        gAt 4,ypos%
+                        ypos%=ypos%+9
+                else
+                        gAt 4,ypos%-9
+                        scroll:(1)
+                endif
+                gXPrint text$,0
+        endif
+EndP
+
+Proc scroll:(down%)
+        local delta%, scroll%
+        if down%
+                delta%=-3
+        else
+                delta%=3
+        endif
+        while scroll%<3
+                scroll%=scroll%+1
+                gScroll 0,delta%,2,3-2*delta%/3,235,53
+        endwh
+EndP
+
+proc mymenu:
+        gBorder 02
+        mInit
+        mCard "Control", "Join conference/topic", %j, "Resign conference/topic", %q, "Man-
+ual database purge", %g, "Restore CIX pointers", %c, "Connect normal", %n, "Connect read--
+only", %r
+        mCard "Edit", "Comment / Reply", %c, "Say / Send Mail", %s, "Export", %e, "Mark u-
+nread", %m, "Delete", %d
+        mCard "Scan", "Find previous", %r, "Find", %f, "Find next", %g, "Skip to..", %s, -
+"Numeric overview", %n
+        mCard "Thread", "Original", %o,"Root", %r, "Follow", %f, "Skip", %s, "Overview", -
+%o,"Print / Save", %p
+        mCard "Special", "Flist", %i,"Mail status", %m, "Basket clearance", %o, "Settings-
+", %s, "Conference groupings", %g, "Exit", %x
+        if menu=%s
+                sett%:
+        endif
+        gBorder 01
+
+endp
+
+proc sett%:
+        mInit
+        mCard "Settings","CIX",%c,"Modem",%m,"Comms",%k
+        menu
+endp
+
+
+---------------------------------------------------------
+
+Maybe someone will be turn this into a REAL OLR :-)
+
+Regards,
+Jezar.
+
+  
+

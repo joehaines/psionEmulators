@@ -1,0 +1,472 @@
+FORMULA
+=======
+for: PSION System 3a/c
+
+Author: (C) Peter von Walter; 26.5.99
+email: vwalter@physi.uni-heidelberg.de
+www: http://pi.physi.uni-heidelberg.de/~vwalter/my/homepage.html
+
+Entry field
+-----------
+When you start FORMULA you will be presented with an empty entry field. This is where you enter your
+expression for evaluating or plotting or you simply enter the name of your table or equation record
+to be opened (see also the tutorial in FORMULA.TUT).
+
+If the expression (or equation) can be immediately resolved you will get the result in the entry
+field for further calculations.
+
+If the symbol relates to a table or equation record, this record will be loaded, analyzed and
+presented in a separate dialog. You enter there your values for recalculation. All values here can
+also be entered as arithmetic expressions (in the syntax of the system calculator!). The program
+recalculates everything to simple numbers. Therefore you could enter for a value also the raw data
+(e.g. in the table of gasoline consumptions, driven 400 km, filled up 56.3 Litres, then enter in
+field "Litres/km": "56.3/400").
+
+Expressions
+-----------
+The expression can be any arithmetic expression, combined from constants, symbols and operators ("*",
+<blank>, "/", "**", "+" or "-").
+
+The multiplication operator <blank> is the same as "*", so you can write simply "3 cm" (or even "3cm"
+if nonambiguous).
+
+The exponential operator "**" can also be ommited after a symbol (like m**3 = m3). With numbers you
+can substitute "e" for 10** (e.g. 3*10**4 = 3e4).
+
+The symbol 'PI' or 'pi' will be taken as 3.14...
+
+Symbols with following brackets, like "sin()", will be seen as functions and evaluated according to
+the built in functions of the calculator.
+
+Expressions can be ordered (also hirarchic) in brackets ().
+
+All scaling factors (c.., k.., ...) ahead of units are handled by the program itself (see Scaling
+Factors).
+
+valid examples:
+13+4*10
+123e10 kg
+3m 3kg
+m2
+m3/kg
+360/(pi*2.3456)
+nautical_mile/h
+sin(3)
+3kg+3g
+Temperature
+Currencies
+
+unvalid examples:
+3m3kg {ambiguous: 3m 3kg or 3m3 kg}
+sin(3kg) {makes no sense}
+3kg+3m  {types do not match}
+
+Equations
+---------
+Expressions will always be resolved to the standard units (SI). If you want the conversion to some
+specific symbols (units), you can simply write an equation with the two expressions
+"source"="target":
+eg.
+Entry: 10 mile/h = knot
+Answer:10 mile/h = 8.689 knot
+
+Entry: 1 acre = yard**2 
+Answer:1 acre = 4840 yard**2
+
+Entry: 1000 Joule = kWh
+Answer: 1000 Joule = 2.77_e-06 kWh
+
+A more complex example
+----------------------
+I drive with my bicycle (total mass of 90kg) up on a hill (height 550m). How much energy (friction
+neglected) is need for this?
+Entry: 90 kp*550m =				{energy is power*length; power=mass*acceleration}
+Answer: 485429.175 kg m2 s-2	{SI standard units}
+
+How many calories do I have to eat for this?
+Entry: 485429.175 kg m2 s-2 = kCal
+Answer: 115.943 kCal
+
+How much gasoline would that be?
+Entry: 115.943 kCal = litre gasoline
+Answer: 0.0127 litre gasoline
+
+How much would it cost?
+Entry: 0.0127 litre*price_of_gasoline =
+Answer: 0.019 DM
+
+How much is that in US$?
+Entry: 0.019 DM=US$   
+Answer: 0.0122 US$
+
+Do the whole calculation in one step:
+Entry: 90 kp*550m/gasoline*price_of_gasoline = US$
+Answer: 0.0122 US$
+
+As you can see, it is only important to place the same (or equivalent) dimension on both sides of the
+equation (e.g. energy or price). Of course, all the information has to be somewhere in the database,
+but the number of combinations are endless.
+
+Plots
+-----
+To generate a plot of a function you have to write an equation with additional parameters with the
+range of your independent variable. Optionally you can add the fixed range of your dependent variable
+and the string "Overlay" to draw in the existing plot. The parameters are separated with semicolons
+(;):
+eg.
+y=x**2;x=-1..1
+Wave=sin(time);time=0..10;-1..1;Overlay
+
+Plots can also be generated directly from equation records when you enter a range (from..to) in any
+variable.
+
+Search algorithm
+----------------
+The program tries to find symbols according to the following rules:
+1) with full upper AND lower case significance
+2) tries first character as a scaling factor, remaining as in 1)
+3) either upper OR lower case
+4) tries first character as a scaling factor, remaining as in 3)
+5) tries to find the symbol within the names and build up a matching list
+
+Scaling factors
+---------------
+E Exa=10**18
+P Peta=10**15
+T Tera=10**12
+G Giga=10**9
+M Mega=10**6
+k Kilo=10**3
+h Hekto=10**2
+e Deka=10**1
+d Dezi=10**-1
+c Zenti=10**-2
+m Milli=10**-3
+u Mikro=10**-6
+n Nano=10**-9
+p Pico=10**-12
+f Femto=10**-15
+a Atto=10**-18
+
+Data transfer
+-------------
+For easy transfer of calculation values to the calculator (Psion) or to other programs the global
+variables M0..M9 can be used. Simply enter the name of the according global variable ('M0'..'M9') as
+a value or press Psion-Enter to automatically enter 'M0' into the selected line. The global variables
+M0..M9 can also be used in formulas (e.g. 'y=3*x+M3')!
+
+To store a value in 'M0' press Psion-Shift-Enter. To store all values in lines 1..8 into M1..M8 press
+additionally 'Cntrl'.
+
+Press Psion-Help in any dialog to see a list of M0..M8, which can also be changed.
+
+Functions
+---------
+Beside all standard functions (sin(),..), you can use also the symbol "!" for faculty (n! =
+1*2*3*..*n).
+
+
+Number format
+-------------
+In all cases you are allowed to enter your values as expressions (e.g. 2*pi/2). The syntax is the
+same as used in the system (e.g. calculator). The number format in the examples is with a decimal
+point. If you want to use something else, you have to change this from the system.
+
+
+D A T A B A S E
+---------------
+The informations for conversion, for the tables and for the equations are contained in the records of
+the database. In general the fields have the following meaning:
+
+Group:  <Name of group>     {optional}
+Name:   <Name of record>    {must be unique}
+        <alias>             {alias names,optional}
+        ...
+Info:   <Text>              {optional}
+        ...                 {more lines (Shift-Enter) are possible}
+1       <expr>              {conversion, table, equation or entry}
+2       <expr>              {conversion, table, equation or entry}
+...
+8       <expr>              {conversion, table, equation or entry}
+
+The name of the group is only taken for partitioning (building up an equivalent list). It has no
+meaning for the conversion itself.
+
+The name of the record may consist of several (alias) names, which are separated by Shift-Enter on
+different lines. These must be unique and will be used alternatively. No numeric (0..9) and special
+characters (<blank>*/+-^%.,;()¢[]{}=:) are allowed here.
+
+Info is a general text field to give additional informations about the record.
+
+The expression in field 1 of each record determines how the record will be handled:
+1) it is empty: This is a standard unit (SI) record.
+2) it contains an expression: This is a conversion record.
+3) it contains one or more "=": This is an equation record.
+4) it contains one or more TABs: This is a table record.
+5) it has a "'" as first character: This is a entry record.
+
+The other fields 2..8 can be empty or are used appropriate.
+
+The program is very dependent on the quality and consisteny of your data files. The files delivered
+in the package have to be considered as starting examples and will be (hopefully) extended by you. (I
+have to apologize for the sometimes maybe incorrect terms or names in english, but as this is not my
+mothertongue language, I collected everything in german and had to translate it).
+
+Hopefully each user will create his own datafiles according to his needs or profession. This is the
+main advantage of a open (text based) interface, compared to other programs available.
+
+I can imagine, that many people build up information systems, which would be useful for other peoples
+too, and I would like to encourage everyone using my scheme to put his work into public.
+
+All different records are described in more detail in the following.
+
+1) STANDARD UNIT (SI) RECORD (see UNITS.DBF)
+----------------------------
+These records contain no conversion factors and therefore will be used only to determine the end of
+conversion.
+
+Of course, each database should contain all the basic SI units like: kg, m, sec, A, cd, ¡K. But you
+could extend it with US$, rad (angel), mol, ...
+
+NOTE: Units, which are more common, should be placed more at the beginning of the database. This is
+especially true for the standard units (SI), because the database will be searched for each new unit
+again from the beginning. Therefore this determines the speed of the conversion.
+
+2) CONVERSION RECORD (see UNITS.DBF)
+--------------------
+The conversion expression is either a simple factor (e.g. "12 inch") or a factor with a name in front
+(e.g. "Imperial: 5 floz").
+
+In this way it is possible to have alternative conversion factors for the same unit, like in
+different measuring systems (US, Imperial, Troy, ..). You choose the appropriate domain by extending
+a symbol (unit) with this name (e.g. "inch.imperial" or "inch.us".
+
+The structure of the database is essential for the performing of the program. Here some comments:
+
+Each unit must be solvable (in general via other units) to the standard units, for example: knots ->
+seamile/h; seameile -> meter ; h -> min -> seconds.
+If a unit can not be found, a warning will be generated.
+Avoid circular dependencies like foot = 12 inch; inch = 1/12 foot.
+
+The search algorithm determines how units are found (see above). Avoid ambiguities with the scaling
+factors. Note, that if a unit is named "nm", it is not possible anymore to find the unit nanometer =
+"nm".
+
+Of course the speed of the conversion will be much higher if dependent units will be defined directly
+equivalent to the SI units.
+e.g. mile = 1609 m; fathom = 1.82 m; yard = 0.914 m ; foot = 0.3 m; ...
+But I think (and this was one reason to write the program) it is much more elegant (and more precise)
+to define the conversions according the underlying system and let the program itself evaluate the
+conversion factor by searching through all units. e.g. mile = 8 fathom; fathom = 2 yard; yard = 3
+foot; foot=12 inch ; inch = 2.54 cm;
+
+To see if your database performs consistently, use the function 'Report' to generate a list of all
+your records with evaluation to standard units. Unresolvable units will be flagged with an error
+remark.
+
+3) EQUATION RECORD (see EQUATION.DBF)
+------------------
+An example could be the formula from mathematics to evaluate the volume of a cone. If you look in a
+formulary it is:
+
+volume = radius**2 * pi * height/3.
+
+'radius' and 'height' are the so called INDEPENDENT variables, which are entered.
+'volume' is the so called DEPENDENT variable, which you want.
+The equation can be always transformed e.g. to calculate the 'height' from given 'volume' and
+'radius'!
+
+The program analyses the equation system and determines all dependent variables. If there are more
+possibilities, the program asks you for the variable to be calculated!
+
+Each record contains several (related or simple) equations.
+
+The syntax for the equations is: ([]=optional; \=or):
+
+	symbol [label] ['='\'=='formula] [';'[initial_value]]
+
+'symbol' is the name of dependent variable of the equation in this line (the function result).
+'label' is any text, explaining the variable.
+'=' starts the formula, the formula will be displayed.
+'==' starts the formula, the formula will not be displayed.
+'formula' is the actual functional expression. 
+';initial_value' is a starting value (default 1).
+
+Examples:
+
+g gravity/m/s2=v/s;9.81	{the initial value for g will be 9.81}
+g gravity/m/s2			{the value for g can only be set; initial default 1}
+gravity/m/s2			{the label "gravity" is the symbol, characters after '/' are ignored}
+
+Formulas F(a,b,c,d,..)
+--------
+Each line holds the appropriate transformation (equation) of the formula to be taken for evaluation
+of the independent variable from all other (dependent) variables.
+
+a=A(b,c,d,..)
+b=B(a,c,d,..)
+...
+
+The data record for the cone example above could look like that:
+
+Group:	Mathematics
+Name:	Cone
+Info:	Threedimensional object
+1:		V volume=r**2*pi*h/3
+2:		r radius=sqr(V/(pi*h/3))
+3:		h height=V/(r**2*pi)*3
+
+You are allowed to enter values on each line. The program always asks which line to calculate (from
+the others!)
+
+The program always analyzes the complete formula system to determine the dependent and independent
+variables and to decide which line can be set and which choices for calculation or plotting are
+possible! If you are not able to recalculate a formula to the approriate transformation and you want
+this variable to be set, you should at least denote this with a list of the independent variables
+(embraced with {}) in this line. The value can not be calculated (obviously) but can then be set,
+eg.:
+
+k=y-x**5+x**3+..
+y=x**5+x**3+...+k
+x={k,y}
+
+
+Equations
+---------
+Equations which are not related to the same formula, but use variables from other equations will be
+simply evaluated in the order top to down.
+
+See the following extended example:
+
+Group:	Mathematics
+Name:	Cone
+Info:	V = r**2 * pi *h/3
+1:		V volume:r**2*pi*h/3
+2:		r radius:sqr(V/(pi*h/3))
+3:		h height:V/(r**2*pi)*3
+4:		-------------------------------
+5:		M coat_area=r*pi*sqr(r**2+h**2)
+6:		G ground_aera=r**2*pi
+7:		O surface=G+M
+
+The variables in the last 3 lines (5..7) will be additionally calculated (from the variables in the
+previous lines), but can not be set.
+
+
+Plotting
+--------
+In entering a value range with '..' (e.g. '-10..10') for a variable you select the plot mode. This
+(with ENTER) selected variable will always be considered as the independent variable on the
+horizontal axis.
+The program analyses the equation system and asks you for the dependent equation to be plotted on the
+vertical axis!
+If you have also defined a value range for the dependent variable, this range will be used as value
+range for the function. Otherwise the range will be evaluated (autoranging) and entered as a function
+value!
+For multiparametric plots you can change now a parameter and plot the same function as an overlay
+into the same coordinate system. Simply select the same variables for the horizontal and vertical
+axis.
+
+
+4) TABLE RECORD (see TABLES.DBF)
+---------------
+Tables describe how variables correlate to each other. A simple example is a table of currencies. A
+more complex example can be seen in the different temperature scales.
+
+There a 3 different possibilities to define a table:
+
+1) SIMPLE LINEAR FUNCTION (y=k*x)
+Each value ist only multiplied by a factor. In this case the formula is represented by a (example)
+constant.
+
+The formulas are simply a table of values or expressions([]=optional):
+
+label 'tab'[..'tab'] expression
+
+'label' is any text for notifing the value.
+'tab' is the delimiter.
+'expression' is simply a number or an algebraic expression.
+
+Examples:
+
+Group:  Currency
+Name:   Europe
+Info:
+1:      Germany/DM          1
+2:      France/ffr          3.25
+3:      Switzerland/sfr     1/1.22
+4:      England/Pfund       1/2.94
+
+Group:  Length
+Name:   Imperial
+1:      mile                1
+2:      furlong             8
+3:      chain               8*10
+4:      rod                 8*10*4
+5:      yard                8*10*22
+6:      foot                8*10*22*3
+7:      inch                8*10*22*3*12
+
+2) LINEAR FUNCTION (y=a+b*x)
+Each value is given through a value range, which corresponds to the ranges in the other lines. In
+this case this range is defined through two (example) constants.
+
+The formulas are a table of value ranges or expressions([]=optional):
+
+label 'tab'[..'tab'] expression1 ".." expression2
+
+'label' is any text for notifing the value.
+'tab' is the delimiter.
+'expression' is simply a number or an algebraic expression.
+
+Example:
+
+Group:  Sizes
+Name:   Shoes_Men
+Info:
+1:      England             6.5..11
+2:      USA                 7..(11+1/2)	{or simply 11.5!}
+3:      Europe              39..46
+
+The program interpolates or extrapolates accordingly (the range can also be reversed)!
+
+3) ANY FUNCTION
+Any functional relation (nonlinear) can be used.
+
+Each equation in a line always uses a dependent (output) value of another line as the independent
+(input) value. Therefore there exists a circular dependency of all equations (not necessarily top to
+down!), like
+
+a=A(b)
+b=B(c)
+c=C(a)
+
+Example:
+
+Group:  Physics
+Name:   Temperatures
+Info: 
+1:      Kelvin=Rankine*5/9;273.15
+2:      Celsius=Kelvin-273.15
+3:      Fahrenheit=9/5*Celsius+32
+4:      Reaumur=100/80*(Fahrenheit-32)*5/9
+5:      Rankine=9/5*(80/100*Reaumur+273.15)
+
+You see: Kelvin=f(Rankine); Celsius=f(Kelvin); Fahrenheit=f(Celsius); ...
+
+NOTE: If you change to a table in the same group, the program keeps the previous factor (linear
+functions) or the first value (nonlinear functions) and uses it in the new table. This is very handy
+if you have to change between different tables (like currencies). BUT: You have to relate the tables
+to the same value (e.g. DM).
+
+5) ENTRY RECORD
+---------------
+These records are only to hold your favourite entry strings and to allow you to select it with the
+name of the record plus the number of the string.
+eg. "Func4" selects the string in field 4 of record "Func".
+
+
+I hope this short explanation gives you an idea how to write your own personal data records.
+
+UNITS, TABLES and EQUATION records are separated into the three example files only for clarity. You
+certainly can combine (merge) all record types into one general database file (recommended).

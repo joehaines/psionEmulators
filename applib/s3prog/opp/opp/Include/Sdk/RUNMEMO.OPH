@@ -1,0 +1,59 @@
+#define RUNMEMO_OPH
+
+#ifndef HWIMMAN_OPH
+#include <sdk\hwimman>
+#endif
+
+#ifndef XACTIVE_OPH
+#include <sdk\xactive>
+#endif
+
+/* Types for runmemo */
+
+STRUCT MEMO_ENV
+	self%
+	stat%
+	appid%
+	flags%
+ENDS
+
+STRUCT MEMO_CL
+	e#(SIZEOF(MEMO_ENV))
+	t#(SIZEOF(MEMO_DATA))
+ENDS
+
+/* Property of runmemo */
+
+STRUCT PRS_RUNMEMO
+	logona%
+	mempid%
+	command_byte#
+	alias_info#
+	cl#(SIZEOF(MEMO_CL))
+	in#(SIZEOF(MEMO_DATA))
+	cb#(SIZEOF(MEMO_CALLBACK))
+	hidflag%
+	callback%
+	active%
+	hidden#(SIZEOF(WS_HIDE_APP_DATA))
+ENDS
+
+STRUCT PR_RUNMEMO
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	runmemo#(SIZEOF(PRS_RUNMEMO))
+ENDS
+
+/* Property of ipcstat */
+
+STRUCT PRS_IPCSTAT
+	pid%
+	len%
+	message#(128)
+ENDS
+
+STRUCT PR_IPCSTAT
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	ipcstat#(SIZEOF(PRS_IPCSTAT))
+ENDS

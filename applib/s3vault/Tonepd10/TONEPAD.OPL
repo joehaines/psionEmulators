@@ -1,0 +1,173 @@
+REM - Leaves SND: open, so alarms etc don't work whilst we are
+REM	running (?)
+REM - Draw letters on digit keys
+
+REM Comment-out APP..ENDA to build as standard .OPO
+APP TonePad
+	TYPE $1000
+	ICON "\PIC\TONEPAD.PIC"
+ENDA
+
+PROC TonePad:
+	GLOBAL status%		REM For OS calls
+	REM Arrays for the x,y co-ords and the text of each button:
+	GLOBAL bx%(16), by%(16), bt$(16, 1)
+	GLOBAL bw%, bh%		REM width & height of buttons
+	LOCAL info%(4)			REM for STATWININFO data
+	LOCAL h%, r%, a%(2)
+	LOCAL tl&, dl&, dummy%, k%, k$(1), dtmf$(2)
+	LOCAL x%, y%
+	LOCAL minx%, maxx%, miny%, maxy%, bdx%, bdy%
+	LOCAL ibx%, iby%, ibw%	REM Info Box data
+	REM For using FRC: timer...
+	LOCAL frch%, frcr%, mode%, step%, count%
+
+	SCREEN 0, 0			REM Suppress text window
+	STATUSWIN ON, 2	REM large status window
+	STATWININFO(-1, info%())
+	gSETWIN 0, 0, gWIDTH - info%(3), gHEIGHT
+	DEFAULTWIN 1		REM Enable grey plane
+	gFONT 11				REM Medium-large Swiss
+
+	a%(1) = 255 + (256 * 0)	REM Set max tone time (255 / 32 sec)
+	a%(2) = 48						REM pause time (not used by us)
+
+	REM Specify dimensions of the pad...
+	bw% = 30 :bh% = 23			REM Button dimensions
+	bdx% = 36 :bdy% = 28		REM Button spacing
+	minx% = 12 :miny% = gHEIGHT - (3 * bdy% + bh% + 12)
+
+	REM Initialise data used to display buttons...
+	x% = minx% :y% = miny%
+	k% = 1
+	WHILE k% <= 16
+		bx%(k%) = x% :by%(k%) = y%
+		bt$(k%) = MID$("123A456B789C*0#D", k%, 1)
+		k% = k% + 1
+		IF k% = 5 OR k% = 9 OR k% = 13 :x% = minx% :y% = y% + bdy%
+		ELSE x% = x% + bdx%
+		ENDIF
+	ENDWH
+	maxx% = minx% + 3 * bdx% + bw%
+	maxy% = miny% + 3 * bdy% + bh%
+
+	REM Draw background...
+	gAT minx% - 12, 0 :gBUTTON "", 1, maxx% - minx% + 24, gHEIGHT, 0
+	gAT minx% - 6, miny% - 6 :gBUTTON "", 1, maxx% - minx% + 12, maxy% - miny% + 12, 2
+	gSTYLE 1	REM Bold
+	gAT minx%, miny% - 15 :gPRINTB "TonePad v1.0", maxx% - minx%, 3
+	gSTYLE 0
+
+	REM Draw all the buttons "up"...
+	k% = 1
+	WHILE k% <= 16
+		DrawBut:(bt$(k%), 0)
+		k% = k% + 1
+	ENDWH
+
+	REM Fill the gap between the tonepad and the status window with
+	REM the "info box" for some informative text...
+	ibx% = maxx% + 14						REM l.h. edge of text box
+	ibw% = gWIDTH - (maxx% + 14)	REM width of text box
+	gAT ibx%, 0 :gBORDER 0, ibw%, gHEIGHT
+	iby% = 34									REM Vert pos for 1st text line
+	ibx% = ibx% + 1 :ibw% = ibw% - 2	REM Allow for border
+
+	gSTYLE 8									REM Double-height
+
+	gAT ibx%, iby% :gPRINTB  "Hold down the 0-9, A-D, * or #", ibw%, 3
+	gAT ibx%, 2 * iby% :gPRINTB "keys to generate DTMF tones.", ibw%, 3
+	gAT ibx%, 3 * iby% :gPRINTB CHR$(2) + "X to exit.", ibw%, 3
+	gFONT 9
+	gAT ibx%, gHEIGHT - 6
+	gPRINTB "spooley@cix.compulink.co.uk     Distribute Freely!", ibw%, 3
+	gSTYLE 0
+	gFONT 11
+	iby% = 128			REM Pos for "Last key..." text
+
+	r% = IOOPEN(h%, "SND:", 0)
+	IF r% < 0 :RAISE r% :ENDIF
+
+	DO
+		k% = GET							REM Wait for a key
+		k$ = UPPER$(CHR$(k%))
+
+		IF k% = 290							REM Menu
+			mINIT
+			mCARD "TonePad", "Exit", %x
+			IF MENU = %x :GOTO exit :ENDIF
+			CONTINUE
+		ELSEIF k% = 291					REM Help
+			dINIT "TonePad help"
+			dTEXT "", "See the notes in TonePad.txt,", 2
+			dTEXT "", "or you can email the author:", 2
+			dTEXT "", "spooley@cix.compulink.co.uk", 2
+			DIALOG
+			CONTINUE
+		ENDIF
+
+		IF k$ = "E" :k$ = "*"				REM * a.k.a. "E"
+		ELSEIF k$ = "F" :k$ = "#"	REM # a.k.a. "F"
+		ELSEIF k$ = "/" :k$ = "#"	REM / easier to type than #
+		ENDIF
+		IF LOC("0123456789*#ABCD", k$)
+			REM We have a key that generates dtmf...
+			status% = 0
+			
+			frcr% = IOOPEN(frch%, "FRC:", -1)
+			IF frcr% :RAISE frcr% :ENDIF
+			mode% = 0		REM free-running
+			step% = 1		REM ??? Not used in mode 0 ???
+			frcr% = IOW(frch%, 15, mode%, step%)
+			IF frcr% :GIPRINT "Cannot use counter", 0 :ENDIF
+			
+			dtmf$ = k$ + CHR$(0)
+			DrawBut:(k$, 2)					REM Draw button "pressed"
+			WHILE PollKbd%:				REM Wait for key up
+				IF status% = 0
+					REM (re-) trigger DTMF
+					r% = IOA(h%, 10, status%, #UADD(ADDR(k$), 1), a%())
+					IF r% <  0 :RAISE r% :ENDIF
+				ENDIF
+			ENDWH
+			IOW(frch%, 1, count%, dummy%)
+			IOCLOSE(frch%)
+			IF status% = -46									REM Still playing?
+				IOW(h%, 4, dummy%, dummy%)		REM Cancel previous
+			ENDIF
+			DrawBut:(k$, 0)
+			gAT ibx%, iby%
+			gPRINTB "Last key: " + k$ + " for " + FIX$(count% / 1024.0, 2, 5) + " sec", ibw%, 3
+			WHILE KEY :ENDWH							REM Flush keyboard
+		ENDIF
+	UNTIL k$ = "X" AND (KMOD AND 8)	REM Psion-X
+
+exit::
+	IOCLOSE(h%)
+ENDP
+
+
+PROC DrawBut:(t$, state%)
+	REM Find the button with text t$, and draw it in state state%
+	LOCAL k%
+	
+	k% = 0
+	DO
+		k% = k% + 1
+		IF k% > 16 :RETURN :ENDIF
+	UNTIL bt$(k%) = t$
+
+	gAT bx%(k%), by%(k%)
+	gBUTTON bt$(k%), 1, bw%, bh%, state%
+ENDP
+
+
+PROC PollKbd%:
+	REM Return TRUE if a key is down, else FALSE
+	LOCAL scan%(10)
+
+	CALL($288e, ADDR(scan%()))	REM low-level kbd scan
+	REM ctrl, shift etc key modifiers use $80 bit, so ignore it with AND...
+	RETURN $7F AND scan%(1) OR scan%(2) OR scan%(3) OR scan%(4) OR scan%(5) OR scan%(6) OR scan%(7) OR scan%(8) OR scan%(9) OR scan%(10)
+ENDP
+

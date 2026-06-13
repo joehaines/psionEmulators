@@ -1,0 +1,182 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<call>yes</call>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n******\N\n\T\n</rfmt>
+<rall>yes</rall>
+<starg>arglist</starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>general</nfmt>
+<ndec>2</ndec>
+<nang>degrees</nang></opts>
+<cell>
+<cname>arglist</cname>
+<text>A &lt;arglist> consists of:
+
+        nothing
+OR  &lt;sexpr>
+OR &lt;sexpr> "," &lt;arglist></text></cell>
+<cell>
+<cname>builtin</cname>
+<text>&lt;builtin_name> "(" &lt;arglist> ")"</text></cell>
+<cell>
+<cname>builtin_name</cname>
+<text>The name of one of Spyder9's builtin functions, including:
+    min, max, mean, abs, sign, step, sig, sin, cos, tan, asin, acos, atan, sqrt, ln, exp, log, pow, or rand.</text></cell>
+<cell>
+<cname>cellist</cname>
+<text>         &lt;cellname>
+ OR  &lt;cellname> "," &lt;cellist></text></cell>
+<cell>
+<cname>cellname</cname>
+<text>the name of one of the cells in the web being interpreted</text></cell>
+<cell>
+<cname>cmpnd_stmt</cname>
+<text>A &lt;cmpnd_stmt> is:
+"{" &lt;stmtlst> "}"</text></cell>
+<cell>
+<cname>configval</cname>
+<text>The possible configvals are:
+    FORMATTED, INPTRS, OUTPTRS,TRAIL,  FIXED,  EXP, GENERAL, DEGREES, RADIANS
+</text></cell>
+<cell>
+<cname>configwd</cname>
+<text>Configuration words are special words which may be used in 'set' statements to specify system parameters to which values may be assigned.
+
+The possible configuration words are:
+*  RptFmt9 -- report format (string)
+*  RptType9 -- report type
+          (FORMATTED, INPTRS, OUTPTRS, TRAIL)
+ *  NumFmt9 -- (FIXED, NUMERIC, GENERAL)
+ * NumDec9 -- expr (0-15)
+ * TrigUnits9 -- (DEGREES, RADIANS)
+</text></cell>
+<cell>
+<cname>factor</cname>
+<text>        &lt;cellname>   (current value of cell pushed)
+OR &lt;cellname> "!" (execute cell and push value)
+OR &lt;cellname> "[" &lt;sexpr> "]"
+OR &lt;cellname>"[" &lt;sexpr> "]" "!"
+    (This allows you to execute a cell by cell index)
+OR &lt;number>
+OR "NOT" &lt;factor>
+OR &lt;sysconst>
+OR &lt;builtin>
+OR  "(" &lt;sexpr> ")"
+</text></cell>
+<cell>
+<cname>factorlist</cname>
+<text>&lt;factor> OR &lt;factor>["*","/","%", OR "and"] &lt;factorlist></text></cell>
+<cell>
+<cname>home</cname>
+<text>
+This web describes the grammar of the script language for Spyder9.
+
+The most top level object in the language is called a
+
+                               &lt;script></text></cell>
+<cell>
+<cname>inlist</cname>
+<text>        &lt;inspec>
+OR  &lt;inspec> "," &lt;inlist></text></cell>
+<cell>
+<cname>inspec</cname>
+<text>      &lt;string>
+OR &lt;cellname></text></cell>
+<cell>
+<cname>number</cname>
+<text>A floating pointor  number in one of the formats accepted by the Psion.</text></cell>
+<cell>
+<cname>optelse</cname>
+<text>      nothing
+OR
+    "else" &lt;cmpnd_stmt>
+OR
+   "elseif" "(" &lt;sexpr>")"&lt;cmpnd_stmt> &lt;optelse></text></cell>
+<cell>
+<cname>outlist</cname>
+<text>&lt;outspec>
+OR &lt;outspec>","&lt;outlist></text></cell>
+<cell>
+<cname>outspec</cname>
+<text>&lt;sexpr> 
+OR
+&lt;string></text></cell>
+<cell>
+<cname>pexpr</cname>
+<text>A primary expression is:
+
+        [  "+" or "-" or ""] &lt;termlist></text></cell>
+<cell>
+<cname>script</cname>
+<text>A script is defined to be a :
+
+&lt;stmtlst>
+
+</text></cell>
+<cell>
+<cname>sexpr</cname>
+<text>A script expression is:
+
+&lt;pexpr>
+ OR &lt;pexpr> &lt;relop> &lt;pexpr>
+
+where &lt;relop> is one of the following:
+   "=", "&lt;" , "&lt;=",">=",">", or "&lt;>"
+
+NOTE:  Whenever an &lt;sexpr> is executed as a statement, the value of the cell containing the statement is set to the value of the &lt;sexpr>.</text></cell>
+<cell>
+<cname>stmt</cname>
+<text>A statement is :
+
+&lt;cmpnd_stmt>
+     OR
+"set" &lt;configwd> "to" [&lt;configval> OR &lt;string> OR &lt;numbr>]
+    OR
+"set" &lt;cellname> "to" &lt;sexpr>
+    OR
+"if" "(" &lt;sexpr>")"  &lt;cmpnd_stmt>  &lt;optelse> 
+     OR
+"while" "(" &lt;sexpr> ")"  &lt;cmpnd_stmt>
+    OR
+"do" &lt;cmpnd_stmt>  "while" "("&lt;sexpr>")"
+    OR
+"for" "("&lt;cellname> "=" &lt;sexpr> "to"  &lt;sexpr> [step &lt;sexpr>]")"   &lt;cmpnd_stmt>
+    OR
+"in" "("&lt;inlist> ")"
+   OR
+"out" "(" &lt;outlist> ")"
+   OR
+"report "(" &lt;cellist>")"
+    OR
+"exit"
+    OR
+&lt;sexpr>
+</text></cell>
+<cell>
+<cname>stmtlst</cname>
+<text>""  OR  [ &lt;stmt>  &lt; stmtlst> ]</text></cell>
+<cell>
+<cname>sysconst</cname>
+<text>The identiefier "pi", which stands for the ratio of the circumference to the diameter of a circle, or the identifier "e", which is the base of natural logarithms, or the identifier deg, which is the number of degrees per radian, or the varible eof, which is 1 if end of file has been reached on input.</text></cell>
+<cell>
+<cname>term</cname>
+<text>A term is defined as:
+         &lt;factorlist>
+
+</text></cell>
+<cell>
+<cname>termlist</cname>
+<text>Atermlist is:
+&lt;term> OR [&lt;term> ["+" OR "-" OR "or" ] &lt;termlist></text></cell></eof>

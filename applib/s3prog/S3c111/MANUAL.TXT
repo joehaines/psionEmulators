@@ -1,0 +1,236 @@
+                      S3C
+
+             C Compiler and Linker 
+          
+          For Psion S3 and S3a handhelds
+          
+              Giles Goddard 1994
+
+V1.11B
+
+
+Before we get started heres an explanation about the compiler itself.
+
+The compiler is based on the public domain 'SmallC' compiler written 
+originally by Ron Cain then modified heavily by Chris Lewis.
+It was obtained from CIX by jtd@cix and given to me. Many thanks John!
+
+SmallC is a subset of C, that is, its real C with a few things
+left out or kept in from 'old' C. The only major difference is 
+that this version will not compile unions, enums and a few other things
+including types other than CHAR and INT, also all pointers are
+16bits wide. Which works out quite nicely for EPOC machines.
+Segment registers are never touched.
+
+
+The idea behind the original compiler was to be able to produce output 
+for various types of architectures with the minimum amount of changes
+to the actual compiler source. The compiler ordinarily outputs machine
+code source which is then passed onto an assembler for that particlular 
+machine. However, the version that I have made outputs 'pseudo'
+raw object code which is passed straight on to a linker, which then
+has only to sort out label references and data orginisation.
+
+Please read the file 'new.doc' for details of the what I've changed
+with the compiler and linker.
+
+I plan to add unions and doubles/floats/longs support in the 
+future.
+
+S3Link is a seperate stand alone linker written by me for use with
+S3C and S3Asm. The latest version of S3Asm can output compatible 
+object files ready for linking with S3C object files.
+S3Link outputs Psion's Image file format, which is the equivilent
+of DOS' .EXE files and can be easily made into an APP type file ready
+for installing on the system screen.
+
+
+Using S3C:
+---------
+Using S3C is as easy to use as Psion's OPL Program application. 
+You edit your program, press Psion-T, and if everything has compiled
+and linked ok you should have a finished Image file. You can even
+get S3C to run that Image file from within the Program application 
+itself. Or you can just run it from under the RunImg icon.
+
+S3Link appends startup code to your program that automatically opens 
+a console which it assigns to stdin, stdout and stderr, You can of course 
+turn this feature off and create your own display using the library of 
+EPOC functions. Or you can use the function 'openshell' included in 
+stdio to create a custon console. Its prototype is:
+
+void openshell(int FONT, int COMPAT, int CURSOR, int WIDTH, int HEIGHT)
+where:
+ FONT is the font number to use.
+ COMPAT is FALSE/TRUE to turn S3 compatability mode OFF/ON 
+ CURSOR is FALSE/TRUE to turn OFF/ON the cursor.
+ WIDTH,HEIGHT is the size of the console window in characters.
+
+(see the example file 'shell.c' for an example)
+
+
+The best place to get started writing your C programs is to look
+at the examples, 'win.c', 'shell.c' and 'hello.c' 
+
+
+Libraries
+---------
+This version of S3Link doesn't actually know the difference between 
+object files and libraries. They're all linked together as one to produce
+the final output, so theres no dynamic library linking. ie. If you use
+one function in an object file, then you get given all of them in the
+final output file.
+But for now we'll assume that files like 'stdio.o' and 'e_*.o' are  
+library files.
+
+There are some libraries providing all of the basic EPOC functions as 
+well as the Window Server functions included with this version. 
+They are called:
+
+ e_*.o  - Where * is the name of the service they provide.
+
+
+Please refer to the EPOC O/S system services chapter or the
+Window server reference chapter in the SDK for more details.
+(This version does not include all V2 functions)
+
+
+These libraries are split up in this way in order to help with the
+limited amount of memory and speed of the S3/3a
+
+
+stdio:
+-----
+
+This version of 'stdio.o' includes only a few very basic C functions,
+they are:
+
+putchar()
+strlen()
+strcpy()
+strcat()
+ferror()
+perror()
+feof()
+fgetc()
+fgets()
+fputc()
+fputs()
+fopen()
+fclose()
+system()
+calloc()
+printf()
+sprintf()
+openshell()
+
+Apart from openshell(), they are all the same as the standard C
+stdio library functions.
+
+
+
+
+Installing:
+-----------
+
+ Unzip this zip file into an empty directory.
+
+ Make sure you're connected to your Psion and that MCLINK can 
+ establish a link. 
+
+ Go back into DOS and type 'install' RETURN
+ Then follow the prompts.
+
+ This should run MCLINK in script mode and copy all the appropriate
+ files onto your Psion into M:
+
+ If you would like to install onto a different drive then please 
+ change 'install.txt' and 'instepoc.txt'
+
+ Now that everything is copied, install C.ALS on the
+ system screen, by pressing Psion-I
+
+ And try it out!
+
+
+Files:
+------
+This explains about the files in this version:
+
+'SYS$PRGC.IMG' is the Compiler and Linker program. DON'T try and run
+this from RunImg, it will most likely go horribly wrong. Its designed
+to be started from the Word application when it requests translation.
+
+'e_*.o' files are the EPOC and Window server library functions.
+
+'stdio.o' is basic IO and C functions, such as fopen, fgetc, strcat
+(see the STDIO part of this doc)
+
+'c.als' is an alias file which runs Word in program mode, and tells
+it to use 'SYS$PRGC.IMG' as the translator.
+
+All C source(.C) and object(.O) files should be placed in one directory,
+preferably \C 
+
+
+
+Contact:
+--------
+
+If you have any suggestions, comments or bug reports then please
+send email to: Giles Goddard 
+
+   gsg@cix.compulink.co.uk 
+or 
+   71125,532 - COMPUSERVE
+or
+   giles@twics.co.jp
+   
+or Snailmail:
+
+	Giles Goddard
+	6, Court Royal Mews,
+	Northlands Road,
+	Southampton,
+	England.
+
+(please note, that I actually live in Japan so snailmail may take longer)
+
+
+Thanks.
+
+
+Credits:
+--------
+
+The compiler was originally written by Ron Cain and then heavily
+modified by Chris Lewis, then heavily modified by me (Giles).
+
+S3Link and S3Asm was written by Giles Goddard.
+
+Thanks to DavidW@psion (dw2@cix) for his help.
+
+
+Disclaimer:
+-----------
+
+S3Link is copyright (c) Giles Goddard 1994
+
+Neither the authors of this software or Psion Ltd. can be held
+responsible for any loss of data, hardware or lives as a result
+of using this software.
+
+
+S3C is Public Domain and may not be sold in any form.
+
+S3Link is Shareware-ish. If you would like to link bigger files than
+Slink currently allows, then please make a small donation 
+(a tenner will do 8-) then email me. I will give you a code
+that goes on the link command line which removes the size limit.
+
+You should be able to register S3C and S3Link on compuserve soon.
+Please email me for details.
+
+S3Asm is Shareware.
+
+

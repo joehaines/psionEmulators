@@ -1,0 +1,306 @@
+                Aladin Version 2.01a
+                ====================
+               (c)2000 D R Cunningham
+
+
+INTRODUCTION
+============
+
+This interface has been written to enable the dive 
+profiles stored by Aladin dive computers to be 
+downloaded and interpreted without the need to 
+carry a laptop PC around. This is especially 
+advantageous when diving abroad. This interface is 
+provided as an extra to DiveTime, using DiveTime to 
+log and display the dive information, and will work 
+with versions 4.01a and above.
+
+Previous versions of the Aladin interface will not 
+work with DiveTime version 4.01a but data already 
+entered will still be useable. This new version has 
+been written especially for the new DiveTime log 
+format.
+
+
+Limitations
+===========
+
+Version 2.01a has only been tested with the 
+standard DOS Aladin interface and the interface 
+described below with both an Aladin Air and Pro 
+Nitrox dive computers. It should work with most 
+Aladin computers (except O2 types) but will 
+definitely not work with the MemoMouse.
+
+What it does do:-
+
+1. Download Log book and Profile information from 
+   the Aladin.
+2. Save this information to a file for possible 
+   later re-import.
+3. Import Log book and Profile information from a 
+   DataTrak file.
+4. Display dive profile, physiological and alarm 
+   information over time.
+5. Display the Nitrox mix where this is available.
+6. Display Computer configuration information, such 
+   as serial number, battery life etc.
+
+What it does NOT do:-
+
+1. Talk to the Aladin, eg to set configuration 
+   parameters.
+2. Re-transmit Log book and Profile information to 
+   a PC running DataTrak.
+3. Export Log book and Profile information to a 
+   DataTrak file.
+4. Allow detailed examination of the dive profile 
+   (Zoom in).
+5. Calculate or display nitrogen and oxygen tissue
+   absorption information.
+
+
+DISCLAIMER
+==========
+
+This program was developed without using any 
+documentation from Uwatec and is supplied "as is". 
+The author disclaims all warranties, expressed or 
+implied, including, without limitation, the 
+warranties of merchantability and of fitness for 
+any purpose.
+
+The author assumes no liability for injury, loss or 
+damages, direct or consequential, which may result 
+from the use of this software.
+
+
+HARDWARE
+========
+
+PsiWin Cable / Aladin Interface Adapter
+=======================================
+
+If you don't already have a PsiWin serial cable, 
+you will have to buy one or build one (see below). 
+Then you will need to build a 9 way D Plug to 
+9 way D plug adapter as follows:
+
+Signal 9W D Plug  I/O  9W D Plug   Signal
+         (Psion)        (Aladin)
+TXD        02     -->      07       RTS
+                         & 03       RXD
+RXD        03     <--      02       TXD
+GND        05     ---      05       GND
+DSR        06     -->      04       DTR
+
+This arrangement uses TXD and DSR from the Psion 
+to power the Aladin interface. The data to the 
+Aladin is also connected to the negative power to 
+prevent noise at the input affecting the Aladin.
+
+
+Aladin Interface
+================
+
+The Aladin interface I started using was built 
+according to Version 1 by Matthias Heinrichs 
+(see below) and incorporated the adapter above. 
+This worked well but had an annoying tendency to 
+bridge the contacts when the serial port is 
+disabled. For this reason, I suggest only 
+connecting the Aladin AFTER the download timeout 
+has started, otherwise the Aladin will enter "Plan" 
+mode. An interface could be built with its own 
+supply (eg a PP3 battery like the MemoMouse) but 
+this obviously would not fit within the 9-way 
+shell as the tested version did.
+
+The interface I am now using is the proper DOS 
+interface from Uwatec which are still available 
+if you hunt around. Using this interface required 
+an additional link to be added between pins 7 and 
+3 on the Aladin side of the adapter to prevent the 
+Aladin going into "Plan" mode, when the interface 
+was enabled, thus preventing the download.
+
+
+DOWNLOADING
+===========
+
+Importing from an Aladin Computer
+=================================
+
+Before starting the download, connect the serial 
+cable, adaptor and Aladin interface to the Psion, 
+but not to the Aladin - yet.
+
+After selecting Import from Aladin, a timeout of 
+1 minute will start. During this time, the Aladin 
+can be switched on and connected to the interface 
+in the normal manner (Red to "B" and Black to "-") 
+and Logbook mode entered (by bridging "B" & "+" 
+then "B" & "E"). The timeout will be suspended 
+while the Aladin is connected and continue if it is 
+disconnected.
+
+If the download is successful a dialogue will be 
+displayed giving the option of saving the data to 
+a file. If the download is not successful, the 
+download can be retried (by bridging "B" & "E", 
+then "B" & "+" and "B" & "E" again).
+
+To abort the download, disconnect the Aladin so 
+that the timeout will continue and complete. 
+
+Once the download is successful and the data saved 
+to a file (recommended) the data will be analysed 
+and the computer configuration displayed. Pressing 
+"Enter" will start the import and any dives after 
+the last dive in the current DiveTime log will be 
+added to the end of the log.
+
+If the Psion does not recognise the computer type 
+number, a dialogue will be displayed so that the 
+generic type can be selected.
+
+The whole of the Aladin data can be imported by 
+creating a new DiveTime log and importing the data 
+into this. If there are no dives in the current 
+DiveTime log, the dive number will be taken from 
+the total number of dives recorded by the Aladin.
+
+
+Importing from an Aladin File
+=============================
+
+After selecting Import from Aladin file, the import 
+will proceed as if from the Aladin once the data 
+has been saved. Data files are saved with an 
+additional 4 bytes added which are the time stamp 
+of the Psion when the download was completed. This 
+is so that "Import from File" can correctly 
+calculate "Time In" an "Time Out".
+
+
+Importing from DataTrak File
+============================
+
+After selecting Import from DataTrak file, a 
+dialogue will be displayed requesting the selection 
+of the DataTrak file. This will initially be set to 
+\OPD on the internal drive.
+
+When he file has been selected, a new log will be 
+created, called "Dtrak" and the import will proceed 
+automatically. 
+
+The dives will be imported as they are logged in 
+DataTrak, with the following exceptions:
+
+1. Timeout and Surface Interval are calculated 
+   from the end of the final ascent and not from 
+   leaving the water.
+2. The Average Depth and, therefore, Air 
+   Consumption are calculated only for time below 
+   the surface and not for the whole profile.
+3. Some of the activities will be lost since 
+   DiveTime does not record these.
+
+
+REFERENCES
+==========
+
+Aladin download information is available from 
+Gary Lorensen (GLorensen@aol.com) at 
+
+    ftp://members.aol.com/glorensen/aladin.pdf
+
+
+DataTrak file format information is available from 
+Michael Dieterle (michael.dieterle@t-online.de) at 
+
+    http://home.t-online.de/home/aquanauten
+
+
+Aladin interface hardware information is available 
+from Matthias Heinrichs (matthias@muenster.de) at 
+
+    http://www.muenster.de/~matthias/aladin/indexe.htm
+
+This also contains numerous other Aladin related 
+links.
+
+
+PsiWin cable information was derived from the 
+website of Justin Buckland (jb2@techprt.co.uk), 
+which has since disappeared, and is reproduced in
+the file Psicable.txt.
+
+
+Aladin, DataTrak and MemoMouse are trademarks of 
+Uwatec (http://www.uwatec.com)
+
+
+PROBLEMS
+========
+
+There are a number problems interfacing the Aladin 
+to the Psion which are due to the way in which the 
+Aladin transmits data and the Psion handles serial 
+communications. These are:
+
+1. The Aladin interface derives its power from the 
+   serial port, using the DTR and RTS signals to
+   provide this. The Psion defaults handshaking 
+   signals to positive which means that the Aladin 
+   / Psion interface has to be powered from DTR and 
+   TXD, the only guaranteed negative output.
+
+2. The Psion only applies power to its serial port 
+   when its enabled (to save power) and the 
+   Matthias Heinrichs Aladin interface bridges the 
+   "B" and "-" contacts when it is not powered. 
+   This means that the Aladin will enter "Plan" 
+   mode before the download and cycle the Logbook 
+   after the download. This doesn't seem to apply 
+   to the Uwatec interface.
+
+3. The Aladin outputs a square wave when its not 
+   transmitting data. This causes serial errors 
+   which continually terminate the Psion serial 
+   process. The length of time taken to restart 
+   the serial process can miss the real start of 
+   the data. This means that download may have to 
+   be attempted several times before it is 
+   successful. 
+
+
+HISTORY
+=======
+
+The version of the Aladin interface can be found by 
+selecting "About" from the "Dive", "Import" 
+sub-menu.
+
+Version 1.01b - (beta release) First released 
+    version.
+
+Version 1.01c - (beta release) Correction to 
+    download profile analysis to allow for
+    surfacing during a dive. Addition of Nitrox 
+    mixture.
+
+Version 1.02a - (beta release) Improved profile 
+    analysis, confirmation of checksum and display 
+    of computer configuration parameters on import.
+
+Version 1.03a - (beta release) Addition of imperial 
+    units support, in line with version 3.02a of 
+    DiveTime. 
+
+Version 1.03b - (beta release) Minor corrections to 
+    conversion factors following testing in use.
+
+Version 2.01a - (beta release) Upgrade to ensure 
+    compatability ith new version of DiveTime.

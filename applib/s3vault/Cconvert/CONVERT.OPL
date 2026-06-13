@@ -1,0 +1,502 @@
+app Convert
+    icon "\opd\convert"
+enda
+
+PROC convert:
+Rem Convert is shareware.  The right of Gareth
+Rem Morgan to be identified as the creator of this work
+Rem is asserted by him in accordance with the Copyright
+Rem Designs & Patent Act 1988.
+Rem The program may be used for 28 days, but if
+Rem used after that a fee of œ3.00 Stg or $5.00 US
+Rem or the equivalent in other currencies should
+Rem be sent to G Morgan, Shop Farm, 
+Rem St Brides Major, Mid-Glam, CF32 0SF
+Rem Wales, UK.  All registration fees
+Rem will be donated to Grangetown Citizens
+Rem Advice Bureau.  The program may be
+Rem freely distributed if unaltered and
+Rem complete.
+global inp,stg,rate,m%,new%,n%,cur$(6,20),cur%(6),c%
+global g%,st%,def$(16)
+lshow%:(1,9,"Convert",13,4)
+lshow%:(1,9,"by Gareth Morgan",13,6)
+lshow%:(1,0,"(c)1992. Shareware.  See ""Info"" menu.",5,8)
+pause -40
+if exist("\dat\curr.dbf")
+  open "\dat\curr.dbf",A,curr$,exchge$
+else
+  create "\dat\curr.dbf",A,curr$,exchge$
+  update:
+endif
+scurr:
+gat 63,71
+gCLOCK ON,$31
+do
+  s::
+  cls
+  minit
+  mcard "Convert","To "+def$,%T,"From "+def$,%F,"Other",%O
+  mcard "Edit","Adjust Rates",%A,"Add Currency",%C,"Set Master",%m,"Set Defaults",%D
+  Mcard "Info","Show terms",%S,"Print terms",%P
+  mcard "Quit","Quit",%Q
+  m%=menu
+  if m%=%q or m%=0
+    m%=sure:
+    if m%=%y
+      stop
+    else
+      goto s::
+    endif    
+  elseif m%=%a
+    update:
+    goto s::
+  elseif m%=%c
+    add:
+    goto s::
+  elseif m%=%d
+    def:
+    goto s::
+  elseif m%=%m
+    mst:
+    goto s::    
+  elseif m%=%s
+    shterms:
+    goto s::    
+  elseif m%=%p
+    pterms:
+    goto s::    
+  elseif m%=%t or m%=%f
+    minit
+    mcard "Currency",cur$(1),cur%(1),cur$(2),cur%(2),cur$(3),cur%(3),cur$(4),cur%(4),cur$(5),cur%(5),cur$(6),cur%(6)
+    mcard "Return","Back to main",%Q
+    n%=menu
+    if n%=%q or n%=0
+      goto s::   
+    endif  
+    rate:(n%)
+    rate=val(a.exchge$)
+    if m%=%t
+      do
+        inp=0
+        cls
+        lshow%:(1,8,"Amount in "+a.curr$,3,4)
+        at 23,4
+        trap input inp
+        stg=inp/rate
+        lshow%:(1,8,"Amount in "+def$,3,6)
+        at 23,6
+        print fix$(stg,2,12)
+        at 20,8
+        print "Back to main? y/N "
+        cursor on
+        g%=get
+        cursor off
+      until g%=%y or g%=%Y
+    else
+      do
+        inp=0
+        cls
+        lshow%:(1,8,"Amount in "+def$,3,4)
+        at 23,4
+        trap input inp
+        stg=inp*rate
+        lshow%:(1,8,"Amount in "+a.curr$,3,6)
+        at 23,6
+        print fix$(stg,2,12)
+        at 20,8
+        print "Back to main? y/N "
+        cursor on
+        g%=get
+        cursor off
+      until g%=%y or g%=%Y
+    endif
+  else
+    othcur:
+  endif
+until m%=%q
+ENDP
+
+
+PROC SURE:
+  dinit "Quit Convert"
+  dtext "","Are you sure?"
+  DBUTTONS "Yes",%Y,"No",%N
+  return dialog
+ENDP
+
+proc rate:(n%)
+first
+if N%=cur%(1)
+  find(cur$(1))
+elseif N%=cur%(2)
+  find(cur$(2))
+elseif N%=cur%(3)
+  find(cur$(3))
+elseif N%=cur%(4)
+  find(cur$(4))
+elseif N%=cur%(5)
+  find(cur$(5))
+elseif N%=cur%(6)
+  find(cur$(6))
+endif
+endp
+
+proc update:
+local u%,fl
+do
+  cls
+  minit
+  mcard "Currency",cur$(1),cur%(1),cur$(2),cur%(2),cur$(3),cur%(3),cur$(4),cur%(4),cur$(5),cur%(5),cur$(6),cur%(6)
+  mcard "Back","Return to Main",%Q
+  u%=menu
+  first
+  if u%=%q or u%=0
+    return
+  elseif u%=cur%(1)
+    find(cur$(1))
+  elseif u%=cur%(2)
+    find(cur$(2))
+  elseif u%=cur%(3)
+    find(cur$(3))
+  elseif u%=cur%(4)
+    find(cur$(4))
+  elseif u%=cur%(5)
+    find(cur$(5))
+  elseif u%=cur%(6)
+    find(cur$(6))
+  endif
+  fl=val(a.exchge$)
+  dINIT "Update rates"
+  dtext "Current rate",a.exchge$
+  dFLOAT fl,a.curr$,0,5000
+  n%=DIALOG
+  Rem if escape pressed
+  if n%=0
+    return
+  endif
+  a.exchge$=gen$(fl,9)
+  update
+until u%=%q
+endp
+
+proc add:
+  local fl,nc$(12),r%
+  rem Procedure for adding currency
+  dINIT "Add Currency"
+  dedit nc$,"New Currency"
+  dFLOAT fl,"Rate",0,5000
+  n%=DIALOG
+  Rem if escape pressed
+  if n%=0
+    return
+  endif  
+  first
+  if find(nc$)
+    r%=ALERT(nc$+" found","Replace entry?","Cancel","Replace")
+    if r%=2
+      a.exchge$=gen$(fl,9)
+      a.curr$=nc$
+      update
+    endif  
+  else
+    a.exchge$=gen$(fl,9)
+    a.curr$=nc$
+    append
+  endif
+endp
+
+proc othcur:
+local a%,b%,f,t,t$(10),f$(10)
+a%=curmen%:("From")
+first
+if a%=%q or a%=0
+  return
+elseif a%=cur%(1)
+  find(cur$(1))
+elseif a%=cur%(2)
+  find(cur$(2))
+elseif a%=cur%(3)
+  find(cur$(3))
+elseif a%=cur%(4)
+  find(cur$(4))
+elseif a%=cur%(5)
+  find(cur$(5))
+elseif a%=cur%(6)
+  find(cur$(6))
+else
+  print "No find"
+  get
+endif
+f=val(a.exchge$)
+f$=a.curr$
+b%=curmen%:("To")
+first
+if b%=%q or b%=0
+  return
+elseif b%=cur%(1)
+  find(cur$(1))
+elseif b%=cur%(2)
+  find(cur$(2))
+elseif b%=cur%(3)
+  find(cur$(3))
+elseif b%=cur%(4)
+  find(cur$(4))
+elseif b%=cur%(5)
+  find(cur$(5))
+elseif b%=cur%(6)
+  find(cur$(6))
+else
+  print "No find"
+  get  
+endif
+t=val(a.exchge$)
+t$=a.curr$
+do
+  inp=0
+  cls
+  lshow%:(1,8,"Amount in "+f$,3,4)
+  at 23,4
+  trap input inp
+  stg=inp*t/f
+  lshow%:(1,8,"Amount in "+t$,3,6)
+  at 23,6
+  print fix$(stg,2,12)
+  at 20,8
+  print "Back to main? y/N "
+  cursor on
+  g%=get
+  cursor off
+until g%=%y or g%=%Y
+endp
+
+
+
+proc curmen%:(a$)
+local z%
+cls
+minit
+mcard a$,cur$(1),cur%(1),cur$(2),cur%(2),cur$(3),cur%(3),cur$(4),cur%(4),cur$(5),cur%(5),cur$(6),cur%(6)
+mcard "Back","Return to Main",%Q
+z%=menu
+return z%
+endp
+
+proc lshow%:(fontid%,style%,text$,x%,y%)
+  gfont fontID%
+  gstyle style%
+  gat ((x%-1)*6),(y%*9)-2
+  gprint text$
+endp
+
+proc def:
+local r%,rc%,a$(255),ch%,b$(255),c$(1),ck%,p%(32)
+local Master$(16)
+b$=""
+first
+find("Master")
+do
+ r%=r%+1
+until mid$(a.curr$,r%,1)=":"
+master$=left$(a.curr$,r%-1)
+first
+while (a.exchge$="Master") or (a.curr$=master$)
+  next
+endwh
+a$=a.curr$
+p%(1)=pos
+rc%=2
+do 
+  next
+  if (a.exchge$<>"Master") and (a.exchge$<>"")  and (a.curr$<>def$) and (a.curr$<>master$)
+    a$=a$+","+a.curr$
+    p%(rc%)=pos
+    rc%=rc%+1
+  endif
+until eof
+ch%=1
+do
+  j::
+  r%=1
+  c$=""
+  dinit "Default Currencies"
+  dchoice r%,"Currency "+gen$(ch%,1),a$
+  dedit c$,"Hot Key"
+  ck%=dialog
+  Rem if escape pressed
+  if ck%=0
+    return
+  endif
+  c$=lower$(c$)
+  position p%(r%)
+  ck%=1
+  if len(b$)>len(a.curr$)
+    do
+      if mid$(b$,ck%,len(a.curr$)+2)=":"+a.curr$+":"
+        alert("Currency "+a.curr$+" already","loaded.")
+        goto j::
+      endif
+      ck%=ck%+1  
+    until ck%=len(b$)-len(a.curr$)
+  endif
+  ck%=1  
+  if len(b$)>3
+    do
+      if (mid$(b$,ck%,3)=":"+c$+":") or (c$="q")
+        alert("Hot key "+c$+" already","in use.")
+        goto j::
+      endif
+      ck%=ck%+1  
+    until ck%=len(b$)-2
+  endif
+  if c$=""
+    alert("Hot key must","be entered.")
+    goto j::
+  endif
+  b$=b$+":"+a.curr$+":"+c$
+  ch%=ch%+1
+until ch%=7
+first
+find("Master")
+a.curr$=master$+b$
+update
+scurr:
+endp
+
+proc mst:
+local r%,rc%,a$(255),ch%,ck%,n$(16),b$(255),old,p%(32)
+local loop%,last%
+last
+last%=pos
+first
+if a.exchge$<>"Master"
+  a$=a.curr$
+else
+  next
+  a$=a.curr$
+endif
+p%(1)=pos
+rc%=2
+do 
+  next
+  if (a.exchge$<>"Master") and (a.exchge$<>"")  and (a.curr$<>def$)
+    a$=a$+","+a.curr$
+    p%(rc%)=pos
+    rc%=rc%+1
+  endif
+until eof
+ALERT("All currencies will be converted to","the rate against new Master")
+r%=1
+dinit "Master Currency" 
+dchoice r%,"Currency ",a$
+rc%=dialog
+Rem if escape pressed
+if rc%=0
+  return
+endif
+   
+position p%(r%)
+n$=a.curr$
+old=val(a.exchge$)
+a.exchge$="1.000"
+update
+def$=n$
+first
+find("Master")
+b$=a.curr$
+ck%=1
+do
+  ck%=ck%+1
+until mid$(b$,ck%,1)=":"
+a.curr$=n$+right$(b$,len(b$)-(ck%-1))
+update
+def:
+rem adjust rates for new master
+busy "Converting rates",2
+first
+loop%=1
+do
+  if (a.curr$<>def$) and (a.exchge$<>"Master")
+    a.exchge$=fix$(val(a.exchge$)/old,6,12)
+    update
+  endif
+  position 1
+  loop%=loop%+1
+  if a.exchge$="Master"
+    position 2
+  endif
+until loop%=last%
+busy off
+endp
+
+proc scurr:
+Rem Find master record and load the
+Rem default currency and up to 6
+Rem conversions
+first
+find("Master")
+c%=1
+do
+ cur$(c%)=""
+ c%=c%+1
+until c%=7
+c%=1
+st%=1
+def$=""
+do
+  def$=def$+MID$(a.curr$,st%,1)
+  st%=st%+1
+until mid$(a.curr$,st%,1)=":"
+st%=st%+1
+do
+  do
+    cur$(c%)=cur$(c%)+MID$(a.curr$,st%,1)
+    st%=st%+1
+  until mid$(a.curr$,st%,1)=":"
+  st%=st%+1
+  cur%(c%)=asc(MID$(a.curr$,st%,1))
+  st%=st%+2
+  c%=c%+1
+until c%=7
+endp
+
+proc Shterms:
+gCLOCK OFF
+cls
+print "Convert is shareware and copyrighted"
+print "The program may be used for 28 days"
+print "After that a fee of œ3 Stg or $5 US"
+print "or the equivalent should be sent to"
+print "G Morgan, Shop Farm, St Brides Major" 
+print "Mid-Glam, CF32 0SF Wales, UK."
+print "All registration fees go to Grangetown"
+print "Citizens Advice Bureau. The program "
+print "may be copied if unaltered and complete."
+PAUSE 0
+get
+gat 63,71
+gCLOCK ON,$31
+endp
+
+proc pterms:
+Busy "Printing"
+trap LOPEN "PAR:A"
+if err=-41
+  busy off
+  alert("No printer attached","Please connect before printing")
+  return
+endif
+lprint "   Convert by Gareth Morgan"
+lprint "Convert is shareware and copyrighted"
+lprint "The program may be used for 28 days"
+lprint "After that a fee of œ3 Stg or $5 US"
+lprint "or the equivalent should be sent to"
+lprint "G Morgan, Shop Farm, St Brides Major" 
+lprint "Mid-Glam, CF32 0SF Wales, UK."
+lprint "All registration fees go to Grangetown"
+lprint "Citizens Advice Bureau. The program "
+lprint "may be copied if unaltered and complete."
+lclose
+busy off
+endp
+

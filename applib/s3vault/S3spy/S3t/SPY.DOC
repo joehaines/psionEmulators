@@ -1,0 +1,179 @@
+Notes on Spy.app
+================
+
+The main display is a scrolling list of processes currently
+running on the Series3.  The `Change processes' menu option
+allows customisation of which processes are shown.  "System"
+processes are simply ones whose names start with "Sys$", and
+include:
+    sys$shll - which the user sees as the System Screen
+    sys$wsrv - the Window Server, which coordinates access to the
+screen and keyboard
+    sys$fsrv - the File Server, which coordinates access to the
+filing systems
+    sys$mang - the Manager, which keeps track of all resources
+used by processes (so that, for example, they can be properly
+tidied whenever processes exit)
+    sys$ncp - the brains behind Remote Link (when it is running).
+The Null process, sys$null, which performs the vital task of
+switching the Series3 off following sufficient inactivity, is
+omitted from the list displayed, for various technical reasons.
+
+First letter matching works in the main window, so that eg
+pressing 'C' enough times will position the highlight to the
+Calculator process.
+Arrows are drawn in the top right and bottom right corner,
+Agenda-wise, whenever there are more processes beyond the visible
+boundaries of the list.
+
+The data displayed is updated every time Spy comes into
+foreground, and also whenever the `Update' menu option is
+selected.  By default, it is also updated regularly on a timer,
+though this can be disabled by a menu option.  The `Refresh rate'
+option governs how frequently updates take place, when the timer
+is enabled.
+
+There are in all twelve pieces of data that can be displayed for
+each process, but only three of these can be seen at any one
+time.  Use the `Change data' menu option to choose which.
+Many of the data items can be meaningfully displayed either in
+Hex or in Decimal.  Another menu option controls this.
+
+Five of the twelve possible items of data concern the allocator
+heap of the process.  Each process has its own heap, which can
+vary in size according to the needs of the program.  Thus a Word
+Processor editing a large document will typically have a larger
+heap than a Word Processor editing a smaller document.
+Each heap is divided into "alloced cells" and "free cells".  The
+items "Cells allocated" and "Cells free" count these, and the
+items "Bytes allocated" and "Bytes free" sum how many bytes
+belong in each category.
+This data was of great help in developing the built-in
+applications (amongst others).  It is of course vital that an
+application frees cells it no longer requires - otherwise these
+cells go to what is called "alloc heaven".  Something to watch
+for in particular is alloc heaven following an out-of-memory
+failure.  Typically, a process such as launching a dialog
+involves a number of different allocs; if any one of these fails,
+all the allocs which have already succeeded must be undone.
+System code provides mechanisms such as "automatic destruction"
+and "automated clean-up" to help applications here, but
+applications can use these incorrectly at times - hence the need
+for real-time checking.
+Most of this is of course irrelevant to Opl programs, which
+standardly just work with static data and data on the stack,
+rather than dynamically allocating memory as and when required.
+
+Whenever a process starts, its stack is filled up with '0xFF's. 
+This makes it easy to see how much stack has been used, at any
+one time.  Quality programs need to avoid having too large a
+stack - the built-in applications default to a stack of 0xa00. 
+On the other hand, the operating system panics them ("exit 69") if
+it ever discovers that their stack is less than 0x100.  This is
+because whenever an interrupt occurs, it runs in the stack of the
+current process.
+The `Reset least stack' menu option simply refills the bottom of
+the process's stack with '0xFF's (ie up to its present stack
+pointer).
+
+The "Segment size" of a process gives the size of its data
+segment - which consists of the heap, static data private to the
+application, the stack, and finally the so-called "reserved
+statics" at the bottom end.  The quoted "Segment size" of an
+application can sometimes give a misleading account of how much
+memory it is actually using - since there are free cells as well
+as alloced cells in the heap.  From time to time, the operating
+system may try to compress these heaps, but it can only do this
+by removing any free cells AT THE END OF THE HEAP.  Applications
+should strive to avoid ending up with large free cells in the
+middle of their heap - though this is a very difficult goal to
+achieve.
+
+As an experiment, I've just opened my personal database file. 
+Spy tells me the Database has a segment size of 0x2650, having 59
+alloc cells totalling 0x6ee bytes.  Only 0x10e bytes in the heap
+are free - from which you can deduce that the Database has a lot
+of static data (around 0x1454).  At the same time, the `Memory'
+option in the System Screen says the Database is using 9k - which
+is close enough to the hex value of 0x2650.
+Next, in the Database, I bring up the Print Setup dialog, and
+then the Printer Model subdialog, and finally the Default Font
+dialog inside that.  Spy now tells me that the Database has a
+segment of 0x3720 bytes, in which there are 169 alloc cells
+comprising 0x123a bytes.  Next I press Help twice in the
+Database.  The alloc count has gone up to 179 cells, comprising
+0x1428 bytes.  Next I cancel out of the five levels of dialogs. 
+The alloc count is down to 60, comprising 0x73e bytes; the
+segment size is 0x3720, with the last free cell being 0x1126
+bytes long.  After running the heap compressor, the segment size
+dwindles back to 0x2700.
+(On the face of things, there may seem to be a bug here - there is
+one more alloc cell at the end than at the start.  These 0x50 bytes
+are actually an instance of the "Printer manager" class, which system
+code creates for an application whenever the Print Dialog suite is
+entered (or when the application actually prints).  Try the whole
+experiment again and you will not see any repetition.  This is just
+the kind of analysis that Spy throws up.)
+
+The heap compressor actually gets run whenever an application
+makes an alloc request that cannot immediately be satisfied
+within its own alloc heap; the operating system tries to grow the
+heap of that process by shrinking the heaps of all the others.
+
+Anyone following this whole experiment might now like to "Reset
+the least stack" of the Database and then watch the Stack Pointer
+and the Least Stack as the five dialogs are launched and then
+cancelled again.  I make it
+    Lst:  944 -> 466 -> 466 -> 466 -> 3df -> 3df -> ... 3de
+    SP:   944 -> 822 -> 728 -> 62a -> 62a -> 62a -> ... 944
+(all values in Hex), from which you can deduce that the Help
+dialogs don't wind up the stack in the same way that the others
+do.
+
+Whenever Spy collects heap statistics for an application, it also
+checks the heap integrity.  Any defect (caused for example by
+writing beyond the end of an alloc cell, or freeing a cell that
+was never alloced) results in an immediate alert.  Hopefully, you
+will never see any such alert - unless you are developing your
+own C programs.
+
+The Process Priority gives the pecking order of the processes, as
+regards gaining CPU from the multi-tasking scheduler.  Most
+applications the user sees run at 0x80 when in foreground, and at
+0x70 when in background.  This prevents computationally busy
+background tasks from detracting from the performance of the
+foreground task.  Spy momentarily ups its own priority to a
+massive 0xc0 (the maximum allowed to non-OS processes) whenever
+it collects heap statistics from other processes, to lessen the
+chances of other processes manipulating their heaps at the same
+time as Spy is walking through them.  Occasionally, Spy will find
+that a heap is momentarily marked as "locked" when it tries to
+survey it - this indicating that the Operating System is busy
+doing something there - in which case the heap statistics will
+all just be shown as 0 for that process.
+
+The "Process ID" of a process is essentially the address of the
+control block of the application in the Operating System data
+space, although the top nibble reflects how many times that same
+slot has been re-used since the last reset (it will therefore
+always be zero for sys$mang, sys$fsrv, and sys$wsrv).  When
+processes talk to each other, for example in conjunction with the
+`Bring' menu option, they need to know each other's PID ("Process
+ID").
+
+The I QemaphorÄOç∑∫ß:109¥°∞ñ6<ê4öÑOÅÑé WêàœÉê O¿ ÇOÄ Ñé âÇ àppà àÄÅÑOéOáÑÄOÉéOÅÄOÑàspond to.  This will usually be -1 or zero,
+but if you task to the System Screen and then straight back to Spy
+again, you may see the count for sys$shll momentarily go as high as
+three.
+
+Well that's about it.  Incidentally, the code in Spy.app was
+written at various times by at least seven different members of the
+Software Development team at Psion.  An earlier version runs on the
+MC range of computers.  The version I shipped was written using the
+so-called HWIF library - ie just straight C, without any
+object-oriented stuff.
+
+Let me know of any bugs you notice.
+
+DavidW, 28/3/92.
+

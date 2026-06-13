@@ -1,0 +1,47 @@
+As supplied, RISC OS, has serial input and output buffers of about 256 bytes.
+Most communication programs will extend these, by loading a "buffer" module.
+The reason for extending the buffers, is usually not so much that the program
+can't keep up with the input data, as it may not get the chance. At 19,200
+baud, about 2000 characters per second may arrive. It is quite possible for
+the time between polls to exceed a second.
+
+The problem is that the conventional RISC OS 2 serial buffer modules are not
+compatible with RISC OS 3. Acorn have produced a module "SerialUtils" which
+is supplied with RISC OS 3. Loading this before running a comms program
+allows it to work. However, SerialUtils simply prevents the buffer module
+from doing anything. You might as well not bother loading the buffer.
+
+Under RISC OS 3, there is a better way of implementing extended buffers,
+using the buffer manager.
+
+Here then, is a buffer module for RISC OS 3. It will default to a 2K output
+and 16K input buffer.
+
+There is one *command;
+
+ *SerialBufferSize <input> <output>
+
+this sets the size of the input and output buffers.
+
+As usual, the buffer should be RMLoaded in the !Run file of your comms
+program.
+
+
+Any comments to:
+
+David Pilling
+P.O. Box 22,
+Thornton Cleveleys,
+Blackpool.
+FY5 1LR.
+
+email
+
+Arcade BBS (081-654-2212), #134
+
+
+======
+
+Thanks to Acorn Computers for explaining how to do this.
+
+

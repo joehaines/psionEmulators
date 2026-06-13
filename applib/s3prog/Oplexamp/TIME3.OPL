@@ -1,0 +1,35 @@
+APP Time3
+TYPE 1
+ICON "\OPD\~time3.pic"
+ENDA
+
+PROC Time3:
+LOCAL ax%,bx%,cx%,dx%,a&,d&,t&
+
+SCREEN 20,8
+gSETWIN 1,1,100,80
+STATUSWIN ON
+
+REM d& Date.
+d&=DAYS(DAY,MONTH,YEAR)
+
+REM t& Time.
+t&=DATETOSECS(1970,1,1,HOUR,MINUTE,SECOND)
+
+DINIT "Edit time and date"
+DTIME t&,"Time",1,0,DATETOSECS(1970,1,1,23,59,59)
+DDATE d&,"Date",d&,DAYS(31,12,2049)
+IF DIALOG
+
+	a&=86400.0*(d&-25567.0)+t&
+
+	cx%=peekw(addr(a&)+2)
+	dx%=peekw(addr(a&))
+	ax%=$0300
+
+	os($89,addr(ax%))
+	
+ENDIF
+GET
+
+ENDP

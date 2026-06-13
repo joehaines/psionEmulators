@@ -1,0 +1,172 @@
+
+
+PSIONICS FILE - INTRO
+=====================
+Introduction to the Psionics files
+Last modified 1994-09-14
+==================================
+Clive D.W. Feather
+clive@sco.com
+
+
+The "Psionics Files" is my name for my project for collating information about
+programming the Psion Series 3 and 3a which is not in the manuals provided
+with the machines.
+
+The intended audience of the files is the Series 3/3a OPL programmer. Thus,
+for example, material that can only be used by assembler programmers is usually
+(though not always) omitted, and constants are expressed as numbers rather
+than symbolic names. Except where explictly stated, material applies to both
+systems and MS-DOS emulations of both; differences are always indicated. In
+addition, most material also applies to the HC and MC, but differences are not
+always indicated. The term "Series 3s" is used to refer to the original
+Series 3, whether or not it is the version with the built-in spreadsheet.
+
+
+Legalisms
+---------
+
+The first version of the files was built up from information freely available,
+such as the standard manuals, the source code of various games, and Usenet
+postings. After I first posted them, the response of Psion was surprising:
+David Wood arranged for me to receive a complete set of SDK manuals !
+
+According to David: the purpose of the copyright messages in the SDK is to
+allow Psion to express its proprietal ownership over the material. It may be
+copied and distributed so long as the original derivation from the SDK is
+acknowledged. What might cause Psion to seek legal redress is someone claiming
+complete credit for something that is actually derived from the SDK, and did
+not point readers to the SDK as the source of more information. Psion has no
+interest in trying to make any profit directly from sales of the SDK. Psion
+simply wishes the information to reach as many people as possible, trusting
+that, as a result, many good third party products will be written.
+
+In addition, and subject to the above, I retain copyright in my intellectual
+property in these files; that is to say, the effort in editing and arranging
+them, and any text I have written. These files may be distributed through
+normal Usenet mechanisms, may be archived at sites offering free access to
+contents, and may be converted to other formats (such as HTML). However, all
+public copying and distribution is to be of the entire set of files, and not
+any subset, and any versions that are not a direct copy (this includes format
+conversions unless done completely automatically) are to carry a prominent
+note indicating that they have been edited and by whom, and that errors may
+have resulted.
+
+While these files have been generated in good faith, there may be errors in
+them, and/or they may not reflect current releases of the EPOC operating
+system. No warranty, express or implied, is offered by myself or Psion in
+these matters.
+
+This the preceeding three paragraphs are not to be removed or materially
+altered by any changes.
+
+[Phew ! If you want to do something that the above doesn't cover, please
+contact me. I'm quite reasonable.]
+
+Corrections and additions are always welcome.
+
+
+Files
+-----
+
+The following files exist at present:
+
+  AGENDA.FMT   - Format of Series 3s Agenda (.AGN) files
+  BITMAP.FMT   - Format of Bitmap (.PIC) files
+  COUNTRY.FMT  - Format of Country information files
+  DBF.FMT      - Format and use of Data (.DBF) files
+  DEVICES      - Device driver interfaces
+  ENVVARS      - Environment variables
+  FILEIO       - Filing system IO interfaces
+  FLASH        - Format of Flash SSD cards and ROMs
+  FONT.FMT     - Format of Font (.FON) files
+  INTRO        - This file
+  KERNEL       - Kernel memory organisation
+  LOCALES      - Locale codes
+  MENUPROB     - Series 3s menu problem workaround
+  PROCESS      - Processes and their properties
+  RESOURCE.FMT - Format of resource files
+  SOUND.FMT    - Format of sound (.WVE) files
+  SPR.FMT      - Format of SH3 Spreadsheet (.SPR) files
+  SYSCALLS.n   - System calls
+  SYSCALLS.IDX - Alphabetic index to system calls
+  WORD.FMT     - Format of Word (.WRD) files
+
+Note that DATA.FMT has been replaced by DBF.FMT.
+
+In addition, the files LINK and WSERVER are referred to in other files, but are
+not yet available.
+
+
+Other notes
+-----------
+
+The following terms have specific meanings:
+  byte       - one byte integer
+  word       - two byte integer
+  trip       - three byte integer
+  long       - four byte integer
+  real       - 8 byte floating point number
+  cstr       - a string, as found in C programs, ending with the first zero
+               byte; the contents are all non-zero bytes, the string may have
+               zero length (excluding the terminating byte), and there is no
+               limit on the length unless stated otherwise.
+  qstr       - a string, as found in translated OPL programs, consisting of a
+               count byte followed by that many bytes; the contents may include
+                 zero bytes, and the length is in the range 0 to 255 (excluding
+               the count byte).
+  text       - a string, whose length is expressed externally (for example, by
+               occupying a fixed size buffer); it may contain zero bytes, and
+               does not have an initial count byte.
+               [This definition does not apply when the "text" is explicitly
+               described as a cstr or qstr.]
+  address    - a word (two bytes), containing the address of a variable in the
+               same or a different address space (all address spaces are
+               limited to 64k). It may be obtained with the ADDR keyword.
+  day number - a number of days since 1900-01-01.
+  abstime    - a number of seconds since 0000 GMT on 1970-01-01 (the format
+               used by the DATETOSECS keyword).
+  interval   - a number of seconds since 0000 on the relevant day.
+
+All integers are little-endian. Whether a value is signed or unsigned can
+normally be deduced from context.
+
+A real number uses IEEE 64 bit format, using a little-endian layout
+  Bits  0 to 51: mantissa, with binary point at left and implicit leading 1
+  Bits 52 to 62: biased exponent (1023 = value in range 1 <= V < 2)
+  Bit  63      : sign (0 = positive, 1 = negative)
+
+Data structures are always shown with each field described as a byte offset
+from the start of the structure. Each field is given as either a start and end
+offset (the field including both), or as a start offset and type. Bytes not
+included in any listed field have an unknown meaning. Unused bytes are shown,
+and should be set to zero.
+
+Hexadecimal numbers are indicated by a $ or & prefix. These are used
+interchangably; they do not imply the type or number of bits of the value.
+
+Bits within bytes are always numbered from 0 (least significant) to 7 (most).
+Unused bits are not described, and should be set to zero.
+
+Many operations use cstr values. These can be converted to and from qstr (OPL
+string) values as follows:
+
+  - always use "ADDR(qstr$)+1" as the address of the cstr;
+  - to convert a qstr to a cstr, use "qstr$ = qstr$ + CHR$(0)";
+  - to convert a cstr to a qstr, use
+    "POKEB ADDR(qstr$),CALL($B9,0,0,0,0,ADDR(qstr$)+1)
+
+An at sign (@) is used to indicate incomplete or missing information, or
+text that I plan to rewrite.
+#! rnews 4196
+Article: 5366 of comp.sys.psion
+Newsgroups: comp.sys.psion
+Path: cix.compulink.co.uk!uknet!inmos-root!fulcrum!warwick!pipex!hunts.x.co.uk!scone.london.sco.com!clive
+From: clive@sco.com (Clive D.W. Feather)
+Subject: Psionic file AGENDA.FMT
+Organization: Santa Cruz Operation Ltd., Watford, United Kingdom
+Date: Wed, 14 Sep 1994 09:50:31 GMT
+Message-ID: <Cw4609.JKy@scone.london.sco.com>
+References: <Cw45Bq.JGp@scone.london.sco.com>
+Lines: 95
+

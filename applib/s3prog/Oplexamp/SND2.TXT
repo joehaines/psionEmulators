@@ -1,0 +1,105 @@
+
+Ä Area: [FIDO] PSION echo ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+  Msg#: 8487                                         Date: 20 Feb 95  19:27
+  From: Faye Pearson                                 Read: Yes    Replied: No 
+    To: Paul Hargreaves                              Mark:                     
+  Subj: SND: guide Pt 2/2
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+This is Part 2/2 of my SND: driver lecture <g>
+
+These are some OPL hints and they are all mine (Faye) they are
+untested and I provide no warranty should they reduce your Psion to
+a smoldering heap of ashes or otherwise decrease your happiness
+you are free to use them with no strings whatsoever. :-)
+
+This said I have used most of them myself and not had any problems...
+
+-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-
+
+This is an array of note values for use with the following formula
+
+  f%(3)=3 :f%(4)=5 :f%(5)=7 :f%(6)=8 :f%(7)=10 :f%(1)=12 :f%(2)=14
+  f%(11)=4 :f%(12)=6 :f%(14)=9 :f%(15)=11 :f%(9)=13
+
+  freq%=INT(440*2**(f%(n%-64+s%)/12.0+o%-2.0))
+
+This formula calculates a note frequency where:
+  n% is the ASCII value of the note (ABCDEFG)
+  s% is 0 if a natural and 8 if a sharp note
+  o% is the octave number
+
+In the following code these variables are used:
+  shan%  : handle of the opened SND: device
+  C1St%,
+  C2St%  : Status variables for music (should be GLOBAL for safety)
+  C1Buf%,
+  C2Buf% : Pointer to buffer containing note information.
+  C1Siz%,
+  C2Siz% : Number of notes in buffer.
+  ret%   : Variable for receiving return codes from IOW
+  Play%  : Flag showing if music is/was playing
+
+Playing music in foreground
+
+  IOC(Shan%,1,C1St%,#C1Buf%,C1Siz%)
+  ret%=IOW(Shan%,2,#C2Buf%,C2Siz%)
+  IF ret%<0
+    REM ERROR - music probably unplayed
+  ENDIF
+  IOWAITSTAT C1St%
+  IF C1St%<0
+    REM ERROR - music probably unplayed
+  ENDIF
+
+  Will play the music and the program will continue when the music is
+  complete
+
+Playing music in background
+
+  IF Play%=0
+    Play%=1
+    IOC(Shan%,1,C1St%,#C1Buf%,C1Siz%)
+    IOC(Shan%,2,C2St%,#C2Buf%,C2Siz%)
+  ENDIF
+
+If your program is IO driven (best)
+
+  IOWAIT
+  IF C1St%<>-46 AND C2St%<>-46 AND Play%=1
+    REM music has just finished
+    IF C1St%<0 OR C2St%<0
+      REM ERROR - music probably unplayed
+    ENDIF
+    Play%=0
+  ENDIF
+  ...
+  REM Your other async handling routines here
+  REM like keyboard and timer...
+  REM you don't need another IOWAIT
+  ...
+
+Otherwise...
+
+  IF C1St%<>-46 AND C2St%<>-46 AND Play%=1
+    IOWAITSTAT C1St%
+    IOWAITSTAT C2St%
+    REM music has finished!
+    IF C1St%<0 OR C2St%<0
+      REM ERROR - music probably unplayed
+    ENDIF
+    Play%=0
+  ENDIF
+
+Should be placed wherever you want to check if music has finished.
+
+Remember the speaker can only do one thing at once.
+
+I hope that is useful to you,
+Faye.
+
+
+ş P3aOLR 2.2 ş There's one reborn every minute
+
+-!- Olms 2.0 [PCTDH49H]
+ ! Origin: From The Crystal Tower : London (081-4478244) (2:254/220)
+

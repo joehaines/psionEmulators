@@ -1,0 +1,346 @@
+Agenda Dump v1.05 1997-Mar-03
+=============================
+
+AgnDump is an OPL utility for the Psion Series 3a
+computer to extract data from S3a Agenda files.
+
+Status
+------
+This software is freely-distributable.
+
+If you have any comments or feedback, please send
+them to me, Simon Pooley, by emailing
+spooley@cix.compulink.co.uk
+or see http://www.cix.co.uk/~ropewalk/psion
+
+Introduction
+------------
+Version 1.05 replaces 1.04 that was distributed in
+October 1997.  It fixes many bugs, addresses a few
+deficiencies and adds the following new features:
+ - Output via the Psion Printing system, supporting
+   print preview and output via PsiWin or even via
+   the Psion's fax modem!
+ - Use of proportional fonts for the screen output
+   makes the program look neater.
+ - Output to Psion Data databases and MC400 diary
+   options.
+
+AgnDump is an OPL utility for the Psion Series 3a
+computer to extract data from S3a Agenda files.
+
+Agenda entries are extracted as text in a form 
+suitable for post-processing.  The output may be
+sent to one of:
+	Screen	for checking
+	File	for post-processing by another program
+	Printer	(Psion parallel adaptor required)
+	Serial	serial printer or other device
+	Database for further manipulation
+	MC400 Diary file, if there's anyone out there
+		still using Psions old laptop!
+
+Installation
+------------
+Copy AGNDUMP.OPA to the \APP\ directory on any
+Psion drive.
+If you want the on-line help, copy AGNDUMP.RSC
+to the \APP\AGNDUMP\ directory on any Psion
+drive.
+Install AGNDUMP using Psion-I on the system screen.
+
+If you are upgrading from a previous version, I'm afraid
+that the format of the parameter data files listed under
+the Agenda Dump icon has changed, so you'll have to
+delete and re-create them from the new version.
+
+************************************************
+Make sure you have a backup of your Agenda files
+before running this program!
+Although AgnDump is careful to open Agenda files
+read-only there is always the possibility that I
+have made a programming error that could destroy
+your data!
+************************************************
+
+Operation
+---------
+The files listed under the AGNDUMP icon hold
+default values for the various parameters that can
+be changed in the application to produce customised
+reports.
+When first installed, there will be no pre-set
+reports and the Psion system screen will display a
+single dummy entry under the icon called `Agndump'.
+Launch AGNDUMP the first time by either pressing
+<Enter> on the Agndump label under the icon, or
+press <Psion>-N on the icon to create a new report
+parameter file with your choice of name.
+When AGNDUMP starts it displays the settings from
+the current data file (or the default settings if
+the data file has just been created).
+Use the <Menu> key or the hot keys shown after the
+labels on the screen to customise the reporting
+options:
+
+Source		Select the name of the Agenda file 
+		containing entries to be reported.
+
+Dates		Specify the period for the report.
+		Various common ranges may be selected
+		or you can choose "Other date
+		range..." to specify the actual
+		start and end dates explicitly.
+
+Day filter	Allows the report to be restricted
+		to only some days of the week.
+		Choose "Change..." if none of the
+		other choices are what you want.
+
+Record types	Allows choice over what types of
+		Agenda entry will be included in
+		the report.
+		In addition, you can specify that
+		ONLY entries with an Alarm, a Memo
+		or matching some particular text
+		will be reported.
+
+Text filter	Allows the report to be restricted
+& Year symbol	to entries containing matching text
+		and/or one of several year symbol
+		characters.
+
+Report to	Choose Screen, File... Serial or
+		Parallel Printer.  If you choose
+		File... you will be prompted for
+		the filename later.
+		If Serial is chosen, the serial
+		port parameters as setup using
+		Psion-Y on the System screen are
+		used.
+
+		Psion printing will use the Psion's
+		built-in printing system to provide
+		print preview and the ability to
+		print via PsiWin, any supported
+		printers or even the 3-fax software,
+		if you have it!
+		See the on-line help for more details
+		on this option.
+
+		Database... can be used to create
+		a Psion database file.  The first
+		record written to the database
+		contains the field lables, subsequent
+		records are produced for each output
+		item.
+
+		MC diary... creates a diary file for
+		use on Psion's older MC200 and MC400
+		laptop computers.
+
+Repeats		Determines how repeated entries are
+		handled.
+		Show next only - displays each
+		repeated item no more than once in
+		the report.
+		As normal - displays each repeated
+		item as determined by the similar
+		setting in the Agenda application.
+		Not shown - suppresses all repeated
+		items from the report.
+
+Date format	Allows a choice for the way the
+		date at the start of each output
+		record is displayed.
+		
+Memo		Either "Shown" or "Not shown", depending
+		on whether you are interested in viewing
+		the text of Memos attached to Agenda
+		entries.
+		If "Shown" is selected, you can enter
+		the column at which the text is
+		word-wrapped.
+
+Time format	Specifies how time is displayed on the
+		output report.
+
+Having modified these settings, you can use the
+standard Psion menu options New, Open and Save to
+store the settings in files that will be listed
+under AGNDUMP's icon.
+
+To produce a report, select Produce from the Report
+menu, <Psion>-P.
+The specified source agenda file will be opened and
+records matching the selected criteria will be
+included in the report.
+Note that you do not need to close Agenda before
+running Agndump on the same Agenda data file...if
+Agndump gets a "File busy" error when it tries to
+open the data file it tries to shut down any
+Agenda process that may be running and retries the
+open.  Agenda will be restarted with the same file
+when Agndump finishes its report (but note that
+the Agenda file will be re-opened in the default
+day-view).
+As the Agenda file is processed, progress is
+displayed as a percentage in the bottom-right of
+the screen.
+
+Report Format
+-------------
+The first two lines of the output report contain
+comments (prefixed with a # character) describing
+the contents of the report.
+Subsequent report lines contain one row of text for
+each reported entry.
+
+16/01/1995 [b]hh:mm Entry text (duration)(anniv dtls)[ALARM...][MEMO]
+1-------->23->4---->5-------->6--------->7---------->8-------->9---->
+
+(* indicates optional fields)
+1	date in the format specified in the report
+	parameters, or the text "UNDATED", or the
+	text "TODO"
+2	space character
+3*	day entry symbol (if any) in square brackets
+4*	time of the entry as hh:mm (24-hour format) or
+	hh:mm followed by "am" or "pm".  This field is
+	only produced for timed entries.
+5	text of the agenda entry
+6	duration (if non-zero) for a timed entry
+7	anniversary details, i.e. start year, no.
+	of years or both (as determined by the
+	entry settings in Agenda)
+8	alarm data in square brackets - entries
+	with an alarm only
+	- the text "ALARM"
+	- the name of the alarm sound, or the
+	  selected .WVE file
+	- the time when the alarm will sound, and a
+	  number of days if the alarm is set to go
+	  off on a different day to the event, e.g.
+	  "at 10:00" or "at 21:30 2 days before"
+9	the text "MEMO" in square brackets - entries
+	with a memo only.
+	If the memo is password-protected this field is
+	shown as [MEMO-PW]
+
+If the entry has a memo, the memo report option is set
+to "Shown", and the memo is not password-protected, then
+the text of the memo entry is displayed on subsequent
+lines of the report.  Each line of memo data is
+preceeded with a | character, CHR$(124).  Formatting of
+the memo is not reproduced, instead the memo text is
+word-wrapped at the column specified on the report setup
+dialog.
+
+Limitations
+-----------
+1. The list of excluded dates from repeated entries
+   is ignored.
+2. The text style of an entry is ignored.
+3. Known bug: monthly by date events with a From
+   date that is not one of the the "Dates in
+   month..." are repeated incorrectly.
+4. The text of memo entries is not available in the
+   database output option.
+
+History
+-------
+
+v0.0 16jan1996
+- first version
+
+v0.1 18jan1996
+- Serial printing (9600 8n1 only)
+- Remember report destination and source agenda file
+- Display 2 digits for the mins part of hh:mm when mm < 10
+- "Pete's Mum" bug fixed.  (alarms on repeating events)
+- Check for End& before Start& in "Other date range"
+- Filter by days of the week
+
+v0.2 28jan1996
+- Show WeekDays used in filter on report title
+- Always display 2 digits for months & days in all date formats
+- Option to o/p dates as no. of days
+- Type 3 APP, store report params in data files
+- Screen shows report settings...in fact, AgnDump now has a u/i!
+- Validate that i/p file really is an S3a agenda file
+
+v0.3 4feb1996
+- Correct the bug that made never-ending repeats only display once
+- ESC now interrupts repeat loop processing, too
+- "More" on screen o/p: select o/p to "Screen (paged)"
+- filter by year symbol (incl. slightly changed text filter).
+  N.B. parameter database file format changed.  This situation
+  is trapped, but aborts the program.  Sorry!
+- Minor changes to some hot keys and dialog layouts
+
+v0.4 28apr1996
+- Few minor updates to documentation and bundling for limited
+  distribution on the cix conferencing system.
+
+v1.0 20jun1996
+- Added help file AGNDUMP.RSC and changed screen title to
+  reflect formal release status.
+
+V1.00 jun1996
+- Serial printer parameters fetched from environment
+- Save as... implemented, and file handling re-worked
+- Correct bug preventing display of undated ToDo entries
+- Change o/p format: date time symbol text etc
+- Correctly suppress time display for untimed and anniversaries
+- Don't use UADD on long integers! - We can now handle >32K !!
+- bug: monthly by date events with a From date that is not one of
+  the "Dates in month..."  repeats incorrectly
+- Known limitation: Agenda places entries that would repeat on, e.g.
+  the 31st on the last day of shorter months.  We dont.
+
+V1.01 10oct1996
+- Investigate memo data (prelim: only works if no alarm on entry!)
+- Memo data now dumped unconditionally if selected record has one.
+  Format "MEMO text, truncated at 78 chars" under entry.
+
+V1.02 12oct1996
+- Search for text in memo text data, too.
+- Change data file format to store params re memo text
+- Add memo-related options
+- Handle memos on entries wirh alarms, too
+- Split source into AGNDUMP & AGNDUMP2: it's grown > 40Kb
+- Word-wrap memo output
+- SetPName to change process name
+- Blimey!  TODOs can have alarms and memos, too.
+
+V1.03 15oct1996
+- Use GenGetAmPmText propperly, and parametrise TimeFmt%
+- ESC interrupts whilst memo being o/p
+- Discover that password-protected memos have a
+  different format which I cannot handle.  Plea on cix
+  leads to formal description of the format of memos
+  (what a great place, cix is!).  Now we can support
+  memos with confidence!
+
+V1.04 20oct1996
+- Correct a silly bug in V1.03 that made most memo/text
+  searches produce an "ERROR - Cannot interpret memo data"
+
+V1.05 03mar1997
+- Support for Psion printing
+- Use proportional font (abd itallic memos) for nicer-looking
+  screen output
+- Report the number of records output in addition to the
+  percentage of the Agenda scanned as the report is being
+  produced.
+- Option to output to MC400-style diary files
+- Option to output to Psion 'data' text databases
+- Fix bug: "Exit, lose changes" menu option ignored
+- Fix bug affecting non-repeating entries following a
+  monthly-by-date repeating entry
+- Fix bug on alarms set more than 22(ish) days before their
+  event
+- Enhance database output with more fields to aid import
+  into MS Schedule+ and Outlook.
+
+---end---

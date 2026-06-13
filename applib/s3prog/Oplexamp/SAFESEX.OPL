@@ -1,0 +1,28 @@
+==========
+psion/opl #2670, from jezar, 516 chars, Feb 8 1:27 96
+Comment to 2661.
+----------
+
+The best way is to get a "safe" count of the seconds like this:
+
+PROC SafeSex&:
+    LOCAL t1&,t2&
+
+    DO
+        t1&=t2&
+        t2&=DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+    UNTIL t1&=t2&
+
+    RETURN t1&
+ENDP
+
+Note that the procedure is designed this way in order to ensure that a 
+minimum of *two* identical samples of the time have taken place. This 
+avoids the slim chance that the minutes or hours etc. have clocked over 
+*during* the sampling of the time.
+
+Regards,
+Jezar.
+
+  
+

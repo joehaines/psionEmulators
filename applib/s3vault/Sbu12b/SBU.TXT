@@ -1,0 +1,251 @@
+		    SBU  Selective Archiving Program
+			 for Psion Series 3a
+
+February 26th, 1996
+
+Backing up your Psion and its SSDs can be a time-consuming process.
+
+I required a method of saving copies of all my data files (OPL, CAP, DBF,
+PIC, WRD, TXT etc., etc.) to my PC on a regular basis.  I did not need
+to keep copying the program (APP, IMG, OPA, etc.) files each time, as
+I have all these archived in any case.  I also needed control over the
+destination directories.
+
+So SBU was born.  This simple program was designed to do a selective 
+backup of all my changing files to the PC.  Here the files are zipped up
+for posterity(!) into a single file.  Thus if I ever need to look at
+say, some OPL code in its early stages, I have it stored somewhere.
+(Whether I can find it is another matter!)
+
+
+ARCHIVE CONTENTS
+
+SBU.OPO         The program file
+SBU.TXT         This file
+EDIT_TXT.ALS    ASCII Editor alias file
+SBU_CFG.TXT     Sample configuration file
+
+
+SBU 1.2
+
+This is an upgrade which allows up to 99 different options to be stored in
+one configuration file.
+
+SBU consists of two files, SBU.OPO and SBU_CFG.TXT which are kept in the
+usual places, SBU.OPO in any \OPO\ directory, and SBU_CFG.TXT in the M:\TXT\
+directory.  SBU.OPO is supplied in this archive, and you can make SBU_CFG.TXT
+in the following way:
+
+
+1.   If you do not already have an M:\TXT\ directory, make one from the
+     system screen by pressing Psion and the + key together. Type \TXT
+     into the dialog, and set the disk to INTERNAL.  Press Enter.
+
+2.   You can also copy the file EDITOR.ALS, from the archive, to an \APP
+     directory.  Install this in the usual way (Psion-I).  This will
+     provide an ascii text editor, which reads/writes to the \TXT
+     directory by default.
+
+3.   Create the configuration file by highlighting the Editor icon on the
+     system screen, and press Psion-N.  Type in SBU_CFG and ensuring the
+     disk is set to INTERNAL, press Enter.
+
+
+RULES for the file SBU_CFG.TXT (See the example later in this document).
+
+i)   All lines should start at the left margin, i.e. there should be no
+     leading tabs or spaces.
+
+ii)  You can write a title on the first line(s), as long as the first
+     character is a normal letter.
+
+iii) Write down a title for each configuration, you can have up to 99
+     different options.  Each title should start with a # (hash) and can
+     have up to 25 letters.  These titles will appear in a dialog when
+     you run SBU.  These titles should be on consecutive lines for
+     clarity.  Note that there is a limit here: the total length of all
+     the titles, plus the number of titles, must add up to a maximum of
+     255.  (If you have 20 titles, their total length should not exceed
+     235, i.e. 255 minus 20).
+
+iv)  After the final title, add a line like:
+     #End
+
+v)   For each title, now add a section starting:
+     #n
+     and ending:
+     #End
+
+     where n = 1 for the first option, 2 for the second, etc.
+
+     For each option, add the source filespec and destination directory as
+     follows:
+     
+     LOC::M:\OPL\*.OPL,REM::C:\SBU\OPL\
+
+     The "Source" part should hold a full path and file name, Wildcards
+     are OK.  You should specify the device and drive.  You will need a 
+     record for each directory to be archived.
+
+     The "Destination" part should hold the full path name for the 
+     destination directory.  This should end in a backslash "\".
+     If the "Destination" directory does not exist, SBU will attempt
+     to make it.  This has been tested with RCOM and PsiWin on a PC,
+     but there is a possibility it may not work with other host link
+     applications.  If in doubt, make sure that the destination exists.
+     The source and destination parts should be separated by a comma.
+
+     There is a limit of 30 source/desination specifications.  Let me
+     know if you need more.
+
+vi)  You can separate each section by a blank line for clarity.
+
+vii) If you do not wish to see SBU_CFG.TXT in the text editor file list,
+     you can rename it to SBU_CFG.  i.e. remove the TXT extension.  If
+     using RENAME FILE from the system screen, do not forget to add a 
+     dot after the name, i.e. "SBU_CFG.".
+
+
+So you can see that you can copy the files in each Psion directory to
+anywhere on your PC (or MAC, ST, Amiga, or even Psion SSD).  You can
+copy all the files on your Psion to the same destination directory, or
+use a different destination for each type of file.  The files in the
+same Psion directory can be split up into different destinations if
+required.
+
+
+USING SBU
+
+Highlight SBU under the RunOpl icon, and press Enter.  A list of the
+option titles will appear on the screen, and a dialog will aloow you to
+select one of them.  You can press escape to exit here, or at any time
+during the copying process.
+
+
+COPYING OPEN FILES
+
+If a file is in use while SBU is running, it will ignore that file, 
+and report the problem on the screen.  It will continue with the next 
+file.  Similarly if a source or destination is not found, this will
+be reported, but the program will continue.
+
+If you wish to copy open files, You may find JBSTOPGO by John
+Boyce a useful work-around:
+
+1.  Ensure RCOM, SLINK, etc., is running on the PC (or whatever).
+2.  Ensure that on the Psion the LINK is OFF
+3.  Run JBSTOPGO, which will close the open files, and turn the LINK on.
+4.  Run SBU.
+5.  Run JBSTOPGO again, the LINK will be closed, and the files re-opened.
+
+
+If you are not bothered about open files, or do not wish them to close
+and overwrite the earlier version, use SBU as follows:
+
+1.  Ensure RCOM, etc., is running on the PC.
+2.  On the Psion, turn the LINK to ON.  (With RCOM, type XSTAT on the
+    PC to check that the link is established).
+3.  Run SBU.  When it has finished:
+4.  Turn OFF the LINK and stop the PC software as required.
+
+
+USING PSIWIN
+
+SBU will copy files to a PC running PsiWin, provided the following change
+is made to the C:\WINDOWS\PSIONPRC.INI file:
+
+Edit the line:
+ENGINE=PRCENWIN.EXE -X
+to remove the -X leaving:
+ENGINE=PRCENWIN.EXE
+
+Restart PsiWin, and the Psion 3a will now be able to "see" the PC files
+when the link is active.
+
+
+NOTES TO VERSION 1.2
+
+SBU does NOT change the archive bit on any files, nor does it write
+or delete anything on the Psion.  Thus it should not affect the status
+of your regular backups.
+
+Consequently SBU should not cause any damage or loss to data on your 
+Psion, but I disclaim any responsibility should this happen.  It is
+recommended to run the Psion on its mains power unit when using the
+3-Link RS232 Adaptor, in case the battery should fail during copying.
+You could also set the AUTO SWITCH OFF to "If no external power"
+(from the CONTROL menu of the system screen) to prevent the Psion from
+switching off during the process.
+
+JBSTOPGO by John Boyce, is obtainable on Compuserve and on CiX.  If
+you cannot find this, send me an email.  I disclaim any responsibility
+for any loss or damage due to using JBSTOPGO.
+
+SBU Version 1.2 is a simple program I wrote to do a routine task.
+It has no frills, but is only about 2k in size.  Please email me if
+you find any problems, or would like to see any changes to the
+program.
+
+This version is FREE, and may be circulated in any way, as long as this
+SBU.TXT file is included.
+
+If anyone needs a Series 3 version, please let me know.
+
+
+Contact details:
+----------------
+
+Roger Muggleton
+
+Email:          hzk@cix.compulink.co.uk
+Packet Radio:   G0HZK@GB7WIR.#42.GBR.UK
+
+
+SAMPLE SBU_CFG.TXT file:
+
+------------------------------------------------------------------
+Sample SBU config file.
+
+Titles (copy options)
+
+#All documents
+#All data files
+#All program files
+#All changing data
+#End
+
+Now the first option
+
+#1
+LOC::M:\TXT\*.*,REM::C:\SBU\DOCS\
+LOC::M:\WRD\*.WRD,REM::C:\SBU\DOCS\
+#End
+
+and the second
+
+#2
+LOC::M:\OPD\*.*,REM::C:\SBU\DATA\
+LOC::M:\DAT\*.*,REM::C:\SBU\DATA\
+#End
+
+and the third
+
+#3
+LOC::M:\OPL\*.OPL,REM::C:\SBU\PROG\
+LOC::M:\C\*.C,REM::C:\SBU\PROG\
+LOC::M:\H\*.H,REM::C:\SBU\PROG\
+#End
+
+and finally
+
+#4
+LOC::M:\TXT\*.*,REM::C:\SBU\DOCS\
+LOC::M:\WRD\*.WRD,REM::C:\SBU\DOCS\
+LOC::M:\OPD\*.*,REM::C:\SBU\DATA\
+LOC::M:\DAT\*.*,REM::C:\SBU\DATA\
+LOC::M:\OPL\*.OPL,REM::C:\SBU\PROG\
+LOC::M:\C\*.C,REM::C:\SBU\PROG\
+LOC::M:\H\*.H,REM::C:\SBU\PROG\
+#End
+
+------------------------------------------------------------------

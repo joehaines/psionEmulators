@@ -1,0 +1,93 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss11</scrfont>
+<statwin>on</statwin>
+<cfmt>~%month,%prin</cfmt>
+<citer>60</citer>
+<cdisp>fmtlist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N   \V\n\T</rfmt>
+<rall>yes</rall>
+<starg>ugga</starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>3</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>235.000</xmax>
+<xmin>0.000</xmin>
+<ymax>200000.000</ymax>
+<ymin>0.000</ymin>
+<xintrvls>10</xintrvls>
+<yintrvls>10</yintrvls>
+<xycells>month,prin</xycells>
+<cell>
+<cname>apr</cname>
+<text>annual periodic interest rate</text>
+<val>0.14</val></cell>
+<cell>
+<cname>home</cname>
+<text>Amortiation calculator.  Currently set up to simulate paying off a note at a set interest rate.  Minor changes will allow it to compute the future value of a sum given an interest rate and a payment amount.
+
+DIRECTORY:
+  month-- payment number
+  prin -- principal amount
+  apr -- set to annual periodic interest rate...
+  itm -- interest paid this month... computed
+  mi -- monthly interest rate... computed
+  pymt -- monthly payment.... set to payment
+
+SETUP:
+    In execution preferences:
+           set Execution Results to Formatted
+           set number of iterations to a number larger than necessary to pay off note or accumulate sum.
+
+USAGE:
+     Set month to 0.  
+     Fill in payment amount (pymt) if it hasn't been already.
+     Fill in apr percentage (apr) if it hasn't been already.
+     Fill in principal amount. (prin)
+    
+     Return to home cell, and select Execute from the Special menu.</text>
+<val>244.000</val>
+<script>prin()
+month()</script></cell>
+<cell>
+<cname>itm</cname>
+<text>interest paid this month</text>
+<val>2292.241</val>
+<script>mi!*prin</script></cell>
+<cell>
+<cname>mi</cname>
+<text>monthly interest rate</text>
+<val>0.012</val>
+<script>apr/12</script></cell>
+<cell>
+<cname>month</cname>
+<val>0</val>
+<script>month+1</script></cell>
+<cell>
+<cname>prin</cname>
+<text>Principal amount
+</text>
+<val>196270.030</val>
+<script>if(prin>pymt) {
+    prin+itm!-pymt
+} elseif(prin>0) {
+    0
+} else {
+    exit
+}</script></cell>
+<cell>
+<cname>pymt</cname>
+<text>monthly payment
+</text>
+<val>2500</val></cell></eof>

@@ -1,0 +1,94 @@
+PROC oposrch:
+    local fname$(128)
+    local pattern$(20),adpa%,plen%
+    local h%,l%
+    local buf%(100),adbuf%,bo%,fo%,off%
+    local fold%
+    global oscall%
+    adpa%=addr(pattern$)+1  :rem skip leading byte count
+    adbuf%=addr(buf%(1))    :rem treat as 200 byte buffer
+    fname$=cmd$(1)
+    pattern$="cat"
+    fold%=1
+    while 1
+        print "Press any key to search (ESC quits)"
+        l%=get
+        if l%=27 :break :endif
+        cls
+        dInit "Search for"
+        dEdit pattern$, "Text"
+        dFile fname$, "Inside:",0
+        dChoice fold%,"Case sensitive","No,Yes"
+        if dialog=0
+            continue
+        endif
+        l%=ioopen(h%,fname$,$400) :rem shared access
+        if l%
+            print "Failed to open",fname$
+            print err$(l%)
+            continue
+        endif
+        fo%=0 :rem cumulative file offset
+        bo%=0 :rem handles overlap between two reads
+        plen%=len(pattern$)
+        print "Searching for:",pattern$
+        print "In file",fname$
+        if fold%=1
+            oscall%=$aa     :rem BufferSubBufferFolded
+            print "(case insensitive search)"
+        else
+            oscall%=$a9     :rem BufferSubBuffer
+            print "(case sensitive search)"
+        endif
+        print "...."
+        while 1
+            l%=ioread(h%,adbuf%+bo%,200-bo%)
+            if l%<0
+                if l%<>-36 :rem not EOF
+                    print "Error reading file"
+                    print err$(l%)
+                    break
+                endif
+notfound::      print "No matches found"
+                break
+            endif
+            off%=search%:(adbuf%,l%+bo%,adpa%,plen%)
+            if off%>=0
+                print "Match found at file offset",fo%+off%
+                break
+            endif
+            if l%+bo%<>200
+                goto notfound
+            endif
+            bo%=plen%-1
+            bufcopy:(adbuf%,adbuf%+200-bo%,bo%)
+            fo%=fo%+200-bo%
+        endwh
+        ioclose(h%)
+    endwh
+ENDP
+
+PROC bufcopy:(a%,b%,l%)
+REM copies l% bytes from b% to a%
+    call($a1,0,l%,0,b%,a%)
+ENDP
+
+PROC search%:(b%,blen%,p%,plen%)
+REM searches for match of pattern at p% inside buffer at b%
+REM returns -1 for failure
+REM else buffer offset of first match
+REM search is either case sensitive or case insensitive
+REM (depending on oscall%)
+    local ax%,bx%,cx%,dx%,si%,di%,f%
+    bx%=plen%
+    cx%=blen%
+    di%=p%
+    si%=b%
+    f%=os(oscall%,addr(ax%))
+    if f% and 1
+        return -1
+    endif
+    return ax%
+ENDP
+
+            

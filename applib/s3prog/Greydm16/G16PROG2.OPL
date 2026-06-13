@@ -1,0 +1,95 @@
+REM This program scrolls a randomly graduated grey
+REM background up the screen - 16 greys with dithering!
+
+PROC g16prog2:
+
+	GLOBAL id%(8)
+	local i%,g%,r%,d%
+
+	init:
+	gupdate off
+	i%=1
+
+	id%(3)=gCREATE(0,0,480,164,1,1)
+
+	d%=1
+	g%=0
+	DO
+		gGREY 2
+		gAT 0,i%*4
+		gCOPY id%(1),0,g%*4,480,4,3
+		IF d%=1
+			g%=g%+1
+			IF g%>16
+				g%=16
+			ENDIF
+		ELSE
+			g%=g%-1
+			IF g%<0
+				g%=0
+			ENDIF
+		ENDIF
+		r%=RND*10
+		IF r%=8
+			IF d%
+				d%=0
+			ELSE
+				d%=1
+			ENDIF
+		ENDIF
+		i%=i%+1
+	UNTIL i%=41
+	gUPDATE 
+
+	DO
+		gSCROLL 0,-4,0,0,480,160
+		gUPDATE
+		gGREY 2
+		gAT 0,156
+		gCOPY id%(1),0,g%*4,480,4,3
+		IF d%=1
+			g%=g%+1
+			IF g%>16
+				g%=16
+			ENDIF
+		ELSE
+			g%=g%-1
+			IF g%<0
+				g%=0
+			ENDIF
+		ENDIF
+		r%=RND*10
+		IF r%=8
+			IF d%
+				d%=0
+			ELSE
+				d%=1
+			ENDIF
+		ENDIF
+
+		IF KEY
+			STOP
+		ENDIF
+
+	UNTIL 0
+
+ENDP
+
+PROC init:
+	LOCAL yf%,cnt%
+
+	id%(6)=gLOADBIT("\pic\grey.pic")
+	id%(1)=gCREATE(0,0,480,68,0,1)
+
+	gGREY 1
+	gAT 0,0
+	gFILL 480,36,0
+	gGREY 0
+
+	gPATT id%(6),480,32,3
+	gGREY 1
+	gAT 0,32
+	gPATT id%(6),480,32,3
+
+ENDP
+

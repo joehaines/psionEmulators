@@ -1,0 +1,31 @@
+==========
+psion/opl #1269, from jezar, 770 chars, Jun 13 09:41 94
+----------
+TITLE: OPL Hint for the morning
+
+Most of you know that when writing text files you can  get
+far more  control by  using LPRINT  to a  file instead  of
+IOWRITE.  However,  to  be  totally  flexible,  you   will
+probably want to be able to  print to the screen as  well.
+But this can lead to a horrible mixture of both PRINT  and
+LPRINT statements, punctuated by IFs and ELSEs.
+
+Instead, just use LPRINT and redirect it to the screen  as
+in this example:
+
+PROC PatchLP:
+  POKEW PEEKW($1C)+$1A,PEEKW(PEEKW($1C)+$1C)
+
+  LPRINT "By using LPRINT instead of PRINT"
+  LPRINT "You can send output *anywhere!*"
+  LPRINT "and YES, it's *legal* too!"
+  GET
+ENDP
+
+I guess it's possible that in future you might need to POKEW a
+zero back when you've done, but I doubt it.
+
+Jezar.
+
+  
+

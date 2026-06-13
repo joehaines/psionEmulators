@@ -1,0 +1,68 @@
+PROC late:
+	LOCAL pps,pix
+	LOCAL tim2,tim3,mil2,mil3,late,minlt%,sexlt%
+	LOCAL stmin%,stsex%,stpix,eta,etamin%,etasex%
+	LOCAL sttim,etahr%,etax,p%,stmil
+		LAST
+		IF A.timA>0
+			RETURN
+		ENDIF
+		calc::
+		updraw:
+		FIRST
+		DO
+			NEXT
+		UNTIL A.timA=0 AND A.stop$="Stopping"
+			tim2=A.tabA
+			mil2=A.ml
+		DO
+			BACK
+		UNTIL A.stop$="Stopping" AND A.nm$<>"Unstop"
+			tim3=A.tabD
+			mil3=A.ml
+			pps=ABS(mil2-mil3)*ppm/(tim2-tim3)
+	IF line&<460
+			pix=line&-(arr&+8)
+			late=pix/pps
+	ELSEIF line&=460
+		LAST
+		IF A.timA=0
+		late=sex&-A.tabA+((452-arr&)/pps)
+		ELSEIF A.timA>0
+			RETURN
+		ENDIF
+	ENDIF
+			minlt%=INT(late/60)
+			sexlt%=INT(late-minlt%*60)
+		LAST
+			eta=A.tabA+late
+			etahr%=INT(eta/3600)
+			etax=eta-etahr%*INT(3600)
+			etamin%=INT(etax/60)
+			etasex%=INT(etax-etamin%*60)
+		FIRST
+	DO
+		NEXT
+	UNTIL A.timA=0
+		stpix=ABS(A.ml-mlfst)*ppm-(arr&-12)
+		sttim=stpix/pps
+		stmin%=INT(sttim/60)
+		stsex%=sttim-(stmin%*60)
+		stmil=stpix/ppm
+			dINIT
+			dTEXT "","TIMING  ANALYSIS",$302
+			dTEXT "","UPDATE",$402
+			dTEXT A.stop$+"  ---  "+A.nm$+"  in",GEN$(stmin%,3)+"min:"+GEN$(stsex%,3)+"sec",$101
+			dTEXT "Distance  to  next  station",FIX$(stmil,2,6)+"miles",$101
+			dTEXT "Minutes  running  late",GEN$(minlt%,3)+"min:"+GEN$(sexlt%,3)+"sec",$101
+			dTEXT "Estimated  arrival  time",GEN$(etahr%,2)+":"+GEN$(etamin%,2)+":"+GEN$(etasex%,2),$101
+			dPOSITION -1,-1
+			p%=DIALOG
+		IF p%=0
+			RETURN
+		ELSEIF p%=2
+			GOTO calc
+		ENDIF
+ENDP
+
+

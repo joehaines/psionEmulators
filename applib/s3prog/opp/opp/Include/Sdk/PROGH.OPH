@@ -1,0 +1,51 @@
+/* PROGRAM header */
+
+#define PROGH_OPH
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+/* Constants for progexec */
+
+#define PROGEXEC_SIGNAL 0x01        /* signal on completion */
+#define PROGEXEC_NOTIFY 0x02        /* call notifier on error */
+#define H_COMMAND_TRANSLATE_FILE 'T'
+#define H_COMMAND_RUN_FILE 'R'
+#define H_COMMAND_XTRANSLATE_FILE 't'
+
+/* Constants for progtran */
+
+#define PT_PROGTRAN_LINE  0x10      /* get a line of source */
+#define PT_PROGTRAN_DEATH 0x11      /* Opl translator death */
+
+/* Types for progtran */
+
+STRUCT PROGTRAN_STATUS
+	stat%
+	mode%
+	line%
+	offset%
+ENDS
+
+STRUCT PROGTRAN_SOURCE
+	pid%
+	buffer_offset%
+	status_offset%
+ENDS
+
+/* Types for progexec */
+
+STRUCT PROGEXEC_RESBUF
+	error%
+	line%
+	offset%
+	err#(40)
+	src#(P_FNAMESIZE)
+ENDS
+
+STRUCT PROGEXEC_PAR
+	flags%
+	pid%
+	result_offset%
+ENDS

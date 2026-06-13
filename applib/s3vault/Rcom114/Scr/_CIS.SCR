@@ -1,0 +1,90 @@
+!This is a script to logon to the CompuServe
+!Information Service (CIS) via a direct CIS
+!node only.  Load this file in the Script
+!Editor application, and press <Psion-T> to
+!translate. The user also must create these
+!four Names: 
+!
+!"Initialize" - Modem setup string. Do not include AT prefix.
+!"Node1" - CompuServe access number.
+!"Userid" - CompuServe user ID.
+!"Password" - CompuServe password.
+!
+	PASSWORD
+settings:
+	SETUP (
+		BAUD=9600
+!		BORDER=OFF
+		DATA=7
+		ECHO=OFF
+		FAIL=NONE
+!		FONT=3
+		HANDSHAKE=RTSCTS
+!		LINES=100
+		PARITY=EVEN
+!		STATUS=2
+		STOP=1
+		TIMEOUT=10)
+setc1:
+	SET C1=5
+predial:
+	CONNECT 10 GOTO nomodem
+	SENDWAIT 10 "AT<Initialize>", "OK" GOTO nomodem
+dial:
+	SEND "ATD<Node1>"
+connection:
+	WAIT 200 (
+		ON REPLY "CONNECT" GOTO reset1
+		ON REPLY "NO DIAL" GOTO notone
+		ON REPLY "NO CARRIER" GOTO nocar
+		ON REPLY "NO ANSWER" GOTO noanswer
+		ON REPLY "BUSY" GOTO busy
+		ON REPLY "ERROR" GOTO error )
+	HANGUP
+	GOTO manual
+reset1:
+	SET C1=5
+ctrlc:
+	SEND "<3>"; 
+	WAIT 10 (
+		ON REPLY "User ID:" GOTO cisuser)
+	GOTO retry
+cisuser:
+	SET C1=0
+	SEND "<Userid>*OTHER\<Password>"
+	GOTO manual
+
+busy:
+	ALERT "Busy"
+	ON C1 GOTO redial
+	GOTO manual
+error:
+	ALERT "Modem Error"
+	GOTO manual
+failhost:
+	ALERT "CIS did not respond to Control-C"
+	GOTO manual
+manual:
+	EXIT
+noanswer:
+	ALERT "No answer"
+	ON C1 GOTO redial
+	GOTO manual
+nocar:
+	ALERT "No carrier, check phone number"
+	ON C1 GOTO redial
+	GOTO manual
+nomodem:
+	ALERT "Check modem connection & power"
+	GOTO manual
+notone:
+	ALERT "No dialtone. Set Initialize:X1"
+	ON C1 GOTO redial
+	GOTO manual
+redial:
+	INFO "Redialing..."
+	SEND "A/";
+	GOTO connection
+retry:
+	ON C1 GOTO ctrlc
+	GOTO failhost

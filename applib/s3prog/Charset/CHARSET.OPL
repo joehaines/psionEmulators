@@ -1,0 +1,365 @@
+REM +-----------------------+
+REM Author                 Jon Simpson   
+REM Title      ASCII Character Set
+REM Date              24th April 1992
+REM Version                            1.01
+REM @CIX                        jsimpsonb
+REM +-----------------------+
+
+PROC CharSet%:
+
+GLOBAL hk$(14), route$(14,6)
+
+GLOBAL maxrow%, strow%, maxcol%, maxchr%
+GLOBAL xorigin%, yorigin%, wspace%, hspace%
+GLOBAL xhdr%, yhdr%, hdrtyp%, lptop%, chct%
+GLOBAL cposx%, cposy%
+LOCAL  lc%, ky%, mkey%
+
+LOADM "Utils"
+gTMODE 3
+
+Header:
+InitVals:
+mkey%=290
+CLS
+
+gAT xorigin%-1, yorigin%-yhdr%-1
+gBOX gWIDTH-xorigin%-6, gHEIGHT-(2*yhdr%)+1
+gUPDATE OFF
+DecHdr:
+AddRowD:
+HighCur:
+gUPDATE
+
+WHILE 1<2
+  ky%=GET
+  IF ky%=mkey%
+   ky%=GetMenu%:
+  ENDIF
+  
+  IF ky%
+   lc% = LOC( hk$, CHR$( ky% ))
+   IF lc%
+    @(route$( lc% )):
+    gUPDATE
+   ENDIF
+  ENDIF
+ENDWH
+
+ENDP
+
+PROC Header:
+ AT 15,3
+ PRINT "ASCII TABLE"
+ AddAuth:
+ENDP
+
+PROC GetMenu%:
+ mINIT
+ mCARD "Control","Hexidecimal",%H,"Decimal",%D,"Expand",%E,"Exit",%X
+ RETURN MENU
+ENDP
+
+PROC InitVals:
+ maxrow%=7    : strow%=0        : maxcol%=16 
+ xorigin%=21 : yorigin%=18
+ wspace%=13  : hspace%=9
+ xhdr%=0        : yhdr%=8
+ hdrtyp%=0    : maxchr%=880
+ cposx%=0      : cposy%=0
+ 
+ chct%=(maxrow%-1) * maxcol%
+ lptop%=maxchr% - chct%
+ 
+ hk$ = ""
+ hk$ = hk$+"D" : route$( 1 ) = "DecHdr"
+ hk$ = hk$+"H" : route$( 2 ) = "HexHdr"
+ hk$ = hk$+"X" : route$( 3 ) = "Exit"
+ hk$ = hk$+CHR$( 256 ) : route$( 4 ) = "CurUp"
+ hk$ = hk$+CHR$( 257 ) : route$( 5 ) = "CurDwn"
+ hk$ = hk$+CHR$( 259 ) : route$( 6 ) = "CurLft"
+ hk$ = hk$+CHR$( 258 ) : route$( 7 ) = "CurRht"
+ hk$ = hk$+CHR$( 260 ) : route$( 8 ) = "CurTop"
+ hk$ = hk$+CHR$( 261 ) : route$( 9 ) = "CurBot"
+ hk$ = hk$+CHR$( 262 ) : route$( 10) = "CurStr"
+ hk$ = hk$+CHR$( 263 ) : route$( 11) = "CurEnd"
+ hk$ = hk$+CHR$( 291 ) : route$( 12) = "Help"
+ hk$ = hk$+" " : route$( 13 ) = "ShowVl"
+ hk$ = hk$+"E" : route$( 14 ) = "Expand"
+
+ENDP
+
+PROC HighCur:
+   gSTYLE 4
+   DeHighC:
+   ShowVl:
+   gSTYLE 0
+ENDP
+
+PROC DeHighC:
+   gAT xorigin%+1+(cposx%*wspace%),yorigin%+(cposy%*hspace%)
+   gPRINT CHR$( strow%+(cposy%*maxcol%)+cposx%)
+ENDP
+
+PROC AddRowD:
+LOCAL lc%,lc2%
+ 
+ lc2%=0
+ WHILE lc2%<maxrow%
+  lc%=0
+  WHILE lc%<maxcol%  
+   gAT xorigin%+1+(lc%*wspace%),yorigin%+(lc2%*hspace%)
+   gPRINT CHR$( strow%+(lc2%*maxcol%)+lc%)+"  "
+   lc% = Inc%:( lc% )
+  ENDWH
+  lc2% = Inc%:( lc2% )
+ ENDWH
+ENDP
+
+PROC ClrHdr:
+LOCAL lc%
+ gAT xhdr%,yhdr%
+ gPRINT REPT$(" ",gWIDTH/gTWIDTH(" "))
+ ClrHdrD:
+ENDP
+
+PROC ClrHdrD:
+LOCAL lc%
+ 
+ lc%=0
+ WHILE lc%<maxrow%
+  gAT xhdr%,yorigin%+(lc%*hspace%)
+  gPRINT "      "
+  lc% = Inc%:( lc% ) 
+ ENDWH
+ENDP
+
+PROC NewRows:
+ ClrHdrD:
+ IF hdrtyp%=0
+  RowHdrD:
+ ELSE
+  RowHdrH:
+ ENDIF
+ AddRowD:
+ENDP
+
+PROC DecHdr:
+LOCAL lc%
+
+ ClrHdr:
+ lc%=0
+ WHILE lc%<maxcol%
+  gAT xorigin%+(lc%*wspace%),yhdr%
+  gPRINT lc%
+  lc%= Inc%:( lc% )
+ ENDWH
+ RowHdrD:
+ hdrtyp%=0
+ENDP
+
+PROC RowHdrD:
+LOCAL lc%
+ 
+ lc%=0
+ WHILE lc%<maxrow%
+  gAT xhdr%,yorigin%+(lc%*hspace%)
+  gPRINT strow%+(lc%*maxcol%)
+  lc% = Inc%:( lc% ) 
+ ENDWH
+ENDP
+
+
+PROC HexHdr:
+LOCAL lc%
+
+ ClrHdr: 
+ lc%=0
+ WHILE lc%<maxcol%
+  gAT xorigin%+(lc%*wspace%),yhdr%
+  gPRINT HEX$(lc%)
+  lc%= Inc%:( lc% )
+ ENDWH
+ RowHdrH:
+ hdrtyp%=1
+ENDP
+
+PROC RowHdrH:
+LOCAL lc%
+
+lc%=0
+WHILE lc%<maxrow%
+ gAT xhdr%,yorigin%+(lc%*hspace%)
+ gPRINT HEX$(strow%+(lc%*maxcol%))
+ lc% = Inc%:( lc% )
+ENDWH
+ENDP
+
+PROC Exit:
+ STOP
+ENDP
+
+PROC CurUp:
+ DeHighC:
+ IF cposy% > 0 
+  cposy% = Dec%:( cposy% )
+ ELSE
+  IF strow% > chct%
+   strow%=strow% - chct%
+  ELSE
+   IF strow% > 0
+    strow%=strow%-maxcol%
+   ELSE
+    strow%=lptop%     : REM wrap to last page
+   ENDIF
+  ENDIF
+  NewRows:
+ ENDIF
+ HighCur:
+ENDP
+
+PROC CurDwn:
+ DeHighC:
+ IF cposy% < maxrow%-1
+  cposy% = Inc%:( cposy% )
+ ELSE
+  IF strow% < lptop%
+   strow%=strow%+chct%
+  ELSE
+   strow%=0
+  ENDIF
+  NewRows:
+ ENDIF
+ HighCur:
+ENDP
+
+PROC CurLft:
+ DeHighC:
+ IF cposx% > 0
+  cposx%=Dec%:( cposx% )
+ ENDIF
+ HighCur:
+ENDP
+
+PROC CurRht:
+ DeHighC:
+ IF cposx% < maxcol%-1
+  cposx%=Inc%:( cposx% )
+ ENDIF
+ HighCur:
+ENDP
+
+PROC CurTop:
+ DeHighC:
+ cposx%=0 : cposy%=0
+ strow% =0
+ NewRows:
+ HighCur:
+ENDP
+
+PROC CurBot:
+ DeHighC:
+ cposx%=0 : cposy%=maxrow%-1
+ strow% = lptop%
+ NewRows:
+ HighCur:
+ENDP
+
+PROC CurStr:
+ DeHighC:
+ cposx%=0
+ HighCur:
+ENDP
+
+PROC CurEnd:
+ DeHighC:
+ cposx%=maxcol%-1
+ HighCur:
+ENDP
+
+PROC Help:
+LOCAL temp%
+ dINIT "Control Keys"
+ dTEXT "",CHR$(24)+"  Line/page up       "+CHR$(25)+"  Line/page down ",2
+ dTEXT "",CHR$(27)+"  Character left    "+CHR$(26)+"  Character right",2
+ dTEXT ""," --- * ---",2
+ dTEXT "",CHR$(770)+CHR$(24)+" First page          "+ CHR$(770)+CHR$(25)+" Last page          ",2
+ dTEXT "",CHR$(770)+CHR$(27)+" Left column        "+ CHR$(770)+CHR$(26)+" Right column     ",2
+ dTEXT "","[SPACE]  Repeats last information",2
+ temp%=DIALOG
+ENDP
+
+PROC ShowVl:
+LOCAL num%
+  num%=strow%+cposx%+(cposy%*maxcol%)
+  GIPRINT "Dec "+GEN$( num%,3)+" Hex "+HEX$( num% ) + " Chr "  + CHR$( num% )
+ENDP
+
+PROC Expand:
+
+LOCAL skey$(4,4), ckey$(10,5),chk$(10)
+LOCAL windid%, ww%, wh%, wx%, wy%
+LOCAL sskey%
+LOCAL k%,m%,ty%,sk%,lc%
+
+skey$(1)="Shft" :  skey$(2)="Ctrl"
+skey$(3)="Psin" : skey$(4)="Caps"
+chk$=""
+chk$=chk$+CHR$( 27 ) : ckey$( 1 )="Esc"
+chk$=chk$+CHR$(  9  ) : ckey$( 2 )="Tab"
+chk$=chk$+CHR$(290) : ckey$( 3 )="Menu"
+chk$=chk$+CHR$(  8  ) : ckey$( 4 )="Del"
+chk$=chk$+CHR$( 13 ) : ckey$( 5 )="Enter"
+chk$=chk$+CHR$(256) : ckey$( 6 )="CurUp"
+chk$=chk$+CHR$(257) : ckey$( 7 )="CurDn"
+chk$=chk$+CHR$(259) : ckey$( 8 )="CurLf"
+chk$=chk$+CHR$(258) : ckey$( 9 )="CurRg"
+chk$=chk$+CHR$(291) : ckey$(10)="Help"
+
+ww%=gWIDTH
+wh%=14
+wx%=0
+wy%= gHEIGHT-wh%
+ty%=10
+sskey%=(ww%/2)+20
+
+windid%=gCREATE( wx%, wy%, ww%, wh% ,1 )
+gUSE windid%
+gORDER windid%,1
+gTMODE 3
+gBORDER 1
+
+gAT 2,ty%
+gPRINT "Ky "
+WHILE k%<>632
+ k%=GET : m%=KMOD
+ IF k%<>0
+  gAT 17,ty%
+  gPRINT CHR$( k% );" ";k%;"Dec ";HEX$( k% );"Hex         "
+  lc% = LOC( chk$,CHR$( k% ))
+  gAT 105,ty% 
+  gPRINT REPT$( " ",12)
+  gAT 105,ty% 
+  IF lc% <> 0
+   gPRINT ckey$( lc% )
+  ENDIF
+ ENDIF
+ sk%=2 : lc%=1
+ WHILE sk% < 32
+  IF m% AND sk%
+   gSTYLE 4
+  ELSE
+   gSTYLE 0
+  ENDIF
+  gAT sskey%+((lc%-1)*4*gTWIDTH("W")),ty%
+  gPRINT skey$( lc% ) 
+  sk% = sk% * 2
+  lc% = Inc%:( lc% )
+ ENDWH
+ gSTYLE 0
+ENDWH
+gCLOSE windid%
+
+ENDP
+

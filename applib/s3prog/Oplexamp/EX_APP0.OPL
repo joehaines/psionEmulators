@@ -1,0 +1,41 @@
+APP myapp0
+	TYPE 0
+	ICON "\opd\me"
+ENDA
+
+
+
+PROC start:
+	GLOBAL a%(6),k%
+	STATUSWIN ON
+	SCREEN 30,9,1,1
+	gSETWIN 0,0,179,79
+  PRINT "Q to Quit"
+  PRINT " or press Delete in the"
+  PRINT "the System screen"
+	DO
+		k%=getk%:
+		PRINT CHR$(k%);
+	UNTIL (k% AND $ffdf)=%Q
+ENDP
+
+
+
+PROC getk%:
+	DO
+		GETEVENT a%()
+		IF a%(1)=$404
+			IF LEFT$(GETCMD$,1)="X"
+				endit:
+			ENDIF
+		ENDIF
+	UNTIL a%(1)<256
+	RETURN a%(1)
+ENDP
+
+
+
+PROC endit:
+	STOP
+ENDP
+

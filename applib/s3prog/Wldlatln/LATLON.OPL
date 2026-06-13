@@ -1,0 +1,286 @@
+/* 
+	Shows how to use the WLD: device driver to return
+	(in this case) the latitude and longitude of a city
+	in the World database.
+
+*/
+#define WR_FIND_CITY 10
+#define WR_FIND_COUNTRY 11
+#define WR_FIND_EXACT 12
+#define WR_NEXT 13
+#define WR_BACK 14
+#define WR_GET_HOME 15
+#define WR_SET_HOME 16
+#define WR_GET_DEFAULT_COUNTRY 17
+#define WR_SET_DEFAULT_COUNTRY 18
+#define WR_GET_DIAL_STRING 19
+#define WR_EXTRA 20
+#define WR_SET_EXTRA 21
+#define WR_GET_CITY_DATA 22
+#define WR_GET_COUNTRY_DATA 23
+#define WR_CALC 24
+#define WR_NEXT_LOCK 25
+
+#define WR_MAX_NAME 20
+#define WR_MAX_DIAL 16
+#define WR_MAX_CODE 8
+#define WR_MAX_INTRA 4
+#define WR_MAX_INTER 4
+#define WR_MAX_DIAL_STRING 24
+#define WR_MAX_IN_STRING 64
+
+#define WR_UNITS_MILES 0
+#define WR_UNITS_KILOMETERS 1
+#define WR_UNITS_NAUTICAL 2
+
+#define WR_START_STATE 1
+#define WR_END_STATE 0
+
+#define WR_NOT_FOUND E_GEN_FAIL
+#define WR_FOUND 0
+
+#define WR_EXTRA_ADD_CITY 0
+#define WR_EXTRA_UPDATE_CITY 1
+#define WR_EXTRA_DELETE_CITY 2
+#define WR_EXTRA_UPDATE_COUNTRY 3
+#define WR_EXTRA_ADD_HOME 4
+
+#define WR_DELETED 0
+#define WR_REVERTED 1
+
+#define WR_TOO_MANY_ERR -23
+#define WR_NOTVALID_ERR -25
+#define WR_DELHOME_ERR -26
+#define WR_DELCAPITAL_ERR -27
+#define WR_DUPLICATE_ERR -28
+
+
+
+PROC main:
+
+	LOCAL						ret%                              /*  General return  */
+
+	LOCAL						Clue$(20)                   /*  Search clue for city  */
+	LOCAL						pClue%                          /*  Pointer to Clue$  */
+
+	LOCAL						WldDev%             /*  Handle of the device channel  */
+	LOCAL						dummy%                      /*  Dummy for IOW syntax  */
+	LOCAL						Res$(42)                             /*  WR_FIND_RES  */
+	LOCAL						pRes%                            /*  Pointer to Res$  */
+
+	GLOBAL					City$(21)                              /*  City name  */
+	GLOBAL					Country$(21)                        /*  Country name  */
+
+	LOCAL						Data$(80)                           /*  WR_CITY_DATA  */
+	LOCAL						pData%                          /*  Pointer to Data$  */
+
+	LOCAL						Lat%                                /*  The latitude  */
+	LOCAL						Long%                              /*  The longitude  */
+	LOCAL						Lat$(10)
+	LOCAL						Long$(10)           /*  String versions of the above  */
+
+
+	Res$	=	REPT$("*", 42)
+	Data$	=	REPT$("*", 80)
+	
+	ret%	=	IOOPEN(WldDev%, "WLD:", -1)  /*  Open channel to the WLD: device  */
+	IF ret% < 0
+		showerr:(ret%,"IOOPEN: WLD:")
+	ENDIF
+	
+	DO
+		PRINT "Please enter search clue:"
+		INPUT Clue$
+		IF Clue$	=	""
+			BREAK
+		ENDIF
+
+		Clue$		=	Clue$ + CHR$(0)                        /*  Make string ZTS  */
+		pClue%	=	ADDR(Clue$) + 1                           /*  Skip the LBC  */
+
+		pRes%	=	ADDR(Res$) + 1                               /*  Skip the LBC  */
+
+		ret%	=	IOW(WldDev%, WR_FIND_CITY, #pClue%, #pRes%)
+		IF ret% < 0
+			showerr:(ret%,"IOW: WR_FIND_CITY")
+		ENDIF
+
+		FormatC:(Res$)                    /*  Format City$ and Country$ nicely  */
+
+		pData%	=	ADDR(Data$) + 1                           /*  Skip the LBC  */
+
+		ret%	=	IOW(WldDev%, WR_GET_CITY_DATA, #pData%, dummy%)
+		IF ret% < 0
+			showerr:(ret%,"IOW: WR_GET_CITY_DATA")
+		ENDIF
+
+		Lat%	=	PEEKW(ADDR(Data$) + 47)
+		Long%	=	PEEKW(ADDR(Data$) + 49)         /*  Extract data from struct.  */
+
+		Lat$	=	FormatL$:(Lat%)
+		Long$	=	FormatL$:(Long%)               /*  Format these values nicely  */
+
+		PRINT "For", City$, "in", Country$
+		PRINT "Latitude   =", Lat$
+		PRINT "Longitude  =", Long$
+		GET
+		CLS
+
+	UNTIL LOC(city$, "XXXX")
+
+	ret%	=	IOCLOSE(WldDev%)
+	IF ret% < 0
+		showerr:(ret%,"IOCLOSE: WLD:")
+	ENDIF
+
+	PRINT "All done"
+	GET
+
+ENDP
+
+
+PROC FormatL$:(val%)
+
+	LOCAL						buf$(10)
+	LOCAL						LocVal%
+	LOCAL						Degrees%
+	LOCAL						Mins%
+
+	LocVal%	=	val%                              /*   Local copy of argument  */
+
+	Mins%		=	mod%:(LocVal%, 60)
+	Degrees%	=	(LocVal% - Mins%) / 60
+
+	buf$		=	FIX$(Degrees%, 0, -3)
+	buf$		=	buf$	+	CHR$(248) + " "
+	buf$		=	buf$	+	FIX$(Mins%, 0, 3)
+
+	RETURN buf$
+
+ENDP
+
+
+PROC FormatC:(r$)
+
+	LOCAL						buf$(42)
+	LOCAL						char$(1)
+	LOCAL						i%
+
+
+	i%	=	1                           /*  Point to the start of the city name  */
+
+	buf$	=	r$                                                /*  Local copy  */
+
+	City$		=	MID$(buf$, 1, 21)             /*  First, get the whole buffer  */
+	Country$	=	MID$(buf$, 22, 21)            /*  First, get the whole buffer  */
+
+	buf$	=	""                                          /*  Reset the buffer  */
+
+	DO
+		char$	=	MID$(City$, i%, 1)                             /*  Read a char  */
+		IF char$	=	CHR$(0)
+			BREAK
+		ENDIF
+		buf$	=	buf$ + char$                        /*  Add character to buf$  */
+		i%	=	i% + 1                                     /*  Increment counter  */
+	UNTIL char$ = CHR$(0)
+
+	City$	=	buf$                             /*  Put city name in good place  */
+
+	buf$	=	""                                          /*  Reset the buffer  */
+	i%	=	1                        /*  Point to the start of the country name  */
+
+	DO
+		char$	=	MID$(Country$, i%, 1)                          /*  Read a char  */
+		IF char$	=	CHR$(0)
+			BREAK
+		ENDIF
+		buf$	=	buf$ + char$                        /*  Add character to buf$  */
+		i%	=	i% + 1                                     /*  Increment counter  */
+	UNTIL char$ = CHR$(0)
+
+	Country$	=	buf$                       /*  Put country name in good place  */
+
+ENDP
+
+
+PROC mod%:(number%, div%)
+	RETURN number% - (number% / div%) * div%
+ENDP
+
+
+PROC showerr:(e%,t$)
+		
+	PRINT "An error has occurred =",e%
+	PRINT "while",t$
+	PRINT ERR$(e%)
+	GET
+	STOP
+
+ENDP
+
+/*  Breakdown of WR_CITY_DATA structure  -----------------------------------
+    Using 'Edinburgh' for the example  -------------------------------------
+
+	 First, the structs...
+
+typedef struct
+    {
+    TEXT city[WR_MAX_NAME+1];
+    TEXT country[WR_MAX_NAME+1];
+    } WR_FIND_RES;
+
+typedef struct /* Lat long */
+    {
+    WORD  iLat;
+    WORD  iLong;
+    } LATL;
+
+typedef struct
+    {
+    WR_FIND_RES f;
+    UBYTE units; /* Also baseGMT */
+    UBYTE DST;
+    WORD GMT;
+    LATL latl;
+    TEXT dial[WR_MAX_DIAL+1];
+    TEXT STD[WR_MAX_CODE+1];
+    P_POINT pos;
+    } WR_CITY_DATA;
+
+
+WR_FIND_RES		f;                              The city and country
+45 64 69 6e 62 75 72 67  68 00 00 00 00 00 00 00
+00 00 00 00 c9 55 6e 69  74 65 64 20 4b 69 6e 67
+64 6f 6d 00 00 00 00 00  00 00 
+
+UBYTE			units;
+00
+
+UBYTE			DST;
+02
+
+WORD			GMT;
+00 00
+
+WORD			latl.iLat                    The latitude in minutes
+1c 0d
+
+WORD			latl.iLong                  The longitude in minutes
+c0 00
+
+TEXT			dial;
+30 33 31 00 37 31 00 00 00 00 00 00 00 00 00 00 00
+
+TEXT			STD;
+33 31 00 00 00 00 00 00 00 
+
+P_POINT			pos.x;
+4d 00
+
+P_POINT			pos.y;
+11 00
+
+    ------------------------------------------------------------------------  */
+
+

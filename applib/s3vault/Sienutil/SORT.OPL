@@ -1,0 +1,97 @@
+PROC Start:
+LOCAL file$(128),line$(13),choose$(255),type$(1)
+LOCAL a%,b%,c%,format%
+REM type$ is either O, F or M
+REM O is for background use - F runs the program in the foreground
+REM M doesn't display the filename in the gauge
+REM choose$ can be the names of the fields or numbers
+REM The limit is the number of fields in the datafile
+choose$="None,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40"
+a%=2 REM select initial field for sort
+b%=3
+c%=4
+format%=1 REM sets background use initially
+file$="\DAT\*.dbf"
+dINIT "Sort fields"
+dFILE file$,"File to Sort",8
+dCHOICE a%,"1st Sort Field",choose$
+dCHOICE b%,"2nd Sort Field",choose$
+dCHOICE c%,"3rd Sort Field",choose$
+dCHOICE format%,"Run in:","Background,Foreground,Foreground (no filename)"
+IF DIALOG=0 : RETURN : ENDIF
+line$=makeln$:(a%-1,b%-1,c%-1) REM make string of fields to sort on
+IF format%=1
+	type$="O"
+	BUSY "Sorting"
+ELSEIF format%=2
+	type$="F"
+ELSEIF format%=3
+	type$="M"
+ENDIF
+docmd:(file$,line$,type$) REM call procedure that calls JBSortB
+BUSY OFF
+ALERT("Finished")
+ENDP
+
+PROC docmd:(file$,field$,type$) REM run JBSortB
+LOCAL s%,pid%,c$(255)
+c$=type$+"RunOPL"+chr$(0)+".dbf"+chr$(0)+file$+field$+chr$(0)
+s%=runapp%:("m:\img\sys$jbst.img",c$,addr(pid%))
+IF s%
+	ALERT("Couldn't run JBSortB")
+ENDIF
+REM if it is required to wait for JBSortB to finish use this next line
+REM otherwise skip it
+IF type$="O" : checkrun:(pid%) : ENDIF
+ENDP
+
+PROC runapp%:(appname$,cmdline$,ppid%) REM Proc to run apps
+LOCAL ax%,bx%,cx%,dx%,si%,di%
+LOCAL ret%,flags%
+LOCAL cmdl$(128),img$(128)
+cmdl$=cmdline$
+img$=appname$+chr$(0)
+ax%=$0100                   :REM set AH = 1 for "FilExecute" call
+bx%=ADDR(img$)+1            :REM set BX = pointer to application name
+cx%=ADDR(cmdl$)              :REM set CX = pointer to length of command line
+di%=ppid%                   :REM set DI = address to take process id
+flags%=OS(135,ADDR(ax%))    :REM call "FilExecute"
+IF (flags% AND 1)
+	ret%=(ax% AND $FF)-256    :REM error returned from O/S call in AL
+ELSE
+	ax%=$0600                   :REM set AH = 6 for "ProcResume" call
+	bx%=PEEKW(ppid%)            :REM set BX = process id
+	flags%=OS(136,ADDR(ax%))    :REM call "ProcResume"
+	IF (flags% AND 1)
+		ret%=(ax% AND $FF)-256    :REM error returned from O/S call in AL
+	ELSE
+		ret%=0                    :REM return success
+	ENDIF
+ENDIF
+RETURN ret%
+ENDP
+
+PROC makeln$:(a%,b%,c%) REM Make string for sort fields
+LOCAL temp$(13)
+temp$="$"+GEN$(a%,3)
+IF b%>0
+	temp$=temp$+"$"+GEN$(b%,3)
+ENDIF
+IF c%>0
+	temp$=temp$+"$"+GEN$(c%,3)
+ENDIF
+RETURN temp$
+ENDP
+
+PROC checkrun:(pid%)
+LOCAL ax%,bx%,cx%,dx%,si%,di%,flags%
+LOCAL img$(128)
+DO
+	di%=ADDR(img$)+1
+	bx%=pid%
+	ax%=$a00
+	flags%=OS($88,ADDR(ax%))
+	PAUSE -20
+UNTIL (flags% AND 1)=1
+ENDP
+

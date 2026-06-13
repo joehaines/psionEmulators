@@ -1,0 +1,2 @@
+copy HHSERVER.PC HHSERVER.PAR
+s3aemul

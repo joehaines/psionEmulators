@@ -1,0 +1,102 @@
+#define GATE_OPH
+
+#ifndef OLIB_OPH
+#include <sdk\olib>
+#endif
+
+/* Constants for gate */
+
+#define PR_XWSERV_SHUTDOWN 0x01
+#define PR_XWSERV_QUERY_ALERT 0x02
+#define PR_XWSERV_S3FS 0x04
+#define PVV_TEXT_MAX_LEN 50
+#define OPRINTER_DO_PREVIEW 1
+#define OPRINTER_PRINT_AFTER 2
+
+/* Types for gate */
+
+STRUCT DITEM_LIST
+	class%
+	data%
+ENDS
+
+STRUCT PURE_GATE
+	xwim%
+	nmenus%
+	menus%
+	ulines%(16)
+	count%
+	dialret#(OPPEVAL(SIZEOF(DITEM_LIST)*9))
+	nrec%
+	orec%
+	preview%
+ENDS
+
+STRUCT PVV_DISPLAY
+	Mode#
+	Flags#
+ENDS
+
+STRUCT X_CONSTANTS
+	fht%
+	fds%
+	fas%
+	fnw%
+	fmw%
+	cht%
+	mbht%
+	bfid%
+	bulyo%
+	bulht%
+	ninlb%
+	ssww%
+	bsww%
+	hllg%
+	samo%
+	damo%
+ENDS
+
+STRUCT DLG_X_CONSTANTS
+	fht%
+	fds%
+	fas%
+	fnw%
+	fmw%
+	cht%
+	bulyo%
+	bulht%
+	ninlb%
+ENDS
+
+/* Property of gate */
+
+STRUCT PRS_GATE
+	waotstat%
+	concb%
+	xadd%
+	flags%
+	dialres%
+	x#(SIZEOF(X_CONSTANTS))
+	getkeys%
+	lastkey%
+	lastmods%
+	atpid%
+	atson%
+	today_hook%
+	shift_txt#(10)
+	prevdisp#(SIZEOF(PVV_DISPLAY))
+	dx#(SIZEOF(DLG_X_CONSTANTS))
+	g#(SIZEOF(PURE_GATE))
+ENDS
+
+STRUCT PR_GATE
+	root#(SIZEOF(PRS_ROOT))
+	gate#(SIZEOF(PRS_GATE))
+ENDS
+
+/* AC:Set current resource file */
+
+#include <opp/process>
+
+#define SET_RESFILE(fname_ptr)	send(peekw(DatDatGate),O_GT_SET_RSCFILE,#fname_ptr)
+

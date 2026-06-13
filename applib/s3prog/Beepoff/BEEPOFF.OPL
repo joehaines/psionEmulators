@@ -1,0 +1,96 @@
+PROC beepoff:
+  global timh%,timstat%
+  global k%(2),kstat%
+  local timoff%
+  call($138b)  rem GenMarkNonActive
+  ioopen(timh%,"TIM:",-1)
+  if (call($c58d,$2003,$e08) and $ff)  rem wCaptureKey
+    alert("Couldn't capture off key")
+    stop
+  endif
+  quekey:
+  quetim:
+  print "Waiting for OFF..."
+  print "(PSION ESC exits)"
+  while 1
+    iowait
+    if kstat%<>-46   rem Key was pressed
+      if k%(1)=$2003
+        dobeep:
+        off
+      endif
+      quekey:
+    elseif timstat%<>-46  rem Timer expired
+      timoff%=timelft%:
+      if timoff%>=0 and timoff%<=3
+        dobeep:           rem less than 3 seconds to go
+        off
+      endif
+      quetim:
+    else
+      alert("Stray signal","Programming error")
+      stop
+    endif
+  endwh
+ENDP
+
+PROC quekey:
+  keya(kstat%,k%(1))
+ENDP
+
+PROC quetim:
+rem Queue timer so it goes off 2 seconds before auto-off
+rem or after another 12 seconds, whichever is sooner
+  local t&,t%
+  t%=timelft%:
+  if t%<0
+    t%=12
+  elseif t%>12
+    t%=12
+  elseif t%>2
+    t%=t%-2
+  endif
+  t&=int(t%)*10
+  ioa(timh%,1,timstat%,t&,#0)
+ENDP
+
+PROC timelft%:
+rem returns seconds to go before autoswitchoff
+rem returns -1 if not going to autoswitchoff
+  local gooff%,timeoff%   rem keep together
+  if notifm%:
+    return -1
+  endif
+  call($078b,0,4,0,$40a,addr(gooff%)) rem GenGetOsData
+  if gooff%<0
+    return -1
+  else
+    return(timeoff%)
+  endif
+ENDP
+
+PROC notifm%:
+rem returns TRUE if won't switch off, because "on external power"
+  if (peekb(peekw($18)+13) and $f) <2
+    return 0  rem not S3a
+  elseif (call($388b) and $ff) <>1  rem GenGetAutoMains
+    return 0
+  else
+    return(mainsin%:)
+  endif
+ENDP
+
+PROC mainsin%:
+rem returns TRUE if mains is plugged in
+  local esup%(3)
+  call($118e,addr(esup%(1)))  rem HwGetSupplyStatus
+  return esup%(3)
+ENDP
+
+PROC dobeep:
+  call($328b)  rem GenTickle - reset inactivity counter
+  rem prevents switching off half way through the beeps
+  beep 1,300
+  beep 1,400
+  beep 1,500
+ENDP

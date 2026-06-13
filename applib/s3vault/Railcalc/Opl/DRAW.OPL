@@ -1,0 +1,190 @@
+PROC draw:
+	GLOBAL idA%,arr&,line&,ppm,mlfst,miled
+	LOCAL st(20),c%,n%,p%
+	LOCAL x%,y%,idC%,a%(20),b%(20),idD%
+	LOCAL lat%,sec%,lat$(13),arch$(128)
+	x%=8
+	y%=2
+		c%=COUNT-2
+		n%=1
+		FIRST
+		mlfst=A.ml
+	LAST
+		ppm=440/ABS(A.ml-mlfst)
+		miled=A.ml
+	FIRST
+		DO
+			NEXT
+				st(n%)=INT(ABS(A.ml-mlfst)*ppm+20)
+					IF A.stop$="Passing"
+					a%(n%)=2
+					b%(n%)=4
+					ELSEIF A.stop$="Stopping"
+					a%(n%)=3
+					b%(n%)=6
+					ENDIF
+				n%=n%+1
+				c%=c%-1
+		UNTIL c%=0
+	gAT 20,136
+	gLINETO 460,136
+	gAT 20,137
+	gLINETO 460,137
+		c%=COUNT-2
+		n%=1
+	DO
+		IF a%(n%)=2
+		gAT st(n%),132 :gFILL a%(n%),b%(n%),0
+		ELSEIF a%(n%)=3
+		gAT st(n%),130 :gFILL a%(n%),b%(n%),0
+		ENDIF
+		n%=n%+1
+		c%=c%-1
+	UNTIL c%=0
+		gAT 15,130 :gFILL 5,8,0
+		gAT 460,130  :gFILL 5,8,0
+	idA%=gCREATE(12,137,17,16,1)
+		gBORDER 0
+		gAT x%,y%+10 :gLINETO x%,y%
+		gAT x%-5,y%+5 :gLINETO x%,y%
+		x%=x%+1
+		gAT x%+5,y%+5 :gLINETO x%,y%
+		gAT x%,y% :gLINETO x%-1,y%-1
+	idC%=gCREATE(366,22,130,100,1)
+		gCLOCK ON,$29
+	idD%=gCREATE(390,5,120,16,1)
+		gCLOCK ON,10,0,"%6%:%T%:%S%7",11
+		redo::
+		DO
+		dINIT
+		dTEXT "","RUNNING  INFORMATION",$302
+		dTEXT "","UPDATE",$402
+		dTEXT "","Approaching  Next  Station",$402
+		dTEXT "","Unscheduled  Stop",$402
+		dTEXT "","SPEED  ANALYSIS",$402
+		dTEXT "","TIMING  ANALYSIS",$402
+		dPOSITION -1,-1
+		p%=DIALOG
+		IF p%=2
+			updraw:
+		ELSEIF p%=3
+			LOADM "\OPO\TRAIN\Inform"
+			stop:
+			UNLOADM "\OPO\TRAIN\Inform"
+				updraw:
+		ELSEIF p%=4
+			LOADM "\OPO\TRAIN\Inform"
+			unstop:
+			UNLOADM "\OPO\TRAIN\Inform"
+				updraw:
+		ELSEIF p%=5
+			LOADM "\OPO\TRAIN\Speed"
+			speed:
+			UNLOADM "\OPO\TRAIN\Speed"
+		ELSEIF p%=6
+			LOADM "\OPO\TRAIN\Analyse"
+			late:
+			UNLOADM "\OPO\TRAIN\Analyse"
+		ENDIF
+	UNTIL p%=0
+		dINIT
+		dTEXT "","JOURNEY OVER  ?",$302
+		dTEXT "","Press ESC to confirm",2
+		dTEXT "","Press ENTER to continue",2
+		p%=DIALOG
+		IF p%=0
+	gCLOCK OFF
+	gCLOSE idA%
+	gCLOSE idC%
+	gCLOSE idD%
+	CLS
+	LAST
+		IF A.timA>0
+		lat%=INT((A.timA-A.tabA)/60)
+		sec%=INT((A.timA-A.tabA)-lat%*60)
+		lat$=GEN$(lat%,3)+"min : "+GEN$(sec%,2)+"sec"
+		dINIT
+		dTEXT "","JOURNEY  OVER",$302
+		dTEXT "Arrived at  "+A.nm$,lat$+" LATE",$101
+		DIALOG
+		ENDIF
+	CLOSE
+	arch$=LEFT$(file$,LEN(file$)-4)+".rkv"
+	RENAME file$,arch$
+		ELSE
+		GOTO redo
+		ENDIF
+ENDP
+
+PROC updraw:
+	sex&=(HOUR*(INT(3600)))+(MINUTE*60)+SECOND
+	arr&=uptrain&:(sex&)
+	line&=uptable&:(sex&)
+	gUSE 1
+	gAT 20,135
+	gLINETO line&,135
+	gAT 20,134
+	gLINETO line&,134
+	gUSE idA%
+	gSETWIN arr&,137
+	gUSE 1
+	RETURN
+ENDP
+
+PROC uptrain&:(sex&)
+	LOCAL tim1,tim2,tim3,mil1,mil2
+	LOCAL mil3,pps,pta,pls
+		LAST
+			IF A.timD>0
+			RETURN 452
+			ENDIF
+	FIRST
+		DO
+			NEXT
+		UNTIL A.timA=0 AND A.stop$="Stopping"
+			tim2=A.tabA
+			mil2=A.ml
+			DO
+			BACK
+			UNTIL A.timD>0 AND A.stop$="Stopping" AND A.nm$<>"Unstop"
+			tim3=A.tabD
+			mil3=A.ml
+	FIRST
+		DO
+			NEXT
+		UNTIL A.timD=0
+			BACK
+			tim1=A.timD
+			mil1=A.ml
+	pps=ABS(mil2-mil3)*ppm/(tim2-tim3)
+	pta=(sex&-tim1)*pps
+	pls=ABS((mil1-mlfst)*ppm)+20
+	RETURN INT(pta+pls-8)
+ENDP
+
+PROC uptable&:(sex&)
+	LOCAL tim2,tim3,mil2
+	LOCAL mil3,pps,pta,pls
+		LAST
+			IF sex&>=A.tabA
+			RETURN 460
+			ENDIF
+	FIRST
+		DO
+			NEXT
+		UNTIL A.tabA>sex& AND A.stop$="Stopping"
+			tim2=A.tabA
+			mil2=A.ml
+			DO
+			BACK
+			UNTIL A.stop$="Stopping" AND A.nm$<>"Unstop"
+			tim3=A.tabD
+			mil3=A.ml
+				IF sex&<A.tabD
+				RETURN INT(ABS((mil3-mlfst)*ppm)+20)
+				ENDIF
+		pps=ABS(mil2-mil3)*ppm/(tim2-tim3)
+		pta=(sex&-tim3)*pps
+		pls=ABS((mil3-mlfst)*ppm)+20
+		RETURN INT(pta+pls)
+ENDP

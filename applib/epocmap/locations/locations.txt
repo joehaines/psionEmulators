@@ -1,0 +1,212 @@
+Locations 1.12 for Psion Series 5 & 5mx
+
+I have been working on this for a while, and decided to release this
+new look update. It's more an alpha than beta version, for there are
+still some peculiarities which I have not yet decided how to deal with.
+It is also possible to crash the application - entering certain data
+will cause a divide-by-zero error! In a program with a lot of maths
+this is always a possibility. I have used some code which avoids this
+possibility by using more convoluted routines, but I have not yet
+decided how to avoid this error on other parts of the application.
+However you are unlikely to find such an error if you feed in sensible
+data!
+
+What's it all about?
+
+Locations is a simple calculator which converts certain types of map
+references, and calculates distances and bearings. It is most useful
+to those in the United Kingdom, but may be of interest to others too.
+
+Basically Locations allows you to enter data in the following forms:
+
+UK Ordnance Survey grid references, either like: SU1234567890  or
+as easting and northing:
+
+Easting:  412345
+Northing: 167890
+
+Locations understands both the British and Irish grids, the latter can
+be entered with a single letter like J1234567890, or specifying Irish
+when entering easting and northing.
+
+These can be entered as 1 metre references, as above, or 10, or 100 metre
+NGR's like SU123456. In this case, Locations pads out the entry to make
+it into the 1 metre form, like SU1230045600. You are allowed spaces in
+the entry, like SU 123 456.
+
+You can also enter latitude and longitude based on the Ordnance Survey
+OSGB36 (Airy) spheroid. This model applies only to Great Britain. A more
+recent form of this spheroid, "modified Airy" is used for Ireland. Thus
+if you enter a NGR like J1234567890 this will be converted to the newer
+model.
+
+Locations also allows entry of latitude and longitude based on the WGS84
+ellipsoid. This is the model used by GPS systems, and is used world-wide.
+If you enter a WGS84 location within the British Isles, it will convert
+it to the OSGB model, which will show a difference of a few seconds of
+arc. This conversion will not take place if the data entered relates to
+a point outside the British Isles, where OSGB36 should not apply.
+
+UTM (Universal Transverse Mercator) references may also be entered. These
+consist of easting, northing, and map zone. Each map zone is 6 degrees of
+arc wide, making a total of 60 zones. Zones are also divided up by letters,
+each representing a horizontal band 8 degrees wide. These run from C (in
+the south) to X (in the north), missing out I and O.
+UTM is restricted to the area between 84 degrees North and 80 degrees South. 
+
+
+Finally an IARU (International Amateur Radio Union) locator may be entered.
+This looks like:  IO91CJ
+Although IARU locators may have more than 6 characters, this application
+will only accept and display the 6 most commonly used. The results from
+a locator are based on the centre of the area to which it applies.
+
+You may enter data in any of these forms, and the corresponding positions
+for each other mapping model are calculated and displayed (where valid).
+
+Distances and bearings
+
+You may set displayed data to be a reference point (Ctrl-R), and future
+calculations will then show the distance and course bearing from this
+reference point to the current displayed position. Two types of route
+are calculated:
+
+Great Circle:  This is the shortest possible path trom A to B.
+Rhumb line:    This is a course of constant bearing, and so usually longer.
+
+
+Installation.
+
+The archive contains four files:
+
+Locations.txt  this file.
+Locations.sis  the EPOC install file.
+Locations.app  the app file.
+Locations.aif  the aif file.
+
+If you have EPOC Install on your PC, connect your PC to the Psion using
+the serial lead, and double click on Locations.sis
+
+OR
+
+Make a new folder on your Psion, called C:\System\Apps\Locations
+and copy both the aif and app file to this folder.
+
+The Locators icon will then appear in the Extras bar.
+
+
+
+Using Locations.
+
+It is simplicity itself! You can select the type of location you wish to
+enter your position, in two ways:
+
+Using the Up and Dowm cursor keys, then highlighting the the entry you
+wish to make, press Enter.
+
+You can tap, say, "Locator", which will highlight it, or double-tap it
+to open the entry dialog.
+
+Version 1.11 allows you to enter latitude and longitude in two ways:
+i)  Conventional degrees, minutes, and seconds,
+ii) Degrees, minutes, and hundredths of minutes.
+
+Initially the conventional method (i) is used. You can switch between
+the two methods by pressing Control-D, or from the Tools menu. The 
+display should update immediately, e.g. If the current reading is, say:
+51 30 30 N  and  1 11 15 W  and the program is set to seconds mode,
+the display should change to 51 30 50 N  and  1 11 25 W.
+This setting is stored, and will start up in the same mode next time.
+
+To enter a location as a reference point for course and distance
+calculations:
+
+Enter the location in the usual way (as above),
+Press Control-R, or,
+Press menu, and select this option from the drop-down menu.
+
+You can change this reference by pressing Control-R again, and you can 
+clear the reference with Control-C. Once again you can use the menu 
+instead.
+
+To quit the application, use Control-E as normal.
+
+
+
+How accurate are the results?
+
+It is quite difficult to define this. Locations allows UK OS NGR's to
+10 figures, which is 1 metre precision. In fact the calculations have 
+been simplified and should be well within 10 metres. I have checked
+the OSGB36 <--> OS NGR conversions against a commercial program, and
+found a fairly close correlation, around one or two metres.
+
+While WGS84 co-ordinates have an accuracy of 1 to 2 metres, reality must
+prevail. Normal civil GPS tells deliberate lies - you can be perhaps 30 
+to 100 metres from the position on the GPS display. The position of our
+land is on the move, coastlines move with the tides, and paper maps are
+only two-dimensional, low resolution, and are not dimensionally stable.
+
+I have yet to discover any maps in the UK marked with UTM. I have checked
+a few positions against a calculator on a government web site in Canada,
+the agreement was quite close. There are other calculators on the web,
+some of which give results which agree with no others!
+
+At present Locations does not give UK OS NGR's for the Islands of Jersey,
+Guernsey, Alderney, Sark, etc. While I have an algorithm which calculates
+these, I have no means of checking accuracy at the moment. If you need to
+convert between WGS84 lat/lon and Channel Island NGRs, try my program
+HamLoc which will perform this function.
+
+The OSGB36 <--> WGS84 conversion should be quite accurate. However the
+OS mapping for Ireland does not use the same spheroid as England, Wales
+and Scotland. However, I have assumed they are the same in the conversion
+to and from WGS84 - the error should be quite small.
+
+Calculating from one co-ordinate to another, and then back again, will
+not necessarily give the same figure yiu started with! If you calculate
+a locator from an NGR, and then back again to the NGR, you will get a
+different result! This is because locators cover a large area of land,
+not a spot position, and the centre point of that area is used for
+conversions. In other cases the difference is quite small, try it and see.
+
+Some conversions may give invalid results, like a longitude of over 180 
+degrees. If you find such errors, please let me know the figures you used.
+UTM co-ordinates become crazy near the poles, and should apply only to
+areas more than 10 degrees from either pole. Rhumb line courses from near 
+the poles can result in a spiral around the pole. Great Circle measurements
+are more appropriate here!
+
+If you really need very accurate co-ordinate conversions, you should not
+rely on Locations. If you are doing some serious work, or there is a safety
+aspect involved, bear in mind that this app was written by a programmer
+who doesn't really understand what he is doing! At the least, check my app
+against a known good source of information.
+
+So I do not guarantee that this application is suitable for its purpose!
+
+Locations is Freeware!
+
+Bug reports and feedback to:
+
+Roger Muggleton
+email: hzk@cix.co.uk
+www:   http://www.g0hzk.co.uk
+
+History:
+
+9th June, 2000
+Locations 1.12 corrects a glaring error - previously UTM calculations
+did not work in the southern hemisphere. I have added the zone letter
+which corrects this. Note that UTM results showing a ? instead of a
+letter indicate that the UTM is out of the 84N to 80S range.
+
+15th May, 1999
+Locators 1.11 now allows entry of lat/lon in degrees, minutes and
+hundredths of minutes. Switching between this and conventional dms
+is accomplished with Control-D.
+
+Windows version:
+
+I have a Windows 95/98/NT version of HamLoc available. Like Locators,
+Hamloc is also Freeware. Please email me for this, which is freeware.

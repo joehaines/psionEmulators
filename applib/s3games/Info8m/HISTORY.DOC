@@ -1,0 +1,101 @@
+
+In late 1992, I had access to an old Atari ST version of Hollywood
+Hijinx, which ran amazingly quickly under Frank Lancaster's Zip
+interpreter for the Acorn Archimedes.  I also had a new PC version
+of Planetfall which I had to play under slow PC emulation, since
+Zip only understood version 3 games.  After a quick search using
+Archie, I found a copy of the ITF 4.01 sources on an FTP site and
+started working; the versions of Mark Howell's Zip interpreter
+which I found only supported version 3.
+
+By January 1993 I had a simple port running in character mode and
+two things happened.  Firstly, Edouard Poor released a similar
+port, which ran a simple character mode screen in a window (and so
+allowed it to multitask) and which seemed to be a month or two
+ahead of my efforts.  Secondly, the C SDK arrived for my new Psion
+palmtop, and I suddenly realised that it should be possible to
+cram the interpreter and a decent game into a machine that I could
+carry in my pocket.
+
+The first simple port to the Psion (1.2) was released around
+Easter 1993, and evolved throughout the summer, gaining support
+for proportional fonts, the main motivation being that this
+allowed around 50% more text to be crammed into the 40x9 display
+of the Psion.
+
+By the beginning of the summer, it was obvious that the same
+proportional font techniques, combined with Acorn's anti-aliasing
+outline font technology should allow a much more readable display
+than Edouard's display.  The early attempts proved popular, and
+demands for command-line editing were soon incorporated into both
+versions.  The Acorn version also sprouted code to handle
+drag-and-drop save and restore operations.  This version was
+released as 1.3.
+
+Shortly after this, Oliver Wagner released a port of Mark Howell's
+Zip interpreter to the S3.  While lacking the proportional font
+support of my port of ITF, it did make better use of the Psion
+menu system.  However, the patches needed for the O/S integration
+on the Acorn made it trivial to supply save/restore menu
+operations on the Psion.  The updated version was released as
+version 1.4.
+
+By the end of the summer, the Psion and Acorn versions seemed to
+have stabilised, and we had some O'Reilly X documentation lying
+around the office.  The resulting simple port was circulated as a
+Sparc binary around Oxford, but the general messy state of the
+source code, which was half original ITF and half windowing system
+was much too hideous for a general X11 release.
+
+Work continued on reorganising the source code with two aims in
+mind; firstly to make it clean enough for a supportable X11
+release, and secondly to make it possible to cleanly add support
+for the new Psion Series3a, with its enhanced screen size and
+standard mechanism for switching font sizes while running.  The
+1.5 versions (all internal) followed this, and when the patches
+for the 3a were fully operational the version number moved to 1.6
+as versions were released.
+
+During the months following the early releases, the redraw
+handling code was revamped several times to improve performance
+and remove bugs when handling InvisiClues, the memory pager was
+finally fully modularised, the Psion interface code was split into
+overlays, the font handling was corrected from the ITF approach to
+the Zip approach, and the Psion paging mechanism refined to
+massively reduce memory consumption (the heap required when
+running Trinity was reduced from 95K to around 40K.)  The X11
+interface code was then updated to cope with the new data
+structures, and work started toward producing a release for three
+platforms as 1.7.
+
+After reaching 1.7q, work started on version 1.8.  This moves the
+Psion from HWIF to HWIM reducing code and data size still further.
+Support for the proposed Inform V7 and V8 game formats (and
+so the V6 format) has been added, but no V6 opcodes are implemented
+and the V5 timed-input opcode is still not handled correctly.  A
+misfeature in the display code which made the pieces in Jigsaw
+invisible has been corrected.
+
+Once the Psion and X11 versions of 1.8 were stable, serious work began
+on adding support for Windoze, since main development had moved from
+my ARM/RISCiX/386SX machine to a new 486/FreeBSD machine which was
+capable of running Windoze.  This involved adding colour support which
+in turn needed changes to the reflow code.  The colour support was
+also added to the X11 redraw code, along with a new autoconf-based
+configuration system to replace the old imake system.
+
+Time permitting, many more changes are required.  The approximate
+support for real-time features present in the original ITF release
+and stripped from this version needs to be fixed and reinstated.
+The handling of some obscure version 5 opcodes needs to be fixed;
+in general usability has been of more concern than the accuracy of
+the interpreter.  While this version is more faithful than the ITF
+sources it is derived from, it is not as accurate as Mark Howell's
+Zip interpreter.  I hope that the interpreter may eventually
+conform to the proposed Z-machine standard; currently much work
+remains to be done before this is possible.
+
+Looking further ahead, the continuing excavations by Mark Howell,
+Graham Nelson and others suggest that it may well be possible to
+support V6 games at some point, but given the Psion space
+restrictions this is probably unreasonable.

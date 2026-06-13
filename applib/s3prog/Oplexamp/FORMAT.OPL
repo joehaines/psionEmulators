@@ -1,0 +1,28 @@
+PROC format:
+	local ret%,fh%,c%,i%,v%
+	ret%=ioopen(fh%,"LOC::B:\Name.nam",$40)
+	if ret%<0 :goto exit :endif
+	ret%=iow(fh%,1,c%,#0)
+	if ret%<0 :goto cleanup :endif
+	print "Total format count",c%
+	get
+	while 1
+		ret%=iow(fh%,1,v%,#0)
+		if ret%<0 :break :endif
+		i%=i%+1
+		print "Format count",i%
+	endwh
+	if ret%=-36 :rem successful completion
+		ret%=0
+	endif
+cleanup::
+	ioclose(fh%)
+exit::
+	if ret%<0
+		print "Format failed"
+		print err$(ret%)
+	else
+		print "Format succeeded"
+	endif
+	get
+ENDP

@@ -1,0 +1,34 @@
+PROC GenRan:
+	REM Simple routine to generate random numbers, with much more
+	REM randomness than the OPL 'rnd' statement.
+	
+	REM For compariron, the OPL version repeats in the thousands,
+	REM my version repeats in the tens of billions!!!
+	
+	GLOBAL SEED,MaxValue,RNUM,FND
+	FND=1
+	
+	MaxValue=49
+	
+	START::
+	ONERR START
+	
+	PRINT
+	PAUSE 3
+	SEED=(HOUR+MINUTE/(SECOND+1))+(DAY*MONTH)
+	
+	GenSeed::
+	RNUM=RND*1
+	SEED=SEED*RNUM
+		
+AT 10,10 : PRINT "Generated = ";FND
+FND=FND+1
+
+	IF SEED<50
+	 GOTO START
+	ENDIF
+
+
+	GOTO GENSEED
+	
+ENDP

@@ -1,0 +1,34 @@
+==========
+psion/opl #2616, from twagstaff, 790 chars, Jan 23 17:52 96
+Comment to 2615.
+----------
+
+>Can anyone tell me how to read the date and time of a file from 
+>OPL.
+
+Not sure where I got this from, but it'll do the trick.
+
+PROC getfatt:(fname$)
+local fzts$(130) :rem ZTS version of fname$
+local e% :rem error from FilStatusGet
+local ver%,attrib%,size&,mdate&,spare& :rem keep together
+local yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+fzts$=fname$+chr$(0)
+e%=call($887,addr(fzts$)+1,addr(ver%),0,0,0)
+cls
+print fname$
+if e%
+    print err$(e%)
+else
+    print "Size",size&
+    secstodate mdate&,yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+    print "Last modified",dy%;"/";mo%;"/";yr%
+    if attrib% and $20 :print "Mod", :endif
+    if attrib% and $4 :print "Sys", :endif
+    if attrib% and $2 :print "Hid", :endif
+    if (attrib% and $1)=0 :print "RdOnly" :endif
+endif
+ENDP
+
+Tony
+

@@ -1,0 +1,362 @@
+rem ----------------------------------------
+rem ADDON V1.7 26/12/96
+rem ----------------------------------------
+rem Example code to create external math
+rem functions for application Calc3a.
+rem (c) Alfa Computing 1995-1996
+rem email@ rschmidt@worldonline.nl
+rem ----------------------------------------
+rem To have access to these external math
+rem functions:
+rem - add your own functions to this file
+rem - register them by adding them to
+rem   procedure "register:"
+rem - compile this file
+rem - make sure this file is placed in
+rem   an \OPD directory
+rem - start Calc3a application
+rem - enter number(s)
+rem - press diamond key
+rem - enter hotkey
+rem
+rem ----------------------------------------
+rem Procedures available for interfacing
+rem with Calc3a application:
+rem
+rem PROC RegFunc:(key$,func$)
+rem Register your function to the Calc3a
+rem application. 
+rem key$  - single character hotkey (a..z, A..Z)
+rem func$ - function name to link to hotkey
+rem         do not contain ":" in function
+rem         name.
+rem The number of functions to register is 
+rem limited to 52.
+rem
+rem PROC GetStatX:(Elm%)
+rem Get X-element Elm% from statistic memory 
+rem Available in SD and LR mode
+rem
+rem PROC SetStatX:(Elm%,Value)
+rem Set X-element Elm% in statistic memory
+rem Available in SD and LR mode
+rem
+rem PROC GetStatY:(Elm%)
+rem Get Y-element Elm% from statistic memory
+rem Only available in LR mode
+rem
+rem PROC SetStatY:(Elm%,Value)
+rem Set Y-element Elm% in statistic memory
+rem Only available in LR mode
+rem
+rem PROC GetElm%:
+rem Number of elements in statistic memory
+rem
+rem PROC SetRes:(Result)
+rem Send result to calculator
+rem
+rem PROC GetRes:
+rem Get last result from calculator
+rem
+rem GetOp1:
+rem Get operand 1
+rem
+rem GetOp2:
+rem Get operand 2
+rem
+rem NOTE : only characters a..z and A..Z are 
+rem        allowed for in function names.
+rem ----------------------------------------
+rem This procedure must always be in the
+rem addon file and will be called during the
+rem initialisation of Calc3a. It registers
+rem all math functions and hotkeys to the
+rem program
+
+PROC loader:
+	REM Dummy procedure
+	PRINT "ADDON V1.6 (c)Alfa Computing 1995-1996"
+	PRINT "Calc3a calculator add-on."
+	PRINT
+	PRINT "Please launch Calc3a in order to use this add-on"
+	PRINT "Press any key..."
+	GET
+ENDP
+
+PROC Register:
+		RegFunc:("m","Import")
+		RegFunc:("i","Interst")
+		RegFunc:("v","VecLen")
+		RegFunc:("p","PolyLen")
+		RegFunc:("k","KeyCode")
+		RegFunc:("g","gLog")
+		RegFunc:("d","dBlist")
+ENDP
+
+rem ----------------------------------------
+rem Example : Length of polyline (defined
+rem           by XY co-ordinates) in statistic
+rem           memory. Calculator must be in LR
+rem           mode to perform this calculation.
+
+PROC PolyLen:
+		LOCAL length,i%,x1,y1,x2,y2
+
+		rem Number of co-ordinate pairs must
+		rem be two or more.
+		IF GetElm%:<=1
+				RETURN
+		ENDIF
+
+		rem Calculate length of polyline
+		i%=1
+		WHILE i%<GetElm%:
+				rem Get vector
+				x1=GetStatX:(i%)
+				y1=GetStatY:(i%)				
+				x2=GetStatX:(i%+1)
+				y2=GetStatY:(i%+1)				
+				length=length+SQR((x2-x1)**2+(y2-y1)**2)
+				i%=i%+1
+		ENDWH
+
+		rem Send result to calculator
+		SetRes:(length)
+ENDP
+
+rem ----------------------------------------
+rem Example : Calculate length of vector
+rem           from point 0,0 to point x,y
+rem           x and y must be entered by the user:
+rem           e.g. 10<,>5<diamond><v>
+
+PROC VecLen:
+		LOCAL x,y,length
+		
+		rem store operand 1 in x
+		x=GetOp1:
+		rem store operand 2 in y
+		y=GetOp2:
+		length=SQR(x**2+y**2)
+
+		rem Send result to calculator
+		SetRes:(length)
+ENDP
+
+rem ----------------------------------------
+rem Example : Determine key code
+
+PROC KeyCode:
+		LOCAL k%,km%
+		
+		BUSY "Press any key"
+		k%=GET
+		km%=KMOD
+		BUSY OFF
+		GIPRINT "KEY="+GEN$(k%,3)+"  KMOD="+GEN$(km%,3)
+ENDP
+
+rem ----------------------------------------
+rem Example : g-BASE logarithm of x
+
+PROC gLog:
+	LOCAL r,a,g
+
+	g=GetOp1:
+	a=GetOp2:
+	IF (g<=0) OR (a<=0)
+		RETURN
+	ENDIF
+
+	r=log(a)/log(g)
+	rem Send result to calculator
+	SetRes:(r)
+ENDP
+
+rem ----------------------------------------
+rem Example : Add dB numbers in stat memory
+
+PROC dBlist:
+		LOCAL total,i%
+
+		rem Number of dB numbers must
+		rem be two or more.
+		IF GetElm%:<=1
+				SetRes:(GetStatX:(1))
+				RETURN
+		ENDIF
+
+		rem Calculate total
+		i%=1
+		WHILE i%<=GetElm%:
+				rem get number
+				total=total+(10**(GetStatX:(i%)/10))
+				i%=i%+1
+		ENDWH
+
+		rem Calculate total of energetic 
+		rem values
+		IF total>0
+				total=10*LOG(total)
+		ELSE
+				total=0
+		ENDIF
+
+		rem Send result to calculator
+		SetRes:(total)
+ENDP
+
+rem ----------------------------------------
+rem Example : Calculate interest
+
+PROC Interst:
+	LOCAL start, term, intr, i 
+	LOCAL amount, ret%, show%, elm%
+
+	rem query start capital, term and interest
+	term=1.0
+	dINIT "Interest calculation"
+	dFLOAT start,"Start capital",0.0,100000000.0
+	dFLOAT term ,"Term [Years]",1.0,500.0
+	dFLOAT intr ,"Interest [%]",0.0,100.0
+	LOCK ON
+	ret%=DIALOG
+	LOCK OFF
+
+	rem rounded years
+	term=INTF(term)
+	IF ret%
+		amount=start
+		i=1.0
+		show%=1
+
+		DO
+			rem calculate new amount
+			amount=amount+(amount*intr/100)
+			amount=int((amount*100)+0.5)
+			amount=amount/100
+			
+			rem send new amount to stat memory
+			rem set calculator in LR mode
+			rem X=new amount, Y=year number
+			elm%=elm%+1
+			SetStatX:(elm%,amount)
+			SetStatY:(elm%,i)
+			
+			IF show% OR (NOT show% AND i=term)
+
+				rem show results
+				dINIT "Results"
+				dFLOAT i,"Year",0.0,9999.0
+				dFLOAT amount,"Amount",0.0,100000000.0
+				dBUTTONS "Next year",%n,"Last year",%l,"Stop",%s
+				LOCK ON
+				ret%=DIALOG
+				LOCK OFF
+				IF ret%=%l
+					show%=0
+				ENDIF 
+
+			ENDIF
+			i=i+1.0
+		UNTIL (i=term+1.0) OR (ret%=%s)
+		GIPRINT "Year amounts are stored in LR memory !"
+	ENDIF
+
+	rem Send result to calculator
+	SetRes:(amount)
+	
+ENDP
+
+rem ----------------------------------------
+rem Example : Calculate interest
+
+PROC readln$:
+	LOCAL ret%
+	ret%=IOREAD(h%,UADD(ADDR(buffer$),1),255)
+	IF ret%<0
+		eof%=-1
+	ELSE
+		POKEB ADDR(buffer$),ret%
+	ENDIF	
+ENDP
+
+PROC Import:
+	GLOBAL h%,eof%,buffer$(255)
+	LOCAL f$(128),ret%,done%,mode%,i%,p%,v1,v2
+
+	f$="\WRD\CALC3A.TXT"
+	dINIT "Import memories"
+	dFILE f$,"File",3
+	LOCK ON
+	ret%=DIALOG
+	LOCK OFF
+	IF NOT EXIST(f$)
+		GIPRINT "File does not exist"
+		RETURN
+	ENDIF
+	IF ret%
+		ret%=IOOPEN(h%,f$,$0020)
+		BUSY "Importing..."
+		DO
+			readln$:
+			IF mode%=1
+				ONERR err1::
+				v1=EVAL(buffer$)
+				i%=i%+1
+				IF i%<=26
+					mem(i%)=v1
+				ENDIF
+				err1::
+				ONERR OFF
+			ELSEIF mode%=2
+				v2=0.0
+				p%=LOC(buffer$,",")
+				ONERR err2::
+				IF p%>0
+					v1=EVAL(LEFT$(buffer$,p%-1))
+					v2=EVAL(RIGHT$(buffer$,LEN(buffer$)-p%))
+				ELSE	
+					v1=EVAL(buffer$)
+				ENDIF
+				i%=i%+1
+				IF i%<=1000
+					stat%=stat%+1
+					statx(i%)=v1
+					staty(i%)=v2
+				ENDIF
+				err2::
+				ONERR OFF
+			ELSEIF mode%=3
+				ONERR err3::
+				v1=EVAL(buffer$)
+				i%=i%+1
+				IF i%<=50
+					sptr%=sptr%+1
+					stack%=stack%+1
+					stack(i%)=v1
+				ENDIF
+				err3::
+				ONERR OFF
+			ENDIF
+			IF buffer$="Memories A-Z"
+				mode%=1
+				i%=0
+			ELSEIF buffer$="Statistics memory"
+				mode%=2
+				stat%=0
+				i%=0
+			ELSEIF buffer$="Recall buffer"
+				mode%=3
+				stack%=0
+				sptr%=0
+				i%=0
+			ENDIF
+		UNTIL eof%
+		BUSY OFF
+		ret%=IOCLOSE(h%)
+	ENDIF
+	BUSY OFF
+	status:
+ENDP
+

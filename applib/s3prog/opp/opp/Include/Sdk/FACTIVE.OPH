@@ -1,0 +1,329 @@
+#define FACTIVE_OPH
+
+#ifndef APPMAN_OPH
+#include <sdk\appman>
+#endif
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+/* Property of factive */
+
+STRUCT PRS_FACTIVE
+	owner%
+ENDS
+
+STRUCT PR_FACTIVE
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+ENDS
+
+/* Constants for fscan */
+
+#define FS_WRITABLE P_FAWRITE
+#define FS_HIDDEN P_FAHIDDEN
+#define FS_SYSTEM P_FASYSTEM
+#define FS_DIRECTORIES P_FADIR
+#define FS_MODIFIED P_FAMOD
+#define FS_ALL_FILES P_FAREAD
+#define FS_FILE_TYPE (FS_HIDDEN|FS_SYSTEM)
+#define FS_INCLUDE_SUBDIRECTORIES 0x1000
+#define FS_INCLUDE 0x2000
+#define FS_END_DIRLIST 0x4000
+#define FS_PARSE_NAME 0x8000
+#define FS_MAX_DIRLEVELS 32
+
+/* Property of fscan */
+
+STRUCT PRS_FSCAN
+	flags%
+	index%
+	pname%
+	match%
+	delim#(2)
+	finfo#(SIZEOF(P_INFO))
+	crk#(SIZEOF(P_FPARSE))
+	pcbarr%(FS_MAX_DIRLEVELS)
+	name#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_FSCAN
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fscan#(SIZEOF(PRS_FSCAN))
+ENDS
+
+/* Constants for fnode */
+
+#define FNODE_NODE_ARRAY 0x01
+#define FNODE_DEVICE_ARRAY 0x02
+#define FNODE_LOCAL_ONLY 0x04
+
+/* Property of fnode */
+
+STRUCT PRS_FNODE
+	flags%
+	pname%
+	oldname%
+	pcb%
+ENDS
+
+STRUCT PR_FNODE
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fnode#(SIZEOF(PRS_FNODE))
+ENDS
+
+/* Property of pnode */
+
+STRUCT PR_PNODE
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fnode#(SIZEOF(PRS_FNODE))
+ENDS
+
+/* Constants for pselvar */
+
+#define PSEL_FLAG_TAG 0x1
+#define PSEL_ORDER_NAME 0
+#define PSEL_ORDER_TIME 1
+#define PSEL_ORDER_DATE 2
+#define PSEL_ORDER_SIZE 3
+#define PSEL_ORDER_EXT 4
+
+/* Types for pselvar */
+
+STRUCT PSEL_REC
+	flags%
+	namlen%
+	info#(SIZEOF(P_INFO))
+	name#(P_FNAMESIZE)
+ENDS
+
+/* Property of pselvar */
+
+STRUCT PR_PSELVAR
+	root#(SIZEOF(PRS_ROOT))
+	varoot#(SIZEOF(PRS_VAROOT))
+	vafix#(SIZEOF(PRS_VAFIX))
+	vaflat#(SIZEOF(PRS_VAFLAT))
+ENDS
+
+/* Constants for psel */
+
+#define PSEL_RESET_DIR_ARRAY 0x01
+#define PSEL_RESET_FILE_ARRAY 0x02
+#define PSEL_RESET_FSPEC 0x04
+#define PSEL_DEVICE_ARRAY 0x10
+#define PSEL_DIR_ARRAY 0x20
+#define PSEL_FILE_ARRAY 0x40
+#define PSEL_DESCEND 0x80
+#define PSEL_ASCEND 0x100
+#define PSEL_SETPATH 0x200
+#define PSEL_INIT 0x400
+#define PSEL_SELDIR 0x800
+#define PSEL_ANOTHER_CMD 0x1000
+#define PSEL_GENERATE_DEF 0x2000
+#define PSEL_QUEUED_CMD 0x4000
+#define PSEL_CURRENTLY_BUSY (0x100|0x80|0x400|0x200|0x800)
+#define PSEL_SET_TAG -1
+#define PSEL_CLEAR_TAG 0
+#define PSEL_TOGGLE_TAG 1
+
+/* Property of psel */
+
+STRUCT PRS_PSEL
+	pfile%
+	pdir%
+	pnode%
+	dirent%
+	flags%
+	asccnt%
+	dirnum%
+	setpath%
+	builderr%
+	fck#(SIZEOF(P_FPARSE))
+	fspec#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_PSEL
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fscan#(SIZEOF(PRS_FSCAN))
+	psel#(SIZEOF(PRS_PSEL))
+ENDS
+
+/* Constants for fcasy */
+
+#define FCOPY_DISP_SFTYPE 0x01
+#define FCOPY_DISP_SFSIZE 0x02
+#define FCOPY_DISP_SFDATE 0x04
+#define FCOPY_DISP_SFNAME 0x08
+#define FCOPY_DISP_RFTYPE 0x10
+#define FCOPY_DISP_RFSIZE 0x20
+#define FCOPY_DISP_RFDATE 0x40
+#define FCOPY_DISP_RFNAME 0x80
+#define FCOPY_DISP_BLKSIZ 0x100
+#define FCOPY_DISP_BLKNO 0x200
+#define FCOPY_DISP_PROTOCOL 0x400
+#define FCASY_READ_QUEUED 0x01
+#define FCASY_WRITE_QUEUED 0x02
+
+/* Types for fcasy */
+
+STRUCT FCOPY_DISP
+	flags%
+	protocol%
+	blksiz%
+	blkno%
+	sftype%
+	rftype%
+	sfsize&
+	rfsize&
+	sfdate&
+	rfdate&
+	sfname%
+	rfname%
+ENDS
+
+/* Property of fcasy */
+
+STRUCT PRS_FCASY
+	recvname%
+	flags%
+ENDS
+
+STRUCT PR_FCASY
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fcasy#(SIZEOF(PRS_FCASY))
+ENDS
+
+/* Property of fcsync */
+
+STRUCT PR_FCSYNC
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fcasy#(SIZEOF(PRS_FCASY))
+ENDS
+
+/* Property of fmmk */
+
+STRUCT PR_FMMK
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+ENDS
+
+/* Property of fmsrc */
+
+STRUCT PR_FMSRC
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fcasy#(SIZEOF(PRS_FCASY))
+ENDS
+
+/* Property of fmtarg */
+
+STRUCT PR_FMTARG
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fcasy#(SIZEOF(PRS_FCASY))
+ENDS
+
+/* Constants for fmfmt */
+
+#define FMFMT_NAME 0x01
+
+/* Property of fmfmt */
+
+STRUCT PRS_FMFMT
+	rdword%
+	rdlen%
+	flags%
+ENDS
+
+STRUCT PR_FMFMT
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fmfmt#(SIZEOF(PRS_FMFMT))
+ENDS
+
+/* Property of fmscan */
+
+STRUCT PR_FMSCAN
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fscan#(SIZEOF(PRS_FSCAN))
+ENDS
+
+/* Constants for fman */
+
+#define FMAN_READ_SIZE 0x800
+#define FMAN_COPYING 0
+#define FMAN_DELETE 1
+#define FMAN_RENAME 2
+#define FMAN_MAKE 3
+#define FMAN_REMOVE 4
+#define FMAN_FORMAT 5
+#define FMAN_NAME 6
+#define FMAN_ATTRIB 7
+
+/* Property of fman */
+
+STRUCT PRS_FMAN
+	srcfile%
+	targfile%
+	fmscan%
+	fmmk%
+	fmfmt%
+	action%
+	mode%
+	srclen%
+	dispinfo#(SIZEOF(FCOPY_DISP))
+	targname#(P_FNAMESIZE)
+	wildsrcname#(P_FNAMESIZE)
+	wildtargname#(P_FNAMESIZE)
+	buf#(OPPEVAL(FMAN_READ_SIZE))
+ENDS
+
+STRUCT PR_FMAN
+	root#(SIZEOF(PRS_ROOT))
+	fman#(SIZEOF(PRS_FMAN))
+ENDS
+
+/* Constants for locs */
+
+#define LOCS_FLG_ROM 0x1000
+#define LOCS_FLG_LOC 0x2000
+#define LOCS_FLG_ROOT (0x4000|LOCS_FLG_LOC)
+#define LOCS_FLG_ROOT_ONLY 0x4000
+
+/* Property of locs */
+
+STRUCT PRS_LOCS
+	flags%
+	pcb%
+	pname%
+	match%
+	info#(SIZEOF(P_INFO))
+	name#(P_FNAMESIZE)
+	wildname#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_LOCS
+	root#(SIZEOF(PRS_ROOT))
+	locs#(SIZEOF(PRS_LOCS))
+ENDS

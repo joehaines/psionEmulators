@@ -1,0 +1,50 @@
+PROC geteva:
+	local t%,j&,t&
+	local m%,s%,e&,o&,s&,tint&
+	local restart%
+	local tcb%,tstat%
+	local cstat%,k%(2)
+	ioopen(tcb%,"TIM:",-1)
+	ioa(-2,14,cstat%,k%(1),#0)
+	tstat%=-46
+	while 1
+		iowait
+		if tstat%<>-46
+			call($078b,0,10,0,$41c,addr(t%))
+			tint&=10-((t% and $1f)*10)/32
+			ioa(tcb%,1,tstat%,tint&,#0)
+			if restart%
+				restart%=0
+				s&=t&
+			endif
+			e&=o&+t&-s&
+			m%=e&/60
+			s%=e&-m%*60
+			at 30,9
+			if m%<10
+				print " ";
+			endif
+			print m%;":";
+			if s%<10
+				print "0";
+			endif
+			print s%;
+		else
+			if k%(1)=$402 or k%(1)=$403
+				o&=e&
+				iow(tcb%,4,#0,#0) :rem cancel timer
+				iowaitstat tstat%
+				tstat%=-46
+			endif
+			if k%(1)=$401 or k%(1)=$403
+				restart%=1
+				tstat%=0
+				iosignal
+			elseif k%(1)>=%a and k%(1)<=%z
+				at 1,1
+				print "Received key",chr$(k%(1))
+			endif
+			ioa(-2,14,cstat%,k%(1),#0)
+		endif
+	endwh
+ENDP

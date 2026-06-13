@@ -1,0 +1,224 @@
+Program.txt - Notes for programming external shell modules
+-----------
+This file contains information necessary for writing OPL modules
+that can be used by Shell5 as external commands.
+
+Contents: How commands are executed
+          Command arguments
+          Wildcards
+          Shell5 variables
+          Shell5 procedures
+          Programming for 'pipes'
+          Detailed descriptions of some procedures
+
+1) How commands are executed
+============================
+
+When a command is typed the shell processes it as follows:
+
+(a) The input is compared with the aliases and any substitutions
+   are made. A '%' as the first non-blank character prevents
+   aliases being expanded.
+(b) The arguments are parsed one at a time. If a wildcard is
+   found this is expanded. If no matches are found an error is
+   generated, otherwise all arguments are stored in memory. The
+   array argv&() points to successive arguments. The last
+   argument in this array is always 0. Comments and variable
+   substitutions are made.
+(c) Redirection of output is handled.
+(d) The first argument is matched against the following:-
+   (i) The shell builtins
+   (ii) Stored entries in the path
+   (iii) A valid .bat, .opo file in the path
+   (iv) A valid directory to 'cd' to
+
+Modules are stored in the shell's path as their filename. ie.
+C:\OPO\MORE.OPO would be stored as 'more.opo' and can be
+accessed as either 'more' or 'more.opo'. When 'more' is typed at
+the prompt and found not to match any of the builtin functions or
+aliases, the path is searched and it's found here. The module
+C:\OPO\MORE.OPO is then LOADMed and a function more%:(x%)
+is called.
+ The module MUST contain a function of this specification - it
+must be called the same as the .opo file, return an integer and
+Take 1 integer argument. The return value of the procedure will
+give the variable $? its value.
+
+e.g. To have a command 'newcom' recognized:
+
+(a) Write an opl module with a procedure newcom%:(int%)
+(b) Compile this module to newcom.opo
+(c) Move newcom.opo into a directory in the path
+(d) If you want a manual page for your command (e.g. if you want
+   to distribute the module), creare a help file 'newcom.hlp'
+   (using the Series 5 database application), and put it in the
+   helppath directory.
+
+
+2) Command arguments
+====================
+The input string is parsed by the shell and split into separate
+arguments. These are stored on the heap and are referenced by
+the argv&(n%) array. For example
+
+cp file1.txt file2.txt
+
+Stores: argv&(1)="cp"
+        argv&(2)="file1.txt"
+        argv&(3)="file2.txt"
+        argv&(4)=0            <- marks the end of the list
+
+ Your module is passed the number of arguments - in this case 3 -
+as it's only parameter.
+ All text within quotes is stored as a single argument.
+ 
+
+3) Wildcards
+============
+Wildcards are expanded before they are passed to the individual
+commands. e.g. ls C:/* would pass 'ls' a command line like
+
+     ls,C:\Documents,C:\System,...
+
+Note that wildcards are expanded to absolute pathnames and always
+have the native separator '\'. 
+ To pass wildcards to a module they need to be quoted "*".
+
+
+4) Shell5 variables
+===================
+Internal global variables that are generally not intended for
+external use have names starting with "_" to avoid accidental
+conflicts.
+
+See the source code for details of the globals used.
+
+
+5) Shell5 procedures
+=====================
+Internal functions are prefaced by '_'; to avoid possible
+conflicts you should avoid functions starting '_...'. Also
+avoid function names that appear as builtin commands and the
+ones listed below.
+
+Procedures that will be useful in writing modules are listed
+below. Some are described in greater detail in section (6) and
+are denoted with an asterix:
+
+ SetVar%:(var$,val$)    Store val$ in the shell variable var$
+ s$=GetVar$:(var$)      Return the value of the shell variable var$
+ FreeVar%:(var$)        Delete the shell variable var$
+*ret%=Fparse%:(add&,s$) Enhanced PARSE$ function
+*ret%=fprint%:(string$) Handle output redirection
+ p$=PrPath$:(buf$)      convert a path to UNIX form (if necessary)
+*err$:(n%)              Enhanced err$ function
+ _Err:(i%,n%)           PRINT PrPath$:(PEEK$(argv%(i%))),"-",err$:(n%)
+*_log:(flag%,message$)  Display a message in the status window
+
+
+6) Programming for 'pipes'
+==========================
+As stated in the general Readme, commands must be specially written
+for input/output edirection and pipes to work. Pipes aren't coded
+for specially, if you code commands to use redirection, pipes will
+work!
+
+Output Redirection: A command is informed if the output is
+redirected by a non-zero value for _out%. This value is the OPL
+handle for the file that output is to be written to with the
+IOWRITE command. The easiest way to handle this is to use fprint%:
+to produce any output. The command should only write to _out%,
+it shouldn't change the value or close the file handle.
+
+Input redirection: A command is informed if the output is
+redirected by a non-zero value for _in%. In general input
+redirection is only really useful for commands that could already
+take their input from a file. For redirected input, rather than
+opening a file whose name was supplied on the command line, data is
+read directly from SHin% with IOREAD. As with _out%, _in% should
+not have it's value changed and it should not be closed.
+ Included is Wc.opl, the source for a command that counts the
+characters, words and lines of a file, to demonstrate the redirection
+of input.
+
+
+7) Detailed descriptions of some procedures
+===========================================
+(a) ret%=Fparse%:(add&,s$) Enhanced PARSE$ function
+
+It handles relative paths and appends the trailed \ onto
+directories.
+
+add& - the address of a string, length 255 bytes. This will
+       contain the parsed string.
+s$   - the path to be parsed.
+ret%  - the status of the file as follows:
+
+-33 : File / directory doesn't exist
+-127: Path contains wildcards
+ <0 : OPL error - the status of the returned pathname is undefined
+                 and shouldn't be used.
+
+ 0  : pathname is an ordinary file
+ >0 : Bit  4: pathname is a Directory
+
+eg. To test for a directory
+
+ LOCAL x%,path$(128)
+
+ x%=Fparse%:(ADDR(path$),"C:/TEST")
+ IF x%<0
+   IF x%=-33
+     PRINT "Directory doesn't exist"
+   ELSE
+     PRINT ERR$(x%)
+   ENDIF
+ ELSEIF x% AND 16
+   PRINT "Found directory"
+ ELSE
+   PRINT "Isn't a directory"
+ ENDIF
+ 
+-------------------------------------------------------------------
+ 
+(b) ret%=fprint%:(string$)  Handle output redirection
+ 
+ This procedure should be used to make use of output redirection.
+Depending on internal variables it either prints the string to the
+screen or to the file specified on the command line.
+
+-------------------------------------------------------------------
+
+(c) s$=err$:(n%)  Enhanced err$ function
+
+ Returns error string as ERR$ except for these values for n%:
+ 
+-127 "Wildcards not allowed"
+-111 "Argument overflow"
+-71  "Buffer overflow"
+-33  "No such file or directory"
+1    "Not a directory"
+2    "Must be a directory"
+3    "Not a plain file"
+4    "No match"
+5    "Input/output redirection invalid for batch files"
+6    "No such variable"
+7    "Missing '"
+8    "Bad ${..}"
+9    "Cannot write system read-only variables"
+10   "Bad redirection"
+11   "Not unique"
+
+-------------------------------------------------------------------
+
+(d)  _log:(flag%,message$)  Display a message in the status window
+
+Display message$ modified by flag% as follows:
+
+1: create/redisplay the window
+2: destroy the window
+3: display message$ on a new line
+4: append message$ to current line
+5: scroll back
+6: scroll forward
+7: clear log

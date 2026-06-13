@@ -1,0 +1,1582 @@
+1: Creating and running programs
+
+2: Variables and constants
+
+3: Loops and branches
+
+4: Calling procedures
+
+5: Data file handling
+
+PROC openfile:
+  IF NOT EXIST("example")
+    CREATE "example",A,int%,lng&,fp,str$
+  ELSE
+    OPEN "example",A,int%,lng&,fp,str$
+  ENDIF
+  PRINT "Current values:"
+  show:
+  PRINT "Assigning values"
+  A.int%=1
+  A.lng&=&2**20   REM the 1st & avoids integer overflow
+  A.fp=SIN(PI/6)
+  PRINT "Give a value for the string:"
+  INPUT A.str$
+  PRINT "New values:"
+  show:
+ENDP
+
+PROC show:
+  PRINT "integer=";A.int%
+  PRINT "long=";A.lng&
+  PRINT "float=";A.fp
+  PRINT "string=";A.str$
+  GET
+ENDP
+
+PROC count:
+  LOCAL reply%
+  OPEN "example",A,f%,f&,f,f$
+  DO
+    CLS
+    AT 20,1 :PRINT "Record count=";COUNT
+    AT 9,5 :PRINT "(A)dd a record"
+    AT 9,7 :PRINT "(Q)uit"
+    reply%=GET
+    IF reply%=%q OR reply%=%Q
+      BREAK
+    ELSEIF reply%=%A OR reply%=%a
+      add:
+    ELSE
+      BEEP 16,250
+    ENDIF
+  UNTIL 0
+ENDP
+
+PROC add:
+  CLS
+  PRINT "Enter integer field:";
+  INPUT A.f%
+  PRINT "Enter long integer field:";
+  INPUT A.f&
+  PRINT "Enter numeric field:";
+  INPUT A.f
+  PRINT "Enter string field:";
+  INPUT A.f$
+  APPEND
+ENDP
+
+FIRST
+WHILE FIND("*BROWN*")
+  PRINT a.name$, a.phone$
+  NEXT
+  GET
+ENDWH
+
+PROC copyrec:
+  OPEN "example",A,f%,f&,f,f$
+  TRAP DELETE "temp"
+  REM If file doesn't exist, ignore error
+  CREATE "temp",B,f%,f&,f,f$
+  PRINT "Copying EXAMPLE to TEMP"
+  USE A REM the EXAMPLE file
+  DO
+    IF a.f%>30 and a.f<3.1415
+      b.f%=a.f%
+      b.f&=a.f&
+      b.f=a.f
+      b.f$="Selective copy"
+      USE B REM the TEMP file
+      APPEND
+      USE A
+    ENDIF
+    NEXT
+  UNTIL EOF REM until End Of File
+  CLOSE REM closes A; B becomes current
+  CLOSE REM closes B
+ENDP
+
+p%=PEEKW($1c)+$1e
+POKEW p%,PEEKW(p%) or 1
+
+p%=PEEKW($1c)+$1e
+POKEW p%,PEEKW(p%) and $fffe
+
+6: Graphics
+
+PROC exgrey:
+  DEFAULTWIN 1                       REM enable grey
+  gAT 0,40  :gGREY 1 :gLINEBY 480,0  REM grey only
+  gAT 0,41  :gLINEBY 480,0
+  gAT 0,80  :gGREY 0 :gLINEBY 480,0  REM black only
+  gAT 0,81  :gLINEBY 480,0
+  gAT 0,120 :gGREY 2 :gLINEBY 480,0  REM both planes
+  gAT 0,121  :gLINEBY 480,0
+  GET
+  gGREY 0                            REM black only
+  gCLS                               REM clear it
+  GET
+ENDP
+
+PROC face:
+  gFILL 120,120,0 REM set the entire face
+  gMOVE 10,20 :gFILL 30,20,1 REM left eye
+  gMOVE 70,0 :gFILL 30,20,1 REM right eye
+  gMOVE -30,30 :gFILL 20,30,1 REM nose
+  gMOVE -20,40 :gFILL 60,20,1 REM mouth
+  GET
+ENDP
+
+PROC wink:
+  gMOVE 10,20 REM move to left eye
+  gFILL 30,14,2 REM invert most of the eye
+  PAUSE 10
+  gFILL 30,14,2 REM invert it back again
+  GET
+ENDP
+
+PROC brow:
+  gGMODE 1 REM gLINEBY will now clear pixels
+  gMOVE 10,8 :gLINEBY 100,0
+  gMOVE 0,4 :gLINEBY -100,0
+  gGMODE 0
+  GET
+ENDP
+
+PROC fonts:
+  showfont:(4,15,"Mono 8x8")
+  showfont:(5,25,"Roman 8")
+  showfont:(6,38,"Roman 11")
+  showfont:(7,53,"Roman 13")
+  showfont:(8,71,"Roman 16")
+  showfont:(9,81,"Swiss 8")
+  showfont:(10,94,"Swiss 11")
+  showfont:(11,109,"Swiss 13")
+  showfont:(12,127,"Swiss 16")
+  showfont:(13,135,"Mono 6x6")
+  GET
+ENDP
+
+PROC showfont:(font%,y%,str$)
+    gFONT font%
+    gAT 20,y% :gPRINT font%
+    gAT 50,y% :gPRINT str$
+    gAT 150,y% :gPRINT "!!!"
+ENDP
+
+PROC style:
+  gAT 20,50 :gFONT 11
+  gSTYLE 12 :gPRINT "Attention!"
+  GET
+ENDP
+
+PROC tmode:
+  DEFAULTWIN 1                REM enable grey
+  gFONT 11    :gSTYLE 0
+  gAT 160,0   :gFILL 160,80,0 REM Black box
+  gAT 220,0   :gFILL 40,80,1  REM White box
+  gAT 180,20  :gTMODE 0 :gPRINT "ABCDEFGHIJK"
+  gAT 180,35  :gTMODE 1 :gPRINT "ABCDEFGHIJK"
+  gAT 180,50  :gTMODE 2 :gPRINT "ABCDEFGHIJK"
+  gAT 180,65  :gTMODE 3 :gPRINT "ABCDEFGHIJK"
+  gGREY 1
+  gAT 160,80  :gFILL 160,80,0 REM Grey box
+  gAT 220,80  :gFILL 40,80,1  REM White box
+  gAT 180,100 :gTMODE 0 :gPRINT "ABCDEFGHIJK"
+  gAT 180,115 :gTMODE 1 :gPRINT "ABCDEFGHIJK"
+  gAT 180,130 :gTMODE 2 :gPRINT "ABCDEFGHIJK"
+  gAT 180,145 :gTMODE 3 :gPRINT "ABCDEFGHIJK"
+  GET
+ENDP
+
+PROC windows:
+  LOCAL id%
+  id%=gCREATE(60,40,240,30,1,1)
+  gBORDER 0 :gAT 20,20 :gLINEBY 0,0
+  gPRINT " 20,20 (new)"
+  GET
+  gUSE 1 :gAT 20,20 :gLINEBY 0,0
+  gPRINT " 20,20 (default)"
+  GET
+  gUSE id%
+  gGREY 1        REM draw grey
+  gPRINT " Back"
+  gGREY 0
+  gPRINT " (with grey)"
+  GET
+ENDP
+
+PROC gsetw1:
+  LOCAL a$(100),w%,h%,g$(1),factor%,info%(10)
+  LOCAL margx%,margy%,chrw%,chrh%,defw%,defh%
+  SCREENINFO info%()       REM get text window information
+  margx%=info%(1) :margy%=info%(2)
+  chrw%=info%(7) :chrh%=info%(8)
+  defw%=23*chrw%+2*margx%  REM new default window width
+  defh%=chrh%+2*margy%     REM ... and height
+  w%=gWIDTH :h%=gHEIGHT
+  gSETWIN w%/4+margx%,h%/4+margy%,defw%,defh%
+  SCREEN 23,1,1,1   REM text window
+  PRINT "Text win:"; :GET
+  gCREATE(w%*.1,h%*.1,w%*.8,h%*.8,1)   REM new window
+  gPATT -1,gWIDTH,gHEIGHT,0 REM shade it
+  gAT 2,h%*.7 :gTMODE 4
+  gPRINT "Graphics window 2"
+  gORDER 1,0 REM back to default+text window
+  EDIT a$               REM you can see this edit
+  gORDER 1,9 REM to background
+  CLS
+  a$=""
+  PRINT "Hidden:";
+  GIPRINT "Edit in hidden edit box"
+  EDIT a$               REM YOU CAN'T SEE THIS EDIT
+  GIPRINT ""
+  gORDER 1,0 :GET REM now here it is
+  gUSE 1 REM graphics go to default window
+  DO  REM move default/text window around
+    CLS
+    PRINT "U,D,L,R,Quit";
+    g$=UPPER$(GET$)
+    IF kmod=2 REM Shift key moves quickly
+      factor%=10
+    ELSE
+      factor%=1
+    ENDIF
+    IF g$="U"
+      gSETWIN gORIGINX,gORIGINY-factor%
+    ELSEIF g$="D"
+      gSETWIN gORIGINX,gORIGINY+factor%
+    ELSEIF g$="L"
+      gSETWIN gORIGINX-factor%,gORIGINY
+    ELSEIF g$="R"
+      gSETWIN gORIGINX+factor%,gORIGINY
+    ENDIF
+  UNTIL g$="Q" OR g$=CHR$(27)
+ENDP
+
+7: Friendlier interaction
+
+PROC kget%:
+  LOCAL k%,h$(9),a$(5)
+  h$="nosciefgd" REM our hot-keys
+  WHILE 1
+    k%=GET
+    IF k%=$122   REM Menu key?
+      mINIT
+      mCARD "File","New",%n,"Open",%o,"Save",%s
+      mCARD "Edit","Copy",%c,"Insert",-%i,"Eval",%e
+      mCARD "Search","First",%f,"Next",%g,"Previous",%d
+      k%=MENU
+      IF k% AND (LOC(h$,CHR$(k%))<>0)     REM MENU CHECK
+         a$="proc"+CHR$(k%)
+        @(a$): REM procn:, proco:, ...
+      ENDIF                        REM END OF MENU CHECK
+    ELSEIF k% AND $200  REM hot-key pressed directly?
+      k%=k%-$200        REM remove Psion key code
+      IF LOC(h$,CHR$(k%))       REM DIRECT HOT-KEY CHECK
+         a$="proc"+CHR$(k%)
+        @(a$): REM procn:, proco:, ...
+      ENDIF              REM END OF DIRECT HOT-KEY CHECK
+    ELSE REM some other key
+      RETURN k%
+    ENDIF
+  ENDWH
+ENDP
+
+PROC procn:
+...
+ENDP
+
+PROC proco:
+...
+ENDP
+
+IF k%<=%Z     REM if upper case hot-key
+  IF LOC(hu$,CHR$(k%))
+    a$="procu"+CHR$(k%)
+    @(a$) :REM procua:, procuc:, ...
+  ENDIF
+ELSE          REM else lower case hot-key
+  IF LOC(hl$,CHR$(k%))
+    a$="procl"+CHR$(k%)
+    @(a$) :REM procla:, procld:, ...
+  ENDIF
+ENDIF
+
+PROC dcheck:
+  LOCAL c%
+  c%=2         REM default to "Internal"
+  dINIT "Disk Check"
+  dCHOICE c%,"Disk:","A,Internal,B"
+  IF DIALOG    REM returns 0 if cancelled
+    ... REM disk-check code
+  ENDIF
+ENDP
+
+PROC delivery:
+  LOCAL d&,t&,num&,wt
+  d&=DAYS(DAY,MONTH,YEAR)
+  DO
+    t&=secs&:
+  UNTIL t&=secs&:
+  num&=1 :wt=10
+  dINIT "Delivery"
+  dLONG num&,"Boxes",1,1000
+  dFLOAT wt,"Weight (kg)",0,10000
+  dDATE d&,"Date",d&,DAYS(31,12,1999)
+  dTIME t&,"Time",0,0,DATETOSECS(1970,1,1,23,59,59)
+  IF DIALOG    REM returns 0 if cancelled
+    ...  REM rest of code
+  ENDIF
+ENDP
+
+PROC secs&:
+   RETURN HOUR*INT(3600)+MINUTE*60
+ENDP
+
+PROC daytodat:(days&)
+  LOCAL dyscent&(2),dateent%(4)
+  LOCAL flags%,ax%,bx%,cx%,dx%,si%,di%
+  dyscent&(1)=days&
+  si%=ADDR(dyscent&()) :di%=ADDR(dateent%())
+  ax%=$0600 REM TimDaySecondsToDate fn.
+  flags%=OS($89,ADDR(ax%)) REM TimManager int.
+  IF flags% AND 1
+    RAISE (ax% OR $ff00)
+  ELSE
+    year%=PEEKB(di%)+1900 :month%=PEEKB(UADD(di%,1))+1
+    day%=PEEKB(UADD(di%,2))+1 :yrdy%=PEEKW(UADD(di%,6))+1
+  ENDIF
+ENDP
+
+PROC selact:
+  dINIT "Select action"
+  dTEXT "","Add",$402
+  dTEXT "","Copy",$402
+  dTEXT "","Review",$402
+  dTEXT "","Delete",$402
+  RETURN DIALOG
+ENDP
+
+8: OPL and Solid State Disks
+
+PROC delx300:
+  LOCAL a$(3),c%
+  a$="MAB" :c%=1 REM default to "Internal"
+  dINIT "Delete X300 data file"
+  dCHOICE c%,"Disk:","Internal,A,B"
+  IF DIALOG REM returns 0 if cancelled
+    DELETE MID$(A$,c%,1)+":X300"
+  ENDIF
+ENDP
+
+9: Example programs
+
+PROC timer:
+  LOCAL min&,sec&,secs&,i%
+  CACHE 2000,2000
+  sec&=1
+  dINIT "Countdown timer"
+  dLONG min&,"Minutes",0,59
+  dLONG sec&,"Seconds",0,59
+  dBUTTONS "Cancel",-27,"Start",13
+  IF DIALOG=13
+    STATUSWIN ON
+    FONT 11,16
+    secs&=sec&+60*min&
+    WHILE secs&
+      PAUSE -20
+      REM a key gets us out
+      IF KEY
+        RETURN
+      ENDIF
+      secs&=secs&-1
+      AT 20,6 :PRINT NUM$(secs&/60,-2);"m"
+      AT 24,6 :PRINT NUM$(mod&:(secs&,int(60)),-2);"s"
+    ENDWH
+    DO
+      BEEP 5,300
+      PAUSE 10
+      IF KEY :BREAK :ENDIF
+       i%=i%+1
+    UNTIL i%=10
+  ENDIF
+ENDP
+
+PROC mod&:(a&,b&)
+  REM modulo function
+  REM computes (a&)mod(b&)
+  RETURN a&-(a&/b&)*b&
+ENDP
+
+PROC dice:
+  LOCAL dice%
+  DO
+    CLS :PRINT "DICE ROLLING:"
+    AT 1,3 :PRINT "Press a key to stop"
+    DO
+      dice%=(RND*6+1)
+      AT 1,2 :PRINT dice%
+    UNTIL KEY
+    BEEP 5,300
+    dINIT "Roll again?"
+    dBUTTONS "No",%N,"Yes",%Y
+  UNTIL DIALOG<>%y
+ENDP
+
+PROC Birthday:
+  LOCAL day&,month&,year&,DayInWk%
+  DO
+    dINIT
+    dTEXT "","Enter your date of birth",2
+    dTEXT "","Use numbers, eg 23 12 1963",$202
+    dLONG day&,"Day",1,31
+    dLONG month&,"Month",1,12
+    dLONG year&,"Year",1900,2155
+    IF DIALOG=0
+      BREAK
+    ENDIF
+    DayInWk%=DOW(day&,month&,year&)
+    CLS :PRINT DAYNAME$(DayInWk%),day&,month&,year&
+    dINIT "Again?"
+    dBUTTONS "No",%N,"Yes",%Y
+  UNTIL DIALOG<>%y
+ENDP 
+
+PROC files:
+  GLOBAL nm$(255),ad1$(255),ad2$(255)
+  GLOBAL ad3$(255),ad4$(255),tel$(255),title$(30)
+  LOCAL g%
+  OPEN "DATA",A,nm$,ad1$,ad2$,ad3$,ad4$,tel$
+  DO
+    CLS
+    dINIT "Select action"
+    dTEXT "","Add new record",$402
+    dTEXT "","Find and edit a record",$402
+    g%=DIALOG
+    IF g%=2
+      add:
+    ELSEIF g%=3
+      edit:
+    ENDIF
+  UNTIL g%=0
+  CLOSE
+ENDP
+
+PROC add:
+  nm$="" :ad1$="" :ad2$=""
+  ad3$="" :ad4$="" :tel$=""
+  title$="Enter a new record"
+  IF showd%:
+    APPEND
+  ENDIF
+ENDP
+
+PROC edit:
+  LOCAL search$(30),p%
+  dINIT "Find and edit a record"
+  dEDIT search$,"Search string",15
+  IF DIALOG
+    FIRST
+    IF FIND("*"+search$+"*")=0
+      ALERT("No matching records")
+      RETURN
+    ENDIF
+    DO
+      nm$=A.nm$ :ad1$=A.ad1$ :ad2$=A.ad2$
+      ad3$=A.ad3$ :ad4$=A.ad4$ :tel$=A.tel$
+      title$="Edit matching record"
+      IF showd%:
+        UPDATE :BREAK
+      ELSE
+        NEXT
+      ENDIF
+      FIND("*"+search$+"*")
+      IF EOF
+        ALERT("No more matching records")
+        BREAK
+      ENDIF
+    UNTIL 0
+  ENDIF
+ENDP 
+
+PROC showd%:
+  LOCAL ret%
+  dINIT title$
+  dEDIT nm$,"Name",25
+  dEDIT ad1$,"Street",25
+  dEDIT ad2$,"Town",25
+  dEDIT ad3$,"County",25
+  dEDIT ad4$,"Postcode",25
+  dEDIT tel$,"Phone",25
+  ret%=DIALOG
+  IF ret%
+    A.nm$=nm$ :A.ad1$=ad1$ :A.ad2$=ad2$
+    A.ad3$=ad3$ :A.ad4$=ad4$ :A.tel$=tel$
+  ENDIF
+  RETURN ret%
+ENDP
+
+PROC reorder:
+  LOCAL last%,e$(255),e%,lpos%,n$(128),c%
+  n$="\dat\*.dbf"
+  dINIT "Re-order Data file"
+  dFILE n$,"Filename",0
+  IF DIALOG REM returns 0 if cancelled
+    OPEN n$,a,a$
+    LAST :last%=POS
+    IF COUNT>0
+      WHILE last%<>0
+        POSITION last% :e%=POS
+        e$=UPPER$(a.a$)
+        DO
+          IF UPPER$(a.a$)<e$
+            e$=UPPER$(a.a$) :e%=POS
+          ENDIF
+          lpos%=POS :BACK
+        UNTIL pos=1 and lpos%=1
+        POSITION e%
+        PRINT e$
+        UPDATE :last%=last%-1
+      ENDWH
+    ENDIF
+    CLOSE
+  ENDIF
+ENDP
+
+PROC watch:
+  LOCAL k%,s%,se%,mi%
+  FONT 11,16
+  AT 20,1 :PRINT "Stopwatch"
+  AT 15,11 :PRINT "Press a key to start"
+  GET
+  DO
+  CLS :mi%=0:se%=0:s%=SECOND
+  AT 15,11 :PRINT "   S=Stop, L=Lap    "
+  loop::
+  k%=KEY AND $ffdf REM ensures upper case
+  IF k%=%S
+    GOTO pause::
+  ENDIF
+  IF k%=%L
+    AT 20,6 :PRINT "Lap: ";mi%;":";
+    IF se%<10 :PRINT "0"; :ENDIF
+    PRINT se%;" ";
+  ENDIF
+  IF SECOND<>s%
+    s%=SECOND :se%=se%+1
+    IF se%=60 :se%=0:mi%=mi%+1 :ENDIF
+    AT 17,8
+    PRINT "Mins",mi%,"Secs",
+    IF se%<10 :PRINT "0"; :ENDIF
+    PRINT se%;" ";
+  ENDIF
+  GOTO loop::
+  pause::
+  mINIT
+  mCARD "Watch","Restart",%r,"Zero",%z,"Exit",%x
+  k%=MENU
+  IF k%=%r
+    GOTO loop::
+  ENDIF
+  UNTIL k%<>%z
+ENDP
+
+PROC label:
+LOCAL a%,b%,c%,d%,s$(128),s&,i$(17,255)
+s$="\dat\*.dbf"
+dINIT "Insert new field"
+dFILE s$,"Data file",0
+dLONG s&,"Break at line (1-16)",1,16
+IF DIALOG
+OPEN s$,A,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$
+  c%=COUNT :a%=1
+  WHILE a%<=c%
+    AT 1,1 :PRINT "Entry",a%,"of",c%,
+    IF A.q$="" REM Entry (hopefully) not too long
+      i$(1)=A.a$ :i$(2)=A.b$ :i$(3)=A.c$ :i$(4)=A.d$
+      i$(5)=A.e$ :i$(6)=A.f$ :i$(7)=A.g$ :i$(8)=A.h$
+      i$(9)=A.i$ :i$(10)=A.j$ :i$(11)=A.k$ :i$(12)=A.l$
+      i$(13)=A.m$ :i$(14)=A.n$ :i$(15)=A.o$ :i$(16)=A.p$
+      d%=0 :b%=0
+      WHILE d%<s&+b% REM find field to break at
+        d%=d%+1
+        IF LEFT$(i$(d%),1)=CHR$(20) REM line>255...
+          b%=b%+1 REM ...so it's 2 fields
+        ENDIF
+      ENDWH
+      b%=17
+      WHILE b%>d% REM copy the fields down
+        i$(b%)=i$(b%-1) :b%=b%-1 
+      ENDWH
+      i$(d%)="" REM and make an empty field
+      A.a$=i$(1) :A.b$=i$(2) :A.c$=i$(3) :A.d$=i$(4)
+      A.e$=i$(5) :A.f$=i$(6) :A.g$=i$(7) :A.h$=i$(8)
+      A.i$=i$(9) :A.j$=i$(10) :A.k$=i$(11) :A.l$=i$(12)
+      A.m$=i$(13) :A.n$=i$(14) :A.o$=i$(15) :A.p$=i$(16)
+      A.q$=i$(17)
+    ELSE
+      PRINT "has too many fields"
+      PRINT "Press a key..." :GET
+    ENDIF
+    UPDATE :FIRST
+    a%=a%+1
+  ENDWH :CLOSE
+ENDIF
+ENDP
+
+PROC bounce:
+  LOCAL posX%,posY%,changeX%,changeY%,k%
+  LOCAL scrx%,scry%,info%(10)
+  SCREENINFO info%()
+  scrx%=info%(3) :scry%=info%(4)
+  posX%=1  :posY%=1
+  changeX%=1 :changeY%=1
+  DO
+    posX%=posX%+changeX%
+    posY%=posY%+changeY%
+    IF posX%=1 OR posX%=scrx%
+      changeX%=-changeX%
+      REM at edge ball changes direction
+      BEEP 2, 600 REM low beep
+    ENDIF
+    IF posY%=1 or posY%=scry% REM same for y
+      changeY%=-changeY%
+      BEEP 2, 200 REM high beep
+    ENDIF
+    AT posX%,posY% :PRINT "0";
+    PAUSE 2   REM Try changing this
+    AT posX%,posY% :PRINT " ";
+    REM removes old `0' character
+    k%=KEY
+  UNTIL k%
+ENDP
+
+PROC circle:
+  LOCAL a%(963),c&,d%,x&,y&,r&,h,y%,y1%,c2%
+  dINIT "Draw a circle"
+  x&=240 :dLONG x&,"Centre x pos",0,479
+  y&=80 :dLONG y&,"Centre y pos",0,159
+  r&=20 :dLONG r&,"Radius",1,120
+  h=1 :dFLOAT h,"Relative height",0,999
+  IF DIALOG
+    a%(1)=x&+r& :a%(2)=y& :a%(3)=4*r&
+    c&=1 :d%=2*r& :y1%=0
+    WHILE c&<=d%
+      c2%=c&*2 :y%=-SQR(r&*c2%-c&**2)*h
+      a%(2+c2%)=-2 :a%(3+c2%)=y%-y1%
+      y1%=y% :c&=c&+1
+    ENDWH
+    c&=1
+    WHILE c&<=d%
+      c2%=c&*2 :y%=SQR(r&*c2%-c&**2)*h
+      a%(2+a%(3)+c2%)=2 :a%(3+a%(3)+c2%)=y%-y1%
+      y1%=y% :c&=c&+1
+    ENDWH
+    gPOLY a%()
+  ENDIF
+ENDP
+
+PROC circlef:
+  LOCAL c&,d%,x&,y&,r&,h,y%
+  dINIT "Draw a filled circle"
+  x&=240 :dLONG x&,"Centre x pos",0,479
+  y&=80 :dLONG y&,"Centre y pos",0,159
+  r&=20 :dLONG r&,"Radius",1,120
+  h=1 :dFLOAT h,"Relative height",0,999
+  IF DIALOG
+    c&=1 :d%=2*r& :gAT x&-r&,y& :gLINEBY 0,0
+    WHILE c&<=d%
+      y%=-SQR(r&*c&*2-c&**2)*h
+      gAT x&-r&+c&,y&-y% :gLINEBY 0,2*y%
+      c&=c&+1
+    ENDWH
+  ENDIF
+ENDP
+
+PROC tzoom:
+  STATUSWIN OFF   REM no status window
+  zoom:           REM display with zooming
+  STATUSWIN ON,2  REM large status window
+  zoom:
+  STATUSWIN ON,1  REM and small
+  zoom:
+ENDP
+
+PROC zoom:
+  LOCAL font%(3),font$(3,20),style%(3)
+  LOCAL g%,km%,zoom%
+  zoom%=1
+  font%(1)=13 :font$(1)="(Mono 6x6)" :style%(1)=0  
+  font%(2)=4  :font$(2)="(Mono 8x8)" :style%(2)=0  
+  font%(3)=12 :font$(3)="(Swiss 16)" :style%(3)=16 
+  g%=%z+$200
+  DO
+    IF g%=%z+$200
+      IF km% AND 2        REM Shift-PSION-Z
+        zoom%=zoom%-1
+        IF zoom%<1 :zoom%=3 :ENDIF
+      ELSE                REM PSION-Z
+        zoom%=zoom%+1
+        IF zoom%>3 :zoom%=1 :ENDIF
+      ENDIF
+      FONT font%(zoom%),style%(zoom%)
+      PRINT "Font=";font%(zoom%),font$(zoom%),
+      PRINT "Style=";style%(zoom%)
+      dispinfo:
+      PRINT rept$("1234567890",15)
+      gBORDER 0
+    ENDIF
+    g%=GET
+    km%=KMOD
+  UNTIL g%=27
+ENDP
+
+PROC dispinfo:
+  LOCAL scrInfo%(10)
+  SCREENINFO scrInfo%()
+  PRINT "Left margin=";scrInfo%(1),
+  AT 17,2 :PRINT "Top margin=";scrInfo%(2)
+  PRINT "Screen width=";scrInfo%(3)
+  AT 17,3 :PRINT "Screen height=";scrInfo%(4)
+  PRINT "Char width=";scrInfo%(7)
+  AT 17,4 :PRINT "Line height=";scrInfo%(8)
+ENDP
+
+PROC animate:
+  LOCAL id%(5),i%,j%,s$(5,10),w%,h%
+  w%=16 :h%=28 REM example width and height
+  s$(1)="one" :s$(2)="two" :s$(3)="three"
+  s$(4)="four" :s$(5)="five" :j%=1
+  WHILE j%<6
+    i%=gLOADBIT(s$(j%))
+    id%(j%)=gCREATE(0,0,w%,h%,0)
+    gCOPY i%,0,0,w%,h%,3
+    gCLOSE i% :j%=j%+1
+  ENDWH
+  i%=0 :gORDER 1,9
+  DO
+    j%=(i%-5*(i%/5))+1 REM (i% MOD 5)+1
+    gVISIBLE OFF REM previous window
+    gUSE id%(j%) REM new window
+    gSETWIN i%,20 REM position it
+    gORDER id%(j%),1 REM make foreground
+    gVISIBLE ON REM make visible
+    i%=i%+1 :PAUSE 2
+  UNTIL KEY OR (i%>(480-w%)) REM screen edge
+ENDP
+
+PROC main:
+  local ret%,sndHand%
+  ret%=IOOPEN(sndHand%,"SND:",-1) REM open the device
+  if ret%<0
+    print "Failed to start"
+    print err$(err)
+    get
+  else
+    icecream:(sndHand%)
+    ioclose(sndHand%)
+  endif 
+ENDP
+
+PROC icecream:(sndHand%)
+  local notes1%(4),notes2%(14)
+  local s1stat%,len1%,len2%
+  REM define 1st voice
+  notes1%(1)=1048  :notes1%(2)=96 REM freq, duration
+  notes1%(3)=524   :notes1%(4)=48
+  len1%=2 REM number of notes in voice 1
+  REM define 2nd voice
+  notes2%(1)=1048  :notes2%(2)=16
+  notes2%(3)=1320  :notes2%(4)=16
+  notes2%(5)=1568  :notes2%(6)=16
+  notes2%(7)=2092  :notes2%(8)=16
+  notes2%(9)=1568  :notes2%(10)=16
+  notes2%(11)=1320 :notes2%(12)=16
+  notes2%(13)=1048 :notes2%(14)=48
+  len2%=7  REM number of notes in voice 2
+  IOC(sndhand%,1,s1stat%,notes1%(),len1%)
+    REM voice 1 asynchronous
+  IOW(sndHand%,2,notes2%(),len2%) REM voice 2 synchronous
+  IOWAITSTAT s1stat%
+ENDP
+
+10: Error handling
+
+11: Advanced topics
+
+APP myapp0
+  TYPE $1000
+  ICON "\opd\me"
+ENDA
+
+PROC start:
+  GLOBAL a%(6),k%
+  STATUSWIN ON :FONT 11,16
+  PRINT "Q to Quit"
+  PRINT " or press Delete in"
+  PRINT " the System screen"
+  DO
+    k%=getk%:
+    PRINT CHR$(k%);
+  UNTIL (k% AND $ffdf)=%Q  REM Quick way to do uppercase
+ENDP
+
+PROC getk%:
+  DO
+    GETEVENT a%()
+    IF a%(1)=$404
+      IF LEFT$(GETCMD$,1)="X"
+        endit:
+      ENDIF
+    ENDIF
+  UNTIL a%(1)<256
+  RETURN a%(1)
+ENDP
+
+PROC endit:
+  STOP
+ENDP
+
+APP myapp3
+  TYPE $1003
+  ICON "\opd\me"
+ENDA
+
+PROC start:
+  GLOBAL a%(6),k%,w$(128)
+  STATUSWIN ON :FONT 11,16 :w$=CMD$(2)
+  fset:(CMD$(3))
+  PRINT "Q to Quit"
+  PRINT " or press Delete in"
+  PRINT "the System screen"
+  PRINT " or create/swap files in"
+  PRINT "the System screen"
+  DO
+    k%=getk%:
+    PRINT CHR$(k%);
+  UNTIL (k% AND $ffdf)=%Q
+ENDP
+
+PROC getk%:
+  LOCAL t$(1)
+  DO
+    GETEVENT a%()
+    IF a%(1)=$404
+      w$=GETCMD$
+      t$=LEFT$(w$,1)
+      w$=MID$(w$,2,128)
+      IF t$="X"
+        endit:
+      ELSEIF t$="C" OR t$="O"
+        TRAP CLOSE
+        IF ERR
+          CLS :PRINT ERR$(ERR)
+          GET :CONTINUE
+        ENDIF
+        fset:(t$)
+      ENDIF
+    ENDIF
+  UNTIL a%(1)<256
+  RETURN a%(1)
+ENDP
+
+PROC fset:(t$)
+  LOCAL p%(6)
+  IF t$="C"
+    TRAP DELETE w$  REM SYS.SCREEN DOES ANY "OVERWRITE?"
+    TRAP CREATE w$,A,A$
+  ELSEIF t$="O"
+    TRAP OPEN w$,A,A$
+  ENDIF
+  IF ERR
+    CLS :PRINT ERR$(ERR)
+    GET :STOP
+  ENDIF
+  SETNAME w$
+ENDP
+
+PROC endit:
+  STOP
+ENDP
+
+PROC myicon:
+  gCREATE(0,0,48,48,1,1)
+  gBORDER $200
+  gAT 6,28
+  gPRINT "me!"
+  gSAVEBIT "me"
+ENDP
+
+PROC beepon:
+local a%(6)
+print "Hello"
+call($6c8d) :gupdate
+while 1
+  do
+    getevent a%()
+    if a%(1)=$404 :stop :endif :REM closedown
+  until a%(1)=$403 :REM machine ON
+  call($198d,0,0) :gupdate
+  beep 5,300 :pause 10 :beep 5,500
+  call($198d,100,0) :gupdate
+endwh
+ENDP
+
+CACHEHDR ADDR(hdr%())
+IF hdr%(10)=0
+  PRINT "No cache created yet"
+  RETURN
+ENDIF
+IF hdr%(8)=0                    rem MRU zero?
+  PRINT "None cached currently"
+  RETURN
+ENDIF
+rec%(1)=0                       rem MRU first
+DO
+  CACHEREC ADDR(rec%()),rec%(1) rem less recently used proc
+  PRINT PEEK$(ADDR(rec%(8))),rec%(7) rem name and size
+UNTIL rec%(1)=0
+
+PROC sprite:
+  LOCAL bit$(6,6),sprId%
+  crBits:                  REM create bitmap files
+  gAT gWIDTH/2,0
+  gFILL gWIDTH/2,gHEIGHT,0 REM fill half of screen
+  sprId%=CREATESPRITE
+  bit$(1)="" :bit$(2)=""
+  bit$(3)="cross"    REM black cross, pixels inverted
+  bit$(4)="" :bit$(5)="" :bit$(6)=""
+  APPENDSPRITE 5,bit$(),0,0 REM cross for half a second
+  bit$(1)="" :bit$(2)="" :bit$(3)=""
+  bit$(4)="" :bit$(5)="" :bit$(6)=""
+  APPENDSPRITE 5,bit$(),0,0 REM blank for half a second
+  DRAWSPRITE gWIDTH/2-5,gHEIGHT/2-5
+                            REM animate the sprite
+  BUSY "flash cross, c",3   REM no offset
+                            REM ('c' for central)
+  GET
+  bit$(3)="box"             REM black box, pixels inverted
+  CHANGESPRITE 2,5,bit$(),0,0        REM in 2nd bitmap-set
+  BUSY "cross/box, c/c",3   REM central/central
+  GET
+  CHANGESPRITE 2,5,bit$(),40,0
+                            REM offset by 40 pixels right
+  BUSY "cross/box, c/40",3  REM central/40
+  GET
+  bit$(3)=""                REM Remove the cross in set 1
+  CHANGESPRITE 1,3,bit$(),0,0 REM display for 3/10 seconds
+  BUSY "flash box, 40",3    REM box at offset 40 still
+  GET
+  bit$(3)="cross"
+  CHANGESPRITE 1,5,bit$(),0,0
+                            REM cross centralised - set 1
+  bit$(3)="box"
+  CHANGESPRITE 2,5,bit$(),0,0
+                            REM box centralised - set 2
+  BUSY "Escape quits"
+  DO
+    POSSPRITE RND*(gWIDTH-11),RND*(gHEIGHT-11)
+                            REM move sprite randomly
+    PAUSE -20               REM once a second
+  UNTIL KEY = 27
+  CLOSESPRITE sprId%
+ENDP
+
+PROC crBits:
+  REM create bitmap files if they don't exist
+  IF NOT EXIST("cross.pic") OR NOT EXIST("box.pic")
+    gCREATE(0,0,11,11,1,1)
+    gAT 5,0 :gLineBy 0,11
+    gAT 0,5 :gLineBy 11,0
+    gSAVEBIT "cross"
+    gCLS
+    gAT 0,0
+    gBOX gWIDTH,gHEIGHT
+    gSAVEBIT "box"
+    gCLOSE gIDENTITY
+  ENDIF
+ENDP
+
+PROC ioType:
+  LOCAL ret%,fName$(128),txt$(255),address%
+  LOCAL handle%,mode%,k%
+  PRINT "Filename?", :INPUT fName$ :  CLS
+  mode%= $0400 OR $0020
+  REM open=$0000, text=$0020, share=$0400
+  ret%=IOOPEN(handle%,fName$,mode%)
+  IF ret%<0
+    showErr:(ret%)
+    RETURN
+  ENDIF  
+  address%=ADDR(txt$)
+  WHILE 1
+    k%=KEY
+    IF k%    REM if keypress
+      IF k%=27 REM Esc pressed
+        RETURN
+      REM otherwise wait for a key
+      ELSEIF GET=27
+         RETURN REM Esc pressed
+      ENDIF
+    ENDIF
+    ret%=IOREAD(handle%,address%+1,255)
+    IF ret%<0
+      IF ret%<>-36 REM NOT EOF
+        showErr:(ret%)
+      ENDIF
+      BREAK
+    ELSE
+      POKEB address%,ret%
+      REM leading byte count
+      PRINT txt$
+    ENDIF
+  ENDWH
+  ret%=IOCLOSE(handle%)
+  IF ret%
+    showErr:(ret%)
+  ENDIF
+  PAUSE -100 :KEY
+ENDP
+
+PROC showErr:(val%)
+  PRINT "Error",val%,err$(val%)
+  GET
+ENDP
+
+PROC iotest:
+GLOBAL x1%,x2%,y1%,y2%
+LOCAL i%,h$(2),a$(5)
+  x1%=2 :y1%=2
+  x2%=25 :y2%=5 REM our test screensize
+  SCREEN x2%-x1%,y2%-y1%,x1%,y1%
+  AT 1,1
+  PRINT "Text window IO test"
+  PRINT "Psion-Esc quits"
+  h$="cr" REM our hot-keys
+  DO
+    i%=GET
+    IF i%=$122 REM Menu key
+      mINIT
+      mCARD "Set","Rect",%r
+      mCARD "Sense","Cursor",%c
+      i%=MENU
+      IF i% AND INTF(LOC(h$,CHR$(i%)))
+         a$="proc"+chr$(i%)
+        @(a$): 
+      ENDIF
+    ELSEIF i% AND $200 REM hot-key
+      i%=(i%-$200)
+      i%=LOC(h$,CHR$(i%)) REM One of ours?
+      IF i%
+         a$="proc"+MID$(h$,i%,1)
+        @(a$):
+      ENDIF REM ignore other weird keypresses
+    ELSE REM some other key, so return it
+      PRINT CHR$(i%);
+    ENDIF
+  UNTIL 0
+ENDP
+
+PROC procc:
+  LOCAL a&
+  a&=iocurs&:
+  PRINT "x";1+(a& AND &ffff);
+  PRINT "y";1+(a&/&10000);
+ENDP
+
+PROC procr:
+  LOCAL xx1%,yy1%,xx2%,yy2%
+  LOCAL xx1&,yy1&,xx2&,yy2&
+  dINIT "Clear rectangle"
+  dLONG xx1&,"Top left x",1,x2%-x1%
+  dLONG yy1&,"Top left y",1,y2%-y1%
+  dLONG xx2&,"Bottom left x",2,x2%-x1%
+  dLONG yy2&,"Bottom left y",2,y2%-y1%
+  IF DIALOG
+    xx1%=xx1&-1 :xx2%=xx2&-1
+    yy1%=yy1&-1 :yy2%=yy2&-1
+    iorect:(xx1%,yy1%,xx2%,yy2%)
+  ENDIF
+ENDP
+
+PROC iocurs&:
+  LOCAL a%(4),a&
+  REM don't change the order of these!
+  a%(1)=x1% :a%(2)=y1%
+  a%(3)=x2% :a%(4)=y2%
+  IOW(-2,8,a%(),a%()) REM 2nd a% is ignored
+  RETURN a&
+ENDP
+
+PROC iorect:(xx1%,yy1%,xx2%,yy2%)
+  LOCAL i%,a%(6)
+  i%=2 :REM "clear rect" option
+  a%(1)=xx1% :a%(2)=yy1%
+  a%(3)=xx2% :a%(4)=yy2%
+  IOW(-2,7,i%,a%())
+ENDP 
+
+PROC alm:
+  LOCAL h%,a&(2),a$(64),b$(65),d&,t&,t2&,a%,r%,s%
+  r%=IOOPEN(h%,"ALM:",0)
+  IF r%<0 :RAISE r% :ENDIF
+  d&=DAYS(DAY,MONTH,YEAR) REM today
+  t&=DATETOSECS(1970,1,1,HOUR,MINUTE,0)
+  DINIT "Set alarm"
+  DTIME t&,"Time",0,0,DATETOSECS(1970,1,1,23,59,59)
+  DDATE d&,"Date",d&,DAYS(31,12,2049)
+  DTIME t2&,"Alarm advance time",2,0,86399
+  DEDIT a$,"Message"
+  IF DIALOG
+    a&(2)=86400*(d&-25567)+t&
+    a&(1)=a&(2)-t2&
+    b$=a$+CHR$(0) REM zero-terminate the string
+    IOC(h%,2,s%,a&(),#UADD(ADDR(b$),1))
+  ENDIF
+  IOCLOSE(h%)
+ENDP
+
+PROC dtmf:
+  LOCAL h%,a$(24),b$(25),z%,r%,a%(2)
+  r%=IOOPEN(h%,"SND:",0)
+  IF r%<0 :RAISE r% :ENDIF
+  dINIT
+  dEDIT a$,"Dial"
+  IF DIALOG
+    a%(1)=8+(256*8)
+    a%(2)=48
+    b$=a$+CHR$(0)
+    r%=IOW(h%,10,#UADD(ADDR(b$),1),a%())
+    IF r%<0 :RAISE r% :ENDIF
+  ENDIF
+  r%=IOCLOSE(h%)
+  IF r%<0 :RAISE r% :ENDIF
+ENDP
+
+PROC recorda:(pstat%,inname$,size%)
+  LOCAL name$(128)
+  name$=inname$+chr$(0)
+  CALL($2186,UADD(ADDR(name$),1),size%,0,0,pstat%)
+ENDP
+
+PROC recordc:
+  CALL($2386)
+ENDP
+
+PROC recordw%:(inname$,size%)
+  LOCAL name$(128),p%,ret%
+  p%=PEEKW($1c)+6  REM address of saved flags after CALL
+  name$=inname$+chr$(0)
+  ret%=CALL($2286,UADD(ADDR(name$),1),size%)
+  IF PEEKW(p%) AND 1     REM carry set for error
+    RETURN ret% OR $FF00 REM return error
+  ENDIF
+ENDP
+
+PROC playa:(pstat%,inname$,ticks%,vol%)
+  LOCAL name$(128)
+  name$=inname$+chr$(0)
+  CALL($1E86,UADD(ADDR(name$),1),ticks%,vol%,0,pstat%)
+ENDP
+
+PROC playc:
+  CALL($2086)
+ENDP
+
+PROC playw%:(inname$,ticks%,vol%)
+  LOCAL name$(128),p%,ret%
+  p%=PEEKW($1c)+6 REM address of saved flags after CALL
+  name$=inname$+chr$(0)
+  ret%=CALL($1F86,UADD(ADDR(name$),1),ticks%,vol%)
+  IF PEEKW(p%) AND 1     REM carry set for error
+    RETURN ret% OR $FF00 REM return error
+  ENDIF
+ENDP
+
+PROC record:(file$,time%)
+  LOCAL sstat%,kstat%,key%(4),size%,ret%,signals%
+  size%=time%*4
+  recorda:(ADDR(sstat%),file$,size%) REM async record
+  IOC(-2,1,kstat%,key%())            REM async key read
+  WHILE 1
+    IOWAIT  REM wait for recording to complete, or a key
+    IF sstat%<>-46         REM if sound no longer pending
+      IOCANCEL(-2)         REM cancel key read
+      IOWAITSTAT kstat%    REM wait for cancellation
+      IF sstat%<0
+        gIPRINT "Error recording:"+err$(sstat%)
+      ENDIF
+      BREAK
+    ELSEIF kstat%<>-46     REM else if key pressed
+      recordc:             REM cancel record
+      IOWAITSTAT sstat%    REM wait for cancellation
+      gIPRINT "Cancelled"
+      BREAK
+    ELSE
+      REM some async request made outside this PROC
+      signals%=signals%+1  REM save it for later
+    ENDIF
+  ENDWH
+  WHILE signals%
+    IOSIGNAL               REM put back foreign signals
+    signals%=signals%-1
+  ENDWH
+ENDP
+
+PROC dbfDesc:
+  LOCAL ax%,bx%,cx%,dx%,si%,di%
+  LOCAL info%(4),len%,psrc%,pdest%
+  ODBINFO info%()
+  bx%=PEEKW(info%(2))   REM handle of logical file B
+  ax%=$1700             REM DbfDescRecordRead
+  IF OS($d8,ADDR(ax%)) and 1
+    RETURN ax% OR $ff00 REM return the error
+  ENDIF
+  REM the descriptive record has length ax%
+  REM and is at address peekW(uadd(info%(2),8))
+  IF  ax%=0
+    RETURN 0            REM no DescRecord
+  ENDIF
+  len%=ax%+2            REM length of the descriptive
+                        REM record read + 2-byte header
+  psrc%=PEEKW(uadd(info%(2),8))
+  pdest%=PEEKW(uadd(info%(3),8))
+  CALL($a1,0,len%,0,psrc%,pdest%)
+                        REM copy to C's buffer
+  cx%=len%
+  bx%=PEEKW(info%(3))   REM handle of logical file C
+  ax%=$1800             REM DbfDescRecordWrite
+  IF OS($d8,ADDR(ax%)) and 1
+    RETURN ax% OR $ff00
+  ENDIF
+  RETURN 0              REM success
+ENDP
+
+local pcell% rem pointer to cell
+LOCAL pcelln%        rem new pointer to cell
+LOCAL p%             rem general pointer
+LOCAL n%             rem general integer
+ONERR e1
+pcell%=ALLOC(2+2*8)  rem holds an integer and
+                     rem 2 8-byte floats initially
+IF pcell%=0
+  RAISE -10          rem out of memory; go to e1::
+ENDIF
+POKEW pcell%,2       rem store integer 2 at start of cell
+                     rem ie. no. of floats
+POKEF UADD(pcell%,2),2.72     rem store float 2.72
+POKEF UADD(pcell%,10),3.14    rem store float 3.14
+...
+pcelln%=REALLOC(pcell%,2+3*8) rem space for 3rd float
+IF pcelln%=0
+  RAISE -10                   rem out of memory
+ENDIF
+pcell%=pcelln%                rem use new cell address
+n%=PEEKW(pcell%)              rem no. of floats in cell
+POKEF UADD(pcell%,2+n%*8),1.0 rem 1.0 after 3.14
+POKEW pcell%,n%+1             rem one more float in cell
+...
+pcelln%=ADJUSTALLOC(pcell%,2,8) rem open gap before 2.72
+IF pcell%=0
+  RAISE -10              rem out of memory
+ENDIF
+pcell%=pcelln%           rem use new cell address
+POKEF UADD(pcell%,2),1.0 rem store 1.0 before 2.72
+POKEW pcell%,4           rem 4 floats in cell now
+...
+p%=UADD(pcell%,LENALLOC(pcell%)) rem byte after cell end
+p%=USUB(p%,8)              rem address of final float
+POKEF p%,90000.1           rem overwrite with 90000.1
+RAISE 0                    rem clear ERR value
+e1::
+FREEALLOC pcell%           rem free any cell created
+IF err<>0
+  ...                      rem display error message etc
+ENDIF
+RETURN ERR
+
+12: Overview
+
+13: Alphabetic listing
+
+PROC scale:
+LOCAL freq,n%
+REM n% relative to middle A
+n%=3 REM start at middle C
+WHILE n%<16
+ freq=440*2**(n%/12.0)
+ REM middle A = freq 440Hz
+ BEEP 8,512000/freq-1.0
+ n%=n%+1
+ IF n%=4 OR n%=6 OR n%=9 OR n%=11 OR n%=13
+  n%=n%+1
+ ENDIF
+ENDWH
+ENDP
+
+PROC Birthday:
+ LOCAL d&,m&,y&,dWk%
+ DO
+  dINIT
+  dTEXT "","Date of birth",2
+  dTEXT "","eg 23 12 1963",$202
+  dLONG d&,"Day",1,31
+  dLONG m&,"Month",1,12
+  dLONG y&,"Year",1900,2155
+  IF DIALOG=0 :BREAK :ENDIF
+  dWk%=DOW(d&,m&,y&)
+  CLS :PRINT DAYNAME$(dWk%),
+  PRINT d&,m&,y&
+  dINIT
+  dTEXT "","Again?",$202
+  dBUTTONS "No",%N,"Yes",%Y
+ UNTIL DIALOG<>%y
+ENDP 
+
+PROC deadline:
+ LOCAL a%,b%,c%,deadlin&
+ LOCAL today&,togo%
+ PRINT "What day? (1-31)"
+ INPUT a%
+ PRINT "What month? (1-12)"
+ INPUT b%
+ PRINT "What year? (19??)"
+ INPUT c%
+ deadlin&=DAYS(a%,b%,1900+c%)
+ today&=DAYS(DAY,MONTH,YEAR)
+ togo%=deadlin&-today&
+ PRINT togo%,"days to go"
+ GET
+ENDP
+
+PROC dir:
+ LOCAL d$(128)
+ d$=DIR$("M:\DAT\*.DBF")
+ WHILE d$<>""
+  PRINT d$
+  d$=DIR$("")
+ ENDWH
+ GET
+ENDP
+
+DO 
+AT 10,5 :PRINT "Calc:",
+TRAP INPUT n$
+IF n$="" :CONTINUE :ENDIF
+IF ERR=-114 :BREAK :ENDIF
+CLS :AT 10,4
+PRINT n$;"=";EVAL(n$)
+UNTIL 0
+
+PROC gamma:(v)
+ LOCAL c
+ c=3E8
+ RETURN 1/SQR(1-(v*v)/(c*c))
+ENDP
+
+PROC modifier:
+LOCAL k%,mod%
+PRINT "Press a key" :k%=GET
+CLS :mod%=KMOD
+PRINT "Key code",k%,"with"
+IF mod%=0
+ PRINT "no modifier"
+ENDIF
+IF mod% AND 2
+ PRINT "Shift down"
+ENDIF
+IF mod% AND 4
+ PRINT "Control down"
+ENDIF
+IF mod% AND 8
+ PRINT "Psion down"
+ENDIF
+IF mod% AND 16
+ PRINT "Caps Lock on"
+ENDIF
+ENDP
+
+PROC SEQ:
+LOCAL g$(1)
+WHILE 1
+ PRINT "S: set seed to 1"
+ PRINT "Q: quit"
+ PRINT "other key: continue"
+ g$=UPPER$(GET$)
+ IF g$="Q"
+  BREAK
+ ELSEIF g$="S"
+  PRINT "Setting seed to 1"
+  RANDOMIZE 1
+  PRINT "First random no:"
+ ELSE
+  PRINT "Next random no:"
+ ENDIF
+ PRINT RND
+ENDWH
+ENDP
+
+PROC rectest:
+LOCAL n$(20)
+OPEN "name",A,name$
+PRINT "Enter name:",
+INPUT n$
+IF RECSIZE<=(1022-LEN(n$))
+ A.name$=n$
+ APPEND
+ELSE
+ PRINT "Won't fit in record"
+ENDIF
+ENDP
+
+PROC rndvals:
+LOCAL i%
+PRINT "Random test values:"
+DO
+ PRINT RND
+ i%=i%+1
+ GET
+UNTIL i%=10
+ENDP
+
+PROC trivial:
+LOCAL t%(2),u%,ax%
+ t%(1)=$c032  REM xor al,al
+ t%(2)=$cb    REM retf
+ ax%=$1ab
+ u%=usr(addr(t%(1)),ax%,0,0,0)
+ REM returns (ax% AND $FF00)
+ PRINT u% REM 256 ($100)
+ GET
+ENDP
+
+A: Summary for experienced OPL users
+
+proc slowdn:
+local i%,j
+print "Slow down S3a"
+call($138b) rem "unmark as active"
+while 1
+  i%=10 :j=j+1
+  while i% :i%=i%-1 :endwh
+  if j=300000
+    j=0 :pause 2
+  else
+    pause 1
+  endif
+endwh
+endp
+
+PROC scrinfo:(pinfo%)
+  SCREENINFO #pinfo%
+ENDP
+
+PROC font:(font%,style%)
+  FONT font%,style%
+ENDP
+
+LOCAL err%,info%(10),...
+  TRAP LOADM "S3aprocs"
+  IF ERR=0 OR ERR=-104
+      rem if not 'Incompatible translator' error
+      rem or if already loaded, then in normal mode
+    err%=ERR
+    font%=$9a           rem system font
+    font:(font%,16)     rem mono-ised style 
+    scrInfo:(ADDR(info%))
+    marginX%=info%(1)   rem pixels from left of screen
+    marginY%=info%(2)   rem pixels from top of screen
+    chrW%=info%(7)      rem character width in pixels
+    chrH%=info%(8)      rem character height in pixels
+    screenX%=gWIDTH/chrW%       rem char screen width
+    screenY%=(gHEIGHT+1)/chrH%  rem char screen height
+    IF err%-104       rem if loaded here
+      UNLOADM "S3aprocs"
+    ENDIF
+  ELSE                  rem else on Series 3 or
+                        rem in compatibility mode
+                        rem so just use fixed values
+    marginX%=0          rem no margins on Series 3
+    marginY%=0
+    chrW%=6             rem default console char width
+    chrH%=9             rem ...and height
+    screenX%=40         rem character columns
+    screenY%=9          rem character rows
+    font%=1             rem font ID = 1 on Series 3
+  ENDIF
+
+B: Operators and logical expressions
+
+C: Serial/parallel ports and printing
+
+PROC prints:
+  OPEN "clients",A,a$
+  LOPEN "PAR:A"
+  PRINT "Printing..."
+  DO
+    IF LEN(A.a$)
+      LPRINT A.a$
+    ENDIF
+    NEXT
+  UNTIL EOF
+  LPRINT CHR$(12); :LCLOSE
+  PRINT "Finished" :GET
+ENDP
+
+PROC rsset:(baud%,parity%,data%,stop%,hand%,term&)
+  LOCAL frame%,srchar%(6),dummy%,err%
+  frame%=data%-5
+  IF stop%=2 :frame%=frame% OR 16 :ENDIF
+  IF parity% :frame%=frame% OR 32 :ENDIF
+  srchar%(1)=baud% OR (baud%*256)
+  srchar%(2)=frame% OR (parity%*256)
+  srchar%(3)=(hand% AND 255) OR $1100
+  srchar%(4)=$13
+  POKEL ADDR(srchar%(5)),term&
+  err%=IOW(-1,7,srchar%(1),dummy%)
+  IF err% :RAISE err% :ENDIF
+ENDP
+
+PROC test:
+  PRINT "Testing port settings"
+  LOPEN "TTY:A"
+  LOADM "rsset"
+  rsset:(8,0,8,1,0,&0)
+  LPRINT "Port OK" :LPRINT
+  PRINT "Finished" :GET
+  LCLOSE
+ENDP
+
+PROC testread:
+  LOCAL ret%,pbuf%,buf$(255),end%,len%
+  PRINT "Test reading from serial port"
+  LOPEN "TTY:A"
+  LOADM "rsset"
+  REM receive at 2400 without h/shake
+  rsset:(11,0,8,1,0,&04002000) REM Control-Z or CR
+  pBuf%=ADDR(buf$)
+  DO
+    REM read max 255 bytes, after leading count byte
+    len%=255
+    ret%=IOW(-1,1,#UADD(pbuf%,1),len%)
+    POKEB pbuf%,len%   REM len% = length actually read
+                       REM including terminator char
+    end%=LOC(buf$,CHR$(26)) REM non-zero for Control-Z
+    IF ret%<0 and ret%<>-43
+      BEEP 3,500
+      PRINT
+      PRINT "Serial read error: ";ERR$(ret%)
+    ENDIF
+    IF ret%<>-43       REM if received with terminator
+      POKEB pbuf%,len%-1 REM remove terminator
+      PRINT buf$         REM echo with CRLF
+    ELSE
+      PRINT buf$;        REM echo without CRLF
+    ENDIF
+  UNTIL end%
+  PRINT "End of session" :PAUSE -30 :KEY
+ENDP
+
+D: Character codes
+

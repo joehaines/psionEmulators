@@ -1,0 +1,112 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss13</scrfont>
+<statwin>on</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N</rfmt>
+<rall>yes</rall>
+<starg></starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>2</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>20.00</xmax>
+<xmin>0.00</xmin>
+<ymax>150.00</ymax>
+<ymin>0.00</ymin>
+<xintrvls>5</xintrvls>
+<yintrvls>15</yintrvls>
+<xycells>tnm,trapzd</xycells>
+<cell>
+<cname>a</cname>
+<val>-4</val></cell>
+<cell>
+<cname>b</cname>
+<val>4</val></cell>
+<cell>
+<cname>delta</cname>
+<val>0.13</val></cell>
+<cell>
+<cname>EPS</cname>
+<val>0.001</val></cell>
+<cell>
+<cname>func</cname>
+<text>Enter the function of a single variable into the script of this cell.  In the script, denote the single variable by the symbol %1.  The initial example is for the polynomial 2*x*x+3*x+1, which is written 2*%1*%1+3*%1+1
+
+This is the function that will be integrated between a and b.</text>
+<val>43.82</val>
+<script>2*%1*%1+3*%1+1</script></cell>
+<cell>
+<cname>home</cname>
+<text>Use the trapezoidal rule to integrate a function defined in cell func, between endpoints a and b, to a fractional accuracy contained in the value field of cell EPS.
+
+This web is derived from p. 120 of "Numeric Recipies in C", first edition.
+
+To use this web, enter the function to be integrated into the formula field of cell func, and the endpoints of the integration into the value fields of cells a and b.  Enter the maximum allowable fractional error in the result into the cell EPS.  Then execute the script of this cell.  The result of the integration appears in the value field of this cell.
+
+</text>
+<val>93.34</val>
+<script>set NumFmt to FIXED
+set NumDec to 2
+set olds to -100000000  #see text field of olds
+for(indx=1 to 20) {
+    set home to trapzd(a,b,indx)
+    if(abs(home-olds)&lt;EPS*abs(olds)) {
+        exit
+    } #endif
+    set olds to home
+} #endforp
+out("\nToo many steps")</script></cell>
+<cell>
+<cname>indx</cname>
+<val>8.00</val></cell>
+<cell>
+<cname>it</cname>
+<val>128.00</val></cell>
+<cell>
+<cname>jdex</cname>
+<val>64.00</val></cell>
+<cell>
+<cname>olds</cname>
+<text>Any number which is unlikely to be the averge of func at a and b will do here.</text>
+<val>93.38</val></cell>
+<cell>
+<cname>sum</cname>
+<val>746.50</val></cell>
+<cell>
+<cname>tnm</cname>
+<val>64.00</val></cell>
+<cell>
+<cname>trapzd</cname>
+<val>93.34</val>
+<script>if(%3=1) {
+    set it to 1
+    set trapzd to 0.5*(%2-%1)*(func(%1)+func(%2))
+} else {
+    set tnm to it
+    set delta to (%2-%1)/tnm
+    set x to %1+0.5*delta
+    set sum to 0.0
+    for(jdex=1 to it) {
+        set sum to sum+func(x)
+        set x to x+delta
+    } #endfor
+    set it to 2.0*it
+    set trapzd to 0.5*(trapzd+(%2-%1)*sum/tnm)
+    out("\nEstimate of integral: ",trapzd)
+} #endif</script></cell>
+<cell>
+<cname>x</cname>
+<val>4.06</val></cell></eof>

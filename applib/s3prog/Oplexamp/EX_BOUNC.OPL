@@ -1,0 +1,25 @@
+PROC bounce:
+	LOCAL posX%,posY%,changeX%,changeY%,k%
+	LOCAL scrx%,scry%
+	scrx%=40 :scry%=9
+	posX%=1	:posY%=1
+	changeX%=1 :changeY%=1
+	DO
+		posX%=posX%+changeX%
+		posY%=posY%+changeY%
+		IF posX%=1 OR posX%=scrx%
+			changeX%=-changeX%
+			REM at edge ball changes direction
+			BEEP 2, 600 REM low beep
+		ENDIF
+		IF posY%=1 or posY%=scry% REM same for y
+			changeY%=-changeY%
+			BEEP 2, 200 REM high beep
+		ENDIF
+		AT posX%,posY% :PRINT "0";
+		PAUSE 2	 REM Try changing this
+		AT posX%,posY% :PRINT " ";
+		REM removes old `0' character
+    	k%=KEY
+	UNTIL k%
+ENDP

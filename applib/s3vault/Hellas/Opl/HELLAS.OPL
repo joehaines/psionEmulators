@@ -1,0 +1,97 @@
+REM	H E L L A S . O P L
+REM	Version: 1995.02.22
+REM	Copyright ¸ 1995 Harald Arnesen
+
+proc main:
+	global	name$(25,17)
+	local	ucase$(25,1),lcase$(25,1),resp$(7),guess$(9)
+	local	font%,showu%,i%,j%
+	randomize datetosecs(year,month,day,hour,minute,second)
+	font%=gloadfont("\fon\hellas.fon")
+	font font%,8
+	setnames:
+	while 1
+		cls
+		showu%=0
+		j%=int(rnd*25)+1
+		if j%=i%
+			continue
+		else
+			i%=j%
+		endif
+		while 1
+			resp$=""
+			at 18,1
+			print chr$(i%+57)
+			if showu%
+				at 18,3
+				print chr$(i%+31)
+			endif
+			dinit
+			dedit resp$,""
+			if dialog=0
+				cls
+				gunloadfont(font%)
+				blurb:
+				stop
+			endif
+			guess$=" "+resp$+" "
+			if loc(name$(i%),guess$)
+				break
+			else
+				beep 8,400
+				if showu%
+					dinit
+					dbuttons name$(i%),13
+					dialog
+					break
+				else
+					showu%=1
+				endif
+			endif
+		endwh
+	endwh
+endp
+
+proc setnames:
+	name$( 1)=" alpha alfa "
+	name$( 2)=" beta vita "
+	name$( 3)=" gamma "
+	name$( 4)=" delta "
+	name$( 5)=" epsilon "
+	name$( 6)=" zeta zita "
+	name$( 7)=" eta ita "
+	name$( 8)=" theta thita "
+	name$( 9)=" iota "
+	name$(10)=" kappa "
+	name$(11)=" lambda "
+	name$(12)=" mu mi "
+	name$(13)=" nu ni "
+	name$(14)=" xi ksi "
+	name$(15)=" omicron omikron "
+	name$(16)=" pi "
+	name$(17)=" rho ro "
+	name$(18)=" sigma "
+	name$(19)=" sigma "
+	name$(20)=" tau taf "
+	name$(21)=" upsilon ipsilon "
+	name$(22)=" phi fi "
+	name$(23)=" chi hi "
+	name$(24)=" psi "
+	name$(25)=" omega "
+endp
+
+proc blurb:
+	dinit
+	dtext "","If you enjoyed this program,",2
+	dtext "","please send me a postcard.",2
+	dtext ""," ",2
+	dtext "","Harald Arnesen",2
+	dtext "","Apall›kkveien 23 A",2
+	dtext "","N-0956 Oslo",2
+	dtext "","Norway",2
+	dtext ""," ",2
+	dtext "","E-mail: haralda@oslonett.no",2
+	dialog
+endp
+

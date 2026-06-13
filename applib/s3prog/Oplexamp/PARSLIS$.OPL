@@ -1,0 +1,59 @@
+Rem   list$=list$ of items, comma delimited
+Rem   c%=number of item in list to return
+
+Rem   (c)Pelican Software Inc.
+Rem   This is given free to help
+Rem   those writing Opl/w for the
+Rem   Series 3 computer.
+
+Rem   Purpose - Opl doesn't allow for
+Rem   Getting the item name in a list
+Rem   using th Dchoice command. This
+Rem   little procedure will return 
+Rem   the item name.
+
+proc test:    Rem this just shows how it works.
+local list$(100),c%
+list$="January,Febuary,March,April,May,June,July,August,September,October,November,December"
+dinit"What Month?"
+dchoice c%,"Choose:",list$
+if dialog
+ print "Your choice was ";parslis$:(list$,c%)
+ get
+endif
+endp
+
+Rem this is the actual procedure
+Rem Feel free to use it.
+
+PROC Parslis$:(list$,c%)
+local len%,l%,found%,b%
+local item$(12),c$(1)
+ len%=len(list$)
+ if loc(list$,",")=0
+  item$=list$
+  goto end::
+ endif
+ l%=1
+if c%=1
+  goto skip
+endif
+ do
+  c$=mid$(list$,l%,1)
+  if c$=","
+   found%=found%+1
+  endif
+  l%=l%+1
+ until found%=c%-1
+skip::
+   do
+    item$=item$+mid$(list$,l%,1)
+    l%=l%+1
+   until l%>len% or right$(item$,1)=","
+   if right$(item$,1)=","
+    item$=left$(item$,len(item$)-1)
+   endif
+   end::
+   return item$
+ENDP
+

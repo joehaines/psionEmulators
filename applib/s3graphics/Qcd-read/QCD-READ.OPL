@@ -1,0 +1,257 @@
+rem QCD-READ by Kevin Millican 1997
+rem Released to the Public Domain
+
+rem Reads and displays QuickCAD v2 (*.QCD)
+rem files but limited to basic functions,
+rem ie. no fills and single attribute
+
+rem Comments/Suggestions to
+rem kmillican@compuserve.com
+
+APP QuickCAD
+PATH "\QCAD"
+EXT "QCD"
+ICON "\ICN\QUICKCAD.PIC"
+TYPE $1104
+ENDA
+
+PROC QCDread:
+GLOBAL x1%,x2%,x3%,y1%,y2%,y3%
+GLOBAL res,cm$(3),scale,tx$(252)
+LOCAL e%(6),e$(255)
+LOCAL sl%,h%,r%,buf$(255)
+
+scale=1
+cm$=""
+gFONT 13
+
+ONERR fclose
+	r%=IOOPEN(h%,cmd$(2),$20)
+	WHILE 1=1
+	sl%=IOREAD(h%,UADD(ADDR(buf$),1),255)
+	POKEB ADDR(buf$),sl%
+	interp:(buf$)
+	ENDWH
+fclose::
+	ONERR OFF
+	interp:("NM>....")
+	r%=IOCLOSE(h%)
+	
+	WHILE e%(1)<>$404 AND e%(1)<>27 AND e%(1)<>632
+	GETEVENT e%()
+	ENDWH
+ENDP
+
+PROC interp:(l$)
+LOCAL ins$(2),v$(252)
+
+ins$=LEFT$(l$,2)
+v$=MID$(l$,4,255)
+
+IF ins$="Qu"
+rem PRINT"Located QuickCAD Header"
+ENDIF
+
+IF ins$="Ve"
+	IF LOC(v$,": RES")>0
+	res=EVAL(RIGHT$(v$,4))
+		IF res>0
+		scale=gHEIGHT/(0.75*res)
+		ENDIF
+	ENDIF
+ENDIF
+
+
+IF ins$="X1"
+x1%=EVAL(v$)*scale
+ENDIF
+
+IF ins$="X2"
+x2%=EVAL(v$)*scale
+ENDIF
+
+IF ins$="X3"
+x3%=EVAL(v$)*scale
+ENDIF
+
+IF ins$="Y1"
+y1%=EVAL(v$)*scale
+ENDIF
+
+IF ins$="Y2"
+y2%=EVAL(v$)*scale
+ENDIF
+
+IF ins$="Y3"
+y3%=EVAL(v$)*scale
+ENDIF
+
+IF ins$="TX" OR ins$="NO"
+tx$=v$
+ENDIF
+
+IF ins$="NM"
+	IF cm$="LIN"
+	gAT x1%,y1%
+	gLINETO x2%,y2%
+	ENDIF
+
+	IF cm$="BOX"
+	gAT x1%,y1%
+	gBOX x2%-x1%,y2%-y1%
+	ENDIF
+	
+	IF cm$="ARC" OR cm$="CIR"
+	P3Arc:
+	ENDIF
+	
+	IF cm$="TEX" OR cm$="NUM"
+	gAT x1%,y1%+7
+	gPRINT tx$
+	ENDIF
+		
+cm$=LEFT$(UPPER$(v$),3)
+ENDIF
+
+ENDP
+
+PROC P3Arc:
+LOCAL x1,x2,x3,y1,y2,y3,a1,b1,a2,b2
+LOCAL xm1,xm2,ym1,ym2,ang1,ang2,angmid
+LOCAL xi,yi,r,g1,g2,c1,c2,angc,temp
+x1=FLT(x1%)
+x2=FLT(x2%)
+x3=FLT(x3%)
+y1=FLT(y1%)
+y2=FLT(y2%)
+y3=FLT(y3%)
+
+	IF x2=x1
+	x2=x2+.0001
+	ENDIF
+
+a1=(y2-y1)/(x2-x1)
+b1=y2-a1*x2
+
+	IF x3=x2
+	x3=x3+.0001
+	ENDIF
+
+a2=(y3-y2)/(x3-x2)
+b2=y3-a2*x3
+xm1=(x2+x1)/2
+ym1=(x2+x1)*a1/2+b1
+xm2=(x3+x2)/2
+ym2=(x3+x2)*a2/2+b2
+
+	IF a1=0
+	a1=.0001
+	ENDIF
+
+	IF a2=0
+	a2=.0001
+	ENDIF
+
+g1=-1/a1
+g2=-1/a2
+c1=ym1-g1*xm1
+c2=ym2-g2*xm2
+
+	IF g1=g2
+	g1=g1+.0001
+	ENDIF
+
+xi=(c2-c1)/(g1-g2)
+yi=g1*xi+c1
+r=SQR((x1-xi)**2+(y1-yi)**2)
+
+IF cm$="CIR"
+ang1=0
+ang2=360
+
+ELSE
+
+	IF x1=xi
+	x1=x1+.0001
+	ENDIF
+
+ang1=ATAN((y1-yi)/(x1-xi))
+
+	IF (x1-xi) < 0
+	ang1=ang1+PI
+	ENDIF
+
+	IF ang1 < 0
+	ang1=ang1+2*PI
+	ENDIF
+
+ang1=2*PI-ang1
+
+	IF x3=xi
+	x3=x3+.0001
+	ENDIF
+
+ang2=ATAN((y3-yi)/(x3-xi))
+
+	IF (x3-xi) < 0
+	ang2=ang2+PI
+	ENDIF
+
+	IF ang2 < 0
+	ang2=ang2+2*PI
+	ENDIF
+
+ang2=2*PI-ang2
+
+	IF x2=xi
+	x2=x2+.0001
+	ENDIF
+
+angmid=ATAN((y2-yi)/(x2-xi))
+
+	IF (x2-xi) < 0
+	angmid=angmid+PI
+	ENDIF
+
+	IF angmid < 0
+	angmid=angmid+2*PI
+	ENDIF
+
+angmid=2*PI-angmid
+
+angc=-(ang1 > ang2)-2*(ang1 > angmid)-4*(ang2 > angmid)
+
+	IF angc=0 OR angc=3 OR angc=6
+	temp=ang1
+	ang1=ang2
+	ang2=temp
+	ENDIF
+	
+ang1=ang1*180/PI
+ang2=ang2*180/PI
+
+ENDIF
+
+Arc:(xi,yi,r,ang1,ang2)
+ENDP
+
+PROC arc:(x,y,r,a1,a2)
+LOCAL a,s,c
+
+c=a2*PI/180
+a=a1*PI/180
+	IF c<a
+	c=c+2*PI
+	ENDIF
+s=PI/18
+
+gAT INT(x+r*COS(a)),INT(y-r*SIN(a))
+
+WHILE a<c
+gLINETO INT(x+r*COS(a)),INT(y-r*SIN(a))
+a=a+s
+ENDWH
+
+gLINETO INT(x+r*COS(c)),INT(y-r*SIN(c))
+
+ENDP

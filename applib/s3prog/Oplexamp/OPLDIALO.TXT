@@ -1,0 +1,45 @@
+Default extensions in OPL dialogs
+
+One of the things that's a real pain
+in the bum when making OPL filename edit-
+boxes, is that you can't set a default
+file extension without having silly things
+like ".PIC" already in the box.
+
+Here's the solution. It's so simple I'm
+surprised noone spotted it before:
+
+PROC Demo:
+        PRINT "File chosen:",NewFile$:("\WRD\",".WRD")
+        GET
+ENDP
+
+
+PROC NewFile$:(initDir$,initExt$)
+        LOCAL fname$(130),buffer%(66),index%
+        LOCAL pDialog%,bufLBC%,bufText%,WNSET%
+        
+        WNSET%=10
+        bufLBC%=ADDR(buffer%(1))
+        bufText%=ADDR(buffer%(2))
+        fname$=initDir$+initExt$
+        
+        dINIT "New file"
+        pDialog%=PEEKW($36)
+        dFILE fname$,"File:",$11
+        
+        index%=1 REM File edit box is our first item.
+        POKE$ bufLBC%,"x"+CHR$(1)+initExt$
+        CALL($D9,pDialog%,WNSET%,index%,bufText%)
+        POKE$ bufLBC%,"x"+initDir$
+        CALL($D9,pDialog%,WNSET%,index%,bufText%)
+        
+        IF DIALOG
+                RETURN fname$
+        ENDIF
+ENDP
+
+Special thanks to Ali (psion_c) for his informative
+VARRAY.DOC document, which inspired this solution.
+
+Jezar.

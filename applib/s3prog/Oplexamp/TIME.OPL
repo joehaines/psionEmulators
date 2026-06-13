@@ -1,0 +1,153 @@
+#include <opllib.oph>       /* opl/g Language includes and definitions */
+#include <oplerr.oph>
+#include <os.oph>
+
+PROC time:
+
+	LOCAL err%
+
+	PRINT "Setting time and date."
+	GET
+	
+	err% = ossettm%:(13,26,30,TIME_24_HOUR)
+	IF err% < 0
+		PRINT "Error =",err%
+		GET
+		STOP
+	ENDIF
+
+	err% = ossetdt%:(14,1,1992)
+	IF err% < 0
+		PRINT "Error =",err%
+		GET
+		STOP
+	ENDIF
+
+	PRINT "Done"
+	GET
+
+ENDP
+
+
+
+
+
+
+
+
+
+
+
+
+/* --------------------------------------------------------
+ Name          : ossettm%
+ Description   : Set the system time with current date. 
+ Parameters    : sec%    0 -> 59
+                 min%    0 -> 59
+                 hour%   0 -> 23 or 1 -> 12
+                 mode%   TIME_AM_12_HOUR   1
+                        TIME_PM_12_HOUR   2
+                        TIME_24_HOUR      4
+ Returned      : SUCCESS or -ve for Fail
+ Conditions    : the machine is an MC
+ Effects       : none
+ --------------------------------------------------------*/
+
+PROC ossettm%:(hh%,mm%,ss%,mode%)
+                                /* --------------------------- */
+                                /* Local Variable Declarations */ 
+                                /* --------------------------- */
+
+  local hour%                   /* holds supplied hour                  */
+
+                                /* --------------------------- */
+                                /*       Procedure Code        */
+                                /* --------------------------- */
+
+  if mode%<TIME_AM_12_HOUR or mode%>TIME_24_HOUR or hh%<0 or mm%<0 or ss%<0
+     return -2                  /* check mode in correct range          */
+  endif                         /* and times are positive               */
+  
+  hour% = hh%                   /* assign hour parameter so can be 
+                                   altered                              */
+  if (mode%=TIME_AM_12_HOUR or mode% = TIME_PM_12_HOUR) 
+                                /* AM or PM mode                        */
+    if (hour%<1 or hour%>12)    /* check range for hours : return error */
+      return -2                 /* if out of range                      */
+    elseif mode% = TIME_AM_12_HOUR and hour% = 12
+      hour% = 0                 /* hour = 0 if AM and 12                */
+    elseif mode% = TIME_PM_12_HOUR and hour%<>12
+      hour% = hour%+12          /* if afternoon and not 12, add 12      */
+    endif
+  elseif mode% = TIME_24_HOUR and hour%>23
+    return -2                   /* if 24 mode,and hour !< 23,return err */
+  endif
+  if mm%<=59 and ss%<=59        /* check max positive range of min & sec*/
+    return setdttm%:(DAY,MONTH,YEAR,hour%,mm%,ss%)
+  endif
+  return -2                     /* if nothing return error              */
+ ENDP
+
+/* --------------------------------------------------------
+ Name          : ossetdt%
+ Description   : Set the system date with current time.
+ Parameters    : dd%    1 -> 28,29,30,31
+                 mm%    1 -> 12
+                 yyyy%  1970 -> 2038
+                 mode%  0 (for future use)
+ Returned      : SUCCESS or -ve for Fail
+ Conditions    : the machine is an MC
+ Effects       : none
+ --------------------------------------------------------*/
+
+PROC ossetdt%:(dd%,mm%,yyyy%)
+
+                  /* --------------------------- */
+                  /*       Procedure Code        */
+                  /* --------------------------- */
+  
+    return setdttm%:(dd%,mm%,yyyy%,HOUR,MINUTE,SECOND)
+  
+ ENDP
+
+/* --------------------------------------------------------
+ Name         : setdttm%:
+ Description  : sets system time and date
+ Parameters   : day% 
+                month%
+                year%
+                hour%
+                min%
+                sec%
+ Returned     : SUCCESS (0)
+                -2 fail (Invalid arguments)
+ Conditions   : 
+ Effects      : sets system time and date from 01/01/1970 00:00:00 (UNIX time)
+ --------------------------------------------------------
+*/
+
+PROC setdttm%:(day%,month%,year%,hour%,min%,sec%)
+
+local ax%,bx%,cx%,dx%,si%,di%   /* registers  */
+local sec&                      
+
+  if year%>=1970
+    onerr e::
+    sec& = (DAYS(day%,month%,year%)-25567)*86400+hour%*&e10+min%*60+sec%
+                                  /* seconds since 01/01/1970 00:00:00
+                                     25567 = days (01/01/1970)
+                                     86400 = seconds in a day (24*60*60
+                                     &e10 = 3600 (ie seconds in an hour)  */
+    cx% = peekw(addr(sec&)+2)     /* MS word of seconds into cx           */
+    dx% = peekw(addr(sec&))       /* LS word of seconds into dx           */
+    ax% = $0300                   /* TimSetSystem is function 3 of
+                                     TimManager                           */
+    os($89,addr(ax%))             /* $89 = TimManager interrupt -
+                                     no flags returned                    */
+    return 0
+  endif
+  e::                             /* error handling label                 */
+  onerr off
+  return -2
+ENDP
+

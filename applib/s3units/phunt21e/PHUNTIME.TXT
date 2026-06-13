@@ -1,0 +1,1028 @@
+
+
+				     PhunTime
+
+			     Version 2.1F - September 1998
+		      Copyright ¸ PhunSoft 1998 - Peter Hunkeler
+
+
+       Content
+       =======
+
+       1.1 Introduction
+       1.2 Copyright notice
+       1.3 Acknowledgments
+       1.4 Disclaimer
+       1.5 Author's Address
+       1.6 Installation
+|      1.7 Version 2.1F Release News
+
+       2.1 General Description
+       2.2 When Start and End Times lie on Different Days
+       2.3 !? 23:59 = 24:00 ?!
+       2.4 Updating Records and Data File Peculiarity
+       2.5 Project Record Description
+       2.6 Tracking Record Description
+
+       3.1 Tracking Mode
+       3.2 Tracking Mode Functions and Hot Keys
+
+       4.1 List Mode
+       4.2 List Mode Functions and Hot Keys
+
+       5.0 Mode Independent Functions
+       5.1 Psion-O: Open another PhunTime file set
+       5.2 Psion-N: Create a new PhunTime file set
+       5.3 Shift-TAB: Swap between current and previous file set
+       5.4 Psion-S: Display Summary by Projects
+       5.5 Psion-P: Print Summary by Projects to a File
+       5.6 Psion-Shift-P: Print Tracking Data Records to a File
+|      5.6.1 Formatted Listing of Tracking Records
+|      5.6.2 Unformatted Listing of Tracking Records
+       5.7 Psion-M: Merge Tracking Records into the Current Tracking File
+       5.8 Psion-Shift-M: Merge Project Records into the Current Project File
+       5.9 Psion-Shift-T: Tidy up the Tracking Data File
+       5.10 Psion-Q: Change PhunTime Behaviour (Settings)
+       5.11 Psion-Shift-R: Enable/Disable automatic Re-Ordering after Updates
+|      5.12 Psion-Shift-V: Show PhunTime's Version/Build Information
+|      5.13 Psion-X: Exit PhunTime
+
+       6.1 Sort Function
+       6.2 Sort doesn't seem to complete
+
+|      7.1 The Conversion Program PhunTCnv.OPO
+
+|      8.1 Known Restrictions
+
+|      9.1 Release History
+
+
+       1.1 Introduction
+       ================
+
+       PhunTime is a work time recording program for the Psion Series 3c.
+       The program has been designed to run on a Psion Series 3c although it
+       should run on a Series 3a as well.
+
+|      PhunTime is now available in different languages. Currently English
+|      and German are supported. Others may follow if need comes up.
+
+|      Changes to this guide are indicated with "Revision Marks |" in column 1.
+
+       1.2 Copyright notice
+       ====================
+
+       Copyright ¸ PhunSoft 1997-1998, Peter Hunkeler
+       Reverse translation is prohibited.
+
+       PhunTime is FreeWare+
+
+       FreeWare+ is almost like FreeWare: You may freely use and further
+       distribute this program provided that you keep all files of the package
+       together and unmodified.
+
+       So why is it called FreeWare+, then? This is because I would like to
+       invite you to send me a nice postcard of your place of residence
+       should you like the program and decide to keep on using it.  See below
+       for snail mail address.
+
+       I will try to inform you about important updates if you provide me
+       with an eMail address of yourself.
+
+
+       1.3 Acknowledgments
+       ===================
+
+       I would like to express my special thanks to:
+
+	    Clive D.W. Feather for his wonderful Psionics files. Without the
+	    detailed information on the Series 3x operating system this program
+	    wouldn't have been possible the way it works.
+
+	    John Boyce, author of JBSort, for his help regarding the database
+	    file sorting.
+
+
+       1.4 Disclaimer
+       ==============
+
+       This software is provided without warranty of any kind.  The author
+       shall not be held liable for any loss or damage of any kind due to the
+       use of this program.
+
+
+       1.5 Author's Address
+       ====================
+
+       Snail mail   PhunSoft
+		    Peter Hunkeler
+		    Friedhofstrasse 7
+		    CH-8903 Birmensdorf / ZH
+		    Switzerland
+
+       eMail	    peter_hunkeler@bigfoot.com
+       Home page    www.geocities.com/SiliconValley/Park/8467
+
+
+       1.6 Installation
+       ================
+
+|      The PhunTime package consists of the following five files:
+
+		    PhunTime.Opa	    the program file
+		    PhunTime.Hlp	    the online help file
+		    PhunTime.Srt	    the sort subroutine
+		    PhunTime.Txt	    this description
+|		    PhunTCnv.Opo	    the file set conversion program
+
+|      To install PhunTime simply copy the files PhunTime.Opa, PhunTime.Srt and
+|      PhunTime.Hlp to the \APP directory on any drive but be sure to keep them
+|      all one the same drive, then install PhunTime.Opa on the system screen.
+|
+|      You only need to copy PhunTCnv.Opo to an \OPO directory if you need to
+|      convert file sets from version 1.x to version 2.1. See 7.1 for details.
+
+       You can omit the help file PhunTime.Hlp if you were short on memory.
+
+
+|      1.7 Version 2.1F Release News
+|      =============================
+|
+|      PhunTime version 2.1F is a major update and contains some significant
+|      enhancements and changes. They are described here and are also
+|      summarized under "9.1 Release History".
+|
+|      The tracking data and project files now contain a special identification
+|      record that allows PhunTime to check for correct files when opening a
+|      file set. A conversion Program (PhunTCnv.OPO) has been provided
+|      separately to convert file sets between PhunTime version 1.x and version
+|      2.1 file sets. See 7.1 on how to use PhunTCnv.OPO.
+|
+|      The tracking data file has an additional field called "Detail Field".
+|      You may enter some additional text in this field to further describe
+|      your detailed activity while working on a project. The field will
+|      not be used by PhunTime to produce the "Summary by Project" report,
+|      i.e. this report will show one summary line per project found in the
+|      period no matter what the detail fields may contain.
+|      The field will, however, optionally be shown in the "Print Tracking
+|      Records" report. See also "List mode's" V-key function.
+|
+|      PhunTime now shows date and time in either the format you set on
+|      your Series 3c/a using the Time Application or you may set it
+|      explicitly. The same applies to the Start-of-Week setting.
+|      PhunTime will check for any format changes whenever it is brought
+|      to foreground if you have chosen to inherit the settings from the
+|      Series 3c/a. The display will then be adjusted immediately.
+|
+|      NOTE: The format that PhunTime uses to show the date and time may
+|	     be different from the format used in the various dialogs if
+|	     you set the date/time format explicitly (i.e. not using "Auto").
+|	     This is due to the fact that the dialogs' date/time format
+|	     always follow the Time Application settings.
+|
+|      The tracking data records may be printed in an "unformatted" way
+|      which allows them to be imported into other applications, like
+|      spreadsheets, word processors, etc.
+|
+|      The Tidy function now allows only records matching specific projects
+|      to be tidied.
+|
+|      You can now search for records matching a search argument in either
+|      the project field, the detail field or in both fields.
+
+
+
+       2.1 General Description
+       =======================
+
+       PhunTime is a program to track, i.e. record, the time spent working
+       on different projects. The base idea of this program was to support
+       working on multiple projects even during one single day while providing
+       an easy way to track the time being spent on each of the projects.
+
+       There are two operating modes:  "Tracking Mode" and "List Mode".  The
+       first being used to start and stop tracking; the latter to view and
+       edit any tracking data record in the file set.
+
+       Use the DIAMOND key to switch mode.
+
+       The program gets the current date and time whenever you start or stop
+       working on a project or switch to work on a different project.  You can,
+       therefore, start and stop the program at any time without affecting
+       its records.
+
+       Two separate files will be used to save the data:  A project file and
+       a tracking data file.  The first holds one record for every project
+       you have defined.  The second file will be used to record your "start
+       working" and "stop working" times in so called tracking records.
+
+       Both files will have the same file name but a different extension and
+       will be located in the \OPD directory on the internal drive by
+       default:
+
+	     The project file .  .  .  .  .  M:\OPD\anyname.PTP
+	     The tracking record file  .  .  M:\OPD\anyname.PTT
+
+       You can have any number of different project/tracking file sets,
+       limited only by the amount of disk storage you have.
+
+       Note:  You are strongly discouraged to save the files on any non-RAM
+       drive like Flash-SSDs because, by the nature of the Series 3c's
+       database system, data cannot be updated in place but has to be appended
+       at the end of the data file.  Your Flash-SSD would fill up very fast.
+
+
+       Projects can be added, edited and deleted in "Tracking Mode" while
+       tracking records can be added, edited and deleted in the "List
+       Mode". In addition, tracking records can be copied to a clipboard and
+       inserted (pasted) from the clipboard in both modes. See below for a
+       detailed description on both modes.
+
+       Any tracking record can either be "active" or it can be "closed".
+       A tracking record is considered "active" when its "End Time" is 0:00.
+       When the end time is anything else than 0:00 it is considered "closed".
+
+       Note that it does not normally make sense to have more than one "active"
+       record in one single file set.
+
+       Every file set can be in the state of "currently tracking" or "not
+       currently tracking".  A file set is considered "currently tracking" if
+       and only if the most current record, i.e. the VERY LAST record in the
+       tracking file is an "active" record. This is checked whenever a record
+       is appended or when a file set is opened.
+
+
+       2.2 When Start and End Times lie on Different Days
+       ==================================================
+
+       A single tracking record only ever holds data for one single day.
+       PhunTime will write one record per day if work was started on a given
+       day but ended the next day or later.  You don't have to take care of
+       this.  The initial record will end at 23:59 the first day (see below
+       for a comment on the special time 23:59).  Any number of full day
+       records (i.e. 0:00 - 23:59) will be written as needed.  Finally, the
+       ending day will be recorded as having begun at 0:00 and ended at the
+       actual end time.
+
+
+       2.3 !? 23:59 = 24:00 ?!
+       =======================
+
+       The program considers any STOP time of 23:59 to actually mean 24:00.
+       This is due to the fact that OPL`s time dialog does not allow 24:00 to
+       be entered.  For example, a record holding a start time of 14:30 and
+       an end time of 23:59 will be reporting a duration of 9:30, whereas the
+       duration would be 9:28 if the end time were 23:58!
+
+
+       2.4 Updating Records and Data File Peculiarity
+       ==============================================
+
+       Psion's data file system doesn't allow data records to be updated in
+       place.  Instead, any write operation will always append the record at
+       the end of the file.  The old data of a record will only be marked
+       "deleted" in case of an update operation and the new data is written
+       at the end of the file.  Thus, there will be "dead" space in a file
+       which will not be recovered until the file will be closed. (See also
+       your Psion Series 3c User's Guide.)
+
+       Note: Recovering dead space will only be done if the file resides on
+       a RAM-type device! This is a Psion not a PhunTime restriction.
+
+       Recovering dead space may somewhat delay the closing of a file if the
+       file had many record because many the records will have to be moved.
+
+       PhunTime therefore needs to take special action to keep the tracking
+       records in chronological order:  Whenever you update a tracking record
+       PhunTime needs to "re-write" every record with an earlier date/time
+       than that of the updated record.  So, the tracking file may grow quite
+       fast when you update many records and/or the updated records are more
+       at the beginning than at the end of the file.
+
+       How to avoid space problems? Here are some hints:
+
+       o Never save file sets on Non-RAM type devices like Flash-SSDs
+	 (except archived data which probably will not be changed again.
+	 See Tidy function).
+
+       o Use "Disable Re-Order" if you intend to do multiple updates in a row.
+	 Disabling re-ordering will not only save a significant amount of disk
+	 space but will also greatly enhance processing speed. The drawback
+	 is that the records will become out of chronological order. You will
+	 have to get them sorted again using the Sort function or by letting
+	 PhunTime call Sort when you enable the re-ordering again.
+
+       o Using sort or closing and re-opening a file set will recover "dead"
+	 space (as long as the file set is on a RAM device).
+
+
+       2.5 Project Record Description
+       ==============================
+
+       The project records have a "Project", a "Description" and an "Order
+       string" field.
+
+       The "Project" field will be shown in the "Project Window" and COPIED to
+       the tracking data record whenever tracking is started.  Thus, changing
+       the project records has NO effect on already closed or active tracking
+       records.
+
+       The project records are held in alphanumeric order by the "Order
+       string".  The file is sorted whenever the program is closed, when a
+       new file set is opened and when you explicitly request it with
+       Psion-S.
+
+       The "Description" field is only for your personal use.  The program
+       does not make any use of it.
+
+
+       2.6 Tracking Record Description
+       ===============================
+
+       Tracking records have a "Start Date & Time", an "End Date & Time",
+|      a "Project" and a "Detail" field.
+
+       The "Date/Time" fields are used to hold the time spent working on ONE
+       project on ONE day. Thus, the date part will ever be the same for
+       one single record. The records are kept in ascending order by the
+       "Start" and the "End" fields.
+
+       The "Project" field will get its initial value from the selected project
+       when tracking was started. It may, however, be changed at any time to
+       any value as needed. No relation is kept to the project records.
+
+|      The "Detail" field can optionally contain some text that allows you to
+|      describe in detail the work being done for this project. This field
+|      will, however, not be used to create the "Summary by Project" report.
+|      It can be shown in "list mode" using the v-key and it may be included
+|      in the "Print Tracking Data Record" reports (either formatted or un-
+|      formatted ones). PhunTime will not otherwise make use of this field.
+
+
+       3.1 Tracking Mode
+       =================
+
+       This is the start up mode.  The upper part of the screen shows the
+       "Project Window", the lower part the so called "Current Window".
+
+       The "Project Window" shows all or part of the defined projects.  Use
+       the CURSOR keys to move the highlighted bar and select a project.  See
+       below for more details on cursor key behaviour.
+
+       The "Current Window" shows the last closed tracking record (if any) on
+       the upper line.  If the VERY LAST record in the file is an "active"
+       record it will be shown on the lower line and the program is in the
+       state of "currently tracking".
+
+
+       The SPACE key will do one of two things:
+
+       o If the program is NOT "currently tracking", i.e. the last record is
+	 NOT active, the program will start tracking the selected project.
+
+       o If the program is "currently tracking" it will stop tracking and
+	 "close" the active record with at the current time.
+
+	 If the currently highlighted project is NOT the same as the one the
+	 just closed record was tracking, the program will also immediately
+	 start tracking on the new project. (See "S"-key function if you want
+	 to stop, only.)
+
+
+       The "S"-key will unconditionally stop tracking, i.e. there will be no
+       test to see if the project being tracked and the highlighted project
+       match. If you were not tracking this has no effect.
+
+
+|      The digit keys 5 and 0 work similar to the SPACE key in that they
+|      will either start or stop tracking. The time recorded will be
+|      5 or 10 minutes, resp., before (if starting) or after (if stopping) the
+|      current time.
+
+
+       The ENTER key will let you edit the very last record in the tracking
+       file.  This may be an "active" or a "closed" record.  Use "List Mode"
+       to edit any other tracking record.  If you enter an "End Time" other
+       than 0:00 you will save a "closed" record.  Otherwise you will save
+       an "active" record.
+
+
+       3.2 Tracking Mode Functions and Hot Keys
+       ========================================
+
+       UP, DOWN       Move the highlighted bar entry wise.
+
+       LEFT, RIGHT    Move the highlighted bar column wise.
+
+       SPACE	      Start or Stop tracking. See above for details.
+
+       S	      The "S" key will unconditionally stop tracking. See the
+		      SPACE key behaviour to see the difference.
+
+       ENTER	      Start the edit dialog for the very last record in the
+		      tracking data file. Use List Mode to edit any other
+		      tracking record.
+
+|      5	      Start/Stop tracking with a delta of 5 minutes. See
+|		      above for details.
+|
+|      0	      Start/Stop tracking with a delta of 10 minutes. See
+|		      above for details.
+
+       Psion-ENTER    Creates a new tracking record for the highlighted
+		      project. This is almost the same as Psion-A in "List
+		      Mode". The initial start time/date will be the current
+		      time and date.
+
+       DELETE	      Deletes the LAST tracking record. The record will be
+		      copied to the clipboard. Use the "Insert" function to
+		      undo the delete operation by pasting it.
+
+       Psion-C	      Copy the very last tracking record to the clipboard.
+
+       Psion-I	      Insert data from the clipboard. You can edit the record
+		      before it will be written. If you were tracking AND the
+		      new record starts AFTER the active record, insert will
+		      also close the active record with an "End Time" equal to
+		      the new record's start time.
+
+
+       Functions to work with project file entries:
+
+       Psion-A	      Add a new project.
+
+       Psion-D	      Delete currently selected project. There is NO clipboard
+		      for project records.
+
+       Psion-E	      Edit currently selected project.
+
+       V	      Show the currently selected project's description field
+		      in the lower left corner.
+
+       Psion-Shift-S  Sort the project file. This will be done in a separate
+		      task called PhunTSrt using module PhunTime.Srt. See
+		      "Sort Function" for more on the sort process.
+
+
+       See "Mode Independent Functions" for more functions.
+       Most functions can also be called from the menu.
+
+
+       4.1 List Mode
+       =============
+
+       The List Mode shows all the tracking data records from the current
+       file set.  Use the CURSOR keys to move the highlighted bar.
+
+       Hit ENTER to edit the currently selected record. The record will be
+       updated and placed back so that the chronological order is maintained.
+       This may require many records to be "re-ordered", i.e. updated without
+       actually changing them. See "Updating Records and Data File Peculiarity"
+       for more details on this.
+
+       The upper right corner shows the record number of the first record
+       displayed and the total number of records in the tracking file.
+
+|      The detail field of the currently highlighted record may be shown in
+|      the lower left corner using the V-key.
+|
+|      The GoTo function (Psion-G) can be used to jump to a specific date in
+|      the list. The first entry on that date will be highlighted. If there is
+|      no entry for that date, it will be the first entry after the given
+|      date that will be higlighted.
+|
+|      The Search function (Psion-F) can be used to jump to entries that have
+|      a certain text either in the Project field, in the Detail field or in
+|      any one of them. The search will always be a case-independent wildcard
+|      search, i.e. the search string will be found anywhere in the selected
+|      field(s).
+|
+|      The search direction can be upwards or downwards from the currently
+|      highlighted entry or it can start at the first entry or at the last
+|      entry going downwards or upwards, resp.
+|
+|      Use the Repeat Search function (Psion-W) to search for the next/previous
+|      entry using the last serach arguments.
+
+
+       4.2 List Mode Functions and Hot Keys
+       ====================================
+
+       LEFT, RIGHT    Position the highlighted bar to the first or the last
+		      line of the display without scrolling.
+
+       UP, DOWN       Move the highlighted bar one entry up or down. Will
+		      scroll when on the first or last line, resp.
+
+       POS1 (Psion-LEFT), END (Psion-RIGHT)
+		      Position to the first or last record of the tracking data
+		      file.
+
+       PGUP (Psion-UP), PGDN (Psion-DOWN)
+		      Will scroll depending on where the highlighted bar is
+		      on the display:
+
+		      o Scroll the display one page up or down if the
+			highlighted bar was on the first or last display line,
+			resp.
+
+		      o If the bar is on any other line, the display will
+			scroll so that the highlighted record will be
+			displayed on the last or first display line, resp.
+
+       Psion-A	      Add a new tracking data record. The initial time/date
+		      will be taken from the highlighted record.
+
+       Psion-C	      Copy the selected tracking data record to the clipboard.
+
+       DELETE or Psion-D  Delete currently selected tracking data record. The
+			  record will be copied to the clipboard.
+
+       ENTER or Psion-E  Edit currently selected tracking data record.
+
+|      Psion-F	      Search for tracking records that contain a specified text
+|		      in either the project field, the detail field or in both
+|		      of them.
+|
+|      Psion-W	      Repeat the last search function.
+
+       Psion-G	      Go to a specific date.
+
+       Psion-I	      Insert data from the clipboard. The record may be edited
+		      before it will be written. If you were tracking AND the
+		      new record starts AFTER the active record, insert will
+		      also close the active record with an end time equal to
+		      the new record's start time.
+
+|      V	      Show the currently highlighted tracking record's detail
+|		      field in the lower left corner.
+
+       Psion-Shift-S  Sort the tracking data file. This will be done in a
+		      separate task called PhunTSrt using module PhunTime.Srt.
+		      See "Sort Function" for more on the sort process.
+
+
+       See "Mode Independent Functions" for more functions.
+       Most functions can also be called from the menu.
+
+
+       5.0 Mode Independent Functions
+       ==============================
+
+       Mode Independent Functions use the same key combinations and work
+       the same way in both modes. The can also be called from the menu.
+
+
+       5.1 Psion-O: Open another PhunTime file set
+       ============================================
+
+       To open another PhunTime file set select the corresponding tracking
+       data file, i.e. the PTT-file. The dialog will initially show PTT-files
+       on the internal drive's \OPD directory. You may switch to any other
+       directory in the usual way but be sure to select a PhunTime PTT-file.
+
+       PhunTime will refuse to open a file which has a different extension.
+       Note, however, that the program cannot check whether the PTT-file really
+       is a PhunTime tracking data file. Unpredictable results may occur if
+       you cheat.
+
+       A file set may only be opened if both the tracking data and the
+       project files are found in the same directory.
+
+       There will be no project file for an "archived" file set, i.e. one
+       created with the "Tidy" function.  Open will then ask you if it should
+       create a new, empty project file when you first open the "archived"
+       file set.
+
+
+       5.2 Psion-N: Create a new PhunTime file set
+       ============================================
+
+       Will create a new file set, i.e. a tracking data and a project file.
+       Both files will be empty, but you may reuse data from another file set
+       by merging either the tracking data or the project records from an
+       existing set (see Merge function).
+
+       It is NOT recommended to create file sets on Non-RAM type devices. See
+       "Updating Records and Data File Peculiarity" above.
+
+
+       5.3 Shift-Tab: Swap between current and previous file set
+       =========================================================
+
+       PhunTime will remember the currently open file set's name whenever you
+       open another file set using the open function. Shift-Tab lets you
+       switch easily between the last two file sets.
+
+       You will be prompted for a file set if you have not yet opened another
+       file set since starting PhunTime.
+
+
+       5.4 Psion-S: Display Summary by Projects
+       ========================================
+
+       Psion-S will bring up the initial dialog where you enter the date
+       period to be reported on. The initial start date will be set to the
+       first day of the week before the current week. The "first day of the
+|      week" can be set in the settings dialog. It is set to inherit it from
+|      the Time application's setting by default. The end date will be set so
+|      that the period covers a certain number of days; 7 days by default but
+|      this may be set, too.
+
+       ENTER will show the hours and minutes spent on each project during the
+       period.  Up to 30 different projects may summarized.  If there were
+       more than 30 projects in the period you will get a message and
+       PhunTime will report on the first 30 projects.  Choose a smaller
+       period to cover all projects.
+
+|      NOTE: The detail field will NOT be taken into account when summing up.
+
+       The PLUS "+" and MINUS "-" keys will change the Start/End dates by the
+       number of days shown.  This number is always equal to the period length
+       as defined in the settings dialog.
+
+       If there are more projects than fit into the dialog box, you will
+       see the UP and DOWN buttons appear.
+
+       The last line will show a grand total over all projects summarized
+       for the current period.
+
+       Note:  PhunTime will start from the beginning of the file to search
+       for the first record in the period.  It will then include all records
+       up to the first record with a start date after the end of the period.
+       Any out-of-sequence records will therefore NOT be included in the
+       summary. Use "Sort" first should you have such out-of-sequence records.
+
+
+       5.5 Psion-P: Print Summary by Projects to a File
+       ================================================
+
+       This works exactly the same as Psion-S except that the report
+       will be written to a file instead of shown on the screen.
+
+       There is currently no option to directly print to a printer.
+
+       You will be prompted for a file to hold the report. You will need to
+       decide whether to replace the file or append to it should the chosen
+       file already exist.
+
+       You can specify a "Left Margin" for the printed report.  The "Page
+       Length" will only be used when printing tracking records.
+
+
+       5.6 Psion-Shift-P: Print Tracking Data Records to a File
+       ========================================================
+
+|      You can print a list of tracking records to a file. The list can either
+|      be formatted or unformatted.
+
+
+|      5.6.1 Formatted Listing of Tracking Records
+|      ===========================================
+
+       The list will hold the data from the records, the duration per record
+       and the total duration for the day.
+
+|      You have the option to either have the detail fields printed or not
+|      printed in the report.
+
+       Optionally, the list will also contain the total duration per week.
+       What day to consider the first day of a week can be set in the
+|      settings dialog (see Psion-Q). The default is as set by the Time
+|      application.
+
+       A grand total will be printed at the end of the report.
+
+       The initial dates shown in the dialog are the first day of the current
+       month and the current date.
+
+       You can select whether all records in the specified period should be
+       printed or only those which match a given project.  If printing only
+       part of the records, you'll have to decide whether the project field
+       must exactly match your selection ("Exact match") or if it only has to
+       start with the given string ("Start with").
+
+       There is currently no option to directly print to a printer.
+
+       You will be prompted for a file to hold the report. You will need to
+       decide whether to replace the file or append to it should the chosen
+       file already exist.
+
+       The first record on every page will be a title.  This record contains
+       an ASCII Form Feed character ('0C'x) in its first position.
+
+       You can specify a "Left Margin" for the printed report and the "Page
+       Length" in the Settings dialog (see Psion-Q).
+
+
+|      5.6.2 Unformatted Listing of Tracking Records
+|      =============================================
+|
+|      The list will hold the data from the records separated by a character
+|      that you may choose during the initial dialog. The default character is
+|      a TAB character (X'09'). There will be neither a title nor any summary
+|      lines in the listing; only the data of every record will be included.
+|      This type of listing is intended to be used in other application like
+|      spreadsheets or word processors.
+|
+|      The initial dates shown in the dialog are the first day of the current
+|      month and the current date.
+|
+|      You have the option to either have the detail fields printed or not
+|      printed in the report.
+|
+|      You can select whether all records in the specified period should be
+|      printed or only those which match a given project.  If printing only
+|      part of the records, you'll have to decide whether the project field
+|      must exactly match your selection ("Exact match") or if it only has to
+|      start with the given string ("Start with").
+|
+|      There is currently no option to directly print to a printer.
+|
+|      You will be prompted for a file to hold the report. You will need to
+|      decide whether to replace the file or append to it should the chosen
+|      file already exist.
+
+
+       5.7 Psion-M: Merge Tracking Records into the Current Tracking File
+       ==================================================================
+
+       If you want to report on projects but you have recorded the work time
+       in different file sets, you need to combine the tracking records into
+       one file to get a complete report.  This function will do what you
+       need.  It is called "merging" because the tracking data records will
+       be copied first and the tracking file will be automatically sorted
+       then.
+
+       There is no option to copy only part of the records nor does PhunTime
+       check for duplicate records.
+
+
+       5.8 Psion-Shift-M: Merge Project Records into the Current Project File
+       ======================================================================
+
+       If you want to use the project records of a file set in the current
+       file set, too, you may copy them.  This is called "merging" because
+       the project records will be copied first and the project file will be
+       automatically sorted then.
+
+       There is no option to copy only part of the records nor does PhunTime
+       check for duplicate records.
+
+
+       5.9 Psion-Shift-T: Tidy up the Tracking Data File
+       =================================================
+
+       Processing may become slower as tracking data files grow. It is best
+       to keep the tracking file small, i.e. a few hundred records at most.
+
+       Using the "Tidy" function you have three options how to treat the
+       tracking records in the selected period:
+
+       o Delete tracking data records.
+
+       o Copy tracking data records to another tracking file.
+
+       o A combination of both, i.e. copy the records to another file and then
+	 delete them from the current file.
+
+|      You can select whether all records in the specified period should be
+|      treated or only those which match a given project.  If tidying only
+|      part of the records, you'll have to decide whether the project field
+|      must exactly match your selection ("Exact match") or if it only has to
+|      start with the given string ("Start with").
+
+       You can append the copied records to an already existing tracking data
+       file or you can create a new file for them.  Note that the "archive"
+       file will NOT be sorted automatically, so records will be out of order
+       if you append to an existing file.  Open the "archive" file and use
+       "Sort" to bring them back in order before using any report function on
+       the archived data.
+
+
+       5.10 Psion-Q: Change PhunTime Behaviour
+       =======================================
+
+       Some behaviour of PhunTime can be changed. The settings will be saved
+       in a configuration file called PhunTime.Ini. The file will be saved
+       in the \OPD directory on the internal drive, only.
+
+       You can set:
+
+       o Procedure caching On or Off. "On" speeds up processing but needs more
+	 memory. "Off" may be better should you be short of memory.
+
+       o The amount of memory to be used for caching, if caching is "On".
+
+       o The page length used when printing tracking records.
+
+       o The left margin used when printing summary reports and tracking
+	 records.
+
+|      o The language in which the day and month names are shown. Choices
+|	 are your Series 3's language or PhunTime's built-in language.
+|
+|      o The date and time format to be used by PhunTime. You may choose to
+|	 inherit the settings from the Time application by selecting "Auto"
+|	 or you may set them explicitly.
+|
+|	 NOTE: If "Auto" is set, PhunTime will check for changes whenever it
+|	       is brought to foreground and update its display if necessary.
+
+       o The default period to Show/Print summaries. This influences the
+	 initial Start/End dates shown in the Show/Print summary dialog.
+
+       o The weekday to be considered the first day of a week. This will
+	 be used to calculate the initial start date in the Show/Print summary
+|	 dialog and will determine when to write the "Weeks total" line in
+|	 the "Print Tracking Records" report.
+|
+|	 You may choose to inherit the settings from the Time application by
+|	 selecting "Auto" or you may set them explicitly.
+|
+|	 NOTE: If "Auto" is set, PhunTime will check for changes whenever it
+|	       is brought to foreground and update this value if necessary.
+
+
+       The configuration file is version dependent, i.e. a future version of
+       PhunTime may store additional data in it.  PhunTime will recognize a
+       version conflict and will fall back to the default values.  This will
+       overwrite the previous PhunTime.Ini file.  There is no migration, so
+       you'll have to set your personal settings again.
+
+
+       5.11 Psion-Shift-R: Enable/Disable automatic Re-Ordering after Updates
+       ======================================================================
+
+       PhunTime may need to "move" tracking records after you have edited
+       a tracking record. See "Updating Records and Data File Peculiarity"
+       for drawbacks.
+
+       Disable the "Re-Ordering" and PhunTime will no longer keep records
+       in chronological order. This speeds up processing and saves disk memory.
+       It is useful if you need to make multiple updates in sequence.
+
+       Enable the "Re-Ordering" again when you have finished the mass update.
+       PhunTime will ask you whether it should sort the records now.
+
+       This setting will NOT be saved in the configuration file and will be
+       set to "enabled" whenever a new file set is opened/created.
+
+
+       5.12 Psion-Shift-V: Show PhunTime's Version/Build Information
+       =============================================================
+
+       A small pop-up window shows PhunTime's version, language and the
+       date and time it was built.
+
+
+       5.13 Psion-x: Exit PhunTime
+       ===========================
+
+       The current file set is closed and PhunTime exits.
+
+
+       6.1 Sort Function
+       =================
+
+       The sort function will sort a project or a tracking data file. This
+       process will need large tables and therefore needs additional memory.
+
+       It is a Psion restriction that one single program cannot use more than
+       64k of memory. PhunTime will start a new process called PhunTSrt to
+       circumvent this restriction and to sort the file.
+
+       PhunTime will close the file, call PhunTSrt and re-open the sorted file
+       again when sort has finished. As a side effect, this will recover "dead"
+       space from deleted and updated records.
+
+       The Sort routine may handle up to 2500 records although this probably
+       is more a theoretical than a practical limit.
+
+
+       6.2 Sort doesn't seem to complete
+       =================================
+
+       Although care has been take to catch all cases where the sort process
+       cannot be successfully run there is always the chance than an unexpected
+       situation on your machine might let the sort process hang (probably
+       displaying an alert message). PhunTime would then wait forever for its
+       sort process to end.
+
+       PhunTime will start the sort routine "PhunTime.Srt" which in turn will
+       rename its running task to "PhunTSrt" when it has successfully been
+       started.  Until that time the sort task will appear a "SYS$PRGO" and
+       thus appear under the "RunOPL" icon on the system screen.  It will
+       show your open PhunTime file set name.
+
+       To resolve the deadlock situation, you'll have to cancel the sort task
+       using the system screen Psion-Shift-X (is this the same on all of the
+       Series 3c's language versions?) to kill the application. Make sure
+       you kill the sort process (showing up under RunOpl) not PhunTime itself.
+
+       Killing the sort process might leave temporary files in the same
+       directory as your PhunTime file set. The name being the same but the
+       extension being $nn (nn=11...99).
+
+
+|      7.1 The Conversion Program PhunTCnv.OPO
+|      =======================================
+|
+|      As described above, PhunTime has a new detail field in the tracking data
+|      file and both files contain an identification record. This made the
+|      files incompatible to version 1 files.
+|
+|      You may use the conversion program PhunTCnv.OPO if you'd like to
+|      continue to use your current file set(s) with PhunTime version 2.1F.
+|
+|      Start PhunTCnv.Opo from the RunOPL icon on your system screen. This
+|      program is not expected to be used heavily and therefore is not written
+|      as an installable OPA file with an own icon. And is does not contain
+|      as extensive error checking as PhunTime itself does.
+|
+|      You need to convert both files of any file set separately. The program
+|      only converts one file at a time. While it tries to guess on version 1.x
+|      files, it can not identify those files for sure. You'll be ask for
+|      confirmation. Starting from version 2.1, the files can always be
+|      identified with the help of the identification record.
+|
+|      PhunTCnv.Opo will not convert a file in place but will create a new
+|      file in the desired target version. All records are then converted and
+|      copied from the source to the target file. You need therefore to select
+|      a new non-existing file name and you will need enough space on the
+|      target drive.
+|
+|      The source file will be left unmodified in any case.
+|
+|      Converting from version 1.x to version 2.1 does copy all data.
+|      Converting from version 2.1 to version 1.x will DROP ALL detail fields
+|      as this field does not exist in version 1.x tracking files.
+
+
+|      8.1 Known Restrictions
+       ======================
+
+       Currently, the program will handle entries between
+
+	  January 1st, 1970 and December 31st, 2037
+
+       The internal time value use (a long integer) will become negative after
+       December 31, 2037.  This is not yet handled correctly!
+
+       Reports can only be printed to a file.  No direct printing to a printer
+       is supported yet.
+
+
+|      9.1 Release History
+       ===================
+
+|      V2.1F - September 24, 1998
+|	       o Added Record Type 4 to recognize PhunTime files and their
+|		 version. A conversion program was added to the package to
+|		 convert PhunTime files between versions (currently 1.x & 2.1)
+|	       o Added a new field "Details" that may optionally contain
+|		 some details for any single tracking record. This field
+|		 may be shown with the V-key function in the list mode. It
+|		 may also be printed on the tracking data report.
+|	       o Date/time format and language may be set explicitly or
+|		 may be inherited from Series 3c/a's Time application settings.
+|	       o Corrected an error in the "Print tracking records" report. The
+|		 first start time after a day break showed the minutes value of
+|		 the latest day or week duration field instead of the start
+|		 time's. The duration has always been calculated correctly!
+|	       o The Tidy function allows records to be tidied to be selected
+|		 by project, similar to the print tracking record function.
+|	       o Tracking records may be printed in a delimited field format.
+|		 This file may be imported into spreadsheets or word processors.
+|	       o Corrected a small error in GoTo function: Second line was high-
+|		 lighted instead of first when search date was before or at
+|		 first record in file.
+|	       o New function with keys 5 and 0 to start/stop with a delta of
+|		 5 or 10 minutes, resp.
+|	       o New function to search tracking records for matching text in
+|		 project and/or detail fields.
+|	       o Corrected a minor error in project window scrolling: Right
+|		 arrow did not always scroll past 3rd column.
+
+       V1.3F   February 18, 1998
+	       o New tracking mode function "v" to show project's description.
+
+       V1.2F   February 7, 1998
+	       o The "Print Tracking Records" function now allows reports to be
+		 printed for selected projects only.
+
+	       o The report will optionally show a summary line per week.
+
+	       o PhunTime needs to make sure there is enough free system
+		 memory to start the sort process PhunTSrt.  Otherwise there
+		 is the chance that PhunTime thinks PhunTSrt is running but
+		 PhunTSrt is not but is instead displaying an "out of memory"
+		 message.  PhunTime would then wait until the USER had
+		 confirmed that message which can only be seen when switching
+		 MANUALLY to PhunTSrt (found under the RunOPL icon).
+
+       V1.1F   February 2, 1998
+	       o This is the first release to the public.
+
+       V1.0F   November 1997
+	       o First final release; for personal usage only.

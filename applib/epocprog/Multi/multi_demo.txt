@@ -1,0 +1,140 @@
+Using dEDITMULTI on EPOC32 computers.
+
+The file multi_demo was produced to answer some of the queries I receive
+about the OPL32 dialog item, dEDITMULTI. Most of the details on how to
+use this item are clearly described in the OPL manual on the PsiWin CD,
+so this document describes only the example, and some issues which arise
+from its use.
+
+dEDITMULTI can use a buffer of any reasonable size. The example shows
+its use to load, modify, and save the contents of a standard OPL32 string.
+The form of the buffer is like an OPL32 string, except that the first 4
+bytes contain the number of characters in the buffer, in long integer
+form. Thus the buffer needs to be created with 4 more bytes than the total
+required text length. In my example the buffer is created using the ALLOC
+function. This has the benefit that the buffer may be sized while the
+application is running. Since a string variable may hold a maximum of
+255 characters, the buffer needs to be 255+4, which is rounded up to 260
+in the example.
+
+The main: procedure merely decares some GLOBAL values, namely pointers
+to buffer addresses and the two string fields used in the dialog. The
+latter are initialised - note that text$, which holds the text we are
+playing with, contains a CR+LF pair (denoting an end-of-line). dEDITMULTI
+uses CHR$(6) as its EOL character, so conversion between the two forms
+is required if text$ is likely to contain an EOL character(s).
+The thread id, which is required later, is stored to App&. For an OPO
+file, use:
+
+	App&=GetThreadIDFromOpenDoc&:(cmd$(1),temp&)
+
+For an application with its own UID, use:
+
+	App&=GetThreadIDFromAppUid&:(UID&,temp&)
+
+
+multi: is the procedure that calls the dialog. The buffer is created
+using ALLOC, and the address of the buffer is passed to pBuffAddr&.
+pLen& is set to point to the address holding the total number of characters
+buffered, and pText& points to the start of the text.
+
+The function To_buffer%:() performs the copying of text$ to the buffer, and
+the resultant number of characters is returned in written%. This value is
+POKEL'd into the buffer.
+
+The dialog should be self explanatory. dEDITMULTI is set to display in a 
+width of 30 characters columns, and 5 lines. The 255 is the maximum
+text length, i.e. the same as a string variable.
+
+Since dEDITMULTI can accept end-of-line characters, you cannot use the
+Psion Enter key to exit the dialog. Here some buttns have been added,
+Ctrl-S for save, Ctrl-E for exit, and Esc for Cancel. In this example,
+selecting save will allow you to see the result of your edit, cancel
+will also re-display the dialog, but with any changes cancelled, and
+exit will save and exit the demo.
+
+When the dialog appears, initially all the text in the dEDITMULTI field
+will be selected (highlighted). If there is a lot of text, the cursor will
+be positioned at the end of the text, which probably will be scrolled out
+of view. So the field will appear empty! To avoid this, you can send a
+Ctrl-Home character to the field. So before the dIALOG is activated, use
+
+	SendKeyEventToApp&:(App&,0,4098,14,KModifierCtrl&,0)
+
+In the example the initial field holding focus will be the dEDIT, so we
+can send a DownArrow first (to set focus to the required field), send the
+Ctrl-Home, then an UpArrow to return focus to the top field if required:
+
+	SendKeyEventToApp&:(App&,0,4105,17,0,0)
+	SendKeyEventToApp&:(App&,0,4098,14,KModifierCtrl&,0)
+	SendKeyEventToApp&:(App&,0,4105,16,0,0)
+	
+Note that the thread id, App&, was stored at the start of the program.
+
+After pressing Ctrl-S or Ctrl-E, the buffer is copied to the string text$
+by the function To_string%: and the length of the string is returned. This
+is POKEB'd into text$'s leading count byte.
+
+If exit was chosen, TRUE is returned, otherwise FALSE.
+
+The function To_buffer%: copies the characters in the string into the
+buffer. The first string character is always held at the ADDR(text$)+1,
+this is copied to pText&. i% counts the string characters read, and j%
+counts the characters copied. This is because any CR+LF pairs are converted
+into a single CHR$(6) eol character. In my code, CR is converted, and LF
+is ignored.
+
+The function To_string%: copies the characters from the buffer into the
+string variable. If a CHR$(6) is read, a CR and a LF are written to the
+string. i% counts the characters read from the buffer, j% counts those
+written to the string. Since this increases the number of characters by
+one for each CHR$(6) in the buffer, each time a character is written j% is
+checked, and should it become reater than 255, the copy is terminated.
+Any characters buffered after this point are lost.
+
+When writing your own code using dEDITMULTI, there are a few things to
+watch out for. As in the previous paragraph, make sure you are not going
+to overflow any buffers, strings, or arrays. If you need to start off with
+an empty buffer, ensure you POKEL the value zero into the first 4 bytes.
+When a dialog is created with more text than can be displayed, note that
+the cursor will be initially positioned at the end of the text! And all
+the text will be highlighted! So if you now press a key, say G, then all
+the text will be replaced by the single letter G! Instead, make it your
+practice to press UP Arrow, which will move the cursor to the start of the
+text and de-select it.
+
+Some other characters are stored as different values in a dEDITMULTI
+buffer. These are less important, but are listed in CONST.OPH.
+
+You can also use dEDITMULTI with much larger buffers. Text can be loaded
+and saved from files rather than strings. If no other application will
+be using your files, and they will only be displayed in a dialog, it may
+be unnecessary to convert the end-of-line characters, i.e. keep them as
+CHR$(6). Not that certain sized files take much longer to load than others,
+I don't know why, but making a file larger make speed up the loading!
+
+Remember to FREEALLOC any ALLOC'd buffer when you have finished with it.
+Since FREALLOC(p&) does not alter the value of p&, you could set p& back to
+zero after your FREEALLOC, and ALLOC the buffer only when p& is zero. This
+would help you prevent creating a new buffer should your code accidentally
+missed the FREEALLOC!
+
+I hope that these notes are useful. If you find any errors or omissions,
+please email me. Note that I disclaim any responsibility for errors in
+my code resulting in damage or loss of data. You use this code, like any
+other, at your own risk!
+
+My apologies to anyone who cannot understand my English!
+
+
+CREDITS
+
+Thanks to Henry (ahirst@theoffice.net) for showing me how to use 
+SendKeyEventToApp& to set the cursor to the 'home' position. 
+
+*************************************************************************
+
+Roger Muggleton
+hzk@cix.co.uk
+
+14th February, 1998

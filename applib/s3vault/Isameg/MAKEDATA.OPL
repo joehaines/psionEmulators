@@ -1,0 +1,62 @@
+/*
+Make some random data for ISAM prog list.opl
+*/
+proc makedata:
+    cache 2000,2000
+    openFile:
+    addData:
+    gIPrint num$(count,7)+" records"
+    close
+    beep 2,1000
+    pause -40 :key
+endp
+
+proc addData:
+    local recs&,d%
+
+    dInit "Add data randomly"
+    dLong recs&,"How many records",1,10000
+    d%=dialog
+    if d%
+        rndRecs:(recs&)
+    else
+        gIPrint "Aborted"
+        pause -10 :key
+    endif
+endp
+
+proc rndRecs:(recs&)
+    local recs%,crecs%
+
+    recs%=recs&
+    randomize 0
+    while crecs%<recs%
+        crecs%=crecs%+1
+        a.a$=chr$(rnd*26+%a)+chr$(rnd*26+%a)+chr$(rnd*26+%a)+chr$(rnd*26+%a)
+        a.b$=num$(crecs%,7)
+        append
+        if crecs%/100*100=crecs% :gIPrint num$(crecs%,7) :endif
+    endwh
+    gIPrint ""
+endp
+
+proc openFile:
+    local name$(128),res%
+
+    name$="m:\dat\data.dbf"
+    if exist(name$)
+        dinit
+            dText "",name$+" exists",2
+            dButtons "Replace",%r,"Append",%a,"Quit",%q
+        res%=dialog
+        if res%=0 or res%=%q :stop :endif
+        if res%=%r
+            trap delete name$
+            create name$,a,a$,b$
+        else
+            open name$,a,a$,b$
+        endif
+    else
+        create name$,a,a$,b$
+    endif
+endp

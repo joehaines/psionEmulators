@@ -1,0 +1,884 @@
+REM  Lap timer stopwatch, accurate to 1/32 second
+
+REM			Remove following block if you want to run
+REM 		LAPTIMER from the RUNOPL icon.
+
+APP Laptimer
+	type $9100  REM no files, has 48x48 icon, allow stop by delete key
+	icon "\pic\laptimer.pic"
+ENDA
+
+proc main:					REM startup
+	global ttime(3)       REM  total time since start
+	global laptime(300)   REM  store for lap times
+	global lapno%(3)      REM  lap number
+	global track$(20), distance
+												REM  current trackname & length
+	global traklis$(20,20), trakdis(20)
+												REM  list of track names, lengths
+	global rider$(3,9)		REM  rider names
+	global bestlap(3)     REM  so far for each rider
+	global bstlapn%(3)    REM  lap no for best
+	global mode%          REM  Count mode: 1=lap 2=total
+	global in%(3)					REM  Racers Initials
+	global running%, initok%
+	global debug%					REM  1 for debug prints (if present)
+	global nordrs%				REM  Number of riders
+	global direc$(9)			REM  Default directory for save files
+	global spd$(3)        REM  Speed units (mph/kmh)
+	global dist$(5)				REM  Distance units (miles,km)
+	global autosav%       REM  Mode
+	global autofn$(30)		REM  File for auto-save
+	local  choice%,i%
+
+	nordrs% = 3
+	direc$ = "\WRD"
+	spd$ = "mph"
+	dist$ = "miles"
+	autosav% = 0
+
+	i% = 1
+	REM Initialis rider names
+	do
+		rider$(i%) = "Racer"+fix$(i%,0,2)
+		i% = i% + 1
+	until i% > 3
+	REM print "Debug? (1 or 0) : "; 
+	REM input debug%
+	REM loadm "\opo\laplib.opo"
+	font 11,16
+	initrac:
+	diaminit 1, "Lap", "Total"
+	mode% = 1
+		statuswin on, 2: setname "Laptimer"
+	font -$3fff,0
+	boiler:
+	choice% = 1
+	do
+		REM Main loop in menu
+		if debug% : print "Outer loop" : get : endif
+		choice% = domenu:(choice%)
+		if (choice% = %x)
+			return
+		endif
+		if choice% = %r or choice% = %l
+			choice% = 257 REM go to "List" after run or list
+		else
+			choice% = 1 REM else go to run
+		endif
+	until 0
+	return
+endp
+
+proc timer:							REM main loop
+	local k%,s%,se%,mi%
+	local		time					REM  current abstime (wih fraction)
+	local		sttime				REM  start time
+	local		ltime(3)			REM  this/last lap time
+	global	pltime(3)			REM  total time at start of this lap
+	global	ppltime(3)		REM  saved prev lap time
+	local 	times(3)			REM  times held at space bar 
+	local 	min%, sec, i%, handle%, choice%, rno%
+	local 	times2(3)
+	local 	ch1%, ch2%, ch3%
+	k% = key
+	rno% = 3   REM has to be something
+start::
+	REM "RUN" goes here. Get start time early as possible
+	sttime = ctime:
+	pltime(1) = sttime
+	pltime(2) = sttime
+	pltime(3) = sttime
+	boiler:
+	REM Initialise arrays
+	i% = 1
+	while i% <= 3
+		bestlap(i%) = 9999999
+		lapno%(i%) = 0
+		i% = i% + 1
+	endwh
+	i% = 1
+	while i% <= 300
+		laptime(i%) = 0
+		i% = i% + 1
+	endwh
+	mi%=0: se%=0
+	running% = 1
+	while 1
+		k% = key
+		time = ctime:
+		if k% > 512   REM Psion+key
+			if k% = %x + 512 : return %x : endif
+			exemenu:(k%-512)
+			if k% = %l +512 : boiler: : bestlaps: : endif
+		elseif k% = 292   REM diamond key
+			if mode% = 1 : mode% = 2 : else : mode% = 1 : endif
+			diampos mode%
+		elseif k%=32 or k%=%s or k%=$122 or k%=%1 or k%=%2 or k%=%3 or (initok%=1 and (k%=in%(1) or k%=in%(2) or k%=in%(3)))
+			REM Space key or individual rider key
+			if k% = 32 and nordrs% > 1
+				times(1) = time
+				if nordrs% > 1
+					at 5,11 : print "Any key for second rider...     "
+					get : times(2) = ctime:
+					if nordrs% > 2
+						at 5,11 : print "Any key for third rider...      "
+						get : times(3) = ctime:
+					endif
+				endif
+				rno% = 1
+				REM Now need order...
+				if nordrs% > 2
+					at 5,11 : print "Enter order (keys 1,2,3) : ";
+				else
+					at 5,11 : print "Enter order (Keys 1 & 2) : ";
+				endif
+				ch1% = get
+				while ch1% < %1 or ch1% > %3 
+					at 5,11
+					print chr$(7)+"Order invalid: use 1,2,3 : ";
+					ch1% = get
+				endwh
+				print chr$(ch1%),
+				at 5,11 : print "Enter order (keys 1,2,3) : ";
+				ch2% = get
+				while ch2% < %1 or ch2% > %3 or ch2% = ch1% 
+					at 5,11
+					print chr$(7)+"Order invalid: use 1,2,3 : "; chr$(ch1%);
+					ch2% = get
+				endwh
+				print chr$(ch1%), chr$(ch2%),
+				if nordrs% > 2
+					at 5,11 : print "Enter order (keys 1,2,3) : ";
+					ch3% = get
+					while ch3% < %1 or ch3% > %3 or ch3% = ch1% or ch3% = ch2%
+						at 5,11
+						print chr$(7)+"Order invalid: use 1,2,3 : "; chr$(ch1%),chr$(ch2%);
+						ch3% = get
+					endwh
+					print chr$(ch1%), chr$(ch2%), chr$(ch3%),
+				endif
+				boiler:							
+				times2(1) = times(ch1%-%1+1)
+				times2(2) = times(ch2%-%1+1)
+				if nordrs% > 2
+					times2(3) = times(ch3%-%1+1)
+				endif
+				REM print times2(1),times2(2),times2(3) : get
+				rno% = 1
+				while rno% <= nordrs%
+					ltime(rno%) = times2(rno%) - pltime(rno%)
+					lapno%(rno%) = lapno%(rno%) + 1
+					ppltime(rno%) = pltime(rno%)
+					pltime(rno%) = times2(rno%)
+					laptime((rno%-1)*100+lapno%(rno%)) = ltime(rno%)
+					at 3+((rno%-1)*14),5 : print fix$(ltime(rno%),2,-6);
+					print "  L";gen$(lapno%(rno%),2)
+					if ltime(rno%) < bestlap(rno%)
+						bestlap(rno%) = ltime(rno%)
+						bstlapn%(rno%) = lapno%(rno%)
+					endif
+					at 3+((rno%-1)*14),7 : print fix$(bestlap(rno%),2,-6);
+					print "  L"; gen$(lapno%(rno%),2)
+					rno% = rno% + 1
+				endwh
+
+			REM Individual lap processing
+			elseif k%=%1 or k%=%2 or k%=%3 or (k%=32 and nordrs%=1) or (initok% and (k%=in%(1) or k%=in%(2) or k%=in%(3)))
+				if k% = 32
+					rno% = 1
+				elseif k%=%1 or k%=%2 or k%=%3
+					rno% = k% - %1 + 1
+				else  REM  initial pressed
+					i% = 1
+					while i% <= 3
+						if k% = in%(i%) : rno% = i% : endif
+						i% = i% + 1
+					endwh
+				endif
+				ltime(rno%) = time - pltime(rno%)
+				lapno%(rno%) = lapno%(rno%) + 1
+				ppltime(rno%) = pltime(rno%)
+				pltime(rno%) = time
+				laptime((rno%-1)*100+lapno%(rno%)) = ltime(rno%)
+				REM print last lap
+				at 3+((rno%-1)*14),5 : print fix$(ltime(rno%),2,-6);
+				print "  L"; gen$(lapno%(rno%),2)
+				if ltime(rno%) < bestlap(rno%)
+					bestlap(rno%) = ltime(rno%)
+					bstlapn%(rno%) = lapno%(rno%)
+					REM duplicate line
+					at 3+((rno%-1)*14),7 : print fix$(bestlap(rno%),2,-6);
+					print "  L"; gen$(lapno%(rno%),2)
+				endif
+				at 3+((rno%-1)*14),7 : print fix$(bestlap(rno%),2,-6);
+			elseif k% = $122 REM invoke menu
+				REM store all lap times. No need to display
+				rno% = 1
+				while rno% <= 3
+					ltime(rno%) = time - pltime(rno%)
+					lapno%(rno%) = lapno%(rno%) + 1
+					ppltime(rno%) = pltime(rno%)
+					pltime(rno%) = time
+					laptime((rno%-1)*100+lapno%(rno%)) = ltime(rno%)
+					ttime(rno%) = time - sttime
+					rno% = rno% + 1
+				endwh
+				REM Invoke menu. If coNtinue, have to undo the above
+				do
+					choice% = chsmenu:(257)
+					if choice% = %x : if confirm: : return : endif
+					elseif choice% = %r
+						REM print "running% : "; running%, "autosav% : "; autosav% : get
+						if running% and autosav% = 1
+							if autofn$ = ""
+								selofil:
+							endif
+							if autofn$ <> ""			
+								handle% = openfil:
+									if handle% <> 0
+									savlap:(handle%)
+								endif
+							endif
+						endif
+						goto start
+					elseif choice% <> %n and choice% <> 0 : exemenu:(choice%) : endif
+				until choice% = %n or choice% = 0
+				REM print "Continuing..." : get
+				REM continue - ignore prev lap
+				boiler: : bestlaps:
+				rno% = 1
+				while rno% <= 3 
+					lapno%(rno%) = lapno%(rno%) - 1
+					pltime(rno%) = ppltime(rno%)
+					rno% = rno% + 1
+				endwh
+			endif
+		endif
+		REM  Get here after special key processing, 
+		REM  or if no special key pressed.
+		if mode% = 1   REM display lap or total
+			ttime(1) = time - pltime(1)
+			ttime(2) = time - pltime(2)
+			ttime(3) = time - pltime(3)
+		else
+		  ttime(1) = time - sttime
+		  ttime(2) = time - sttime
+		  ttime(3) = time - sttime
+		endif
+		REM bottom line
+		at 3,9  : sec = ttime(1)
+		print fix$(sec,2,-6);
+		REM print "  L"; gen$(lapno%(1)+1,2)
+		at 17,9 : sec = ttime(2)
+		print fix$(sec,2,-6);
+		REM print "  L"; gen$(lapno%(2)+1,2)
+		at 31,9 : sec = ttime(3)
+		print fix$(sec,2,-6);
+		REM print "  L"; gen$(lapno%(3)+1,2)
+	endwh
+	REM S pressed
+	running% = 0
+	ttime(1)=ttime(2)=ttime(3) = time - sttime  REM needed if lap mode
+ENDP
+
+proc boiler:						REM Display all boilerplate text
+	local x%
+	font 11,16
+	cls : at 16,1 : 
+	gFont 8
+	gAt 160,20 : gPrint "Stopwatch"
+	gAt 150,3 : gBox 105,23
+	gAt 10,43   : gPrintb rider$(1), 100, 3
+	gAt 150,43  : gPrintb rider$(2), 100, 3
+	gAt 290,43  : gPrintb rider$(3), 100, 3
+	gfont 9
+	gstyle 0
+	gat 0,69 : gprint " Last"
+	gat 0,98 : gprint " Best"
+	gat 0,127
+	 : gprint " Curr"
+	at 11,11 :print "  Menu=Stop,  1,2,3=Lap    "
+ENDP
+
+proc domenu:(choice%)		REM Invoke menu and act on it
+	local ch%
+	if debug% = 1 : print "domenu", choice% : get : endif
+	ch% = chsmenu:(choice%)
+	ch% = exemenu:(ch%)
+return ch%
+endp
+
+proc chsmenu: (choice%)	REM Invoke menu to choose an option
+REM First arg can be used to force a default
+	local i%,k%
+	minit
+	mcard "File","Save",%s,"Show File",%f
+	if running%
+		mcard "Action","Run",%r,"List",%l,"Continue",%n
+	else
+		mcard "Action","Run",%r,"List",%l
+	endif
+	mcard "Setup","Racer Names",%m,"No. of riders",%o,"Set Circuit",%c,"Distance",%d,"Add Circuit",%a,"Clear all Circuits",%:
+	mcard "Special","Preferences",%+,"Clear Best Laps",%b,"Use Initials",%u,"Exit",%x
+	mcard chr$(4),"Lap",%p,"Total",%t
+	if choice% <> 0 
+		i% = choice%
+	else 
+		i% = k% : 
+	endif
+	k% = menu(i%)
+	return k%
+endp
+
+proc exemenu:(choice%)	REM Execute choice from menu
+	local handle%
+	if debug% = 1 : print "Exemenu",chr$(choice%) : endif
+	if choice%=%x
+		if confirm: : return choice% : endif
+	REM only returns from timer if exit chosen
+	elseif choice%=%r
+		REM print "running% : "; running%, "autosav% : "; autosav% : get
+		if running% and autosav% = 1
+			if autofn$ = ""
+				selofil:
+			endif
+			if autofn$ <> ""			
+				handle% = openfil:
+				if handle% <> 0
+					savlap:(handle%)
+				endif
+			endif
+		endif
+		timer: : return %x
+	elseif choice%=%l : list:
+	elseif choice%=%s
+		handle%=openout:
+		if handle% <> 0
+			savlap:(handle%)
+		endif
+	elseif choice%=%d : choosdis:
+	elseif choice%=%p : mode% = 1 : diampos mode%
+	elseif choice%=%t : mode% = 2 : diampos mode%
+	elseif choice%=%m : chrider: : boiler:
+	elseif choice%=%c : choostrk:
+	elseif choice%=%a : addtrack:
+	elseif choice%=%b : clrbest:
+	elseif choice%=%o : noriders:
+	elseif choice%=%u : initials:
+	elseif choice%=%+ : doprefs:
+	elseif choice%=%: : clrtrks:
+	elseif choice%=%f : filedisp:
+
+	endif
+	return choice%
+endp
+
+proc doprefs:						REM Set preferences
+	local choice1%, choice2%, ldirec$(9)
+	dinit "Set Preferences"
+	choice1% = autosav% + 1
+	dchoice choice1%, "Auto save", "No,Yes"
+	if dist$ = "km" : choice2% = 2 : endif
+	dchoice choice2%, "Distance Units", "Miles,Km"
+	dedit direc$, "Directory for saved files",7
+	if dialog <> 0
+		if choice2% = 1
+			dist$ = "Miles"
+			spd$ = "mph"
+		else
+			dist$ = "km"
+			spd$ = "kmh"
+		endif
+		if choice1% = 2 and autosav% = 0
+			REM need to get file name
+			autosav% = 1
+			selofil:
+		elseif choice1% = 2
+			autosav% = 1
+		else
+			autosav% = 0
+		endif
+		REM direc$ = ldirec$
+	endif
+endp
+	
+proc bestlaps:					REM Redisplay best and last laps
+	local rno%
+	rno% = 1
+	while rno% <= 3
+		REM Reprint last laps
+		at 3+((rno%-1)*14),5
+		REM print fix$(pltime(rno%)-ppltime(rno%),2,-6);
+		if lapno%(rno%) > 1
+			print fix$(laptime((rno%-1)*100+lapno%(rno%)-1),2,-6);
+			print "  L"; gen$(lapno%(rno%)-1,2)
+		endif
+		if bestlap(rno%) < 9999999
+			REM Reprint best laps
+			at 3+((rno%-1)*14),7 : print fix$(bestlap(rno%),2,-6);
+			print "  L";gen$(bstlapn%(rno%),2)
+		endif
+		rno% = rno% + 1
+	endwh
+endp
+
+proc initials:					REM Use riders initials if unique
+	if (asc(lower$(rider$(1))) <> asc(lower$(rider$(2)))) and (asc(lower$(rider$(2))) <> asc(lower$(rider$(3)))) and (asc(lower$(rider$(1))) <> asc(lower$(rider$(3)))) 
+		initok% = 1
+		in%(1) = asc(lower$(rider$(1))) : in%(2) = asc(lower$(rider$(2))) : in%(3) = asc(lower$(rider$(3)))
+		alert("Use keys 1,2,3 or "+chr$(in%(1))+","+chr$(in%(2))+","+chr$(in%(3)))
+	else
+		alert("Initials not unique")
+	endif
+endp
+
+proc noriders:					REM Set number of riders (mainly for space)
+	local i%,list$(10)
+	list$="1,2,3"
+	dinit"Set number of riders"
+	i% = 1 : dchoice i%, "Use <- and ->", list$
+	if dialog = 0 : return : endif
+  nordrs% = i%
+endp
+
+proc clrbest:						REM Clear best lap values
+	local i%
+	i%=1
+	while (i%<=3)
+		bestlap(i%) = 9999999
+		i%=i%+1
+	endwh
+endp
+
+proc chrider:						REM Update rider
+	local list$(255),i%
+	REM list$ = rider$(1)+","+rider$(2)+","+rider$(3)
+	REM dinit "Choose rider to change"
+	REM i% = 1 : dchoice i%, "Use <- and ->", list$
+	REM if dialog = 0 : return : endif
+	REM dedit rider$(i%), "", 12
+
+	dinit "Enter racer names"
+	dedit rider$(1), "First", 9
+	dedit rider$(2), "Second", 9
+	dedit rider$(3), "Third", 9
+	dialog
+endp
+
+proc list:							REM list results to screen
+	local i%,j%,k%,sinfo%(10)
+	REM screeninfo sinfo%()
+	REM screen sinfo%(3),sinfo%(4)
+	statuswin on, 1: setname "Laptimer"
+	font 10,16
+	cls : i% = 1
+	if track$ <> ""
+		print track$,
+	endif
+	if distance > 0
+		print "("; fix$(distance,2,5), "m):",
+	endif
+	print "Total time : "; fix$(ttime(1),2,10)
+  if distance>0
+	  print "Lap";
+  	i%=1
+  	while i% <= 3
+  		at  5+(i%-1)*15,2: print rider$(i%);
+  		at 14+(i%-1)*15,2: print spd$;
+  		i%=i%+1
+  	endwh
+  	print
+	else
+		print "Lap";
+  	i%=1
+  	while i% <= 3
+  		at  5+(i%-1)*8,2: print rider$(i%);
+  		i%=i%+1
+  	endwh
+  	print
+  endif
+  i% = 1
+	while i% <= lapno%(1)-1 or i% <= lapno%(2)-1 or i% <= lapno%(3)-1
+		print gen$(i%,-2); 
+		j% = 1
+		while j% <= 3
+			print fix$(laptime(100*(j%-1)+i%),2,-8);
+			if distance <> 0
+			  if laptime(100*(j%-1)+i%) > 0
+					print fix$((distance/laptime(100*(j%-1)+i%))*3600,2,-7);
+				else
+					print "       ";
+				endif
+			endif
+			j% = j% + 1
+		endwh
+		print
+		if mod:(i%,10) = 0 and (i%<lapno%(1)-1 or i%<lapno%(2)-1 or i%<lapno%(3)-1)
+			print "[more]"; : k% = get
+			print chr$(8);chr$(8);chr$(8);chr$(8);chr$(8);chr$(8);
+			if k% = 27 : return : endif
+		endif
+		i% = i% + 1
+	endwh
+print "Press any key"
+k% = get
+cls
+statuswin on, 2: setname "Laptimer"
+endp
+  
+proc openout:						REM open output file
+	local mode%, ret%, fout$(255), handout%
+	setpath direc$ + "\"
+	getfile::
+	dinit "Output file"
+	if autofn$ = ""
+		fout$ = "RACE01.TXT"
+	else
+		fout$ = autofn$
+	endif
+	dfile fout$, "", 1+64
+	ret% = dialog
+	if ret% = 0 : return 0 : endif
+	if fout$ = "" : print "file dialog failed" : get : return 0 : endif
+	REM print fout$ : get
+	if exist(fout$)
+		REM file exists - overwrite?
+		dinit : dtext "", "File Exists",2
+		dtext "","Choose Option",$202
+		dbuttons "Append",%a,"Replace",%r, "Cancel",%c
+		ret% = dialog
+		if ret% = %c 
+			goto getfile::
+		elseif ret% = 0
+			return 0
+		elseif ret% = %a
+			mode% = mode% or $3  REM append
+		else
+			mode% = mode% or $2  REM replace
+		endif
+	else
+		mode% = 2
+	endif
+	mode% = mode% or $0100
+  REM print "mode is ",hex$(mode%) : get
+	REM open=$0000, text=$0020, share=$0400
+	ret% = ioopen(handout%,fout$,mode%)
+	if ret%<0
+		showerr:(ret%, "Open Output File") 
+		goto getfile::
+	endif
+	return handout%
+endp
+
+proc selofil:						REM select auto output file
+	local mode%, ret%, fout$(128), handout%
+	setpath direc$ + "\"
+getfil2::
+	dinit "Output file"
+	if autofn$ <> ""
+		fout$ = autofn$
+	else
+		fout$ = "RACE01.TXT"
+	endif
+	dfile fout$, "", 1+64
+	ret% = dialog
+	if ret% = 0 : return : endif
+	if fout$ = "" : print "file dialog failed" : get : return : endif
+	REM print fout$ : get
+	if exist(fout$)
+		REM file exists - overwrite?
+		dinit : dtext "", "File Exists",2
+		dtext "","Choose Option",$202
+		dbuttons "Append",%a,"Replace",%r, "Cancel",%c
+		ret% = dialog
+		if ret% = %c 
+			goto getfil2::
+		elseif ret% = 0
+			return
+		elseif ret% = %r
+			REM replace - open and close to clear file
+			mode% = $0102  REM replace
+			ret% = ioopen(handout%,fout$,mode%)
+			if ret%<0
+				showerr:(ret%, "Open Output File") 
+				goto getfil2::
+			endif
+			ioclose(handout%)
+		endif
+	else
+		REM file does not exist - must create
+		mode% = $0102  REM replace
+		ret% = ioopen(handout%,fout$,mode%)
+		if ret%<0
+			showerr:(ret%, "Open Output File") 
+			goto getfil2::
+		endif
+		ioclose(handout%)
+	endif
+	autofn$ = fout$
+	return
+endp
+
+proc openfil:						REM Open specified file for o/p
+	local mode%, ret%, handout%
+	mode% = $0103  REM append
+	ret% = ioopen(handout%,autofn$,mode%)
+	if ret%<0
+		showerr:(ret%, "Open Output File") 
+		return 0
+	endif
+	return handout%
+endp
+
+proc savlap:(handle%)		REM Write lap details to file
+	local outbuf$(255), i%, j%
+	outbuf$=datim$
+	if track$ <> ""
+		fprint:(handle%,track$+" ")
+	endif
+	if distance > 0
+		fprint:(handle%,"("+fix$(distance,2,5)+"m): ")
+		fprint:(handle%,datim$+chr$(13)+chr$(10))
+		fprint:(handle%,"Lap  "+left$(rider$(1),9)+rept$(" ",abs(9-len(rider$(1)))))
+		fprint:(handle%,spd$+"  "+left$(rider$(2),9)+rept$(" ",abs(9-len(rider$(2)))))
+		fprint:(handle%,spd$+"  "+left$(rider$(3),9)+rept$(" ",abs(9-len(rider$(3)))))
+		fprint:(handle%,spd$+chr$(13)+chr$(10))
+	else
+		fprint:(handle%,datim$+chr$(13)+chr$(10))
+		fprint:(handle%,"Lap  "+left$(rider$(1),7)+rept$(" ",abs(7-len(rider$(1)))))
+		fprint:(handle%,left$(rider$(2),7)+rept$(" ",abs(7-len(rider$(2)))))
+		fprint:(handle%,left$(rider$(3),7)+rept$(" ",abs(7-len(rider$(3)))))
+		fprint:(handle%,chr$(13)+chr$(10))
+	endif
+	i% = 1  REM lap
+	while i% <= lapno%(1)-1 or i% <= lapno%(2)-1 or i% <= lapno%(3)-1
+		fprint:(handle%,fix$(i%,0,-2)+" ")
+		j% = 1   REM rider
+		while j% <= 3
+			fprint:(handle%,fix$(laptime(100*(j%-1)+i%),2,-7))
+			if distance <> 0 
+				if laptime(100*(j%-1)+i%) > 0
+					fprint:(handle%, fix$((distance/laptime(100*(j%-1)+i%))*3600,2,-7))
+				endif
+			endif
+			j% = j%+1
+		endwh
+		fprint:(handle%,chr$(13)+chr$(10))
+		i%=i%+1
+	endwh
+	ioclose(handle%)
+endp
+
+REM  Following was in laplib
+
+REM Library, version 1.1
+
+
+proc describe:  REM in case it gets run
+	dinit : dtext "","Function library for use in Laptimer",$202
+	dbuttons "Exit", 27 : dialog
+endp
+
+proc confirm:
+	REM return 2
+	dinit
+	dtext "", "Exit", 2
+	dtext "", "Are you sure?", $202
+	dbuttons "No", %N, "Yes", %Y
+	return dialog=%y
+endp
+
+proc filedisp:
+		global dispfil$(30)
+		selfile:
+		if dispfil$ <> ""
+			viewfile:(dispfil$)
+		endif
+endp
+
+proc selfile:
+	local mode%, ret%, fout$(255), handout%
+	setpath direc$ + "\"
+	getfile::
+	dinit "Show File"
+	fout$ = "RACE01.TXT"
+	dfile fout$, "", 16+64
+	ret% = dialog
+	if ret% = 0 : return : endif
+	if fout$ = "" : print "file dialog failed" : get : return : endif
+	REM print fout$ : get
+	if exist(fout$)
+		dispfil$ = fout$
+		return
+	else
+		dinit "Display File"
+		dbuttons "No such file",-27
+		dialog
+		dispfil$ = ""
+		return
+	endif
+	return
+endp
+PROC viewfile:(fn$)
+
+    local appp,als$(5),pgname$(40),apname$(8),extn$(4)
+    local ap%,newfile%,cbyte$(1),pid%,cmdl$(128),ret%
+    ap%=1 :newfile%=1
+
+    pgname$="word"
+    apname$="Edit"
+    extn$=right$(fn$,4)
+    REM als$="OROPO"
+    als$="OROPO"
+    cbyte$="O"
+
+    pgname$="rom::"+pgname$+".app"+chr$(0)
+    cmdl$=cbyte$+apname$+chr$(0)+extn$+" "+als$+chr$(0)+fn$+chr$(0)
+    ret%=call($0187,addr(pgname$)+1,addr(cmdl$),0,0,addr(pid%))
+    if ret%<0
+        pgname$=left$(pgname$,len(pgname$)-1)
+        print "Couldn't start",pgname$
+        print err$(ret%) :get
+    endif
+    call($0688,pid%)
+ENDP
+
+proc choosdis:
+	dinit "Track Length"
+	distance = 1.0
+	dfloat distance,"("+dist$+")",0.01,100.0
+	dialog
+endp
+
+REM mod function - shouldn't this be provided?
+REM Library of functions to be used by laptimer
+
+proc mod:(num%, modulus%)
+	return num% - ((num%/modulus%) * modulus%)
+endp
+
+REM Get current time. Returns abstime in seconds (and fractions) as real
+proc ctime:
+	local bufstor$(6)  REM mem buffer for sys call
+	local sec&,frac, curtim
+	call ($078B,0,6,0,1056,addr(bufstor$))
+	REM Get number of whole seconds
+	sec& = peekl(addr(bufstor$)+2)
+	REM Get fraction 
+	frac = 0.03125 * (32 - peekw(addr(bufstor$)))
+	curtim = sec& + frac
+	REM print sec&, frac
+	return curtim
+endp
+
+REM write string to file
+REM returns status from ioWrite
+proc fprint:(handle%,string$)
+	local locbuf$(255), ret%
+	locbuf$ = string$
+	ret% = iowrite(handle%,addr(locbuf$)+1,peekb(addr(locbuf$)))
+	if ret%<0
+		showerr:(ret%, "Open Output File") 
+	endif
+	return ret%
+endp
+
+REM general purpose system error handler
+proc showerr:(val%, stringg$)
+	alert (stringg$, fix$(val%,0,5)+" "+err$(val%))
+endp
+
+REM Initialise track names and distances
+proc initrac:
+	local i%
+	if not exist ("\opd\laptimer")
+		create "\opd\laptimer",a,name$,length$
+		a.name$ = "Brands" : a.length$ = "1.2" : append
+		a.name$ = "Lydden" : a.length$ = "1.0" : append
+		a.name$ = "Cadwell" : a.length$ = "1.4" : append
+		a.name$ = "Mallory" : a.length$ = "1.2" : append
+		a.name$ = "Snetterton" : a.length$ = "1.91" : append	
+	else
+		open "\opd\laptimer",a,name$,length$
+	endif
+	first
+	i% = 1
+	do
+		traklis$(i%) = a.name$
+		trakdis(i%) = val(a.length$)
+		i% = i% + 1
+		next
+	until EOF
+	close
+	
+	REM traklis$(1) = "Brands" : trakdis(1) = 1.2
+	REM traklis$(2) = "Lydden" : trakdis(2) = 1.0
+	REM traklis$(3) = "Cadwell" : trakdis(3) = 1.4
+	REM traklis$(4) = "Mallory" : trakdis(4) = 1.2
+	REM traklis$(5) = "Snetterton" : trakdis(5) = 1.91
+	REM traklis$(6) = "" : trakdis(6) = 0  REM terminator
+endp
+
+REM Add new track
+proc addtrack:
+	local i%
+	i% = 1
+	while trakdis(i%) > 0
+		i% = i% + 1
+	endwh
+	dinit "Add Circuit"
+	dedit traklis$(i%), "Name", 12
+	trakdis(i%) = 1.0
+	dfloat trakdis(i%), "Length ("+dist$+")", 0.1, 100
+	if dialog <> 0
+		track$ = traklis$(i%)
+		distance = trakdis(i%)
+		open "\opd\laptimer",a,name$,length$
+		a.name$ = track$
+		a.length$ = gen$(distance,8)
+		append
+		close
+	endif
+endp
+
+proc clrtrks:
+	dinit
+	dtext "", "Discard all saved circuit definitions", 2
+	dtext "", "Are you sure?", $202
+	dbuttons "No", %N, "Yes", %Y
+	if dialog = %y
+		open "\opd\laptimer",a,name$,length$
+		a.name$ = "" : a.length$ = "0"
+		first
+		do
+			erase
+		until EOF
+		traklis$(1) = "" : trakdis(1) = 0
+		close
+	endif
+endp
+	
+REM Choose track
+proc choostrk:
+	local i%, list$(255)
+	list$ = traklis$(1) : i% = 2
+	list$=list$+" ("+fix$(trakdis(1),2,5)+" "+dist$+")" 
+	if trakdis(1) > 0
+		while trakdis(i%) > 0
+			list$=list$+","+traklis$(i%)
+			list$=list$+" ("+fix$(trakdis(i%),2,5)+" "+dist$+")" 
+			i% = i% + 1
+		endwh
+		dinit "Choose Circuit"
+		i% = 1 : dchoice i%, "Use <- and ->", list$
+		if dialog = 0 : return : endif
+		track$ = traklis$(i%)
+		distance = trakdis(i%)
+	else
+		dinit "Choose Circuit"
+		dbuttons "No circuits defined", -27
+		dialog
+	endif
+endp
+

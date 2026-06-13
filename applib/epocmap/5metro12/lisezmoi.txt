@@ -1,0 +1,451 @@
+=======================================
+METRO        Version 1.2      Mars 1998
+         pour PSION Series 5
+=======================================
+
+© Gabriel DARDENNE
+
+
+INTRODUCTION :
+------------
+
+Programme donnant de nombreux renseignements sur les transports en commun 
+parisiens. Intègre une recherche de trajet en métro ou RER (dans les zones de 
+tarification 1 et 2) et tramway (lignes T1 et T2).
+
+Ce logiciel est un shareware. 
+
+Malgré tout le soin apporté à sa réalisation, l'auteur décline toute 
+responsabilité en ce qui concerne les renseignements donnés, notamment sur les 
+temps et tarifs. En effet, les diverses sources d'informations (plans, guides, 
+serveurs Minitel, etc...) donnent des indications quelquefois contradictoires. 
+D'autre part, devant la multitude de trajets possibles, tous n'ont pas pu être 
+testés. Malgré tout, la fiabilité des résultats donnés n'a pas été prise en 
+défaut (ou, du moins, les corrections ont été apportées dans les versions 
+successives). Je souhaiterais que les anomalies constatées (il en existe 
+sûrement encore quelques unes...) me soient communiquées afin d'améliorer les 
+versions suivantes. Merci pour votre collaboration.
+
+
+AVERTISSEMENT :
+-------------
+
+Je vais certainement faire hurler les puristes de la programmation et en 
+décevoir certains. En effet, ce programme est l'adaptation de la version 4.1 du 
+logiciel pour S3a/3c et SIENA. Cela m'aura malgré tout demandé deux mois de 
+modifications diverses. 
+Donc, les particularités propres au S5, notamment l'écran tactile, ne sont pas 
+utilisées (sauf pour le menu). C'est promis, les versions futures bénéficieront 
+progressivement des nouvelles fonctions. 
+
+
+FICHIERS :
+--------
+
+METRO.APP
+METRO.AIF
+METRO.DA1
+METRO.DA2
+METRO.DA3
+METRO.DA4
+METRO.HLP
+METRO.UTI
+LISEZMOI.TXT (ce document)
+
+
+INSTALLATION :
+------------
+
+Copiez tous les fichiers ci-dessus dans le répertoire \SYSTEM\APPS\METRO\ du 
+disque C ou D.
+Ce répertoire contiendra également (pour les personnes enregistrées, le fichier 
+créé par le code).
+L'icône METRO s'incrira automatiquement dans une des barres EXTRAS.
+Si vous ne désirez plus conserver ce programme, effacez le répertoire 
+\SYSTEM\APPS\METRO\.
+
+
+
+LISTE DES FONCTIONS :
+-------------------
+
+1) METRO :
+
+- TRAJET :
+
+Permet la recherche et l'affichage détaillé de trajets (texte, détail et plan), 
+à partir d'une station de départ et de celle d'arrivée. C'est la fonction de 
+base du programme.
+Cette fonction est utilisable pour les 13 lignes du métro, les 4 lignes 
+actuelles du RER (dans les zones de tarification 1 et 2) et les lignes T1 et T2 
+de tramway.
+Il est fortement conseillé de ne pas tenter d'entrer le nom complet des stations 
+mais seulement quelques lettres. Le logiciel proposera le choix parmi tous les 
+noms qui contiennent cette chaîne. L'orthographe des noms choisis n'est pas 
+identique suivant tous les plans de métro (tirets, abréviations, etc...). Si une 
+seule station correspond à la chaîne, le programme continue automatiquement sans 
+demander de confirmation.
+
+L'algorithme, amélioré grâce aux idées indiquées par MICRO-AZUR, a permis 
+d'accélérer la recherche dans des proportions importantes, par rapport aux 
+premières versions développées pour S3a.
+
+Les temps indiqués ci-dessous sont comptés entre le dernier appui de touche et 
+l'affichage.
+
+* Si la ligne est directe, la réponse est très rapide. Entrez, par exemple, LYON 
+(pour gare de Lyon) et CHATEL (pour Châtelet Les Halles). Durée de recherche : 3 
+secondes.
+
+* Si un changement est nécessaire, le temps de recherche reste court. Essayez 
+OPE (Opéra) et NORD (Gare du Nord). Durée : 9 secondes. Pour ORL (Porte 
+d'Orléans) à ITAL (Place d'Italie), 4 secondes suffisent.
+L'affichage graphique du trajet le plus court vous propose de relancer l'analyse 
+avec deux correspondances (touche D). Ceci n'est intéressant que si le trajet 
+affiché forme un crochet important. Dans ce cas, il existe peut-être des trajets 
+plus rapides. La recherche peut sembler un peu longue : pour OPERA - GARE DU 
+NORD, 27 secondes.
+
+* Trajet nécessitant deux correspondances : par exemple BOTZ (Botzaris) et PLA 
+(Laplace), durée de la recherche : 6 secondes. Si le nombre de solutions est 
+important, la duree s'allonge... La barre vous indique l'avancement de la 
+recherche.
+
+* Au dessus de deux changements, la recherche automatique n'est pas possible et 
+un message vous indiquera qu'aucun trajet n'a été trouvé. Il vous sera proposé 
+de couper le voyage en deux, avec une correspondance supplémentaire. Il ne faut 
+pas oublier que 95% des trajets sont possibles avec moins de 3 changements. 
+Essayez PELLEPORT et BROCHANT. Il vous sera proposé de chercher successivement 
+PELLEPORT-JAURES et JAURES-BROCHANT.
+
+Si des solutions sont trouvées, TOUS les trajets possibles sont alors donnés 
+(dans la limite de 49 solutions !), classés par ordre croissant de durée estimée 
+et le trajet de durée la plus courte est affiché. On peut alors naviguer dans 
+les différentes solutions et les afficher sur la vue de Paris (touche P) ou 
+visualiser la liste des stations traversées (touche S). Une ou plusieurs 
+solutions peuvent être conservées en mémoire (touche E), pour consultation 
+ultérieure.
+L'accès direct à une solution appelée par son numéro s'effectue à l'aide de la 
+touche N.
+
+Pourquoi TOUTES les solutions sont-elles proposées ? La réponse est simple : la 
+machine examine, de toutes façons, TOUTES les possibilités pour rechercher leur 
+durée. Mais rien ne vous oblige à consulter les trajets aberrants... (par 
+exemple le 23ème pour aller de GARE DE L'EST à NATION, en passant par DENFERT. 
+Il y a même un intérêt : lorsque la RATP vous annonce que le trafic est 
+interrompu sur la ligne "unetelle". Il suffit alors d'appuyer sur la flèche vers 
+le bas jusqu'au trajet le plus rapide qui n'utilise pas cette ligne. 
+Elémentaire, mon cher Watson !
+Pour aller directement au plus long ou au plus rapide, utiliser PSION+flèche 
+(haute ou basse).
+
+
+- REVOIR :
+
+Cette fonction permet de revoir un trajet mis en mémoire (touche E, comme 
+indiqué précédemment). L'avantage sur la recherche normale est la rapidité 
+d'accès. Utiliser les touches S et P, comme précédemment.
+Cette possibilité vous permet de garder des trajets fréquemment utilisés et les 
+revoir à volonté (28 trajets maximum), sans recherche longue.
+Il est également possible d'effacer un trajet inutilisé.
+
+
+- LIGNES :
+
+Détail de toutes les stations d'une ligne, avec indication des correspondances 
+possibles.
+L'appui sur la touche P affiche le dessin de la ligne sur le plan de Paris. Vous 
+avez le choix entre toute les lignes de métro ainsi que des tronçons des lignes 
+du RER (zones 1 et 2) et les lignes T1 et T2 de tramway.
+
+
+- STATIONS :
+
+Renseignements sur les 343 stations connues du programme : toutes les stations 
+du métro parisien ainsi que toutes celles du RER des zones 1 et 2 et les lignes 
+T1 et T2 de tramway.
+Vous connaîtrez les correspondances disponibles.
+L'astérisque, après le nom de certaines stations, indique une particularité 
+(station sur ligne en boucle, station jumelée avec d'autres, etc...).
+Les lieux et monuments desservis sont également affichés.
+En appuyant sur la touche P, la position de la station vous sera indiquée sur le 
+plan de Paris. Les stations en périphérie sont un peu "tassées" verticalement 
+(l'écran du PSION manque de hauteur !).
+La touche N permet la gestion de notes personnelles rattachées aux stations. Ces 
+notes sont ensuite affichées dans le cadre de renseignements sur les stations.
+
+
+- MONUMENT, LIEU :
+
+Quelques centaines de mots clés ont été entrés qui permettent la recherche de la 
+station la plus proche qui dessert chacun d'eux. Un exemple : pour se rendre au 
+funiculaire de Montmartre, taper FUNI (ou NICULAI...) et les renseignements sur 
+la station ANVERS, la plus proche, seront affichés. L'appui sur la touche P 
+indiquera l'endroit, sur le plan de Paris.
+Si plusieurs réponses sont possibles (ex. MUSEE), l'affichage successif sera 
+effectué (barre "espace") et tous les points d'accès seront visibles sur le 
+plan.
+Certaines stations portent le nom du monument proche. Dans ce cas, effectuer la 
+recherche dans STATION, car il se peut que le nom ne soit pas répété dans le 
+fichier des monuments.
+
+
+- NOTES :
+
+Une recherche par le contenu des notes rattachées aux stations (dans la limite 
+de 28) est accessible par cette option.
+
+
+2) AUTOBUS :
+
+- LIGNES 20 A 96 :
+
+Toutes les lignes parisiennes sont détaillées, avec leurs particularités 
+(horaires et jours). Attention, tous les numéros ne sont pas utilisés par la 
+RATP...
+La majorité des lignes utilisent des sens uniques et beaucoup de stations ne 
+sont desservies que dans une direction. Les plans consultés étant un peu 
+nébuleux, à ce sujet, il se peut que quelques erreurs subsistent dans les 
+indications données (vos corrections seront précieuses pour les versions 
+futures...).
+
+
+- PETITE CEINTURE (PC) :
+
+Cette ligne particulière fait le tour de Paris par les boulevards extérieurs et 
+est parcourue dans les deux sens. Le dessin est très simplifié.
+
+
+- NOCTAMBUS :
+
+Ce sont les 18 lignes nocturnes. Le principe d'affichage est identique aux 
+lignes ordinaires.
+
+
+- MONTMARTROBUS :
+
+Petite ligne très sympatique (et anecdotique) à petit gabarit, mais bien utile 
+pour éviter une longue montée.
+
+
+- BALABUS :
+
+Ligne normale, avec tarification particulière, fonctionnant les dimanches et 
+jours fériés
+
+
+- STATIONS :
+
+La démarche est un peu différente de celle du métro puisqu'après avoir entré une 
+chaîne de caractères, toutes les stations concernées seront affichées et 
+indiqueront les lignes qui les desservent. Il est en effet très courant, dans 
+les autobus parisiens, que des stations proches aient des noms différents. C'est 
+pour cette raison que la recherche de trajet, comme pour le métro, est 
+impossible pour les autobus. Il existe peu de correspondances avec des noms 
+absolument identiques
+Essayez, par exemple FRIED (pour FRIEDLAND). Vous aurez l'affichage de stations 
+comme FRIELAND-HAUSSMANN (ligne 22) ou CH. DE GAULLE-ETOILE-VICTOR HUGO-
+FRIEDLAND (ligne 83).
+De même "ZA" indiquera "Gare Saint-Lazare" et "Botzaris".
+
+
+3) AUTRES TRANSPORTS (programme complet seulement) :
+
+- RER :
+
+Ce choix vous donne, comme pour les autobus, une représentation des lignes A à 
+D, complète, avec l'indication des zones de tarification et les correspondances 
+avec les lignes de métro.
+
+
+- STADE DE FRANCE :
+
+En cette année de Coupe du Monde, ces renseignements seront sans doute utiles 
+aux provinciaux et étrangers.
+
+
+- PARIS-ORLY et PARIS-ROISSY :
+
+Ecrans en mode texte donnant de précieux renseignements sur les moyens de 
+transport vers les aérodromes Ouest et Sud. Attention, si vous devez prendre un 
+avion, les temps et tarifs sont indiqués sous  toute réserve (sans bouchon ou 
+affluence...).
+
+
+- TOURISME :
+
+Quelques idées de promenades autour du thème des transports.
+
+
+- PROJETS :
+
+Ce qui nous attend dans les mois ou années à venir, dans les transports 
+parisiens.
+
+
+- TELEPHONES UTILES :
+
+Sans commentaire.
+
+
+
+LIMITES DU PROGRAMME :
+--------------------
+
+- Certaines lignes comportent des particularités qui rendent la programmation 
+délicate (boucles et fourches).
+Les boucles ont été arbitrairement supprimées et toutes les stations ramenées 
+sur la même ligne. Ces stations comportent une astérisque qui signale une 
+particularité (desserte dans un seul sens, par exemple).
+Les fourches sont traitées en deux lignes différentes : une ligne principale et 
+une ligne secondaire qui part de la station de séparation des deux parties, qui 
+devient une correspondance.
+Ces deux modifications ne modifient que très peu la réalité des choses (quelques 
+stations et minutes en plus, dans un trajet, ou un changement qui n'en sera en 
+fait pas un si vous avez choisi la bonne rame).
+- Particularité de certaines stations sur lignes en boucle ou en fourche (voir 
+ci-dessus).
+Quelques stations ont un régime un peu complexe : correspondance avec certaines 
+lignes mais pas avec d'autres. C'est principalement le cas de "LES HALLES", 
+CHATELET LES HALLES" et "CHATELET" qui communiquent toutes par des moyens 
+différents... C'est également le cas de "St-MICHEL", "St-MICHEL NOTRE-DAME" et 
+"CLUNY" mais aussi de "GARE DU NORD" et "LA CHAPELLE" ou encore "HAVRE 
+CAUMARTIN", "AUBER" et "OPERA". Ces groupes de stations sont réunis en une 
+seule, quitte à effectuer un changement un peu plus long !
+
+
+
+PROGRAMMES NON-ENREGISTRES :
+------------------------
+
+Comme les logiciels enregistrés doivent comporter quelques avantages par rapport 
+aux autres (c'est moral), les restrictions d'utilisation du programme de base 
+portent sur :
+- l'accès à certaines fonctions qui n'est pas permanent mais aléatoire. C'est le 
+cas de la recherche de trajets comportant 2 correspondances (probabilité d'accès 
+: 1/4), les renseignements sur les lignes et stations (1/2) et l'enregistrement 
+de ses propres trajets. De même les lignes de métro et le RER comportent 
+quelques restrictions.
+- l'affichage d'un message qui vient rappeler l'intérêt de participer au 
+développement du shareware.
+
+
+
+SHAREWARE :
+---------
+
+Parlons-en justement...
+Le développement de ce logiciel a demandé plusieurs mois de recherche et de 
+test. La transformation sur S5 a nécessité deux mois supplémentaires. Alors, 
+pour le prix de deux carnets de tickets de métro (48 F le carnet au 15/2/98) 
+utilisez toutes les fonctions, sans contrainte (et sans affichage de message). 
+Ne perdez pas votre temps à tenter de le décoder, ça ne vaut pas la peine et de 
+toute façon, c'est interdit ! Non mais...
+Envoyez-moi un chèque de 100 FF (ou en liquide) ou environ 130 FF (pour les 
+frais de change) en monnaie étrangère et vous recevrez un code d'accès qui 
+éliminera ces désagréments.
+Ce code fonctionne sur toutes les versions actuelles (et futures si 
+techniquement rien ne s'y oppose).
+
+
+A vous qui m'avez fait confiance et fait enregistrer ce programme pour S3a/3c ou 
+SIENA, et qui avez évolué vers le S5, ce code est gratuit jusqu'au 31 mai 1998. 
+Contactez-moi !
+
+Après cette date, les personnes déjà enregistrées pour ce logiciel sur S3a/3c ou 
+SIENA bénéficieront d'un rabais de 50% sur le prix de base.
+
+
+DIFFUSION DU LOGICIEL :
+---------------------
+
+La duplication et la distribution de ce logiciel sont libres et même fortement 
+conseillées ! Tous les fichiers originaux (et non modifiés) doivent faire partie 
+de la copie.
+La seule restriction concerne les personnes enregistrées : le fichier 
+CODE_METRO, qui leur est personnel et créé par l'entrée du code, doit être 
+effacé des copies. Merci d'avance. 
+
+Pour des raisons simples d'équipement, je ne suis en mesure de copier ce 
+logiciel que sur disquette type "PC" ou sur disque flash (frais d'envoi et de 
+retour à votre charge).
+
+
+
+HISTORIQUE :
+----------
+
+- La version 1.1 (pour s3a/3c) a été diffusée en septembre 96. Elle ne 
+comportait que le métro et le RER (zones 1 et 2). C'est le noyau du programme 
+actuel. Jusqu'en décembre 97 (version 4.1), ce programme a été complété et 
+amélioré.
+
+- Cette version 1.1 (pour S5) est adaptée des programmes précedents et corrige 
+quelques détails. L'ergonomie générale, qui semble convenir à de nombreux 
+utilisateurs, si j'en crois les courriers reçus, est conservée.
+
+- Version 1.2 : modification de l'UID pour cause de conflit avec d'autres 
+logiciels.
+
+
+
+SOURCES :
+-------
+
+Nombreux plans, guides, minitel, livres et documents divers (sans parler des 
+heures passées dans les transports depuis de nombreuses années...). 
+Malheureusement, des différences existent entre les différents supports. Les 
+réseaux tel qu'ils sont présentés sont actualisés au mois de février 1998. Pour 
+METEOR, il faudra attendre une version future...
+
+Je tiens à citer quelques livres pour ceux que le sujet intéresse :
+     * "NOTRE METRO" de Jean Robert : "la bible", par l'historien du métro et 
+fondateur du musée des Transports urbains de Saint-Mandé. A propos de ce livre, 
+lu voici quelques années : je suis acheteur éventuel d'un exemplaire d'occasion, 
+car il est épuisé (me contacter si vous connaissez un vendeur. Merci 
+d'avance...).
+     * "LE PATRIMOINE DE LA RATP", FLOHIC Editions, très complet et bourré de 
+petites anecdotes.
+     * "LES AUTOBUS PARISIENS", de René Bellu, Jean-Pierre Delville Editeur.
+     * "L'AUTOBUS PARISIEN 1905-1991", de Dimitri Van Boque, Editions Alcine.
+
+
+
+
+REMERCIEMENTS :
+-------------
+
+Un grand merci à vous qui utilisez ce programme (et principalement aux nombreux 
+inscrits (pour S3a/3c et SIENA) qui m'ont encouragé à continuer). Les 
+"critiques" constructives ont favorisé la recherche d'améliorations constantes 
+(Michel Boudry, Jérôme Fresnay, Franz Eberhard,...).
+Sa diffusion par le serveur du Club PSION français (Didier Cabuzel), mais aussi 
+sur les CD ROM de PC TEAM (Frédéric Botton) et d'UNIVERS MAC et MICRO-MOBILES 
+(articles de Pierre-Alain Buino) qui ont largement contribué à le faire 
+connaître. Sans oublier les encouragements (Laurent Plomb et beaucoup d'autres).
+La société belge MICRO-AZUR a permis, par ses conseils, une accélération 
+spectaculaire de la recherche de trajet.
+Je n'oublie pas mon épouse qui a supporté mes nombreuses conversations sur le 
+thème du métro...
+
+Ce logiciel vous semble intéressant, mais vous avez constaté des anomalies (tous 
+les trajets possibles n'ont pas été testés !). Alors, envoyez-moi un petit mot. 
+Suivant les demandes on tâchera de combler les lacunes...
+
+Bon voyage (en métro, bus ou RER, bien sûr...).
+
+
+
+---------------
+Gabriel DARDENNE
+21/55, rue Voltaire
+92240 - MALAKOFF (FRANCE)
+
+e-mail : 106367.3112@compuserve.com
+
+
+
+
+
+
+

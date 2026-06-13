@@ -1,0 +1,3 @@
+copy HHSERVER.S3A HHSERVER.PAR
+s3aemul
+

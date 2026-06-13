@@ -1,0 +1,4 @@
+[\APP\]FTP.APP
+[\FTP\]FTP.FTP
+[\FTP\]DEMO.FTP
+[\WRD\]FTP.WRD

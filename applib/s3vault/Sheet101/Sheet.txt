@@ -1,0 +1,166 @@
+
+
+
+Alan Roblou (Zebra) 07 January 1995. 
+
+ This spreadsheet sets out the whole year and projects your financial
+position at all points. As you go through the year you change the
+estimates for the real figures.
+
+It is the latest version of the method I have been using for several
+years and found simple and successful. I like it comes with the
+machine and because I can understand what is going on; no doubt it
+could be much improved by someone who really knows spreadsheets, which
+I dont. Its main disadvantage is filesize, but you do always have a
+year at your fingertips.
+
+I recommend you work from a copy and keep one version unchanged for
+the following years. It takes a long while to clean up a used year.
+
+The figures here are fictitous, but you can change most of the
+categories and amounts by altering columns A and B. These are the
+reference columns for the rest of the sheet.
+
+I would advise against opening and closing gaps except at the very
+beginning; this is a big sheet and the process takes a long while
+using a lot of memory. 
+
+I normally keep the sheet on drive B, a 128K SSD. It grows to about
+60K at year end. I make a backup every week by saving a .WKS version
+in internal memory and then moving it to my mains computer. 
+
+How it is laid out:
+
+     Each month has a column for writing in expenditure, but every
+item or section already has an estimate so you can see if you are
+going over (I always do!).
+
+The columns get their labels and estimates from reference columns A
+and B. They also get information like interest rates. It's also the
+place to note occasional spending like car tax.
+
+The first few lines of the column are the grand reckoning. They take
+last month's balance and compute this month's income and expenditure
+to give the new balance. They also give the following months to show
+any trend, and the year-end balance.
+
+The reckoning gets the income and spending figures from two sections
+at the bottom of each column. In between are sections for Visa,
+Barclaycard, store card (M&S) and cheques which includes variable
+direct debits.
+
+The Visa section is second because it is the most used for me. My bank
+debits my main account for the whole amount the following month. But
+you could modify this section by emulating the Barclaycard or M&S
+sections, which are different.
+
+The Visa section has a mechanism to estimate a certain minimum level
+of expenditure each month. The sheet uses the estimate for its
+calculations until the level is exceeded (it always is!), and then
+uses the real figure. 
+
+When the bills come in it is easy to check spending against record. I
+then "lock" the section by replacing the sum cell formula with the
+real figure. I do the same thing with the other sections. Or you could
+use "Paste Special" to recopy the whole month without formulae; it
+replaces the whole month with the real figures.
+
+The Marks section simply totals the months spending, which is used in
+the following month's calculations. It can be simple because I pay the
+total each following month.
+
+The Barclaycard section is more complicated. It takes last month's
+balance, subtracts the payment (which is normally the same each
+month), adds this month's spending and interest, and reaches a new
+balance. If you make an extra payment the simplest thing is to include
+it as a negative spending entry. The formula looks to see if the
+balance is in the red before allowing for a payment and doesn't if it
+is a negative figure. 
+
+The cheques section deals with cheques and I replace xxx with the last
+digits of the cheque number. I also include direct debits like the
+Mercury and BT charges, with estimates in place (all fictitous!).
+
+The income section gives a simple total. I tried to include interest
+on a credit balance automatically, but kept getting "circular
+reasoning".The spending section is one of the engine rooms of the
+sheet and is at the bottom because it is easy to get to there with
+Psi-Ctrl-cursor down. It works differently in January.
+
+Except in January it uses the payments of Visa, Barclaycard and Marks
+fixed last month but actually paid this month. In January it uses the
+amounts at the top of column B brought from the previous year.
+
+To this it adds the total of the cheques section and the main fixed
+monthly non-cash payments like standing orders. It also (pretty
+successfully) divines the banks interest charges using the month's
+total balance and the reference figure in column A.
+
+Note that the reference cells in columns A-B are normally on the same
+line as the cells which use them. Only the interest rates and last
+year balances are not. 
+
+Hints and tips
+
+If the balances seem wrong, start finding out why. This sheet is
+pretty stable now, but I have sometimes had probs - usually caused by
+indvertantly overwriting a cell, which is a bit too easy to do.
+
+I use the Width command "0" to hide all the columns of completed
+months; so in December the width of A:X is "0". Since the sheet does
+not support macros I use a KMAC macro to open up test columns to width
+20 and figures to width 8 when I want to see an old month.
+
+I usually set a destination cell in range so that Psi-J(ump) takes me
+to the current month's Visa.
+
+The only monthly figures brought from the previous month and the main
+balance, the Barclaycard balance in its own section, and the Visa and
+Marks figures in the Spending section. Once you have "locked" these
+cells by replacing the formulae with real figures, the months to come
+are stable. 
+
+Reconcilliation with bank sheets is easy. If it doesn't match find out
+why and amend it til it does. Items not incuded on bank statements may
+need moving forward a month, easy with copy-delete.
+
+If you ever find you can't close the sheet, don't panic. Press the
+system button and quit other applictions (NOT sheet!) and delete other
+files or copy them to other drives to make space. The sheet
+effectively needs twice its size to work - up to 120K. If your SSD
+wont cope, then use "save as" to save to internal drive, then copy to
+the SSD with an overwrite.
+
+Titles are ON, and grid labels are OFF. This is how the months stay at
+the top.
+
+I use the > at the begining of entry lines because i like to start
+with the date (eg. >15 Cix or >16 234 papers where 234 is the cheque
+number). Since the sheet would otherwise think the date was a figure,
+I find the > the handiest acceptable character. 
+
+For the future:
+  
+   I would love to be able to include a code in spending entries to
+that the sheet would extract all such entries and reassemble them by
+type of spending in another sheet. I gather this is database work;
+certainly it is beyond me at the moment.
+
+
+History:
+ 
+  18 Dec 1994 - First version of NewSheet
+    
+  07 Jan 1995 - Sheet101 corrects 2 errors in original Newsheet which
+happened while adapting it from my real sheet. 
+  
+  CELL D112 and it's monthly repeats F112, H112 etc, changed to
+=SUM(D134:D113) and NOT =SUM(D134:D114). The original failed to
+included the sum of the "Cheques" section in the "Spending" section
+and thus underestimates the year's overdraft by three thousand pounds!
+Sorry about that. Make the change by altering D112 and then copying it
+to F112 etc.
+
+  CELL D119, which takes the initial month's Barclaycard minimum
+payment, should be =B8 and NOT =B7, otherwise you get the figure owed
+and not the figure to pay. 

@@ -1,0 +1,296 @@
+REM ***************************************************************************
+REM    Name        : RUNAPP%
+REM ***************************************************************************
+REM    Description : Runs a named application.
+
+REM    Parameters  : appname$ = full path name of application image file.
+REM                  cmdline$ = command line to the application
+REM                  ppid%    = pointer to integer to receive process id
+
+REM    Returned    : zero for success, else -ve error number
+REM    Conditions  : The file must exist and be a valid image.
+REM    Effects     : None
+
+REM    Errors      : File not found
+REM                  Invalid file
+REM    Panics      : None
+REM ***************************************************************************
+
+
+PROC runapp%:(appname$,cmdline$,ppid%)
+
+REM ***************************************************************************                 
+REM                 Local Variable Declarations
+REM ***************************************************************************                  
+
+	local ax%,bx%,cx%,dx%,si%,di%
+	local ret%,flags%
+	local cmdl$(128),img$(128)
+
+REM ***************************************************************************   
+REM                       Procedure Code
+REM ***************************************************************************   
+
+	cmdl$=cmdline$
+	img$=appname$+chr$(0)
+
+	REM -- first create the application --
+	REM
+	ax%=$0100                   :REM set AH = 1 for "FilExecute" call
+	bx%=addr(img$)+1            :REM set BX = pointer to application name
+	cx%=addr(cmdl$)              :REM set CX = pointer to length of command line
+	di%=ppid%                   :REM set DI = address to take process id
+	flags%=os(135,addr(ax%))    :REM call "FilExecute"
+	if (flags% and 1)
+		ret%=(ax% and $FF)-256    :REM error returned from O/S call in AL
+	else
+		REM -- now run the created application --
+		REM
+		ax%=$0600                   :REM set AH = 6 for "ProcResume" call
+		bx%=peekw(ppid%)            :REM set BX = process id
+		flags%=os(136,addr(ax%))    :REM call "ProcResume"
+		if (flags% and 1)
+			ret%=(ax% and $FF)-256    :REM error returned from O/S call in AL
+		else
+			ret%=0                    :REM return success
+		endif
+	endif
+	return ret%
+ENDP
+
+
+
+REM ***************************************************************************
+REM    Name        : RUNOPL%
+REM ***************************************************************************
+REM    Description : Runs a named OPL program.
+
+REM    Parameters  : oplname$ = full path name of OPL program file.
+REM                  ppid%    = pointer to integer to receive process id
+
+REM    Returned    : zero for success, else -ve error number
+REM    Conditions  : The file must exist and be a valid OPO file.
+REM    Effects     : None
+
+REM    Errors      : File not found
+REM                 Invalid file
+REM    Panics      : None
+REM ***************************************************************************
+
+
+PROC runopl%:(oplname$,ppid%)
+
+REM ***************************************************************************    
+REM                  Local Variable Declarations
+REM ***************************************************************************    
+
+	local ret%,i%,pname$(15)
+	local cmdl$(150),opo$(15)
+
+REM ***************************************************************************   
+REM                          Procedure Code
+REM ***************************************************************************   
+
+	REM -- check if the file exists since a successful return --
+	REM --    would still be made for EXOPL.IMG otherwise     --
+	REM
+	if lower$(right$(oplname$,4))=".opo"
+		opo$=oplname$
+	else
+		opo$=oplname$+".opo"
+	endif
+	if not exist(opo$)
+		ret%=-33 : REM ERR_FILERR_NXIST (module does not exist)
+	else
+		REM -- build up the command line to EXOPL --
+		REM
+		cmdl$=opo$+chr$(0)+" -n"             :REM -n flag disables notifier
+
+		REM -- attempt to run the program, returning process id or error --
+		REM
+		ret%=RUNAPP%:("ROM::EXOPL",cmdl$,ppid%)
+	endif
+	return ret%
+ENDP
+
+
+
+REM ***************************************************************************
+REM    Name        : APPKILL%
+REM ***************************************************************************
+REM    Description : Kill an existing application.
+
+REM    Parameters  : pid% = process id of appliction to kill
+
+REM    Returned    : zero for success, else -ve error number
+REM    Conditions  : None
+REM    Effects     : None
+
+REM    Errors      : Process does not exist
+REM    Panics      : None
+REM ***************************************************************************
+
+
+PROC appkill%:(pid%)
+
+REM ***************************************************************************   
+REM                  Local Variable Declarations
+REM ***************************************************************************  
+
+	local ax%,bx%,cx%,dx%,si%,di%
+	local ret%,flags%
+
+REM ***************************************************************************   
+REM                         Procedure Code
+REM ***************************************************************************   
+
+	ax%=$0D00                   :REM set AH = 8 for "ProcTerm" call
+	bx%=pid%                    :REM set BX = process id
+	flags%=os(136,addr(ax%))    :REM call "ProcTerm"
+	if (flags% and 1)
+		ret%=(ax% and $FF)-256    :REM error returned from O/S call in AL
+	else
+		ret%=0                    :REM signal success
+	endif
+	return ret%
+ENDP
+
+
+REM ***************************************************************************
+REM    Name        : APPDIR$
+REM ***************************************************************************
+REM    Description : Obtain a list of all processes currently in existence.
+
+REM    Parameters  : search$ = wildcard match string
+REM                  fidptr% = pointer to integer find handle
+
+REM    Returned    : The next process name, else a null string ("") for error
+REM    Conditions  : None
+REM    Effects     : None
+
+REM    Errors      : No more processes
+REM    Panics      : None
+REM ***************************************************************************
+
+
+PROC appdir$:(search$,fidptr%)
+
+REM ***************************************************************************   
+REM                  Local Variable Declarations
+REM ***************************************************************************   
+
+	local ax%,bx%,cx%,dx%,si%,di%
+	local ret$(15),flags%,name$(15),r%,i%
+
+REM ***************************************************************************
+REM                         Procedure Code
+REM ***************************************************************************
+
+	r%=addr(ret$)                 :REM get address of return buffer
+	name$=search$                 :REM make local copy of process name
+	ax%=$0b00                     :REM set AH = 11 for "ProcFind" call
+	bx%=peekw(fidptr%)            :REM set BX = find handle
+	si%=r%+1                      :REM set SI = pointer to return buffer
+	di%=addr(name$)+1             :REM set DI = wildcard process match string
+	flags%=os(136,addr(ax%))      :REM call "ProcFind"
+	if (flags% and 1)
+		ret$=""                     :REM return null string for error
+	else
+		i%=1                        :REM search from start of buffer for length
+		while peekb(r%+i%)<>0       :REM while terminating 0 is not found
+			i%=i%+1                   :REM increment search index
+		endwh
+		pokeb r%,i%-1               :REM force length into string
+		pokew fidptr%,ax%           :REM update the find handle
+	endif
+	return ret$
+ENDP
+
+
+REM --------------------------------------------------------------------------
+REM    Name        : APPID%
+REM  ----------------------------------------------------------------------------
+REM    Description : Obtain the id of a process by name.
+
+REM    Parameters  : appname$ = process name
+REM                  ppid%    = pointer to integer to receive process id
+
+REM    Returned    : zero for success, else -ve error number
+REM    Conditions  : None
+REM    Effects     : None
+
+REM    Errors      : Process does not exist
+REM    Panics      : None
+REM  -------------------------------------------------------------------------- */
+
+PROC appid%:(appname$,ppid%)
+
+	
+REM                   Local Variable Declarations
+	
+
+	local ax%,bx%,cx%,dx%,si%,di%
+	local ret%,flags%,name$(15)
+
+									
+rem                         Procedure Code
+									
+	name$=appname$                :REM make local copy of process name
+	ax%=$0100                     :REM set AH = 1 for "ProcIdByName" call
+	bx%=addr(name$)+1             :REM set BX = pointer to process name
+	flags%=os(136,addr(ax%))      :REM call "ProcIdByName"
+	if (flags% and 1)
+		ret%=(ax% and $FF)-256      :REM error returned from O/S call in AL
+	else
+		pokew ppid%,ax%             :REM write process id from AX
+		ret%=0                      :REM return success
+	endif
+	return ret%
+ENDP
+
+
+REM --------------------------------------------------------------------------
+REM    Name        : APPNAME$
+REM  ----------------------------------------------------------------------------
+REM    Description : Returns the application name by process id.
+
+REM    Parameters  : pid% = process id
+
+REM    Returned    : The process name, else a null string ("") for error
+REM    Conditions  : None
+REM    Effects     : None
+
+REM    Errors      : Process does not exist
+REM    Panics      : None
+REM  --------------------------------------------------------------------------
+
+PROC appname$:(pid%)
+
+									
+REM                  Local Variable Declarations
+									
+
+	local ax%,bx%,cx%,dx%,si%,di%
+	local ret$(15),flags%,i%,r%
+
+
+REM                        Procedure Code
+
+
+	r%=addr(ret$)                 :REM set buffer address
+
+	ax%=$0A00                     :REM set AH = 10 for "ProcNameById" call
+	bx%=pid%                      :REM set BX = process id
+	di%=r%+1                      :REM set DI = address of buffer to take name
+	flags%=os(136,addr(ax%))      :REM call "ProcNameById"
+	if (flags% and 1)
+		ret$=""                     :REM return null string for error
+	else
+		i%=1                        :REM search from start of buffer for length
+		while peekb(r%+i%)<>0       :REM while terminating 0 is not found
+			i%=i%+1                   :REM increment search index
+		endwh
+		pokeb r%,i%-1               :REM force length into string
+	endif
+	return ret$
+ENDP

@@ -1,0 +1,8 @@
+NoRevPlus version 1.00
+(C)Copyright Stephen Goldsmith and FreEPOC 2001-2003
+
+Revtran is a program that allows OPO and Opl APP files to be reverse translated back into OPL source code. NoRevPlus provides three different methods to prevent this reverse translation and protect your intellectual property.
+
+The first method enhances the reverse translation protection provided by nOPLPlus, and the second provides a method to protect normal 'Program' OPL programs to the same strength. It also adds a third protection system to both Program and nOPLPlus translated programs which exceeds all other no revtran systems I have tried. This third method allows free-form corrupt code to be added which has no identifiable lead-in or trailer, and can be of any length. There is no need to pre-define complicated templates either, just follow the simple steps written in the help file.
+
+This program is supplied as free software. You agree to use this software completely at your own risk and in no circumstances may the author, Stephen Goldsmith, nor FreEPOC be liable for any losses whatsoever. This package is provided "as is" and without any express or implied warranties, including, without limitation, the implied warranties of merchantibility and fitness for a particular purpose. This program is protected under international copyright laws. You may not disassemble, view the binary code or reverse translate the software without the express written permission of the author.

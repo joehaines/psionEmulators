@@ -1,0 +1,888 @@
+rem Program: Expenses
+rem (C)1995 D.I. Butters Ruben, All rights reserved.
+rem 
+rem You may use this program freely for any purpose, you may distribute
+rem it to anyone, and you may place it on any archive or bullitin board
+rem for wider access. However it may not be sold or distributed 
+rem commercially without the author's written permission.
+rem
+rem Disclaimer.
+rem 
+rem This program is supplied on an as-is basis, I do not offer any
+rem warrenty of its fitness for any purpose whatsoever, and accept
+rem no liability whatsoever for any loss or damage incurred by its
+rem use.
+rem 
+rem This program is not a supported product, however any suggestions
+rem or comments are welcome.
+rem
+rem You can reach me on CompuServe ID: 70630,1461.
+rem
+rem Enjoy!!...Dennis Butters Ruben...
+
+app Expenses
+	type $1003
+	path "\exp"
+	icon "\opl\expenses"
+enda
+
+proc MainMenu:
+	global DATFILE$(70), CURREN$(8,3), sCURREN$(40), EXRATE(8)
+	global PAYMENT$(8,10), sPAYMEN$(90), VERSION$(5)
+	global CURFILE$(70), PAYFILE$(70)
+	local Choice%, WinID1%, WinID2%
+	
+	CURFILE$= "EXCRATES.DBR"
+	PAYFILE$= "PAYMENTS.DBR"
+
+	DATFILE$= CMD$(2)
+	if DATFILE$=""
+		DATFILE$="EXPENSES"
+	endif
+	
+	VERSION$= "1.12"
+
+	InitCur:
+	InitPay:
+
+	trap cache 2000,8000
+	
+	Font 6,0
+	
+	WinID1%= gCreate(0,0,479,20,1,1)    : gBorder 0
+	WinID2%= gCreate(0,140,479,20,1,1)  :   gBorder 0
+	
+	do
+		
+		Cls
+		gUse WinID2% : gCls : gBorder 0
+		gAt 10,15 : gPrint "Active Datafile: ";DATFILE$
+
+		gUse WinID1% : gCls : gBorder 0
+		gAt 40,15 : gPrint "Expenses Program version ";VERSION$;", (C)1995 D.I. Butters Ruben..."
+		dInit "Expenses"
+		dText "", "List expenses", $402
+		dText "", "Report expenses", $402
+		dtext "", "Utilities", $602
+		dText "", "Add expenses", $402
+		Choice%= dialog 
+		
+		if Choice%=2
+			ListExp:
+		endif
+		
+		if Choice%=3
+			SubMenu2:
+		endif
+
+		if Choice%=4
+			SubMenu1:
+		endif
+		
+		if Choice%=5
+			NewExp:
+		endif
+	
+	until Choice%=0
+
+	gclose WinID1%
+	
+endp
+
+
+proc SubMenu1:
+
+	local Choice%, NewFile$(8), TmpFile$(20)
+
+	do
+
+		dInit "Utilities"
+		dText "", "About...", $602
+		dText "", "Change currency and rates", $402
+		dText "", "Change payment types", $602
+		dText "", "Create Datafile" , $402
+		dText "", "Compress Datafile" , $402
+		Choice%= dialog
+
+		if Choice%=2
+
+			dInit "About..."
+			dText "", "Expense Program version " + VERSION$ + ".", 2
+			dText "", "(C)1995 D.I. Butters Ruben, All rights reserved.", 2
+			dText "", "CIS ID: 70630,1461", 2
+			dialog
+			
+		endif
+
+		if Choice%=3
+			DefCurr:
+			InitCur:
+		endif
+		
+		if Choice%=4
+			DefPaym:
+			InitPay:
+		endif
+
+		if Choice%=5
+
+			dInit "New Datafile"
+			dEdit NewFile$, "Datafile"
+			if dialog
+
+				TmpFile$= "\EXP\" + NewFile$
+				create TmpFile$, A, Price, Curr%, Desc$, Paym%, CDate&, Rate
+				close
+
+			endif
+
+		endif
+
+		if Choice%=6
+
+			trap delete "DATTEMP.TMP"
+			compress DATFILE$, "DATTEMP.TMP"
+			delete DATFILE$
+			rename "DATTEMP.TMP", DATFILE$
+
+		endif
+
+
+	until Choice%= 0
+
+endp
+
+proc SubMenu2:
+
+	local Choice%
+
+	do
+
+		dInit "Reports"
+		dText "", "Total of all types of payment" , $402
+		dText "", "Total per type of payment" , $402
+		Choice%= dialog
+
+		if Choice%=2
+			ShowRap1:
+		endif
+
+		if Choice%=3
+			ShowRap2:
+		endif
+
+	until Choice%= 0
+
+endp
+
+proc NotExist:
+
+	dInit "Error: " + DATFILE$ + " does not exist!"
+	dialog
+
+endp
+
+proc InitCur:
+
+	local C1$(3),C2$(3),C3$(3),C4$(3),C5$(3),C6$(3),C7$(3),C8$(3)
+	local R2,R3,R4,R5,R6,R7,R8, Counter%
+
+	if not exist(CURFILE$)
+		CrRates:
+	endif
+
+	open CURFILE$,A,C1$,C2$,C3$,C4$,C5$,C6$,C7$,C8$,R2,R3,R4,R5,R6,R7,R8
+	first
+	
+	CURREN$(1) = A.C1$   : EXRATE(1) = 1
+	CURREN$(2) = A.C2$   : EXRATE(2) = A.R2
+	CURREN$(3) = A.C3$   : EXRATE(3) = A.R3
+	CURREN$(4) = A.C4$   : EXRATE(4) = A.R4
+	CURREN$(5) = A.C5$   : EXRATE(5) = A.R5
+	CURREN$(6) = A.C6$   : EXRATE(6) = A.R6
+	CURREN$(7) = A.C7$   : EXRATE(7) = A.R7
+	CURREN$(8) = A.C8$   : EXRATE(8) = A.R8
+	close
+
+	sCURREN$= ""	
+	Counter%=1
+	do
+	
+		sCURREN$= sCURREN$ + CURREN$(Counter%)
+		if Counter%<8
+			sCURREN$= sCURREN$ + ","
+		endif
+		Counter%= Counter% + 1
+			
+	until Counter%>8
+
+endp
+
+proc DefCurr:
+
+	local C1$(3),C2$(3),C3$(3),C4$(3),C5$(3),C6$(3),C7$(3),C8$(3)
+	local R2,R3,R4,R5,R6,R7,R8
+
+	if not exist(CURFILE$)
+		CrRates:
+	endif
+
+	open CURFILE$,A,C1$,C2$,C3$,C4$,C5$,C6$,C7$,C8$,R2,R3,R4,R5,R6,R7,R8
+	first
+   
+	C1$ = A.C1$
+	C2$ = A.C2$  : R2 = A.R2
+	C3$ = A.C3$  : R3 = A.R3
+	C4$ = A.C4$  : R4 = A.R4
+	C5$ = A.C5$  : R5 = A.R5
+	C6$ = A.C6$  : R6 = A.R6
+	C7$ = A.C7$  : R7 = A.R7
+	C8$ = A.C8$  : R8 = A.R8
+
+	dInit "Define Currencies"
+	dEdit C1$ , "Currency 1"
+	dEdit C2$ , "Currency 2"
+	dEdit C3$ , "Currency 3"
+	dEdit C4$ , "Currency 4"
+	dEdit C5$ , "Currency 5"
+	dEdit C6$ , "Currency 6"
+	dEdit C7$ , "Currency 7"
+	dEdit C8$ , "Currency 8"
+	if dialog
+
+		dInit "Define Rates"
+		dText "", "( " + C1$ + " = Base )"
+		dFloat R2 , C2$, 0, 1000
+		dFloat R3 , C3$, 0, 1000
+		dFloat R4 , C4$, 0, 1000
+		dFloat R5 , C5$, 0, 1000
+		dFloat R6 , C6$, 0, 1000
+		dFloat R7 , C7$, 0, 1000
+		dFloat R8 , C8$, 0, 1000
+		if dialog
+
+			A.C1$ = C1$
+			A.C2$ = C2$   : A.R2 = R2
+			A.C3$ = C3$   : A.R3 = R3
+			A.C4$ = C4$   : A.R4 = R4
+			A.C5$ = C5$   : A.R5 = R5
+			A.C6$ = C6$   : A.R6 = R6
+			A.C7$ = C7$   : A.R7 = R7
+			A.C8$ = C8$   : A.R8 = R8
+			update
+
+		endif
+
+	endif
+	close
+
+endp
+
+proc CrRates:
+	local C1$(3),C2$(3),C3$(3),C4$(3),C5$(3),C6$(3),C7$(3),C8$(3)
+	local R2,R3,R4,R5,R6,R7,R8
+
+	create CURFILE$,A,C1$,C2$,C3$,C4$,C5$,C6$,C7$,C8$,R2,R3,R4,R5,R6,R7,R8
+	
+	C1$ = "Fl"
+	C2$ = "$"     : R2 = 1.60
+	C3$ = "Pts"   : R3 = 0.18
+	C4$ = "Fr"    : R4 = 0.35
+	C5$ = "Bfr"   : R5 = 0.55
+	C6$ = "DM"    : R6 = 1.11
+	C7$ = "œ"     : R7 = 2.85
+	C8$ = "-"     : R8 = 1.00
+
+	A.C1$ = C1$
+	A.C2$ = C2$   : A.R2 = R2
+	A.C3$ = C3$   : A.R3 = R3
+	A.C4$ = C4$   : A.R4 = R4
+	A.C5$ = C5$   : A.R5 = R5
+	A.C6$ = C6$   : A.R6 = R6
+	A.C7$ = C7$   : A.R7 = R7
+	A.C8$ = C8$   : A.R8 = R8
+
+	append
+	close
+
+endp
+
+proc InitPay:
+
+	local C1$(10),C2$(10),C3$(10),C4$(10),C5$(10),C6$(10),C7$(10),C8$(10)
+	local Counter%
+
+	if not exist(PAYFILE$)
+		CrPaym:
+	endif
+
+	open PAYFILE$,A,C1$,C2$,C3$,C4$,C5$,C6$,C7$,C8$
+	first
+	
+	PAYMENT$(1) = A.C1$
+	PAYMENT$(2) = A.C2$
+	PAYMENT$(3) = A.C3$
+	PAYMENT$(4) = A.C4$
+	PAYMENT$(5) = A.C5$
+	PAYMENT$(6) = A.C6$
+	PAYMENT$(7) = A.C7$
+	PAYMENT$(8) = A.C8$
+	close
+	
+	sPAYMEN$= ""
+	Counter%=1
+	do
+	
+		sPAYMEN$= sPAYMEN$ + PAYMENT$(Counter%)
+		if Counter%<8
+			sPAYMEN$= sPAYMEN$ + ","
+		endif
+		Counter%= Counter% + 1
+			
+	until Counter%>8
+
+endp
+
+
+proc DefPaym:
+
+	local C1$(10),C2$(10),C3$(10),C4$(10),C5$(10),C6$(10),C7$(10),C8$(10)
+
+	if not exist(PAYFILE$)
+		CrPaym:
+	endif
+
+	open PAYFILE$,A,C1$,C2$,C3$,C4$,C5$,C6$,C7$,C8$
+	first
+   
+	C1$ = A.C1$
+	C2$ = A.C2$
+	C3$ = A.C3$
+	C4$ = A.C4$
+	C5$ = A.C5$
+	C6$ = A.C6$
+	C7$ = A.C7$
+	C8$ = A.C8$
+
+	dInit "Define Payment Types"
+	dEdit C1$ , "Type 1"
+	dEdit C2$ , "Type 2"
+	dEdit C3$ , "Type 3"
+	dEdit C4$ , "Type 4"
+	dEdit C5$ , "Type 5"
+	dEdit C6$ , "Type 6"
+	dEdit C7$ , "Type 7"
+	dEdit C8$ , "Type 8"
+	if dialog
+
+		A.C1$ = C1$
+		A.C2$ = C2$
+		A.C3$ = C3$
+		A.C4$ = C4$
+		A.C5$ = C5$
+		A.C6$ = C6$
+		A.C7$ = C7$
+		A.C8$ = C8$
+		update
+
+	endif
+	close
+
+endp
+
+
+proc CrPaym:
+	local C1$(10),C2$(10),C3$(10),C4$(10),C5$(10),C6$(10),C7$(10),C8$(10)
+	
+	create PAYFILE$,A,C1$,C2$,C3$,C4$,C5$,C6$,C7$,C8$
+	
+	C1$= "Cash"
+	C2$= "EuroCard"
+	C3$= "EuroCheque"
+	C4$= "Pin/Atm"
+	C5$= "BankCheque"
+	C6$= "Account"
+	C7$= "Advance"
+	C8$= "Visa"
+
+	A.C1$ = C1$
+	A.C2$ = C2$  
+	A.C3$ = C3$
+	A.C4$ = C4$
+	A.C5$ = C5$
+	A.C6$ = C6$
+	A.C7$ = C7$
+	A.C8$ = C8$
+
+	append
+	close
+
+endp
+
+proc NewExp:
+
+	local Price, Curr%, Desc$(35), Paym%, CDate&
+	local CTitle$(80), RCode%
+	
+	do
+	
+		CDate&= days(day,month,year)
+
+		dInit "Add Expense (Esc=Quit)"
+		dFloat  Price  , "Price", -100000, 100000
+		dChoice Curr%  , "Currency", sCURREN$
+		dEdit   Desc$  , "Description"
+		dChoice Paym%  , "Payment", sPAYMEN$
+		dDate       CDate& , "Date", days(01,01,1995), days(31,12,1999)
+		RCode%= dialog
+			
+		if RCode%=0 
+			break
+		endif
+		
+		if Price=0 or Desc$=""
+			continue
+		endif
+	
+		CTitle$= "Confirm add expense: " + left$(Desc$,20)
+		if len(Desc$)>20
+			CTitle$=CTitle$ + "..."
+		endif
+		CTitle$= CTitle$ + ", " + CURREN$(Curr%) + " " + gen$(Price,10) + ", " + PAYMENT$(Paym%)
+		dInit CTitle$
+		dButtons "Ok", 13, "Cancel", 27
+		RCode%= dialog
+		if RCode%=0
+			RCode%=1
+		endif
+		
+		if RCode%=13
+			AddRec:(Price, Curr%, Desc$, Paym%, CDate&)
+			Price   = 0
+			Curr% = 0
+			Desc$   = ""
+			Paym%   = 0
+			CDate&= days(day,month,year)
+		endif
+		
+	until RCode%=0
+endp
+
+proc AddRec:(Price, Curr%, Desc$, Paym%, CDate&)
+
+	if not exist(DATFILE$)
+		create DATFILE$, A, Price, Curr%, Desc$, Paym%, CDate&, Rate
+	else
+		open DATFILE$, A, Price, Curr%, Desc$, Paym%, CDate&, Rate
+	endif
+
+	A.Desc$= upper$(left$(Desc$,1))
+	A.Desc$= A.Desc$ + right$(Desc$, len(Desc$)-1)
+	
+	A.Price = Price
+	A.Rate  = EXRATE(Curr%)
+	A.Curr% = Curr%
+	A.Paym% = Paym%
+	A.CDate&= CDate&
+	append
+	close
+	
+endp
+
+proc UpdRec:(Price, Curr%, Desc$, Paym%, CDate&, Rate)
+
+	A.Desc$= upper$(left$(Desc$,1))
+	A.Desc$= A.Desc$ + right$(Desc$, len(Desc$)-1)
+	
+	A.Price = Price
+	A.Rate  = Rate
+	A.Curr% = Curr%
+	A.Paym% = Paym%
+	A.CDate&= CDate&
+	update
+	
+endp
+
+proc ListExp:
+
+	local Price, Curr%, Desc$(35), Paym%, CDate&, Rate
+	local CTitle$(80), RCode%, Fstr$(50), fFstr$(50)
+	local WinID1%, WinID2%, WinID3%, Choice%
+	local d%, m%, y%, hr%, mm%, sc%, dy%
+		
+	if not exist(DATFILE$)
+		NotExist:
+		return
+	endif
+	
+	open DATFILE$, A, Price, Curr%, Desc$, Paym%, CDate&, Rate
+	
+	first
+	Fstr$=""
+	
+	WinID1%= gCreate(0,0,479,20,1,1)        : gBorder 0
+	WinID2%= gCreate(0,21,479,118,1,1)  :   gBorder 0
+	WinID3%= gCreate(0,140,479,20,1,1)  :   gBorder 0
+	gAt 5,15 : gPrint chr$(27);"=Previous  ";chr$(26);"=Next  Home=First  End=Last  M=Modify  D=Delete  Esc=Quit"
+			
+	do
+	
+		if count=0
+			dInit "No records!"
+			dialog
+			break
+		endif
+	
+		Price   = A.Price
+		Rate        = A.Rate
+		Curr%   = A.Curr%
+		Desc$   = A.Desc$
+		Paym%   = A.Paym%
+		CDate&= A.CDate&
+
+		gUse WinID1% : gCls : gBorder 0
+		CTitle$="Expenses - record: " + gen$(pos,5) + "/" + gen$(count,5)
+		gAt 170,15 : gPrint CTitle$
+		
+		gUse WinID2% : gCls : gBorder 0
+		gAt 10,15 : gPrint "Price"
+		gAt 10,30 : gPrint "Description"
+		gAt 10,45 : gPrint "Payment"
+		gAt 10,60 : gPrint "Date"
+		gAt 92, 2 : gLineTo 92,116
+
+		secstodate ((A.CDate& - days(1,1,1970))*86400),y%,m%,d%,hr%,mm%,sc%,dy%
+		
+		gAt 100,15 : gPrint CURREN$(A.Curr%),fix$(A.Price,2,-11)
+		if A.Rate<>0 
+			gAt 280,15 : gPrint "(Rate: ";fix$(A.Rate,2,-5);" = ";CURREN$(1),fix$(A.Price * A.Rate,2,-11),")"
+		else
+			gAt 280,15 : gPrint "(Rate: ";EXRATE(A.Curr%);" = ";CURREN$(1),fix$(A.Price * EXRATE(A.Curr%),2,-11),")"
+		endif
+		gAt 100,30 : gPrint A.Desc$
+		gAt 100,45 : gPrint PAYMENT$(A.Paym%)
+		gAt 100,60 : gPrint d%;"-";m%;"-";y%-1900
+
+		Choice%= get
+	
+		if Choice%=259
+			back
+		endif
+		
+		if Choice%=258
+			next
+			if EOF
+				back
+			endif
+		endif
+
+		if Choice%=262
+			first
+		endif
+		
+		if Choice%=263
+			last
+		endif
+		
+		if Choice%=77 or Choice%=109
+			
+			dInit CTitle$
+			dFloat  Price  , "Price", -100000, 100000
+			dChoice Curr%  , "Currency", sCURREN$
+			dFloat  Rate   , "Exchange rate", 0, 1000
+			dEdit   Desc$  , "Description"
+			dChoice Paym%  , "Payment", sPAYMEN$
+			dDate       CDate& , "Date", days(01,01,1995), days(31,12,1999)
+			RCode%= dialog
+			if RCode%<>0
+				UpdRec:(Price, Curr%, Desc$, Paym%, CDate&, Rate)
+			endif
+			
+		endif
+		
+		if Choice%=68 or Choice%=100
+		
+			dInit "Delete record !!"
+			dButtons "Yes", %Y, "No", %N
+			RCode%= dialog
+			if RCode%=89 or RCode%=121
+				erase
+				if EOF
+					back
+				endif
+			endif
+			
+		endif
+		if Choice%=13
+			dInit "Find Description..."
+			dEdit FStr$, "Find"
+			dialog  
+			
+			fFstr$= "*" + Fstr$ + "*"       
+			if Fstr$<>""
+				next
+			endif
+			find(fFstr$)
+			if EOF
+				dInit Fstr$ + " not found!"
+				dialog
+				back
+			endif
+		endif
+						
+	until Choice%=27
+				
+	gClose WinID1%
+	gClose WinID2%
+	gClose WinID3%
+	close
+	
+endp
+
+proc ShowRap1:
+	local SDate&, EDate&
+	local Line%, d%, m%, y%, hr%, mm%, sc%, dy%, NewPrice, Total, Total2
+	local RCode%, CTitle$(80), Choice%, Entry%
+	local WinID1%, WinID2%, WinID3%
+		
+	if not exist(DATFILE$)
+		NotExist:
+		return
+	endif
+	
+	open DATFILE$, A, Price, Curr%, Desc$, Paym%, CDate&, Rate
+	
+	if count=0
+		dInit "No records!"
+		dialog
+		close
+		return
+	endif
+	
+	WinID1%= gCreate(0,0,479,20,1,1)    : gBorder 0
+	WinID2%= gCreate(0,21,479,118,1,1)  :   gBorder 0
+	WinID3%= gCreate(0,140,479,20,1,1)  :   gBorder 0
+
+	SDate&= days(day,month,year)
+	EDate&= days(day,month,year)
+	
+	DoAgain1::
+	dInit "Selection Criteria"
+	dDate       SDate& , "Start Date", days(01,01,1995), days(31,12,1999)
+	dDate       EDate& , "End Date", days(01,01,1995), days(31,12,1999)
+	RCode%= dialog
+	if EDate&<SDate&
+		EDate&=SDate&
+		goto DoAgain1
+	endif
+
+	if RCode%<>0
+
+		CTitle$= "Expense Report sorted on dates between "
+		secstodate ((SDate& - days(1,1,1970))*86400),y%,m%,d%,hr%,mm%,sc%,dy%
+		CTitle$= CTitle$ + gen$(d%,2) + "-" + gen$(m%,2) + "-" + gen$(y%,4) + " and "
+		secstodate ((EDate& - days(1,1,1970))*86400),y%,m%,d%,hr%,mm%,sc%,dy%
+		CTitle$= CTitle$ + gen$(d%,2) + "-" + gen$(m%,2) + "-" + gen$(y%,4) + "."
+		gUse WinID1% : gCls : gBorder 0 : gAt 5,15 : gPrint CTitle$
+
+		RestList::
+		gUse WinID2% : gCls : gBorder 0 : gFont 4   
+			
+		Entry%= 1
+		Total2= 0
+		Line% = 12
+		do
+				
+			first
+			Total = 0
+		
+			do
+		
+				if A.Paym%=Entry% and A.CDate&>=SDate& and A.CDate&<=EDate&
+			
+					if A.Rate<>0
+						NewPrice= A.Price * A.Rate  
+					else
+						NewPrice= A.Price * EXRATE(A.Curr%) 
+					endif
+					Total = Total + NewPrice
+					
+				endif
+				next
+				
+			until EOF
+
+			gAt 10 , Line% : gPrint PAYMENT$(Entry%)
+			gAt 300, Line% : gPrint CURREN$(1)
+			gAt 300, Line% : gPrint fix$(Total,2,-11)
+
+			Total2= Total2 + Total
+			Line% = Line% + 10
+			Entry%= Entry% + 1
+			
+		until Entry%>8
+			
+		gUse WinID3% : gCls : gBorder 0 
+		gAt 5,15 : gPrint "Total: ";CURREN$(1),fix$(Total2,2,-11),"      Press enter to continue..."
+		
+		do
+		
+			Choice%= get
+		
+		until Choice%=13
+		
+	endif
+	
+	gClose WinID1%
+	gClose WinID2%
+	gClose WinID3%
+	close
+
+endp
+
+proc ShowRap2:
+	local Price, Curr%, Desc$(35), Paym%, CDate&, SDate&, EDate&, Rate
+	local Line%, d%, m%, y%, hr%, mm%, sc%, dy%, NewPrice, Total
+	local RCode%, CTitle$(80), Choice%, Entry%, ChSort%
+	local WinID1%, WinID2%, WinID3%
+		
+	if not exist(DATFILE$)
+		NotExist:
+		return
+	endif
+	
+	WinID1%= gCreate(0,0,479,20,1,1)        : gBorder 0
+	gAt 190,15 : gPrint "Sorting records..."
+	SortDbs: : gCls : gBorder 0
+	
+	open DATFILE$, A, Price, Curr%, Desc$, Paym%, CDate&, Rate
+	first
+	
+	if count=0
+		dInit "No records!"
+		dialog
+		gClose WinID1%
+		close
+		return
+	endif
+
+	WinID2%= gCreate(0,21,479,118,1,1)  :   gBorder 0
+	WinID3%= gCreate(0,140,479,20,1,1)  :   gBorder 0
+
+	SDate&= days(day,month,year)
+	EDate&= days(day,month,year)
+	
+	DoAgain2::
+	dInit "Selection Criteria"
+	dChoice Paym%  , "Payment", sPAYMEN$
+	dDate       SDate& , "Start Date", days(01,01,1995), days(31,12,1999)
+	dDate       EDate& , "End Date", days(01,01,1995), days(31,12,1999)
+	dChoice ChSort%, "Show", "Dates, Rates"
+	RCode%= dialog
+	if EDate&<SDate&
+		EDate&=SDate&
+		goto DoAgain2
+	endif
+	
+	if RCode%<>0
+
+		CTitle$= "Expense Report sorted on: " + PAYMENT$(Paym%) + ", "
+		secstodate ((SDate& - days(1,1,1970))*86400),y%,m%,d%,hr%,mm%,sc%,dy%
+		CTitle$= CTitle$ + gen$(d%,2) + "-" + gen$(m%,2) + "-" + gen$(y%,4) + " between "
+		secstodate ((EDate& - days(1,1,1970))*86400),y%,m%,d%,hr%,mm%,sc%,dy%
+		CTitle$= CTitle$ + gen$(d%,2) + "-" + gen$(m%,2) + "-" + gen$(y%,4)
+		gUse WinID1% : gCls : gBorder 0 : gAt 5,15 : gPrint CTitle$
+
+		RestList::
+		gUse WinID2% : gCls : gBorder 0 : gFont 4   
+		first
+		Total = 0
+		Entry%= 1
+		Line% = 12
+		
+		do
+		
+			if A.Paym%=Paym% and A.CDate&>=SDate& and A.CDate&<=EDate&
+			
+				secstodate ((A.CDate& - days(1,1,1970))*86400),y%,m%,d%,hr%,mm%,sc%,dy%
+				if A.Rate<>0
+					NewPrice= A.Price * A.Rate
+				else
+					NewPrice= A.Price * EXRATE(A.Curr%)
+				endif
+				
+				gAt 10 , Line% : gPrint A.Desc$
+				gAt 300, Line% : gPrint CURREN$(1)
+				gAt 300, Line% : gPrint fix$(NewPrice,2,-11)
+				if ChSort%=1
+					gAt 405, Line% : gPrint fix$(d%,0,-2);"-";fix$(m%,0,-2);"-";fix$(y%-1900,0,-2)
+				else
+					gAt 405, Line% : gPrint right$("   " + CURREN$(A.Curr%),3);" ";fix$(A.Rate,2,-5)
+				endif
+				
+				Line% = Line% + 10
+				Total = Total + NewPrice
+				Entry%= Entry% + 1
+				
+				if Line%>118
+					gUse WinID3% : gCls : gBorder 0 
+					gAt 5,15 : gPrint "Subtotal: ";CURREN$(1),fix$(Total,2,-11),"  (";Entry%-1;")      Press any key to continue..."
+					get
+					gUse WinID2% : gCls : gBorder 0 : gFont 4   
+					Line%=10
+				endif
+				
+			endif
+			next
+			
+		until EOF   
+			
+		gUse WinID3% : gCls : gBorder 0 
+		gAt 5,15 : gPrint "Total: ";CURREN$(1),fix$(Total,2,-11),"  (";Entry%-1;")      Press enter to relist of escape to quit..."
+		
+		do
+		
+			Choice%= get
+			if Choice%=13
+				goto RestList
+			endif
+		
+		until Choice%=27
+		
+	endif
+	
+	gClose WinID1%
+	gClose WinID2%
+	gClose WinID3%
+	close
+
+endp
+
+proc SortDbs:
+	local last%, e&, e%, lpos%, c%
+
+	if not exist(DATFILE$)
+		return
+	endif
+	
+	open DATFILE$, A, Price, Curr%, Desc$, Paym%, CDate&, Rate
+	last :last%=pos
+	if count>0
+		while last%<>0
+			position last% :e%=pos
+			e&=A.CDate&
+			do
+				if A.CDate&<e&
+					e&=A.CDate& :e%=pos
+				endif
+				lpos%=pos :back
+			until pos=1 and lpos%=1
+			position e%
+			update :last%=last%-1
+		endwh
+	endif
+	close
+
+endp
+
+

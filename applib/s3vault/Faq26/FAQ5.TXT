@@ -1,0 +1,549 @@
+7. THE EMULATOR
+
+   Psion, in their great generosity, have released their Psion emulator
+   for the Series 3 and later on for the Series 3a. This is a PC product.
+   Also please note that it is completely *unsupported* by Psion and do
+   not ask them for new versions, other platforms, etc... I think that it
+   was quite nice of them to offer their users (and potential users) such
+   a nice tool. We wouldn't want it to stop, would we? The files are
+   available as usual in the IC archive in the development directory.
+   
+  7.1 Limitations & bugs
+  
+   The following limitations & bugs were reported:
+     * The keyboard is only "British" and doesn't accept your regular
+       keyboard map (either use one of the techniques described in the
+       "Can I change the keyboard?" section or see below for a more
+       permanent way around this problem);
+     * No sound;
+     * The system screen "loses" your configuration each time you launch
+       the emulator;
+     * It only works in DOS with 4Mb RAM and at least a 386 processor;
+     * Caps lock works but doesn't show the symbol like on a real Psion;
+     * Shift diamond key doesn't work;
+     * It doesn't accept direct keyboard scan codes - this is mostly used
+       in games.
+       
+  7.2 Tips & tricks
+  
+     * Alt+Ctrl+shift+S makes a screen snapshot and automatically
+       increases the screen number in the file (unlike the real Psion);
+     * Alt+Ctrl+shift+C shows some memory parameters (useful for
+       development);
+     * Ins key on the numeric keypad (0 key) switches between
+       applications like Shift-System button on the real Psion;
+     * If you replace the 480 by 160 in the HHSERV.PAR file by 640 by
+       480, you will get a complete screen on your PC.
+       
+  7.3 Changing permanently the keyboard mapping (by Uwe Kallmeyer)
+  
+   The keyboard map is held internally in the file EPOC.DLL. You must
+   thus patch this file to suit your own keyboard. It contains three
+   tables, one for Psion/Ctrl keys, one for shifted keys and one for
+   normal keys. These tables start at locations (for the file dated
+   4.12.94, size 94736):
+
+                        Psion/Ctrl     $35D8
+                        Shift          $33D8
+                        Normal         $32D8
+
+8. PROGRAMMING
+
+  8.1 Overview of development possibilities
+  
+   There are a number of ways in which you can program the Psion. Choose
+   the one which fits your abilities, requirements, and budget.
+   
+  8.2 OPL programming directly on the Psion
+  
+   This is the most straightforward. If you can live with the cramped
+   keyboard and screen, you can pursue this option with no further
+   outlay, anywhere you can take your Psion.
+   
+   If you haven't got the OPL Programming Manual, I suggest you order it.
+   It's really a great manual (unlike most others I've seen). If you are
+   impatient to receive it, it's also available online at:
+   http://www.primate.wisc.edu/people/dubois/psion/oplman/
+   
+   Some alleviators:
+    1. A database of the OPL commands is available from the IC archive
+       (see section 5) which you can load into the built-in DATA
+       application.
+    2. Switching off the clock in the OPL editor will give you more
+       active screen width. CONTROL/menu toggles this.
+    3. CONTROL/Word takes you straight to the OPL editor from the system
+       screen.
+    4. Get OPP from Andy Clarkson. This is really *the* programmer's tool
+       for programming directly on the Psion. It allows you to have
+       exactly the same functionnalities as with Psion's S3ATRAN and even
+       more directly on your Psion!
+    5. Get OPPDebug from Andy Clarkson. This is a fine debugger for OPL.
+       Psion haven't written one themselves, so this is a must for all
+       serious programmers!
+       
+   You can also make use of some of the data which follows in this
+   section, so read on.
+   
+  8.3 OPL programming from a PC
+  
+   You can compose your OPL text files on your PC and send them down to
+   the Psion with the link for translation, or you can obtain S3ATRAN
+   from the IC archive (Section 5). S3ATRAN will translate your OPL
+   source into .OPO format which you can then use the link to move to the
+   Psion. In addition to translating simple OPL, S3ATRAN understands a
+   number of C-like pre-processor commands, which make source preparation
+   easier. As well as this advantage, source preparation on a PC allows
+   use of the full-sized keyboard and screen, use of whatever text editor
+   you favour, convenient storage and archival of important source code,
+   and access to printers. It also allows you to make bigger programs
+   since you are not limited to a 64k source like on the Psion.
+   
+   For those using windows, you can use Psion's Opl Development
+   Environment (ODE) which is a *very* nice programmer's tool for
+   developing OPL in windows. ODE is commercial.
+   
+   There is a Psion 3 emulator for the Series 3 and another one for the
+   Series 3a, both available in the IC archive, which allows you to run
+   OPL programs on the PC. For more details, see elsewhere in this FAQ.
+   
+   The "Psionics files" are a collection of information for the OPL
+   programmer who wants to know more than is in the programming manual,
+   but who doesn't want the expense and effort of getting the SDK. They
+   include general explanations of system concepts, descriptions of all
+   the system calls usable from OPL, information about some useful device
+   drivers, and random other useful items. Much of the information is
+   taken from the official Psion SDK manuals, with permission. Clive D.W.
+   Feather is widely appreciated for having taken the time to bring this
+   information to the Psion community. You can get the latest set of
+   files (which change quite frequently), from the WWW site. See that
+   section in the FAQ for the address.
+   
+   Psion offer Software Development Kits - "SDKs". The lowest level is
+   the documentation-only level. This currently includes two large
+   ring-binders which document vast amounts of detail about the Psion.
+   Though much is of prime relevance to C programmers, a lot of essential
+   information can be gleened by the astute OPL programmer. System calls,
+   file formats, transmission protocols, OS structure etc. are all to be
+   had. The SDK costs 75 UKP. See the contacts section if you want to
+   order it.
+   
+  8.4 C Development on PC
+  
+   The second level of SDK (see above) is called the "Standard SDK". It
+   includes the documentation mentioned above, and some software on
+   floppies. The software comprises the TopSpeed C language system, an
+   interactive Psion debugger, some customisation files, and some
+   examples. This costs 155 UKP.
+   
+   "TopSpeed C" is a general purpose development environment and C
+   compiler. You can use it to write C programs for your PC, and the
+   development environment allows you to add other language compilers.
+   
+   Psion's customisation files taylor TopSpeed C so that it can generate
+   image files which will run on the Psion.
+   
+   The Psion debugger allows C programs to be debugged. Debugging can be
+   done at the C source code level, or at assembly language level, or in
+   a mixture of the two. The debugger also allows programs to be run
+   locally on the PC in a form of Psion emulator, or run on the Psion
+   itself through the serial link. A slew of very useful features are
+   included in the debugger.
+   
+   Psion also provide some example programs which are referenced in the
+   manuals. Going through these with the manual is a good way to learn
+   about the Psion and the best way to program on it. The SPY application
+   is amoung the examples included.
+   
+   It is theoretically possible to write C programs for the Psion using
+   other compilers, but extensive expertise would be needed to avoid the
+   pitfalls. For example, Topspeed C implements parameter passing in a
+   way which is compatible with the Epoc operating system.
+   
+   Object-oriented programming is possible in this C environment.
+   
+    8.4.1 Can I use another compiler than Topspeed? (by Dan Ramage)
+    
+     "It is impossible to write sibo applications with anything but the
+     sibo sdk for several reasons.
+     
+     Topspeed can output small memory model code staying within the 64k
+     code and data segment. In addition, Topspeeds calling conventions
+     don't use the segment registers (which can really mess up your
+     psion). Another reason is that topspeed code is compact and
+     executes quickly on sibo machines."
+     
+  8.5 Advanced C Development on a PC
+  
+   The highest level of SDK is the "Professional SDK". This adds the
+   source code of various device drivers to the Standard SDK. It costs
+   295 UKP.
+   
+  8.6 Available books (by John A Watson)
+  
+   In order of complexity, the following books are available.
+    1. First Steps in Programming the Psion Series 3 by Mike Shaw, 14.95
+       GB ISBN 0-7457-0145-0 An introduction to the basic principles of
+       programming.
+    2. Graphic Programming on the Psion Series 3 by Bill Aitken, 14.95
+       GBP ISBN 0-7457-0156-6 As the title suggests this is for those
+       interested in graphics.
+    3. Serious Programming on the Psion 3a by Bill Aitken, 16.95 GBP ISBN
+       0-7457-0035-7 (Series 3) ISBN 0-7457-0282-1 (Series 3a) A complete
+       OPL programming tutorial from basics to advanced especially
+       graphics including sprite design.
+    4. Machine Code Programming on the Psion Series 3a & 3 by John
+       Farrant, 16.95 GBP As the title suggests this book tells you how
+       to program in 8086 machine code and assembly language. The
+       price/package includes a fully functional two-pass assembler with
+       text editor and debugger.
+    5. Introduction to Using the Psion Series 3 by Ros Lawton & Isaac
+       Davis, 14.95 GBP ISBN 0-7457-0146-9 14.95.
+    6. The 100 Most Frequently Asked Questions for You and Your Psion
+       Series 3a & 3 by Richard Bloss & Adam Taylor, 9.95 GBP ISBN
+       0-7457-0300-3
+       
+  8.7 How to do various things: tips & tricks
+  
+   (Thanks to Andrew Baldwin for material)
+    1. First - reading the programming manual which came with your Psion
+       more than once is thoroughly recommended !
+    2. REVTRAN - is a reverse translator available at the archive. It
+       turns OPO modules back into OPL - though variable names may be
+       lost. This program allows developers to see how others have
+       implemented their programs, and this may give valuable insights
+       into useful programming techniques. Please note that you should
+       not use REVTRAN to circumvent protection mechanisms, to avoid
+       paying shareware fees, to steal programs or fragments thereof, or
+       to do anything else illegal or anti-social. Some OPL programs are
+       protected against reverse translation (with the help of OPP for
+       example).
+    3. SPRITES - the manual doesn't make it clear. You can have only one
+       sprite. You must emulate any further sprite functionality in OPL.
+    4. MULTI-DIMENSIONAL ARRAYS - are not provided in OPL, but they can
+       be emulated. For example, a two dimensional array: ARRAY%(X%,Y%)
+       may be implemented by declaring ARRAY%(Z%) (where Z%=X%*Y%). You
+       can now access element (a%,b%) as ARRAY((b%-1)*X% + a%). Each
+       access requires arithmetic so this will incurr a speed penalty.
+       OPP, the OPL preprocessor, implements this (exactly like
+       described) but with complete transparency to the programmer.
+    5. SPEED - OPL can get slow. Here are some ideas for speeding them
+       up.
+          + Where does your program spend the most time ? Find out, and
+            concentrate on those sections. It's pointless speeding up
+            code segments which will not impact overall speed
+            significantly.
+          + The use of floating point numbers is very slow; the Series 3
+            calls code which emulates a floating point processing chip.
+            Major gains can be had if you avoid floating point numbers.
+            Often integers can be used with a mental shift of the decimal
+            point.
+          + BUILT-IN FUNCTIONS like SIN can also be very slow. Sometimes
+            it is preferable to build a table of answers and use a
+            look-up strategy.
+          + On the Series 3a, make use of the procedure cache, which can
+            keep often-used procedures in memory - thereby avoiding a
+            heavy time penalty for loading them in. On the Series 3 there
+            is no cache to use, but you can place the procedure code
+            inline to avoid the overhead. There will be a
+            readability/complexity overhead to trade off.
+          + Use gUPDATE to restrict screen updates, as detailed in the
+            manual.
+          + OPL allows the programmer to call machine code routines,
+            which can be highly optimized for speed. These can be built
+            from C programs using the SDK, or with an assembler
+            (available in the archive). Programming at low levels
+            requires extensive knowledge of the Series 3 Operating
+            System. During development crashes are common, and data loss
+            may well occur. Also note that re-implementing a code segment
+            at a lower level will not necessarily give significant speed
+            improvements; it depends on what the code is doing.
+    6. Various
+          + The manual states that you can only load up to 3 modules with
+            LOADM, whereas it is 7 really.
+       
+A. SHAREWARE/FREEWARE SOFTWARE
+
+   Please note that the software described here is just a small part of
+   available software and that it would be impossible to track down every
+   single share/freeware Psion program. If there is a program which you
+   would like to see added to the list, please write a mini review in the
+   same style as these here and mail it me. I'll gladly add it and give
+   you credit!
+   
+   Just some guidelines if you wish to submit a mini-review: mention the
+   author (and Email address if possible), the exact filename and the
+   type of program (free/share/cripple) as from the list below. Do not
+   write more than 2-3 sentences and do not mention any "this is great"
+   or "this is bad" comments, thanks!
+   
+   If you want to know more about these programs, you may want to check
+   out my Psion programmer's on the web list at:
+   http://www.geocities.com/SiliconValley/8130/prgers.htm or
+   alternatively, check out Steve Litchfield's review section at:
+   http://3lib.ukonline.co.uk
+   
+  A.1 Applications
+  
+   I've used the following definitions below. These may not accord with
+   their standard meanings as used elsewhere.
+   
+   Shareware
+          a fully functional program is provided, but the user is asked
+          to pay for it.
+          
+   Crippleware
+          as shareware, but the functionality of the program is
+          restricted in some way to encourage registration. (This may not
+          make it unusable - ANY restriction puts a program in this
+          category.)
+          
+   Freeware
+          the fully functional program is given away free. It is probably
+          still copyright to the author and conditions may be imposed on
+          redistribution.
+          
+   GNUware
+          the program is distributed under the GNU General Public
+          Licence: among other things, this means it will include source
+          code.
+          
+   Note that when ``*'' appears, this means the version number. New
+   version come out very often, so I can't track down each program.
+   
+   The following people have contributed their reviews (see the first
+   part of this FAQ for their Email addresses):
+
+Roger Burton-West     (RBW)
+Andy Clarkson         (AC)
+Steve Litchfield      (SL)
+Neil Masson           (NM)
+Daniel Pfund          (DP)
+
+     * APPMAN: Jeremy Wakefield jezar@cix.compulink.co.uk: freeware (RBW)
+       
+       For the advanced OPL programmer only, how to use those cascading
+       dialogues and other flashy features of the built-in apps.
+       Challenging but very useful.
+     * BATCHK: Pelican software: freeware (SL)
+       Shows you the state of your batteries in a one-screened pretty
+       display. Even shows the state of the battery in RAM SSDs!
+     * CALC3A*: Richard Schmidt 100735.331@compuserve.com: nagware (RBW)
+       Not to be confused with all the other calculators out there! Solid
+       and stable scientific calculator, including editable preset
+       equations. A little bulky, but very impressive.
+     * CMDP: Psion, Inc.: freeware (RBW)
+       DOS-style command line interface for the 3a and Workabout. Handy
+       if you like command lines (I do). Slightly quirky.
+     * CON3A: Tim Bentinck: shareware (SL)
+       A comprehensive units conversion utiility. Allows every conversion
+       under the sun, and a few more.
+     * DUMP3A: Wolfgang Schirmer 100022.1371@compuserve.com: freeware
+       (RBW)
+       Elderly but still useful hexadecimal/ASCII file editor. Perfect
+       for inspecting and modifying binaries, finding resources, etc.
+     * DPBANK*: Daniel Pfund Pfund3@uni2a.unige.ch: shareware (DP)
+       A small and very easy to learn and set up bank accounts tracker.
+       Lacks all the bells and whistles of the "big shots" but uses much
+       less memory.
+     * DRAW: Rick Andrews: shareware (SL)
+       Painting and drawing application. Its basic function is to let you
+       create PIC files for use as icons or in slide-shows or in your own
+       programs etc. Allows PCX import/export.
+     * EIKON: Roger Burton West rburtonw@nyx.cs.du.edu: freeware (RBW)
+       One of a great many icon editors available - essential for anyone
+       writing applications, or just customising the look of the system
+       shell. Yes, this one is my own; it has more features than the
+       competition, it's faster than most, and it's free.
+     * FE830: Psion, Inc.: freeware (RBW)
+       Hex/ASCII file editor for the PC, optimised for TLV files. Needs
+       some technical knowledge, but invaluable for data recovery from
+       corrupted files. (An internal tool used by Psion themselves, I
+       gather.)
+     * FIREPIC: Andrew Baldwin baldwina@cix.compulink.co.uk: freeware
+       (RBW)
+       Picture viewer. Nothing special there, but this one will read and
+       write PCX files as well as PICs; further DYLs may be written for
+       other formats; and it's being used by an increasing number of art
+       packages.
+     * FONT*: Steve Godfrey stevegodfrey@cix.compulink.co.uk: crippleware
+       (RBW)
+       Edits Psion fonts. You can use them in your own programs, but not
+       in the built-in apps or for printing.
+     * JBDAT*: John Boyce jboyce@cix.compulink.co.uk: freeware (RBW)
+       Replacement for Data, with much better functionality. Needs lots
+       of memory, but much more useful than the standard app.
+     * JBFND*: John Boyce jboyce@cix.compulink.co.uk: freeware (RBW)
+       Searches files (even open files) for a text or hex string, and can
+       auto-launch files that match.
+     * JBLAUNCH: John Boyce jboyce@cix.compulink.co.uk: freeware (NM)
+       Provides a single icon under which you can launch any program.
+     * JBSTOPGO: John Boyce jboyce@cix.compulink.co.uk: freeware (NM)
+       Stops all your programs before a backup and restarts them
+       afterwards.
+     * JBTREE: John Boyce jboyce@cix.compulink.co.uk: freeware (SL)
+       Allows you to browse round a Psion disk, tagging and deleting,
+       viewing or moving files. Lots of extra features too, such as
+       viewing the space that could be reclaimed on a flash SSD.
+     * INSTALL: Psion GmbH: freeware (NM)
+       Provides configuration for your Psion, so that your system layout
+       can be restored after a reset. (DP:Only works correctly with
+       english type Psions!)
+     * LOTTERY3: freeware (SL)
+       This application will run a complete simulation of thousands of
+       years playing, just for you, showing how often you would have won
+       (or, more probably, lost) during that time.
+     * MACSYS: Tom Dolbilin tdolby@prairienet.org: freeware (RBW)
+       The Macro System allows automation of most common Psion tasks. It
+       can record and play back a sequence of keystrokes: but macros are
+       actually full OPL programs, and can use all the power available to
+       the system. A little tricky to master, but very rewarding. Several
+       macros are available on the Net as separate files.
+     * MAP*: Steve Litchfield slitchfield@cix.compulink.co.uk: shareware
+       (RBW)
+       Huge geographical information system with multiple overlays. Maps
+       of the UK, Ireland and London are available (separate
+       registration). NOT a route finder, but handy for general
+       information and basic town plans.
+     * MEMOVOC: David Joyce djoyce@cix.compulink.co.uk: shareware (DP)
+       Instead of typing memos into your Psion, you can now speak them!
+       Allows for hands-free recording triggered by a loud sustained
+       sound.
+     * NOTEPAD: Pelican Software: shareware (NM)
+       A useful note-taking utility with links to other Psion
+       applications.
+     * OPP*: Andy Clarkson 100661.2440@compuserve.com: shareware (NM)
+       This is an OPL pre-processor with various C-like features, such as
+       #defines, includes, 2D arrays. Makes OPL much more readable. See
+       also section "Programming" for more info.
+     * OPPDBG: Andy Clarkson 100661.2440@compuserve.com: shareware (AC)
+       For OPL programmers. This is a run-time source level OPL debugger.
+       Shows which lines of OPL code are being executed. Examine and set
+       values of local variables in the running program. Requires the
+       separate OPL preprocessor utility (OPP 1.4F).
+     * PASON (NM)
+       Switches password protection on overnight. I use my Psion far too
+       often to put up with entering a password every time I switch it
+       on.
+     * PICPRINT & PRINTPIC (SL)
+       Two small utilities which allow printing from a PIC graphics file
+       (for example, a screen-dump of a spreadsheet) to an Epson or Canon
+       BJ printer.
+     * PIEDIR (NM)
+       Gives a graphical representation of where your precious memory has
+       gone. Can do files only or can sum all the space under
+       directories. Also shows space recoverable on a flash by formatting
+       it. (DP:still quite buggy, but a new version should come out
+       soon.)
+     * PLAN: Andy Clarkson 100661.2440@compuserve.com: crippleware
+       A project planning application. You enter task and resource
+       details and dependencies between tasks. Plan will then work out
+       the schedule for each task and the project as a whole (includes
+       Gantt and Pert charts, interface to Microsoft Project,...).
+     * READER* and TCREADER: Barry Childress 73510.1420@compuserve.com:
+       nagware (RBW)
+       Probably the best text file viewer for the Psion, with many
+       display options and good buffering. TCReader is a PC program to
+       compress text files that Reader can view on the fly; it usually
+       manages about 50% reduction in size.
+     * RFM110: Psion, Inc.: freeware (RBW)
+       TSR to mount Psion drives over serial link to a PC, allowing
+       normal PC software to access them. Old and sometimes unstable, but
+       still my favoured serial comms package (even over RCom/PsiWin).
+     * RVTRN*: Mike Rudin mrudin@cix.compulink.co.uk: freeware (RBW)
+       Extremely useful package to convert translated OPL programs back
+       to source code, in case you've lost the source or want to see how
+       someone else did something. Controversial, and some programs have
+       anti-Revtran "traps".
+     * SAIKAN: Jamie Packer jamie@bristol.st.com: freeware (author)
+       A Japanese character (kanji) dictionary. Supports searching by
+       reading, meaning, stroke count, radicals, JIS code, etc. Displays
+       comprehensive information on 6,355 (JIS X0208-1990) characters.
+       (NB: requires about 1MB of disk space.)
+     * S3ABANK*: Alan Richey alanrichey@aol.com: crippleware (RBW)
+       An excellent general personal finance handler, with optional
+       modules for inventories, expenses, petrol, etc. Shareware version
+       is severely limited (only 3 accounts). Needs lots of memory.
+       Alternatives are available; easier to use and less power/memory
+       hungry, but not as complete: BankPlus, DPBank, SCBank.
+     * S3AEM1: Psion, Inc.: freeware (RBW)
+       Series 3a emulator for the PC. Try before you buy a Psion, test
+       new software, or run programs at greater speed. See also
+       "Emulator" section in part I of this FAQ.
+     * S3AFRAME (NM)
+       Supplies an event-driven interface to OPL. Menu selections and key
+       presses are supplied as events to your OPL code.
+     * S3UZIP*: David Palmer dpalmer@cix.compulink.co.uk:freeware
+       (himself)
+       Port to SIBO machines of Info-Zip team's Unzip. Runs on
+       MC400/HC/S3/S3a/Workabout. Unzips any version 2.xx zip files,
+       including across a remote link (the fastest way to move files to a
+       Psion). Versions >= 1.4 include notes for developers on how to
+       call Unzip from C/C++ or OPL.
+     * SHELL3A (NM)
+       Gives a UNIX-like command line interface. This is particularly
+       useful for creating directories and removing files, where the
+       Psion menu interface is rather clumsy. Not the least of its
+       virtues is the fact that it understands filenames using forward
+       (/) slashes as well as back (\) slashes.
+     * TOPIX: Uwe Kallmeyer uwek@yedik.escape.de: crippleware (RBW)
+       Multi-level outline editor, with links to files from other apps
+       (such as Word or Sheet). Perfect for large project management and
+       keeping track of long lists.
+     * TUBEFINDER: Steve Litchfield slitchfield@cix.compulink.co.uk:
+       freeware (SL)
+       A simple routefinder for the London Tube system. It's not the most
+       accurate and thorough program in the world, but then hey, it's
+       free!
+       
+  A.2 Games (by Dan Ko)
+  
+Name         Stars Zip  Exp  Mem  Type FMT Collection Description
+------------ ----- ---- ---- ---- ---- --- ---------- ------------------
+pipe3a.zip   ***** 9k   10k  12k  F    F   ?          exciting puzzle
+stigma.zip   ****  63k  87k  39k  D+C  F   ?          rolling ball
+fair22.zip   ****  115k 197k 46k  S+C  F+S GamesPck3a THE golf game
+tetris_2.zip ***** 9k   16k  6k   S    F   ?          Tetris nuff said
+Patience     ***   -    -    8k   C    R   1Mb/2MbS3a zzzzzzzz
+bunnies.zip  **    15k  42k  ?    F    F              slow platform
+lander3.zip  ****  33k  62k  ?    S    F+S GamesPck3a cool space game
+risk101a.zip ***+  31k  81k  14k  S    F   ?          strategy
+willy11.zip  **    40k  68k  ?    S    F   doubt it   2slow2big platform
+Tanka.zip    **    9k   12k? ?    S    F              S3 was much better
+
+Stars:  Arbitary rating units, overall personal impression includes
+        adjustment for size.
+        *     waste of space
+        **    avoid; boring, limited appeal
+        ***   OK, if you've nothing better to fill your flash with
+        ****  excellent, recommended
+        ***** can't live without it
+
+Zip:        The zip file size
+Exp:        How much space the installed components will take up
+Mem:        Free system memory required to run in
+Type:       S Shareware
+            D Demo
+            F Freeware/PD
+            C Commercial
+Format:     F floppy (ZIP file)
+            S SSD
+            R built into ROM
+Collection: Name of collection which contains this game
+
+   End of part 5/6
+     _________________________________________________________________
+                                      
+   [Go to previous part]
+   [Go to the index]
+   [Go to next part]
+     _________________________________________________________________
+                                      
+   
+    All pages coming from http://www.geocities.com/SiliconValley/8130/
+    (and this is one of them!) are copyright 1996 Daniel Pfund.
+--
+ |\ |\  PSION specialists: http://www.planet-pfund.com
+ | )|/  *--------------------------------------------*
+ |/ |    http://www.geocities.com/SiliconValley/8130/
+
+

@@ -1,0 +1,59 @@
+REM Soloimg: Draw a bitmap of images 
+REM for solo program
+REM (c) 1993 Steve Hawtin
+
+PROC solodraw:
+	LOCAL dr%
+	REM Create a bitmap
+	dr% = gCREATE(0,0,95,7,1)
+	gUSE dr%
+
+	REM Spade,Diamond,Club,Heart
+	drawFig:( 0,&18,&1E,&7F,&1E,&18)
+	drawFig:( 1,&08,&14,&22,&14,&08)
+	drawFig:( 2,&1C,&1B,&7F,&1B,&1C)
+	drawFig:( 3,&0E,&31,&42,&31,&0E)
+	drawFig:( 4,&55,&2A,&55,&2A,&55)
+	REM A to Ten
+	drawFig:( 5,&00,&1C,&1C,&1C,&00)
+	drawFig:( 6,&00,&00,&14,&00,&00)
+	drawFig:( 7,&00,&00,&2A,&00,&00)
+	drawFig:( 8,&00,&14,&00,&14,&00)
+	drawFig:( 9,&00,&22,&08,&22,&00)
+	drawFig:(10,&00,&2A,&00,&2A,&00)
+	drawFig:(11,&2A,&00,&04,&00,&2A)
+	drawFig:(12,&2A,&00,&14,&00,&2A)
+	drawFig:(13,&55,&00,&08,&00,&55)
+	drawFig:(14,&55,&00,&22,&00,&55)
+	REM Jack,Queen,King
+	REM drawFig:(15,&18,&0E,&7B,&7F,&7E)
+	drawFig:(15,&48,&2A,&1D,&2A,&48)
+	REM drawFig:(16,&7E,&48,&4F,&48,&7E)
+	drawFig:(16,&20,&3A,&7D,&3A,&20)
+	drawFig:(17,&58,&7A,&7F,&7A,&58)
+	drawFig:(18,&2A,&55,&2A,&55,&2A)
+	gSAVEBIT "SOLOIMG"
+	GET
+ENDP
+
+PROC drawFig:(num%,n1&,n2&,n3&,n4&,n5&)
+	drawLine:(5*num%+0,n1&)
+	drawLine:(5*num%+1,n2&)
+	drawLine:(5*num%+2,n3&)
+	drawLine:(5*num%+3,n4&)
+	drawLine:(5*num%+4,n5&)
+ENDP
+
+PROC drawLine:(l%,val&)
+	LOCAL n%,m%
+	n% = 0
+	m% = 1
+	DO
+		IF (val& AND m%)
+			gAT l%,n%
+			gLINEBY 0,0
+		ENDIF
+		n% = n%+1
+		m% = m%*2
+	UNTIL n%>=7
+ENDP

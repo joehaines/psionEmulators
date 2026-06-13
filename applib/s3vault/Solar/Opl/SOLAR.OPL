@@ -1,0 +1,1351 @@
+REM ---------------------------------------------------
+REM V1.0.0 dev - released 28/1/96
+REM V1.0.1 - changed title
+REM V1.1.0 - 28/2/96 - repeat option added
+REM V1.1.1 - 17/3/96 - bugfix to comma separator
+REM V1.1.2 - 21/3/96 - correct lat/long numerical handling
+REM V1.2.0 - 02/6/96 - alarms, twilights, daylight saving
+REM V1.2.1 - 16/6/96 - minor bug fixes
+REM under development - fix internal sounds 
+REM ---------------------------------------------------
+PROC main:
+	GLOBAL City$(21),LstCity$(21) :REM City name
+	GLOBAL Home$(21) :REM Home City Name
+	GLOBAL Country$(21) :REM Country name
+	GLOBAL WldDev% :REM Handle of the device channel
+	GLOBAL status$(80) :REM status message
+	GLOBAL dst$(10) :REM Daylight saving
+
+	GLOBAL DST%,dls%,calctyp%,out%,sounds%,year%,month%,day%,calcs%
+	GLOBAL none%,time&(8),premins&,A,C,D,lat,long,zonein
+	GLOBAL setadj(4),phen(8),clctyp$(84),alarm$(32)
+	GLOBAL setclcs$(4,110),calctyp$(5,21),romwve$(6,8),sun$(8,32)
+
+	LOCAL FromDat&,EndDate&,CalcDat&,repeat%,intervl&,calc%
+	LOCAL count&,Suffix$(3),i%,ret%,file$(128)
+	LOCAL alarm%,handle%,head%,bold%,italic%,uline%,style%
+	LOCAL day$(7,9),choice%(35),ch$(90),ch2$(60),chosen$(100)
+	LOCAL noyes$(2,3),chosens$(5,69),occurn$(5,4),tmp$(14)
+	LOCAL ch%,ch1%,ch2%,doy%,chdates%,count1%,count2%,count3%,lstmnth%
+
+	setadj(1)=-PI/216 :REM -50 minutes arc
+	setadj(2)=-PI/30 :REM -6 degs - civil twilight
+	setadj(3)=-PI/15 :REM -12 degs - nautical twilight
+	setadj(4)=-PI/10 :REM -18 degs - astronomical twilight
+
+	calctyp$(1)="Sunrise/Sunset"
+	calctyp$(2)="Civil Twilight"
+	calctyp$(3)="Nautical Twilight"
+	calctyp$(4)="Astronomical Twilight"
+	calctyp$(5)="Total Darkness"
+
+	sun$(1)="Sunrise"
+	sun$(2)="Morning "+calctyp$(2)
+	sun$(3)="Morning "+calctyp$(3)
+	sun$(4)="Morning "+calctyp$(4)
+	sun$(5)="Sunset"
+	sun$(6)="Evening "+calctyp$(2)
+	sun$(7)="Evening "+calctyp$(3)
+	sun$(8)="Evening "+calctyp$(4)
+
+	setclcs$(1)="Sunrise & "+sun$(5)+","+sun$(1)+" only,"+sun$(5)+" only"
+	setclcs$(2)="Morning & "+sun$(6)+","+sun$(2)+" only,"+sun$(6)+" only"
+	setclcs$(3)="Morning & "+sun$(7)+","+sun$(3)+" only,"+sun$(7)+" only"
+	setclcs$(4)="Morning & "+sun$(8)+","+sun$(4)+" only,"+sun$(8)+" only"
+	clctyp$=calctyp$(1)+","+calctyp$(2)+","+calctyp$(3)+","+calctyp$(4) 
+
+	REM internal alarm sounds - romwve$(1-6)
+	romwve$(1)=CHR$(1) :REM one
+	romwve$(2)=CHR$(2) :REM two
+	romwve$(3)="SYS$AL01"
+	romwve$(4)="SYS$AL02"
+	romwve$(5)="SYS$AL03"
+	romwve$(6)=CHR$(16) :REM sixteen
+
+	day$(1)="Monday" :REM full names of days of the week
+	day$(2)="Tuesday"
+	day$(3)="Wednesday"
+	day$(4)="Thursday"
+	day$(5)="Friday"
+	day$(6)="Saturday"
+	day$(7)="Sunday"
+
+	occurn$(1)="1"
+	occurn$(2)="2"
+	occurn$(3)="3"
+	occurn$(4)="4"
+	occurn$(5)="Last"
+
+	noyes$(1)="No"
+	noyes$(2)="Yes"
+
+	REM constants
+	A=PI/2
+	C=3*PI/2
+	D=2*PI
+
+	file$=""
+	FromDat&=DAYS(day,month,year) :REM default today
+	EndDate&=FromDat&
+
+	out%=1     :REM default to screen output
+	alarm%=1   :REM default no alarm
+	bold%=1    :REM default not bold
+	italic%=2  :REM default italic
+	uline%=1   :REM default not underlined
+	repeat%=1  :REM default repeat daily
+	intervl&=1 :REM default interval for repeats
+	calctyp%=1 :REM default to sunrise/sunset
+	calcs%=1   :REM default to both sunrise and sunset
+
+	CLS
+	DINIT "SOLAR"
+	DTEXT "","Sunrise / Sunset Calculator",$2
+	DTEXT "","Version 1.2.1",$202
+	DTEXT "","David M. Kurtz "+CHR$(184)+" 1996",$2
+	DTEXT "","david@kurzbyrn.demon.co.uk",$202
+	DBUTTONS "Press enter to continue",13
+
+	ret%=Openwld: :rem Open the WLD function
+
+	IF ret%>=0
+		ret%=GetHome:
+	ENDIF
+
+	IF ret%>=0
+		ret%=CityData:
+	ENDIF
+
+	IF ret%<0
+		DINIT status$
+		LOCK ON
+		DIALOG
+		LOCK OFF
+		STOP
+	ENDIF
+
+	LOCK ON
+	DIALOG
+	LOCK OFF
+
+	REM - INPUTS
+	DO
+		REM set up the parameters for the calculation
+		DINIT "Enter Parameters"
+		DEDIT City$,"City",20
+REM		DFLOAT lat,"Latitude",-90,90
+REM		DFLOAT long,"Longitude",-180,180
+		DDATE FromDat&,"Date from",DAYS(1,1,1980),DAYS(31,12,2049)
+		DDATE EndDate&,"Date to",DAYS(1,1,1980),DAYS(31,12,2049)
+		DFLOAT zonein,"Time Zone",-12,12
+		DCHOICE out%,"Output","Screen,Agenda" :REM Spreadsheet,Text - later
+		DCHOICE calctyp%,"Calculation Types",clctyp$ :REM which sunrise/set or twilight
+		DTEXT "Daylight Saving",dst$,$200
+		DTEXT "",status$,2
+
+		LOCK ON
+		i%=DIALOG	:REM read the parameters
+		LOCK OFF
+
+		status$=" "
+
+		IF i%<0
+			CONTINUE
+		ELSEIF i% :REM IF anything to do - do the calc
+			REM look up the city in City$
+			IF City$=""
+				City$=Home$
+			ENDIF
+			
+			IF City$<>LstCity$ :REM only look up city if different
+				ret%=FindCity:
+				IF ret%<0 :REM IF error
+					CONTINUE
+				ELSE
+					ret%=CityData:
+				ENDIF
+				CONTINUE :REM loop back if new city
+			ENDIF
+
+			REM IF start after end the can't calc
+			IF FromDat&>EndDate&
+				status$="End date before start" :REM set error message
+				CONTINUE :REM go back to parameters input
+			ENDIF
+
+			DINIT "Choose calculation type"
+			DCHOICE calcs%,"Calculations",setclcs$(calctyp%)
+			LOCK ON
+			ret%=DIALOG	:REM read the parameters
+			LOCK OFF
+			IF ret%<=0
+				CONTINUE
+			ENDIF
+
+			IF FromDat&<EndDate& :REM do repeat control
+				DINIT "Repeat Entry"
+				DCHOICE repeat%,"Type","Daily,Weekly,Monthly by date,Monthly by days"
+				DLONG intervl&,"Interval",1,999
+
+				LOCK ON
+				ret%=DIALOG
+				LOCK OFF
+				IF ret%=0
+					CONTINUE
+				ENDIF
+			ENDIF
+
+			IF repeat%=2 :REM weekly repeat
+				DINIT "Set days for weekly repeat"
+				count&=0
+				DO
+					count&=count&+1
+					DCHOICE choice%(count&),day$(count&),"No,Yes"
+				UNTIL count&>=7
+				LOCK ON
+				ret%=DIALOG
+				LOCK OFF
+				IF ret%=0
+					CONTINUE
+				ENDIF
+			ELSEIF repeat%=3 :REM monthly by date repeat
+				doy%=Days2Day:(FromDat&)
+				ch%=day%
+				count&=0
+				DO
+					count&=count&+1
+					REM choice%(count&)=1 :REM default is no
+					IF count&=1
+						ch$="1"
+					ELSE
+						ch$=ch$+","+FIX$(count&,0,2)
+					ENDIF
+				UNTIL count&>=31
+				DO
+					chdates%=0
+					chosen$="None"
+					count&=0
+					DO
+						count&=count&+1
+						IF choice%(count&)=2
+							chdates%=chdates%+1
+							IF chdates%=1
+								chosen$=FIX$(count&,0,2)
+							ELSE
+							chosen$=chosen$+","+FIX$(count&,0,2)
+							ENDIF
+						ENDIF
+					UNTIL count&>=31
+
+					DINIT "Set dates for monthly repeat"
+					DCHOICE ch%,"Date",ch$
+					DTEXT "Repeat on",chosen$
+					DBUTTONS "Clear",45,"Set",43,"Confirm",13
+
+					LOCK ON
+					ret%=DIALOG
+					LOCK OFF
+					IF ret%=43
+						choice%(ch%)=2
+					ELSEIF ret%=45
+						choice%(ch%)=1
+					ENDIF
+				UNTIL ret%=0 OR ret%=13
+				IF ret%=0
+					CONTINUE
+				ENDIF
+			ELSEIF repeat%=4 :REM mothly by days
+				doy%=Days2Day:(FromDat&)
+				ch2%=DOW(day%,month%,year%)
+				ch1%=INT((day%+6)/7)
+				count&=0
+				DO
+					count&=count&+1
+					REM choice%(count&)=1 :REM default is no
+					IF count&=1
+						ch2$=day$(count&)
+					ELSEIF count&<=7
+						ch2$=ch2$+","+day$(count&)
+					ENDIF
+				UNTIL count&>=35
+
+				DO
+					chosens$(1)="None"
+					chosens$(2)=""
+					chosens$(3)=""
+					count1%=0
+					count3%=1
+					chdates%=0
+					DO
+						count1%=count1%+1
+						count2%=0
+						DO
+							count2%=count2%+1
+							count&=7*count1%+count2%-7
+							IF choice%(count&)=2
+								IF count&<5
+									tmp$=LEFT$(day$(count2%),2)+occurn$(count1%)
+								ELSE
+									tmp$=LEFT$(day$(count2%),2)+" "+occurn$(count1%)
+								ENDIF
+								IF LEN(chosens$(count3%)+tmp$)>=68
+									chdates%=0
+									count3%=count3%+1
+								ENDIF
+								chdates%=chdates%+1
+								IF chdates%=1
+									chosens$(count3%)=tmp$
+								ELSE
+									chosens$(count3%)=chosens$(count3%)+","+tmp$
+								ENDIF
+							ENDIF
+						UNTIL count2%>=7
+					UNTIL count1%>=5
+					DINIT "Set dates for monthly repeat"
+					DCHOICE ch1%,"Occurance in month","First,Second,Third,Fourth,Last"
+					DCHOICE ch2%,"Day in Week",ch2$
+					count3%=0
+					DO
+						count3%=count3%+1
+						IF LEN(chosens$(count3%))>0
+							DTEXT "",chosens$(count3%)
+						ENDIF
+					UNTIL count3%>=3
+					DBUTTONS "Clear",45,"Set",43,"Confirm",13
+
+					LOCK ON
+					ret%=DIALOG
+					LOCK OFF
+					IF ret%=43 OR ret%=45
+						ch%=7*ch1%+ch2%-7
+						IF ret%=43
+							choice%(ch%)=2
+						ELSEIF ret%=45
+							choice%(ch%)=1
+						ENDIF
+					ENDIF
+
+				UNTIL ret%=0 OR ret%=13
+				IF ret%=0
+					CONTINUE
+				ENDIF
+			ENDIF
+
+			REM if a file is to be writen ID it
+			IF out%=2 :REM agenda
+				Suffix$="AGN"
+				DINIT "Create/Append Agenda"
+REM			ELSEIF out%=3 :REM Spreadsheet
+REM				Suffix$="SPR"
+REM				DINIT "Open Spreadsheet"
+REM			ELSEIF out%=4 :REM Text
+REM				Suffix$="WRD"
+REM				DINIT "Open Text File"
+			ENDIF
+
+			IF out%>1 :REM if writing to a file
+				SETPATH "\"+Suffix$+"\"
+				DFILE file$,"",193
+
+				IF out%=2
+					DCHOICE bold%  ,"Bold"     ,"No,Yes"
+					DCHOICE italic%,"Italic"   ,"No,Yes"
+					DCHOICE uline% ,"Underline","No,Yes"
+					DCHOICE alarm% ,"Alarm"    ,"No,Yes"
+				ENDIF
+
+				LOCK ON
+				ret%=DIALOG
+				LOCK OFF
+				
+				IF ret%=0
+					CONTINUE
+				ELSEIF ret%<0 :REM if error go back to params
+					ShowErr:(ret%,"Error in filename")
+					CONTINUE
+				ENDIF
+				
+				IF out%=2 :REM agenda style
+					style%=0
+					IF bold%=2
+						style%=style%+1
+					ENDIF
+					IF italic%=2
+						style%=style%+32
+					ENDIF
+					IF uline%=2
+						style%=style%+2
+					ENDIF
+					IF alarm%=2 :REM ok so what are the alarm details
+						ret%=AlrmDet:
+						IF ret%<=0 :REM if error go back to params
+							ShowErr:(ret%,"")
+							CONTINUE
+						ENDIF
+					ENDIF
+				ENDIF
+
+				REM append a file suffix if missing
+				file$=UPPER$(file$)
+				IF RIGHT$(file$,4)<>"."+Suffix$
+					file$=file$+"."+Suffix$
+				ENDIF
+
+				REM having now got a filename does it exist
+				ret%=IOOPEN(handle%,file$,$103) :REM so open it
+				IF ret%=-33 :REM doesn't exist so create it
+					head%=1 :REM you need to write the header cos its new
+					ret%=IOOPEN(handle%,file$,$101)
+				ELSEIF ret%>=0 :REM it does exist
+					head%=0 :REM no head needed
+				ENDIF
+
+				IF ret%<0
+					ShowErr:(ret%,"Couldn't open "+file$)
+					IOCLOSE(handle%)
+					CONTINUE :REM go back to params
+				ENDIF
+
+				IF head%=1 :REM then write the header
+					IF out%=2 :REM agenda
+						ret%=AgnHead:(handle%)
+REM					ELSEIF out%=3 :REM spreadsheet
+REM					ELSEIF out%=4 :REM textfile
+					ENDIF
+				ENDIF
+			ENDIF
+
+			IF ret%<0
+				IOCLOSE(handle%)
+				status$=""
+				CONTINUE :REM go back to params
+			ENDIF
+
+			CalcDat&=FromDat&
+			IF repeat%=2 :REM weekly
+				doy%=Days2Day:(FromDat&)
+				FromDat&=FromDat&-DOW(day%,month%,year%)+1 :REM wind back from date to beginning of week
+			ENDIF
+
+			BUSY "Calculating"
+
+			count&=0
+			DO :REM work your way throught the dates
+				calc%=0
+				IF repeat%=1 :REM daily
+					calc%=1
+				ELSEIF repeat%=2 :REM weekly
+					count&=Lmod&:((CalcDat&-FromDat&)/7,intervl&)
+					IF count&=0 :REM then we are in the right week
+						doy%=Days2Day:(CalcDat&)
+						IF choice%(DOW(day%,month%,year%))=2
+							calc%=1
+						ENDIF
+					ENDIF
+				ELSEIF repeat%=3 :REM monthly by date
+					doy%=Days2Day:(CalcDat&)
+					lstmnth%=month%
+					IF choice%(day%)=2
+						calc%=1
+					ENDIF
+				ELSEIF repeat%=4 :REM monthly by day
+					doy%=Days2Day:(CalcDat&)
+					lstmnth%=month%
+					count1%=INT((day%+6)/7)	:REM occurence
+					count2%=DOW(day%,month%,year%)	:REM day of week
+					count&=7*count1%+count2%-7
+					IF choice%(count&)=2
+						calc%=1
+					ELSEIF count1%<5
+						count1%=DayEnd%:(CalcDat&)
+						IF choice%(28+count2%)=2 AND count1%<7
+							calc%=1
+						ENDIF
+					ENDIF
+				ENDIF
+
+				IF calc%=1 :REM so go and do the calculations
+					DoCalc:(lat,long,CalcDat&,zonein,calctyp%)
+					IF calctyp%>1
+						DoCalc:(lat,long,CalcDat&,zonein,calctyp%-1)
+					ENDIF
+					IF out%=1 :REM screen
+						BUSY OFF
+						ret%=ScrnRes:(CalcDat&,calctyp%)
+						BUSY "Calculating"
+					ELSEIF out%>=2 :REM files
+						ret%=WriteRec:(handle%,style%,alarm%,CalcDat&,calctyp%)
+					ENDIF
+				ENDIF
+
+				IF repeat%=1
+					CalcDat&=CalcDat&+intervl&
+				ELSE
+					CalcDat&=CalcDat&+1 :REM increment the dates
+				ENDIF
+
+				REM monthly interval handler
+				IF (repeat%=3 OR repeat%=4) AND intervl&>1
+					doy%=Days2Day:(CalcDat&)
+					IF lstmnth%<>month%
+						month%=lstmnth%+intervl&
+						IF month%>12
+							year%=year%+INT((month%-1)/12)
+							month%=Mod%:(month%,12)
+						ENDIF
+						CalcDat&=DAYS(1,month%,year%)
+					ENDIF
+				ENDIF
+
+			UNTIL CalcDat&>EndDate& OR ret%<0 :REM finish when calcdate to big
+			BUSY OFF
+			IF out%>1 :REM close the file you opened
+				IF ret%<0
+					IOCLOSE(handle%) :REM just close it cos problem
+				ELSE
+					ret%=ClosFile:(handle%,file$) :REM close it carefully
+				ENDIF
+			ENDIF
+		ENDIF
+	UNTIL i%<=0 :REM last DIALOG returned 0
+
+	ClosFile:(WldDev%,"World function")
+ENDP
+
+REM --------------------------------------------------
+PROC AgnHead:(handle%)
+	LOCAL ret%,header$(32)
+	header$="AgendaFileType*"+CHR$(0)+CHR$($0F)+CHR$($10)
+	header$=header$+CHR$($20)+CHR$(&00)+REPT$(CHR$(0),12)
+	ret%=IOWRITE(handle%,UADD(ADDR(header$),1),32)
+	IF ret%<0
+		ShowErr:(ret%,"Couldn't write agenda header")
+	ENDIF
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+REM alarm details name and premins - romwve$(1-6)
+PROC Alarms$:(num%)
+	LOCAL d$(128),rom$(10),int$(20),tmp$(240),tmp%
+	IF num%<=0 :REM list all of the options
+		tmp$="Rings,Chimes,Fanfare,Soft Bells,Church Bell,"
+		sounds%=6
+		d$=DIR$("\WVE\*.WVE")
+		WHILE d$<>""
+			d$=AlrmNam$:(d$)
+			sounds%=sounds%+1
+			tmp$=tmp$+d$+","
+			d$=DIR$("")
+		ENDWH
+		tmp$=tmp$+"Silent"
+	ELSE
+		rom$="ROM::"
+		int$="LOC::M:\WVE\"
+		IF num%=sounds% :REM silence
+			tmp$=rom$+romwve$(6)
+		ELSEIF num%<6 :REM internal sound files
+			tmp$=rom$+romwve$(num%)
+		ELSE :REM it must be a sound file
+			tmp%=5
+			d$=DIR$("\WVE\*.WVE")
+			WHILE d$<>"" AND tmp%<num%
+				tmp%=tmp%+1
+				IF tmp%=num%
+					tmp$=int$+AlrmNam$:(d$)
+				ENDIF
+				d$=DIR$("")
+			ENDWH
+			IF tmp$=""
+				tmp$=rom$+romwve$(6)
+			ENDIF
+		ENDIF
+	ENDIF
+	RETURN tmp$
+ENDP
+
+REM ---------------------------------------------------
+REM alarm details name and premins
+PROC AlrmDet:
+	LOCAL ret%,sound%,alrmlen%,tmp$(240)
+	tmp$=Alarms$:(0)
+	sound%=1
+	
+	DO
+		DINIT   "Alarm Details"
+		DTIME   premins&,"Time Before",2,0,86340
+		DCHOICE sound%,"Sound",tmp$
+		DBUTTONS "Test Sound",290,"Confirm",13
+		
+		LOCK ON
+		ret%=DIALOG :REM read the parameters
+		LOCK OFF
+		
+		IF ret%=290 :REM play the sound
+			alarm$=Alarms$:(sound%)+".WVE"+CHR$(0)
+			CALL($1F86,UADD(ADDR(alarm$),1),0,0)
+		ELSEIF ret%=13
+			alarm$=Alarms$:(sound%)
+			alrmlen%=LEN(alarm$)
+			alarm$=CHR$(alrmlen%)+alarm$
+			WHILE LEN(alarm$)<9
+				alarm$=alarm$+CHR$(0)
+			ENDWH
+		ENDIF
+	UNTIL ret%=13 OR ret%<=0
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+REM Alarm Name conversion/processing
+PROC AlrmNam$:(d$)
+	LOCAL nam$(128),len%,pos%
+	nam$=d$
+	len%=LEN(nam$)
+	pos%=len%
+	WHILE pos%>1 AND MID$(nam$,pos%,1)<>"\"
+		IF MID$(nam$,pos%,1)="."
+			nam$=LEFT$(nam$,pos%-1)
+		ENDIF
+		pos%=pos%-1
+	ENDWH
+	IF pos%>1
+		nam$=MID$(nam$,pos%+1,len%)
+	ENDIF
+	nam$=UPPER$(LEFT$(nam$,1))+LOWER$(MID$(nam$,2,len%))
+	RETURN nam$
+ENDP
+
+REM ---------------------------------------------------
+REM Approximate time
+PROC AprxTime:(calctyp%,i%,j,r,lat,long,doy%,zone)
+	REM procedure variables
+	LOCAL apxtime,slrtasc,sldecl,x,n%,slmnanml,sltrlng
+	
+	apxtime=doy%+((j+long)/d) :REM approximate time
+	slmnanml=apxtime*0.017202-0.0574039 :REM solar mean anomaly
+	
+	REM Calculate solar true longitude
+	x=SIN(slmnanml)
+	sltrlng=slmnanml+0.0334405*x
+	x=SIN(2*slmnanml)
+	sltrlng=sltrlng+3.49066e-04*x
+	sltrlng=sltrlng+4.93289
+	
+	REM Quadrant determination
+	sltrlng=Nrmliz:(sltrlng)
+	x=sltrlng/a
+	x=x-INT(x)
+	IF x=0
+		sltrlng=sltrlng+4.84814e-06
+	ENDIF
+	IF sltrlng>c
+		n%=2
+	ELSEIF sltrlng>a
+		n%=1
+	ELSE
+		n%=0
+	ENDIF
+	
+	REM Solar right ascension
+	slrtasc=SIN(sltrlng)/COS(sltrlng)
+	slrtasc=atan(0.91746*slrtasc)
+	
+	REM Quadrant adjustment
+	IF n%=1
+		slrtasc=slrtasc+PI
+	ELSEIF n%=2
+		slrtasc=slrtasc+d
+	ENDIF
+	
+	REM Solar declination
+	sldecl=0.39782*SIN(sltrlng)
+	sldecl=sldecl/SQR(-sldecl*sldecl+1)
+	sldecl=ATAN(sldecl)
+	
+	RETURN CnvCoord:(calctyp%,i%,r,lat,long,apxtime,zone,slrtasc,sldecl)
+ENDP
+
+REM ---------------------------------------------------
+PROC CityData:
+	LOCAL Data$(80),pData%,ret%,dummy%,TZ%
+	LOCAL Lat% :REM The latitude
+	LOCAL Long% :REM The longitude
+
+	Data$=REPT$("*",80)
+	pData%=ADDR(Data$)+1 :REM Skip the LBC
+
+	ret%=IOW(WldDev%,22,#pData%,dummy%)
+	IF ret%<0
+		ShowErr:(ret%,"Could not get city data")
+	ELSE
+		status$=status$+" and data"
+	ENDIF
+
+	DST%=PEEKB(ADDR(Data$)+44)
+	TZ%=PEEKW(ADDR(Data$)+45)
+	Lat%=PEEKW(ADDR(Data$)+47)
+	Long%=PEEKW(ADDR(Data$)+49) :REM Extract data from struct
+
+	IF DST%=0
+		dst$="Constant"
+	ELSEIF DST%=2
+		dst$="European" :REM 25-31/3 25-31/10
+	ELSEIF DST%=4
+		dst$="USA" :REM 1-7/4 25-31/10
+	ELSEIF DST%=8
+		dst$="Southern" :REM 1-7/3(NZ+1week) 25-31/10
+	ELSE
+		dst$=NUM$(DST%,2)
+	ENDIF
+
+	lat=FormatL:(Lat%)
+	long=FormatL:(Long%) :REM Format these values nicely
+	zonein=TZ%/60
+
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+PROC ClosFile:(handle%,file$)
+	LOCAL ret%
+	ret%=IOCLOSE(handle%)
+	IF ret%<0
+		ShowErr:(ret%,"Couldn't close "+file$)
+	ENDIF
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+REM coordinate conversion
+PROC CnvCoord:(calctyp%,i%,r,lat,long,apxtime,zone,slrtasc,sldecl)
+	REM procedure variables
+	LOCAL sldeclcv,lclaptim,utctim,v,w,x,y,mins&
+
+	REM Coordinate conversion
+	sldeclcv=r-SIN(sldecl)*SIN(lat)
+	sldeclcv=sldeclcv/(COS(sldecl)*COS(lat))
+	phen(calctyp%)=sldeclcv
+	IF abs(sldeclcv)>1 :REM null phenomenon
+		v=0
+		RETURN -1
+	ENDIF
+
+	REM Adjustment
+	sldeclcv=sldeclcv/SQR(-sldeclcv*sldeclcv+1)
+	sldeclcv=-ATAN(sldeclcv)+a
+	IF i%<>1 :REM i%=0 for sunrise,1 for sunset
+		sldeclcv=d-sldeclcv
+	ENDIF
+	
+	REM LOCAL apparent time
+	lclaptim=sldeclcv+slrtasc-0.0172028*apxtime-1.73364
+	utctim=lclaptim+long :REM UTC
+	
+	v=Nrmliz:(utctim-zone) :REM wall clock time
+	mins&=INT(DEG(v)*4+.5) :REM x is real rounded minutes of time
+	
+	REM now calculate whether daylight saving is to be applied
+	mins&=DLS:(day%,month%,year%,DST%,mins&)
+	
+	RETURN mins&
+ENDP
+
+REM ---------------------------------------------------
+REM This appears to be the only way to break a date
+REM into days months and years - it also works for
+REM dates prior to 01/01/1970
+PROC Days2Day:(days&)
+	LOCAL dyscent&(2),dateent%(4)
+	LOCAL flags%,ax%,bx%,cx%,dx%,si%,di%
+	dyscent&(1)=days&
+	si%=ADDR(dyscent&())
+	di%=ADDR(dateent%())
+	ax%=$0600 :REM TimDaySecondsToDate fn.
+	flags%=os($89,ADDR(ax%)) :REM TimManager int.
+	IF flags% and 1
+		RAISE (ax% or $ff00)
+	ELSE
+    year%=PEEKB(di%)+1900
+    month%=PEEKB(UADD(di%,1))+1
+    day%=PEEKB(UADD(di%,2))+1
+	RETURN peekw(UADD(di%,6))+1 :REM 112293
+REM	RETURN peekw(di%+6)+1 :REM 112293
+	ENDIF
+ENDP
+
+REM ---------------------------------------------------
+REM Calculate number of days left in the specified month
+PROC DayEnd%:(Date1&)
+	LOCAL doy%,Date2&,left%
+	doy%=Days2Day:(Date1&)
+	day%=1
+	month%=month%+1
+	IF month%>12
+		year%=year%+1
+		month%=month%-12
+	ENDIF
+	Date2&=DAYS(day%,month%,year%)
+	left%=Date2&-Date1&-1
+	RETURN left%
+ENDP
+
+REM ---------------------------------------------------
+REM convert numeric lat/long into properly formatted string
+PROC DegDisp$:(degrees,directs$)
+	LOCAL ldeg,deg%,min%,direct$(1)
+	ldeg=degrees
+	IF ldeg<0
+		ldeg=ABS(ldeg)
+		direct$=MID$(directs$,2,1)
+	ELSE
+		direct$=MID$(directs$,1,1)
+	ENDIF
+	deg%=INT(ldeg)
+	min%=Round:((ldeg-deg%)*100,0)
+	RETURN FIX$(deg%,0,3)+CHR$(248)+FIX$(min%,0,2)+CHR$(239)+" "+direct$
+ENDP
+
+REM ---------------------------------------------------
+PROC DoCalc:(lat,long,CalcDat&,zonein,calctyp%)
+	IF calcs%=1 OR calcs%=2
+		time&(calctyp%)=Suncalc&:(lat,long,CalcDat&,zonein,calctyp%,0)
+	ELSE
+		time&(calctyp%)=-1
+	ENDIF
+	IF calcs%=1 OR calcs%=3
+		time&(4+calctyp%)=Suncalc&:(lat,long,CalcDat&,zonein,calctyp%,1)
+	ELSE
+		time&(4+calctyp%)=-1
+	ENDIF
+ENDP
+
+REM ---------------------------------------------------
+REM calculate the daylight saving adjustment
+REM Usage: mins&=DLS:(day%,month%,year%,DST%,mins&)
+PROC DLS:(day%,month%,year%,DST%,mins&)
+	LOCAL from&,to&,date&,lmins&
+	date&=DAYS(day%,month%,year%)
+	lmins&=mins&
+
+	IF DST%=2 :REM European 25-31/3 25-31/10
+		from&=PreSun:(31,3,year%)
+		to&=PreSun:(31,10,year%)
+	ELSEIF DST%=4 :REM USA 1-7/4 25-31/10
+		from&=PreSun:(7,4,year%)
+		to&=PreSun:(31,10,year%)
+	ELSEIF DST%=8 :REM Southern 1-7/3(NZ+1week) 25-31/10
+		from&=PreSun:(7,3,year%)
+		to&=PreSun:(31,10,year%)
+	ENDIF
+
+	IF from&=date& AND mins&>120 :REM 2am unadjusted time
+		dls%=1
+	ELSEIF to&=date& AND mins&>120 :REM 2am unadjusted time
+		dls%=0
+	ELSEIF from&<date& AND date&<to&
+		dls%=1
+	ELSE
+		dls%=0
+	ENDIF
+
+	IF DST%=8
+		dls%=1-dls%
+	ENDIF
+
+	IF dls%=1
+		lmins&=lmins&+60
+	ENDIF
+
+	RETURN lmins&
+ENDP
+
+REM ---------------------------------------------------
+REM This procedure converts a day to a displayable date (DD/MM/YYYY) in a string
+PROC Dspdate$:(CalcDat&)
+  LOCAL nowt%
+  nowt%=Days2Day:(CalcDat&)
+  RETURN RIGHT$("00"+FIX$(day%,0,2),2)+"/"+RIGHT$("00"+FIX$(month%,0,2),2)+"/"+FIX$(year%,0,4)
+ENDP
+
+REM ---------------------------------------------------
+PROC FindCity:
+	LOCAL Clue$(21),pClue%,pRes%,Res$(42),ret%
+	Res$=REPT$("*",42)
+	pRes%=ADDR(Res$)+1 :REM Skip the LBC
+	Clue$=City$+CHR$(0) :REM Make string ZTS
+	pClue%=ADDR(Clue$)+1 :REM Skip the LBC
+	ret%=IOW(WldDev%,10,#pClue%,#pRes%)
+	IF ret%<0
+		ShowErr:(ret%,"City not found")
+		LstCity$=""
+	ELSE
+		status$="Found city"
+		FormatC:(Res$) :REM Format City and Country nicely
+	ENDIF
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+PROC FormatC:(r$)
+	LOCAL buf$(42)
+	LOCAL char$(1)
+	LOCAL i%
+
+	City$=MID$(r$,1,21) :REM First get the whole buffer
+	Country$=MID$(r$,22,21) :REM First get the whole buffer
+
+	buf$="" :REM Reset the buffer
+	i%=1 :REM Point to the start of the city name
+	DO
+		char$=MID$(City$,i%,1) :REM Read a char
+		IF char$=CHR$(0)
+			BREAK
+		ENDIF
+		buf$=buf$+char$ :REM Add character to buf$
+		i%=i%+1 :REM Increment counter
+	UNTIL char$=CHR$(0) OR i%>21
+	City$=buf$ :REM Put city name in good place
+	LstCity$=City$
+
+	buf$="" :REM Reset the buffer
+	i%=1 :REM Point to the start of the country name
+	DO
+		char$=MID$(Country$,i%,1) :REM Read a char
+		IF char$=CHR$(0)
+			BREAK
+		ENDIF
+		buf$=buf$+char$ :REM Add character to buf$
+		i%=i%+1 :REM Increment counter
+	UNTIL char$=CHR$(0) OR i%>21
+
+	Country$=buf$ :REM Put country name in good place
+
+ENDP
+
+REM ---------------------------------------------------
+PROC FormatL:(Val%)
+	LOCAL Degrees%,Mins%,ret
+	Degrees%=Val%/60
+	Mins%=Val%-60*Degrees%
+	ret=Degrees%+(Mins%/100.0) :REM force floating point calc
+	ret=Round:(ret,2)
+	RETURN ret
+ENDP
+
+REM ---------------------------------------------------
+PROC GetHome:
+	LOCAL pRes%,Res$(42),ret%
+	Res$=REPT$("*",42)
+	pRes%=ADDR(Res$)+1 :REM Skip the LBC
+	ret%=IOW(WldDev%,15,#pRes%,#pRes%)
+	IF ret%<0
+		ShowErr:(ret%,"Could not find home city")
+	ELSE
+		status$="Found home city"
+		FormatC:(Res$) :REM Format City and Country nicely
+		Home$=City$
+	ENDIF
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+PROC Lmod&:(number&,div&)
+	RETURN number& - (number& / div&) * div&
+ENDP
+
+REM ---------------------------------------------------
+PROC MinTim2$:(clctyp1%,clctyp2%)
+	RETURN Min2Tim$:(clctyp1%)+" - "+Min2Tim$:(clctyp2%)
+ENDP
+
+REM ---------------------------------------------------
+REM convert a time in minutes to a displayable string
+PROC Min2Tim$:(calctyp%)
+	LOCAL days%,hrs%,mins%,disp$(6)
+	mins%=time&(calctyp%)
+	IF mins%>=0
+		WHILE mins%>=1440
+			mins%=mins%-1440
+			days%=days%+1
+		ENDWH
+		hrs%=INT(mins%/60)
+		mins%=mins%-60*hrs%
+		disp$=FIX$(hrs%+mins%/100.0,2,5)
+		IF hrs%<10
+			disp$="0"+disp$
+		ENDIF
+		IF dls%>0
+			disp$=disp$+"*"
+		ENDIF
+		IF days%>0
+			disp$=disp$+"+"
+		ENDIF
+	ELSE
+		disp$=""
+	ENDIF
+	RETURN disp$
+ENDP
+
+REM ---------------------------------------------------
+PROC Mod%:(number%,div%)
+	RETURN number% - (number% / div%) * div%
+ENDP
+
+REM ---------------------------------------------------
+PROC NullMsg$:(calctyp%)
+	LOCAL text$(80),spmsg$(5),lclctyp%,sldeclcv
+
+	IF calctyp%>4
+		lclctyp%=calctyp%-4
+	ELSE
+		lclctyp%=calctyp%
+	ENDIF
+
+	sldeclcv=phen(calctyp%)
+	IF sldeclcv>1
+		spmsg$="Dark"
+	ELSEIF sldeclcv<-1
+		spmsg$="Light"
+	ENDIF
+
+	IF calctyp%=1
+		text$=spmsg$
+	ELSE
+		text$="Too "+spmsg$+" for "
+		IF (phen(lclctyp%)>1 AND phen(lclctyp%+4)>1) OR (phen(lclctyp%)<-1 AND phen(lclctyp%+4)<-1)
+			text$=text$+calctyp$(lclctyp%)
+		ELSE
+			text$=text$+sun$(calctyp%)
+		ENDIF
+	ENDIF
+
+	IF out%=1
+		text$="It is "+LOWER$(text$)
+	ENDIF
+	RETURN text$
+ENDP
+
+REM ---------------------------------------------------
+REM Normalisation of radians
+PROC Nrmliz:(z)
+	LOCAL x
+
+	x=z
+	WHILE x<0
+		x=x+d
+	ENDWH
+	WHILE x>=d
+		x=x-d
+	ENDWH
+	RETURN x
+ENDP
+
+REM ---------------------------------------------------
+REM Open channel to the WLD: device
+PROC Openwld:
+	LOCAL ret%
+	ret%=IOOPEN(WldDev%,"WLD:",-1)
+	IF ret%<0
+		ShowErr:(ret%,"World function not opened")
+	ENDIF
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+REM find the sunday on/prior to the day supplied
+PROC PreSun:(day%,month%,year%)
+	LOCAL dow%,date&,d%,m%,y%
+	d%=day%
+	m%=month%
+	y%=year%
+	dow%=DOW(day%,month%,year%)
+	dow%=Mod%:(dow%,7)
+	date&=DAYS(day%,month%,year%)-dow%
+	RETURN date&
+ENDP
+
+REM ---------------------------------------------------
+REM A sort of rounding function
+PROC Round:(value,dp%)
+	LOCAL tmp,factor,adj
+	IF value < 0
+		adj=-.5
+	ELSE
+		adj=.5
+	ENDIF
+	factor=10**dp%
+	tmp=INT(value*factor+adj)/factor
+	RETURN tmp
+ENDP
+
+REM ---------------------------------------------------
+REM Display results on Screen
+PROC ScrnRes:(CalcDat&,calctyp%)
+	LOCAL ret%
+	BUSY off
+	DINIT City$+","+Country$
+	DTEXT "Latitude",DegDisp$:(lat,"NS")
+	DTEXT "Longitude",DegDisp$:(long,"WE"),$200
+	DTEXT "Date",Dspdate$:(CalcDat&)
+	IF calctyp%=1 :REM simple sunrise/sunset
+		IF ABS(phen(1))>1
+			DTEXT "",NullMsg$:(1),2
+		ELSEIF calcs%=1
+			DTEXT sun$(1),Min2Tim$:(1)
+			DTEXT sun$(5),Min2Tim$:(5),$200
+		ELSEIF calcs%=2
+			DTEXT sun$(1),Min2Tim$:(1),$200
+		ELSEIF calcs%=3
+			DTEXT sun$(5),Min2Tim$:(5),$200
+		ENDIF
+	ELSEIF calctyp%>1 :REM duration effects
+		IF ABS(phen(calctyp%-1))>1 AND ABS(phen(calctyp%-1))>1
+			DTEXT "",NullMsg$:(calctyp%),2
+		ELSEIF ABS(phen(calctyp%-1))<=1 AND ABS(phen(calctyp%-1))<=1
+			IF calcs%=1
+				DTEXT sun$(calctyp%),MinTim2$:(calctyp%,calctyp%-1)
+				DTEXT sun$(4+calctyp%),MinTim2$:(3+calctyp%,4+calctyp%),$200
+			ELSEIF calcs%=2
+				DTEXT sun$(calctyp%),MinTim2$:(calctyp%,calctyp%-1),$200
+			ELSEIF calcs%=3
+				DTEXT sun$(4+calctyp%),MinTim2$:(3+calctyp%,4+calctyp%),$200
+			ENDIF
+		ENDIF
+	ENDIF
+	DBUTTONS "OK",13,"Stop",27
+	LOCK ON
+	ret%=DIALOG
+	LOCK OFF
+	IF ret%=27 OR ret%=0
+		ret%=-1
+	ENDIF
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+REM SEXAGESIMAL TO DECIMAL
+PROC Sex2Dec:(z1)
+	LOCAL w,x,y,z
+	W=1
+	z=z1
+	IF Z<0
+		W=-1
+		Z=ABS(Z)
+	ENDIF
+	X=INT(Z+0.00005)
+	Z=(Z - X) * 100
+	Y=INT(Z)
+	Z=(Z - Y) * 100
+	RETURN (X+Y/60+Z/3600)*W
+ENDP
+
+REM ---------------------------------------------------
+PROC ShowErr:(e%,t$)
+	status$=t$+" ("+ERR$(e%)+")"
+ENDP
+
+REM ---------------------------------------------------
+PROC Suncalc&:(lat1,long1,FromDat&,zonein,calctyp%,riseset%)
+	REM procedure variables
+	LOCAL doy%,lat,long,zone,time&
+	
+	lat=RAD(Sex2Dec:(lat1))
+	long=RAD(Sex2Dec:(long1))
+	doy%=Days2Day:(FromDat&) :REM crack the date apart
+	zone=zonein
+	zone=RAD(Sex2Dec:(zone))*-15
+	
+	IF riseset%=0 :REM sunrise etc calc
+		time&=AprxTime:(calctyp%,0,a,setadj(calctyp%),lat,long,doy%,zone)
+	ELSE	:REM sunset etc calc
+		time&=AprxTime:(calctyp%+4,1,c,setadj(calctyp%),lat,long,doy%,zone)
+	ENDIF
+	RETURN time&
+ENDP
+
+REM ---------------------------------------------------
+PROC Tim2Mins:(time$)
+	LOCAL hours%,time
+	time=VAL(time$)
+	hours%=INT(time)
+	RETURN (100*time)-(40*hours%) :REM=60*hours+100*(time-hours)
+ENDP
+
+REM ---------------------------------------------------
+REM UWORD is written low byte then high byte
+PROC Uword$:(val&)
+	RETURN CHR$(val& AND $00ff)+CHR$((val& AND $ff00)/256)
+ENDP
+
+REM ---------------------------------------------------
+REM write the agenda record
+PROC WrAgnRec:(handle%,rectype%,style%,alarm%,CalcDat&,calctyp%)
+	LOCAL entry$(80),day&,mins&,dur&,lalarm%,ret%,null%,lrectyp%
+	lrectyp%=rectype%
+	null%=0
+	dur&=0
+	IF ABS(phen(calctyp%))>1 :REM null phenomenon
+		IF calctyp%=1 OR calctyp%=5
+			null%=1
+		ELSEIF ABS(phen(calctyp%-1))>1
+			null%=1
+		ELSE :REM event continues thru the night
+			mins&=time&(calctyp%-1)
+		ENDIF
+	ELSE :REM something happens
+		mins&=time&(calctyp%) :REM set time to dark end of event
+		IF calctyp%=1 OR calctyp%=5 :REM one time only
+			dur&=0
+		ELSEIF ABS(phen(calctyp%-1))<=1 :REM both events
+			dur&=time&(calctyp%-1)-mins&
+		ELSE :REM never light enough for calctyp%-1
+			dur&=time&(9-calctyp%)-mins&
+		ENDIF
+		IF dur&<0
+			dur&=ABS(dur&)
+			mins&=mins&-dur&
+		ENDIF
+	ENDIF
+
+	IF null%=1
+		entry$=NullMsg$:(calctyp%)
+	ELSE
+		entry$=sun$(calctyp%)
+	ENDIF
+
+	day&=CalcDat&-25567
+	entry$=entry$+" @ "+City$ :REM this is the text of the entry
+
+	IF null%=1 :REM force untimed - type2 - always for null effect
+		none%=none%+1
+		lrectyp%=2
+	ENDIF
+	
+	IF none%<2
+		ret%=WrAgnRc2:(handle%,calctyp%,lrectyp%,day&,mins&,dur&,premins&,entry$,alarm%,style%)
+	ENDIF
+
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+REM write the agenda record
+PROC WrAgnRc2:(handle%,calctyp%,type%,day&,mins&,dur&,premins&,entry$,alarm%,style%)
+	LOCAL attr%,lalarm%,length%,word&,s$(12),entlen%,ret%,lday&,lmins&,ldur&,lentry$(60),prefix%
+
+	lalarm%=alarm% :REM need a local copy cos cant assign to parameter
+	lmins&=mins&
+	lday&=day&
+	ldur&=dur&
+	
+	IF type%=2 OR calctyp%=1 OR calctyp%=5
+		lentry$=entry$
+	ELSE
+		IF (lmins&<1440 AND lmins&+dur&>=1440) :REM over midnight
+			lmins&=lmins&+ldur&
+			ldur&=0
+			ret%=WrAgnRc2:(handle%,calctyp%,type%,lday&,mins&,ldur&,premins&,"Start of "+entry$,lalarm%,style%)
+			IF ret%
+				RETURN ret%
+			ENDIF
+			lalarm%=0
+			lentry$="End of "+entry$
+		ELSE
+			IF ABS(phen(calctyp%))>1 :REM null finish
+				prefix%=1
+			ELSEIF ABS(phen(calctyp%-1))>1 :REM null start
+				prefix%=2
+			ELSE
+				prefix%=0
+			ENDIF
+			IF prefix%=0
+				lentry$=entry$
+			ELSE
+				IF calctyp%<=4
+					prefix%=3-prefix% :REM swap in morning
+				ENDIF
+				IF prefix%=1
+					lentry$="Start of "+entry$
+				ELSEIF prefix%=2
+					lentry$="End of "+entry$
+				ENDIF
+			ENDIF
+		ENDIF
+		WHILE lmins&>=1440 :REM effects occur tommorrow
+			lday&=lday&+1
+			lmins&=lmins&-1440
+		ENDWH
+	ENDIF
+	
+	length%=LEN(lentry$)
+	entlen%=length%
+	attr%=27 :REM Attribute 00011011 - no memo,no alarm,not year view,not crossed out,only once
+
+	IF type%=2 :REM untimed - type2 - always for null effect
+		lalarm%=1 :REM disable alarm
+		word&=(8+length%)+(8192) :REM length+8+4096*(record type=2)
+		s$=   Uword$:(word&) :REM type & length of record word
+		s$=s$+Uword$:(lday&) :REM date of entry
+		s$=s$+CHR$($ff)+CHR$($ff)
+		s$=s$+CHR$(attr%) 
+		s$=s$+CHR$(0) :REM no code letter
+	ELSE :REM there is a time so timed record = type 1
+		IF lalarm%=2 :REM if alarm required
+			attr%=attr%-8 :REM unset no alarm bit
+			length%=length%+11 :REM length of alarm record
+		ENDIF
+		word&=(10+length%)+(4096) :REM length+10+4096*record type
+		s$=   Uword$:(word&) :REM type & length of record word
+		s$=s$+Uword$:(lday&) :REM date of entry
+		s$=s$+Uword$:(lmins&) :REM time of entry
+		s$=s$+CHR$(attr%)
+		s$=s$+CHR$(0) :REM no code letter
+		s$=s$+Uword$:(ldur&) :REM no code and no duration
+	ENDIF
+
+	REM title field - style, length
+	s$=s$+CHR$(style%)+CHR$(entlen%)
+
+	REM write the entry details field
+	ret%=IOWRITE(handle%,UADD(ADDR(s$),1),LEN(s$))
+
+	IF ret%>=0 :REM write the title field
+		ret%=IOWRITE(handle%,UADD(ADDR(lentry$),1),entlen%)
+	ENDIF
+
+	IF lalarm%=2 AND ret%>=0 :REM compose and write alarm field
+		word&=1439-mins&+(premins&/60)
+		IF word&>1439 :REM alarm not prior to midnight
+			word&=1439
+		ENDIF
+		s$=Uword$:(word&)+alarm$
+		ret%=IOWRITE(handle%,UADD(ADDR(s$),1),11)
+	ENDIF
+
+	IF ret%<0
+		ShowErr:(ret%,"Couldn't write Agenda record")
+	ENDIF
+
+	RETURN ret%
+ENDP
+
+REM ---------------------------------------------------
+REM write the the records
+PROC WriteRec:(handle%,style%,alarm%,CalcDat&,calctyp%)
+	LOCAL ret%
+	ret%=0
+	none%=0
+
+	IF out%=2 :REM write to agenda
+		IF (calcs%=1 OR calcs%=2)
+			ret%=WrAgnRec:(handle%,1,style%,alarm%,CalcDat&,calctyp%)
+		ENDIF
+		IF ret%>=0 AND (calcs%=1 OR calcs%=3)
+			ret%=WrAgnRec:(handle%,1,style%,alarm%,CalcDat&,4+calctyp%)
+		ENDIF
+	ENDIF
+	RETURN ret%
+ENDP
+
+

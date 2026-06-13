@@ -1,0 +1,1207 @@
+APP Addbit
+Type $1003
+Path "\bit"
+Ext "pic"
+Icon "\icons\addicn.pic"
+ENDA
+
+PROC main:
+
+Global dest%,info%,src%,path$(130)
+Global fname$(130),dbname$(130)
+Global view%,dnum%,snum%
+Global fonth%,first%,filt$(130),cpic%
+Global cx%,cy%,stat%,drv$(1),fontno%
+Local a%(6)
+
+Rem v2.00
+
+init: Rem Initialise
+
+Rem if program started with a filename
+If Cmd$(2)<>Cmd$(1)
+	Rem Handle command-line
+	file:(Cmd$(3),Cmd$(2))
+Endif
+
+view:(1)
+
+Do Rem Main loop
+
+Getevent a%() Rem Test for system event
+	If (a%(1) And $400)=0 Rem If keypress
+		key:(a%(1),a%(2) And $00ff)
+	Elseif a%(1)=$404
+		talk:(Getcmd$) Rem New command-line
+	Endif
+
+Until 0
+	
+ENDP
+
+PROC init:
+
+Local infil$(130),lp%
+
+Rem initializes addbit
+
+Rem set-up directories
+path$=Mid$(Cmd$(1),1,Len(Cmd$(1))-10)
+
+If Not Exist("loc::m:\opd\addbit.ini")
+	Busy "Installing..."
+	Trap Mkdir "\bit"
+	Trap Mkdir path$+"addbit"
+	lp%=1
+	Do
+		If lp%=1 :infil$="adbthlp.rsc"
+		Elseif lp%=2 :infil$="install.txt"
+		Endif
+		
+		If Not Exist(path$+"addbit\"+infil$)
+			Trap Copy path$+infil$,path$+"addbit\"
+			If Err
+				If Alert("Could not find "+infil$,"Please copy to same dir as addbit.opa","Stop install","Continue")=1
+					Stop
+				Endif
+			Else
+				Delete path$+infil$
+			Endif
+		Endif
+		lp%=lp%+1
+	Until lp%>2
+
+	open:(Addr(lp%),"loc::m:\opd\addbit.ini",$101)
+	infil$="v1.05;1;2;M;1;\opd\"
+	write:(lp%,Addr(infil$),Len(infil$)+1)
+	close:(lp%)
+	Busy Off
+Endif
+
+Rem read .ini file for set-up options
+open:(Addr(lp%),"loc::m:\opd\addbit.ini",$0)
+read%:(lp%,Addr(infil$),130)
+close:(lp%)
+
+Rem set up paths/variables
+Setpath "\bit\"
+
+Diaminit 1,"File","Add","View"
+view%=1
+
+fontno%=Val(Mid$(infil$,7,1))
+stat%=Val(Mid$(infil$,9,1))
+drv$=Mid$(infil$,11,1)
+info%=Val(Mid$(infil$,13,1))
+filt$=Mid$(infil$,15,Len(infil$)-14)+"*.pic"
+
+gUse 1 :setfon:
+If info%<>0
+	info%=gCreate(0,0,10,10,0,0)
+Endif
+setstat:
+	
+ENDP
+
+PROC setstat:
+
+Local xy%(4)
+
+Rem sets statuswin to the type stat%
+Rem re-sizes windows appropriately
+
+If stat%=0
+	Statuswin Off
+Else
+	Statuswin On,stat%
+	Statwininfo(-1,xy%())
+Endif
+
+If info%<>0
+	gUse 1
+	gSetwin 0,0,478-xy%(3),140
+	gUse info% :gVisible On
+	gSetwin 0,142,478-xy%(3),18
+	view:(4)
+Else
+	gUse 1
+	gSetwin 0,0,478-xy%(3),160
+Endif
+	
+ENDP
+
+PROC file:(action$,name$)
+
+Local long&,head%(4),buff%
+
+Rem Proc handles file messages
+
+If action$="O"
+	Rem make the database filename from
+	Rem the .pic filename
+	dbname$=Left$(name$,Len(name$)-3)+"odb"
+	open:(Addr(dest%),name$,$300)
+	If ifpic%:(dest%)
+		long&=6
+		rethead:(dest%,Addr(dnum%),long&,2)
+	Else
+		Stop
+	Endif
+
+	Rem make a new .odb file, deleting
+	Rem any existing one
+	If Exist(dbname$)
+		Delete dbname$
+	Endif
+	Create dbname$,A,bit$,CRC%,width%,height%,size&,pos&,bitno%
+Elseif action$="C"
+	Rem make the database filename from
+	Rem the .pic filename
+	dbname$=Left$(name$,Len(name$)-3)+"odb"
+	Rem make a new .pic destination file
+	Rem deleting any existing one
+	If Exist(name$)
+		Delete name$
+	Endif
+	open:(Addr(dest%),name$,$301)
+	Rem make a new .odb file, deleting
+	Rem any existing one
+	If Exist(dbname$)
+		Delete dbname$
+	Endif
+	Create dbname$,A,bit$,CRC%,width%,height%,size&,pos&,bitno%
+
+	Rem Prepare file header buffer
+	Pokeb Addr(head%()),$50
+	Pokeb Uadd(Addr(head%()),1),$49
+	Pokeb Uadd(Addr(head%()),2),$43
+	Pokeb Uadd(Addr(head%()),3),$DC
+	Pokeb Uadd(Addr(head%()),4),$30
+	Pokeb Uadd(Addr(head%()),5),$30
+	Pokew Uadd(Addr(head%()),6),$0
+
+	write:(dest%,Addr(head%(1)),8)
+	dnum%=0
+Elseif action$="X"
+	Rem close .PIC file
+	close:(dest%)
+	Rem close database
+	Close
+	Rem remove database
+	Delete dbname$
+	Rem update .ini file
+	open:(Addr(dest%),"loc::m:\opd\addbit.ini",$300)
+	Rem set font size/convert to ASCII
+	long&=7 :buff%=fontno%+48
+	seek:(dest%,1,Addr(long&))
+	write:(dest%,Addr(buff%),1)
+	Rem set statwin status/convert to ASCII
+	long&=9 :buff%=stat%+48
+	seek:(dest%,1,Addr(long&))
+	write:(dest%,Addr(buff%),1)
+	Rem truncate file
+	long&=0
+	seek:(dest%,1,Addr(long&))
+	read%:(dest%,Addr(long&),1)
+	long&=long&+1 Rem include leading byte
+	buff%=IOW(dest%,11,long&,#0)
+	If buff%<0
+		Raise buff%
+	Endif
+	close:(dest%)
+	Stop
+Endif
+
+fname$=name$
+Setname name$
+Return
+	
+ENDP
+
+PROC talk:(command$)
+
+Local do$(1),file$(130)
+
+Rem Decodes command$, and calls file:
+
+do$=Left$(command$,1)
+file$=Right$(command$,Len(command$)-1)
+
+If do$="O"
+	close:(dest%)
+	file:("O",file$)
+Elseif do$="C"
+	close:(dest%)
+	file:("C",file$)
+Elseif do$="X"
+	file:("X","")
+Endif
+
+view:(1)
+Return
+	
+ENDP
+
+PROC key:(press%,mod%)
+
+Local help$(130)
+Rem Handles the calling of func:()
+Rem with modifiers &c
+
+If (mod% And 8)=0 Rem if not hotkey
+	If press%=290 Rem menu
+		If mod%=0
+			menu:
+		Elseif (mod% And 4)
+			stat%=stat%-1
+			If stat%<0
+				stat%=2
+			Endif
+			setstat:
+		Endif
+	Elseif press%=291 Rem help
+		help$=path$
+		Pokeb Uadd(Addr(help$),6),Asc(drv$)
+		If Exist(help$+"addbit\adbthlp.rsc")
+			help%:(1,1,help$+"addbit\adbthlp.rsc")
+		Else
+			gIprint "Help not found on drive "+drv$
+		Endif
+	Elseif press%=292 Rem change view
+		view%=view%+1
+			If view%>3
+			view%=1 :Endif
+		Diampos view%
+		view:(view%)
+	Elseif press%=256 Rem up
+		scroll:(1)
+	Elseif press%=257 Rem down
+		scroll:(2)
+	Elseif press%=258 Rem right
+		scroll:(3)
+	Elseif press%=259 Rem left
+		scroll:(4)
+	Elseif press%=13 Rem enter
+		If mod% And 2 Rem if shift held
+			func:(-19)
+		Else
+			func:(13)
+		Endif
+	Endif
+Elseif mod% And 8 Rem Psion key held
+	If mod% And 2 Rem If shift as well
+		func:(press%-544)
+	Else
+		func:(press%-512)
+	Endif
+Endif
+	
+ENDP
+
+PROC menu:
+
+Lock On
+If view%=1 Rem If dest view
+	mInit
+	mCard "File","New destination file",%n,"Open destination file",-%o,"Append bitmaps",%a
+	mCard "Special","Set preferences",-%q,"Zoom in",%z,"Zoom out",-%Z,"Exit",%x
+	mCard Chr$(4),"Add bitmaps",%A,"View bitmaps",%V
+	
+	func:(Menu)
+Elseif view%=2 Rem If source view
+	mInit
+	mCard "Add","Bitmap",%+
+	mCard "Special","Set preferences",-%q,"Zoom in",%z,"Zoom out",-%Z,"Exit",%x
+	mCard Chr$(4),"File contents",%F,"View bitmaps",%V
+	
+	func:(Menu)
+Elseif view%=3 Rem If bitmaps view
+	mInit
+	mCard "Bitmap","Jump to bitmap",%b
+	mCard "Special","Set preferences",-%q,"Exit",%x
+	mCard Chr$(4),"File contents",%F,"Add bitmaps",%A
+	
+	func:(Menu)
+Endif
+Lock Off
+	
+ENDP
+
+PROC Help%:(page%,base%,name$)
+
+Local gate%,buf%(65),fname$(130)
+Local page&,base&
+
+Rem show help
+
+Onerr fail Rem Create user-error messages:
+If page%<1 Or base%<1
+	Raise 0
+Else
+	page&=page% :base&=base%
+Endif
+If Not Exist(name$)
+	Raise 1
+Endif
+If Len(name$)<=130
+	fname$=name$
+Else
+	Raise 2
+Endif
+
+Rem Convert filename to "C" string:
+Poke$ ADDR(buf%(1)),"#"+fname$
+
+gate%=Peekw($38)
+Send(gate%,27,buf%(2)) :Rem Set help filename
+Send(gate%,26,#page&,#base&) :Rem Do help
+Return -1
+
+fail:: Rem Somethings wrong.
+If Err=0
+	Alert("Illegal parameters.","page& and base& must not be zero.","Ok")
+Elseif Err=1
+	Alert("Could not find help resource:",fname$,"Ok")
+Elseif Err=2
+	Alert("Bad resource name","Must be less than 130","Ok")
+Else
+	Alert("Help system failed.","Exiting program.","Ok")
+	Stop
+Endif
+Return 0
+	
+ENDP
+
+PROC func:(item%)
+
+Local file$(130),pic%,long&,dlog%
+Local bitw%,bith%,which&,all%,lbuff&
+
+Rem Handles the hot-key functions
+Rem also called by menus:
+
+If view%=1 Rem If file view
+If item%=%n
+	dInit "New file"
+	dFile file$,"",9
+		If Dialog
+			If Exist(file$)
+				dInit "File already exists: overwrite?"
+				dButtons "No",%n,"Yes",%y
+					If Dialog=%n Rem NOT overwrite
+					Return :Endif
+			Endif
+			Rem close the database if it is
+			Rem open, and delete it
+			Trap Close
+				If Exist(dbname$)
+				Delete dbname$ :Endif
+			Rem create file with .pic extension
+			Rem if no other specified
+			If Loc(file$,".")
+				talk:("C"+file$)
+			Else
+				talk:("C"+file$+".PIC")
+			Endif
+		Endif
+Elseif item%=%o
+	file$="\bit\*.pic"
+	dInit "Open file"
+	dFile file$,"",72
+		If Dialog
+			talk:("O"+file$)
+		Endif
+Elseif item%=%a
+	If Count>0
+		dInit "Append bitmaps"
+		dText "","Add source bitmaps to",2
+		dText "",fname$+"?",2
+		dButtons "Add",%a,"Cancel",-%c
+			If Dialog=%a
+				If dnum%>0
+					dInit "File already contains bitmaps"
+					dText "","Do you want to overwrite them,",2
+					dText "","or append the new ones on the end?.",2
+					dButtons "Append",%a,"Overwrite",%o,"Cancel",-%c
+					dlog%=Dialog
+					If dlog%=%o Rem overwrite
+					Rem re-create file ie blank it
+						close:(dest%)
+						file:("C",fname$)
+						dnum%=0 Rem no bitmaps
+					Elseif dlog%=%c Or dlog%=0
+					Rem cancel operation
+						Return
+					Endif
+				Endif
+			append: Rem add the bitmaps
+			Rem set the number of bitmaps in file
+			long&=6 :dnum%=dnum%+Count
+			seek:(dest%,1,Addr(long&))
+			write:(dest%,Addr(dnum%),2)
+			Rem empty the database
+			First
+				Do :Erase
+				Until Eof
+			Rem re-draw screen
+			view:(1)
+			Endif
+	Else gIprint "No source bitmaps"
+	Endif
+Endif
+Endif
+
+If view%=2 Rem if Add view
+	If item%=%+
+		While first%+lines%:<Count
+			scroll:(2)
+		Endwh
+
+		dInit "Add bitmap"
+		dFile filt$,"Source",72
+		If Dialog
+			open:(Addr(src%),filt$,$200)
+			If Not ifpic%:(src%)
+				close:(src%)
+				gIprint "Not a .pic file"
+				Return
+			Endif
+			long&=6
+			rethead:(src%,Addr(snum%),long&,2)
+			If snum%>0
+				If snum%>1
+					dInit "This file contains multiple bitmaps"
+					dChoice all%,"Add","Only one,All of them"
+					If Dialog=0 Rem dialog cancelled
+						close:(src%)
+						Return
+					Endif
+					If all%=2 Rem All of them
+						which&=0
+					Else Rem Only one
+						dInit "Add which bitmap?"
+						dText "","0-"+Num$(snum%-1,3),2
+						dLong which&,"Bitmap no.",0,snum%-1
+							If Dialog=0 Rem dialog cancelled
+								close:(src%)
+								Return
+							Endif
+					Endif
+				Else
+					which&=0
+				Endif
+
+				Rem begin adding selected bitmaps
+				pic%=which&
+				Busy "Please wait"
+				Do
+					long&=(pic%*12)+8
+					Rem put filename into database
+					A.bit$=filt$
+					Rem put CRC into database
+					rethead:(src%,Addr(dlog%),long&,2)
+					A.CRC%=dlog%
+					Rem put width into database
+					rethead:(src%,Addr(dlog%),long&+2,2)
+					A.width%=dlog%
+					Rem put height into database
+					rethead:(src%,Addr(dlog%),long&+4,2)
+					A.height%=dlog%
+					Rem put size into database
+					rethead:(src%,Addr(lbuff&),long&+6,2)
+					A.size&=lbuff&
+					Rem put distance to data into database
+					rethead:(src%,Addr(lbuff&),long&+8,2)
+					A.pos&=lbuff&
+					Rem put bitmap number into database
+					A.bitno%=pic%
+					Rem append to database
+					Append
+					pic%=pic%+1
+					Rem if only one bitmap added,
+					Rem break loop
+					If all%=1
+						Break
+					Endif
+				Rem until they're all added
+				Until pic%>snum%-1
+				Busy Off
+				Rem show the added bitmaps on list
+				view:(2)
+				Rem close the source file
+				close:(src%)
+			Endif
+		Endif
+Endif
+Endif
+
+If view%=3 Rem if View view
+If item%=%b
+	If dnum%>0 Rem there are bitmaps in file
+		which&=0
+			dInit "View bitmap"
+			dLong which&,"Which bitmap",0,dnum%-1
+		If Dialog
+			cpic%=which&
+			view:(3)
+		Endif
+	Else
+		dInit "No bitmaps in file"
+		dButtons "Ok",-13
+		Dialog
+	Endif
+Elseif item%=-19 Rem shift+enter
+Rem move to previous pic
+	cpic%=cpic%-1
+		If cpic%<0
+		cpic%=dnum%-1 :Endif
+	Rem Print bitmap number in top-right
+	Rem of screen
+	gIprint "Bitmap: "+Num$(cpic%,3),2
+	view:(3)
+Elseif item%=13 Rem enter
+Rem move to next pic
+	cpic%=cpic%+1
+		If cpic%>(dnum%-1)
+		cpic%=0 :Endif
+	Rem Print bitmap number in top-right
+	Rem of screen
+	gIprint "Bitmap: "+Num$(cpic%,3),2
+	view:(3)
+Endif
+Endif
+
+If item%=%q
+	dlog%=2 :pic%=1 :file$="\opd\"
+	dInit "Set preferences"
+	dChoice dlog%,"Drive for help files","A,Internal,B"
+	dChoice pic%,"Show destination window","Yes,No"
+	dFile file$,"Source directory",4
+	If Dialog
+		open:(Addr(all%),"loc::m:\opd\addbit.ini",$300)
+		filt$=file$+"*.pic"
+		Rem write source path to .ini
+		long&=15
+		seek:(all%,1,Addr(long&))
+		write:(all%,Uadd(Addr(file$),1),Len(file$))
+		long&=0
+		seek:(all%,1,Addr(long&))
+		Rem alter string-length byte
+		long&=14+Len(file$)
+		write:(all%,Addr(long&),1)
+		If dlog%=1
+			drv$="A"
+		Elseif dlog%=2
+			drv$="M"
+		Elseif dlog%=3
+			drv$="B"
+		Endif
+		Rem write help drive to .ini
+		long&=11
+		seek:(all%,1,Addr(long&))
+		write:(all%,Uadd(Addr(drv$),1),1)
+		If pic%=1 And info%=0
+			info%=gCreate(0,0,10,10,0,0)
+			setstat:
+		Elseif pic%=2 And info%<>0
+			gClose info%
+			info%=0
+			setstat:
+		Endif
+		Rem write info window status to .ini
+		long&=13
+		seek:(all%,1,Addr(long&))
+		If pic%=0
+			long&=48
+		Else
+			long&=49
+		Endif
+		write:(all%,Addr(long&),1)
+		close:(all%)
+	Endif
+Elseif item%=%z
+	fontno%=fontno%+1
+	If fontno%>4
+		fontno%=1
+	Endif
+	gUse 1 :setfon:
+	view:(view%)
+Elseif item%=%Z
+	fontno%=fontno%-1
+	If fontno%<1
+		fontno%=4
+	Endif
+	gUse 1 :setfon:
+	view:(view%)
+Elseif item%=%x
+	If Count>0
+		dInit "Confirm exit"
+		dText "","You have not appended the current bitmaps.",2
+		dText "","They will NOT be added to the file.",2
+		dText "","Really Exit?",2
+		dButtons "No",-%n,"Yes",%y
+		If Dialog=%n
+			Return
+		Endif
+	Endif
+	file:("X","")
+Elseif item%=%F
+	view%=1 :Diampos view%
+	view:(view%)
+Elseif item%=%A
+	view%=2 :Diampos view%
+	view:(view%)
+Elseif item%=%V
+	view%=3 :Diampos view%
+	view:(view%)
+Endif
+	
+ENDP
+
+PROC scroll:(dir%)
+
+Rem scrolls the current view in
+Rem direction dir%
+Rem 1=sroll down
+Rem 2=scroll up
+Rem 3=scroll left
+Rem 4=scroll right
+
+If view%=1 Rem File view
+	If dir%=1 Rem scroll down
+		gUse 1
+		If first%>0
+			gScroll 0,fonth%+5,0,(fonth%*2)+10,450,(lines%:-1)*(fonth%+5)
+			first%=first%-1
+			shdest:(1,first%)
+		Endif
+	Elseif dir%=2
+		Rem scroll up
+		gUse 1
+		If dnum%>first%+lines%:
+			gScroll 0,-(fonth%+5),0,(fonth%*3)+15,450,(lines%:-1)*(fonth%+5)
+			first%=first%+1
+			shdest:(lines%:,(lines%:+first%)-1)
+		Endif
+	Endif
+Elseif view%=2 Rem Add view
+	If dir%=1
+		Rem scroll down
+		gUse 1
+		If first%>0
+			gScroll 0,fonth%+5,50,(fonth%*2)+10,450,(lines%:-1)*(fonth%+5)
+			first%=first%-1
+			shsrc:(1,first%+1)
+		Endif
+	Elseif dir%=2
+		Rem scroll up
+		gUse 1
+		If Count>first%+lines%:
+			gScroll 0,-(fonth%+5),50,(fonth%*3)+15,450,(lines%:-1)*(fonth%+5)
+			first%=first%+1
+			shsrc:(lines%:,lines%:+first%)
+		Endif
+	Endif
+Elseif view%=3 Rem View view
+	If dir%=1
+		cy%=cy%-50
+		If cy%<0
+		cy%=0 :Endif
+	Elseif dir%=2
+		cy%=cy%+50
+	Elseif dir%=3
+		cx%=cx%+50
+	Elseif dir%=4
+		cx%=cx%-50
+		If cx%<0
+		cx%=0 :Endif
+	Endif
+	view:(3)
+Endif
+	
+ENDP
+
+PROC shdest:(line%,elem%)
+
+Local long&,lbuff&
+
+Rem shows elem% at line line%-dest view
+Rem 1 is the first line
+Rem 0 is first element
+long&=(elem%*12)+8
+	gAt 0,(line%*(fonth%+5))+(fonth%*2)+10
+	gPrint elem%
+	gAt 50+fonth%,(line%*(fonth%+5))+(fonth%*2)+10
+	rethead:(dest%,Addr(lbuff&),long&,2)
+	gPrint Hex$(lbuff&)
+	gAt 130+fonth%,(line%*(fonth%+5))+(fonth%*2)+10
+	rethead:(dest%,Addr(lbuff&),long&+2,2)
+	gPrint lbuff&
+	gAt 215+fonth%,(line%*(fonth%+5))+(fonth%*2)+10
+	rethead:(dest%,Addr(lbuff&),long&+4,2)
+	gPrint lbuff&
+	gAt 305+fonth%,(line%*(fonth%+5))+(fonth%*2)+10
+	rethead:(dest%,Addr(lbuff&),long&+6,2)
+	gPrint lbuff&
+	
+ENDP
+
+PROC shsrc:(line%,elem%)
+
+Rem show elem% on line line%-source view
+Rem 1 is first line
+Rem 1 is the first element
+
+Rem point to the record elem%
+Position elem%
+
+Rem First print filename
+gAt 0,(line%*(fonth%+5))+(fonth%*2)+10
+gPrint A.bit$
+Rem Then the bitmap number
+gAt 350,(line%*(fonth%+5))+(fonth%*2)+10
+gPrint A.bitno%
+	
+ENDP
+
+PROC view:(see%)
+
+Local line%,show%,bitw%,bith%
+
+line%=1 :first%=0
+
+If see%=1 Rem if dest view
+	Rem draw title text in bold
+	gUse 1 :gCls :gStyle 1
+	gAt 0,fonth%+2 :gPrint "Number of bitmaps in file:",dnum%
+	gAt 0,(fonth%*2)+5 :gPrint "No."
+	gAt 50+fonth%,(fonth%*2)+5 :gPrint "CRC"
+	gAt 130+fonth%,(fonth%*2)+5 :gPrint "Width"
+	gAt 215+fonth%,(fonth%*2)+5 :gPrint "Height"
+	gAt 305+fonth%,(fonth%*2)+5 :gPrint "Size"
+	Rem bold off
+	gStyle 0
+
+	If dnum%>0 Rem there are bitmaps in file
+		Do
+			shdest:(line%,line%-1)
+			line%=line%+1
+		Until line%>dnum% Or line%>lines%:
+	Else
+		gAt 50,70 :gPrint "No bitmap data."
+	Endif
+	If info%<>0
+		view:(4)
+	Endif
+Elseif see%=2 Rem source view
+	Rem draw title text in bold
+	gUse 1 :gCls :gStyle 1
+	gAt 0,fonth%+2 :gPrint "Bitmaps to add to file."
+	gAt 0,(fonth%*2)+5 :gPrint "Bitmap filename:"
+	gAt 350,(fonth%*2)+5 :gPrint "No."
+	Rem bold off
+	gStyle 0
+
+	If Count>0 Rem there are bitmaps in file
+		Do
+			shsrc:(line%,line%)
+			line%=line%+1
+		Until line%>Count Or line%>lines%:
+	Endif
+Elseif see%=3 Rem bitmaps view
+	gUse 1 :gCls
+	If dnum%>0 Rem there are bitmaps in file
+		close:(dest%)
+		Rem load bitmap
+		show%=gLoadbit(fname$,0,cpic%)
+		bitw%=gWidth :bith%=gHeight
+		Rem show bitmap
+		gUse 1 :gCls :gAt 0,0
+		gCopy show%,cx%,cy%,bitw%-cx%,bith%-cy%,3
+		gClose show%
+		Rem re-open current dest file
+		open:(Addr(dest%),fname$,$300)
+	Endif
+Elseif see%=4
+	Rem put file info in bottom window
+	gUse info% :gCls
+	gBorder 0
+	gAt 10,15 :gPrint "Destination file:",fname$
+Endif
+	
+ENDP
+
+PROC setfon:
+
+If fontno%=1
+	fonth%=8 :gFont 9
+Elseif fontno%=2
+	fonth%=11 :gFont 10
+Elseif fontno%=3
+	fonth%=13 :gFont 11
+Elseif fontno%=4
+	fonth%=16 :gFont 12
+Endif
+	
+ENDP
+
+PROC lines%:
+
+If fonth%=8
+	Return 8
+Elseif fonth%=11
+	Return 6
+Elseif fonth%=13
+	Return 5
+Elseif fonth%=16
+	Return 4
+Endif
+	
+ENDP
+
+PROC append:
+
+Local recsize%,prec%
+Local datsize&,dathand%,dat$(130)
+Local append%,buff%,start&,byteno&
+Local hsors%,long&,data&,total&
+Local doff&,rlen&,ret%,chunk%
+
+Rem calculate total record size
+recsize%=Count*12
+
+Rem allocate space on the heap to
+Rem contain the new bitmap records
+prec%=Alloc(recsize%)
+If prec%=0
+	Raise -10 Rem out of memory
+Endif
+
+Rem if there are already bitmaps in the
+Rem file
+If dnum%>0
+	Rem calculate total data size
+	append%=1
+	Do
+		doff&=((append%-1)*12)+14
+		seek:(dest%,1,Addr(doff&))
+		read%:(dest%,Addr(buff%),2)
+		datsize&=datsize&+buff%
+		append%=append%+1
+	Until append%>dnum%
+
+	Rem create a temporary file with a
+	Rem unique name to hold old bitmap
+	Rem data
+	dat$=""
+	ret%=IOopen(dathand%,Addr(dat$),$304)
+		If ret%<0
+		Raise ret% :Endif
+	Rem create a 4K buffer
+	buff%=Alloc(4096)
+	If buff%=0
+		Raise -10 Rem out of memory
+	Endif
+Endif
+
+Busy "Appending bitmaps..."
+append%=1
+
+Rem create the new bitmap records in
+Rem memory
+Do
+	Position append%
+	Rem poke CRC into heap
+	Pokew Uadd(prec%,((append%-1)*12)),A.CRC%
+	Rem poke bitmap width into heap
+	Pokew Uadd(prec%,(((append%-1)*12)+2)),A.width%
+	Rem poke bitmap height into heap
+	Pokew Uadd(prec%,(((append%-1)*12)+4)),A.height%
+	Rem poke bitmap size into heap
+	Pokew Uadd(prec%,(((append%-1)*12)+6)),A.size&
+	Rem poke offset to data with null
+	Pokel Uadd(prec%,(((append%-1)*12)+8)),0
+	append%=append%+1
+Until append%>Count
+
+If dnum%>0
+	Rem read the offset of the beginning
+	Rem of the data from the first record
+	Rem pos of offset 8 in 1st record
+	doff&=16
+	seek:(dest%,1,Addr(doff&))
+	read%:(dest%,Addr(doff&),4)
+	Rem set doff& to absolute offset of
+	Rem the beginning of the data
+	Rem 20 = header + 1st record
+	doff&=doff&+20
+	Rem read the old bitmap data into temp
+	Rem file
+	byteno&=0
+	Do
+		If datsize&-byteno&>4096
+			chunk%=4096
+		Else
+			chunk%=datsize&-byteno&
+		Endif
+		Rem wind to next chunk
+		long&=doff&+byteno&
+		seek:(dest%,1,Addr(long&))
+		Rem read old data into buffer
+		read%:(dest%,buff%,chunk%)
+		Rem write to end of temp file
+		long&=0
+		seek:(dathand%,2,Addr(long&))
+		write:(dathand%,buff%,chunk%)
+		byteno&=byteno&+chunk%
+	Until byteno&>=datsize&
+Else
+	Rem if dest file is blank, set doff to
+	Rem after the header
+	doff&=8
+Endif
+
+Rem position at end of records
+seek:(dest%,1,Addr(doff&))
+Rem add the new records
+write:(dest%,prec%,recsize%)
+If dnum%>0
+	Rem re-position to end of records
+	doff&=doff&+recsize%
+	seek:(dest%,1,Addr(doff&))
+	Rem append the temp file on the end
+	byteno&=0
+	Do
+		If datsize&-byteno&>4096
+			chunk%=4096
+		Else
+			chunk%=datsize&-byteno&
+		Endif
+		Rem position to next chunk
+		seek:(dathand%,1,Addr(byteno&))
+		Rem read from temp file
+		read%:(dathand%,buff%,chunk%)
+		Rem append to end of dest file
+		long&=doff&+byteno&
+		seek:(dest%,1,Addr(long&))
+		write:(dest%,buff%,chunk%)
+		byteno&=byteno&+chunk%
+	Until byteno&>=datsize&
+	Rem close and remove the temp file
+	close:(dathand%)
+	Delete dat$
+	Rem destroy the buffer
+	Freealloc buff%
+Endif
+Rem free the record space on the heap
+Freealloc prec%
+
+If dnum%>0
+	Rem update the original offsets to
+	Rem data to account for the new
+	Rem records added
+	append%=1
+	Do
+		Rem calculate the pos of offset 8 in
+		Rem the current record
+		doff&=((append%-1)*12)+16
+		Rem position to doff&
+		seek:(dest%,1,Addr(doff&))
+		Rem read the existing offset
+		read%:(dest%,Addr(long&),4)
+		Rem add the total new record size
+		long&=long&+recsize%
+		Rem replace the old value
+		seek:(dest%,1,Addr(doff&))
+		write:(dest%,Addr(long&),4)
+		append%=append%+1 Rem next record
+	Rem Until all the original records are
+	Rem updated
+	Until append%>dnum%
+Endif
+
+Rem append new bitmap data
+append%=1
+Rem set up 4K buffer
+buff%=Alloc(4096)
+If buff%=0
+	Raise -10 Rem out of memory
+Endif
+
+Do
+	Position append%
+	Rem open source file
+	open:(Addr(hsors%),A.bit$,$200)
+	Rem get the offset to data from
+	Rem current descriptor record
+	doff&=A.pos&
+	Rem calculate the length of previous
+	Rem descriptor records
+	rlen&=((A.bitno%+1)*12)+8
+	Rem calculate start of data
+	start&=doff&+rlen&
+
+	Rem point to first byte of data
+	byteno&=0
+	Do
+		Rem determine the size of the chunk
+		If A.size&-byteno&>4096
+			chunk%=4096
+		Else
+			chunk%=A.size&-byteno&
+		Endif
+
+		Rem set long& to byteno& byte
+		Rem of bitmap data
+		long&=byteno&+start&
+
+		Rem wind source file to offset long&
+		seek:(hsors%,1,Addr(long&))
+		Rem read chunk% bytes into buffer
+		read%:(hsors%,buff%,chunk%)
+
+		Rem wind to end of destination file
+		long&=0
+		seek:(dest%,2,Addr(long&))
+		Rem write chunk% bytes from buffer
+		Rem to destination file
+		write:(dest%,buff%,chunk%)
+
+		byteno&=byteno&+chunk% Rem next chunk
+	Rem until all bytes in current bitmap
+	Rem are copied
+	Until byteno&>=A.size&
+
+	Rem close source file
+	close:(hsors%)
+
+	Rem calculate dist from the end of
+	Rem this record to bitmap data
+	Rem accounting for existing data
+	rlen&=(Count-append%)*12
+	data&=rlen&+datsize&+total&
+
+	Rem point to offset 8 of current
+	Rem descriptor
+	long&=((dnum%+(append%-1))*12)+16
+	seek:(dest%,1,Addr(long&))
+	Rem write data& to offset 8.
+	write:(dest%,Addr(data&),4)
+
+	Rem sum up bitmap data so far
+	total&=total&+A.size&
+
+	append%=append%+1 Rem next bitmap
+Rem until all added
+Until append%>Count
+Rem destroy the buffer
+Freealloc(buff%)
+Busy Off
+	
+ENDP
+
+PROC open:(phand%,name$,mode%)
+
+Local ret%
+Rem error-handling version of IOopen
+
+ret%=IOopen(#phand%,name$,mode%)
+If ret%<0
+	Raise ret%
+Endif
+	
+ENDP
+
+PROC close:(hand%)
+
+Local ret%
+Rem error-handling version of IOclose
+
+ret%=IOclose(hand%)
+If ret%<0
+	Raise ret%
+Endif
+	
+ENDP
+
+PROC read%:(hand%,pbuff%,len%)
+
+Local ret%,count%,chunk%
+Rem error-handling version of IOread
+Rem returns no. bytes read if succeeds
+
+ret%=IOread(hand%,pbuff%,len%)
+If ret%<0
+	Raise ret%
+Else
+	Return ret%
+Endif
+	
+ENDP
+
+PROC write:(hand%,pbuff%,len%)
+
+Local ret%,count%,chunk%
+Rem error-handling version of IOwrite
+
+ret%=IOwrite(hand%,pbuff%,len%)
+If ret%<0
+	Raise ret%
+Endif
+	
+ENDP
+
+PROC seek:(hand%,mode%,poff%)
+
+Local ret%
+Rem error-handling version of IOseek
+
+ret%=IOseek(hand%,mode%,#poff%)
+If ret%<0
+	Raise ret%
+Endif
+	
+ENDP
+
+PROC ifpic%:(hand%)
+
+Local char&,PIC$(3)
+
+Rem checks if file with handle hand% is
+Rem a .PIC file
+Rem shows a message and returns FALSE if
+Rem it isn't
+
+char&=0
+rethead:(hand%,Uadd(Addr(PIC$),1),char&,3)
+Pokeb Addr(PIC$),3
+
+If PIC$="PIC"
+	Return -1
+Else
+	dInit "Warning"
+	dText "","This is not a .PIC file",2
+	dButtons "Ok",-27
+	Dialog
+	Return 0
+Endif
+	
+ENDP
+
+PROC rethead:(hand%,pbuff%,byte&,read%)
+
+Local read&
+
+Rem Proc returns header info in buffer
+Rem pointed to by pbuff%
+Rem hand% file handle to use
+Rem pbuf% ipointer to a buffer (return value)
+Rem byte& start offset
+Rem read% no. of bytes to read
+
+read&=byte& Rem must be var for IOseek
+
+seek:(hand%,1,Addr(read&))
+read%:(hand%,pbuff%,read%)
+	
+ENDP

@@ -1,0 +1,287 @@
+APPLICATION FRAMEWORK FOR PSION SERIES 3.        (v24Oct92)
+=========================================
+By: John Hind. (CompuServe 70374,756)
+
+INTRODUCTION
+============
+FRAME.OPO is a suite of routines that support message-based, event-driven
+application programming on the PSION Series 3 pocket computer. Using the
+framework makes application coding much easier and less error-prone. The
+framework includes support for time-based applications that cannot
+otherwise be done without machine code.
+
+The application programmer needs to write a main routine using the
+APPLICATION SKELLETON below and a number of callback procedures (CALLBACK
+ROUTINES below).
+
+FIRST LOOK
+==========
+The distribution archive contains the following files:
+
+FRAME.OPO   - Compiled framework module.
+FRAME.OPL   - Commented framework source code.
+FTEST.OPL   - Source code for example & test program.
+FRAME.TXT   - This file.
+
+To run the example program, first copy FRAME.OPO into an \OPO directory
+on your S3. Then copy FTEST.OPL into the \OPL directory, open it and
+translate. On completion, run directly or from the RUN OPL icon.
+
+The test program may be modified to produce an application (OPA) file in
+the \APP directory. Just remove the REM commands from the lines between the
+APP and ENDA statements inclusive and re-translate. To run this, first copy
+the FRAME.OPO file to the \APP directory and then install the FTEST 
+application using PSION-I from the system level. Note that the sample
+application uses the OPL files in the OPL directory an a convenient example.
+It will not actually open or modify any files.
+
+Examine the FTEST.OPL application in conjunction with this file to
+understand how an application is put together.
+
+FRAME.OPL is provided for advanced users only and you would not normally
+need to understand this code to put an application together.
+
+MESSAGES
+========
+When running, the "fRun:" procedure generates MESSAGES in response to events
+from the SERIES 3 operating system. These are in three categories: KEYBOARD,
+TIMER and SYSTEM (see below).
+
+Each message has a number, which determines which Callback Routine gets
+invoked when that event occurs. When the callback routine is invoked an
+integer parameter and a string parameter are set (the parameters are
+actually the global variables "fParm%" and "fParm$"). The callback routine
+uses these parameters to decide what to do.
+
+Sixteen of the messages are "maskable" - unless these are enabled, the
+callback routine will not be invoked. The message mask is set when "fRun:"
+is first started and can be changed subsequently by returning a message
+from a callback routine. The mask is a bit-map with one bit set
+for each message to be enabled. This mask can be assembled by adding together
+the values given in the MESSAGE TABLE below.
+
+The message handler callbacks return a message number when complete. This
+will normally be either an error message (negative) or 0 (null message) or
+100 (exit message). However, the routine can return any message, including
+user-defined ones. Care must be taken to avoid infinite loops such as would
+happen if a callback routine returned its own message number.
+
+KEYBOARD MESSAGES
+=================
+There are five keyboard messages:
+
+#4 is invoked when the user presses a hot-key (PSION key with a letter EG 
+PSION-S). This message is rarely un-masked as there is a special mechanism
+for handling individual hot-keys. A special callback can be provided for
+each hot-key used in the application. Hotkeys are enabled and disabled by
+including or excluding the letter in the hotkey mask. This mask is set from
+a parameter when "fRun:" is started and can subsequently be changed by a
+callback routine returning either message #130 or #131. If you use this
+mechanism, do NOT enable message #4 as the special callbacks will then not
+be invoked.
+
+#5 is invoked when the user makes a keystroke which generates a printable
+character such as "a", "A" or "*". This includes SPACE, but excludes ENTER
+and DELETE.
+
+#6 is invoked when the user presses one of the "Special" keys such as "up
+arrow" "ESC" "ENTER" etc. (see SPECIAL KEY TABLE below).
+
+#9 is invoked when the "MENU" key is pressed. The associated callback would
+normally bring up a menu system and then return either message #0 or #4. In
+the latter case, the parameters would be set by the callback to the hotkey
+of the selected option. The framework will then use the hotkey callback
+to activate the option as if the hotkey had been pressed.
+
+#10 is invoked when the "HELP" key is pressed.
+
+For all keyboard messages there is a special additional parameter in the
+global variable "fKmod%". This gives the modifier status at the time the
+key was pressed as per the OPL KMOD function. This is particularly useful
+for detecting shifted special keystrokes.
+
+
+TIMER MESSAGES
+==============
+There are two timers: one generates a message every minute and the other
+every second. Only one timer may be active at any time.
+
+The timers are started and stopped by masking and unmasking their respective
+messages in the usual way. They are synchronised with the Series-3 clock (i.e.
+the minute timer message happens just after the minutes have changed on the
+clock).
+
+The timers continue to run even if the application is in the background,
+however they stop when the SERIES-3 switches off. The message parameter
+shows how many units of time have been missed when the SERIES-3 was off,
+or was tied up with other things. For stopwatches and similar applications,
+the parameter should be added to an accumulator each time the message
+callback is invoked. This is important, because the system does not guarantee
+that the message will happen every unit of time. Also, the callback may
+be called with parameter equal to zero when the timer is synchronising 
+and the callback must cope with this.
+
+SYSTEM MESSAGES
+===============
+Messages #1 to #3 are system messages invoked when the operating system
+changes the state of the application. Normally they can be left masked as
+all normal house keeping is done by the framework.
+
+Messages #100 and above are not handled by the normal callback mechanism but
+may be returned by callback routines to cause the framework to take
+appropriate actions.
+
+For file-based applications, the "aOpen%:", "aCreate%" and "aClose%" callbacks
+must be provided. The framework handles externally driven file handling using
+these routines. For application driven file handling DO NOT call these
+callbacks directly, go through the framework by returning the appropriate
+messages. #101 should be returned to create a new file. #102 should be
+returned to open a new file. In both cases, the file name should be in fParm$.
+
+Messages #129 to #131 can be returned to change the message and hotkey masks
+while the application is running. The new value of the message mask should be
+in fParm% and the new value of the hotkey mask in fParm$. #129 changes only
+the message mask, #130 only the hotkey mask and #131 changes both masks.
+
+APPLICATION SKELLETON
+=====================
+REM Start of skeleton application
+
+APP skull
+ TYPE 3            :REM May be of any type See Programming Manual Cp.11
+ENDA
+
+PROC skull:
+
+ REM Global Data required by application
+
+ LOADM "FRAME.OPO"     :REM Load the Application Framework Code.
+
+ REM Application initialisation code (prior to file opening)
+
+ fAutoOff:             :REM Enable auto switch-off for this application.
+
+ fRun:($0100,"AB")     :REM Run the application, Menu key and hotkeys
+                        REM PSION-A and PSION-B enabled.
+ENDP
+
+REM Application call-back routines
+
+REM Other application routines
+
+REM End of skeleton application
+
+MESSAGE TABLE
+=============
+Message fParm%	fParm$  Mask   Event
+======= ======	======  ====   =====
+0                         -    Null (Nothing happened)
+1                       $0001  Program was moved to foreground
+2                       $0002  Program was moved to background
+3                       $0004  Machine was switched on
+4       keycode   char  $0008  Hot key was pressed
+5       keycode   char  $0010  Printable character was entered
+6       keycode         $0020  Special key was pressed
+7       seconds         $0040  Seconds timer elapsed
+8       minutes         $0080  Minutes timer elapsed
+9                       $0100  Menu key was pressed
+10                      $0200  Help key was pressed
+11-16   app       app    etc.  Application maskable messages
+17-99   app       app     -    Application non-maskable messages
+100                       -    Exit from application
+101            filename   -    Create a new file
+102            filename   -    Open an existing file
+129     mask              -    Change the message mask
+130               mask    -    Change the hotkey mask
+131     mask      mask    -    Change both masks
+
+Message fParm%  fParm$         Error
+======= ======  ======         =====
+-1      ERR       ERR$         OPL System Error
+-2             filename        Cannot create file
+-3             filename        Cannot open file
+-4             filename        Bad filename
+
+SPECIAL KEYCODE TABLE
+=====================
+Values in fParm%       Modifiers (added together in fKmod%)
+
+Key     Code           Key       Code
+===     ====           ===       ====
+Esc     27             Shift     $0002
+Delete  8              Control   $0004
+Tab     9              PSION     $0008
+Enter   13             Caps Lock $0010
+up      256
+down    257
+left    259
+right   258
+Home    262
+End     263
+PgDn    261
+PgUp    260
+Dial    803
+
+
+CALLBACK ROUTINES
+=================
+These routines MUST be provided for type 2, 3 or 4 OPAs and should return 
+0 or error #-2, #-3 or #-4:
+
+aOpen%:       Open a file and perform any per-file initialisation.
+aCreate%:     Create a file and perform any per-file initialisation.
+aClose%:      Perform any tidy-up and close the current file.
+
+This routine is optional, if provided it should return either 0 or 100, or
+pass the error back for handling by the default handler:
+
+aError%:(e%)  Error handler. e% is the error number.
+
+These routines must be provided for all messages below 99 which are defined
+and can be unmasked during program execution:
+
+aMh1%: -      Message handlers for messages 1-99 above. Should return 0, a
+aMh99%:       error number or another message (NEVER the same message).
+
+These routines must be provided for any Hot Keys which may be unmasked during
+program execution:
+
+aHkA%: -      Hot Key handlers for keys A to Z. Should return 0, an error
+aHkZ%:        number or another message.
+
+
+FRAMEWORK ROUTINES
+==================
+fRun:(mesMsk%,hkMsk$)
+              This is the main routine for the Application Framework system.
+              It is called from the application's main PROC and, on exiting
+              the application run is complete. The parameters are the initial
+              values of the Message Mask and the Hotkey mask.
+
+Callback routines (or initialisation code) may themselves call the following
+framework routines:
+
+fLock:        Use these before and after any command that waits for user
+fUnlock:      keyboard activity I.E. a dialogue box or the menu.
+
+fAutoOff:     Call this to allow the Series 3 to switch off when an                         application using timers is running.
+
+CONDITIONS OF USE
+=================
+The file FRAME.OPO and the associated documentation and source code is provided as-is and the author will not be liable for any consequences of use.
+
+The copyright on these files is owned by John Hind.
+
+The file FRAME.ZIP may be freely distributed so long as it is unchanged and complete.
+
+The file FRAME.OPO may be freely distributed as part of an application as long as the documentation credits me for my contribution and a copy of the application is provided for my use free of charge.
+
+If an application using FRAME.OPO is sold for profit, a share of the profits must be donated to Amnesty International. The application programmer may assess the proportion based on the relative sizes of the FRAME.OPO file and the application object code file.
+
+I would appreciate any bug reports, comments, ideas or suggestions for the further development of this system.
+
+John Hind (CompuServe 70374,756)
+1a Brunswick Quay, Redriff Road, London SE16 1PU, United Kingdom.
+
+END OF DOCUMENT
+===============

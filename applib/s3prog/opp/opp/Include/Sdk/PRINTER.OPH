@@ -1,0 +1,73 @@
+#define PRINTER_OPH
+
+#ifndef PAGES_OPH
+#include <sdk\pages>
+#endif
+
+/* Constants for printer */
+
+#define PRINTER_PORT_PARALLEL 0
+#define PRINTER_PORT_SERIAL 1
+#define PRINTER_PORT_FILE 2
+#define PRINTER_PORT_FAX 3
+#define PRINTER_PORT_NOT_SET 255
+#define PRINTER_HDR_TOP 0
+#define PRINTER_HDR_BOT 1
+#define PRINTER_PAGINATE 0
+#define PRINTER_PRINTING 1
+#define PRINTER_PREVIEW 2
+#define PRV_SEG_GRANULARITY 16
+
+/* Types for printer */
+
+STRUCT PRINTER_ALLOC
+	model%
+	hdtxt%(2)
+ENDS
+
+STRUCT PRINTER_DATA
+	f#(SIZEOF(SCRLAY_FONT))
+	size_choice#
+	wo_control#
+	spare%(2)
+ENDS
+
+STRUCT PRINTER_PARAMS
+	p#(SIZEOF(PAGES_PARAMS))
+	d#(SIZEOF(PRINTER_DATA))
+ENDS
+
+STRUCT PREVIEW_INIT
+	pSegName%
+	pArray%
+	PrvSize#(SIZEOF(UPOINT))
+	BitWidth%
+	hPrvDone%
+	mPrvDone%
+ENDS
+
+STRUCT PREVIEW_DATA
+	SegHandle%
+	pArray%
+	Size#(SIZEOF(UPOINT))
+	BitWidth%
+	hPrvDone%
+	mPrvDone%
+ENDS
+
+/* Property of printer */
+
+STRUCT PRS_PRINTER
+	wdr%
+	a#(SIZEOF(PRINTER_ALLOC))
+	port_type%
+	deftoptxt#(3)
+	defbottxt#(3)
+	p#(SIZEOF(PRINTER_PARAMS))
+	prv#(SIZEOF(PREVIEW_DATA))
+ENDS
+
+STRUCT PR_PRINTER
+	root#(SIZEOF(PRS_ROOT))
+	printer#(SIZEOF(PRS_PRINTER))
+ENDS

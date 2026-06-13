@@ -1,0 +1,93 @@
+
+Ä Area: [FIDO] PSION echo ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+  Msg#: 8486                                         Date: 20 Feb 95  19:27
+  From: Faye Pearson                                 Read: Yes    Replied: No 
+    To: Paul Hargreaves                              Mark:                     
+  Subj: SND: guide PT1/2
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+Quoting William Legge to Paul Hargreaves on SND: device (among others)
+
+This is part 1/2 of my SND: device lecture <g>
+
+WL> How do you do multiple tones? I want to do them aswell!
+WL> I can only get it to do 700Hz then 1100Hz for example, not
+WL> both together!
+
+Aha, try this extract from the Psionics DEVICES file written by Clive
+Feather (clive@sco.com) and downloaded from src.doc.ic.ac.uk:
+
+In order to use them successfully you have to be confident about
+asynchronous device calls on the 3a i.e. IOA/IOC...
+
+     -!->  See 3a programming manual pages 128-137, 94 <-!-
+
+*****
+The sound device has the name "SND:". There are no channel names.
+
+Function:   1 (sound channel 1)
+Function:   2 (sound channel 2)
+Argument 1: note information
+Argument 2: word holding number of notes
+This function is supported by the HC, MC, and Series 3a only.
+
+This plays a sequence of notes on the specified sound channel. The
+note information is an array of words, two per note; the first is
+the frequency of the note (in Hz), and the second the duration in
+beats (see function 7).
+The sound will not start until both these functions have been called
+(thus ensuring the sound is synchronized on both channels).
+The function completes when the specified channel finishes playing,
+even if the other has not.
+
+
+Function:   7
+Argument 1: 2 byte information block
+Argument 2: unused
+
+The characteristics of the sound system are set according to the
+block:
+  Offset  0 (byte): beats per minute (2 to 240, default 120)
+  Offset  1 (byte): volume (0 max to 5 min)
+The beats per minute is only supported by the HC, MC, and Series 3a.
+On the Series 3a, volumes 1 and 2 are identical, as are 4 and 5. On
+the Series 3s, volumes 0 and 5 are unavailable.
+
+
+Function:   8
+Argument 1: 2 byte information block
+Argument 2: unused
+
+The block is filled in with information about the sound channel,
+using the same format as function 7.
+
+
+Function:   9
+Argument 1: alarm type (0 = rings, 1 = chimes)
+Argument 2: unused
+
+The specified alarm is played; this function completes when the
+sound has completely played.
+
+
+Function:   10
+Argument 1: phone number (cstr)
+Argument 2: parameter block
+
+This generates DTMF dialling sounds. The number contains the digits
+to be dialled (0 to 9, *, #, and A to F can be used; E is the same
+as *, and F the same as #). The parameter block has the format:
+  Offset 0 (byte): tone length   )
+  Offset 1 (byte): delay length  ) all in 1/32 seconds
+  Offset 2 (word): pause length  )
+
+*****
+
+I hope that is useful to you,
+Faye.
+
+
+ş P3aOLR 2.2 ş It's not a bug it's a hidden and seldom used feature
+
+-!- Olms 2.0 [PCTDH49H]
+ ! Origin: From The Crystal Tower : London (081-4478244) (2:254/220)
+

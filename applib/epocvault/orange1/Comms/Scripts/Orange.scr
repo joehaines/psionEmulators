@@ -1,0 +1,151 @@
+//
+// Orange SMS script
+//
+// Sends a text message via Orange's Messaging Direct Service.
+// Created by Tony Crocker (tsteven@cix.co.uk)
+// Gratuities and Donations to:
+// Tony Crocker// 10 Doyle Close// Drummond Park// Erith// Kent// DA8 3QT// England
+
+// Set echo
+SYS_ECHO$=0
+SYS_INCOMING_CRLF$=0
+SYS_OUTGOING_CRLF$=0
+  PASSWORD
+// Setup comms parameters
+SETUP
+	Baud=19200
+	Parity=none
+	Data=8
+	Stop=1
+	Timeout=20
+	Handshake=RTSCTS
+	Fail=None
+ENDSETUP
+
+IF EXISTS "C:\Comms\Names\Onames" THEN
+	LOADNAMES "C:\Comms\Names\Onames"
+ENDIF
+
+IF OraNumber$="" THEN
+  OraNumber$="0973 100602"
+ENDIF
+
+// Check all details required are present
+IF OraNumber$="" OR Ownname$="" OR Username$="" THEN
+getDetails:
+	QUERY "Please enter your Orange details"
+		"Orange Network number:" , OraNumber$
+          "Your name:",Ownname$		
+		"Your mobile number:" ,Username$
+		
+	ENDQUERY
+	IF QUERYOK THEN
+        IF OraNumber$="" OR Ownname$="" OR Username$=""  THEN
+            STATUS "Insufficient details for Logon"
+            EXIT
+        ENDIF
+		SAVENAMES "C:\Comms\Names\Onames"
+	ELSE
+		GOTO aborted
+	ENDIF
+ENDIF
+
+// Ask user what's required
+INFO "Tony Crocker's SMS Messaging.."
+
+ QUERY "SMS Details"
+   "Recipient Number:", s1
+   "Message Text:" ,s2
+   "Message Text:" ,s3
+ ENDQUERY
+
+	IF QUERYOK THEN
+        IF s1="" THEN
+            STATUS "Insufficient details for Logon"
+            EXIT
+        ENDIF
+   GOTO start:
+ ELSE
+		GOTO aborted
+	ENDIF
+
+aborted:
+STATUS "Orange script aborted"
+INFO "Use Control E to Exit Comms"
+EXIT
+
+start:
+	
+// Initialise modem
+
+SENDWAIT 20 "AT<$d>","OK" GOTO merror
+SENDWAIT 10 "ATE1<$d>","OK" GOTO merror
+SENDWAIT 10 "AT&F<$d>","OK" GOTO merror
+SENDWAIT 10 "AT\N0<$d>","OK" GOTO merror
+
+// Dial Orange
+reDial:
+SEND "ATDT " & OraNumber$ & "<$d>"
+
+// Wait for a reply
+WAIT 120
+    ON reply "CONNECT" GOTO letsgo
+    ON reply "NO DIALTONE" GOTO tele
+    ON reply "NO CARRIER" GOTO nocar
+    ON reply "ERROR" GOTO black
+    ON reply "BUSY" GOTO busy
+ENDWAIT
+STATUS "Unrecognised reply from modem"
+EXIT
+
+// Modem not replying 'OK' after AT commands
+merror:
+STATUS "Modem not repsonding"
+EXIT
+
+// No carrier detected
+nocar:
+STATUS "No connection made"
+EXIT
+
+// No dialtone
+tele:
+STATUS "No dialtone - check connection to telephone"
+EXIT
+
+// Number redialled too many times
+black:
+STATUS "Number dialled too many times"
+EXIT
+
+
+// No 'login:' received
+noLog:
+STATUS "No Login received"
+EXIT
+
+// User aborted by pressing a key during dialling
+cancelled:
+STATUS "Aborted!"
+EXIT
+
+// Number engaged
+busy:
+STATUS "Number engaged"
+goto redial
+EXIT
+
+// Connected
+letsgo:
+STATUS "Connected to Orange"
+
+          SENDWAIT 30 "<$d>";,"Exit" GOTO noLog
+		SENDWAIT 30 "S","return" GOTO noLog
+		SENDWAIT 30  s1 & "<$d>","to send" GOTO noLog
+          SENDWAIT 30  s2 & "  " & s3 & " From " & Ownname$ & " (" & Username$ & ")" & "<$d>","Exit" GOTO noLog
+		SENDWAIT 30 "E" & "<$d>","calling" GOTO noLog
+HANGUP	
+INFO "-----------------------------<$d><$a>"
+INFO "Text Message Sent.<$d><$a>"
+INFO "Please use Control-E to Close Comms.<$d><$a>"
+EXIT

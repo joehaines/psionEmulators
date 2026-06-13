@@ -1,0 +1,170 @@
+/*
+This code fragment does not compile - but is intended to supplement the 
+documentation given in psiwinxl.h and psiwinxl.h. This fragment gives
+guidance on how to list the translation paths, convert a PC file to a 
+PSION file and convert a PSION file to a PC file.
+*/
+
+#include "psiconv.h"
+
+/*
+List all the translators available for every PSION application
+*/
+void ListTranslationPaths()
+	{
+	HXM hXm;
+
+/* Open the converters */
+	hXm=XMOpen(NULL, "\psiwin\convert", m_pMainWnd);
+
+	if (XMSetDirection(hXm, TO_PSION)==FALSE)
+		goto Failed:
+/*
+Direction should be one of
+#define	TO_PSION	0
+#define	FROM_PSION	1
+#define	FROM_CLIPBOARD	2
+#define	TO_CLIPBOARD	3
+*/
+	int numPsionApps = XMCountFormats( hXM );
+	PFINFO *pfinfo;
+
+	for( i = 0; i < m_numPsionApps ; ++i )
+		{                    
+		XMGetFormatInfo( hXm, i+1, &pfinfo );
+		TRACE("Name %s Ext %s Path %s\n",pfinfo.psionFormatName,pfinfo.psionFormatExt,psionFormatPath;
+		XMSetFormat(m_hXM, nform );
+		num_apps = XMCountApps( m_hXM );
+		char app_name[128];
+		for( j = 0; j < num_pps ; j++ )
+			{                    
+			XMGetAppName( m_hXm, j+1, app_name, sizeof(app_name) );
+			TRACE("App Name is %s\n");
+			}
+		}
+	XMClose(hXm);
+	}
+	
+/*
+Your status procdure
+*/
+BOOL WINAPI StatusProcedure( int percent)
+	{
+	TRACE ("\d percent complete\n",percent);
+	return FALSE; // return TRUE to cancel
+	}
+/*
+Convert a PC file to PSION format.
+*/
+CONERROR ConvertToPsion(const char *SourceFile)
+	{
+	HXM hXm;
+/* Open the converters */
+	hXm=XMOpen(NULL, "\psiwin\convert", m_pMainWnd);
+
+	if (XMSetDirection(hXm, TO_PSION)==FALSE)
+		goto Failed;
+    int nApp = XMSelectApp( hXm, SourceFile );
+    if (nApp==-1)
+    	{
+		Fail=PASSWORDPROTECTED;
+		goto Failed;
+    	}
+    if (nApp==0)
+		{
+    	Fail=NOTRANSLATORAVAILABLE;
+    	goto Failed;
+		}
+    for (i = 1,i++;i<=nApp)
+    	{
+        ret = XMGetAppName(hXm, i, AppName, 127)        
+    	}
+// a selected app can come from more than one source e.g. Dos text and windows
+// text - the application must allow the user to select which app
+    XMSetPath(hXm, #Selected App (between 1 and nApp#);
+// Get interesting info about your selected translator path    
+	XMGetPathInfo(hXm, #Selected App (between 1 and nApp#, Info)
+// Select transfer mode - usually only overwrite or append is offered
+	Mode=XMGetTransferMode(hXm);
+	if (Mode!=2) // Append only (schedule+)
+		{
+		/*
+		Check file exists if it does warn user or offer append/merge if available
+		*/
+		Mode=1; // Overwrite
+		}
+	XMSTATPROC lpStatusProc; // status procdure can be NULL
+	lpStatusProc=StatusProcdure;
+	if( XMImport( hXm, SourceFile, DestFile, Mode, lpStatusProc ) != TRUE )
+		{
+		char Message[256];
+		XMGetLastErrorMsg( m_hXM, message, sizeof(message) );	
+		TRACE("Failed because %s\n",message);
+		Fail=FAILEDTOCONVERT;
+		}
+Failed:
+	XMClose(hXm);
+	return Fail;
+	}
+
+CONERROR ConvertFromPsion(const char *SourceFile)
+	{
+	CONERROR Fail=CONOK;
+	HXM hXm;
+/* Open the converters */
+	hXm=XMOpen(NULL, "\psiwin\convert", m_pMainWnd);
+
+	if (XMSetDirection(hXm, FROM_PSION)==FALSE)
+		goto Failed;
+    int Format = XMSelectFormat( hXm, SourceFile );
+    if (Format==-1)
+    	{
+    	Fail=PASSWORDPROTECTED;
+    	goto Failed;
+    	}
+    if (Format==0)
+    	{
+    	Fail=NOTRANSLATORAVAILABLE;
+    	goto Failed;
+    	}
+	nPaths = XMCountPaths( hXm );
+// Slightly simpler than convert from PC file as Psion files can only come from
+// one source
+	char *AppName[128];
+	for( i = 1; i <= nPaths; ++i )
+		{
+		XMGetPathInfo( hXm, i,Xi);
+		TRACE ("App Name %s\n",Xi.AppName);
+		}
+/* Oi! user pick a target */
+/* and a name (DestName) */
+	char DestName[256];
+/* User picked format x */
+	if (XMSetPath( m_hXM, x )!=TRUE)
+		{
+		Fail=CONVERSIONNOTAVAILABLE;
+		goto Fail;
+		}
+	Mode=XMGetTransferMode(hXm);
+	if (Mode!=2) // Append only (schedule+)
+		{
+		/*
+		Check file exists - if it does warn user or offer append/merge if available
+		*/
+		Mode=1; // Overwrite
+		}
+	XMSTATPROC StatusProc; // status procdure
+	StatusProc=StatusProcdure;
+    if( XMExport( hXm, SourceFile, DestFile, Mode, StatusProc ) != TRUE )
+    	{
+		char Message[256];
+		XMGetLastErrorMsg( m_hXM, message, sizeof(message) );	
+		TRACE("Failed because %s\n",message);
+		Fail=FAILEDTOCONVERT;
+    	}
+			
+Failed:
+	XMClose(hXm);
+	return Fail;
+	}
+	

@@ -1,0 +1,46 @@
+APP Misc
+	type 0
+	rem path
+	rem ext
+	icon "\opd\spanner.ico"
+ENDA
+
+PROC Main:
+	local Name$(24,8),Module$(24,12),List$(255)
+	local Records%,Choice%
+	rem Open Misc.odt, get no. of
+	rem records, get names to appear in
+	rem list & get the modules names
+	rem When a module is chosen run it
+	rem by calling RunFile.
+	open "\opd\Misc.odt",a,n$,m$
+	Records%=count :position 1
+	do
+		Name$(pos)=a.n$ :Module$(pos)=a.m$
+		next
+	until eof
+	close
+	Choice%=1
+	do
+		List$=List$+Name$(Choice%)
+		if Choice%<Records% :List$=List$+"," :endif
+		Choice%=Choice%+1
+	until Choice%>Records%
+	Choice%=1
+	do
+		dinit "OPL Utilities"
+			dchoice Choice%,"Utility",List$
+		if dialog=0
+			stop
+		else
+			RunFile:("\opo\"+Module$(Choice%))
+		endif
+	until 0
+ENDP
+
+Proc RunFile:(p1$)
+	loadm p1$
+	Start:
+	unloadm p1$
+ENDP
+

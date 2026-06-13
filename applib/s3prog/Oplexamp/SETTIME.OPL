@@ -1,0 +1,36 @@
+==========
+psion/opl #831, from dw2, 672 chars, Nov  8 17:20 93
+Comments. 
+----------
+Setting the system time/date from Opl:
+
+(In response to a question asked elsewhere)
+
+You can use TimSetSystemTime, os-call $0389, which sets the system
+time, in seconds from 1st Jan 1970, according to the ULONG in CX:DX.
+
+Eg
+    PROC test:
+      local s&,s%
+      statuswin on :font -$3fff,0
+      s%=addr(s&)
+      s&=datetosecs(2000,1,1,0,0,0)
+      print "Press any key to set time" :get
+      call($0389,0,peekw(s%+2),peekw(s%))
+      giPrint "Done" :pause -40
+    ENDP
+
+Regards, DavidW
+
+(This is for the S3a.  The os-call is available on any Sibo
+computer, but you'll have to remove eg the "font" flanneling, from
+the above program, to get it to run more generally.)
+
+==========
+psion/opl #832, from jtd, 59 chars, Nov  9 04:11 93
+Comment to 831. 
+----------
+Many thanks, it was me who asked in a mail to you.
+
+-John-
+

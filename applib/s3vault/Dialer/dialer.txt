@@ -1,0 +1,264 @@
+Psion Utils (c)1995 PROTRONICS USA 404-351-1055 CompuServe 71021,1544
+
+Flash! - All Series 3 users can now use their Psion to dial the phone
+
+Dialer is a handy utility that will save you precious time when looking
+up numbers and dialing the phone. It works by searching all data files 
+(unlimited) for a partial match and dials using the speaker or a modem,
+without ever opening the database app. Profiles can be set up for home,
+office, & travel with local, long distance, & calling card prefixes & 
+suffixes. Local area codes are stripped automatically eliminating the
+need to enter numbers twice for long distance vs. local calling. American
+users no longer need two entries for each number in their database.
+
+Used in combination with Tom Doblin's Macro System, you can press Help
+from within any Psion App and press 2-9 for SpeedDial, F to Find or Z
+to check your voice mail. Dialer is a One-Touch Psion app. 
+
+Installation Notes
+
+File         Directory      Description
+-----------  -------------  ---------------
+DIALER.OPO   \OPO\          Executable
+DIALER.MCR   \MACRO\MCR\    Install in Tom Doblins Macro system (optional)
+DIALER.MCO   \MACRO\MCO\    Remaps Help key to running Dialer (optional)
+DIALER.DBF   \OPD\          Setup info & Profiles
+DIALER.HLP   \OPD\          Help (press H, optional)
+PHONELOG.TXT \OPD\          Call log (created automatically)
+*.SPK        \OPD\          Numbers 0-9 for voice playback (S3A, optional)
+*.DBF        \DAT\          Your Data files (defaults to Internal drive)
+
+If you don't use the Macro System, from the System screen, press Psion-A 
+while Dialer.Opo is highlighted, set Modifier to None, and Button to Time. 
+Leave Dialer running in background and press Time to switch to it. If you 
+have more than one .Opo loaded, press Time to cycle between them.
+
+Profile Notes
+
+Dialing profiles are stored in \OPD\DIALER.DBF and include sample profiles
+for home, office, and away. Default Profile is stored in ?SETUP record.
+Dialer ignores the settings in the System screen and uses its own setup.
+
+Dialer Profile Description:
+Use Modem/Spkr/Voice:	Changes dialing method to Modem/Speaker/Voice/None
+Local Area Code:	Local area code(s)  i.e. 404-,770-
+			If your Data file uses (404)  or 404. make sure it 
+			matches your entries exactly. If you have duplicates
+			for local/long distance, you can now delete the local
+			number. Dialer will dtrip the code automatically.
+Local Calls Need AC:	If local calls require the area code without the long
+			distance prefix, 1-, set this to Yes. This is common
+			in cities with multiple area codes.
+Local Access Prefix:	If your office requires a 9, to dial out or *70 to
+			turn off Call Waiting. This can be temporarily disabled
+			by pressing P from Dialer.
+Long Distance Prefix:	The prefix used if dialing a non-local number
+Long Distance Suffix:	Some companies require a special code after dialing
+Calling Card Prefix:	Include all dialout codes as when On, this overrides all
+			other prefixes.
+Calling Card Suffix:	Use a , for a one second pause, or, if using 3FAX, a W to
+			wait for the next tone.
+Voice Mail Access:	Include all dialout codes when entering codes and passwords
+			to check your Voice Mail by pressing Z.
+
+If you make changes to a profile you must reopen it, O, to load your changes.
+If you make changes to Setup, SpeedDial, or Call List, exit Dialer & restart.
+
+Setup Notes
+
+?SETUP
+-                   Numeric separator (needed to calculate long distance codes)
+\dat\*.dbf          Databases to include (set to \DAT\DATA.DBF to speed search)
+1st                 1st - searches fields 1 & 2  All - searches top 10 fields
+AT EOQ1S11=60       Modem init string
+3Fax                Type of modem being used to dial (3Fax/Hayes)
+Home,Work,Fax,Car,Page   Field titles in database (requires  symbol)
+Home - Atlanta      Default profile name
+Log                 All/Log/Note/Edit/Both/None
+                    All - Logs all calls to \OPD\PHONELOG.TXT
+                    Log - Only logs calls from "To Dial" list
+                    Note - Logs all calls and stamps result
+                    Edit - Opens record in data file automatically
+                    Both - Opens record in data file & logs all calls
+
+Database Notes
+
+We recommend the following format for entering records in the database.
+Fields labels must have a telephone symbol, space, and description. The
+descriptions used by Dialer are Home, Work, Fax, Car, and Page.
+Sample entry:
+  Name:  Walker, Steve
+ Work:  404-555-1212,,,123   Also dials extension 123 after a 3 second pause
+ Home:  770-999-9990
+
+If you have created two Work #s in your database (by pressing Shift-Enter),
+Dialer will only Dial the 1st one. The exception is if you select "List" as
+the dial location. Say you have a list of movie theatres stored together as
+one record in your database (just ignore field names). Type in the theatre
+name, select "List" in the Where box, and press enter.
+
+Sample entry:
+   Name:  Movie Theatres
+  Work:  816-4262 AMC
+  Home:  248-0624 Odeon
+Address:  451-4570 Drive-in
+  Notes:  800-233-0338 Lenox
+
+This is so you can group similar numbers in one record: Medical, Banking,
+Utilities, Computing, BBSs, Air Travel, Ground Travel, Security, Shopping,
+Hotels, Emergencies, Restaurants, Library, Mail, Movies, News, Sports, etc.
+
+Usage Notes
+
+Dialer defaults to the work # between the hours of 8 and 6 and to the home #
+on weekends and after hours. When using the speaker, hold the Psion 1 inch
+away from the phone mouthpiece. It also work by placing the Psion on a soft
+mat and holding the mouthpiece 1 inch over the keyboard. Dialer can send the
+following touch tone codes: 123456789*0#. ()-+ and <space> are ignored. A
+comma will issue a 1 second pause. W (modem dialing only) will wait for a
+second dial tone before continuing. i.e. 9,950-1022W0-404-351-1055W407#
+
+If you press N for Next after SpeedDialing a number, the full record will be
+found if it exists in the database.
+
+European users take note. Dialer senses long distance numbers, adding the
+appropriate prefix and suffix, by counting the number of numeric separators.
+Europeans often use a space or a period while Americans use a dash. If a
+number has more than one separator, it is considered a long distance number,
+unless the area code matches local area codes specified in ?SETUP.
+U.S. Example: If your local area codes are 404- and 770-
+  210-555-1111 is long distance
+     555-12-12 is long distance
+1-404-555-1212 is long distance and will add another 1-
+  404-555-1212 is local
+European Example: If your local area code is 331.
+  331.5555.12.12 is long distance
+   331.5555.1212 is local
+    33.5555.1212 is long distance
+       5555.1212 is local
+
+To dial international numbers, create a profile called International, and
+set Long Distance prefix to 011- (etc). Leave your local area codes unchanged
+so you can still dial local numbers while in international mode. If enough
+users register, Protronics will release a European version.
+
+Modem Notes
+
+The Series 3, which can't create DTMF signals, can now use a modem to dial.
+If you use a fax/modem after using the modem to place a call, be sure
+you software issues an "ATZ" to initialize the modem. If this fails, 
+try sending an "AT E1 Q0". When connecting a new modem to the Psion be
+sure you have a null modem connector between the 3Link and your modem.
+To adjust the speed at which the modem dials, adjust Delay time in the
+System Dial settings.
+
+Command Notes
+
+Key	Description - CAPS indicate a default
+---	-----------
+ A	About
+	Displays info about Dialer & shows current Profile
+
+ C	Calling Card on/OFF 
+	Be sure to set up calling card # in each profile by pressing Q
+	When On, calling card overrides all prefixes so include them in
+	your cc codes.
+
+ D	Dial/Callback List
+	Esc aborts Enter saves/dials
+	Note: pressing Esc will not save data, Enter will save
+	Enter names and/or numbers of people you wish to call.
+	Highlight entry to dial and press Enter
+	Enter on blank line saves but does not dial
+
+ E	Edit last contact dialed
+	Opens Data to last contact dialed
+
+ F	Find contact & dial
+
+ G	Find next & dial
+
+ H	Open DIALER.HLP in editor
+
+ I	Inclusive search on/OFF
+	Find searches 1st & 2nd fields (usually Company & Name) when
+	inclusive off. When on, it searches ten fields & is slower.
+
+ L	Open phone log search & view
+	View and search the history of your calls
+
+ M	Modem
+	Selects modem to dial telephone
+
+ N	New Record
+	Adds a new record to most recent data file used
+
+ O	Open Profile
+	Select the profile to use for calling
+	Press Q to edit details about a Profile in Data
+	where you can add/change/delete.
+
+ P	Prefix ON/off
+	Turns the dialing prefix on or off
+
+ Q	Open DIALER.DBF and go to Setup (see Setup Notes/Profile Notes)
+	This file contains your profiles, dialer config, speed dial
+	codes, and callback list. Press Esc twice and then Enter to
+	browse through each record. Field labels correspond only to
+	profiles and not to ?SETUP. See Users Guide or DIALER.TXT for 
+	more info on how to use the Data app.
+
+ R	Redial last number called
+
+ S	Speaker
+	Selects modem to dial telephone
+ 
+ U	Manual Dial
+	Allows U to manually dial the phone
+
+ V	Voice
+	Selects voice to speak number aloud
+
+ W	Where to call
+	As Open Profile lets you select the origin of
+	your call (car/home/office/etc) changing your
+	prefixes & suffixes, Where lets you select the
+	destination of your call (home/work/fax/car/
+	pager/list) affected the number dialed. This
+	option can be changed temporary under Find.
+
+ X	eXits the program
+
+ Z	VMail
+
+ 0	No Dial
+	Puts Dialer into silent mode
+	
+2-9	SpeedDial codes
+	To edit, press Q and search for "SpeedDial"
+
+Customization Notes
+
+If you use the program, send $25 and your e-mail id and we will send you all
+of our other Psion utilities. 499 Northside Circle #420 Atlanta GA 30309 USA
+If your Psion database doesn't meet our specifications, we will send you a
+utility that can automatically reorganize it IF YOU REGISTER. You will also
+get very cool futuristic wave recordings to play back numbers in Voice mode.
+
+Dialing is limited to a 60 digit maximum. If you have special needs, such
+as a different data structure, drop us a note and we can customize a version
+for you (often for the price of the registration you are about to drop in the
+mail). Send us a $25 registration fee, and you will receive all of the above 
+products via e-mail over the Internet (uuencoded) or CompuServe (zipped).
+
+If we receive interest, we are willing to release a special version of Dialer 
+for the visually impaired. We are in the process of redesigning Dialer into a 
+full-fledged contact manager while keeping it under 50KB. Let us know of any 
+features you'd like to see to make it more useful.
+
+International users may register via CompuServe (GO SWREG  ID#: 2371)
+Registered users get free Dialer updates for the life of the product.
+Protronics USA 499 Northside Circle, Suite 420, Atlanta GA 30309-2112
+Psion Utils (c)1995 PROTRONICS USA 404-351-1055 CompuServe 71021,1544
+
+Psion Utils (c)1995 PROTRONICS USA 404-351-1055 CompuServe 71021,1544

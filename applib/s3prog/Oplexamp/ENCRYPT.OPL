@@ -1,0 +1,65 @@
+REM ENCRYPT.OPL
+
+PROC main:
+	GLOBAL passwrd$(8),passwrd&
+	LOCAL k%,ps%,pe%,le%,i%
+	LOCAL a1$(40),b1$(40)
+
+	PRINT "input password"
+	INPUT passwrd$
+	le% = LEN(passwrd$)
+
+	ps% = ADDR(passwrd&) - 1
+	i% = 1
+	DO
+		POKEB ps%+i%,PEEKB(pe%+i%)
+		i% = i% + 1
+	UNTIL i% > 4 or i% > le%
+
+	DO
+		PRINT "input string"
+		INPUT a1$
+		RANDOMIZE passwrd&
+		b1$ = encrypt$:(a1$)
+		PRINT b1$
+		RANDOMIZE passwrd&
+		PRINT decrypt$:(b1$)
+	UNTIL a1$ = "x" REM k% = 600 or k% = 632 OR k% = 27 REM Psion-X or Psion-x or ESC
+ENDP
+
+PROC encrypt$:(str$)
+	REM encrypt a string
+	LOCAL ans$(255),i%,ls%,pa%,c%,t%
+
+	ls% = LEN(str$)
+	pa% = ADDR(ans$)
+	POKEB pa%,ls% REM first byte in string is length
+	i% = 1
+	DO
+		c% = ASC(RIGHT$(str$,ls%-i%+1)) - 64 + INT(RND*224)
+		t% = c% / 224
+		POKEB pa%+i%,c% - t%*224 + 32
+		i% = i% + 1
+	UNTIL i% > ls%
+
+	RETURN ans$
+ENDP
+
+PROC decrypt$:(str$)
+	REM encrypt a string
+	LOCAL ans$(255),i%,ls%,pa%,c%,t%
+
+	ls% = LEN(str$)
+	pa% = ADDR(ans$)
+	POKEB pa%,ls% REM first byte in string is length
+
+	i% = 1
+	DO
+		c% = ASC(RIGHT$(str$,ls%-i%+1)) + 224*3 - INT(RND*224)
+		t% = c% / 224
+		POKEB pa%+i%,c% - t%*224 + 32
+		i% = i% + 1
+	UNTIL i% > ls%
+
+	RETURN ans$
+ENDP

@@ -1,0 +1,32 @@
+PROC route:
+	LOCAL	file$(128),name$(8),stn$(20),ml
+	LOCAL	press%
+	dINIT
+	dTEXT "","Route   >>  8  <<   letters",$102
+	dTEXT "","No  spaces  allwed  in  route  names",$302
+	dEDIT name$,"Route Destination"
+	DIALOG
+	file$=name$+".rut"
+	CREATE file$,A,nm$,mile
+	DO
+	stn$=""
+	ml=0
+	dINIT
+	dTEXT "","Enter Stations",$102
+	dTEXT "","No  spaces  allowed  in  terminus  names",$302
+	dEDIT stn$,"Station"
+	dFLOAT ml,"Distance from Start",0,1000
+	dBUTTONS "ENTER",13,"No More",-27
+	press%=DIALOG
+		IF press%=0
+		CLOSE
+			RETURN
+		ELSEIF press%=13
+			A.nm$=stn$
+			A.mile=ml
+			APPEND
+		ENDIF
+		UNTIL press%=0
+	CLOSE
+ENDP
+

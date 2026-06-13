@@ -1,0 +1,142 @@
+// ContSync.rss
+//
+
+
+NAME MEAD
+
+#ifdef COMMUNICATOR
+//#include <eikon.rh>
+//#include <eikcore.rsg>
+#else
+#include <eikdef.rh>
+#include <eiktbar.rh>
+#include <eikmenu.rh>
+#include <eikctrls.hrh>
+
+#include <eikspace.rh>
+#include <eikdialg.rh>
+#include <eikchlst.rh>
+
+#include <eikclock.rh>
+#include <eikon.rsg>
+#endif
+
+
+#include "ContSync.hrh"
+
+
+RESOURCE RSS_SIGNATURE { }
+
+RESOURCE TBUF
+	{
+	buf = "";
+	}
+
+RESOURCE EIK_APP_INFO
+	{
+	menubar = r_menubuilder_menubar;			// DO NOT REMOVE
+	hotkeys = r_contsync_hotkeys;
+	}
+
+RESOURCE HOTKEYS r_contsync_hotkeys
+    {
+    plain =
+        {
+		#include "menubuilderhkplain.ra"		// DO NOT REMOVE
+        };
+
+    control =
+        {
+		#include "menubuilderhkctrl.ra"			// DO NOT REMOVE
+        };
+
+    shift_control =
+        {
+		#include "menubuilderhkshftctrl.ra"		// DO NOT REMOVE
+        };
+    }
+
+
+#include "menubuildermenu.ra"					// DO NOT REMOVE
+
+
+
+
+RESOURCE DIALOG r_options_dialog
+	{
+	title = "Options";
+	buttons = R_EIK_BUTTONS_CONTINUE;
+	flags = EEikDialogFlagWait;
+	items = 
+		{
+		DLG_LINE
+			{
+			type = EEikCtChoiceList;
+			prompt = "Existing Contact Set";
+			id = EContactDbRole;
+			control = CHOICELIST
+				{
+				array_id=r_choicelistarray_list_contact_db_role_options;
+				flags=EEikChlistIncrementalMatching;
+				}; // end of the control
+			},// end of the dialog line
+		DLG_LINE
+			{
+			type = EEikCtChoiceList;
+			prompt = "Network Type";
+			id = ENetworkType;
+			control = CHOICELIST
+				{
+				array_id=r_choicelistarray_list_network_type_options;
+				flags=EEikChlistIncrementalMatching;
+				}; // end of the control
+			},// end of the dialog line
+		DLG_LINE
+			{
+			type = EEikCtChoiceList;
+			prompt = "Network Role";
+			id = ENetworkRole;
+			control = CHOICELIST
+				{
+				array_id=r_choicelistarray_list_network_role_options;
+				flags=EEikChlistIncrementalMatching;
+				}; // end of the control
+			}// end of the dialog line
+		
+			
+		};// end of the DLG_LINE
+	}// end of resource options dialog
+
+
+//Resource array used in choicelist for "Network Type Options". 
+RESOURCE ARRAY r_choicelistarray_list_contact_db_role_options
+    { 
+    items= 
+        { 
+        LBUF { txt="Master"; }, 
+		LBUF { txt="Slave"; },
+		LBUF { txt="This Device"; },
+		LBUF { txt="Other Device"; }
+        }; 
+    }
+
+
+//Resource array used in choicelist for "Network Type Options". 
+RESOURCE ARRAY r_choicelistarray_list_network_type_options 
+    { 
+    items= 
+        { 
+        LBUF { txt="Tiny TP"; }, 
+        LBUF { txt="Debug"; }
+        }; 
+    }
+
+
+RESOURCE ARRAY r_choicelistarray_list_network_role_options 
+    { 
+    items= 
+        { 
+        LBUF { txt="Client"; }, 
+        LBUF { txt="Server"; }
+        }; 
+    }

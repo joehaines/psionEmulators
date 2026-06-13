@@ -1,0 +1,94 @@
+PROC Polar:
+	global n,x,y,h,w,s,sides,k%,step,bowlx%,bowly%,mult,xrep,yrep
+
+	revars1:
+	revars2:
+
+	start::
+	dinit "Ellipsoid Polygons"
+	dtext "","1996 Ewlyn Software",2
+	dfloat h,"height",10,80
+	dfloat w,"width",10,236
+	dfloat sides,"Number of sides",1,20
+	dfloat step,"Distance between Lines",0.01,.1
+	dbuttons "Reset defaults",%r,"OK",13,"Exit",%x
+	k% = dialog
+	if k% = %r 
+		revars1:
+		goto start
+	endif
+	if k% = %x 
+		end 
+	endif
+
+	advanced::
+	dinit "Advanced options"
+	dchoice bowlx%,"X-axis bowl equation","No,Yes" 
+	dchoice bowly%,"Y-axis bowl equation","No,Yes"
+	dfloat Xrep,"X-axis Repititions",1,20
+	dfloat Yrep,"Y-axis Repititions",1,20 
+	dbuttons "Reset Defaults",%r,"OK",13,"Exit",%x
+	k%=dialog
+	if k% = %r 
+		revars2:
+		goto advanced
+	endif
+	if k% = %x 
+		end
+	endif
+	bowlx% = bowlx% - 1
+	bowly% = bowly% - 1
+	gcls
+	x = 0
+	y = 0
+	s = 0
+	n = 0
+
+do
+	s = s + step
+	n = s
+	defXY:
+	gat x*w+236,y*h+80
+	do
+		n = n + (pi / (sides/2)) 
+		defXY:
+		x = x * w + 236
+		y = y * h + 80
+		glineto x,y
+	until n >= 2*3.141592 + s
+until s >= pi/(sides/2)
+at 1,1
+print "Done."
+	bowlx% = bowlx% + 1
+	bowly% = bowly% + 1
+	view::
+	get
+	dinit "What Now?"
+	dbuttons "Another",%a,"Exit",%x,"review",%r
+	k% = dialog
+	if k% = %a 
+		goto start
+	endif
+	if k% = %r
+		goto view
+	endif
+ENDp
+
+PROC revars1:
+	h = 80
+	w = 80 
+	sides = 3
+	step = 0.05
+ENDP
+
+PROC revars2:
+	bowlX% = 1
+	bowlY% = 1
+	XRep = 1
+	Yrep = 1
+EndP
+
+PROC defXY:
+	x = sin(n*Xrep+(bowlX%*sin(n)))
+	y = cos(n*Yrep+(bowlY%*sin(n)))
+ENDP

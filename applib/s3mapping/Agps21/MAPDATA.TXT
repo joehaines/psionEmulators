@@ -1,0 +1,184 @@
+-------------------------------------------------
+AutoRoute/Automap Map data and coordinate systems
+-------------------------------------------------
+Mike Rudin  2/10/96
+
+This technical note describes my understanding of the map data used 
+by AutoRoute and Automap, and how AutoGPS works with that data.  I 
+don't have any inside knowledge of how the data was prepared, and 
+all the statements below are purely the result of investigation and 
+guesswork.
+
+
+General
+~~~~~~~
+The map data is based on a rectangular grid of points.  For the UK, 
+the grid interval is 40 metres, and for the USA it is 240 metres.  
+Each road segment is defined in terms of its end points, which are 
+on grid points, and the curvature(s) in between.  Towns etc. are 
+also on grid points.
+
+To represent the position of a geographic feature (e.g. a road 
+junction) on the map grid, the following steps are taken:
+1) Describe the geodetic latitude and longitude of the feature, in 
+terms of a map datum and reference ellipsoid.  Reference points such 
+as the brass strip at Greenwich are not accepted universally, and 
+through the ages hundreds of different cartographers around the 
+world have used slightly different systems.
+2) Project the lat/long (on a curved surface) onto a flat 
+rectangular coordinate system, according to some map projection 
+algorithm.  There are many possible map projections to choose from; 
+they all achieve 1:1 scale factors only at certain locations, and 
+make different compromises in the way scale is distorted away from 
+those standard locations.
+3) Apply a fixed offset and scaling factor, and round to the nearest 
+grid point.  This is done to make each easting and northing number a 
+positive integer in the range 0..32767, so that it can be stored 
+efficiently, and handled by 16-bit arithmetic.
+
+AutoGPS takes a lat/long from the GPS receiver, and must apply the 
+above steps in order to locate it on the map's grid.  However, if 
+the map datum and reference ellipsoid used in the GPS data are not 
+the same as those used in the original map data, then AutoGPS must 
+either first perform a datum shift, or modify the details of the 
+projection in step (2) to give the same effect.
+
+To report the position of the cursor (in Automap) in terms of 
+latitude and longitude, the USA version of AutoGPS applies the above 
+three steps in reverse.  The UK version cannot currently do step (2) 
+in reverse, so the cursor position is only reported in National Grid 
+units.
+
+In the map data, some liberty appears to have been taken with road 
+junction locations.  In particular, a complex arrangement of roads 
+leading to a town is usually simplified into a single point 
+somewhere near the middle of the town.  Rural road junctions are 
+represented more accurately, but there are exceptions with errors of 
+a mile or more.  The map data was intended for route-finding, with 
+no guarantee that it is accurate enough for navigation.
+
+
+UK
+~~
+The map is derived using data from Ordnance Survey of Great Britain.
+1) The original lat/long data uses the OSGB 1936 map datum, and the 
+Airy Spheroid reference ellipsoid.
+2) The map projection is the Ordnance Survey National Grid, which is 
+a Transverse Mercator projection with particular parameters.  The 
+algorithm for this is published by the OSGB. The resulting 
+coordinate system has easting and northing measured in metres 
+relative to the Southwest corner of square SV (see below for a 
+fuller description).
+3) To produce map grid points, no offset is applied, but a scale 
+factor of 40 is applied to both easting and northing.
+
+If the GPS position is in terms of the OSGB map datum, then AutoGPS 
+can apply the above steps to it unaltered.  If it is in terms of the 
+WGS 84 map datum, then rather than apply a datum shift (e.g. the 
+Standard Molodensky Datum Transformation), AutoGPS uses modified 
+coefficients in step (2), and then applies a small corection 
+interpolated from a lookup table.
+
+
+USA
+~~~
+I don't know where the map data originally came from, but it is 
+probably from the National Geodetic Survey.
+1) This probably uses the North American Datum of 1927 (NAD27).  
+This is close to WGS 84 over most of North America, probably within 
+the Automap grid resolution, so AutoGPS uses coefficients related to 
+WGS 84.
+2) The map projection appears to be Albers Equal-Area Conic.  This 
+has three main parameters: a central longitude and two standard 
+parallels (along which the scale is 1:1).  After some 
+experimentation, I achieved a good fit between lat/long and 
+projection of a dozen road junctions, using standard parallels of 
+29.5 and 45.5 degrees North, and a central longitude of 100 degrees 
+West.  For lat/long values I used TIGER maps (see Sources below), 
+which use the NAD27 datum.
+3) I found experimentaly that the scale factor is exactly 240 
+(metres per grid interval), and chose an origin offset to give a 
+least-squares error.  The position errors of the sample points were 
+up to 1.2 km.
+
+The USA version of AutoGPS only accepts lat/long in terms of the WGS 
+84 datum, and so does not need to perform any datum translation 
+before the above three steps.
+
+
+UTM
+~~~
+The Universal Transverse Mercator map projection is in fairly 
+widespread use in North American maps, and is roughly the equivalent 
+of the UK's National Grid.  Therefore I have implemented a lat/long 
+to UTM conversion in the USA version of AutoGPS.  This is for 
+convenience only, and is not needed for interfacing with Automap.  
+UTM defines a similar map projection for each of 60 zones (numbered 
+01 to 60), at intervals of 6 degrees of longitude.
+
+
+
+Description of the OS National Grid
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Ordnance Survey British National Grid is based on metric 
+"eastings" and "northings" coordinates within a system of nominally 
+100 km squares (distorted by the earth's curvature).  A typical 
+letters/figures grid reference like "TL 012 678" is made up as 
+follows:
+T   Identifies the 500-km square in the overall 2500 km
+    square extent of the grid system.
+L   Identifies the 100-km square within this.
+012 Eastings  (01200 metres), and
+678 Northings (67800 metres), both measured from
+    the southwest corner of the square.
+
+Both square letters use this scheme:
+ABCDE
+FGHJK
+LMNOP
+QRSTU
+VWXYZ
+
+Some maps, e.g. A-to-Z street maps, use a completely numeric 
+representation of eastings and northings, so the above grid 
+reference (to 1 km resolution) would be:
+501 268
+The "5" and "2" should be superscript, and they identify the 100-km 
+square in place of the letters, with 0,0 corresponding to the 
+southwest corner of square SV.  In AutoGPS, locations to the West or 
+South of this origin are shown negative, including the sub-100 km 
+parts of the numbers, and I'm not sure if this is correct.  In 
+letter/digit form, the sub-100 km parts are always positive.
+
+
+Sources
+~~~~~~~
+In writing AutoGPS, I've found the following sources of information 
+very useful:
+
+Peter Dana's Map Projection Overview, with example pictures of map 
+projections:
+http://www.utexas.edu/depts/grg/gcraft/notes/mapproj/mapproj.html
+
+Karen Mulcahey's Map Projection page:
+	http://everest.hunter.cuny.edu/mp/index.html
+
+Karen's page gives a link to the General Cartographic Transformation 
+Package, C version, for map projection algorithms:
+	ftp://edcftp.cr.usgs.gov/pub/software/gctpc.tar.Z
+	(This is a BIG file).
+
+Maps of the USA prepared on-the-fly from TIGER data:
+	http://www.census.gov/cgi-bin/gazetteer
+
+
+Also,  the following is useful general information about GPS:
+
+Peter Dana's GPS overview:
+	http://www.utexas.edu/depts/grg/gcraft/notes/gps/gps.html
+
+Peter Bennett's GPS page:
+	ftp://sundae.triumf.ca/pub/peter/index.html
+
+GPS links:
+	http://www.cnde.iastate.edu/gps.html

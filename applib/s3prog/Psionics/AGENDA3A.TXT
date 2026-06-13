@@ -1,0 +1,349 @@
+PSIONICS FILE - AGENDA3A.FMT
+============================
+Format of Series 3a Agenda files
+Last modified 1994-10-05
+================================
+
+Series 3a Agenda files are a form of Database file (see the Psionics file
+DBF.FMT). However, there are some differences:
+* The file signature is the cstr "AgendaFileType*".
+* The version number is that of the Agenda software.
+* The value at offset 20 is not a version number (it is unused).
+* The record types (other than types 0 and 15) are specific to Agenda; in
+  particular, types 2 and 3 are not treated specially.
+
+The record types are as follows:
+  0 = deleted record
+  1 = timed day entry
+  2 = untimed day entry
+  3 = anniversary
+  4 = to-do entry
+  5 = repeat information
+  6 = anonymous data
+  7 = reserved
+  8 = reserved
+  9 = to-do list definition
+Types 10 to 14 are descriptive records, and type 15 is an incomplete record.
+There is exactly one record of each type 10 to 13, and at most one of type 14.
+
+Note that all undescribed bits and bytes must be zero.
+
+For convenience in formatting, the six views of the agenda are abbreviated as
+follows:
+    DV = day view
+    WV = week view
+    YV = year view
+    TV = to-do view
+    LV = list view
+    AV = anniversary view
+
+
+Types 1 to 4: entries
+---------------------
+
+Each record consists of a required part, described below, and optional alarm
+and memo parts, in that order. The required part will indicate whether the
+other two parts are present.
+
+The required part has the following format.
+
+Type 1 (timed day entry):
+  Offset  0 (word): day number of the entry
+  Offset  2 (word): time of entry, in minutes past midnight
+  Offset  4 (byte): attributes (see below)
+  Offset  5 (byte): symbol in year view (0 to 31 mean do not show)
+  Offset  6 (word): length in minutes
+  Offset  8 (byte): text style (see below)
+  Offset  9 (qstr): text
+
+Type 2 (untimed day entry):
+  Offset  0 (word): day number of the entry
+  Offset  2 (word): time where entry shown, in minutes past midnight, or $FFFF
+                    for the default location
+  Offset  4 (byte): attributes (see below)
+  Offset  5 (byte): symbol in year view (0 to 31 mean do not show)
+  Offset  6 (byte): text style (see below)
+  Offset  7 (qstr): text
+
+Type 3 (anniversary):
+  Offset  0 (word): day number of the entry
+  Offset  2 (word): time where entry shown, in minutes past midnight, or $FFFF
+                    for the default location
+  Offset  4 (byte): attributes (see below)
+  Offset  5 (byte): symbol in year view (0 to 31 mean do not show)
+  Offset  6 (word): start year (-30000 to 2049, 0 means none)
+  Offset  8 (byte): bit 0: show base year, bit 1: show elapsed years
+  Offset  9 (byte): text style (see below)
+  Offset 10 (qstr): text
+
+Type 4 (to-do entry):
+  Offset  0 (word): day number to display from, or day number when crossed out,
+                    or $FFFF if undated
+  Offset  2 (word): time of entry, in minutes past midnight
+  Offset  4 (byte): attributes (see below)
+  Offset  5 (byte): symbol in year view (0 to 31 mean do not show)
+  Offset  6 (word): day number to be done by, or $FFFF if undated
+  Offset  8 (byte): internal code for to-do list holding the entry
+  Offset  9 (byte):
+    Bits 0 to 3: priority minus 1
+    Bits 4 to 7: 0 = automatic, 1 = show date, 2 = show days to go,
+                 3 = due date not shown
+  Offset 10 (long): position in manual order
+  Offset 14 (byte): text style (see below)
+  Offset 15 (qstr): text
+
+Note that positions in manual order (offset 10) are not necessarily
+consecutive, and may have gaps in any individual list.
+
+The attributes byte is used as follows:
+    Bit 0: set for single entry, clear for repeating entry
+    Bit 1: set if pending, clear if crossed out
+    Bit 2: set if shown in year view, clear if not shown
+    Bit 3: set if no alarm part, clear if alarm part follows
+    Bit 4: set if no memo part, clear if memo part follows
+
+If bit 3 is clear, the text is immediately followed by an alarm part:
+  Offset  0 (word): alarm time in minutes before 23:59 of the day the event
+                    occurs on (0 to 46079, meaning 00:00 31 days earlier)
+  Offset  2 to  10: name of alarm sound (qstr, padded with zero bytes)
+The sound name may be one of the following:
+- the name of a sound file; this is searched for in each of:
+    A:\WVE\name.WVE
+    B:\WVE\name.WVE
+    M:\WVE\name.WVE
+    ROM::name.WVE
+  [This appears to be the search order, but it is not documented.]
+  The Series 3a ROM contains the sounds:
+    SYS$AL01   Fanfare
+    SYS$AL02   Soft bells
+    SYS$AL03   Church bell
+- a single byte (thus offset 2 is set to 1) with the value 1 (for rings),
+  2 (for chimes), or 16 (for silence).
+
+If bit 4 of the attributes byte is clear, the text or alarm part is followed
+by a memo part. This has the format:
+  Offset  0 (word): length of memo information (L, from 0 to 3600)
+  Offset  2 to L+1: memo information
+@The format of the memo information is not yet available.
+
+
+Type 5: repeat information
+--------------------------
+
+When an entry of type 1 to 4 repeats, a separate type 5 record will exist
+elsewhere in the file. This has the format:
+  Offset  0 (byte):
+    Bits 0 to 2: 0 = daily, 1 = weekly, 2 = monthly by date,
+                 3 = monthly by days, 4 = annually
+    Bit 3:       set to show next occurrence only, clear to show all
+  Offset  1 (byte): repeat interval minus 1 (0 to 254)
+  Offset  2 (word): ending day number, or $FFFF if none
+  Offset  4 (byte): type of associated entry
+  Daily and annual repeats:
+    Offset  5 (long): position of associated entry
+  Weekly repeats:
+    Offset  5 (byte): days to repeat (bit 0 = Monday, ... bit 6 = Sunday)
+    Offset  6 (byte): first day of the week (0 = Monday, ... 6 = Sunday)
+    Offset  7 (long): position of associated entry
+  Monthly by date repeats:
+    Offset  5 (long): dates to repeat (bit 0 = 1st, ... bit 30 = 31st)
+    Offset  9 (long): position of associated entry
+  Monthly by day repeats:
+    Offset  5 (byte): "1st"  days to repeat (bit 0 = 1st Monday, etc)
+    Offset  6 (byte): "2nd"  days to repeat (bit 0 = 2nd Monday, etc)
+    Offset  7 (byte): "3rd"  days to repeat (bit 0 = 3rd Monday, etc)
+    Offset  8 (byte): "4th"  days to repeat (bit 0 = 4th Monday, etc)
+    Offset  9 (byte): "last" days to repeat (bit 0 = last Monday, etc)
+    Offset 10 (long): position of associated entry
+
+In each case the position of the associated entry is the offset in the file
+of the type/length word at the start of that record. Thus compressing the file
+can require all type 5 records to be altered.
+
+The remainder of the record is a sequence of words, each of which is the
+number of a day on which the entry should be suppressed. These entries are
+unordered; illegal values should be ignored but preserved.
+
+
+Type 6: anonymous data
+----------------------
+
+These records are ignored by Agenda (except to include them when merging
+agendas). The intent is that applications converting between this and other
+formats can use these records to hold information not used by Agenda.
+
+
+Type 9: to-do list definition
+-----------------------------
+
+There is one record of this type for each to-do list, always 42 bytes long:
+  Offset  0 (byte): must be $FF
+  Offset  1 (byte): internal code for to-do list
+  Offset  2 (cstr): list name
+  Offset 19 (byte): same as offset 1
+  Offset 20 (byte):
+    Bits 0 to 3: maximum priority shown in other views
+    Bits 4 to 5: sort order (0=date first, 1=priority first, 2=manual)
+    Bit 6:       display crossed out entries in TV
+    Bit 7:       display crossed out entries in other views
+  Offset 21 (byte):
+    Bit 0: set to bullet with numbers, clear to bullet with priorities
+    Bit 1: set to display entries in other views
+    Bit 2: set if entries dated by default
+    Bit 3: @always set so far
+  Offset 22 (word): default position in DV, in minutes past midnight
+  Offset 24 (byte): default days warning
+  Offset 25 (byte): default year symbol
+  Offset 26 (byte): 0=alarm off by default, 1=alarm on by default
+  Offset 27 (byte): default alarm days ahead
+  Offset 28 (word): default alarm time, in minutes past midnight
+  Offset 30 to  39: default alarm sound name (qstr, padded with zero bytes)
+  Offset 40 (byte): default style (bit 0=bold, bit 1=underline, bit 5=italic)
+  Offset 41 (byte): unused, must be zero
+
+See above for the details of alarm sound names.
+
+
+Type 10: descriptive record (memos)
+-----------------------------------
+
+@The format is not yet available.
+
+
+Type 11: descriptive record (to-dos)
+------------------------------------
+
+This has the format:
+  Offset  0 (byte): must be $6C
+  Offset  1 (byte): number of to-do lists (L, from 1 to 99)
+  Offset  2 to L+1: internal codes of the to-do lists, in display order
+
+
+Type 12: descriptive record (views)
+-----------------------------------
+
+This has the format:
+  Offset  0 (word): @unknown (only seen $0012)
+  Offset  2 (byte): DV: status window
+  Offset  3 (byte): DV: wrap mode
+  Offset  4 (byte): DV: font size
+  Offset  5 (byte): WV: status window
+  Offset  6 (byte): WV: wrap mode
+  Offset  7 (byte): WV: font size
+  Offset  8 (byte): YV: status window
+  Offset  9 (byte): YV: month shown at top (0 = Jan, ... 11 = Dec)
+  Offset 10 (byte): unused, must be zero
+  Offset 11 (byte): TV: status window
+  Offset 12 (byte): TV: wrap mode
+  Offset 13 (byte): TV: font size
+  Offset 14 (byte): AV: status window
+  Offset 15 (byte): AV: wrap mode
+  Offset 16 (byte): AV: font size
+  Offset 17 (byte): LV: status window
+  Offset 18 (byte): LV: wrap mode
+  Offset 19 (byte): LV: font size
+
+Valid status window settings are 0 (none), 1 (small), and 2 (full). The wrap
+mode is 0 if wrapping is off and 1 if it is on. The font size ranges from 0
+(the smallest) to 3 (the largest).
+
+
+Type 13: descriptive record (preferences)
+-----------------------------------------
+
+This record is divided into one or more subrecords. Each subrecord consists
+of a type/length word followed by data, just as for the main records of the
+file. The following subrecord types exist:
+
+* Subrecord type 4 - diamond list
+  Offset  0 (byte): 1 = include DV in diamond list, 0 = don't
+  Offset  1 (byte): 1 = include WV in diamond list, 0 = don't
+  Offset  2 (byte): 1 = include YV in diamond list, 0 = don't
+  Offset  3 (byte): 1 = include TV in diamond list, 0 = don't
+  Offset  4 (byte): 1 = include LV in diamond list, 0 = don't
+  Offset  5 (byte): 1 = include AV in diamond list, 0 = don't
+
+* Subrecord type 5 - day entry defaults
+  Offset  0 (word): display time for untimed events (minutes past midnight)
+  Offset  2 (word): display time for timed   events (minutes past midnight)
+  Offset  4 (word): length of timed events in minutes
+  Offset  6 (byte): 0 = new events are untimed, 1 = new events are timed
+  Offset  7 (byte): year view symbol
+  Offset  8 (byte): 1 = untimed events have an alarm, 0 = no alarm
+  Offset  9 (byte): number of days between alarm and untimed events
+  Offset 10 (word): untimed event alarm time in minutes past midnight
+  Offset 12 to  21: untimed event alarm sound name
+                    (qstr, padded with zero bytes)
+  Offset 22 (byte): 1 = timed events have an alarm, 0 = no alarm
+  Offset 23 (byte): unused, must be zero
+  Offset 24 (word): timed event alarm advance time in minutes
+  Offset 26 to  35: timed event alarm sound name (qstr, padded with zero bytes)
+  Offset 36 (byte): style of entries: bit 0 = bold, bit 1 = underline,
+                    bit 5 = italic
+  Offset 37 (byte): unused, must be zero
+
+See above for the details of alarm sound names.
+
+* Subrecord type 6 - anniversary entry defaults
+  Offset  0 (word): display time for anniversaries (minutes past midnight)
+  Offset  2 (byte): 0 = year symbol off, 1 = year symbol on
+  Offset  3 (byte): year view symbol
+  Offset  4 (byte): 1 = anniversaries have an alarm, 0 = no alarm
+  Offset  5 (byte): number of days between alarm and anniversary
+  Offset  6 (word): anniversary alarm time in minutes past midnight
+  Offset  8 (qstr): anniversary alarm sound name (qstr, padded with zero bytes)
+  Offset 18 (byte): style of entries: bit 0 = bold, bit 1 = underline,
+                    bit 5 = italic
+  Offset 19 (byte): unused, must be zero
+
+See above for the details of alarm sound names.
+
+* Subrecord type 7 - general defaults
+  Offset  0 (byte): 0 = PSION+ENTER disabled, 1 = PSION+ENTER enabled
+  Offset  1 (byte): time separator character
+
+* Subrecord type  9 - day view
+* Subrecord type 10 - week view
+* Subrecord type 11 - year view
+* Subrecord type 14 - list view
+Offsets 2 onwards apply only to subrecord type 9 (day view)
+  Offset  0 (word):
+    bit  0: set to show timed event durations
+    bit  1: set to show timed event end times
+    bit  2: title position: clear=left, set=right (DV and WV only);
+            show repeats: clear=all, set=next only (LV only)
+    bit  3: slot compression: clear=on, set=off (DV only)
+    bit  4: clear to show duration arrows (DV only)
+    bit  5: clear to show overlap bars (DV only)
+    bit  8: set to show untimed events (DV, WV, and LV only)
+    bit  9: set to show anniversaries  (DV, WV, and LV only)
+    bit 10: set to show to-do entries  (DV, WV, and LV only)
+    bit 11: set to show timed events   (DV, WV, and LV only)
+  Offset  2 (word): left  side shows: 0=neither, 1=lines, 2=times, 3=both
+  Offset  4 (word): must be 0
+  Offset  6 (word): left  side "from" time in minutes past midnight
+  Offset  8 (word): left  side "to"   time in minutes past midnight
+  Offset 10 (word): right side "from" time in minutes past midnight
+  Offset 12 (word): left  side slot duration in minutes
+  Offset 14 (word): right side shows: 0=neither, 1=lines, 2=times, 3=both
+  Offset 16 (word): must equal offset 10
+  Offset 18 (word): must equal offset 10
+  Offset 20 (word): right side "to"   time in minutes past midnight
+  Offset 22 (word): must be 1440 ($05A0)
+  Offset 24 (word): right side slot duration in minutes
+
+* Subrecord type 12 - to-do view
+* Subrecord type 13 - anniversary view
+  Offset  0 (word): number of columns shown (limit 4 in AV)
+
+
+Type 14: descriptive record (printing)
+--------------------------------------
+
+This record is divided into one or more subrecords. Each subrecord consists
+of a type/length word followed by data, just as for the main records of the
+file. Subrecord types 0 to 3 apply to printing the agenda, and correspond to
+record types 2 to 5 respectively of Word format (see Psionics file WORD.FMT).
+Subrecord types 6 to 9 apply to printing memos, and correspond to the same
+Word record types.
+

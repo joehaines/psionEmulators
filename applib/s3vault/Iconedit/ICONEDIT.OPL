@@ -1,0 +1,157 @@
+APP Icons
+ TYPE 0
+ ICON "\OPD\IconEd.pic"
+ENDA
+
+PROC EditIcon:
+GLOBAL W1%,W2%,Wb%,k%,Wi%,m%
+LOCAL f$(130)
+
+ f$="\OPD\BLANK.PIC"
+ dINIT "Load Icon"
+ dFILE f$,"Name:",$01
+ if DIALOG=0
+   RETURN
+ endif
+ Wb%=gLOADBIT (f$)
+
+ Wi%=gCREATE (138,4,100,76,1)
+ gBORDER $203
+ gAT 6,12 : gPRINT "C - Clear"
+ gAT 6,20 : gPRINT "B - Border"
+ gAT 6,28 : gPRINT "TAB - Save"
+ gAT 6,36 : gPRINT "Esc - Quit"
+ gAT 6,44 : gPRINT "'z' or Shift"
+ gAT 6,52 : gPRINT "     - Black"
+ gAT 6,60 : gPRINT "'a' or Control"
+ gAT 6,68 : gPRINT "     - White"
+ W1%=gCREATE (14,12,24,24,1)
+ gCOPY Wb%,0,0,24,24,3
+
+ W2%=gCREATE (48,0,81,81,1)
+ gBORDER $101
+ gUSE W1%
+
+ IF Wb%>0
+   zoom:
+ endif
+
+ bitedit:
+ gUSE W1%
+ f$="\OPD\*.PIC"
+ if (k%=9)
+  dINIT "Save Icon"
+  dFILE f$,"Name:",$11
+  if DIALOG
+    gSAVEBIT f$
+    gIPRINT "Saved"
+    pause 20
+  endif
+ else
+  gIPRINT "Aborted"
+  pause 20 
+ endif
+ENDP
+
+
+PROC bitedit:
+local x%,y%
+gGMODE 2
+do
+ gBIG:(x%,y%,-1)
+ k%=0 : m%=0
+ while (k%=0 AND m%=0)
+  k%=KEY : m%=KMOD
+ endwh
+
+ gBIG:(x%,y%,-1)
+
+ if (m%=4 or k%=$61)
+  gBIG:(x%,y%,1)
+ endif
+ if (m%=2 or k%=$7A)
+  gBIG:(x%,y%,0)
+ endif
+
+ if (k%=$42 or k%=$62)
+  gUSE W1%
+  gGMODE 0
+  gBORDER $200
+  zoom:
+ endif
+ 
+ if (k%=$43 or k%=$63)
+  gUSE W1%
+  gGMODE 0
+  gCLS
+  zoom:
+ endif
+ 
+ if (k%=256)
+  y%=y%-1 : if (y%<0) : y%=0 : endif
+  endif
+ if (k%=257)
+  y%=y%+1 : if (y%>23) : y%=23 : endif
+  endif
+ if (k%=258)
+  x%=x%+1 : if (x%>23) : x%=23 : endif
+  endif
+ if (k%=259)
+  x%=x%-1 : if (x%<0) : x%=0 : endif
+  endif
+  
+until k%=9 or k%=27
+
+
+
+ENDP
+
+
+
+PROC zoom:
+LOCAL a%,b%,d%(2)
+
+gIPRINT "WAIT...",1
+
+gUPDATE OFF
+
+gUSE W2%
+gAT 4,4
+gFILL 72,72,1
+gUSE W1%
+b%=0
+do
+ a%=0
+ do
+rem  gUSE W1%
+  gPEEKLINE W1%,a%,b%,d%(),1
+  if d%(1)>0 : gBIG:(a%,b%,0) : endif
+  a%=a%+1
+ until a%=24
+ b%=b%+1
+until b%=24
+
+gIPRINT ""
+gUPDATE ON
+ENDP
+
+
+
+PROC gBIG:(x%,y%,c%)
+ gUSE W2%
+ if (c%<>-1)
+   gGMODE c%
+   gAT x%*3+4,y%*3+4
+   gFILL 3,3,c%
+   gUSE W1%
+   gGMODE c%
+   gAT x%,y%
+   gLINEBY 0,0
+ else
+  gAT x%*3+3,y%*3+3
+  gGMODE 2
+  gBOX 5,5
+ endif
+ 
+ENDP
+

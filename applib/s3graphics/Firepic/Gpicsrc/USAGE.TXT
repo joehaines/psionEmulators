@@ -1,0 +1,268 @@
+Using GPIC DYLs to IMPORT/EXPORT images
+---------------------------------------
+The GPIC dyls offer a simple interface over the process of loading and
+saving image in different image file formats such as Psion PIC, PCX,
+GIF, BMP, etc.
+
+Format
+------
+A GPIC DYL contains one GPIC object (C_GPIC) with class number 0.
+The DYL file should be loaded and linked (using LOADLIB in OPL or 
+p_loadlib in C) and then the GPIC object created (using f_newlibh in C,
+or NEWOBJH in OPL).
+After usage, the object should be destroyed (by sending a DESTROY (0)
+message with SEND in OPL or p_send in C) and the DYL should be unloaded
+(using p_unloadlib in C or UNLOADLIB in OPL).
+
+Note: All TEXT passed to or returned by the DYLs is in the the form
+of C Zero-Terminated-Strings
+
+GPIC Methods
+------------
+The GPIC object contains 7 interface methods for a program to call.
+
+  O_DESTROY (method number 0)
+  ---------------------------
+  Call with no extra arguments.
+  This is the standard object destroy message which should be sent when
+  you want to remove the object and it's allocated memory.
+
+ 
+  O_VERSION (method number 1)
+  ---------------------------
+  Call with: TEXT *BUF,WORD *VER
+  Arguments:
+  *BUF is a pointer to an empty character buffer at least 50 bytes long.
+  *VER is a pointer to a word.
+
+  Returns:
+  BUF is filled with a text description of the supported format suitable
+  for dsplaying to an end user as part of an error message or dialog.
+  VER is filled with a hex word describing the DYL version (such as 100F,
+  101A, 200B, where F denotes Final release, A denotes Alpha release,
+  and B denotes Beta release)                   
+  No value is returned.
+
+  Description:
+  This method should be called after the object as created to find 
+  details about the DYL. However, it is not required to be called at any
+  time in the object's lifetime.
+
+
+  O_INFO (method number 2)
+  ------------------------
+  Call with: TEXT *IMAGE_NAME, GPIMINFO *IMAGE_INFO
+  Arguments:
+  *IMAGE_NAME is a pointer to a buffer containing the full path name 
+  (as returned by a parse) of an Image file to be examined.  
+  *IMAGE_INFO is a pointer to a GPIMINFO C struct (or a block of memory
+  of the same size) where information should be passed and returned.
+
+  Returns:
+  IMAGE_INFO is filled with information regarding the image examined.  
+  IMAGE_INFO->NUM contains the number of images in the file,
+  IMAGE_INFO->SIZE contains the size of the image examined,
+  IMAGE_INFO->DEPTH contains the colour depth of the image in bits (1-24)
+  IMAGE_INFO->FLAGS contains flags about the DYLs capabilities (such
+  as image dithering or compression).
+  The function returns 0 for success, or an error value (see later).
+
+  Description:
+  The function opens and examines the file pointed to by IMAGE_NAME.
+  If it does not have a valid header, an error is returned.
+  If the file is a multiple image file (such as a Psion PIC file)
+  IMAGE_INFO->NUM will contain a value greater than 1, and the info
+  returned will refer to the first imafe in the file. Subsequent
+  calls to the function with NUM set to different values will return
+  information about the other images in the file.
+
+
+  O_LOAD (method number 3)
+  ------------------------
+  Call with: TEXT *IMAGE_NAME, GPIMINFO *IMAGE_INFO
+  Arguments:
+  *IMAGE_NAME is a pointer to a buffer containing the full path name 
+  (as returned by a parse) of an Image file to be loaded from.  
+  *IMAGE_INFO is a pointer to a GPIMINFO C struct (or a block of memory
+  of the same size) where information should be passed and returned.
+
+  Returns:
+  IMAGE_INFO->DONE contains value that indicates completion of image loading.
+  The function returns 0 for success, or an error value (see later).
+
+  Description:
+  The function opens the file pointed to by IMAGE_NAME and the image 
+  pointed to by IMAGE_INFO->NUM (if there are multiple images) It allocates the
+  memory required for the loading process. This should be called to 
+  initialise an image load. If there is an error, all allocated resources
+  are freed and O_DOLOAD should not be called before another successful
+  call to O_LOAD.
+
+  O_DOLOAD (method number 4)
+  --------------------------
+  Call with: GPIMINFO *IMAGE_INFO
+  *IMAGE_INFO is a pointer to a GPIMINFO C struct (or a block of memory
+  of the same size) where information should be passed and returned.
+
+  Returns:
+  IMAGE_INFO->DONE contains a value that indicates the current status
+  of the loading process. It can be displayed to the user as a percentage
+  of the DONE value initially returned by the O_LOAD function.
+  The function returns GPIC_LOAD_MORE to indicate more processing is required,
+  0 to indicate completion, or an error value (see later).
+
+  Description:
+  This function performs the loading of the image opened by a call to 
+  O_LOAD. It should be called repeatedly until 0 or an error is returned.
+  All resources are freed in the case of an error.
+
+  O_SAVE (method number 5)
+  ------------------------
+  Call with: TEXT *IMAGE_NAME, GPIMINFO *IMAGE_INFO
+  Arguments:
+  *IMAGE_NAME is a pointer to a buffer containing the full path name 
+  (as returned by a parse) of an Image file to be created.  
+  *IMAGE_INFO is a pointer to a GPIMINFO C struct (or a block of memory
+  of the same size) where information should be passed and returned.
+
+  Returns:
+  IMAGE_INFO->DONE contains a value that indicates completion of image 
+  saving. The function returns 0 for success, or an error value (see later).
+
+  Description:
+  The function creates the file pointed to by IMAGE_NAME. It allocates the
+  memory required for the saving process. This should be called to 
+  initialise an image save. If there is an error, all allocated resources
+  are freed and O_DOSAVE should not be called before another successful
+  call to O_SAVE.
+
+
+  O_DOSAVE (method number 6)
+  --------------------------
+  Call with: GPIMINFO *IMAGE_INFO
+  *IMAGE_INFO is a pointer to a GPIMINFO C struct (or a block of memory
+  of the same size) where information should be passed and returned.
+
+  Returns:
+  IMAGE_INFO->DONE contains a value that indicates the current status
+  of the saving process. It can be displayed to the user as a percentage
+  of the DONE value initially returned by the O_SAVE function.
+  The function returns GPIC_SAVE_MORE to indicate more processing is required,
+  0 to indicate completion, or an error value (see later).
+
+  Description:
+  This function performs the saving of the image to the file opened by a   
+  call to O_SAVE. It should be called repeatedly until 0 or an error is 
+  returned. All resources are freed in the case of an error.
+
+
+GPIMINFO Structure
+------------------
+The GPIMINFO struct is the block used to pass information between the
+main program and the GPIC object. It is 58 bytes long, and in defined
+in C as follows:
+
+typedef struct
+   {
+   W_OPEN_BIT_SEG bhand;   /* Info of black bitmap if loaded */
+   INT bid;                /* Id of black bitmap */
+   W_OPEN_BIT_SEG ghand;   /* Info of grey bitmap if loaded */
+   INT gid;                /* Id of grey bitmap */
+   
+   P_POINT size;           /* Size of image */
+   WORD depth;             /* Depth of a queried image */
+   WORD num;               /* Number of images in a queried file */
+   LONG fileoffset;        /* Picture data is offset in file */
+
+   UWORD flags;            /* Various flags (future expansion) */
+   LONG done;              /* Loading/saving status */
+   UWORD res;              /* Reserved for internal use */
+   } GPIMINFO;
+
+where a W_OPEN_BIT_SEG is defined:
+
+typedef struct
+   {
+   P_POINT size;
+   TEXT seg_name[14];
+   } W_OPEN_BIT_SEG;
+
+and a P_POINT is defined:
+
+typedef struct
+   {
+   WORD x;
+   WORD y;
+   } P_POINT;
+
+Hence, the GPIMINFO in memory terms is:
+
+Byte Offset |  Descriptor           |   Byte length
+------------+-----------------------+-------------------
+0           |  WORD bhand.size.x    |        2     
+2           |  WORD bhand.size.y    |        2
+4           |  TEXT bhand.seg_name  |       14
+18          |  INT  bid             |        2
+20          |  WORD ghand.size.x    |        2     
+22          |  WORD ghand.size.y    |        2
+24          |  TEXT ghand.seg_name  |       14
+38          |  INT  gid             |        2
+40          |  WORD size.x          |        2
+42          |  WORD size.y          |        2
+44          |  WORD depth           |        2
+46          |  WORD num             |        2
+48          |  LONG fileoffset      |        4
+52          |  UWORD flags          |        2
+54          |  LONG done            |        4 
+58          |  UWORD res            |        2
+
+Error codes
+-----------
+Error values are either returned as positive numbers indicating GPIC errors,
+or standard negative system error codes (which can be interpreted as normal).
+The GPIC error codes are currently as follows:
+
+#define GPIC_COMPLETED 0
+- A DYL load or save has completed
+
+#define GPIC_PROCESS_MORE 1
+#define GPIC_LOAD_MORE 1
+#define GPIC_SAVE_MORE 1
+- More processing is required (i.e. O_DOLOAD/O_DOSAVE must be called again).
+
+#define GPIC_CANCELLED 2
+- A load or save has been cancelled by passing -1 in IMINFO->DONE
+
+#define GPIC_ERROR_INCORRECT_FILEFORMAT 3
+- This was not an image file the DYL can recognise.
+
+#define GPIC_ERROR_CORRUPT_FILE 4
+- This may have been an image file, but there is some corruption.
+
+#define GPIC_ERROR_TOO_FEW_IMAGES 5
+- If you pass an image number larger than the number of images in a 
+multiple image file.
+
+#define GPIC_ERROR_NO_IMAGES_TO_SAVE 6
+- No image data to be saved (maybe not passed correctly in IMAGE_INFO)
+
+#define GPIC_ERROR_CANT_HANDLE 7
+- This is a correct file but it is a version we cannot handle (such as
+a 24 bit PCX file)
+
+Flags
+-----
+The following flag bits are returned OR'ed into the IMAGE_INFO->FLAGS
+UBYTE by the O_INFO method.
+
+#define GPIC_SUPPORTS_DITHERING 0x01
+- Indicated that this DYL supports different dithering (image loading)
+techniques.
+
+#define GPIC_DITHER_NONE 0x02
+- If DYL supports dithering, this shows that it can support a direct
+(undithered) load.
+
+#define GPIC_DITHER_FLOYD 0x04
+- If DYL supports dithering, this shows that it supports a Floyd-Steinberg
+error distribution method for colour reduction to a Psion bitmap.

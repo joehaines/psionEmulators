@@ -1,0 +1,187 @@
+Simple example of InterProcessCommunication in Opl
+==================================================
+
+The two Opl programs BEEPER.OPL and CTRLBEEP.OPL demonstrate two
+cooperating processes.  BEEPER has two states, between which it
+alternates:
+    *  constantly beeping
+    *  waiting for an instruction to start beeping again
+CTRLBEEP contains two subroutines, NOISY: and QUIET:, which have the
+effect of transitioning BEEPER between its two states.
+
+The idea of the example is that the main program is free to attend to
+some other activity (eg displaying a dialog, or generally interacting
+with the keyboard or performing some calculation), without needing to
+keep calling BEEP.
+
+In the example, the routines NOISY: and QUIET: are triggered by
+receiving keypresses.  In a more realistic case, they could be
+triggered by the progress of some calculation in the main program, or
+by incoming serial data (etc).
+
+The code for BEEPER.OPL
+-----------------------
+
+The entire code of BEEPER.OPL is
+
+    PROC beeper:
+        while 1
+            iowait
+            while peekw($28)
+                beep 1,300
+            endwh
+        endwh
+    ENDP
+
+The state when it is continually beeping is represented by the two
+lines of code
+
+    while peekw($28)
+        beep 1,300
+
+from which it is clear that it beeps beeping until the value at
+offset $28 becomes zero.  Evidently, the code in QUIET: in
+CTRLBEEP.OPL must write the value zero into this offset in the
+dataspace of BEEPER.  This involves an *inter process copy*.
+
+The state in which BEEPER is waiting for another instruction to start
+beeping again is represented by the single line of code
+
+    iowait
+
+The call to iowait returns only when the BEEPER process is
+"signalled".  In the meantime, BEEPER sleeps (without burning round
+in any loop).  Evidently, the code in NOISY: in CTRLBEEP.OPL must
+"signal" BEEPER (and, at the same time, write a non-zero value into
+location $28).
+
+Why $28 ?
+---------
+
+I chose $28 since it is the address of seven words (known as DatApp1
+through DatApp7) that are generally free for application programming. 
+They have the values 0 by default, and are guaranteed not to be
+altered by any system code.  (Nor will any stack, static, or heap data
+use these values.)
+
+The code in QUIET:
+------------------
+
+    PROC quiet:
+    REM Stop beeps
+        local zero%
+        call($92,pid%,2,0,addr(zero%),$28) :rem ProcCopyToById
+    ENDP
+
+The code CALL($92,...) performs the inter process copy.  The BX
+parameter gives the pid of the target process.  The CX parameter
+gives the number of bytes to copy.  The SI parameter gives the
+address (in the local dataspace) of the data to be copied.  The DI
+parameter gives the address (in the remote dataspace) where the data
+is to be copied.
+
+The value of pid% has been recorded from earlier, when BEEPER was
+launched.
+
+The code in NOISY:
+------------------
+
+    PROC noisy:
+    REM Start beeps
+        local one%
+        one%=1
+        call($92,pid%,2,0,addr(one%),$28) :rem ProcCopyToById
+        call($0986,pid%,0,0,0,0) :rem IoSignalByPid
+    ENDP
+
+The main difference from QUIET: is that this time, CTRLBEEP needs to
+"signal" BEEPER.  This is performed by the line CALL($0986,...).  In
+this call, only the BX parameter matters.
+
+(Notice that IoSignalByPid is actually a generalisation of the Opl
+keyword IOSIGNAL, which signals yourself - eg to ensure that you come
+straight out of the next call to IOWAIT).
+
+Taking stock
+------------
+
+That's everything, apart from some housekeeping:
+
+    CTRLBEEP has to locate and start BEEPER in the first place
+
+    CTRLBEEP has to ensure that, whenever it is terminated, BEEPER
+gets tidied up too.
+
+How CTRLBEEP starts BEEPER
+--------------------------
+
+This all takes place inside the routine LAUNCHB:.  The main two lines
+of code are
+    CALL($0187,...)
+which creates the process, and
+    CALL($0688,...)
+which resumes the process (since all processes are initially created
+suspended).
+
+The line CALL($998d,...) has the effect of placing CTRLBEEP back into
+foreground again (otherwise it would be displaced by BEEPER).
+
+I haven't gone into too many details here since the same material has
+been covered elsewhere.
+
+How CTRLBEEP ensures BEEPER is always terminated
+------------------------------------------------
+
+This is rather more interesting.  The routine TELLDIE: contains code
+to ensure that CTRLBEEP is always given warning that it ought to
+terminate.  The main line here is
+    CALL($0e88,1,...)
+which informs the O/S that, when this process is to be terminated
+from without (say because the user has pressed DELETE on this
+application from the System Screen - or, on the HC, because the
+TERMINATE command has been issued from the $ command line), then
+instead of simply killing it, an inter process message is to be sent
+to it.  The "type" of this message is specified in the BX parameter -
+here, 1.
+
+Actually, the type is irrelevant for this example, since the only
+inter process message CTRLBEEP will ever receive is bound to be the
+TERMINATE one.   (The type only becomes important if there are
+potentially more than one possible kind of inter process message.)
+
+Now, before calling ProcOnTerminate, it is vital to call MessInit
+(CALL($0083,...)) - which is a required part of the initialisation of
+*any* application that is going to receive inter process messaging. 
+Failure to call MessInit first will lead to your application being
+panicked.
+
+The only significant parameter for MessInit is BX.  Actually, BX is
+in this case analysed as BH (the length of the extra message data),
+and BL (the number of message slots to reserve) (BX = BL + BH*256),
+but the details don't matter.  Just use $1 for the minimum overhead
+necessary.
+
+Finally, CTRLBEEP has got to queue an asynchronous request to receive
+an inter process message.  This is the role of MessReceiveAsynchronous
+(CALL($0183,...)).  Here, the DI parameter must be the address of a
+status word which will be changed to zero when the message arrives,
+and the BX parameter must likewise be the address of a word
+essentially specifying which message slot has been used.  It turns
+out that CTRLBEEP never needs to read the values of either maddr% or
+mstat%, but if you fail to provide good addresses, random damage may
+ensue.
+
+The EXIT: routine
+-----------------
+
+CTRLBEEP in turn sends on a terminate message to BEEPER, using
+CALL($0d88,...), before STOPing itself.
+
+Note:
+-----
+
+Don't be misled: there's no need to call MessInit (or MessReceive...)
+just because you're doing an inter process copy or an inter proces
+signal.  The MessInit (and MessReceive...) is required in this
+example only because CTRLBEEP is potentially to receive an *interp
+process message* - which is a more formal construct.

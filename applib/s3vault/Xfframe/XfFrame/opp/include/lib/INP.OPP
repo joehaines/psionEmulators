@@ -1,0 +1,96 @@
+#include <lib\inp>
+#include <opp\keys>
+LIBPROC EvtLoop%:
+	LOCAL RetVal%, FileN$(128), ProcNam$(8)
+	IF TESTEVENT
+	  KIO% = GetK%:
+		Keypr% = KIO%->Keypress%
+		Modif% = KIO%->Modifier%
+		FileN$ = KIO%->FileName$
+	  IF Keypr%=MENUKEY
+			IF Modif% = 0
+				MenIni: (MenuNum%)
+				LOCK ON
+		    Keypr% = MENU
+				LOCK OFF
+			ELSE
+				IF LOC(HKFunc$, GEN$(Keypr%,3)+"~")
+					ProcNam$ = "Key" + GEN$(Keypr%,3)
+					LOCK ON
+					@(ProcNam$):(Modif%)
+					LOCK OFF
+				ENDIF
+			ENDIF
+			IF Keypr% <= %Z
+				IF LOC(HKUpper$, CHR$(Keypr%))
+					ProcNam$ = "mU" + GEN$(Keypr%,3) + GEN$(MenuNum%,2)
+					LOCK ON
+					@(ProcNam$):
+					LOCK OFF
+				ENDIF
+			ELSE
+			  IF LOC(HKLower$, CHR$(Keypr%))
+				ProcNam$="mL" + GEN$(Keypr%,3) + GEN$(MenuNum%,2)
+					LOCK ON
+					@(ProcNam$):
+					LOCK OFF
+				ENDIF
+		ENDIF
+		ELSEIF Keypr% AND $200
+		IF Modif% AND SHIFT_MOD
+			IF LOC(HKUpper$, CHR$(Keypr%))
+				ProcNam$ = "mU" + GEN$(Keypr%-512,3) + GEN$(MenuNum%,2)
+					LOCK ON
+					@(ProcNam$):
+					LOCK OFF
+			ENDIF
+			ELSE
+			  IF LOC(HKLower$,CHR$(Keypr%))
+				ProcNam$= "mL" + GEN$(Keypr%-512,3) + GEN$(MenuNum%,2)
+					LOCK ON
+					@(ProcNam$):
+					LOCK OFF
+				ENDIF
+		ENDIF
+	  ELSE
+			IF Keypr% > 255 OR Keypr% < 32  REM Special key			 ProcNam$ = "MenU" + CHR$(Keypr%) + GEN$(MenuNum%,2)
+			IF LOC(HKFunc$, GEN$(Keypr%,3)+"~")
+					ProcNam$ = "Key" + GEN$(Keypr%,3)
+					LOCK ON
+					@(ProcNam$):(Modif%)
+					LOCK OFF
+				ENDIF
+			ENDIF
+		ENDIF
+	ELSE
+		KIO%->Keypress% = 0
+		KIO%->Modifier% = 0
+		KIO%->FileName$ = ""
+	ENDIF
+	RETURN KIO%
+ENDP
+LIBPROC GetK%:
+	LOCAL a%(6),Comm$(128),FileN$(128)
+  DO
+    GETEVENT a%()
+    IF a%(1)=$404
+			COMM$ = GETCMD$
+      IF LEFT$(COMM$,1) ="X"				    REM Exit
+			  a%(1) = %x + $200
+      ENDIF
+			IF LEFT$(COMM$,1)="C"					   REM Create file
+				FileN$ = MID$(COMM$,2,128)
+			  a%(1) = %n + $200
+      ENDIF
+			IF LEFT$(COMM$,1)="O"					   REM Open File
+				FileN$ = MID$(COMM$,2,128)
+			  a%(1) = %o + $200
+      ENDIF
+    ENDIF
+  UNTIL a%(1) < 1000
+	KIO%->KeyPress% = a%(1)
+	KIO%->Modifier% = a%(2) AND $00FF
+	KIO%->FileName$ = FileN$
+	RETURN KIO%
+ENDP
+

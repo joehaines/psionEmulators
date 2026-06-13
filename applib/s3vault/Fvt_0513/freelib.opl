@@ -1,0 +1,900 @@
+REM binary read of max% chars, timeout of wait%
+PROC bread%:(address%,max%,wait%)
+	LOCAL err%,len%,ti%,last$(8)
+	last$=proc$
+	proc$="bread"
+	ONERR errhand
+	ti%=SECOND
+	ti%=ti%+wait%
+	IF ti%>60
+		ti%=ti%-60
+	ENDIF
+	len%=0
+	DO
+		err%=IOW(serial%,10,len%,#0)
+		IF err%<0
+			proc$=last$
+			RETURN err%
+		ENDIF
+	UNTIL len%>0 OR wait%=0 OR ti%=SECOND
+	IF len%>max%
+		len%=max%
+	ENDIF
+	IF len%<>0 AND NOT err%
+		err%=IOW(serial%,1,#address%,len%)
+		IF err%<0 AND err%<>-43	REM no terminator 
+			IF err%=-6		REM ignore this
+				GIPRINT "Serial overflow"
+			ELSE
+				proc$=last$
+				RETURN err%		REM return error
+			ENDIF
+		ENDIF
+	ENDIF
+	proc$=last$
+	RETURN len%
+	errhand::		REM Error handling
+	ONERR OFF
+	GIPRINT "bread:"+ERR$(ERR)
+	GET
+	proc$=last$
+	RETURN 0
+ENDP
+
+REM binary write of len% chars
+PROC bwrite%:(address%,len%)
+	LOCAL ret%,stat%,max%,last$(8)
+	last$=proc$
+	proc$="bwrite"
+	max%=len%
+	ret%=IOW(serial%,2,#address%,max%)
+	proc$=last$
+	RETURN ret%
+ENDP
+
+PROC rsset:(baud%,parity%,data%,stop%,hand%,term&)
+	LOCAL frame%,srchar%(6),dummy%,err%,last$(8)
+	last$=proc$
+	proc$="rsset"
+	REM paranoid error checking
+REM	IF baud%<1 OR baud%>16
+REM			ALERT("rsset: invalid baud arg", GEN$(baud%,4))	:STOP
+REM		ELSEIF parity%<0 OR parity%>2
+REM			ALERT("rsset: invalid parity arg", GEN$(parity%,4))	:STOP
+REM		ELSEIF data%<5 OR data%>8
+REM			ALERT("rsset: invalid data arg", GEN$(data%,4))	:STOP
+REM		ELSEIF stop%<1 OR stop%>2
+REM			ALERT("rsset: invalid stop arg", GEN$(stop%,4))	:STOP
+REM		ELSEIF LOC("0,3,4,7,8,11,12,15",GEN$(hand%,4))=0
+REM			ALERT("rsset: invalid hand arg", GEN$(hand%,4))	:STOP
+REM	ENDIF
+	ONERR errhand
+	frame%=data%-5
+	IF stop%=2
+		frame%=frame% OR 16
+	ENDIF
+	IF parity%
+		frame%=frame% OR 32
+	ENDIF
+	srchar%(1)=baud% OR (baud%*256)
+	srchar%(2)=frame% OR (parity%*256)
+	srchar%(3)=(hand% AND 255) OR $1100
+	srchar%(4)=$13
+	POKEL ADDR(srchar%(5)),term&
+	Check%:(IOW(serial%,7,srchar%(1),dummy%),0)
+	proc$=last$
+	RETURN
+	errhand::		REM Error handling
+	ONERR OFF
+	GIPRINT "rsset:"+ERR$(ERR)
+	GET
+	proc$=last$
+ENDP
+
+PROC loadp:(fi$)
+	LOCAL ha%,tmp$(10),tmpfi$(128),off%(6),last$(8)
+	LOCAL fname$(12),comment$(55),dummy%
+	last$=proc$
+	proc$="loadp"
+	ONERR errhand
+	tmpfi$=fi$
+
+	load::
+	GIPRINT "Loading...",1
+	Check%:(IOOPEN(ha%,tmpfi$,$0020),0)
+	baud%=frdval%:(ha%)
+	pari%=frdval%:(ha%)
+	datab%=frdval%:(ha%)
+	sbit%=frdval%:(ha%)
+	handsh%=frdval%:(ha%)
+	dummy%=frdval%:(ha%)
+	dummy%=frdval%:(ha%)
+	dummy%=frdval%:(ha%)
+	proto%=frdval%:(ha%)
+	le%=frdval%:(ha%)
+	curs%=frdval%:(ha%)
+	bdr%=frdval%:(ha%)
+	cvthxs:(frdstr$:(ha%),ADDR(backs$))
+	cvthxs:(frdstr$:(ha%),ADDR(enter$))
+	mini$=frdstr$:(ha%)
+	mhang$=frdstr$:(ha%)
+	mdiap$=frdstr$:(ha%)
+	mdias$=frdstr$:(ha%)
+	mcon$=frdstr$:(ha%)
+	merr$=frdstr$:(ha%)
+	moerr$=frdstr$:(ha%)
+	mbusy$=frdstr$:(ha%)
+	Check%:(IOCLOSE(ha%),0)
+	rsset:(baud%,pari%,datab%,sbit%,handsh%,&FFFFFFFE)
+	fvt$=tmpfi$
+	SupChgd%=0 REM reset setup-changes to none
+	SETNAME fvt$
+	SETPATH fvt$
+	GIPRINT "",1
+	proc$=last$
+	RETURN
+
+	errhand::
+	ONERR OFF 
+	fname$=MID$( PARSE$(tmpfi$,tmpfi$,off%()) ,off%(4), LEN(tmpfi$)-off%(4)+1 )
+	IF fvt$=""  REM error opening app & file, set comment
+		comment$=""
+	ELSE      REM error opening file, app is running
+		comment$="(FreeVT will revert back to """+Nice$:(ParseF$:(fvt$))+""" settings)"
+	ENDIF
+	errdia:("Cannot load settings from """+Nice$:(fname$)+"""",ERR$(ERR),comment$)
+	IF fvt$=""  REM error opening app & file, exit
+		STOP
+	ENDIF
+	tmpfi$=fvt$
+	GOTO load::
+ENDP
+
+PROC saveSet:
+	LOCAL fi$(128),ky%,last$(8)
+	last$=proc$
+	proc$="saveset"
+	fi$=fvt$
+	DO
+		dINIT "Save settings"
+		dFILE fi$,"To",17
+		ky%=lastkey:(DIALOG)
+		IF ky%=291
+			vthelp:(6,1)
+		ELSEIF ky%<>27
+			savep:(fi$)
+			pstat:
+		ENDIF
+	UNTIL ky%<>291
+	proc$=last$
+	RETURN ky%
+ENDP
+
+PROC savep:(fi$)
+	LOCAL ha%,tmp$(10),tmpfi$(128),off%(6),last$(8)
+	LOCAL fname$(12)
+	last$=proc$
+	proc$="savep"
+	ONERR errhand
+	GIPRINT "Saving...",1
+	tmpfi$=fvt$
+	Check%:(IOOPEN(ha%,fi$,$0122),0)
+	fwrval:(ha%,baud%)
+	fwrval:(ha%,pari%)
+	fwrval:(ha%,datab%)
+	fwrval:(ha%,sbit%)
+	fwrval:(ha%,handsh%)
+	fwrval:(ha%,0)
+	fwrval:(ha%,0)
+	fwrval:(ha%,0)
+	fwrval:(ha%,proto%)
+	fwrval:(ha%,le%)
+	fwrval:(ha%,curs%)
+	fwrval:(ha%,bdr%)
+	cvtsshx:(backs$,ADDR(tmp$))
+	fwrstr:(ha%,tmp$)
+	cvtsshx:(enter$,ADDR(tmp$))
+	fwrstr:(ha%,tmp$)
+	fwrstr:(ha%,mini$)
+	fwrstr:(ha%,mhang$)
+	fwrstr:(ha%,mdiap$)
+	fwrstr:(ha%,mdias$)
+	fwrstr:(ha%,mcon$)
+	fwrstr:(ha%,merr$)
+	fwrstr:(ha%,moerr$)
+	fwrstr:(ha%,mbusy$)
+	Check%:(IOCLOSE(ha%),0)
+	fvt$=fi$
+	SupChgd%=0 REM reset setup-changes to none
+	SETNAME fvt$
+	SETPATH fvt$
+	GIPRINT "",1
+	proc$=last$
+	RETURN
+  
+	errhand::
+	ONERR OFF 
+	fname$=MID$( PARSE$(fi$,fi$,off%()) ,off%(4), LEN(fi$)-off%(4)+1 )
+	errdia:("Cannot save settings to """+Nice$:(fname$)+"""",ERR$(ERR),"")
+	IF fvt$=""  REM error opening app & creating file, exit
+		STOP
+	ENDIF
+	fvt$=tmpfi$
+	proc$=last$
+ENDP
+
+PROC fwrstr:(ha%,st$)
+	LOCAL lst$(21),last$(8)
+	last$=proc$
+	proc$="fwrstr"
+	lst$=st$
+	Check%:(IOWRITE(ha%,UADD(ADDR(lst$),1),LEN(lst$)),0)
+	proc$=last$
+ENDP
+
+PROC fwrval:(ha%,vl%)
+	LOCAL tmp$(11),last$(8)
+	last$=proc$
+	proc$="fwrval"
+	tmp$=GEN$(vl%,10)
+	Check%:(IOWRITE(ha%,UADD(ADDR(tmp$),1),LEN(tmp$)),0)
+	proc$=last$
+ENDP
+
+PROC frdstr$:(ha%)
+	LOCAL tmp$(255),ret%,last$(8)
+	last$=proc$
+	proc$="frdstr"
+	ret%=Check%:(IOREAD(ha%,UADD(ADDR(tmp$),1),255),0)
+	POKEB ADDR(tmp$),ret%
+	proc$=last$
+	RETURN tmp$
+ENDP
+
+PROC frdval%:(ha%)
+	LOCAL tmp$(255),ret%,last$(8)
+	last$=proc$
+	proc$="frdval"
+	ret%=Check%:(IOREAD(ha%,UADD(ADDR(tmp$),1),255),0)
+	POKEB ADDR(tmp$),ret%
+	ret%=VAL(tmp$)
+	proc$=last$
+	RETURN ret%
+ENDP
+
+PROC pstat:
+	LOCAL st$(20),off%(6),last$(8)
+	last$=proc$
+	proc$="pstat"
+	gUSE w2%
+
+	REM show filename in use
+	gAT 10,8
+	gPRINTB Nice$:(ParseF$:(fvt$)),8*8
+
+	REM show capture mode
+	IF (cap% AND 1)=1 AND (cap% AND 4)=0
+		st$="Cap-N"
+	ELSEIF (cap% AND 5)=5
+		st$="Cap-A"
+	ELSE
+		st$=REPT$(" ",5)
+	ENDIF
+	gAT 330,8
+	gPRINTB st$,LEN(st$)*8
+
+	gAT 400,8
+	st$=""
+	st$=GEN$(ba%(baud%),-5)+" "
+	st$=st$+GEN$(datab%,1)
+	st$=st$+MID$("NEO",pari%+1,1)
+	st$=st$+GEN$(sbit%,1)
+	gPRINTB st$,LEN(st$)*8
+	gUSE w1%
+	proc$=last$
+ENDP
+
+PROC wmodem:(mostr$)
+	LOCAL i%,tmp$(2),address%,alen%,last$(8)
+	last$=proc$
+	proc$="wmodem"
+	i%=1
+	WHILE i%<=LEN(mostr$)
+		tmp$=MID$(mostr$,i%,1)
+		IF tmp$="~"
+			tmp$=CHR$(13)
+		ELSEIF tmp$="^"
+			tmp$=CHR$(10)
+		ENDIF
+		alen%=1
+		IOA(serial%,2,stat%,#UADD(ADDR(tmp$),1),alen%)
+		IOSIGNAL
+		i%=i%+1
+	ENDWH
+	proc$=last$
+ENDP
+
+REM Modem dial (prompts for number first)
+PROC mdial:
+	LOCAL timeout%,tries%,lkey%,dstat%,a$(5),instr$(40),dstw%,ky%,alen%,last$(8)
+	LOCAL mstat$(30),sec%
+	last$=proc$
+	proc$="mdial"
+	DO
+		dINIT "Enter number to dial"
+		dEDIT gnumb$,"Number",20
+		ky%=lastKey:(DIALOG)
+		IF ky%=291
+			vthelp:(9,1)
+		ENDIF
+	UNTIL ky%<>291
+	IF ky%=27
+		proc$=last$
+		RETURN
+	ENDIF
+	tries%=0
+	lkey%=KEY
+	lkey%=0
+	sec%=SECOND
+	dstw%=gCREATE(40,5,400,140,1,1)
+	gUSE dstw%
+	gXBORDER 1,3
+	gAT 150,20:gPRINT "Dial Modem"
+	gAT 10,36:gPRINT "Number:"
+	gAT 80,36:gPRINT gnumb$
+	gAT 10,52:gPRINT "Status:"
+	gAT 10,68:gPRINT "Try:"
+	gAT 180,68:gPRINT "Time left:"
+	gAT 10,84:gPRINT "Modem response:"
+	gAT 120,130:gPRINT "(Press ESC to cancel)"
+	WHILE (lkey%<>27 AND tries%<dmaxtry& AND dstat%<>1)
+		tries%=tries%+1
+		instr$=""
+		dstat%=0
+		mstat$="Dialing..."
+		gAT 80,68:gPRINTB gen$(tries%,2),20
+		gAT 80,52:gPRINTB mstat$,200
+		wmodem:(mdiap$+gnumb$+mdias$)
+		timeout%=dtout&
+		REM Wait for a response from modem
+		WHILE (dstat%=0 AND lkey%<>27)
+			IF sec%<>SECOND
+				sec%=SECOND
+				timeout%=timeout%-1
+			ENDIF
+			gAT 140,84:gPRINTB instr$,200
+			gAT 250,68:gPRINTB gen$(timeout%,3),30
+			lkey%=KEY
+			alen%=Check%:(bread%:(UADD(ADDR(a$),1),1,0),0)
+			IF alen%>0
+				POKEB ADDR(a$),alen%
+			ELSE
+				a$=""
+			ENDIF
+			instr$=instr$+a$
+			IF LEN(instr$)>20
+				instr$=RIGHT$(instr$,20)
+			ENDIF
+			IF LOC(instr$,mcon$)<>0		REM Connect
+				dstat%=1
+			ELSEIF LOC(instr$,mbusy$)<>0
+				mstat$="Busy"
+				dstat%=2
+			ELSEIF LOC(instr$,merr$)<>0
+				mstat$="Modem error!"
+				dstat%=3
+			ELSEIF LOC(instr$,moerr$)<>0
+				mstat$="Other modem error"
+				dstat%=4
+			ENDIF
+		ENDWH
+		gAT 80,52:gPRINTB mstat$,200
+		REM Continue to wait before dialing again
+		WHILE (dstat%<>1 AND timeout%>0 AND lkey%<>27)
+			IF sec%<>SECOND
+				sec%=SECOND
+				timeout%=timeout%-1
+			ENDIF
+			gAT 250,68:gPRINTB gen$(timeout%,3),30
+			lkey%=KEY
+		ENDWH
+	ENDWH
+	IF lkey%=27
+		dstat%=-1
+		mstat$="User interrupt!"
+	ENDIF
+	gAT 80,52:gPRINTB mstat$,200
+	gUPDATE
+	IF dstat%=1		REM Connected
+		playmel:(0)
+	ELSE
+		playmel:(1)
+		get
+	ENDIF
+	gCLOSE dstw%
+	gUSE w1%
+	proc$=last$
+ENDP
+
+PROC playmel:(kind%)
+	LOCAL i%,nn%,base%,last$(8)
+	last$=proc$
+	proc$="playmel"
+	i%=0
+	IF kind%=0	:REM Positive melody
+		nn%=-50
+		base%=400
+	ELSE
+		nn%=50		:REM Negative melody
+		base%=300
+	ENDIF
+	WHILE i%<3
+		BEEP 5,base%
+		BEEP 5,base%+nn%
+		BEEP 5,base%+(2*nn%)
+		i%=i%+1
+	ENDWH
+	proc$=last$
+ENDP
+
+PROC vthelp:(page%,base%)
+	LOCAL gate%,buf%(65),n%,n$(3,1),last$(8)
+	LOCAL page&,base&
+	last$=proc$
+	proc$="vthelp"
+	ONERR errhand::
+	page&=page%
+	base&=base%
+
+	REM drives to look in
+	n$(1)="M"
+	n$(2)="A"
+	n$(3)="B"
+
+	REM look through drives for freevt.rsc file
+	WHILE n%<=3
+		n%=n%+1
+		IF EXIST("LOC::"+n$(n%)+":\FVT\freevt.rsc")
+			BREAK
+		ENDIF
+	ENDWH
+
+	REM raise file not found error if n%>3
+	IF n%>3
+		RAISE -33
+	ENDIF
+
+	REM Convert help filename to "C" string: (use any char as first char)
+	POKE$ ADDR(buf%(1)),"#LOC::"+n$(n%)+":\FVT\freevt.rsc"
+	gate%=PEEKW($38)
+
+	REM call help with freevt resource file
+	SEND(gate%,27,buf%(2)) :REM Set help filename
+	SEND(gate%,26,#page&,#base&) :REM Do help
+	proc$=last$
+	RETURN
+
+	errhand::
+	ONERR OFF
+	errdia:("Cannot open help file",ERR$(ERR),"") 
+	proc$=last$
+ENDP
+
+PROC cvtsshx:(x$,y%)
+	REM converts x$ ("abcd") to
+	REM t$ ("<$nn><$$nn>...") and 
+	REM writes to address y%
+	LOCAL n%,t$(50),last$(8)
+	last$=proc$
+	proc$="cvtsshx"
+	WHILE n%<LEN(x$)
+		n%=n%+1
+		t$=t$+cvtshx$:(MID$(x$,n%,1))
+	ENDWH
+	POKE$ y%,t$
+	proc$=last$
+ENDP
+
+PROC cvtshx$:(x$)
+	REM Returns a <$hh> form of string x$
+	RETURN "<$"+RIGHT$("0"+HEX$(ASC(x$)),2)+">"
+ENDP
+
+PROC cvthxs:(str$,newstr%)
+	REM takes a string of <$nn> OR <yyy> text
+	REM characters and returns a string of text 
+	REM characters to address newstr%.
+	REM newstr% must be 2 bytes long
+	REM Accepts "<$61><$62><$63>" OR "<97><98>" OR "abc" form
+	REM Returns text string up to 2 chars in length
+	REM ie: str$="abc" 
+	REM     newstr$="ab"
+	REM ie: str$="<$61><$62><$63>"
+	REM     newstr$="<$61><$62>"
+	REM ie: str$="<97><98><99>"
+	REM     newstr$="ab"
+	REM Error handling:
+	REM Returns -1 if str$ is illegal
+	LOCAL st$(10),newst$(2),x$(3),b%,e%,n%,last$(8)
+	last$=proc$
+	proc$="cvthxs"
+	st$=str$
+
+	WHILE LEFT$(st$,1)=" "    REM remove leading spaces
+		st$=RIGHT$(st$,LEN(st$)-1)
+	ENDWH
+
+	IF st$=""          REM null string ?
+		proc$=last$
+		RETURN -1
+	ENDIF
+
+	REM check for first chars="<". If not, 
+	REM string is text, return first 2 characters.
+	IF LEFT$(st$,1)<>"<"
+		POKE$ newstr%,LEFT$(st$,2)
+		proc$=last$
+		RETURN
+	ENDIF
+
+
+	REM OK, string must be hex form. Make upper case
+	st$=UPPER$(st$)
+
+	REM now extract the number from the string
+	DO
+		b%=LOC(st$,"<")			 REM begin 
+		e%=LOC(st$,">")			 REM end
+
+		IF b%=0 OR e%=0 OR e%-b%>4 OR e%-b%=1
+			proc$=last$
+			RETURN -1	       REM no < or >, min 1, max 3 chars
+		ENDIF
+
+		x$=MID$(st$,b%+1,e%-b%-1)       REM remove brackets
+
+		IF LEFT$(x$,1)="$"
+			REM check for illegal hex chars
+			REM and minimum length of 2 digits ($n)
+			n%=0
+			DO
+				n%=n%+1
+				IF LOC("$0123456789ABCDEF",MID$(x$,n%,1))=0 OR e%-b%<3
+					proc$=last$
+					RETURN -1
+				ENDIF
+			UNTIL n%=LEN(x$)
+		ELSE
+			REM check for illegal dec chars
+			REM and minimum length of 1 digit (n)
+			REM and maximum value of 255
+			n%=0
+			DO
+				n%=n%+1
+				IF LOC("0123456789",MID$(x$,n%,1))=0 OR e%-b%<2 OR EVAL(x$)>255
+					proc$=last$
+					RETURN -1
+				ENDIF
+			UNTIL n%=LEN(x$)
+		ENDIF
+
+		REM all OK, add to newst, reduce st
+		newst$=newst$+CHR$(EVAL(x$))
+		st$=RIGHT$(st$,LEN(st$)-e%)
+	UNTIL LEN(newst$)=2 OR LEN(st$)=0
+	POKE$ newstr%,newst$
+	proc$=last$
+ENDP
+
+PROC setcurs:
+	REM bit 1 sets flash (set = no flash)
+	REM bits 4 & 5 sets style:
+	REM          4&5 set = bar
+	REM            5 set = underline
+	REM            4 set = block
+	LOCAL last$(8)
+	last$=proc$
+	proc$="setcurs"
+	IF (curs% AND 48)=48          REM bar
+		CURSOR w1%,i%(5)+1,i%(4)+1,i%(3)+2,curs% AND 2
+	ELSEIF (curs% AND 32)=32      REM underline
+		CURSOR w1%,0,i%(7),i%(4)+1,curs% AND 2
+	ELSEIF (curs% AND 16)=16      REM block
+		CURSOR w1%,i%(5)+1,i%(7),i%(3)+2,curs% AND 2
+	ELSE
+		CURSOR OFF
+	ENDIF
+	proc$=last$
+ENDP
+
+
+PROC cap:(st$)
+	REM this is the capture procedure.
+	REM If "Show control chars" is OFF, then _all_ incoming
+	REM characters are written to the capture file
+	REM If "Show control chars" is ON, then all chars under 32 are
+	REM translated into <$xx> (xx=hex). A LF adds a CR+LF to the file
+	LOCAL ret%,n%,m$(7),last$(8)
+	last$=proc$
+	proc$="cap"
+	WHILE n%<LEN(st$)	REM loop all characters
+		n%=n%+1
+		m$=MID$(st$,n%,1)	REM get character
+		IF (cap% AND 2)=2 AND ASC(m$)<32	REM show control char on?
+			IF ASC(m$)=$0A	REM if LF, add CR+LF for correct file structure
+				m$="<$"+RIGHT$("0"+HEX$(ASC(m$)),2)+">"+CHR$($0D)+CHR$($0A)
+				ELSE
+				m$="<$"+RIGHT$("0"+HEX$(ASC(m$)),2)+">"
+			ENDIF
+		ENDIF
+		Check%:(IOWRITE(capha%,UADD(ADDR(m$),1),LEN(m$)),0) REM write to file
+	ENDWH
+	proc$=last$
+ENDP
+
+
+PROC vtdef:
+	REM default settings for FreeVT
+	LOCAL last$(8)
+	last$=proc$
+	proc$="vtdef"
+	handsh%=0:REM RTS/CTS handshaking
+	curs%=16:REM cursor is block+blink
+	bdr%=0  :REM border is off
+	baud%=16:REM baudrate (=19200)
+	pari%=0 :REM parity (=none)
+	datab%=8:REM databits
+	sbit%=1 :REM stopbits
+	proto%=6:REM default protocol (=YModem)
+	cap%=0  :REM capture is off
+	le%=2	   :REM local echo off
+	backs$=CHR$(8)  :REM BS sends BS, not DEL
+	enter$=CHR$(13) :REM enter sends CR, not LF
+	mini$="ATZ~"
+	mhang$="ATH0~"
+	mdiap$="ATDT"
+	mdias$="~"
+	gnumb$=""
+	mcon$="CONNECT"
+	merr$="ERROR"
+	moerr$="NO "
+	mbusy$="BUSY"
+	dtout&=60
+	dmaxtry&=5
+	ba%(1)=50
+	ba%(2)=75
+	ba%(3)=110
+	ba%(4)=134
+	ba%(5)=150
+	ba%(6)=300
+	ba%(7)=600
+	ba%(8)=1200
+	ba%(9)=1800
+	ba%(10)=2000
+	ba%(11)=2400
+	ba%(12)=3600
+	ba%(13)=4800
+	ba%(14)=7200
+	ba%(15)=9600
+	ba%(16)=19200
+	proc$=last$
+ENDP
+
+
+PROC Nice$:(s$)
+	REM returns the first character of s$ 
+	REM in upper and the rest in lower case
+	RETURN UPPER$(LEFT$(s$,1))+LOWER$(RIGHT$(s$,LEN(s$)-1))
+ENDP
+
+
+PROC Parsef$:(f$)
+	REM returns the just the filename from the
+	REM full file spec f$
+	LOCAL off%(6)
+	RETURN MID$(PARSE$(f$,f$,off%()),off%(4),off%(5)-off%(4))
+ENDP
+
+
+PROC sorry:(t$)
+	REM a standard sorry dialog
+	errdia:(t$,"Sorry,","This feature is not yet implemented !")
+ENDP
+
+
+PROC fiOvWr:
+	REM a simple file overwrite dialog
+	REM looks the same as built-in dialogs
+	REM returns %y if user chooses Y
+	REM returns %n if user chooses N
+	LOCAL k%,last$(8)
+	last$=proc$
+	proc$="fiovwr"
+	DO
+		dINIT "File already exists: overwrite?"
+		dBUTTONS "No",%N,"Yes",%Y
+		k%=lastKey:(DIALOG)
+		IF k%=291
+			vthelp:(1,1)
+		ENDIF
+	UNTIL k%<>291
+	proc$=last$
+	RETURN k%
+	proc$=last$
+ENDP
+
+
+PROC lastkey:(k%)
+	REM Use: lastKey:(MENU) or lastKey:(DIALOG)
+	REM Returns: 
+	REM          Quit key    Value
+	REM          Enter      selection
+	REM          Help         291
+	REM          Esc          27
+	REM Variable d%=dummy
+	LOCAL d%,last$(8)
+	last$=proc$
+	proc$="lastkey"
+	IF k%			REM Enter was pressed
+		proc$=last$
+		RETURN k%
+	ELSE			REM Esc or Help was pressed
+		proc$=last$
+		RETURN SEND(PEEKW($38),23,d%)
+	ENDIF
+ENDP
+
+PROC vtbdr:
+	REM Toggles the border on and off
+	REM The border is just a third window w3% (with a border) and the first
+	REM (main) window w1% is resized to allow for w3%.
+	REM w1% lies on top off w3%
+	REM Change Gap% to adjust the gap between border (w3%) and text (w1%)
+	REM bdr%=1 is on
+	REM bdr%=0 is off
+	LOCAL Gap%,last$(8)
+	last$=proc$
+	proc$="vtbdr"
+	Gap%=3
+	IF bdr%=0 AND w3%<>0		REM only close if already existing
+		gCLOSE w3%
+		w3%=0
+		gUSE w1%
+		gSETWIN 0,0,480,150
+	ELSEIF bdr%=1	AND w3%=0	REM create w3%, resize w1%
+		gUSE w1%
+		gSETWIN Gap%,Gap%,480-(2*Gap%),150-(2*Gap%)
+		w3%=gCREATE (0,0,480,150,1,0)
+		gBORDER 0
+		gORDER w1%,1
+		gUSE w1%
+	ENDIF
+	proc$=last$
+ENDP
+
+REM The following procedures come from Xmodem & Ymodem
+REM code examples by
+REM Jeremy Wakefield <jezar@cix.compulink.co.uk>
+
+REM check for error condition
+PROC Check%:(err%,accept%)
+	LOCAL last$(8)
+	last$=proc$
+	proc$="check"
+	IF err%<0 AND err%<>accept%
+		RAISE err%
+	ENDIF
+	proc$=last$
+	RETURN err%
+ENDP
+
+REM  Self-raising IOOPEN
+REM  This version also works for 
+REM  attached drivers too
+PROC IoOpen%:(oldhand%,name$,mode%)
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(130),last$(8)
+	last$=proc$
+	proc$="ioopen"
+	POKE$ ADDR(name%(1)),"#"+name$
+	ax%=0
+	bx%=ADDR(name%(2))
+	cx%=mode%
+	dx%=oldhand%
+	IF OS($0085,ADDR(ax%)) AND 1
+		RAISE (ax% OR $FF)
+	ENDIF
+	proc$=last$
+	RETURN ax%
+ENDP
+
+REM  This function returns TRUE
+REM  if the device you name exists
+REM  in the system.
+REM  (don't include the colon!)
+PROC LDexist%:(name$)
+	GLOBAL LDxst%
+	LOCAL last$(8)
+	last$=proc$
+	proc$="ldexist"
+	FindLDD%:("LDxeng",name$)
+	proc$=last$
+	RETURN LDxst%
+ENDP
+
+REM  Private to above procedure..
+PROC LDxeng%:(name$)
+	LDxst%=-1
+	RETURN -1
+ENDP
+
+REM  Logical device-driver loader.
+PROC LoadLDD%:(fname$)
+	LOCAL last$(8)
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(130)
+	last$=proc$
+	POKE$ ADDR(name%(1)),"#"+fname$
+	ax%=$0600 :REM DevLoadLDD
+	bx%=ADDR(name%(2))
+	IF OS($0085,ADDR(ax%)) AND 1
+		RAISE (ax% OR $FF)
+	ENDIF
+	proc$=last$
+ENDP
+
+REM  Logical device-driver unloader.
+REM  This is always safe; they won't
+REM  unload if they're not meant to.
+REM  'dname' is specified WITHOUT
+REM  the colon at the end.
+PROC RemLDD%:(dname$)
+	LOCAL last$(8)
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL name%(130)
+	last$=proc$
+	POKE$ ADDR(name%(1)),"#"+dname$
+	ax%=$0800 :REM DevDelete
+	bx%=ADDR(name%(2))
+	dx%=$dd01 :REM ID for an LDD
+	REM We don't care if this fails:
+	OS($0085,ADDR(ax%))
+	proc$=last$
+ENDP
+
+REM  Logical device-driver finder.
+REM  (allows wildcards)
+REM  Calls back your function with
+REM  a matching device name as a
+REM  a parameter for you.
+PROC FindLDD%:(func$,match$)
+	LOCAL last$(8)
+	LOCAL ax%,bx%,cx%,dx%,si%,di%
+	LOCAL buf%(10),bufLBC%,regs%
+	LOCAL match%(130),ret%
+	last$=proc$
+	ONERR done
+	bufLBC%=ADDR(buf%(1))
+	regs%=ADDR(ax%)
+	POKE$ ADDR(match%(1)),"#"+match$
+	dx%=$dd01 :REM ID for an LDD
+	si%=ADDR(buf%(2))
+	di%=ADDR(match%(2))
+	WHILE 1
+		bx%=ax%
+		ax%=$0A00
+		IF (OS($85,regs%) AND 1)
+			RAISE (ax% OR $FF00)
+		ENDIF
+		POKEB bufLBC%,1+CALL($B9,0,0,0,0,si%)
+		IF @%(func$):(MID$(PEEK$(bufLBC%),2,254))
+			RAISE 0
+		ENDIF
+	ENDWH
+done::
+	ONERR OFF
+	IF ERR<0 AND ERR<>-41
+		RAISE ERR
+	ENDIF
+	proc$=last$
+ENDP

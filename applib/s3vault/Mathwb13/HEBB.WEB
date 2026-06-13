@@ -1,0 +1,220 @@
+
+<opts>
+<isrc>cell</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss13</scrfont>
+<statwin>on</statwin>
+<cfmt></cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N:=\F</rfmt>
+<rall>yes</rall>
+<starg></starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>2</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>5.00</xmax>
+<xmin>-5.00</xmin>
+<ymax>5.00</ymax>
+<ymin>-5.00</ymin>
+<xintrvls>5</xintrvls>
+<yintrvls>5</yintrvls>
+<xycells>home,home</xycells>
+<cell>
+<cname>a1</cname>
+<val>4</val></cell>
+<cell>
+<cname>a2</cname>
+<val>3</val></cell>
+<cell>
+<cname>a3</cname>
+<val>2</val></cell>
+<cell>
+<cname>a4</cname>
+<val>1</val></cell>
+<cell>
+<cname>b1</cname>
+<val>0.98</val>
+<script>a1*w11+a2*w21+a3*w31+a4*w41</script></cell>
+<cell>
+<cname>b2</cname>
+<val>1.97</val>
+<script>a1*w12+a2*w22+a3*w32+a4*w42</script></cell>
+<cell>
+<cname>b3</cname>
+<val>2.95</val>
+<script>a1*w13+a2*w23+a3*w33+a4*w43</script></cell>
+<cell>
+<cname>b4</cname>
+<val>3.98</val>
+<script>a1*w14+a2*w24+a3*w34+a4*w44</script></cell>
+<cell>
+<cname>computeBs</cname>
+<val>3.98</val>
+<script>b1! b2! b3! b4!</script></cell>
+<cell>
+<cname>computeWs</cname>
+<val>0.13</val>
+<script> w11! w12! w13! w14! w21! w22! w23! w24! w31! w32! w33!
+         w34! w41! w42! w43! w44!
+
+</script></cell>
+<cell>
+<cname>home</cname>
+<text>This web illustrates Hebbian learning and the use of a delta rule for pattern association between two four element vectors A and B, using an interconnection matrix W.
+
+   a1       a2       a3       a4
+w11   w12    w13    w15    b1
+w21   w22    w23    w24    b2
+w31   w32    w33    w34    b3
+w41   w42    w43    w44    b4
+
+For any collection of weights (wij's) and inputs (aj's), a collection of outputs (bj's) may be computed according to the formula:
+
+    1)    bj=a1*w1j+a2*w2j+a3*w3j+a4*w4j,   j=1..4
+
+For a given input vector A, it is possible to 'teach' the associator to produce an output vector B, which is arbitrarily close to a target vector T.  This may be done in the following way:
+
+a) Set the values aj of the input vector A
+b) Set the values ti of the target vector T
+(         Steps a) and b) may be done by going to the cell named 'input', setting its text field to the desired row vectors A and T (four a numbers followed by four t numbers),  and selecting execute from the Special menu. )
+
+c) Set the formulae of the weights to the expression:
+                wij=wij+ai*(tj-bj)/k         ( delta rule)
+( this has already been done)
+
+d)  Set the values of the weights wij to random or
+         to similar small values.
+( Position to the cell RandomizeWeights and execute its script to accomplish this task)
+
+e) Compute a trial set of output values using equation 1).
+ ( Execute the script of cell ComputeBs to perform this computation. )
+
+f)  Recompute the weights wij according to the delta rule.
+( Execute the script of cell ComputeWs to recompute the weights )
+
+g)  Repet steps e) and f) until the output vector B is as close to the target vector T as you desire.
+(Each time it is executed, the script of this 'home' cell will repeat steps e) and f) 25 times, and ouput a comparison between the B vector and T vector.)</text>
+<val>0.13</val>
+<script>for(kdex=1 to 25) {
+    computeBs!
+    computeWs!
+out(t1," ~ ",b1,"    ")
+out(t2," ~ ",b2,"    ")
+out(t3," ~ ",b3,"    ")
+out(t4," ~ ",b4,"\n")
+} #endfor
+</script></cell>
+<cell>
+<cname>idex</cname>
+<val>3.00</val></cell>
+<cell>
+<cname>input</cname>
+<text>4,3,2,1
+1,2,3,4</text>
+<script>in(a1,a2,a3,a4)
+in(t1,t2,t3,t4)</script></cell>
+<cell>
+<cname>jdex</cname>
+<val>3.00</val></cell>
+<cell>
+<cname>k</cname>
+<val>1000</val></cell>
+<cell>
+<cname>kdex</cname>
+<val>10.00</val></cell>
+<cell>
+<cname>RandomizeWeights</cname>
+<script>for(idex=0 to 3) {
+    for(jdex=0 to 3) {
+        set w11[4*idex+jdex] to 0.0001*rand()
+    } #endfor
+} #endfor</script></cell>
+<cell>
+<cname>t1</cname>
+<val>1</val></cell>
+<cell>
+<cname>t2</cname>
+<val>2</val></cell>
+<cell>
+<cname>t3</cname>
+<val>3</val></cell>
+<cell>
+<cname>t4</cname>
+<val>4</val></cell>
+<cell>
+<cname>train</cname>
+<script>in(t1,t2,t3,t4)</script></cell>
+<cell>
+<cname>w11</cname>
+<val>0.13</val>
+<script>w11+a1*(t1-b1)/k</script></cell>
+<cell>
+<cname>w12</cname>
+<val>0.26</val>
+<script>w12+a1*(t2-b2)/k</script></cell>
+<cell>
+<cname>w13</cname>
+<val>0.39</val>
+<script>w13+a1*(t3-b3)/k</script></cell>
+<cell>
+<cname>w14</cname>
+<val>0.53</val>
+<script>w14+a1*(t4-b4)/k</script></cell>
+<cell>
+<cname>w21</cname>
+<val>0.10</val>
+<script>w21+a2*(t1-b1)/k</script></cell>
+<cell>
+<cname>w22</cname>
+<val>0.20</val>
+<script>w22+a2*(t2-b2)/k</script></cell>
+<cell>
+<cname>w23</cname>
+<val>0.30</val>
+<script>w23+a2*(t3-b3)/k</script></cell>
+<cell>
+<cname>w24</cname>
+<val>0.40</val>
+<script>w24+a2*(t4-b4)/k</script></cell>
+<cell>
+<cname>w31</cname>
+<val>0.06</val>
+<script>w31+a3*(t1-b1)/k</script></cell>
+<cell>
+<cname>w32</cname>
+<val>0.13</val>
+<script>w32+a3*(t2-b2)/k</script></cell>
+<cell>
+<cname>w33</cname>
+<val>0.19</val>
+<script>w33+a3*(t3-b3)/k</script></cell>
+<cell>
+<cname>w34</cname>
+<val>0.26</val>
+<script>w34+a3*(t4-b4)/k</script></cell>
+<cell>
+<cname>w41</cname>
+<val>0.03</val>
+<script>w41+a4*(t1-b1)/k</script></cell>
+<cell>
+<cname>w42</cname>
+<val>0.06</val>
+<script>w42+a4*(t2-b2)/k</script></cell>
+<cell>
+<cname>w43</cname>
+<val>0.10</val>
+<script>w43+a4*(t3-b3)/k</script></cell>
+<cell>
+<cname>w44</cname>
+<val>0.13</val>
+<script>w44+a4*(t4-b4)/k</script></cell></eof>

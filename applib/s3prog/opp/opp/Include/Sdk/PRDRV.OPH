@@ -1,0 +1,186 @@
+#define PRDRV_OPH
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#ifndef APPMAN_OPH
+#include <sdk\appman>
+#endif
+
+/* Constants for wdr */
+
+#define WDR_PRINT_PAGE 0x01
+#define WDR_PRINT_LINE 0x02
+#define WDR_PRINT_RIGHT 0x04
+#define WDR_PRINT_FONT 0x08
+#define WDR_PRINT_TEXT 0x10
+#define WDR_PRINT_START 0x20
+#define WDR_PRINT_END 0x40
+#define WDR_PRINT_IDLE 0x4000
+#define WDR_PRINT_KEEP 0x8000
+#define WDR_PDR_LANDSCAPE 0x01
+#define WDR_RSC_HEADER 1
+#define WDR_RSC_COMMANDS 2
+#define WDR_DYL_LOAD 0x01
+#define WDR_HP_PCL 0x02
+#define WDR_STYLE_NORMAL 0x0000
+#define WDR_STYLE_UNDERLINE 0x0001
+#define WDR_STYLE_BOLD 0x0002
+#define WDR_STYLE_ITALIC 0x0004
+#define WDR_STYLE_SUPER 0x0008
+#define WDR_STYLE_SUB 0x0010
+#define WDR_STYLE_MONOSPACE 0x8000
+#define WDR_STYLE_SANS_SERIF 0x4000
+#define WDR_TYPF_PROPORTIONAL 0x01
+#define WDR_TYPF_SCALED 0x02
+#define WDR_TYPF_SERIF 0x04
+#define WDR_MODEL_LANDSCAPE_AVAILABLE 1
+#define WDR_MODEL_MINX_IS_DOTS_PER_INCH 4
+#define WDR_SCALE_DEFAULT_HEIGHT 1000
+#define WDR_FONT_NAME_LEN 20
+#define PRINTER_NAME_LEN 24
+#define PRINT_TYPE_LEN 9
+#define PDR_FILE_LEN 9
+
+/* Types for wdr */
+
+STRUCT WDR_FONT
+	height%
+	height_max%
+	height_delta%
+	width_scale%
+	width_normal%
+	width_italic%
+	width_bold%
+	width_bold_italic%
+	command%
+ENDS
+
+STRUCT WDR_TYPEFACE
+	name#(WDR_FONT_NAME_LEN)
+	typeface%
+	type%
+	trans_rid%
+	num_heights%
+	font#(SIZEOF(WDR_FONT))
+ENDS
+
+STRUCT WDR_MODEL
+	minx%
+	miny%
+	skipx%
+	skipy%
+	flags%
+	num_typefaces%
+	typeface%(1)
+ENDS
+
+STRUCT WDR_MODEL_INDEX
+	rid%
+	name#(PRINTER_NAME_LEN)
+ENDS
+
+STRUCT WDR_HEADER
+	id#(6)
+	flags%
+	num_model%
+	model#(SIZEOF(WDR_MODEL_INDEX))
+ENDS
+
+STRUCT WDR_WIDTH_TABLE
+	next%
+	rid%
+	height%
+	table%
+ENDS
+
+STRUCT WDR_PRINT
+	flags%
+	typf%
+	fheight%
+	style%
+	down%
+	indent%
+	height%
+	right%
+	buf%
+	blen%
+ENDS
+
+/* Property of wdr */
+
+STRUCT PRS_WDR
+	file%
+	head%
+	model%
+	wid%
+	wdrname#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_WDR
+	root#(SIZEOF(PRS_ROOT))
+	wdr#(SIZEOF(PRS_WDR))
+ENDS
+
+/* Constants for pdr */
+
+#define PDR_CMD_RESET 0
+#define PDR_CMD_FORM_LENGTH 1
+#define PDR_CMD_PREAMBLE 2
+#define PDR_CMD_POSTAMBLE 3
+#define PDR_CMD_UNDERLINE_ON 4
+#define PDR_CMD_UNDERLINE_OFF 5
+#define PDR_CMD_BOLD_ON 6
+#define PDR_CMD_BOLD_OFF 7
+#define PDR_CMD_ITALIC_ON 8
+#define PDR_CMD_ITALIC_OFF 9
+#define PDR_CMD_SUPERSCRIPT_ON 10
+#define PDR_CMD_SUPERSCRIPT_OFF 11
+#define PDR_CMD_SUBSCRIPT_ON 12
+#define PDR_CMD_SUBSCRIPT_OFF 13
+#define PDR_CMD_NEW_PAGE 14
+#define PDR_CMD_CARRIAGE_RETURN 15
+#define PDR_CMD_MOVE_DOWN 16
+#define PDR_CMD_MOVE_RIGHT_PREFIX 17
+#define PDR_CMD_MOVE_RIGHT 18
+#define PDR_CMD_MOVE_RIGHT_SUFFIX 19
+#define PDR_CMD_LANDSCAPE 20
+
+/* Types for pdr */
+
+STRUCT PDR_INIT
+	wdr%
+	flags%
+	page_length%
+	dyl%
+	head%
+	model%
+ENDS
+
+STRUCT PDR_ALLOC
+	commands%
+	outbuf%
+	trans_res%
+	tix%
+ENDS
+
+/* Property of pdr */
+
+STRUCT PRS_PDR
+	par#(SIZEOF(PDR_INIT))
+	mode%
+	typfix%
+	fhix%
+	style%
+	lheight%
+	a#(SIZEOF(PDR_ALLOC))
+	trans_rid%
+	outlen%
+	skipy%
+ENDS
+
+STRUCT PR_PDR
+	root#(SIZEOF(PRS_ROOT))
+	pdr#(SIZEOF(PRS_PDR))
+ENDS

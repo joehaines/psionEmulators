@@ -1,0 +1,65 @@
+PROC Start:
+	LOCAL a%,b%,p$(8)
+	LOCAL ax%,bx%,cx%
+
+	gSETWIN 1,1,1,1
+
+	dINIT "Enter Password"
+	dXINPUT p$,""
+	IF DIALOG
+		ax%=$9900
+		bx%=100
+		cx%=0
+		OS($8d,ADDR(ax%))
+	ELSE
+		STOP
+	ENDIF
+
+	ax%=$c500
+	bx%=35
+	cx%=$e00+12
+	OS($8d,ADDR(ax%))
+
+	ax%=$c500
+	bx%=92
+	cx%=$e00+12
+	OS($8d,ADDR(ax%))
+
+	DO
+		a%=GET
+		b%=KMOD
+			IF a%=35 AND b%=12
+				pason:(0,p$)
+				OFF
+				pason:(-1,p$)
+			ELSEIF a%=92 AND b%=12
+				STOP
+			ENDIF
+	UNTIL 0
+ENDP
+
+PROC pason:(on%,pwd$)
+	REM using OS call $8B sub $30
+	REM Turn the password on
+	local ax%,bx%,cx%,dx%,si%,di%
+	local buf$(8)
+	buf$ = crypt$:("D",pwd$)
+	ax% = $3000 - on%
+	si% = addr(buf$)
+	IF (OS($8B,addr(ax%)) and 1 ) = 1
+		alert("Pason - Cant change pwd status",ERR$(ax% OR $FF00))
+		stop
+	ENDIF
+ENDP
+
+
+REM Encryption using OS calls
+PROC crypt$:(mode$,pwd$)
+	local q$(9)
+LOCAL crypt%(9)
+		rem (E)NCRYPT or (D)ECRYPT
+		q$=pwd$
+		crypt%(9) = 0
+		call($358b - $100 * (mode$="E"),0,len(q$),0,addr(crypt%()),uadd(addr(q$),1))
+	return q$
+endp

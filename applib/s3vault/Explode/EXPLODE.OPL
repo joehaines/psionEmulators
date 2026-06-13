@@ -1,0 +1,447 @@
+APP Explode
+	TYPE 0
+	ICON "\opd\explode.pic"
+ENDA
+
+PROC Start:
+	GLOBAL hsize%,wsize%,board%(110),cmass%(110),skill%,white%,black%,best%,x%,y%,mv%,mh%,mw%
+	GLOBAL sound%,hoff%,woff%,hmax%,wmax%
+	LOCAL h%,w%,dire%,ok%
+	RANDOMIZE DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
+	skill%=1
+	hsize%=5
+	wsize%=5
+	sound%=5
+		hoff%=14
+		woff%=7
+	DO
+		Init:
+		dire%=-1
+		mv%=0
+		mh%=1
+		mw%=1
+		hmax%=7
+		wmax%=14
+		IF rnd>0.5
+			board%(1)=1
+			black%=1
+			mv%=1
+		ENDIF
+		PrintBd:
+		DO
+			ok%=1
+			IF dire%=-1
+				DO
+					ok%=GetMove:
+					IF ok%=0
+						GOTO xit::
+					ENDIF
+					h%=mh%
+					w%=mw%
+				UNTIL board%(((h%-1)*15)+w%)<1
+				Expl:(h%,w%,dire%)
+			ELSE
+				IF skill%=0
+					DO
+					x%=1+INT(RND*hsize%)
+					y%=1+INT(RND*wsize%)
+					UNTIL board%(((x%-1)*15)+y%)>-1
+				ELSE
+					BUSY "Thinking...",0
+					DoPly:(skill%,dire%,-32767*dire%)
+					BUSY OFF
+				ENDIF
+				Expl:(x%,y%,dire%)
+			ENDIF
+			PrintBd:
+			dire%=-dire%
+			mv%=mv%+1
+			GIPRINT "Move:"+GEN$(mv%,4)+" Black:"+GEN$(black%,4)+" White:"+GEN$(white%,4)
+		UNTIL ((white%=0) OR (black%=0)) AND (mv%>1)
+			IF (white%=0) AND (black%>0)
+				BUSY "Black wins"
+			ENDIF
+			IF (black%=0) AND (white%>0)
+				BUSY "White wins"
+			ENDIF
+			IF (black%=0) AND (white%=0)
+				BUSY "HELP!!!!!"
+			ENDIF
+			LOCK ON
+				GET
+			LOCK OFF
+			BUSY OFF
+xit::
+	UNTIL 0
+ENDP
+
+PROC Init:
+	LOCAL i%,j%,mass%
+	STATUSWIN ON
+	gSETWIN 0,0,189,80
+	SCREEN 29,8,2,2
+	gCLS
+	gBORDER $200
+	hsize%=hsize%-2
+	wsize%=wsize%-2
+	sound%=sound%+1
+	skill%=skill%+1
+	dINIT "Explode setup"
+	dCHOICE skill%,"Skill Level:","0,1,2,3,4,5,6,7,8,9,10"
+	dCHOICE hsize%,"Height:","3,4,5,6,7"
+	dCHOICE wsize%,"Width:","3,4,5,6,7,8,9,10,11,12,13,14"
+	dCHOICE sound%,"Sound:","Off,On"
+	LOCK ON
+		i%=DIALOG
+	LOCK OFF
+	IF i%=0
+		STOP
+	ENDIF
+	skill%=skill%-1
+	hsize%=hsize%+2
+	wsize%=wsize%+2
+	woff%=INT((189-(((wsize%-1)*10)+9))/2)
+	hoff%=INT((80-(((hsize%-1)*10)-7))/2)
+	sound%=sound%-1
+	i%=1
+	DO
+		j%=1
+		DO
+			Mass%=4
+			IF (i%=1) OR (i%=hsize%)
+				mass%=3
+			ENDIF
+			IF (j%=1) OR (j%=wsize%)
+				mass%=mass%-1
+			ENDIF
+			cmass%(((i%-1)*15)+j%)=mass%
+			board%(((i%-1)*15)+j%)=0
+			j%=j%+1
+		UNTIL j%>wsize%
+		i%=i%+1
+	UNTIL i%>hsize%
+	black%=0
+	white%=0
+ENDP
+               
+PROC PrintBd:
+	LOCAL i%,j%,v%
+	gUPDATE OFF
+	gCLS
+	gBORDER $200
+	gAT woff%,hoff%
+	i%=1
+	DO
+		j%=1
+		DO
+			v%=board%(((i%-1)*15)+j%)
+			gAT ((j%-1)*10)+woff%,((i%-1)*10)+hoff%
+			IF v%=0
+				gPRINT CHR$(254)
+			ELSE
+				gPRINT IABS(v%)
+			ENDIF
+			gMOVE -7,-8
+			IF v%>0
+				gINVERT 7,9
+			ENDIF
+			j%=j%+1
+		UNTIL j%>wsize%
+		i%=i%+1
+	UNTIL i%>hsize%
+	gUPDATE
+	gTMODE 0
+	gBORDER $200
+	gUPDATE ON
+ENDP
+    
+PROC Expl:(r%,c%,direct%)
+	LOCAL ToExpl%(110),fini%,i%,j%,mass%
+	IF sound%
+		BEEP 4,300
+	ENDIF
+	mass%=board%(((r%-1)*15)+c%)+direct%
+	IF mass%=direct%
+		IF direct%=1
+			black%=black%+1
+		ELSE
+			white%=white%+1
+		ENDIF
+	ENDIF
+	board%(((r%-1)*15)+c%)=mass%
+	IF (mass%>=cmass%(((r%-1)*15)+c%)) OR (-mass%>=cmass%(((r%-1)*15)+c%))
+		DO
+			fini%=1
+			i%=1
+			DO
+				j%=1
+				DO
+					mass%=board%(((i%-1)*15)+j%)
+					IF (mass%>=cmass%(((i%-1)*15)+j%)) OR (-mass%>=cmass%(((i%-1)*15)+j%))
+						ToExpl%(((i%-1)*15)+j%)=1
+						fini%=0
+					ELSE
+						ToExpl%(((i%-1)*15)+j%)=0
+					ENDIF
+					j%=j%+1
+				UNTIL j%>wsize%
+				i%=i%+1
+			UNTIL i%>hsize%
+			IF Not(fini%) 
+				i%=1
+				DO
+					j%=1
+					DO
+						IF ToExpl%(((i%-1)*15)+j%)
+							IF i%>1
+								board%(((i%-2)*15)+j%)=Add:(board%(((i%-2)*15)+j%),direct%)
+							ENDIF
+							IF i%<hsize%
+								board%((i%*15)+j%)=Add:(board%((i%*15)+j%),direct%)
+							ENDIF
+							IF j%>1
+								board%(((i%-1)*15)+j%-1)=Add:(board%(((i%-1)*15)+j%-1),direct%)
+							ENDIF
+							IF j%<wsize%
+								board%(((i%-1)*15)+j%+1)=Add:(board%(((i%-1)*15)+j%+1),direct%)
+							ENDIF
+							board%(((i%-1)*15)+j%)=board%(((i%-1)*15)+j%)-direct%*cmass%(((i%-1)*15)+j%)
+							IF board%(((i%-1)*15)+j%)=0
+								IF direct%=1
+									black%=black%-1
+								ELSE
+									white%=white%-1
+								ENDIF
+							ENDIF
+						ENDIF
+						j%=j%+1
+					UNTIL j%>wsize%
+					i%=i%+1
+				UNTIL i%>hsize%
+			ENDIF
+			IF (black%=0) OR (white%=0)
+				fini%=1
+			ENDIF
+		UNTIL fini%=1
+	ENDIF
+ENDP
+    
+PROC Add:(a%,d%)
+	LOCAL b%
+	IF sound%
+		BEEP 4,250
+	ENDIF
+	b%=a%
+	IF d%=-1
+		IF b%>0
+			white%=white%+1
+			black%=black%-1
+			b%=-b%-1
+		ELSEIF b%=0
+			white%=white%+1
+			b%=-1
+		ELSE
+			b%=b%-1
+		ENDIF
+	ELSE
+		IF b%<0
+			black%=black%+1
+			white%=white%-1
+			b%=-b%+1
+		ELSEIF b%=0
+			black%=black%+1
+			b%=1
+		ELSE
+			b%=b%+1
+		ENDIF
+	ENDIF
+	RETURN b%
+ENDP
+
+PROC Score:
+	LOCAL i%,j%,sc%,whitesc%,blacksc%,a%,c%
+	whitesc%=0
+	blacksc%=0
+	i%=1
+	DO
+		j%=1
+		DO
+			c%=cmass%(((i%-1)*15)+j%)
+			a%=board%(((i%-1)*15)+j%)
+			IF a%>0
+				IF a%>c%
+					blacksc%=blacksc%+a%+6
+				ELSE
+					blacksc%=blacksc%+a%+4-c%
+				ENDIF
+			ENDIF
+			IF A%<0
+				IF -A%>C%
+					whitesc%=whitesc%-A%+6
+				ELSE
+					whitesc%=whitesc%-A%+4-C%
+				ENDIF
+			ENDIF
+			j%=j%+1
+		UNTIL j%>wsize%
+		i%=i%+1
+	UNTIL i%>hsize%
+	IF blacksc%=0
+		sc%=-32767
+	ELSEIF whitesc%=0
+		sc%=32767
+	ELSE
+		sc%=(blacksc%-whitesc%)
+	ENDIF
+	RETURN sc%
+ENDP
+    
+PROC DoPly:(ply%,direct%,alpha%)
+	GLOBAL trybd%(110),tryblk%,trywht%
+	LOCAL dx%,dy%,i%,j%,measure%,dummy%,snd%
+	snd%=sound%
+	sound%=0
+	best%=-32767
+	IF TESTEVENT
+		Event:
+	ENDIF
+	IF ply%=1
+		i%=1
+		DO
+			j%=1
+			DO
+				IF (direct%*board%(((i%-1)*15)+j%))>=0
+					Swap:(1)
+					Expl:(i%,j%,direct%)
+					measure%=Score:
+					Swap:(0)
+					IF measure%*direct%>best% 
+						best%=measure%*direct%
+						x%=i%
+						y%=j%
+					ENDIF
+				ENDIF
+				j%=j%+1
+			UNTIL j%>wsize%
+			i%=i%+1
+		UNTIL i%>hsize%
+	ELSE 
+		i%=1
+		DO
+			j%=1
+			DO
+				IF (direct%*board%(((i%-1)*15)+j%))>=0
+					Swap:(1)
+					dx%=x%
+					dy%=y%
+					dummy%=best%
+					best%=measure%
+					Expl:(i%,j%,direct%)
+					DoPly:(ply%-1,-direct%,dummy%)
+					measure%=best%
+					best%=dummy%
+					x%=dx%
+					y%=dy%
+					Swap:(0)
+					IF (measure%*direct%)>best%
+						best%=measure%*Direct%
+						x%=i%
+						y%=j%
+					ENDIF
+				ENDIF
+				j%=j%+1
+			UNTIL j%>wsize%
+			i%=i%+1
+		UNTIL i%>hsize%
+	ENDIF
+	best%=best%*direct%
+	sound%=snd%
+ENDP
+    
+PROC Swap:(ctrl%)
+	LOCAL i%,j%
+	IF ctrl%=1
+		tryblk%=black%
+		trywht%=white%
+	ELSE
+		black%=tryblk%
+		white%=trywht%
+	ENDIF
+	i%=1
+	DO
+		j%=1
+		DO
+			IF ctrl%=1
+				trybd%(((i%-1)*15)+j%)=board%(((i%-1)*15)+j%)
+			ELSE
+				board%(((i%-1)*15)+j%)=trybd%(((i%-1)*15)+j%)
+			ENDIF
+			j%=j%+1
+		UNTIL j%>wsize%
+		i%=i%+1
+	UNTIL i%>hsize%
+ENDP
+
+PROC GetMove:
+	LOCAL i%,j%,k%,ok%,sk%
+	ok%=1
+	PrintBd:
+	gGMODE 2
+	DO
+		i%=((mh%-1)*10)+hoff%-9
+		j%=((mw%-1)*10)+woff%-2
+		gAT j%,i%
+		gBOX 9,11
+REM		k%=KEY
+		k%=Event:
+		IF (k%>255) AND (k%<264)
+			IF (k%=256) AND (mh%>1)
+				mh%=mh%-1
+			ELSEIF (k%=257) AND (mh%<hsize%)
+				mh%=mh%+1
+			ELSEIF (k%=258) AND (mw%<wsize%)
+				mw%=mw%+1
+			ELSEIF (k%=259) AND (mw%>1)
+				mw%=mw%-1
+			ELSEIF (k%=260)
+				mh%=1
+			ELSEIF (k%=261)
+				mh%=hsize%
+			ELSEIF (k%=262)
+				mw%=1
+			ELSEIF (k%=263)
+				mw%=wsize%
+			ENDIF
+		ENDIF
+		IF k%=27
+			ok%=0
+		ENDIF
+		IF k%=291
+			sk%=skill%
+			IF sk%=0
+				sk%=1
+			ENDIF
+			BUSY "Thinking...",0
+			DoPly:(sk%,-1,32767)
+			BUSY OFF
+			mh%=x%
+			mw%=y%
+		ENDIF
+		gAT j%,i%
+		gBOX 9,11
+	UNTIL (k%=13) OR (k%=27)
+	gGMODE 0
+	RETURN ok%
+ENDP
+
+PROC Event:
+	LOCAL a%(6)
+	GETEVENT a%()
+	IF a%(1)=$404
+		IF LEFT$(GETCMD$,1)="X"
+			STOP
+		ENDIF
+	ENDIF
+	RETURN a%(1)
+ENDP
+

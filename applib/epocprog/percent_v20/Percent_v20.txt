@@ -1,0 +1,84 @@
+Percent version 2.0
+-------------------
+Percent is a freeware module for OPL32, feely adapted from Brian Ritchie's
+"percent" module.
+
+PRESENTATION
+Percent.opo provides procedures to create progress bar dialogs.
+
+FEATURES
+  - Dialog box with/without title 
+  - Title can be left-aligned, centered or right-aligned 
+  - Two styles of dialog box : Psion-style/fancy style 
+  - Option to show the percent inside the progress bar 
+
+CONTENT OF THIS ARCHIVE
+Percent_v20.opl        this file
+Percent.opl            the source of the module
+Percent.oph            OPL32 header
+Percent.opo            the OPL32 compiled module
+PercentDemo.opl        an example program
+PercentDemo.opo        compiled example program
+
+INSTALLATION
+ 1  Unzip all the files of this archive to a temporary directory on your PC
+ 2  Copy them to any directory you like on your Psion Series 5
+ 2b You can move Percent.opo and Percent.oph in \system\opl (either C: or D:)
+ 3  Execute PercentDemo.opo or Percent.opo for a demo.
+
+HOW TO USE THIS MODULE
+1.Adding the Plugin Module to your program
+
+I suggest that you move the two files of the module (percent.opo and 
+percent.oph) in \system\data\ directory on C: or on D:
+
+In your program you need to add :
+
+Include "percent.oph"
+
+in order to have access to the constants used in the initialisation of the 
+progress bar. Then at the beginning of your main procedure, add :
+
+LoadM "Percent.opo"
+
+This will actually load the module into memory. You can now use its functions 
+to create your progress bar
+
+The first thing to do is to initialise the progress bar dialog box :
+
+percentInit&:(title$,pmax,flags%)
+
+with
+   title$  :  then title that will be displayed in the progress bar dialog box
+   pmax    :  upper limit of the progress bar (floating point number)
+   flags%  :  flags which control the appearance and the options of the progress
+              bar dialog box
+This function returns the ID of the progress bar (long integer). You have to store
+it and pass it to subsequent functions.
+
+To make the progress bar jump to a new position, call:
+
+percentUpdate:(winId&,done)
+
+with
+   winId&  :  the ID got from percentInit&:
+   done    :  the new position of the progress bar. This value should be ideally 
+              comprised between 0 and pmax. If not however, it will be converted
+              to 0 or pmax accordingly.
+
+To close the progress bar dialog box, simply call:
+
+percentClose:(winId&)
+
+If you don't want to use the module anymore, unload it from memory with :
+
+UnloadM "percent.opo"
+
+
+HISTORY
+	2.0 First version of Percent.opo by myself.
+  1.0 Simplfied version of Brian Ritchie.
+
+Francois Langinieux
+email: langin@mail.dotcom.fr
+Latest version and information at http://www.daewoo.fr/~langin/Psion5

@@ -1,0 +1,96 @@
+==========================
+psion/series3 #3304, from jtd, 327 chars, Nov 26 10:32 92
+There are comments to this message.
+--------------------------
+Keypad emulation
+Is there any code/apps anywhere that does something like TOSHELL but 
+emulates the keypads?  I would like to be able to press for example 
+CTRL-W and get the word processor or even have programmable keys such 
+as CTRL-J for a particular file in the word-processor.
+
+Here's hoping....
+
+                  -John-
+
+==========================
+psion/series3 #3306, from dw2, 348 chars, Nov 26 19:23 92
+This is a comment to message 3304.
+There are comments to this message.
+--------------------------
+>Keypad emulation
+If you look in the code in TOSHELL.OPL you'll see something like
+    name$="sys$shll.*"
+    pid%=call($0188,addr(name$)+1)
+and if you look for "word.*" instead you'll be able to jump to any
+running instance of the Word Processor (see the display in Spy for
+the "process names" used by the various different apps).
+Regards, DavidW
+
+==========================
+psion/series3 #3311, from jtd, 837 chars, Nov 27 13:04 92
+This is a comment to message 3306.
+There are comments to this message.
+--------------------------
+Thanks for your reply David, I don't have the SDK unfortunately so 
+there are one or two things I have to guess at. You wrote in your 
+last mail;
+pid%=call($0188,addr(name$)+1)
+but according to the TOSHELL code they use an os() call which is not 
+documented in the Programming Manual. I tried a few things last night 
+on the RER (train) home, but I do not like changing things like this 
+when I don't know what they are doing. I could find myself with a 
+crashed S3!
+Am I right in guessing that the 26 in the call 
+"call($458d,26,$404,0,0,0)" is the charactor to trap?  I am used to 
+C++ so #define or even better enum would have been more my style.
+Could you or anyone else knock up a quick explanation of program I 
+can then modify safely.
+
+Many many thanks,
+
+-John-
+
+PS: Do Psion sell "I love my PSION" badges?  creep, creep... :-)
+
+
+
+==========================
+psion/series3 #3316, from dw2, 1113 chars, Nov 27 21:01 92
+This is a comment to message 3311.
+There are comments to this message.
+--------------------------
+>Modifying TOSHELL.OPL (a few more hints)
+Sorry, the TOSHELL.OPL on my hard disk was a bit different from the
+one in the FLIST.  The lines
+  ax%=$0100
+  os($88,...)
+are roughly equivalent to the CALL($0188,...) I mentioned.
+Yes you're right that the 26 is the character keycode.  In $404, the
+$4 in the top byte is the "mask" of modifiers you're interested in
+(here, you're interested in the Control modifier), and the $04 in the 
+bottom byte is the value you require for the modifiers you've
+declared an interest in (ie either set - as here - or unset).  Thus
+with a CX% parameter of $404, you definitely want to see the Control
+modifier set, but you don't care about any other modifier either way.
+And then 26 just happens to be the standard ASCI value for Control-Z. 
+But watch out if you try to capture eg Control-I, since you'll
+capture Control-Tab at the same time, and likewise Control-M is
+indistinguishable from Control-Enter.
+Finally, you shouldn't do your machine any damage with the os-calls
+in TOSHELL (so long as you don't change their numbers, ie change them 
+into other os-calls).
+Regards, DavidW
+
+==========================
+psion/series3 #3338, from jtd, 383 chars, Nov 30 13:52 92
+This is a comment to message 3316.
+--------------------------
+Thanks for the help David, I've now written just about what I wanted. 
+Is it possible to get a "hot key" to always open one of my databases? 
+ For example I would like to use CTRL-P (p for phone) for my 
+"Friends" database whether it is open or not.
+Another question while I've got your attention, is it possible to use 
+the small font in the spreadsheet for any other apps?
+
+-John-
+

@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!-- File        : menu/confg.html -->
+<!-- Date        : 26-Jan-00 -->
+<!-- Author      : © Alexander Thoukydides, 1998, 1999, 2000 -->
+<!-- Description : Part of the PsiFS documentation. -->
+<HTML>
+<HEAD>
+<TITLE>PsiFS Documentation - Menu Entries [Configure...]</TITLE>
+<LINK REV=MADE HREF="mailto:psifs@btinternet.com">
+<LINK REL=PARENT HREF="index.html">
+<META NAME=DESCRIPTION CONTENT="PsiFS Documentation - Menu Entries [Configure...]">
+</HEAD>
+<BODY TEXT="#000000" BGCOLOR="#FFFFFF" LINK="#0000FF" VLINK="#004499" ALINK="#FF0000">
+<CENTER>
+<H1><FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT>: Menu Entries</H1>
+<B>Configure...</B> </CENTER>
+<HR>
+<H2><FONT COLOR="#DD0000">Configure...</FONT></H2>
+<TABLE WIDTH="100%"><TR><TD WIDTH=30></TD><TD>Selecting the <TT>Configure...</TT> menu entry opens the <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> configuration window. There are three buttons at the bottom of the window:
+<UL>
+<LI><B>Save</B> - Save the displayed options for use during subsequent sessions. Note that this does not change the options for the current session.
+<LI><B>Cancel</B> - Close the window without applying any changes. Clicking with <I>Adjust</I> leaves the window open, but resets the options to their previous values.
+<LI><B>Set</B> - Apply the displayed changes. Clicking with <I>Adjust</I> applies the changes without closing the window.
+</UL>
+<P>
+The rest of the window allows various aspects of <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> to be configured.</TD></TR></TABLE>
+<H2><FONT COLOR="#DD0000">Serial block driver</FONT></H2>
+<TABLE WIDTH="100%"><TR><TD WIDTH=30></TD><TD>The top section of the window allows the serial block driver to be configured for communication with a <I>SIBO</I> or <I>EPOC</I> device. The options are:
+<UL>
+<LI><B>Driver name</B> - The name of the serial block driver to use. This should normally be <TT>InternalPC</TT> if the standard serial port is being used. Use the appropriate driver if extra serial ports are fitted to the computer.
+<LI><B>Port number</B> - The number of the serial port to use. For each block driver the port numbering starts from <TT>0</TT>.
+<LI><B>Baud rate</B> - The serial baud rate to use. This should normally be set to the <A HREF="../start/baud.html" TITLE="Baud Rate">highest baud rate</A> supported by both machines.
+<LI><B>Automatic</B> - Enable or disable automatic baud rate identification. This option may be useful if different <I>SIBO</I> or <I>EPOC</I> devices are used, although establishing a connection will take longer. This only affects operation of the remote link; the printer mirror always uses the specified baud rate.
+<LI><B>Other options</B> - Any other options required for the selected block driver. This should normally be left blank.
+</UL>
+These options may also be changed using the <TT>*<A HREF="../command/drivr.html" TITLE="*PsiFSDriver">PsiFSDriver</A></TT> command.
+<P>
+The list of baud rates is normally restricted to those that are likely to be useful. It is possible to enable display of all available baud rates by adding the line <TT>BlockdriverRestrictBaud=False</TT> to the <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> configuration file (either <TT>!Boot.Choices.PsiFS.Config</TT> or <TT>!PsiFS.Config.Config</TT>, depending upon the computer's configuration).</TD></TR></TABLE>
+<H2><FONT COLOR="#DD0000">Remote link options (EPOC devices only)</FONT></H2>
+<TABLE WIDTH="100%"><TR><TD WIDTH=30></TD><TD>The second section of the window controls special behaviour related to the remote link when used with <I>EPOC</I> devices. These features have no effect with <I>SIBO</I> devices. The options are:
+<UL>
+<LI><B>Synchronize clocks when remote link connected</B> - Enable or disable automatic synchronization of an <I>EPOC</I> device's clock to that of the <I>RISC&nbsp;OS</I> computer when the remote link is connected.
+<LI><B>Monitor batteries</B> - This controls whether a warning window is automatically opened if the batteries of the remote device are low:
+<UL>
+<LI><B>never</B> - monitoring disabled.
+<LI><B>when no external power</B> - monitoring disabled if remote device is operating on external power.
+<LI><B>always</B> - monitoring always active, even if external power is being used.
+</UL>
+</UL></TD></TR></TABLE>
+<H2><FONT COLOR="#DD0000">Filer options</FONT></H2>
+<TABLE WIDTH="100%"><TR><TD WIDTH=30></TD><TD>The third section of the window controls the behaviour of the desktop filer. The options are:
+<UL>
+<LI><B>Show drive icon</B> - This controls which drive icons are shown on the iconbar:
+<UL>
+<LI><B>for non-ROM drives</B> - an icon is shown for each non-ROM drive that is accessible.
+<LI><B>for every drive</B> - an icon is shown for all accessible drives.
+<LI><B>for virtual drive only</B> - a single icon is shown for a special virtual drive that has all of the accessible drives represented by subdirectories.
+</UL>
+<LI><B>Open filer windows</B> - This controls when filer windows are opened:
+<UL>
+<LI><B>manually only</B> - filer windows are never opened automatically.
+<LI><B>when remote link connected</B> - filer windows are automatically opened for all available drives when a remote link is connected.
+</UL>
+<LI><B>Close filer windows</B> - This controls when filer windows are closed:
+<UL>
+<LI><B>manually only</B> - filer windows are never closed automatically.
+<LI><B>when file system killed</B> - filer windows are only closed automatically when the <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> file system is killed at the same time as the desktop filer.
+<LI><B>when remote link disconnected</B> - filer windows are closed whenever a drive becomes unavailable, usually when a remote link is disconnected.
+</UL>
+</UL></TD></TR></TABLE>
+<H2><FONT COLOR="#DD0000">Backup options</FONT></H2>
+<TABLE WIDTH="100%"><TR><TD WIDTH=30></TD><TD>The fourth section of the window allows backup operations to be configured. The options are:
+<UL>
+<LI><B>Directory containing backup files</B> - The path of the directory to contain all backup files. Sub-directories are automatically created to contain the configuration and backup files for each disc. Set the path by dragging the directory icon and dropping it over a filer window, or dragging a directory icon from a filer window and dropping it over the arrow. Alternatively, any valid path may be typed directly into the icon. If the directory containing backup files is changed, then <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> will attempt to move any previous backup files when the changes are applied.
+<LI><B>Open backup options window for unrecognised discs</B> - Enable or disable the automatic opening of the backup options window when connected to unrecognised discs. This makes it easy to set the initial backup options for each disc.
+</UL>
+<P>
+Options specific to a single disc are set by selecting <TT><A HREF="backu.html" TITLE="Backup...">Backup...</A></TT> from the menu of the appropriate <A HREF="../icon/drive.html" TITLE="SIBO or EPOC Drive Icon"><I>SIBO</I> or <I>EPOC</I> drive icon</A>.</TD></TR></TABLE>
+<H2><FONT COLOR="#DD0000">Printer mirror</FONT></H2>
+<TABLE WIDTH="100%"><TR><TD WIDTH=30></TD><TD>The final section of the window allows the printer mirror to be configured. The options are:
+<UL>
+<LI><B>Default destination</B> - The default destination for data received over the serial link in printer mirror mode:
+<UL>
+<LI><TT>parallel:</TT> - the parallel port.
+<LI><TT>fastparallel:</TT> - the parallel port in fast Centronics mode.
+<LI><TT>serial:</TT> - the internal serial port (only available if <FONT COLOR="#004499"><B><I>PsiFS</I></B></FONT> is configured to use a different port).
+<LI><TT>netprint:</TT> - a network printer.
+<LI><TT>null:</TT> - the null device (all data is discarded).
+<LI><TT>printer:</TT> - the active printer (selected using <TT>!Printers</TT>).
+<LI><TT>printer#parallel:</TT> - a printer connected to the parallel port.
+<LI><TT>printer#serial:</TT> - a printer connected to the serial port.
+<LI><TT>printer#user:</TT> - a user printer device.
+<LI><TT>printer#null:</TT> - a null printer device (all data is discarded).
+<LI><TT>&lt;wimp$scrapdir&gt;.printout</TT> - a temporary file (useful for trouble shooting).
+<LI><TT>pipe:$.printout</TT> - a pipe (useful for trouble shooting).
+</UL>
+Alternatively, any valid filename may be typed directly into the icon. This setting is used when the <A HREF="../icon/idle.html" TITLE="Idle Icon">idle icon</A> is clicked on with <I>Adjust</I> or <TT><A HREF="print.html" TITLE="Printer mirror">Printer mirror</A></TT> is selected from the iconbar icon menu.
+</UL>
+<P>
+The <TT>*<A HREF="../command/enabl.html" TITLE="*PsiFSEnable">PsiFSEnable</A></TT> command can also be used to start the printer mirror and set the destination filename.</TD></TR></TABLE>
+<HR> <TABLE WIDTH="100%">
+<TR VALIGN=TOP>
+<TD>
+[<A HREF="../index.html" TITLE="Contents">Contents</A>]
+[<A HREF="index.html" TITLE="Up">Up</A>]
+</TD>
+<TD ALIGN=RIGHT>
+<FONT SIZE=-1><I><A HREF="../legal/copy.html" TITLE="Copyright">Copyright</A> &copy; <A HREF="mailto:psifs@btinternet.com" TITLE="Send Email to Alexander Thoukydides">Alexander Thoukydides</A>, 1998, 1999, 2000</I></FONT>
+</TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>

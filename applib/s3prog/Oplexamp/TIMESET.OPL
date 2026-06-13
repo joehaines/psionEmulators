@@ -1,0 +1,73 @@
+PROC time:
+	LOCAL err%,hr%,min%,sec%,yr%,mon%,dt%
+	PRINT "Set time and date."
+        PRINT "Enter Year yyyy:";
+        INPUT yr%
+        PRINT "Enter Month mm:";
+        INPUT mon%
+        PRINT "Enter day dd:";
+        INPUT dt%
+        PRINT "Enter Hour hh:";
+        INPUT hr%
+        PRINT "Enter Minute mm:";
+        INPUT min%
+        PRINT "Enter Second ss:";
+        INPUT sec%
+	err% = ossettm%:(hr%,min%,sec%,3)
+	IF err% < 0
+	PRINT "Error =",err%
+	GET
+	STOP
+	ENDIF
+	err% = ossetdt%:(dt%,mon%,yr%)
+	IF err% < 0
+	PRINT "Error =",err%
+	GET
+	STOP
+	ENDIF
+	PRINT "Done"
+	GET
+ENDP
+
+PROC ossettm%:(hh%,mm%,ss%,mode%)
+ local hour% 
+ if mode%<1 or mode%>3 or hh%<0 or mm%<0 or ss%<0
+ return -2 
+ endif 
+ hour% = hh% 
+ if (mode%=1 or mode% = 2)
+ if (hour%<1 or hour%>12) 
+ return -2 
+ elseif mode% = 1 and hour% = 12
+ hour% = 0 
+ elseif mode% = 2 and hour%<>12
+ hour% = hour%+12 
+ endif
+ elseif mode% = 3 and hour%>23
+ return -2 
+ endif
+ if mm%<=59 and ss%<=59 
+ return setdttm%:(DAY,MONTH,YEAR,hour%,mm%,ss%)
+ endif
+ return -2 
+ ENDP
+PROC ossetdt%:(dd%,mm%,yyyy%)
+ return setdttm%:(dd%,mm%,yyyy%,HOUR,MINUTE,SECOND)
+ ENDP
+PROC setdttm%:(day%,month%,year%,hour%,min%,sec%)
+local ax%,bx%,cx%,dx%,si%,di% 
+local sec&
+ if year%>=1970
+ onerr e::
+ sec& = (DAYS(day%,month%,year%)-25567)*86400+hour%*&e10+min%*60+sec%
+ cx% = peekw(addr(sec&)+2) 
+ dx% = peekw(addr(sec&)) 
+ ax% = $0300 
+ os($89,addr(ax%)) 
+ return 0
+ endif
+ e:: 
+ onerr off
+ return -2
+ENDP
+

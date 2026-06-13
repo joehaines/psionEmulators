@@ -1,0 +1,96 @@
+PROC export:
+
+	LOCAL dbfname$(128)
+	LOCAL expname$(128)
+	LOCAL dvar%,delim$(2)
+	LOCAL done%
+	LOCAL newline$(2)
+
+	dbfname$ = "m:\dat\*.dbf"
+	
+	dINIT "Save as..."
+	dFILE dbfname$,"From",16
+	dFILE expname$,"To",1
+	dCHOICE dvar%,"Delimiter","Newline,Tab,Comma,Semicolon"
+
+	IF DIALOG = 0
+		STOP
+	ENDIF
+
+	IF dvar% = 1
+		delim$ = CHR$(13) + CHR$(10)
+	ELSEIF dvar% = 2
+		delim$ = CHR$(9)
+	ELSEIF dvar% = 3
+		delim$ = ","
+	ELSE
+		delim$ = ";"
+	ENDIF
+
+	LOPEN expname$
+	OPEN dbfname$,A,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$,r$,s$,t$,u$,v$,w$,x$,y$,z$,aa$,ab$,ac$,ad$,ae$,af$
+
+	FIRST
+
+	WHILE NOT EOF
+
+		AT 1,1
+		PRINT "Records exported:"
+		
+		AT 1,2
+		PRINT "Total to export :",COUNT
+
+		AT 1,5
+		PRINT "Now exporting:                           "
+		AT 16,5
+		PRINT A.a$
+
+		LPRINT A.a$ + delim$;
+		LPRINT A.b$ + delim$;
+		LPRINT A.c$ + delim$;
+		LPRINT A.d$ + delim$;
+		LPRINT A.e$ + delim$;
+		LPRINT A.f$ + delim$;
+		LPRINT A.g$ + delim$;
+		LPRINT A.h$ + delim$;
+		LPRINT A.i$ + delim$;
+		LPRINT A.j$ + delim$;
+		LPRINT A.k$ + delim$;
+		LPRINT A.l$ + delim$;
+		LPRINT A.m$ + delim$;
+		LPRINT A.n$ + delim$;
+		LPRINT A.o$ + delim$;
+		LPRINT A.p$ + delim$;
+		LPRINT A.q$ + delim$;
+		LPRINT A.r$ + delim$;
+		LPRINT A.s$ + delim$;
+		LPRINT A.t$ + delim$;
+		LPRINT A.u$ + delim$;
+		LPRINT A.v$ + delim$;
+		LPRINT A.w$ + delim$;
+		LPRINT A.x$ + delim$;
+		LPRINT A.y$ + delim$;
+		LPRINT A.z$ + delim$;
+		LPRINT A.aa$ + delim$;
+		LPRINT A.ab$ + delim$;
+		LPRINT A.ac$ + delim$;
+		LPRINT A.ad$ + delim$;
+		LPRINT A.ae$ + delim$;
+		LPRINT A.af$
+
+		done% = done% + 1
+		AT 19,1
+		PRINT done%
+		
+		NEXT
+
+	ENDWH
+
+	AT 1,4
+	PRINT "'Export' completed"
+	GET
+
+ENDP
+
+		
+

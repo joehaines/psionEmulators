@@ -1,0 +1,37 @@
+PROC Dragon0:
+	LOCAL P,S%,D%,xpos%,ypos%,stx%,sty%
+	LOCAL H,X,Y,M&,N&,F
+	gCLS
+	P=8 :REM CHOICE OF ORDER 4-12
+	stx%=80 :sty%=50 :REM start pos
+	H=2**(-P/2) :S%=0
+	X=H*COS(P*PI/4)
+	Y=H*SIN(P*PI/4)
+	xpos%=INT(0.5+(X+1)*80)
+	ypos%=INT(0.5+(Y+1)*80)-30
+	gAT stx%,sty% :gLINETO xpos%,ypos%
+	N&=1 :REM long int variabble
+	DO
+		M&=N&
+		WHILE (M&-INT(M&/2)*2)=0
+			M&=INT(M&/2)
+		ENDWH
+		IF (M&-INT(M&/4)*4)=1
+			D%=1
+		ELSE
+			D%=-1
+		ENDIF
+		S%=S%+D%
+		F=(S%-P/2)*PI/2
+		X=X+H*COS(F) :Y=Y+H*SIN(F)
+		xpos%=INT(0.5+(X+1)*80)
+		ypos%=INT(0.5+(Y+1)*80)-30
+		gLINETO xpos%,ypos%
+		N&=N&+1
+	UNTIL N&>=2**P-1
+	GET
+ENDP
+
+PROC mod: (a,b)
+	RETURN a-INT(a/b)*b
+ENDP

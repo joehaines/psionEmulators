@@ -1,0 +1,81 @@
+PROC Babble:
+
+REM		Translate this OPL code and watch the bafflegab roll by.
+REM		Any key wil stop the flow of digital diarrhia.  A text file
+REM		of what you see will be created in your \WRD\ directory 
+REM		(called "Babble.wrd").  Watch out, the file grows quickly.  
+
+
+	LOCAL A$(10,100),B$(10,100),C$(10,100),D$(10,100)
+	LOCAL R1%,R2%,R3%,R4%,R5%,I%
+	
+	A$(1)="In particular, "
+	A$(2)="On the other hand, "
+	A$(3)="More specifically, "
+	A$(4)="Similarly, "
+	A$(5)="By implication "
+	A$(6)="In this regard "
+	A$(7)="Based on integral subsystem considerations, "
+	A$(8)="For example: "
+	A$(9)="This really means that "
+	A$(10)="With respect to the specific goals, "
+	
+	B$(1)="a large portion of the interface communication "
+	B$(2)="the characterization of specific criteria "
+	B$(3)="initiation of critical subsystem development "
+	B$(4)="a constant flow of effective information "
+	B$(5)="the fully integrated test program "
+	B$(6)="the product configuration baseline "
+	B$(7)="any associated supporting element "
+	B$(8)="the incorporation of additional mission constraints "
+	B$(9)="the resulting paradigm shift "
+	B$(10)="a primary relationship between system and/or subsystem technologies "
+	
+	C$(1)="must utilize and be functionally interwoven with "
+	C$(2)="maximizes the probability of project success and minimizes the cost and time required for "
+	C$(3)="adds explicit performance limits to "
+	C$(4)="necessitates that urgent consideration be applied to "
+	C$(5)="requires considerable system analysis and trade-off studies to arrive at "
+	C$(6)="is further compounded by taking into account "
+	C$(7)="presents extremely interesting challenges to "
+	C$(8)="recognizes the importance of other systems and the necessity for "
+	C$(9)="creates an effective relationship with "
+	C$(10)="adds overriding performance constraints to "
+	
+	D$(1)="the desired hardware.  "
+	D$(2)="the anticipated fourth generation equipment.  "
+	D$(3)="the subsystem compatibility testing.  "
+	D$(4)="the structural design based on sound system engineering concepts.  "
+	D$(5)="the preliminary qualification limit.  "
+	D$(6)="the evolution of specification over a given time period.  "
+	D$(7)="the philosophy of commonality and standardization.  "
+	D$(8)="the greater flight-worthyness concept.  "
+	D$(9)="any discrete configuration made.  "
+	D$(10)="the total system rationale.  "
+	
+	RANDOMIZE SECOND	
+	IF NOT EXIST ("\WRD\Babble.wrd")
+		CREATE "\WRD\Babble.wrd",A,GAB$
+	ELSE
+		OPEN "\WRD\Babble.wrd",A,GAB$
+	ENDIF
+	DO
+		R5%=RND*4+2
+		I%=1
+			WHILE I%<=R5%
+			R1%=RND*10+1
+			R2%=RND*10+1
+			R3%=RND*10+1
+			R4%=RND*10+1
+			Print A$(R1%)+B$(R2%)+C$(R3%)+D$(R4%);
+			A.GAB$=A$(R1%)+B$(R2%)+C$(R3%)+D$(R4%)
+			APPEND
+			I%=I%+1
+			ENDWH
+		PRINT ""
+		PRINT ""
+		A.GAB$=CHR$(013)+CHR$(013)
+		APPEND
+		PAUSE 60
+	UNTIL KEY
+ENDP

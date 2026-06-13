@@ -1,0 +1,211 @@
+/*
+ * OPP library file
+ * Procs for handling printing using WDR
+ * See ptest: for example
+ * Note: requires util_lib.opp
+ */
+
+#include <oo\printer>
+#ifndef PRINTER_OPH
+#include <sdk\printer>
+#endif
+#include <oo\gate>
+#include <sdk\errors>
+#include <opp\process>
+#include <lib\printlib>
+
+LIBPROC ptest:
+	local i%,pb%,ppar%,<P_SETUP*>pmod%
+	while 1
+		psetup:
+		print "Header=";pgethd$:(P_HDR_TOP)
+		print "Footer=";pgethd$:(P_HDR_BOT)
+		pmod%=pgetset%:
+		pmod%=pset:(pmod%)
+		pmod%=pgetset%:
+		print "Model =";pmod%->model%
+		print "Driver=";pmod%->name$
+		print "Header=";pmod%->header$
+		print "Footer=";pmod%->footer$
+		get
+		pb%=pinit%:(100)
+		i%=0
+		while i%<16
+			pprintl:(pb%,i%,"line "+num$(i%,3))
+			i%++
+		endwh
+		pprint:(pb%,1)
+		pprint:(pb%,0)
+		pend:(pb%)
+	endwh
+ENDP
+
+/* Display standard page setup dialog */
+LIBPROC psetup:
+	local r%
+	r%=send(peekw(DatDatGate),O_GT_WDR_PRINT_SETUP)
+	if r%<>0
+		raise r%
+	endif
+ENDP
+
+/* Get print setup */
+LIBPROC pgetset%:
+	local printer%,<P_SETUP*>pm%,p%
+	printer%=pgetp%:
+	pm%=alloc(SIZEOF(P_SETUP))
+	if pm%=0
+		raise NoMemoryErr
+	endif
+	pm%->params%=send(printer%,O_PR_GET_PARAMS)
+	p%=uadd(pm%,OFFSETOF(P_SETUP,name$))
+	pm%->model%=send(printer%,O_PR_SENSE_MODEL,#uadd(p%,1))
+	pokeb p%,clen%:(uadd(p%,1))
+	pm%->header$=pgethd$:(P_HDR_TOP)
+	pm%->footer$=pgethd$:(P_HDR_BOT)
+	return pm%
+ENDP
+
+/* Restore print setup */
+LIBPROC pset:(<P_SETUP*>ps%)
+	local printer%,p%
+	printer%=pgetp%:
+
+	copy:(ps%->params%,send(printer%,O_PR_GET_PARAMS),SIZEOF(PRINTER_PARAMS))
+
+	ps%->name$=ps%->name$+chr$(0)
+	p%=uadd(ps%,1+OFFSETOF(P_SETUP,name$))
+	send(printer%,O_PR_SET_MODEL,#0,#p%,#ps%->model%)
+
+	ps%->header$=ps%->header$+chr$(0)
+	p%=uadd(ps%,1+OFFSETOF(P_SETUP,header$))
+	send(printer%,O_PR_SET_HD,#PRINTER_HDR_TOP,#p%)
+
+	ps%->footer$=ps%->footer$+chr$(0)
+	p%=uadd(ps%,1+OFFSETOF(P_SETUP,footer$))
+	send(printer%,O_PR_SET_HD,#PRINTER_HDR_BOT,#p%)
+ENDP
+
+/* Get print header or footer for given page */
+LIBPROC pgetfhd$:(where%,file$,page%)
+	local s$(255),t$(128),p%,c%,i%
+	s$=pgethd$:(where%)
+	p%=addr(s$)
+	while i%<len(s$)-1
+		p%=uadd(p%,1)
+		i%++
+		if peekb(p%)=%%
+			c%=peekb(uadd(p%,1))
+			if c%=%D
+				t$=pdate$:(day,month,year)
+			elseif c%=%T
+				t$=ptim$:(hour,minute)
+			elseif c%=%F
+				t$=file$
+			elseif c%=%P
+				if page%>0
+					t$=num$(page%,3)
+				else
+					t$=""
+				endif
+			elseif c%=%%
+				t$="%"
+			else
+				t$=""
+			endif
+			if i%+len(t$)>256
+				s$=left$(s$,i%-1)+left$(t$,256-i%)
+				break
+			elseif len(s$)+len(t$)-2>255
+				s$=left$(s$,i%-1)+t$+mid$(s$,i%+2,256-i%-len(t$))
+				break
+			else
+				s$=left$(s$,i%-1)+t$+mid$(s$,i%+2,255)
+			endif
+		endif
+	endwh
+	return s$
+ENDP
+
+/* Get print setup header or footer */
+LIBPROC pgethd$:(where%)
+	return ctoo$:(send(pgetp%:,O_PR_GET_HD,#where%))
+ENDP
+
+/* Get printer handle */
+LIBPROC pgetp%:
+	send(peekw(DatP18),31)	/* make sure printer active */
+	return peekw(uadd(peekw(DatP18),68))
+ENDP
+
+/*
+ * Intialise printing, lines%=no lines to print
+ * Returns pointer to storage buffer which should
+ * be passed to other print routines.
+ */
+LIBPROC pinit%:(lines%)
+	local pbuf%
+	pbuf%=alloc(2+6*lines%)
+	if pbuf%=0
+		raise NoMemoryErr
+	endif
+	pokew pbuf%,0
+	return pbuf%
+ENDP
+
+/*
+ * End printing
+ * pbuf%=pointer returned by pinit%:
+ */
+LIBPROC pend:(pbuf%)
+	local i%,lc%,p1%,p2%
+	lc%=peekw(pbuf%)
+	p1%=uadd(pbuf%,6)
+	i%=0
+	while i%<lc%
+		i%++
+		freealloc usub(peekw(p1%),1)
+		p1%=uadd(p1%,6)
+	endwh
+	freealloc pbuf%
+	p1%=peekw(DatP18)
+	p2%=peekw(uadd(p1%,28))
+	if p2%
+		send(p2%,0)
+		pokew uadd(p1%,28),0
+	endif
+ENDP
+
+/*
+ * Page preview or print
+ * pbuf%=pointer returned by pinit%:
+ * dest%=destination, 0=print, 1=review
+ */
+LIBPROC pprint:(pbuf%,dest%)
+	local lc%,r%
+	lc%=peekw(pbuf%)
+	r%=send(peekw(DatDatGate),O_GT_WDR_PRINT,#dest%,#lc%,#uadd(pbuf%,2))
+	if r%<>0
+		raise r%
+	endif
+ENDP
+
+/*
+ * Print line
+ * pbuf%=pointer returned by pinit%:
+ * s%=style info (see P_STYLE_... defines)
+ * s$=string to print
+ */
+LIBPROC pprintl:(pbuf%,s%,s$)
+	local lc%,p%
+	lc%=peekw(pbuf%)
+	p%=alloc(len(s$)+1)
+	if p%=0
+		raise NoMemoryErr
+	endif
+	poke$ p%,s$
+	pokew uadd(pbuf%,2+lc%*6),s%
+	pokew uadd(pbuf%,4+lc%*6),len(s$)
+	pokew uadd(pbuf%,6+lc%*6),uadd(p%,1)
+	pokew pbuf%,lc%+1
+ENDP

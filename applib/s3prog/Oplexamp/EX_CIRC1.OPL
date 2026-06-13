@@ -1,0 +1,24 @@
+PROC circle:
+LOCAL a%(483),c&,d%,x&,y&,r&,h,y%,y1%,c2%
+dINIT "Draw a circle"
+x&=120 :dLONG x&,"Centre x pos",0,239
+y&=40 :dLONG y&,"Centre y pos",0,79
+r&=20 :dLONG r&,"Radius",1,120
+h=1 :dFLOAT h,"Relative height",0,999
+IF DIALOG
+	a%(1)=x&+r& :a%(2)=y& :a%(3)=4*r&
+	c&=1 :d%=2*r& :y1%=0
+	WHILE c&<=d%
+		c2%=c&*2 :y%=-SQR(r&*c2%-c&**2)*h
+		a%(2+c2%)=-2 :a%(3+c2%)=y%-y1%
+		y1%=y% :c&=c&+1
+	ENDWH
+	c&=1
+	WHILE c&<=d%
+		c2%=c&*2 :y%=SQR(r&*c2%-c&**2)*h
+		a%(2+a%(3)+c2%)=2 :a%(3+a%(3)+c2%)=y%-y1%
+		y1%=y% :c&=c&+1
+	ENDWH
+	GPOLY a%() :GET
+ENDIF
+ENDP

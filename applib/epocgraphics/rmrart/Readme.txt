@@ -1,0 +1,198 @@
+RMRART Drawing and image program
+--------------------------------
+
+README file
+-----------
+
+Contents:
+
+1.	Introduction
+2.	File Details
+3.	Installation
+4.	Running the Program
+5.	Registration
+6.	Important Points to Note
+7.	Other Programs from RMR Software
+8.	Licence Agreement
+
+INTRODUCTION
+------------
+Welcome to our Drawing and Image manipulation program for for the EPOC 32 Series of handheld computers.
+
+As it stands, this Shareware version only allows images up to a maximum size of 500x200, the "Save As" menu option has been disabled and you cannot make use of a password, to enable you to try the program out.  Please note that registration does not involve reloading the program, but simply selecting the 'Register' menu option and typing in a registration code to release the 'lock'.
+
+
+FILE DETAILS
+------------
+The archive file should contain the following files:
+
+RMRArt.sis		The program
+RMRArt Shapes.sis	Extra predefined shapes
+ReadMe.txt		Instructions
+
+and other language versions of the Readme.txt
+
+Once installed. you will see the program consists of the following essential files (in \System\Apps\RMRArt\)
+
+RMRArt.app  - The main program file
+RMRArt.mbm  - The icons used within the program
+RMRArt.aif  - The icons used in the System screen
+RMRArt.rsc  - The language resource file
+Chkmv.opo   - Module file
+
+And the following optional files which can be deleted later:
+
+RMRArt.hlp                       - Help File
+Tips.dat                         - Tips of the Day data file
+\Shapes\*.*     -   A collection of pre-defined shapes
+
+and in \RMRArt Tools\
+
+Emboss.opo          - RMRArt module
+Gradient Fill.opo   - RMRArt module
+Invert.opo          - RMRArt module
+Moire.opo           - RMRArt module
+Mosaic.opo          - RMRArt module
+Plot Graph.opo      - RMRArt module
+Skew.opo            - RMRArt module
+Thicken.opo         - RMRArt module
+Triangle.opo        - RMRArt module
+Wobble.opo          - RMRArt module
+Zoom Pixel Edit.opo - RMRArt module
+
+INSTALLATION
+------------
+To install the program simply double-click on the RMRArt.sis file or select the "Install New Program" option in PSIWIN (EPOC Install). If you have the latest PSIWIN or EPOC Install then everything will happen automatically. If you don't have these then you need to get the installation file SETUP.EXE, which can be downloaded from our Home Page.   If you are unsure, then go to http://www.rmrsoft.com/sis.htm  for a full explanation of the installation procedure.
+
+If you want the extra shapes then also double-click on the RMRArt Shapes.sis file.
+
+RUNNING THE PROGRAM
+-------------------
+Start the program by selecting the 'Extras' from the Application bar and then 'RMRArt'.
+
+
+REGISTRATION
+------------
+If you wish to register the program, you can do so by post (snail-mail), or on-line using a credit card.  The registration fee is £12 or 20US$. (plus $5 if using REGNET)
+
+If you wish to register on-line using a credit card you have 2 options:
+
+PayPal
+
+We now support the PayPal system for transferring of money, as that avoids the $5 handling charge put on by REGNET.  Simply send the money to alan@rmrsoft.com quoting the program you wish to register and we will send the registration code to you within a few hours.
+
+If you are not already signed up for PayPal it is very straightforward to join.  Just go to www.paypal.com and follow the instructions.  You even get a $5 bonus for signing up. However, we would appreciate if you say that you were referred by alan@rmrsoft.com so that we get the $5 referral bonus :-)).
+
+REGNET
+
+Alternatively you can register on the WWW through RegNet, the Registration Network (Note that paying by this method will involve an extra US$5 handling charge). RegNet can be reached by e-mail: orders@reg.net or on the World Wide Web: http://www.reg.net or in the USA by calling 1-800-WWW2REG (1 800 999-2734) or the easiest way is by following the links from my WWW Home page at:
+
+  http://www.rmrsoft.com/
+
+This program has been allocated the RegNet Number: 2398 and this should be quoted.  The notification tends to get to us within 12 hours and we reply as soon as possible.
+
+If you are using the postal service, please send a cheque (check) payable to 'RMR Software' (or the equivalent in 'real money' in your actual currency - no foreign currency cheques please), to one of the following addresses, including a stamped address envelope (or an E-Mail address) for the reply:
+
+  RMR Software
+  c/o 6000 Natick Court
+  Burke, VA 22015
+  USA
+
+  RMR Software
+  c/o 46 Mortimer Road
+  Kempston
+  Bedford	
+  MK42 8RE
+  ENGLAND
+
+Please note that these are the addresses of our 'agents'. If you use these addresses, Registration codes will be sent out fairly quickly (provided they are not on holiday), but if you send a technical query it will have to be redirected to us, so might take longer to reply. If you have access, we can be reached quickly at support@rmrsoft.com
+
+In each case, we (or our agent) will then send you a personalised registration code to enter (select the option via the Menu) to remove the 'nag' screen and allow full use of the program. Note that you will NOT need a new copy of the program, all the functionality is already there but just needs 'unlocking' by the registration code. We will also ensure that this code remains forward compatible for future versions of the program so, unlike other programs, we will not be asking for a further fee for an upgrade to the EPOC version.
+
+
+OTHER PROGRAMS FROM RMR SOFTWARE
+--------------------------------
+If you like this program, why not have a look at our other programs. A full list is as follows...
+
+For the EPOC series of machines:
+  RMRBank     : Personal Accounts Suite
+  RMRTask     : Extended Task (ToDo) Manager
+  RMRNotes    : Note Taker/Jotter program
+  RMRContact  : An ACT-like Contact Manager
+  RMRSol      : Solitaire card game
+  RMRUtils    : Utility/Conversion program
+  RMRZip      : Compression/Archive program
+  RMRFile     : File Manager
+  RMRArt      : Artist/Drawing program
+  RMRFuel     : Fuel Consumption Monitor
+  RMRCar      : Company Car Manager
+  RMRHome     : Home Inventory program
+  RMRInvest   : Investment Tracking program
+  RMRDiet     :  A Diet/Weight/Exercise Tracker
+  RMRMonth    : Month view companion for Agenda
+  RMRBoxx     : Sokoban logic game
+  RMRFruit    : Fruit machine game
+  RMRText     : A Text/Hex Editor
+  RMRNews     : An Internet News Reader
+  Vactrac5    : Leave/Vacation tracking program
+  deVender    : 'Defender'
+  SoundTrans  : A sound player and convertor
+
+Some of these are also available in other languages, such as French, German, Spanish, Dutch, Italian, Czech etc. See our Home Page for details.
+
+For the Psion S3mx/c/a/:
+  RMRBank3      : Personal Accounts Suite
+  S3ATask       : Extended Task (ToDo) Manager
+  S3AHome       : Home Inventory program based on the Quicken version
+  S3APlan       : Budget Planner based on the Quicken Financial Planner
+  S3AFuel       : Fuel Consumption Monitor
+  S3AInvest     : Investment Tracking Program
+  S3AExpenses   : Expense Account Monitor
+  S3ACollect    : Collection (Records, Books, Stamps etc) Manager
+  S3ADraw       : Drawing/Icon Viewer/Editor
+
+With the exception of S3ATask, these programs are also available for the Siena, and just use the prefix 'SNA' rather than 'S3A' or 'RMR', i.e. SNABank
+
+For the Psion S3 'Classic':
+  S3Bank    : Personal Accounts package
+
+The latest versions should all be available at the same location where you found this program. If you cannot get them, a disc and Stamped Addressed Envelope to any of the addresses will get you copies of all the programs. (Make sure you specify the platform).
+
+Alternatively, you can always visit our Web Site where there are full details of the programs, and news of any upgrades or enhancements or known bugs. Again, the address is:
+
+  http://www.rmrsoft.com/
+
+In the future, we intend to leave 'Beta' versions of the next versions of the programs on these sites, as each new enhancement is incorporated. If you don't mind taking the odd risk, that will be a way of continually updating your program.
+
+If you've found this program useful and want to try some other Psion programs, why not try 3-Lib ??
+
+---------------------------------------------------------------------------
+Steve Litchfield, 3-Lib. Series 3/3a PD and shareware on Floppy & CD.
+Established since January 1993, latest files from CIX, CIS, Internet,
+BBS & Author network. Send Stamped self-addressed envelope for catalogue.
+3-Lib library, 22 Grays Crescent : Woodley : Berkshire : RG5 3EN : ENGLAND
+
+or WWW site at: http://3lib.ukonline.co.uk
+---------------------------------------------------------------------------
+
+LICENCE AGREEMENT
+-----------------
+This program is copyright of 'RMR Software Limited'
+
+Please feel free to:
+
+(i)	Upload this software to any electronic bulletin board or WWW site.
+
+(ii)	Demonstrate the software and its capabilities or
+
+(iii)	Give copies to potential users, so that others may have the opportunity to obtain a copy for use in accordance with the licence terms contained in this file.
+
+Notice to users: Carefully read the following legal agreement. Use of the software provided with this agreement (the "software") constitutes your acceptance of these terms. If you do not agree to the terms of this agreement, promptly remove the software together with all copies from your computer. User's use of this Software is conditioned upon compliance by user with the terms of this agreement.
+
+The software is protected by copyright law and international treaty provisions. You acknowledge that no title to the intellectual property in the software is transferred to you. You further acknowledge that title and full ownership rights to the software will remain the exclusive property of RMR Software, and you will not acquire any rights to the software except as expressly set forth in this licence. You agree that any copies of the software will contain the same proprietary notices which appear on and in the software.
+
+Reverse engineering. You agree that you will not attempt to reverse compile, modify, translate, or disassemble the software in whole or in part.
+
+I do not warrant that the software is error free. I disclaim all other warranties with respect to the software, either express or implied, including, but not limited to, implied warranties of merchantability, fitness for a particular purpose and non-infringement of third party rights.
+
+There is no liability for consequential damages. In no event shall I or my suppliers be liable to you for any consequential, special, incidental or indirect damages of any kind arising out of the delivery, performance or use of the software, even if I have been advised of the possibility of such damages. In no event will my liability for any claim, whether in contract, or any other theory of liability, exceed the licence fee paid by you.

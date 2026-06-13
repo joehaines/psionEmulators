@@ -1,0 +1,60 @@
+  push    dx      ; Save DX (mul zaps it)
+  dec     ax      ; Normalise index
+  add     ax,ax
+  mul     cx      ; First dimension
+  dec     bx      ; Normalise index
+  add     bx,bx
+  add     ax,bx   ; Second dimension
+  pop     bx      ; Retrieve DX in BX
+  add     bx,ax   ; Address of element
+  mov     ax,[bx] ; Get element in AX
+  retf
+
+So supposing an array foo%(m%*n%) i.e. m% x n% array
+
+  value%=usr(addr(mc%(1)), i%, j%, n%, addr(foo%(1)))
+
+should retrieve the element foo%(i%, j%) where 1<=i%<=m% and 1<=j%<=n%
+
+If this is right then mc%(9) is:
+
+mc%(1)=$4852
+mc%(2)=$C003
+mc%(3)=$E1F7
+mc%(4)=$034B
+mc%(5)=$03DB
+mc%(6)=$5BC3
+mc%(7)=$D803
+mc%(8)=$078B
+mc%(9)=$00CB
+
+I've given this a quick test and it seems okay.  It would be faster to 
+pass the addr() stuff as variables in the usr() function, of course. I 
+don't know what the overhead of usr() itself is, though.
+
+David, a rainy afternoon, Edinburgh
+
+
+==========
+mail/messages #827, from slitchfield, 546 chars, Sun, 23 Jan 94 03:13 GMT0
+Comment to 825.
+----------
+Date: Sun, 23 Jan 94 03:13 GMT0
+From: slitchfield@cix.compulink.co.uk (Steve Litchfield)
+Subject: Re: 2D arrays in OPL
+To: dpalmer@cix.compulink.co.uk, 
+ slitchfield@cix.compulink.co.uk
+Reply-To: slitchfield@cix.compulink.co.uk
+Message-Id: <memo.317562@cix.compulink.co.uk>
+
+In-Reply-To: <memo.315282@cix.compulink.co.uk>
+Hi there,
+
+Thanks for that, I will probably be able to use that when I get back
+to the next 'play it and optimize it' stage of my game (I've just
+started a major re-write!).
+
+Let me know if I can do anything for you!
+
+Steve
+

@@ -1,0 +1,1381 @@
+REM APPMAN - Application Manager
+REM
+REM 16-Nov-1997 v1.0 AG Initial release of merged code.
+REM                     (aka. kitchen-sink-ware)
+REM 20-Feb-1998 v1.1 AG Added newly-found WDR printer support.
+REM 21-Feb-1998      AG Added link paste client (bring) support.
+REM 22-Feb-1998      AG Added link paste server support.
+REM 25-Feb-1998      AG Added country information support.
+REM  3-Mar-1998      AG Added serial link, user information, rsset.
+REM  7-Mar-1998      AG Cleanup.
+REM
+REM A collection of routines pulled together in one spot by me (Andrew
+REM Gregory, uniaust@unidata.com.au). Originally from files called:
+REM
+REM * DIALMENU.OPL (by Jezar (Jeremy Wakefield)) (DIALMENU.ZIP)
+REM
+REM   An OPL implementation of the SIBO C SDK Application Manager. It
+REM   provides support for asynchronous dialogs and menus, plus the
+REM   "progress bar" dialog control.
+REM
+REM * EVENTMAN.OPL (by Jezar (Jeremy Wakefield)) (OPLEX.ZIP)
+REM
+REM   "An Event Manager module, designed to simplify code and reduce
+REM   application size. Written by Jezar at Psion, for the 1994 Psion
+REM   Developers Conference".
+REM   It provides support for asynchronous I/O (such as keyboard, timers,
+REM   serial port).
+REM
+REM * HELPSHOW.OPL (by Jezar (Jeremy Wakefield)) (HELPKIT1.ZIP)
+REM
+REM   Help viewer function.
+REM
+REM * FLATLIST.OPL & STRLIST.OPL (author unknown) (LONGLIST.ZIP)
+REM
+REM   These two files implement dynamic choice lists (supporting lists with
+REM   more than 254 items).
+REM
+REM * DIULINE.TXT (by David Wood) (DIULINE.ZIP)
+REM
+REM   Module to add or remove underlines in a dialog box.
+REM
+REM * PRINTLIB.OPP (by Andy Clarkson) (OPPSDK.ZIP)
+REM
+REM   Example interface to built-in WDR drivers with print and
+REM   preview, implemented in OPP.
+REM
+REM * LPC.OPL & LPS.OPL (original C by Colly, OPL by Tom Dolbilin) (LPCS.ZIP)
+REM
+REM   OPL examples of link paste.
+REM
+REM In the process of merging these files, I had to make modifications as
+REM required to make them compatible / accessible / general. I also modifed
+REM the event dispatcher to allow for user specified handlers.
+REM
+REM Working from the gauge update function, I created a function to update
+REM dTEXT items.
+REM
+REM The byte at $34 counts dialog boxes, the byte at $35 counts menus.
+REM
+REM To do (in no particular order):
+REM
+REM    1. Async help (and probably printer setup/preview).
+REM    2. Async setting of dialog controls other than gauge and dTEXT.
+REM    3. Implement example files of the original routines, using these
+REM       modified routines.
+REM    4. Make dynamic choice lists nicer. Currently, you need to use a dummy
+REM       dCHOICE to create the choice list. If would be nice to have a
+REM       function that could do the whole thing in one go.
+REM    5. Emulate MENU(init%) support to track which menu item should be
+REM       initially selected.
+REM    6. Figure out if it's possible to get the printer routines to change
+REM       style part way through a line.
+
+PROC dummy:
+	ALERT( "Application Manager v1.1", "7 March 1998" )
+ENDP
+
+PROC hpWserv%:             REM Hook wserv event
+REM  Hook point for events read by the window
+REM  server. You get these before the relevant
+REM  entity (menu/dialog/help) does.
+REM  Return  0 to allow the dispatch of the event.
+REM  Return <>0 to disallow the dispatch of the event
+REM  with the following special cases:
+REM   <0 - return/raise error
+REM    1 - ignore event
+REM    2 - exit amStart%:
+REM   >2 - *** reserved/undefined ***
+	
+	LOCAL type%, handle%, dummy%, key%, kmod%, krep%
+	REM handle% is for window Redraw(type 3) events
+	REM Types:
+	REM  1=Keypress    9=Active          17=Command
+	REM  2=Mouse      10=Unknown         18=TaskKey
+	REM  3=Redraw     11=Cancel          19=Task Update
+	REM  4=Unknown    12=Kstate          20=Power On
+	REM  5=Background 13=Rubberband init 21=Escape
+	REM  6=Foreground 14=DeIconise       22=Date Changed
+	REM  7=Rubberband 15=Attach
+	REM  8=User       16=Detach
+	
+	REM Copy the details of the event.
+	CALL( $a1, 0, 10, 0, UADD( PEEKW( $12 ), 12 ), ADDR( type% ) )
+	
+	IF type% < 1 OR type% > 22
+		RETURN
+	ENDIF
+	IF EvtFunc$( type% ) = ""
+		RETURN
+	ENDIF
+	IF type% = 1
+		krep% = kmod% / 256      REM extract key repeats
+		kmod% = kmod% AND 255
+		RETURN @%( EvtFunc$( type% ) ):( key%, kmod%, krep% )
+	ELSE
+		RETURN @%( EvtFunc$( type% ) ):
+	ENDIF
+ENDP
+
+REM ----------------------------------------
+
+PROC amStart%:             REM Start appman
+REM  Start the basic loop to get a message 
+REM  from the server. May be called recursively 
+REM  for modal interaction.
+	
+	LOCAL amclean%, amqnext%, amstop%, amself%
+	LOCAL stop%, ret%, abret%, wserv%, menubar%
+	LOCAL pt%, aoisact%, donestp%
+	LOCAL htask%, waotask%
+	
+	amself%  = PEEKW( $14 )
+	amclean% = UADD( amself%, 4 )
+	amqnext% = UADD( amself%, 14 )
+	amstop%  = UADD( amself%, 18 )
+	wserv%   = PEEKW( $12 )
+	menubar% = UADD( wserv%, $20 )
+	
+	REM The waotask object eats 
+	REM OPL signals under XWIM
+	REM Seeing as this *is* OPL we 
+	REM will prevent it from running in
+	REM just this OPL version of am_start
+	waotask% = PEEKW( UADD( PEEKW( $38 ), 4 ) )
+	
+	REM Increment appman.stop
+	POKEW amstop%, PEEKW( amstop% ) + 1
+	stop% = PEEKW( amstop% )
+	
+	REM Set the cleanup level
+	IF PEEKW( amclean% )
+		SEND( PEEKW( amclean% ), 29, #stop% )
+	ENDIF
+	
+	REM We are about to queue a wserv read
+	REM so we *must* turn off the console
+	cnOff%:( 1 )
+	
+	DO
+		REM Wait for event
+		SEND( amself%, 5 )
+		
+		REM Find a task to run
+		pt%=amqnext% REM Task queue head
+		WHILE 1
+			abret% = 0
+			
+			REM Find next task
+			pt% = PEEKW( pt% )
+			IF pt% = amqnext%
+				REM nothing has claimed the signal yet - try the
+				REM event manager
+				IF emDspch%:
+					BREAK
+				ELSE
+					ALERT( "Stray signal death" )
+					STOP
+				ENDIF
+			ENDIF
+			
+			REM See if task is qualified to run
+			REM (remember to ignore waotask)
+			htask% = USUB( pt%, 4 )
+			aoisact% = UADD( htask%, 9 )
+			IF PEEKB( aoisact% ) = 0 OR PEEKW( UADD( htask%, 12 ) ) = -46 OR htask% = waotask%
+				CONTINUE  REM Don't run it
+			ENDIF
+			
+			REM Run the task
+			ONERR Fail
+			POKEB aoisact%, 0     REM Disable before run
+			IF htask% = wserv%
+				ret% = hpWserv%:     REM Window server event
+			ELSE
+				IF hpRun$ = ""
+					ret% = 0
+				ELSE
+					ret% = @%( hpRun$ ):( htask% ) REM Other event
+				ENDIF
+			ENDIF
+			IF ret%
+				IF ret% <> 1
+					POKEW amstop%, stop% - 1
+				ENDIF
+				BREAK
+			ELSE
+				REM send event to client window (menu/dialog)
+				IF PEEKW( $34 ) = 0
+					REM But there aren't any client windows!
+					BREAK
+				ENDIF
+				CALL( $0dd6, 0, 0, 0 )  REM Enable ws leaves
+				ret% = ENTERSEND( htask%, 5 )
+				CALL( $0dd6, 0, 0, 1 )  REM Disable ws leaves
+				IF ret% = 0             REM Unused, so we
+					POKEB aoisact%, 1 REM re-enable and
+					CONTINUE          REM look for another
+				ENDIF
+			ENDIF
+			RAISE ret%           REM Ensure ERR is set
+			
+		Fail::
+			REM Task failed somehow
+			ONERR BadErr
+			IF ERR > 0
+				BREAK              REM No cleanup requested
+			ENDIF
+			
+			REM Do an amstop if there's a menu
+			IF PEEKW( menubar% )
+				POKEW amstop%, stop% - 1
+				REM Ensure menu returns zero
+				POKEW UADD( PEEKW( $38 ), 12 ), 0
+				donestp% = 1
+			ENDIF
+			
+			REM Run objects cleanup
+			IF hpAbRun$ = ""
+				ret% = 0
+			ELSE
+				ret% = @%( hpAbRun$ ):( htask% )
+			ENDIF
+			IF ret% = 0
+				CALL( $0dd6, 0, 0, 0 )  REM Enable ws leaves
+				ret% = ENTERSEND0( amself%, 11, #ERR, #htask% )
+				CALL( $0dd6, 0, 0, 1 )  REM Disable ws leaves
+			ENDIF
+			RAISE ret%   REM Ensure ERR is set
+			
+		BadErr::
+			REM Cleanup failed
+			ONERR OFF
+			abret% = ERR
+			
+			REM Do amstop (if not done already)
+			IF abret% <> 0 AND donestp% = 0
+				POKEW amstop%, stop% - 1
+			ENDIF
+			BREAK
+		ENDWH
+	UNTIL PEEKW( amstop% ) <> stop%
+	
+	ONERR OFF
+	REM Clean up this level
+	REM and set to previous level
+	IF PEEKW( amclean% )
+		SEND( PEEKW( amclean% ), 28 )
+		SEND( PEEKW( amclean% ), 29, #( stop% - 1 ) )
+	ENDIF
+	
+	REM We now propogate all errors (even +ve)
+	IF abret%
+		RAISE abret%
+	ENDIF
+ENDP
+
+PROC wsMenu%:              REM Launch a menu
+REM  This is the top-level function which 
+REM  you use to launch menus asynchronously
+	
+	LOCAL wmenu%, nmenus%, pmenu%, ret%, gate%
+	
+	wmenu% = PEEKW( UADD( PEEKW( $12 ), 32 ) )
+	IF wmenu% = 0
+		RAISE -85
+	ENDIF
+	
+	LOCK ON
+	POKEB $35, PEEKB( $35 ) + 1
+	ret% = wsDoIt%:( wmenu% )
+	POKEB $35, PEEKB( $35 ) - 1
+	IF PEEKW( $34 ) = 0
+		LOCK OFF
+	ENDIF
+	
+	REM Free menu cards
+	gate% = PEEKW( $38 )
+	nmenus% = UADD( gate%, 72 )
+	WHILE PEEKW( nmenus% )
+		POKEW nmenus%, PEEKW( nmenus% ) - 1
+		SEND( PEEKW( UADD( PEEKW( UADD( gate%, 74 ) ), 2 * PEEKW( nmenus% ) ) ), 0 )
+	ENDWH
+	
+	IF PEEKW( UADD( gate%, 70 ) ) = 0 AND ret% > 0
+		ret% = ASC( LOWER$( CHR$( ret% ) ) )
+	ENDIF
+	
+	RETURN ret%
+ENDP
+
+PROC wsDial%:              REM Launch a dialog
+REM  This is the top-level function which 
+REM  you use to launch dialogs asynchronously
+	
+	LOCAL wdial%, winflg%, ret%
+	
+	wdial% = PEEKW( UADD( PEEKW( $12 ), $1e ) )
+	IF wdial% = 0
+		RAISE -85
+	ENDIF
+	
+	ret% = ENTERSEND( wdial%, 27 ) REM Set size
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Set PW_WIN_INITIALISED, which allows
+	REM the dialog to self destruct properly
+	winflg% = UADD( wdial%, 6 )
+	POKEW winflg%, ( PEEKW( winflg% ) OR $0800 )
+	
+	REM Launch, and return as per "DIALOG"
+	LOCK ON
+	POKEB $34, PEEKB( $34 ) + 1
+	ret% = wsDoIt%:( wdial% )
+	POKEB $34, PEEKB( $34 ) - 1
+	IF PEEKW( $34 ) = 0
+		LOCK OFF
+	ENDIF
+	RETURN ret%
+ENDP
+
+PROC wsOnTop%:( func$ )    REM Nest a dialog
+REM  Place a new dialog on top of an existing one
+REM
+REM  This function harness exists because
+REM  otherwise OPL will kill off our
+REM  dialog AND do an amstop!
+REM
+REM  You have now idea how many hours it
+REM  took me to discover what OPL was up to....
+	
+	LOCAL ret%, pdial%, olddial%, dialret%
+	
+	pdial% = UADD( PEEKW( $12 ), $1e )
+	olddial% = PEEKW( pdial% )
+	
+	REM Deemphasise existing dialog
+	CALL( $0dd6, 0, 0, 0 )  REM Enable ws leaves
+	ret% = ENTERSEND0( olddial%, 8, #0 )
+	CALL( $0dd6, 0, 0, 1 )  REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Prevent old dialog from being
+	REM destroyed by the dINIT in @%( func$ ):
+	POKEW pdial%, 0
+	POKEW $36, 0
+	
+	REM Call user function
+	ONERR Clean
+	dialret% = @%( func$ ):
+	RAISE 0
+	
+Clean::
+	ONERR OFF
+	
+	REM Replace old dialog
+	POKEW $36, olddial%
+	POKEW pdial%, olddial%
+	
+	REM Emphasise original dialog
+	CALL( $0dd6, 0, 0, 0 )  REM Enable ws leaves
+	ret% = ENTERSEND0( olddial%, 8, #1 )
+	CALL( $0dd6, 0, 0, 1 )  REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Report any error in user function
+	IF ERR
+		RAISE ERR
+	ENDIF
+	
+	RETURN dialret%
+ENDP
+
+PROC wsDoIt%:( item% )       REM (private)
+REM  This procedure is invoked by
+REM  wsMenu% and wsDial%.
+	
+	LOCAL ret%
+	
+	REM Make item visible and emphasised
+	CALL( $0dd6, 0, 0, 0 ) REM Enable ws leaves
+	ret% = ENTERSEND( item%, 7, #3 )
+	IF ret% = 0
+		ret% = ENTERSEND0( item%, 8, #1 )
+	ENDIF
+	CALL( $0dd6, 0, 0, 1 ) REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Start application manager
+	amStart%:
+	
+	REM Return as per MENU or DIALOG
+	RETURN PEEKW( UADD( PEEKW( $38 ), 12 ) )
+ENDP
+
+PROC cnOff%:( state% )       REM Console reads off/on
+REM  Enable/disable console window server reads
+REM
+REM  WARNING! - Without reads, the functions
+REM  TESTEVENT, GET, GET$, KEY, KEY$
+REM  KMOD, GETEVENT, EDIT, INPUT, PAUSE
+REM  will *not* work anymore (General failure)
+REM  You MUST turn reads back on to use those
+REM  functions!
+	
+	LOCAL func%, c%
+	
+	REM Ensure no wserv read outstanding
+	IF state% = 0
+		SEND( PEEKW( $12 ), 2 )
+	ENDIF
+	
+	c% = state%
+	func% = 18
+	IOW( -2, 7, func%, c% )
+ENDP
+
+REM Return count of # of items in current dialog box, or -1 if there is no
+REM current dialog box.
+PROC dCount%:           REM count # items in current dialog box
+	LOCAL dlgbox%
+	dlgbox% = PEEKW( $36 )
+	IF dlgbox%
+		REM return dlgbox.count
+		RETURN PEEKB( UADD( dlgbox%, 61 ) )
+	ENDIF
+	RETURN -1
+ENDP
+
+REM Return item # of currently selected item in the current dialog box, or
+REM -1 if there is no current dialog box.
+PROC dCurrnt%:           REM # of currently selected item
+	LOCAL dlgbox%
+	dlgbox% = PEEKW( $36 )
+	IF dlgbox%
+		REM return dlgbox.current
+		RETURN PEEKB( UADD( dlgbox%, 62 ) )
+	ENDIF
+	RETURN -1
+ENDP
+
+PROC dTXTSET%:( itm%, str$ )  REM Set dTEXT text
+REM  You must correctly state which item
+REM  on the dialog box it is.
+	
+	LOCAL ret%
+	
+	REM This LOCAL data is ALL used!
+	REM mask% - mask for flags%
+	REM flags% - bits 0-1 : 0=left,1=right,2=centre(,3=right)
+	REM          bit   2  : bold
+	REM          bit   3  : allow text to be set
+	REM          bit   4  : ?
+	REM          bit   5  : bullet (but won't allow this item to
+	REM                     be selected if it can't already)
+	REM strptr% - start of text (dialog appears to make own copy)
+	REM strlen% - length of text
+	LOCAL mask%, flags%, strptr%, strlen%, p%
+	
+	REM Check that the dialog box exists
+	IF PEEKW( $36 ) = 0
+		RAISE -85
+	ENDIF
+	
+	p% = ALLOC( LEN( str$ ) + 1 )
+	POKE$ p%, str$
+	mask% = 8 :REM change text only
+	flags% = 0
+	strptr% = UADD( p%, 1 )
+	strlen% = LEN( str$ )
+	CALL( $0dd6, 0, 0, 0 )  REM Enable ws leaves
+	REM Tell the dialog box to set item
+	ret% = ENTERSEND0( PEEKW( $36 ), 10, #itm%, mask% )
+	CALL( $0dd6, 0, 0, 1 )  REM Disable ws leaves
+	FREEALLOC p%
+	IF ret%
+		RAISE ret%
+	ENDIF
+ENDP
+
+PROC dDONEWN%:( maximum& )   REM Progress box
+REM  A "progress gauge" for a dialog.
+REM  Your dialog must be launched asynchronously
+REM  if you intend to update the display!
+REM  maximum& represents your "100% full" value.
+	
+	LOCAL ret%, idx%
+	
+	REM The following LOCAL data is ALL used
+	REM (it is taken to be a memory block)
+	REM and it must be kept in order:
+	
+	REM AD_DLGBOX struct:
+	LOCAL dlgflg%, class%   REM (includes NULL prompt)
+	
+	REM SE_GAUGE struct:   REM Uninitialised for DONEWN
+	LOCAL size1%, size2%, size3%, size4%
+	LOCAL colr1n2%, colr3n4%
+	
+	REM SE_DONEWN struct:
+	LOCAL flags%, val&, range&
+	
+	REM Check that a dialog is being built
+	IF PEEKW( $36 ) = 0
+		RAISE -85        REM Structure fault
+	ENDIF
+	
+	REM Ask dialog box to add this item
+	class% = 25          REM C_DONEWN
+	range& = maximum&
+	ret% = ENTERSEND( PEEKW( $36 ), 26, dlgflg% )
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	REM Set the *relative* range of 
+	REM the progress box (the 100% value)
+	REM (note the *physical* size of gauges is fixed)
+	flags% = 1 REM (SE_DONEWN_RANGE)
+	idx% = dCount%: - 1
+	CALL( $0dd6, 0, 0, 0 )  REM Enable ws leaves
+	REM Tell the dialog box to set the item
+	ret% = ENTERSEND0( PEEKW( $36 ), 10, #idx%, flags% )
+	CALL( $0dd6, 0, 0, 1 )  REM Disable ws leaves
+	IF ret% < 0
+		RAISE ret%
+	ENDIF
+	RETURN idx%
+ENDP
+
+PROC dDWSET%:( itm%, value& ) REM Set the progress
+REM  Update a progress box on a dialog
+REM  You must correctly state which item
+REM  on the dialog box the gauge is.
+	
+	LOCAL ret%
+	
+	REM This LOCAL data is ALL used!
+	REM SE_DONEWN struct:
+	LOCAL flags%, val&, range&
+	
+	REM Check that the dialog box exists
+	IF PEEKW( $36 ) = 0
+		RAISE -85
+	ENDIF
+	
+	REM To always increase a gauge by 1 you could
+	REM use flags%=4 (SE_DONEWN_INCREMENT)
+	REM but this procedure is more general.
+	flags% = 2      REM (SE_DONEWN_VALUE)
+	val& = value&   REM The amount to increment by
+	CALL( $0dd6, 0, 0, 0 )  REM Enable ws leaves
+	REM Tell the dialog box to set item
+	ret% = ENTERSEND0( PEEKW( $36 ), 10, #itm%, flags% )
+	CALL( $0dd6, 0, 0, 1 )  REM Disable ws leaves
+	IF ret%
+		RAISE ret%
+	ENDIF
+ENDP
+
+REM ***************************
+REM * ASYNC I/O EVENT MANAGER *
+REM ***************************
+
+PROC emAdd%:( func$, pri% )   REM Add an event handler
+	REM returns slot% on success, zero on fail
+	LOCAL i%, j%, slot%, idx%
+	
+	DO :REM Find a free slot
+		IF slot% = 20 :REM This systems' limit
+			RETURN 0
+		ENDIF
+		slot% = slot% + 1
+	UNTIL emFunc$( slot% ) = ""
+	
+	emMax% = emMax% + 1
+	
+	DO :REM Find position in list
+		idx% = idx% + 1
+		IF idx% = emMax%
+			BREAK
+		ENDIF
+		j% = emSlot%( idx% )
+	UNTIL emPri%( j% ) < pri%
+	
+	REM Insert in list
+	i% = emMax%
+	WHILE i% > idx%
+		j% = i%
+		i% = i% - 1
+		emSlot%( j% ) = emSlot%( i% )
+	ENDWH
+	
+	REM Initialise slot
+	emSlot%( idx% ) = slot%
+	emFunc$( slot% ) = func$
+	emPri%( slot% ) = pri%
+	emHand%( slot% ) = 0
+	emStat%( slot% ) = 0
+	emUser1&( slot% ) = 0
+	emUser2&( slot% ) = 0
+	RETURN slot%
+ENDP
+
+PROC emRem%:( slot% )        REM Remove an event slot
+	REM returns zero on success, slot% on fail
+	LOCAL i%, j%
+	
+	DO :REM Find the requested slot
+		IF i% = emMax%
+			RETURN slot%
+		ENDIF
+		i% = i% + 1
+	UNTIL emSlot%( i% ) = slot%
+	
+	REM Invalidate the slot:
+	emFunc$( slot% ) = ""
+	emHand%( slot% ) = 0
+	emStat%( slot% ) = 0
+	emUser1&( slot% ) = 0
+	emUser2&( slot% ) = 0
+	
+	REM Copy down the other slots
+	WHILE i% < emMax%
+		j% = i%
+		i% = i% + 1
+		emSlot%( j% ) = emSlot%( i% )
+	ENDWH
+	
+	emMax% = emMax% - 1
+ENDP
+
+PROC emDspch%:             REM The event dispatcher
+	REM returns zero if no events claimed the signal
+	LOCAL i%, slot%
+	i% = 0
+	WHILE i% < emMax%
+		i% = i% + 1
+		slot% = emSlot%( i% )
+		IF emStat%( slot% ) <> -46
+			@%( emFunc$( slot% ) ):( slot% )
+			RETURN 1
+		ENDIF
+	ENDWH
+ENDP
+
+REM **********************
+REM * DIALOG UNDERLINING *
+REM **********************
+
+PROC dULINE:( index%, on% )  REM add line in dialog
+	LOCAL ddp%, numits%, itm%, flags%
+	ddp% = PEEKW( $36 ) :REM DatDialogPtr
+	itm% = ddp% + $a
+	numits% = PEEKB( ddp% + $3d )
+	IF numits% > 7
+		itm% = PEEKW( itm% )
+	ENDIF
+	itm% = itm% + index% * 6 + 4
+	flags% = PEEKW( itm% )
+	IF on%
+		flags% = flags% OR 4
+	ELSE
+		flags% = flags% AND NOT 4
+	ENDIF
+	POKEW itm%, flags%
+ENDP
+
+REM *********************
+REM * HELP FILE SUPPORT *
+REM *********************
+
+PROC hlpSync%:( fname$, base&, page& )
+	LOCAL gate%, buf%( 65 )
+	POKE$ ADDR( buf%( 1 ) ), "#" + fname$
+	gate% = PEEKW( $38 )
+	SEND( gate%, 27, buf%( 2 ) ) :REM set help filename
+	SEND( gate%, 26, #page&, #base& ) :REM do help
+	REM eat any pending keypresses
+	cnOff%:( 1 )
+	WHILE KEY
+		GET
+	ENDWH
+ENDP
+
+REM ************************
+REM * DYNAMIC CHOICE LISTS *
+REM ************************
+
+PROC dclInit%:( flat%, gran%, size% )
+	LOCAL sz%, va%, ret%
+	ONERR Error
+	
+	sz% = size% + 1
+	REM Create instance of C_VFLAT or C_VASTR
+	IF flat%
+		va% = 3 :REM 3=C_VAFLAT
+	ELSE
+		va% = 6 :REM 6=C_VASTR
+	ENDIF
+	va% = NEWOBJH( LOlib%, va% )
+	IF va%=0
+		RAISE -10 :REM -10=E_GEN_NOMEMORY
+	ENDIF
+	
+	REM Set up the record length and granularity
+	CALL( $0dd6, 0, 0, 0 )
+	IF flat% :REM 17=O_VA_INIT
+		ret% = ENTERSEND0( va%, 17, #sz%, #gran% )
+	ELSE
+		ret% = ENTERSEND0( va%, 17, #gran% )
+	ENDIF
+	CALL( $0dd6, 0, 0, 1 )
+	IF ret% <> 0
+		RAISE ret%
+	ENDIF
+	
+	RETURN va%
+	
+Error::
+	ONERR OFF
+	RETURN 0
+ENDP
+
+PROC dclAdd%:( va%, str$ )
+	LOCAL p%, ret%
+	p% = ALLOC( LEN( str$ ) + 2 )
+	IF p% = 0
+		RETURN -10
+	ENDIF
+	POKE$ p%, str$ + CHR$( 0 )
+	ret% = ENTERSEND0( va%, 7, #UADD( p%, 1 ) ) :REM 7=O_VA_APPEND
+	FREEALLOC p%
+	RETURN ret%
+ENDP
+
+PROC dclSet%:( va%, sel% )
+	LOCAL flags%, data%, nsel%, ret%, idx%
+	flags% = 7 :REM SE_CHLIST_DATA OR SE_CHLIST_NSEL OR SE_CHLIST_RETAIN
+	data%  = va%
+	nsel%  = sel% - 1
+	idx% = dCount%: - 1
+	CALL( $0dd6, 0, 0, 0 ) :REM Enable ws leaves
+	ret% = ENTERSEND0( PEEKW( $36 ), 10, #idx%, flags% ) :REM 10=O_WN_SET
+	CALL( $0dd6, 0, 0, 1 ) :REM Disable ws leaves
+	RETURN ret%
+ENDP
+
+PROC dclDone%:( va% )
+	RETURN ENTERSEND0( va%, 0 ) :REM 0=O_DESTROY
+ENDP
+
+REM **************************************
+REM * WDR PRINTER DRIVER/PREVIEW SUPPORT *
+REM **************************************
+
+REM Display print setup dialog
+PROC prSetup:
+	LOCAL r%
+	r% = SEND( PEEKW( 56 ), 25 )
+	IF r% <> 0
+		RAISE r%
+	ENDIF
+ENDP
+
+REM Get Printer Handle
+PROC prGHdl%:
+	SEND( PEEKW( 18 ), 31 ) :REM make sure printer active
+	RETURN PEEKW( UADD( PEEKW( 18 ), 68 ) )
+ENDP
+
+REM Get Printer Parameters
+REM addr% points to a param%( 30 )
+REM Returns name of printer driver
+PROC prGParm$:( addr% )
+	LOCAL name$( 130 ), printer%, params%
+	
+	printer% = prGHdl%:
+	params% = SEND( printer%, 9 ) :REM 9=O_PR_GET_PARAMS
+	
+	REM get model and name
+	POKEW addr%, SEND( printer%, 8, #UADD( ADDR( name$ ), 1 ) ) :REM 8=O_PR_SENSE_MODEL
+	POKEB ADDR( name$ ), CALL( $b9, 0, 0, 0, 0, UADD( ADDR( name$ ), 1 ) )
+	
+	REM get copy of rest of parameters
+	CALL( $a1, 0, 58, 0, params%, UADD( addr%, 2 ) ) :REM 58 bytes or 29 integers
+	
+	RETURN name$
+ENDP
+
+REM Set Printer Parameters
+REM name$ is the name of the printer driver
+REM addr% points to a param%(30)
+PROC prSParm:( name$, addr% )
+	LOCAL nm$( 255 ), printer%
+	nm$ = LEFT$( name$, 254 ) + CHR$( 0 ) :REM convert OPL string to C string
+	printer% = prGHdl%:
+	
+	REM copy user parameters over system parameters
+	CALL( $a1, 0, 58, 0, UADD( addr%, 2 ), SEND( printer%, 9 ) ) :REM 58 bytes or 29 integers; 9=O_PR_GET_PARAMS
+	
+	REM set the printer driver (by driver filename) and model# within the driver
+	SEND( printer%, 5, #0, #UADD( ADDR( nm$ ), 1 ), #PEEKW( addr% ) ) :REM 5=O_PR_SET_MODEL
+ENDP
+
+REM Get header/footer text
+REM where%=0 for header, 1 for footer
+PROC prGHF$:( where% )
+	LOCAL p%, len%, buf$( 255 )
+	p% = SEND( prGHdl%:, 11, #where% ) :REM 11=O_PR_GET_HD
+	len% = CALL( $b9, 0, 0, 0, 0, p% )
+	IF len% > 255
+		len% = 255
+	ENDIF
+	CALL( $a1, 0, len%, 0, p%, UADD( ADDR( buf$ ), 1 ) )
+	POKEB ADDR( buf$ ), len%
+	RETURN buf$
+ENDP
+
+REM Set header/footer text
+REM where%=0 for header, 1 for footer
+PROC prSHF:( where%, txt$ )
+	LOCAL buf$( 255 )
+	buf$ = LEFT$( txt$, 254 ) + CHR$( 0 ) :REM convert OPL string to C string
+	SEND( prGHdl%:, 10, #where%, #UADD( ADDR( buf$ ), 1 ) ) :REM 10=O_PR_SET_HD
+ENDP
+
+REM Initialise print pages buffer
+REM inum%=initial number of lines allowed for
+REM grow%=number of lines to grow by when current buffer fills up
+REM Word 0 = current # lines
+REM Word 1 = current maximum # lines
+REM Word 2 = current grow size
+REM Word 3+= line data
+PROC prInit%:( inum%, grow% )
+	LOCAL pbuf%
+	pbuf% = ALLOC( 6 + 6 * inum% )
+	IF pbuf% = 0
+		RAISE -10 :REM NoMemoryErr
+	ENDIF
+	POKEW UADD( pbuf%, 0 ), 0
+	POKEW UADD( pbuf%, 2 ), inum%
+	POKEW UADD( pbuf%, 4 ), grow%
+	RETURN pbuf%
+ENDP
+
+REM End Printing
+REM pbuf%=pointer returned by prInit%:
+PROC prEnd:( pbuf% )
+	LOCAL i%, lc%, p1%, p2%
+	lc% = PEEKW( pbuf% )
+	p1% = UADD( pbuf%, 10 )
+	i% = 0
+	WHILE i% < lc%
+		i% = i% + 1
+		FREEALLOC USUB( PEEKW( p1% ), 1 )
+		p1% = UADD( p1%, 6 )
+	ENDWH
+	FREEALLOC pbuf%
+	p1% = PEEKW( 18 )
+	p2% = PEEKW( UADD( p1%, 28 ) )
+	IF p2%
+		SEND( p2%, 0 )
+		POKEW UADD( p1%, 28 ), 0
+	ENDIF
+ENDP
+
+REM Page preview or Print
+REM pbuf%=pointer returned by prInit%:
+REM dest%=0 for printer, 1 for preview
+PROC prPrint:( pbuf%, dest% )
+	LOCAL lc%, r%
+	lc% = PEEKW( pbuf% )
+	r% = SEND( PEEKW( 56 ), 24, #dest%, #lc%, #UADD( pbuf%, 6 ) ) :REM 56=DatDatGate, 24=O_GT_WDR_PRINT
+	IF r% <> 0
+		RAISE r%
+	ENDIF
+ENDP
+
+REM Print Line
+REM pbuf%=pointer returned by prInit%:
+REM s%=style for line
+REM line$=text for line
+REM Returns new pbuf% value.
+PROC prLine%:( pbuf%, s%, line$ )
+	LOCAL lc%, newpbuf%, newmax%, linebuf%
+	linebuf% = ALLOC( LEN( line$ ) + 1 )
+	IF linebuf% = 0
+		RAISE -10 :REM -10=NoMemoryErr
+	ENDIF
+	lc% = PEEKW( pbuf% )
+	newpbuf% = pbuf%
+	IF lc% = PEEKW( UADD( pbuf%, 2 ) )
+		REM maximum # lines reached
+		newmax% = PEEKW( UADD( pbuf%, 2 ) ) + PEEKW( UADD( pbuf%, 4 ) ) :REM new max #
+		IF newmax% = lc% :REM grow size was zero!
+			FREEALLOC linebuf%
+			RAISE -10
+		ENDIF
+		newpbuf% = REALLOC( pbuf%, 6 + 6 * newmax% )
+		IF newpbuf% = 0
+			FREEALLOC linebuf%
+			RAISE -10 :REM -10=NoMemoryErr
+		ENDIF
+		POKEW UADD( newpbuf%, 2 ), newmax%
+	ENDIF
+	POKE$ linebuf%, line$
+	POKEW UADD( newpbuf%,  6 + lc% * 6), s%
+	POKEW UADD( newpbuf%,  8 + lc% * 6), LEN( line$ )
+	POKEW UADD( newpbuf%, 10 + lc% * 6), UADD( linebuf%, 1 )
+	POKEW newpbuf%, lc% + 1
+	RETURN newpbuf%
+ENDP
+
+REM **********************
+REM * LINK PASTE SUPPORT *
+REM **********************
+
+REM If the returned value is greater than zero, the value is the
+REM Link Paste server pid. Otherwise, the value indicates that an
+REM error has occurred.
+REM reqfmt% is the requested format: 1 for Plain text, 2 for Tabbed
+REM text, and 3 for Paragraph text.
+PROC lpSrvId%:( reqfmt% )
+	LOCAL fmt%, wsname$( 15 ), wsrvPid%, pfmt%, fmt&, srvPid%, ret%
+	
+	REM range check format
+	IF reqfmt% <> $2 AND reqfmt% <> $4 AND reqfmt% <> $10
+		RETURN -2 :REM invalid arguments
+	ENDIF
+	fmt% = reqfmt%
+	
+	REM get window server's pid
+	wsname$ = "SYS$WSRV.*"
+	wsrvPid% = CALL( $188, UADD( ADDR( wsname$ ), 1 ) )
+	
+	REM get link server's pid
+	pfmt% = ADDR( fmt& )
+	srvPid% = CALL( $683, wsrvPid%, 4, 0, ADDR( pfmt% ) ) :REM MessSendReceiveWithWait
+	IF srvPid% < 0
+		RETURN srvPid%
+	ELSEIF srvPid% = 0
+		RETURN -17 :REM no receiver (no link server)
+	ENDIF
+	
+	REM check formats
+	IF ( fmt& AND fmt% ) = 0
+		RETURN -4 :REM service not supported (format not available)
+	ENDIF
+	
+	REM request a rendering
+	ret% = lpTalk%:( srvPid%, fmt%, 0 )
+	IF ret% = 0
+		RETURN srvPid%
+	ENDIF
+	IF ret% > 0
+		ret% = 0
+	ENDIF
+	RETURN ret%
+ENDP
+
+REM Bring Link Paste Data
+PROC lpBring$:( pid% )
+	LOCAL name$( 15 ), wsrvPid%, pfmt%, fmt&, srvPid%, ret%, buf$( 255 )
+	
+	REM make sure we're still talking to the same server
+	name$ = "SYS$WSRV.*"
+	wsrvPid% = CALL( $188, UADD( ADDR( name$ ), 1 ) )
+	pfmt% = ADDR( fmt& )
+	srvPid% = CALL( $683, wsrvPid%, 4, 0, ADDR( pfmt% ) ) :REM MessSendReceiveWithWait
+	IF srvPid% <> pid%
+		RAISE -36
+	ENDIF
+	
+	REM Now, continue the transaction.
+	ret% = lpTalk%:( srvPid%, UADD( ADDR( buf$ ), 1 ), 255 ) :REM get the server data
+	IF ret% < 0
+		RAISE ret%
+	ENDIF
+	POKEB ADDR( buf$ ), ret%
+	RETURN buf$
+ENDP
+
+REM internal use only - talk to link paste server
+PROC lpTalk%:( srvPid%, a%, b% )
+	LOCAL arg1%, arg2%, stat%, count%, ret%
+	arg1% = a%
+	arg2% = b%
+	CALL( $583, srvPid%, $21, 0, ADDR( arg1% ), ADDR( stat% ) ) :REM MessSendReceiveAsynchronous
+	WHILE 1
+		IOWAIT
+		IF stat% <> -46
+			ret% = stat%
+			BREAK
+		ELSE
+			count% = count% + 1
+		ENDIF
+	ENDWH
+	WHILE count%
+		IOSIGNAL
+		count% = count% - 1
+	ENDWH
+	RETURN ret%
+ENDP
+
+REM Initialise Link Paste Server
+REM pri% is the Event Manager priority, user% is used to initialise
+REM the user data word (a pointer to the user data word is passed
+REM to the lpData$: procedure).
+PROC lpInit:( pri%, user% )
+	LOCAL slot%
+	REM initialise messaging
+	IF CALL( $83, $404, 0, 0, 0 ,0 ) >= 0
+		REM messaging OK - queue async message receive
+		slot% = emAdd%:( "lpMsg", pri% )
+		POKEW UADD( ADDR( emUser2&( slot% ) ), 2 ), user%
+		CALL( $183, ADDR( emUser1&( slot% ) ), 0, 0, 0, ADDR( emStat%( slot% ) ) )
+	ENDIF
+ENDP
+
+REM Call this function when the application goes to the background.
+REM This tells the Window Server that we are available as the Link
+REM Paste server.
+PROC lpBackG%:
+	LOCAL name$( 15 ), wsrvPid%
+	IF ( PEEKW( UADD( PEEKW( 18 ), 44 ) ) AND $200 ) = 0
+		REM wserv.flags & PR_WSERV_RECEIVED_KEY == 0
+		REM Do not register as the Link Paste server if the user hasn't
+		REM pressed any keys - they may just be "passing through".
+		RETURN
+	ENDIF
+	name$ = "SYS$WSRV.*"
+	wsrvPid% = CALL( $188, UADD( ADDR( name$ ), 1 ) )
+	CALL( $683, wsrvPid%, 3, 0, ADDR( lpFmt& ) )
+ENDP
+
+REM Handle Link Paste Messages
+PROC lpMsg%:( slot% )
+	LOCAL pM%, clntPid%, state%, user% :REM these are preserved in emUser1/2&
+	LOCAL mtype%, arg1%, arg2%, ret%, buf$( 255 )
+	
+	REM get user data
+	POKEL ADDR( pM% ), emUser1&( slot% )
+	POKEL ADDR( state% ), emUser2&( slot% )
+	
+	mtype% = PEEKW( UADD( pM%, 4 ) )
+	arg1% = PEEKW( UADD( pM%, 8 ) )
+	arg2% = PEEKW( UADD( pM%, 10 ) )
+	
+	IF mtype% = $21
+		REM someone wants some data
+		IF clntPid% = 0
+			REM first request
+			ret% = -4
+			IF lpFmt& AND PEEKL( ADDR( arg1% ) )
+				REM requested format is compatible
+				clntPid% = PEEKW( UADD( pM%, 6 ) )
+				REM have WServer inform us if the client dies
+				CALL( $883, clntPid%, $22 )
+				state% = 0
+				ret% = 0
+			ENDIF
+		ELSE
+			REM subsequent request
+			IF arg1% = 0
+				REM client requests no data
+				state% = 1
+			ENDIF
+			
+			IF state%
+				REM end of conversation
+				ret% = -36
+				REM no longer interested if the client dies
+				CALL( $983, clntPid%, $22 )
+				clntPid% = 0
+			ELSE
+				REM send information over to client
+				state% = lpData%:( ADDR( buf$ ), ADDR( user% ) )
+				ret% = MIN( LEN( buf$ ), arg2% ) :REM how much to send
+				CALL( $92, clntPid%, ret%, 0, UADD( ADDR( buf$ ), 1 ), arg1% ) :REM ProcCopyById
+			ENDIF
+			
+		ENDIF
+	ELSEIF mtype% = $22
+		REM our client has died
+		clntPid% = 0
+	ELSE
+		REM unsupported message
+		ret% = -4
+	ENDIF
+	
+	CALL( $783, pM%, ret% ) :REM MessFree
+	
+	REM save user data
+	emUser1&( slot% ) = PEEKL( ADDR( pM% ) )
+	emUser2&( slot% ) = PEEKL( ADDR( state% ) )
+	
+	REM get another message
+	CALL( $183, ADDR( emUser1&( slot% ) ), 0, 0, 0, ADDR( emStat%( slot% ) ) )
+ENDP
+
+REM ***********************
+REM * COUNTRY INFORMATION *
+REM ***********************
+
+REM Get the language code
+PROC cdLang%:
+	RETURN CALL( $1B8B )
+ENDP
+
+REM Get the country data. cdptr% must point to an array of 20 integers,
+REM csptr% must point to an OPL string of 8 characters.
+REM cd%(  1 ) = Country code (dialling code)
+REM cd%(  2 ) = Offset in minutes of local time from GMT
+REM cd%(  3 ) = Date format (0=MM/DD/YY,1=DD/MM/YY,2=YY/MM/SS)
+REM cd%(  4 ) = Time format (0=12hr,1=24hr)
+REM cd%(  5 ) = Currency symbol position (0=before amount,1=after)
+REM cd%(  6 ) = Currency symbol spacing (0=space between symbol and amount,
+REM             1=no space)
+REM cd%(  7 ) = # of decimal places in currency
+REM cd%(  8 ) = Negative amount display (0=leading minus sign,1=brackets)
+REM cd%(  9 ) = Triad separator threshold (0=none,1=normal,4=French)
+REM cd%( 10 ) = Triad separator character code
+REM cd%( 11 ) = Decimal separator character code
+REM cd%( 12 ) = Date separator character code
+REM cd%( 13 ) = Time separator character code
+REM cd%( 14 ) = Start of week (0=Monday,...,6=Sunday)
+REM cd%( 15 ) = Summer times - which times to adjust (bit=1=adjust)
+REM             (bit 0=system,1=European,2=northern hemisphere,3=southern hemisphere)
+REM cd%( 16 ) = Clock type (0=analogue,1=digital)
+REM cd%( 17 ) = # characters of day name to use as abbreviation
+REM cd%( 18 ) = # characters of month name to use as abbreviation
+REM cd%( 19 ) = bit map indicating which days are workdays (bit 0 for Monday,
+REM             ..., bit 6 for Sunday)
+REM cd%( 20 ) = units (0=imperial,1=metric)
+PROC cdGet:( cdptr%, csptr% )
+	LOCAL buf%( 20 ), p%, cdo%, bufo%
+	p% = ADDR( buf%() )
+	CALL( $058b, p%, 0, 0, 0, 0 )
+	REM copy the country data
+	POKEW UADD( cdptr%,  0 ), PEEKW( UADD( p%,  0 ) )
+	POKEW UADD( cdptr%,  2 ), PEEKW( UADD( p%,  2 ) )
+	cdo% = 4
+	bufo% = 4
+	WHILE cdo% <= 38
+		POKEW UADD( cdptr%, cdo% ), PEEKB( UADD( p%, bufo% ) )
+		cdo% = cdo% + 2
+		bufo% = bufo% + 1
+		IF bufo% = 15
+			bufo% = 24
+		ENDIF
+	ENDWH
+	REM copy the currency symbol string
+	POKEB UADD( p%, 14 ), CALL( $b9, 0, 0, 0, 0, UADD( p%, 15 ) )
+	POKE$ csptr%, PEEK$( UADD( p%, 14 ) )
+ENDP
+
+REM *************************
+REM * SERIAL LINK INTERFACE *
+REM *************************
+
+REM Figure out the PID for the Serial Link. Returns zero if
+REM the Serial Link is not active.
+PROC lkPid%:                REM Find Serial Link process id
+	LOCAL ax%, bx%, cx%, dx%, si%, di%, flags%
+	LOCAL name$( 14 )
+	name$ = "LINK.*" + CHR$( 0 )
+	ax% = $0100
+	bx% = UADD( ADDR( name$ ), 1 )
+	flags% = OS( $88, ADDR( ax% ) ) :REM osProcIdByName
+	IF ( flags% AND 1 ) = 0
+		RETURN ax%
+	ENDIF
+ENDP
+
+REM Start the Serial Link process. It will use the given
+REM port (A,B,C,etc.) and baud rate number (as per rsset: in
+REM Programmer's Manual).
+REM Returns a negative number error code if unsuccessful,
+REM otherwise returns a positive process id.
+PROC lkStart%:( port$, baud% ) REM Start Serial Link process
+	LOCAL ax%, bx%, cx%, dx%, si%, di%, flags%
+	LOCAL cmdline$( 20 ), name$( 14 ), pid%
+	LOCAL baud&( 18 )
+	
+	REM setup baud rates
+	baud&(  1 ) =    50 :baud&(  2 ) =    75 :baud&(  3 ) =   110
+	baud&(  4 ) =   134 :baud&(  5 ) =   150 :baud&(  6 ) =   300
+	baud&(  7 ) =   600 :baud&(  8 ) =  1200 :baud&(  9 ) =  1800
+	baud&( 10 ) =  2000 :baud&( 11 ) =  2400 :baud&( 12 ) =  3600
+	baud&( 13 ) =  4800 :baud&( 14 ) =  7200 :baud&( 15 ) =  9600
+	baud&( 16 ) = 19200 :baud&( 17 ) = 38400 :baud&( 18 ) = 57600 
+	
+	IF lkPid%: = 0
+		REM first make sure the device exists (the cable may not be plugged in)
+		flags% = IOOPEN( pid%, "TTY:" + LEFT$( port$, 1 ), -1 )
+		IF flags% < 0
+			REM well, some sort of error
+			RAISE flags%
+		ENDIF
+		REM close the serial port and continue with the Link process
+		IOCLOSE( pid% )
+		name$ = "ROM::LINK.IMG" + CHR$( 0 )
+		REM pass selected port
+		cmdline$ = "-sTTY:" + LEFT$( port$, 1 )
+		REM pass selected baud rate
+		cmdline$ = cmdline$ + " -b" + NUM$( baud&( baud% ), 6 )
+		REM zero-terminate string
+		cmdline$ = cmdline$ + CHR$( 0 )
+		bx% = UADD( ADDR( name$ ), 1 )
+		cx% = ADDR( cmdline$ )
+		di% = ADDR( pid% )
+		ax% = $0100
+		flags% = OS( $87, ADDR( ax% ) ) :REM osFilExecute
+		IF flags% AND 1
+			RETURN ax%
+		ENDIF
+		ax% = $0600
+		bx% = pid%
+		OS( $88, ADDR( ax% ) ) :REM osProcResume
+		REM need a short pause - if lkTerm%: is called too soon, it
+		REM becomes impossible to terminate the Serial Link, and the
+		REM Psion needs to be reset!
+		PAUSE 8
+		RETURN pid%
+	ENDIF
+ENDP
+
+REM Terminates the Serial Link process. The pid returned by
+REM lkStart%: above should be used. If a zero is passed as the
+REM pid, lkPid%: is called to try and find the pid automatically.
+REM Returns zero on success, otherwise returns a negative error
+REM code.
+PROC lkTerm%:( pid% )         REM Terminate Serial Link process
+	LOCAL ax%, bx%, cx%, dx%, si%, di%, flags%
+	LOCAL lpid%
+	lpid% = pid%
+	IF lpid% = 0
+		lpid% = lkPid%:
+	ENDIF
+	IF lpid% <> 0
+		ax% = $0d00
+		bx% = lpid%
+		flags% = OS( $88, ADDR( ax% ) ) :REM osProcTerminate
+		IF flags% AND 1
+			RETURN ax%
+		ENDIF
+	ENDIF
+ENDP
+
+REM *****************************
+REM * SERIAL PORT CONFIGURATION *
+REM *****************************
+
+REM Configure the serial port. Copied from the Psion Programmer's
+REM Manual.
+REM hdl% is the IO handle (-1 for LOPEN).
+REM baud% is the baud rate code (16=19200 baud,etc.),
+REM parity%:0=none,1=even,2=odd
+REM data%:5,6,7,8 data bits
+REM stop%:1,2 stop bits
+REM hand%:handshaking:11=all, 4=none, 7=xon, 0=rts, 3=xon+rts,
+REM                   12=dsr, 15=xon+dsr, 8=rts+dsr
+REM term&:read termination bitmap
+PROC rsset:( hdl%, baud%, parity%, data%, stop%, hand%, term& )
+	LOCAL frame%, srchar%( 6 ), dummy%, err%
+	frame% = data% - 5
+	IF stop% = 2
+		frame% = frame% OR 16
+	ENDIF
+	IF parity%
+		frame% = frame% OR 32
+	ENDIF
+	srchar%( 1 ) = baud% OR ( baud% * 256 )
+	srchar%( 2 ) = frame% OR ( parity% * 256 )
+	srchar%( 3 ) = ( hand% AND 255 ) OR $1100
+	srchar%( 4 ) = $13
+	POKEL ADDR( srchar%( 5 ) ), term&
+	err% = IOW( hdl%, 7, srchar%( 1 ), dummy% )
+	IF err%
+		RAISE err%
+	ENDIF
+ENDP
+
+REM ********************
+REM * USER INFORMATION *
+REM ********************
+
+REM Return the lines from the "Info/Set owner" System option.
+REM line% should range from 1 through 4.
+PROC usrInfo$:( line% )
+	LOCAL e$( 6 ), b$( 255 ), ax%, bx%, cx%, dx%, si%, di%
+	e$ = "$WS_PW"
+	ax% = $2100
+	bx% = 0
+	di% = UADD( ADDR( e$ ), 1 )
+	dx% = LEN( e$ )
+	si% = UADD( ADDR( b$ ), 1 )
+	IF ( OS( $8b, ADDR( ax% ) ) AND 1 ) = 0
+		POKEB ADDR( b$ ), ax%
+		RETURN MID$( b$, ASC( MID$( b$, line% * 4 + 1, 1 ) ) + 1, ASC( MID$( b$, line% * 4, 1 ) ) )
+	ENDIF
+	RETURN ""
+ENDP
+
+REM ****************************
+REM * MAIN PROGRAM ENTRY POINT *
+REM ****************************
+
+PROC mpStart%:( init$ )
+REM  Main program starting point
+	GLOBAL LHwim%, LOlib%
+	GLOBAL EvtFunc$( 22, 7 ) :REM for hpWserv% function
+	
+	REM Hook function for task run. Return >0 to prevent the object's
+	REM run, 0 to allow it, or <0 for errors (or RAISE them). The
+	REM function takes a single integer parameter which is the task
+	REM handle.
+	GLOBAL hpRun$( 7 )
+	REM Hook function for task cleanup. The error code is stored in
+	REM ERR. Return zero to allow the objects cleanup. The function
+	REM takes a single integer parameter which is the task handle.
+	GLOBAL hpAbRun$( 7 )
+	
+	REM private Event Manager variables
+	GLOBAL emMax%, emFunc$( 20, 7 )
+	GLOBAL emPri%( 20 ), emSlot%( 20 )
+	
+	REM public Event Manager variables
+	GLOBAL emHand%( 20 ), emStat%( 20 )
+	GLOBAL emUser1&( 20 ), emUser2&( 20 )
+	
+	REM  Store the handles of OLIB and HWIM as they are useful
+	
+	LOCAL ret%
+	
+	ret% = FINDLIB( LOlib%, "olib.dyl" )
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	ret% = FINDLIB( LHwim%, "hwim.dyl" )
+	IF ret%
+		RAISE ret%
+	ENDIF
+	
+	POKEW $34, 0
+	IF init$ <> ""
+		IF @%( init$ ): = 0
+			amStart%:
+		ENDIF
+	ENDIF
+ENDP
+

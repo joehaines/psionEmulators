@@ -1,0 +1,105 @@
+Active aliasing in the text editor (Word Processor) application
+===============================================================
+
+Introduction
+------------
+
+This document explains the special modes of the S3/S3a text editor
+(Word Processor) application which can be accessed by passing
+suitable "alias information" on the command line.
+
+As well as being placed on the command line, this alias info can also
+be defined in .ALS or .MA files (a .MA file is a text file that can
+be operated on by a tool MakeAls.exe to produce a .ALS file).  When
+the System Screen starts an aliased application (one defined by a
+.ALS file instead of by a .APP file), it reads the alias information
+and places this in a suitable position on the command line used to
+start the application.
+
+Note: an ALS file can also be created using the "Create new list"
+menu option in the Series3a system screen.
+
+See the first two chapters of the "Series 3/3a programming guide" in
+volume 1 of the SiboSDK for more information about aliasing and
+command lines in general.
+
+Alias info for the text editor
+------------------------------
+
+If the alias info is a null string, the text editor enters Word mode,
+with multi-level outline facilities, styles and emphases, and so on.
+
+Note that it is not unreasonable for an alias to define null alias
+info.  This allows the creation of aliases of the text editor that
+behave in exactly the same way as the built-in Word application, but
+differ from each other in terms of their default extensions, default
+directories, and/or public names.
+
+If there is any non-null alias info, the text editor enters one of a
+number of other modes, with the mode depending on the first character
+of the alias info.  Some of these modes are not available on Series 3
+machines. At the time of writing, the allowed first characters and
+the corresponding modes are:
+  O     OPL program editor
+  S     Comms script program editor
+  $     Plain text editor (not Series 3)
+  /     Word processor with custom template (not Series 3)
+
+The program editor mode is available on all machines.  In this mode
+there is no access to the style and emphasis subsystems, the
+corresponding menu commands being replaced by options to "translate",
+"run", "show error" and set "indentation".
+
+In this mode, the first letter of the alias info denotes the nature of
+the program that is being edited. It actually identifies the program
+to invoke to effect any "translate" and (possibly) "run" commands
+from the user.  The generic name of this program is sys$prg?.img,
+with the question mark being filled in from the first letter of the
+alias info.  Thus the Prog alias has 'O' for the first letter of its
+alias info, and so the OPL translate/run program sys$prgo.img is
+used. In contrast, the Script editor from the communications ROM has
+'S' for the first letter of the alias info, so that the program 
+sys$prgs.img is used.
+
+In fact, there is no built-in restriction to the letters 'O' and 'S'
+for the program editor.  Any alphabetic first letter of alias info
+will place the text editor into program editing mode.
+
+In program editor mode the second letter of the alias info should be
+'R' if the program is of a type that understands "run" instructions
+in addition to "translate" ones.  Any other second character disables
+the "run" command option.  The following three letters (e.g. 'OPO' or
+'SCO') denote both the expected file extension and the expected
+top-level directory where any translated output will by default be
+placed.  (This information is used by the editor when offering the
+user a suitable filename to "run").
+
+On the Series 3a a final '*' character may be added to the alias info.
+This has the effect of adding an "S3 Translate" menu option.
+
+The remaining modes are not available on Series 3 machines.
+
+Alias info that consists of a single '$' character selects a plain
+text editing mode. In this case the program-related menu options are
+suppressed, with only an "indentation" option being offered.
+
+A variant on the Word mode is set by alias info that consists of a
+single '/' character.  This behaves in a similar way to the Word
+application, with the exception that a specific template file is
+loaded whenever a new file is created.  The template must have the
+same name as the aliased application and must be located on the
+current drive at the time the new file is created.
+
+Thus, an alias created from the following .ma file:
+  Letter.LET
+  \LET\
+  1083
+  Word
+  /                                                       
+
+would, on creation of a new file, automatically load the template file
+\wdr\letter.wrt, provided it exists on the current drive.  Note that,
+in this mode, the value 80 must be added into the application type
+number. If it is not, the automatic loading of the template is
+disabled.
+

@@ -1,0 +1,84 @@
+REM     DoByDate.opl
+REM
+REM     Plug-in for Notepad to list entries by their completion date.
+REM     Translate & install as directed in the Plug-in docs.  
+REM
+REM     Create a new Notepad called (eg) dobydate.  After pressing 
+REM     ALT-K & invoking DoByDate you will be presented with a target date of
+REM     one week ahead - edit this if necessary.  The next prompt is for 
+REM     the todo item itself.  When saved the date of entry is automatically 
+REM     added to the end of the entry.
+REM
+REM     The main function "dayToDa$" returns a date in the form YY/MM/DD
+REM     so that it is possible to sort using ALT H in Notepad.  It is 
+REM     possible that I have done this the long way round - but it works.
+REM
+REM     Mark Esposito will probably have this covered by the next version 
+REM     of Notepad!
+REM
+REM     Charles Shearer (Chasm@CIX) 04/93
+
+
+PROC DoByDate:
+
+    LOCAL n$( 20 ), detail$( 240 ),  head$( 12 ), target$( 8 ), enter$( 8 )
+    LOCAL d&, today&
+
+    head$=CHR$( 155 )+"1M0        "
+    today& = DAYS( DAY,MONTH,YEAR )
+    d& = DAYS( DAY,MONTH,YEAR ) + 7
+  
+    DINIT"//   List by target date  //"
+    dDATE d&, "Target date:", today&, DAYS( 31,12,1999 )
+    DEDIT detail$, "Details:"
+
+    IF DIALOG
+    
+        enter$ = dayToDa$:( today& )
+        target$ = dayToDa$:( d& )
+
+        LAST :NEXT
+        d.n$=head$ + target$ + " " + CHR$( 174 ) + " " + detail$ + " " + CHR$( 175 ) + " " + enter$
+        APPEND
+        FIRST      Rem parslis$.opl is on the disk
+        c:         Rem need this proc to get new count
+    
+    ENDIF
+
+ENDP
+
+PROC dayToDa$:(da&)
+
+    LOCAL day%, month%, year%, hour%, min%, sec%, yrday%
+    LOCAL dDate$( 8 ), d$( 2 ), m$( 2 ), y$( 2 )
+    LOCAL nDays&
+    
+    nDays& = da&
+    
+    nDays& = (nDays& - DAYS( 1,1,1970)) * 86400
+    SECSTODATE nDays&, year%, month%, day%, hour%, min%, sec%, yrday%
+    d$ = GEN$( day%,2 )
+    
+    IF LEN( d$ ) = 1
+    
+         d$ = "0" + d$
+         
+    ENDIF
+    
+    m$ = GEN$( month%,2 )
+    
+    IF LEN( m$ ) = 1
+    
+         m$ = "0" + m$
+         
+    ENDIF
+
+    y$ = RIGHT$( GEN$( year%,4 ), 2 )
+    
+    dDate$ = y$ + "/" + m$ + "/" + d$
+    
+    RETURN dDate$
+    
+ENDP
+
+

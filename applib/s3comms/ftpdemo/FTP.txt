@@ -1,0 +1,155 @@
+Psion FTP client
+
+Introduction
+	
+Psion FTP client is intended for transferring of the files using File Transfer Protocol (FTP). 
+
+The program is intended for Psion Workabout MX computers, and Series 3a/c/mx. Internet should be setup on the Psion.
+
+Installation
+
+Installation requires an IBM PC compatible computer with Windows 3.1x/95 and a Psion 3Link cable. Connect Psion to your personal computer by means of the cable and switch remote communication on selecting the Remote link option on the Special  menu. From the diskette, run the programm PSISETUP, which will carry on the installation. First choose the file FTP.CTL. PSISETUP will try to connect with Psion. If the connection fails, press the Setup button and set a correct serial port and a baud rate. When the connection is established, select the disk on which FTP client should be installed. Press OK to transfer all the files to the Psion. Thus, the installation is finished.
+	
+Before running the programm for the first time, it must be installed into the System screen. To do this, select the Install option on the Apps menu and in the dialog box choose the FTP.APP file from the APP directory.
+
+
+Using FTP client
+
+Psion FTP client can work in an interactive or a batch mode. If the name of a batch file is entered when running the proramm, FTP client begins to interpret the commands from this batch file.
+
+Note:
+When running the client from the system screen, the name of the file where the cursor is located is used as parameter.
+
+If there is no EXIT command at the end of the batch file or if the batch file is empty, the programm continues in interactive mode, otherwise it is terminated. 
+
+To run the client in interactive mode directly, an empty batch file FTP.FTP is included in the installation. It is copied into the \FTP directory. Setting cursor to this file runs the client in interactive mode. 
+	
+After running the client an empty window is displayed (list window) where all the commands sent to the FTP server and all the answers received from the serverer will be listed. During the connection to  a single server, all the lists will be saved so that a record of the session is created. In this record you can browse using arrow keys. Simultaneously, an FTP.LOG file is created in the \FTP directory, where all the lists are recorded.
+
+To every command sent the server responds with one or more lines. Each line begins with a code followed by a brief description. The codes are three digit numbers. The first digit indicates the type of the reply, the other two specify it. There are five types of the replyes according of the first digit:
+
+1 - Positive preliminary reply. This code is used during the transfer of the file.
+2 - Positive completion reply.
+3 - Positive intermediate reply. The command has been accepted, but the requested action is being held in abeyance, pending receipt of futher information. Another command specifying is expected.
+4 - Transient negative completion reply. The command was not accepted and the requested actipn did not take place, but the error condition is temporary and the action may be requested again.
+5 -Permanent negative completion reply. 
+
+
+Connecting to the FTP server
+
+After selecting Login from the menu, a dialog window enabling you to enter the adress of the FTP server, login name and password is displayed. As an adress you can enter either IP adress directly, or the domain name. Instead of a login name, an anonymous connection can be used. In this case you enter anonymous as a login name.
+After completing the dialog press Enter. FTP client tries to connect to the FTP server. The progress of the connection is shown in the list window.
+
+
+Disconnecting from the FTP server
+
+To finish your connection to the FTP server, select Logout from the menu. Simultaneously the list window is cleared. Recording to the FTP.LOG file continues.
+
+
+Receiving a file
+To download a file from the server to the Psion use menu item Get. In the dialog window, enter the name of the file you want to download including the path. The name is automatically copied to the second item of the dialog window, which determines the path and the name of the file at the Psion. If you want, this name can be changed.
+After pressing the Enter key, the data are transferred.
+
+Sending a file
+To upload a file from the Psion to the FTP server use menu item Put. In the dialog window, enter the name of the file you want to upload including the path. The name is automatically copied to the second item of the dialog window, which determines the path and the name of the file at the FTP server. If you want, this name can be changed.
+After pressing the Enter key, the data are transferred.
+Note: 
+When entering the path at the server, use '/' to separate the names of the directories.
+
+
+Deleting a file
+Select Delete from the menu and then enter the name of the file at the FTP server you want to delete.
+
+Directory services
+Using FTP client the ctructure of the directories at the server can be changed. After selecting Print the name of the working directory is printed in the list window. If you want to change the working directory, use the Change menu item and enter the name of the new working directory in the dialog window. Similarly, the Make menu item can be employed to create a new directory and Remove to delete it. 
+If the List menu item is selected, the content of the working directory is listed in the list window.
+
+Type of a file
+Using the  Type option the type of the type of the transfered file can be set. The binary or text type can be choosed. If you are not sure, select binary type.
+
+Clearing of the list window
+The content of the list window can be cleared using the Cls menu item. Recording to the FTP.LOG file continues.
+
+Zooming in/out
+To change font size use Zoom in/Zoom out options.
+
+Exiting of the FTP client
+To terminate FTP client use Exit menu item.
+
+Batch files
+In addition to the interactive mode you can write the FTP commands in to the batch text file. Psion FTP client reads these commands and interprets them. Batch files with FTP extension are saved in the \FTP directory.
+
+Commands available:
+
+CONNECT <address>  	<login_name> <password>
+The command establishes the connection to the FTP server. It must be used as a first one. As an address you can enter the IP address or the DNS host name of the server. If you are not connected to internet, the connection will be established  by this command.
+Instead of login name, 'anonymous' can be entered.
+
+LOGOUT
+This command terminates the connection to the server.
+
+EXIT
+Use this command to terminate the Psion FTP client programm. If you have used the CONNECT command to establish the connection to internet, it is terminated now.
+
+PD
+The command prints the name of the working directory.
+
+CD <path>
+This command allows you to change the working directory. As a parameter enter the path to the new working directory.
+
+MD <path>
+This command allows you to make a new directory. As a parameter enter the name of the new directory, whitch may include the path.
+
+RD <path>
+Using this command you remove a directory. The name of the directory, which may or may not include the path, must be entered as a parameter.
+
+STOR <source> <destination> 
+Use this command to transfer the file to the server. Enter the name of the file as the first parameter. As a second parameter, enter the name of the file, whitch will be created on the server. The names may be entered including the paths.
+	
+RETR <source> <destination>
+Use this command to transfer the file from the server to the Psion. Enter the name of the file as the first parameter. As a second parameter, enter the name of the file, whitch will be created on the Psion. The names may be entered including the paths.
+
+DELETE <name>
+This command allows you to delete a file on the server.
+
+TYPE {A|I}
+This command specifies the representation type of  transferred data. Enter I to transfer binary files or A to transfer text files. The latter one is set up as default at a majority of servers.
+
+When carrying out the script, Psion FTP client creates a new script with FT2 extension. In this file it copies the commands which failed and all commands necessary to carry out the batch file. After finishing all the commands, the batch file is overwritten with a new one. If a FTP client with same script name is run, the failed commands are finished.
+
+Commands for batch file generation
+
+START 
+all the following commands will be written into a new batch file. Typycally, these are the commands at the beginning of the file, whitch allow connection to the server.
+BODY 
+only the commands which failed will be written into a new batch file.
+END 
+all the following commands will be written into a new batch file. Typycally,  these are the commands at the end of the script, whitch allows log out from the server.
+ 
+Example:
+
+DEMO.FTP file
+START
+CONNECT ftp.demo.com name password
+TYPE I
+BODY
+STOR demo.txt demo.txt
+RETR data.txt data.txt
+END
+LOGOUT
+EXIT	
+
+DEMO.FTP file after being carried out, RETR command failed.
+
+START
+CONNECT ftp.demo.com name password
+TYPE I
+BODY
+RETR data.txt data.txt
+END
+LOGOUT
+EXIT	
+
+
+Note:
+At the beginning of carring out the batch file, the same state is set as after the START command. All the commands are copied to a new batch file, i.e. if you do not use any of the commands START, END and BODY, the content of a batch remains unchanged.

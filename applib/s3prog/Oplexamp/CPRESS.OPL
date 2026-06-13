@@ -1,0 +1,242 @@
+Rem     Compress module
+Rem     (c)Pelican software Inc.
+Rem     P.o Box 741072
+Rem     Houston, Tx. 77274-1072
+Rem     (713) 773-2803
+
+Rem     This is the newest part of the Pelican Software Inc. Library
+REm     If you find you can use it, send $15 to Pelican Software Inc.
+
+Rem     To run inside another app.  certain changes need to be made to this
+Rem     procedure. Comments are in the code. The first dinit-dialog can be
+rem     removed, since you will already have a filename. You must pass the
+rem     global with the filename into this proc. and then (filz$=yourglobal$)
+Rem     If you have the file open that you want to compress, you will need to
+Rem     close it. Just remove Rem's. It's already in the code.
+Rem     Run on data files only - not opl text or word or any other non data.
+
+app Cpress
+icon "M:\OPD\cpress.pic"
+enda
+
+proc cpress:
+global Media$(16),vol$(12),tot$(12),free$(12),device$(7)
+local d$(3,2),v&,n&,high%,l%,ext$(4)
+local p%,t,d%,space&,old&
+local filz$(130)
+local ver%,at%,size&,md&,sp&   Rem --- dont change this order
+setpath "M:\dat\"              Rem --- Set to your own
+Rem     filz$+fil$  (if calling from within another proc.)
+beep 5,50
+giprint chr$(184)+"1992 Pelican Software Inc."
+top::
+Rem   --------  Remove this code to call from within another procedure
+dinit"Open a File to Compress"
+dtext"","Data files only!",$102
+dfile filz$,"Open",0
+if dialog
+ ext$=parse$:(filz$,5)
+ if loc(".odb.dbf.dat",ext$)=0
+  giprint"Data files only..."
+  goto top::
+ endif
+busy"Checking Ram Drives..."
+filz$=filz$+chr$(0)
+call($887,addr(filz$)+1,addr(ver%),0,0,0)
+Rem -------  Call for file attrib
+device$=parse$:(filz$,2)
+media:
+if media$="FLASH"
+ busy off
+ dinit
+ dtext"","Compressing cant be done on Flash",$302
+ dtext"","There would be no benefit. To reclaim"
+ dtext"","space on a Flash, copy all files to"
+ dtext"","a Ram drive and Format the Flash SSD,"
+ dtext"","then compress the files on the Ram drive"
+ dtext"","and copy the files back to the Flash SSD."
+ dialog
+ return
+elseif left$(media$,5)="WRITE"
+ busy off
+ dinit
+ dtext"","Compress Failed!",$302
+ dtext"",media$+" Media"
+ dbuttons "Continue",27
+ dialog
+ return
+endif
+d$(1)="M:" :d$(2)="A:" :d$(3)="B:"
+l%=1
+high%=1
+n&=0
+do   Rem --- Get Ram Drive w/most mem
+ device$=d$(l%)
+ media:
+ giprint media$+" on "+d$(l%)   Rem ---- take this out if you don't want to display it.
+ pause 10
+ v&=val(free$)
+ if v&>n& and media$="RAM"
+  high%=l%
+  n&=v&
+ endif
+ l%=l%+1
+until l%>3
+Rem ---- d$(high%) has most memory
+device$=d$(high%)
+media:
+space&=val(free$)       Rem  ---- free space on drive
+busy off
+dinit"Compress File?"
+dbuttons "Yes",%Y,"No",%N
+d%=dialog
+if d%=%y or d%=%Y
+ if size&>space&-100    Rem    ---- size of file>space free
+  dinit"Compress Cancelled"
+  dtext"","Not enough space!",2
+  dtext""," "
+  dbuttons "Continue",27
+  dialog
+  return
+ endif
+ busy "Compressing..."
+rem use b     Rem  ----  Log of open file
+rem trap close
+n&=0
+ do    Rem ---- get unique filename
+  if exist(d$(high%)+"\cprss"+fix$(n&,0,3)+".odb")
+   n&=n&+1
+  else break
+  endif
+ until 0
+ trap compress filz$,d$(high%)+"\cprss"+fix$(n&,0,3)+".odb"
+ if err
+  giprint err$(err)
+  pause 30
+  busy off
+  return
+ endif
+ trap delete filz$ Rem ---- dump original
+ if parse$:(filz$,2)<>d$(high%)
+  trap copy d$(high%)+"\cprss"+fix$(n&,0,3)+".odb",filz$   Rem ---- copy to yourglobal$, not filz$ if
+ Rem   ---- if not same drive,copy                         Rem ---- you are calling from other proc.
+  if err
+   giprint err$(err)
+   goto done::
+  Rem    --------    Delete file if copy was successful
+  else trap delete d$(high%)+"\cprss"+fix$(n&,0,3)+".odb"
+  endif
+else
+rename d$(high%)+"\cprss"+fix$(n&,0,3)+".odb",filz$
+Rem ----else just rename the new file
+if err
+ giprint ERR$(err)
+ pause 30
+endif
+endif
+done::
+giprint"Done"
+beep 5,50
+old&=size&
+call($887,addr(filz$)+1,addr(ver%),0,0,0)
+busy off
+dinit"File "+parse$:(filz$,6)+" Compressed!"
+dtext"Before:",fix$(old&,0,8)+" bytes"
+dtext"After:",fix$(size&,0,8)+" bytes"
+if dialog
+ busy off
+ goto top::
+ endif
+endif
+endif
+Endp
+
+proc Media:
+LOCAL t$(7,16),f%
+local add%(9),addr$(32)
+t$(1)="UNKNOWN" :T$(2)="FLOPPY"
+T$(3)="HARD DISK" :T$(4)="FLASH"
+T$(5)="RAM" :T$(6)="ROM" :T$(7)="WRITE-PROTECTED"
+f%=devinfo%:(device$,addr(add%(1)),addr(addr$))
+if f%<0
+ Media$="None" :Vol$="None" :tot$="0" :free$="0"
+ return
+endif
+Media$=T$(fldtype%:(device$)+1)
+Vol$= addr$
+if device$<>"M:"
+ Tot$= fix$(peekl(addr(add%(1))+6),0,8)
+else tot$="262144"     REm   ----- couldn't get M to report accurate totol mem
+endif                  Rem   ----- will need to be changed if Psion comes out with an S3 with more mem.
+Free$=fix$(peekl(addr(add%(1))+10),0,8)
+return
+endp
+
+
+PROC devinfo%:(device$,pinfo%,pvol%)
+        local exec%(10)
+        local code%
+	local rtn%
+	local buffer$(64)
+	local pbuffer% 
+	local dev$(129)
+	local pdev%
+        local i%
+	code%=addr(exec%(1))
+	pokew code%,$0Ab4
+	pokew code%+2,$87cd
+	pokew code%+4,$0272
+	pokew code%+6,$c033
+	pokeb code%+8,$cb
+	pbuffer% = addr(buffer$)
+	dev$ = device$+chr$(0)
+	pdev% = addr(dev$)+1
+	rtn% = usr(code%,0,pdev%,pbuffer%,0)
+	if rtn% >= 0
+		pokew pinfo%,peekw(pbuffer%)
+		pokew pinfo%+2,peekw(pbuffer%+2)
+		pokew pinfo%+4,peekw(pbuffer%+4)
+		pokel pinfo%+6,peekl(pbuffer%+6)
+		pokel pinfo%+10,peekl(pbuffer%+10)
+		pokew pinfo%+14,peekw(pbuffer%+46)
+		i%=0
+		while peekb(pbuffer%+14+i%)<>0 and i%<=32
+			pokeb pvol%+1+i%,peekb(pbuffer%+14+i%)
+			i%=i%+1
+		endwh
+		pokeb pvol%,i%
+	endif
+	return rtn%
+ENDP
+
+PROC fldtype%:(device$)
+	local rtn%
+	local info%(8)
+	local vdummy$(32)
+	rtn%=DEVINFO%:(device$,addr(info%(1)),addr(vdummy$))
+	if rtn% >= 0
+		rtn%=info%(2) and $ff
+	endif
+	return rtn%
+ENDP
+
+
+Rem  ------   Pelican Software Inc. Library
+
+PROC parse$:(filz$,req%)
+local b%(6),p$(128),rel$(8),fsys$(8),dev$(2),path$(128),fn$(12),ext$(4)
+p$=parse$(filz$,rel$,b%())
+fsys$=mid$(p$,1,b%(2)-1)
+dev$=mid$(p$,b%(2),b%(3)-b%(2))
+path$=mid$(p$,b%(3),b%(4)-b%(3))
+fn$=mid$(p$,b%(4),b%(5)-b%(4))
+ext$=mid$(p$,b%(5),4)
+if req%=1 :Return fsys$
+elseif req%=2 :return dev$
+elseif req%=3 :return path$
+elseif req%=4 :return fn$
+elseif req%=5 :return ext$
+elseif req%=6 :return fn$+ext$
+rem Add your own combinations here
+endif
+ENDP

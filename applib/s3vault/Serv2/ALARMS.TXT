@@ -1,0 +1,216 @@
+Notepad Alarm Server v2.0
+
+Press Psion<*> to view outline...
+
+Some comments in this file are directed to Notepad users. If you use the Alarm Server as a standalone app, just skip over Notepad comments. 
+
+About the Server
+
+The Notepad Alarm server is a stand alone application that runs separate from Notepad. It doesn't need to be registered anymore to be fully functional, but I would hope that if you like it and use it, you would be willing to register Notepad($29). On Compuserve it can be done by typing Go Swreg at the command prompt. The Alarm Server is a great productivity tool, and is the result of many hours of programming and testing.
+
+ Filename: Npalarm.opo
+
+
+New in v2.0
+
+1. Settings are now set in the Alarm Server -  Psion<Z>
+2. New key  S = Set sound On/Off
+3. New key  H = About Alarm Server
+4. New key  A = to Agenda app
+5. New key  B = Battery status
+6. New key  Sh<Del> = Cancel todays alms
+7. Space bar - Show current alarm mess.
+8. Timer for setting sound off for a specified period of time.
+9. Tommorrow option in settings
+10. Jump to Time works in any language.
+
+Settings (Psion<Z>)
+
+The new settings feature will let you set three options in the Alarm Server.
+
+1. Snooze Minutes
+2. Tommorrow time
+3. Auto sort in Edit mode
+
+These options were controlled in Notepad before version 2.0. It makes more sense to control these settings from within the Alarm Server. The settings file that is created to hold these settings is called "M:\Note\set\AS_Set.np4". It is a small file so it stays on drive M:
+Note that your settings in Notepad for snooze wont work anymore. A new version of Np will be released soon.
+
+Snooze Minutes:
+Choose the number of minutes you want the snooze button to snooze the current alarm for.
+
+Tommorrow time:
+Tommorrow time applies to the new Reset button called "Tommorrow". This allows you to reset an alarm to a specified time the following day. This option is only available at the time when the alarm rings.
+
+Auto Sort in Edit mode:
+Auto sort will tell the Server to sort the alarm.dat file at two times.
+1. When pressing Tab to go into edit mode
+2. When updating an alarm in edit mode
+
+Set sound On/Off    ( <S> key )
+Setting the sound On or Off will set the sound globally on the Series 3, not just for the Alarm Server. Note that the Alarm Servers On/Off settings may not be the same as yours, so you may need to adjust these from the system screen after using the Alarm Servers On/Off. Alarm Server Off will set all sound off. On will set all sound on, loud buzzer, key click on.
+
+This option is really an emergency off switch. ( In a meeting and can't be bothered by alarms coming out of your pocket every few minutes.)
+
+On/Off Timer function
+
+When setting sound on/off you can select Timer as an option. If you select Timer you can turn the sound off for a specified period of time. The sound will turn back on when the time is up. When set, the alarm icon is displayed in the main screen.
+Note also that this timer is an absolute timer and will wake up the machine when the specified time is up so the sound can be turned back on. Of course, it wont be able to if an alarm has subsequently gone off and the S3 is waiting for you to clear this alarm. Use the C key at any time to cancel the timer and turn the sound back on.
+
+Battery status   ( <B>  key  )
+
+Press the <B> key and get the status of the batteries.
+
+To Agenda    (  <A> key  )
+
+This will allow you jump to the Agenda application if running.
+
+Function of Alarm Server
+
+Its function is to queue up all Notepad/ Banker/Personal  alarms. Np no longer uses reminders, but now uses system alarms. All alarms will work like the built in Series 3 system alarms.  All alarm info is stored in the 
+"M:\Note\Set\alarm.dat" file.
+The main difficulty  associated with doing this was that the S3 using Opl/w does not have an easy way to make one's own alarms interact with the alarms used by Agenda and Time.  It was done using extended Opl. (IO commands, Os calls, Ipc)
+
+How does it work?
+
+The Alarm Server runs as a separate app, (Npalarm.opo) and runs in the backround, for the most part. As you set alarms , messages are sent to the Server that there is new alarm information that needs to be looked at. When the Server receives this message, it does one of two things.
+
+	1. Queue the alarm, if there are none already queued.
+	2. If the Server already has an alarm queued, it checks to see if there is a newer alarm now than the one that is currently queued, (which would be cancelled), or the current alarm information may have changed. Maybe you had an alarm set to go off at 3:00, but now you want it to ring at 5:00. In Np you would press Psion<Y> to reset alarm. After resetting the alarm Np will send a message to the server that alarm info has changed.
+
+** Note **
+All functions in Np that affect alarms send messages to the Alarm Server.
+For this reason it is important that the Server is running.
+
+What if the Server is not running?
+
+If the Server is not running the alarm info will still be saved to file, (M:\Note\Set\alarm.dat), but the alarms will not ring since they are not being queued to the Alarm device driver.
+They will ring however as soon as the Server is started. (which may be too late!)
+
+How do I start the Server?
+
+There are three ways to start it running. To make it easy, when you start Np, the Server will be launched automatically.
+The second way is to use the new hotkey in Np which is the <S> key alone. This prompts you to start the Alarm Server, if for some reason it didn't start when Np started, or it was shut down to free up memory, or what have you. The third way is from the system screen under the opl icon. (if you copied the Npalarm.opo to your \opo directory.)
+
+Npalarm.opo
+
+The Npalarm.opo must be in one of two directories.
+
+1. Any \Note\Set directory
+	or
+2. Any \Opo directory
+
+I recommend keeping it in the \Opo directory since you will use it as a separate application at times. This way it will be easy to start running manually, since it will show up under the Opl icon.
+
+
+How is the Server useful without Notepad?
+
+The Alarm Server is not a dumb backround program. It has full editing capabilities built into it.
+
+Here's a list of what it can do.
+
+1. Add new alarms
+2. Edit time/date/message of an alarm
+3. Cancel future and current alarms
+4. Show alarms due today
+5. Cancel alarms due today
+6. Exit to system
+7. Hot keys jump to Time,Agenda,System
+8. Temporarily turn off S3 sound
+
+Adding new alarms
+ is also a very nice function. Maybe you want to add a quick alarm, but Np is not running. You can go to the Server application, press Enter and add an alarm. It will not show up in Notepad as a note, but you will get your alarm.
+
+Editing alarms with the Editor (Tab)
+In the Edit mode you will see a scrollable list displaying all alarms in the Alarm.dat file. 
+
+Editor key commands
+
+Enter = Edit alarm
+S = Sort alarm.dat
+Help = command list
+Delete = Delete an alarm from alarm.dat
+
+These functions are self explanatory.
+Enter to begin editing.
+Sorting will reorder alarms by date,
+although not by time.
+Delete will delete any alarms except the currently queued alarm. The current alarm can be deleted from the main screen by pressing the Delete key.
+
+Cancelling alarms
+All alarms can be cancelled. The alarm that is currently queued can be cancelled (deleted) by pressing the Delete key in the main Alarm Server screen. Any other alarm can be cancelled in Edit mode by pressing the delete key while highlighting the alarm you wish to delete.
+
+***  Note  ***
+If you want to reset an alarm, don't cancel it. Go to the Edit mode, press Enter and reset the info for the alarm.
+
+Notepad Hotkeys
+
+There are  two hotkeys in Notepad that link to the Server.
+
+1. <S>  = Start the Server
+2. <J>  = Jump to Alarm Server(and back)
+
+The <J> Jump to Server is a very nice convenience that makes it seem like the Server is really part of the Np application, which it is not. This way you don't have to press the system icon to change applications to get to the Server.
+Using the <J> hotkey you jump to the Alarm Server and using the same key you can jump back to Np, Banker or whatever client the Alarm Server was enterred from, as long as the Client sends it's Pid to the Server. For more info on this, contact Pelican Software Inc.
+
+Notepad functions that affect alarms
+
+1. Set alarm
+2. Remove alarm
+3. Show/Reset alarm
+4. Deleting a note with an alarm
+    Option to cancel alarm.
+5. Editing a note with an alarm
+         The alarm message will update.
+
+***************************
+Alarm Server key commands
+
+A = to Agenda app
+B = Battery status
+C = Cancel Sound Timer
+H = About the Alarm Server
+J =Jump back to Client
+O = Off
+S = Set sound On/Off
+T = to Time app
+Psion<Z> = Settings
+Enter = Add an Alarm
+Delete = Cancel current alarm
+Sh<Del> = Cancel todays alarms
+Help = Key command list
+Tab = Edit alarms
+On = to System
+*Up arrow - Show alarns due today
+
+Editor key commands
+
+Enter = Edit an alarm
+S = Sort alarm.dat
+Help = command list
+Delete = Delete an alarm from alarm.dat
+
+
+*** Warning ***
+
+Please note that if you exit the Alarm Server while in an open dialog, the Server will not be able to snooze an alarm when it expires. It will also cease to queue any new alarms. As a safety precaution, the editor will go back to the main display after about 5 seconds of inactivity.
+
+Open dialogs problem
+
+The Alarm Server is written in such a way that it needs to be free to handle the  alarms. That means that if an alarm expires, if you have a dialog open, the Alarm Server wont be able to queue the next alarm, because it is waiting for you to finish with the dialog you are in. To make sure this doesn't happen too often, all dialogs that could be written using custom dialogs are done so. For example, the Battery status looks like the Battery  status in the System screen, but it doesn't use the built in dialogs function, and thus will close itself after a few seconds. The Editor also will close after a few seconds of inactivity. There are other  dialogs that won't close themselves and these are the ones you don't want to leave open and exit the Alarm Server.
+1. Cancel dialogs
+2. Add an Alarm
+3. Yes/No questions, like Sort Y/n?
+The simple answer to this is just make sure you close any dialogs in the Alarm Server before exiting to another application.
+
+Credits
+
+Please report any bugs or unusual happenings to:
+
+
+Mark Esposito
+70713,1407
+or
+Pelican Software Inc.
+P.O Box 741072
+Houston Tx. 77274-1072
+(713) 773-2803

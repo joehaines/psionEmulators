@@ -1,0 +1,751 @@
+PROC caravan:
+GLOBAL ver$(4),titl$(20)
+GLOBAL search$(20),found%,select%,times%
+GLOBAL rep1%,rep2%,rep3%,rep4%,rep5%,rep6%,rep7%,rep8%
+GLOBAL g$(1),detail%,typerep%,g%
+GLOBAL name$(20),number$(15),arriv$(10),depart$(10)
+GLOBAL type$(13),pay$(6),night$(2)
+GLOBAL adult&,night&,kid&,peak%,dep&
+GLOBAL categ%,elec%,eldt%,mem%
+GLOBAL electric,pitch,adult,child,total
+GLOBAL elct1,elct2,elct3,addit,add,mem
+GLOBAL pitch1,pitch2,pitch3,pitch4,pitch5,pitch6
+GLOBAL adlt1,adlt2,adlt3,adlt4,adlt5,adlt6
+GLOBAL kid1,kid2,kid3,mm
+GLOBAL file$(128),nme$(20),nber$(15),arr$(10),dep$(10),nts$(2),typ$(13),py$(6)
+GLOBAL sel%
+ver$="8.09"
+titl$="Caravan Club Warden"
+box:
+charges:
+another::
+CLS
+dINIT titl$
+dTEXT "","Input Data",$400
+dTEXT "","Read Data",$400
+dTEXT "","Amend Charges",$400
+dTEXT "","EXIT",$400
+sel%=DIALOG
+sel%=sel%-1
+IF sel%=1
+inpt:
+ELSEIF sel%=2
+clubdat:
+ELSEIF sel%=3
+amend:
+ELSEIF sel%=4
+STOP
+ENDIF
+GOTO another::
+ENDP
+
+PROC inpt:
+LOCAL type%,pay%,more%,arriv&,depart&
+LOCAL dum&,yr%,mo%,dy%,hr%,mn%,sc%
+LOCAL yrday%,dum$(2)
+peak%=1 :categ%=1 :elec%=1 :eldt%=1:add=0
+CLS
+dINIT
+dEDIT name$,"Members name "
+dEDIT number$,"Membership Number "
+DIALOG
+nights::
+CLS
+arriv&=34333
+depart&=34333
+dINIT titl$
+dDATE arriv&,"Arrival Date",days(1,1,1994),days(1,1,2099)
+dDATE depart&,"Depart  Date",days(1,1,1994),days(1,1,2099)
+DIALOG
+night&=depart&-arriv&
+IF night&<0
+CLS
+BEEP 32,600
+dINIT titl$
+dTEXT "","YOU CAN'T DEPART BEFORE YOU ARRIVE",$100
+DIALOG
+GOTO nights::
+ENDIF
+
+dum&=(arriv&-25567)*86400
+SECSTODATE dum&,yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+arriv$=GEN$(dy%,2)+"."+GEN$(mo%,2)+"."+GEN$(yr%,4)
+dum$=RIGHT$(GEN$(yr%,4),2)
+file$=GEN$(mo%,2)+dum$
+dum&=(depart&-25567)*86400
+SECSTODATE dum&,yr%,mo%,dy%,hr%,mn%,sc%,yrday%
+depart$=GEN$(dy%,2)+"."+GEN$(mo%,2)+"."+GEN$(yr%,4)
+
+CLS
+dINIT 
+dLONG adult&,"No of Adults",0,6
+dLONG kid&,"No of Children",0,6
+dTEXT "No of Nights",GEN$(night&,1)
+dCHOICE peak%,"16.5-31.8","Yes,No"
+dCHOICE categ%,"Site Rating","AAA,AAAA,AA+A,AAAA(l),AAAA(p)"
+dCHOICE elec%,"Electric Hook Up","Yes,No"
+dCHOICE eldt%,"Electric Date","1.5-30.9,1.10-30.11,1.12-24.3,25.3-30.4"
+DIALOG
+CLS
+dINIT titl$
+dCHOICE mem%,"Club Member","Yes,No"
+dCHOICE more%,"Extra Vehicle","No,Yes"
+dLONG dep&,"Deposit œ",0,15
+dCHOICE type%,"Outfit Type","C,MV,TT,TC,TO"
+dCHOICE pay%,"Method of Payment","Csh,Chq,Acc,Vis"
+DIALOG
+IF type%=1
+type$="Caravan"
+ELSEIF type%=2
+type$="MotorVan"
+ELSEIF type%=3
+type$="Trailer Tent"
+ELSEIF type%=4
+type$="Tent/Caravan"
+ELSEIF type%=5
+type$="Tent Only"
+ENDIF
+
+IF pay%=1
+pay$="Cash"
+ELSEIF pay%=2
+pay$="Cheque"
+ELSEIF pay%=3
+pay$="Access"
+ELSEIF pay%=4
+pay$="Visa"
+ENDIF
+IF more%=2
+add=1
+ENDIF
+calc:
+disp:
+ENDP
+
+PROC calc:
+REM electric charge
+IF elec%=1
+IF eldt%=4
+electric=elct1*night&
+ELSEIF eldt%=1
+electric=elct2*night&
+ELSEIF eldt%=2
+electric=elct1*night&
+ELSEIF eldt%=3
+electric=elct3*night&
+ENDIF
+ELSE
+electric=0
+ENDIF
+
+REM pitch fee
+IF categ%=1
+IF mem%=1
+pitch=pitch1*night&
+ELSE
+pitch=(pitch1+mem)*night&
+ENDIF
+IF peak%=2
+adult=adlt3*night&
+child=kid2*night&
+ELSE
+adult=adlt6*night&
+child=kid1*night&
+ENDIF
+ELSEIF categ%=2
+IF peak%=2
+IF mem%=1
+pitch=pitch1*night&
+ELSE
+pitch=(pitch1+mem)*night&
+ENDIF
+adult=adlt2*night&
+child=kid1*night&
+ELSE
+IF mem%=1
+pitch=pitch6*night&
+ELSE
+pitch=(pitch6+mem)*night&
+ENDIF
+adult=adlt5*night&
+child=kid3*night&
+ENDIF
+ELSEIF categ%=4
+IF peak%=2
+IF mem%=1
+pitch=pitch2*night&
+ELSE
+pitch=(pitch2+mem)*night&
+ENDIF
+adult=adlt2*night&
+child=kid1*night&
+ELSE
+IF mem%=1
+pitch=pitch5*night&
+ELSE
+pitch=(pitch5+mem)*night&
+ENDIF
+adult=adlt5*night&
+child=kid3*night&
+ENDIF
+ELSEIF categ%=5
+IF peak%=2
+IF mem%=1
+pitch=pitch1*night&
+ELSE
+pitch=(pitch1+mem)*night&
+ENDIF
+adult=adlt1*night&
+child=kid1*night&
+ELSE
+IF mem%=1
+pitch=pitch4*night&
+ELSE
+pitch=(pitch4+mem)*night&
+ENDIF
+adult=adlt4*night&
+child=kid3*night&
+ENDIF
+ELSEIF categ%=3
+IF mem%=1
+pitch=pitch3*night&
+ELSE
+pitch=(pitch3+mem)*night&
+ENDIF
+adult=0
+child=0
+ENDIF
+IF add=1
+add=addit
+ENDIF
+adult=adult*adult&
+child=child*kid&
+total=adult+child+pitch+electric+add
+ENDP
+
+PROC disp:
+LOCAL y$(1),pr%,p%,dum$(1)
+pr%=1
+CLS
+PRINT "This costing is for",name$
+print "member number",number$
+IF night&>1
+PRINT "who is staying for",night&,"nights from"
+ELSE PRINT "who is staying for",night&,"night from"
+ENDIF
+print arriv$,"to",depart$,"in"
+PRINT "a",type$
+PRINT
+PRINT "Payment will be by",pay$
+PRINT
+PRINT "      PRESS A KEY FOR THE COSTING"
+dum$=get$
+CLS
+PRINT "Costing for",name$
+PRINT
+PRINT "Pitch Fees    =œ",pitch
+PRINT "Adult Cost    =œ",adult
+PRINT "Child Cost    =œ",child
+PRINT "Electric      =œ",electric
+PRINT "Extra vehicle =œ",add
+PRINT "LESS Deposit  =œ",dep&
+PRINT "Total Cost    =œ",total-dep&
+dum$=GET$
+
+ending::
+dINIT titl$
+dCHOICE pr%,"Options","Save Data,Print,Continue"
+p%=DIALOG
+p%=pr%
+IF p%=2
+GOTO prnt::
+ELSEIF p%=3
+GOTO fin::
+ENDIF
+
+IF NOT EXIST (file$)
+CREATE file$,A,nme$,nber$,arr$,dep$,nts$,typ$,py$
+ELSE
+OPEN file$,A,nme$,nber$,arr$,dep$,nts$,typ$,py$
+night$=GEN$(night&,2)
+ENDIF
+IF night&=1
+night$="a"
+ELSEIF night&=2
+night$="b"
+ELSEIF night& >=3 AND night& <=5
+night$="c"
+ELSEIF night& >=6 AND night& <=7
+night$="d"
+ELSEIF night& >=8 AND night& <=10
+night$="e"
+ELSEIF night& >=11 AND night& <=14
+night$="f"
+ELSEIF night& >=15 AND night& <=21
+night$="g"
+ELSEIF night& >=22
+night$="h"
+ENDIF
+A.nme$=name$
+A.nber$=number$
+A.arr$=arriv$
+A.dep$=depart$
+A.nts$=night$
+A.typ$=type$
+A.py$=pay$
+APPEND
+CLOSE
+GOTO ending::
+
+prnt::
+LOPEN "PAR:A"
+LPRINT "------------------------------------"
+LPRINT "This costing is for",name$
+LPRINT "member number",number$
+IF night&>1
+LPRINT "who is staying for",night&,"nights from"
+ELSE LPRINT "who is staying for",night&,"night from"
+ENDIF
+LPRINT arriv$,"to",depart$,"in a",type$
+LPRINT
+LPRINT
+LPRINT "Pitch Fees    =#";pitch
+LPRINT "Adult Cost    =#";adult
+LPRINT "Child Cost    =#";child
+LPRINT "Electric      =#";electric
+LPRINT "Extra vehicle =#";add
+LPRINT "LESS Deposit  =#";dep&
+LPRINT "Total Cost    =#";total-dep&
+LPRINT
+LPRINT "Payment will be by",pay$
+LPRINT
+LPRINT "------------------------------------"
+LPRINT
+LPRINT
+LPRINT
+LCLOSE
+GOTO ending::
+
+fin::
+pr%=1
+dINIT titl$
+dCHOICE pr%,"Another ?","Yes,No"
+p%=DIALOG
+p%=pr%
+IF p%=1
+inpt:
+ENDIF
+ENDP
+
+PROC clubdat:
+CLS
+select:
+CLS
+dINIT titl$
+dCHOICE detail%,"Report Detail","Summary,Detailed"
+dCHOICE select%,"Report Type","No. Nights,Outfit Type,Payment Type,Free Text"
+DIALOG
+
+REM free text
+IF select%=4
+dINIT titl$
+dEDIT search$,"Search for >"
+DIALOG
+found%=0
+search:
+CLS
+PRINT "Found",found%,"matches"
+PAUSE 60
+ENDIF
+
+REM night report
+times%=0
+IF select%=1
+IF detail%=2
+dINIT titl$
+dCHOICE typerep%,"Detail On","1,2,3-5,6-7,8-10,11-14,15-21,>21"
+DIALOG
+IF typerep%=1
+search$="a"
+ELSEIF typerep%=2
+search$="b"
+ELSEIF typerep%=3
+search$="c"
+ELSEIF typerep%=4
+search$="d"
+ELSEIF typerep%=5
+search$="e"
+ELSEIF typerep%=6
+search$="f"
+ELSEIF typerep%=7
+search$="g"
+ELSEIF typerep%=8
+search$="h"
+ENDIF
+search:
+ENDIF
+
+IF detail%=1
+DO
+times%=times%+1
+IF times%=1
+search$="a"
+ELSEIF times%=2
+search$="b"
+ELSEIF times%=3
+search$="c"
+ELSEIF times%=4
+search$="d"
+ELSEIF times%=5
+search$="e"
+ELSEIF times%=6
+search$="f"
+ELSEIF times%=7
+search$="g"
+ELSEIF times%=8
+search$="h"
+ENDIF
+search:
+IF times%=1
+rep1%=found%
+ELSEIF times%=2
+rep2%=found%
+ELSEIF times%=3
+rep3%=found%
+ELSEIF times%=4
+rep4%=found%
+ELSEIF times%=5
+rep5%=found%
+ELSEIF times%=6
+rep6%=found%
+ELSEIF times%=7
+rep7%=found%
+ELSEIF times%=8
+rep8%=found%
+ENDIF
+UNTIL times%=8
+CLS
+PRINT "Report on Length of Stay"
+PRINT "1 night      =",rep1%
+PRINT "2 nights     =",rep2%
+PRINT "3-5 nights   =",rep3%
+PRINT "6-7 nights   =",rep4%
+PRINT "8-10 nights  =",rep5%
+PRINT "11-14 nights =",rep6%
+PRINT "15-21 nights =",rep7%
+PRINT ">21 nights   =",rep8%
+g%=GET
+ENDIF
+ENDIF
+
+REM rig type
+times%=0
+IF select%=2
+IF detail%=2
+dINIT titl$
+dCHOICE typerep%,"Detail On","Caravan,MotorVan,Trailer Tent,Tent/Caravan,Tent Only"
+DIALOG
+IF typerep%=1
+search$="Caravan"
+ELSEIF typerep%=2
+search$="MotorVan"
+ELSEIF typerep%=3
+search$="Trailer Tent"
+ELSEIF typerep%=4
+search$="Tent/Caravan"
+ELSEIF typerep%=5
+search$="Tent Only"
+ENDIF
+search:
+ENDIF
+
+IF detail%=1
+DO
+times%=times%+1
+IF times%=1
+search$="Caravan"
+ELSEIF times%=2
+search$="MotorVan"
+ELSEIF times%=3
+search$="Trailer Tent"
+ELSEIF times%=4
+search$="Tent/Caravan"
+ELSEIF times%=5
+search$="Tent Only"
+ENDIF
+search:
+IF times%=1
+rep1%=found%
+ELSEIF times%=2
+rep2%=found%
+ELSEIF times%=3
+rep3%=found%
+ELSEIF times%=4
+rep4%=found%
+ELSEIF times%=5
+rep5%=found%
+ENDIF
+UNTIL times%=5
+CLS
+PRINT "Summary Report on Outfit Style"
+PRINT
+PRINT "Caravan      =",rep1%
+PRINT "MotorVan     =",rep2%
+PRINT "Trailer Tent =",rep3%
+PRINT "Tent/Caravan =",rep4%
+PRINT "Tent Only    =",rep5%
+g%=GET
+ENDIF
+ENDIF
+
+times%=0
+IF select%=3
+IF detail%=2
+dINIT titl$
+dCHOICE typerep%,"Detail On","Cash,Cheque,Access,Visa"
+DIALOG
+IF typerep%=1
+search$="Cash"
+ELSEIF typerep%=2
+search$="Cheque"
+ELSEIF typerep%=3
+search$="Access"
+ELSEIF typerep%=4
+search$="Visa"
+ENDIF
+search:
+ENDIF
+
+IF detail%=1
+DO
+times%=times%+1
+IF times%=1
+search$="Cash"
+ELSEIF times%=2
+search$="Cheque"
+ELSEIF times%=3
+search$="Access"
+ELSEIF times%=4
+search$="Visa"
+ENDIF
+search:
+IF times%=1
+rep1%=found%
+ELSEIF times%=2
+rep2%=found%
+ELSEIF times%=3
+rep3%=found%
+ELSEIF times%=4
+rep4%=found%
+ENDIF
+UNTIL times%=4
+CLS
+PRINT "Summary Report on Payment Style"
+PRINT
+PRINT "Cash   =",rep1%
+PRINT "Cheque =",rep2%
+PRINT "Access =",rep3%
+PRINT "Visa   =",rep4%
+g%=GET
+ENDIF
+ENDIF
+again:
+ENDP
+
+PROC search:
+open file$,A,nme$,nber$,arr$,dep$,nts$,typ$,py$
+found%=0
+FIRST
+WHILE FIND (search$)
+found%=found%+1
+AT 1,8
+PRINT "SEARCHING FILES-PLEASE WAIT",found%," "
+IF detail%=2
+CLS
+PRINT "Name             ",a.nme$
+PRINT "Membership No.   ",a.nber$
+PRINT "Date of Arrival  ",a.arr$
+PRINT "Date of Departure",a.dep$
+PRINT "Number of Nights ",a.nts$
+PRINT "Outfit Type      ",a.typ$
+PRINT "Payment Type     ",a.py$
+g%=GET
+ENDIF
+NEXT
+ENDwh
+CLOSE
+ENDP
+
+PROC again:
+LOCAL pr%,p%
+pr%=1
+dINIT titl$
+dCHOICE pr%,"Another ?","Yes,No,Print"
+p%=DIALOG
+p%=pr%
+IF p%=1
+clubdat:
+ELSEIF p%=3
+prn:
+ENDIF
+
+ENDP
+
+PROC prn:
+ENDP
+
+
+PROC dummy:
+CLS
+inpt:
+charges:
+calc:
+display:
+PAUSE 100
+ENDP
+
+
+PROC amend:
+LOCAL type%
+again::
+dINIT titl$
+dCHOICE type%,"Charge Type","Additional,Electric,Pitch Fee,Adult Fee,Child Fee,Non-Member Fee,Return"
+DIALOG
+
+IF type%=1
+dINIT titl$
+dFLOAT addit,"Additional Vehicle",0,5
+DIALOG
+GOTO again::
+ENDIF
+
+IF type%=2
+dINIT titl$+" - Electric"
+dFLOAT elct1,"25/3-30/4 & 1/10-30/11",0,5
+dFLOAT elct2,"1/5-30/10",0,5
+dFLOAT elct3,"1/12-24/3",0,5
+DIALOG
+GOTO again::
+ENDIF
+
+IF type%=3
+dINIT titl$+" - Pitch Fee"
+dFLOAT pitch1,"off AAA AAAA AAAA(p)",0,10
+dFLOAT pitch2,"off AAAA(l)",0,10
+dFLOAT pitch3,"off AA+A",0,10
+dFLOAT pitch4,"peak AAAA(p)",0,10
+dFLOAT pitch5,"peak AAAA(l)",0,10
+dFLOAT pitch6,"peak AAAA",0,10
+DIALOG
+GOTO again::
+ENDIF
+
+IF type%=4
+dINIT titl$+" - Adult Fee"
+dFLOAT adlt1,"off AAAA(p)",0,10
+dFLOAT adlt2,"off AAAA AAAA(l)",0,10
+dFLOAT adlt3,"off AAA",0,10
+dFLOAT adlt4,"peak AAAA(p)",0,10
+dFLOAT adlt5,"peak AAAA AAAA(l)",0,10
+dFLOAT adlt6,"peak AAA",0,10
+DIALOG
+GOTO again::
+ENDIF
+
+IF type%=5
+dINIT titl$+" - Kids Fee"
+dFLOAT kid1,"off AAA AAAA AAAA(p) AAAA(l)",0,10
+dFLOAT kid2,"peak AAA)",0,10
+dFLOAT kid3,"peak AAAA AAAA(l)(p)",0,10
+DIALOG
+GOTO again::
+ENDIF
+
+IF type%=6
+dINIT titl$
+dFLOAT mem,"Non-Member Fee",0,5
+DIALOG
+GOTO again::
+ENDIF
+
+DELETE "\opd\charges.odb"
+CREATE "charges",A,adit,ect1,ect2,ect3,ptch1,ptch2,ptch3,ptch4,ptch5,ptch6,alt1,alt2,alt3,alt4,alt5,alt6,kd1,kd2,kd3,mm
+A.adit=addit   REM Additional vehicle
+A.mm=mem       REM Non-Member
+A.ect1=elct1   REM 25.03-30.04 & 01.10-30.11
+A.ect2=elct2   REM 01.05-30.10
+A.ect3=elct3   REM 01.12-24.03
+A.ptch1=pitch1 REM off peak AAA,AAAA and AAAA(p)
+A.ptch2=pitch2 REM off peak AAAA(l)
+A.ptch3=pitch3 REM off peak AA+A
+A.ptch4=pitch4 REM peak AAAA(p)
+A.ptch5=pitch5 REM peak AAAA(l)
+A.ptch6=pitch6 REM peak AAAA
+A.alt1=adlt1   REM off peak AAAA(p)
+A.alt2=adlt2  REM off peak AAAA,AAAA(l)
+A.alt3=adlt3  REM off peak AAA
+A.alt4=adlt4  REM peak AAAA(p)
+A.alt5=adlt5  REM peak AAAA,AAAA(l)
+A.alt6=adlt6  REM peak AAA
+A.kd1=kid1    REM off peak AAAA(l)(p),AAAA, peak AAA
+A.kd2=kid2    REM off peak AAA
+A.kd3=kid3    REM peak AAAA(l)(p),AAAA
+APPEND
+CLOSE
+ENDP
+
+PROC box:
+CLS
+gMOVE 40,10
+gLINEBY 160,0
+gLINEBY 0,-5
+gLINEBY -5,0
+gLINEBY 0,55
+gLINEBY -150,0
+gLINEBY 0,-55
+gLINEBY -5,0
+gLINEBY 0,5
+gAT 45,25:gFONT 2
+gPRINT "     Caravan Club Warden"
+gAT 45,35
+gPRINT "           by Keith Pirie"
+gAT 45,45
+gPRINT "             version ",ver$
+gAT 45,55
+gPRINT "                   @1994"
+PAUSE -100
+CLS
+ENDP
+
+PROC select:
+file$="\opd\*.*"
+dINIT titl$
+dFILE file$,"Filename",0
+DIALOG
+ENDP
+
+PROC charges:
+open "charges",A,adit,ect1,ect2,ect3,ptch1,ptch2,ptch3,ptch4,ptch5,ptch6,alt1,alt2,alt3,alt4,alt5,alt6,kd1,kd2,kd3,mm
+addit=a.adit
+mem=a.mm
+elct1=a.ect1
+elct2=a.ect2
+elct3=a.ect3
+pitch1=a.ptch1
+pitch2=a.ptch2
+pitch3=a.ptch3
+pitch4=a.ptch4
+pitch5=a.ptch5
+pitch6=a.ptch6
+adlt1=a.alt1
+adlt2=a.alt2
+adlt3=a.alt3
+adlt4=a.alt4
+adlt5=a.alt5
+adlt6=a.alt6
+kid1=a.kd1
+kid2=a.kd2
+kid3=a.kd3
+close
+ENDP
+

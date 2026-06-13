@@ -1,0 +1,422 @@
+                                JBSort
+                            Version 1.1.2a
+                            (c)JBSoft 1994
+
+JBSort is a utility to sort Data files by ASCII. It will, in fact,
+sort any database files created with Data or by the Psion OPL CREATE
+command. It works on both the S3 and S3a.
+
+The program is normally started from the System screen by choosing a
+file listed under the JBSort icon. Alternatively, whilst the cursor is
+in the filelist below the JBSort icon, press Tab - this will enable
+you to navigate through the directories and drives in the normal way.
+Once the file to be sorted has been found and highlighted with the
+cursor, press Enter.
+
+There is now extensive checking for memory availability and, should
+the program fail for lack of memory at any time, the system should be
+cleared of any temporary files made by the application at the time of
+the failure.
+
+Alternatively, the application can be started from another program
+using the Operating System call that has been documented in many
+places (see Appendix A for details of the call) - if you provide a
+datafile name with this call then the application will automatically
+select that program for sorting. If no filename is given then a dialog
+is displayed enabling you to chose the file to sort.
+
+The program can be run in the background but there may be a slight
+blip on the screen when the program is started - this is unavoidable
+without a total rewrite in Object Oriented Code. If it is run in the
+background then sensible defaults are used so that user inputted data
+is unnecessary. The program, when run in the background, will sort in
+ascending order using the first three fields as the key fields in the
+order in which they appear - it will over-write the existing file.
+
+If the datafile chosen is open, an option is given to continue the
+sort or not. If it is decided to continue, and the file hasn't been
+opened by a program with the data details hard-coded, then the file
+will be closed and, after the sort, will be re-opened.
+
+There is a small problem with the S3 in that, when the file is re-
+opened, the front screen will show the Application name (e.g. Data)
+rather than the filename. This can be cured by pressing the System
+button or going into the file. This problem is being investigated but
+I have no idea why it is happening so I don't hold out much hope for a
+proper fix.
+
+N.B. As far as I can tell, it is impossible to find the owner of a
+     datafile opened in an application that doesn't have a filelist,
+     therefore the sort application will fail if a datafile currently
+     open by such an application is selected. This state is only true
+     of programs which don't have filelists - programs with lists will
+     work!
+
+If run normally, a dialog is presented so that the Fields on which to
+sort can be chosen. If you only wish to sort on the one field then
+make all three field choices the same or, if you wish to sort on two
+fields, make fields two and three the same. The last option in the
+fieldnames list is <none> which can be selected as an alternative to
+making the choice the same as the previous selection.
+
+Next, if run on an S3, another dialog is shown to enable you to
+specify a new filename in which the resultant sort will be placed,
+otherwise, on an S3a, this data choice is included in the field choice
+dialog. You may also specify a forwards or backwards sort (e.g. ABC or
+
+CBA) and also, once the sort is completed, whether to exit the program
+or choose another file to sort.
+
+Once this initialisation has been carried out the program will then
+sort the file and either exit or end on a file selection dialog where
+you can choose another file to sort.
+
+The program works by creating a string (made up of the three field
+choices in order) for each record along with the position of the
+record in the file. This string is then sorted and the result is then
+written in the appropriate order to another file. Assuming that
+another file has not been specified for the result, the original file
+is then deleted and the new file renamed to that of the original.
+
+To enable large data files to be sorted I have included a fall-back
+procedure that is hierarchical and works in the following order:-
+
+     1. As specified.
+     2. Limit length of each field to 8 characters.
+     3. Reduce by one the number of fields to be sorted.
+     4. Repeat 3 until only one field is left - if it still fails then
+        the program fails.
+
+Obviously, the further down the tree the program has to go, the longer
+it will take to complete its task.
+
+Should the program fail at some point in the procedure then there
+should be no lasting damage as the last thing the program does is
+delete the original and substitute the new file, prior to that, the
+original file is not altered in any way. If the option to over-write
+was chosen and the program fails, there may be a file called JBZZ.DBF
+created. This can be deleted with no problems (this is the file that
+is renamed as the last action of the program).
+
+Limitations
+-----------
+The program is currently limited to files that have less than 4000
+entries (this may be increased slightly if necessary).
+
+The main limitation to my program is the 64k limit on data in any
+program (this 64k limit does not refer to the database size but the
+amount of data that an application can have). The actual sort takes
+place in memory and so there is a great deal of data temporarily held
+there. The probable limit to the size of the database is going to be
+around 5,000 entries but this is purely theoretical and could be
+wildly out. If you come across a database whose sort fails through
+lack of memory I would be grateful of that information along with the
+number of records (and type of fields being sorted) so that I can
+update this section of the 'manual'.
+
+Sort is limited to 3 fields at present (again, this could be increased
+given the necessity).
+
+The program requires sufficient space on the drive to create a
+duplicate file of the same length as the first file. The program
+checks for this availability and, if there is insufficient memory
+available, the program will fail. The program will also fail if there
+is insufficient RAM in which to run. As a guide, the program itself
+requires around 60k but this is variable and is somewhat related to
+the size of the file being sorted - it is impossible to give accurate
+figures due to variability of the files being sorted.
+
+Bearing in mind I am a one-man-band and do not have access to every
+application going, it is possible that there is an program out there
+that creates data files which will not sort correctly, although I have
+not come across any so far. Should you encounter one of these, please
+let me know, and, if possible, provide a sample file so that I can
+adjust (fix) my program accordingly.
+
+Thanks
+------
+As usual, thanks go to Tom Dolbilin for his assistance in shaping this
+program. I would also like to thank Paul Steel for checking some
+things out and pointing out some problems.
+
+Contact
+-------
+John Boyce
+CompuServe: 100014,1240
+CIX/Internet: jboyce@cix.compulink.co.uk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Appendix A
+==========
+The OS Call mentioned above is detailed in this Appendix.
+
+Some explanation of the code will be necessary - here it is...
+
+appname$ is the name of the application to run. It should include the
+path (e.g. "LOC::A:\APP\JBSORT.APP"). This is just a normal string.
+
+cmdline$ is a complex string which presents a command line to the OS.
+It is made up of several parts:-
+
+     1. Command byte &        This can be one of three characters:-
+                              O - open an existing file
+                              C - create a new file
+                              D - open an existing file in the
+                                  background (this only works for some
+                                  utilities - definitely not OPO or
+                                  OPA programs)
+                              These characters should be appended to
+                              the start of the Header string.
+        Header string         This is the public name under which the
+                              App appears (e.g. Data or Word or
+                              JBSort)
+     2. Default extension     This is the default extension for the
+                              file to be opened (e.g. .DBF)
+        & alias info          This is for alias information and should
+                              be separated from the extension data by
+                              a space
+     3. Data file to open     this should include the path of the file
+                              as well as the name
+
+Each of the sections should be followed by a zero character - e.g.
+
+"OJBSort"+chr$(0)+".DBF"+chr$(0)+"LOC::A:\DAT\ADDRESS.DBF"+chr$(0)
+
+ppid% should be the address of an integer in which will be placed the
+process identity once the program has been started. This information
+can be discarded once the program has been run if no other actions are
+to be made on the running application (process).
+
+Using the above examples as a guide, runapp% would be called thus:
+
+err%=runapp%:("LOC::A:\APP\JBSORT.APP","OJBSort"+chr$(0)+".DBF"+chr$(0
+)+"LOC::A:\DAT\ADDRESS.DBF"+chr$(0),addr(pid%))
+
+where the code should all be on one line of your program.
+
+Almost any program can be run in this fashion, but to run OPO and OPA
+programs they have to be treated as files and the application name to
+be specified as the appname$ is ROM::SYS$PRGO.IMG. If an OPA file
+requires a file then this should be placed in the position of the OPA
+name and an extra parameter added which should be the application
+e.g.:
+
+err%=runapp%:("ROM::SYS$PRGO.IMG","ONotepad"+chr$(0)+".PAD"+chr$(0)+"L
+OC::A:\NOTE\NOTEPAD.PAD"+chr$(0)+"LOC::A:\APP\NOTEPAD.OPA"+chr$(0),add
+r(pid%))
+
+is an example of running Mark Esposito's Notepad program).
+
+I have tried to include a lot of information on this call as there is
+nothing worse than getting just a little of the information and having
+to ask around for the rest. Obviously, the last few items discussed
+are not relevant to the current situation.
+
+The aliases discussed earlier are a little too complex to explain in
+the context of this document and are dependant on the application
+recognising them (they also differ for each application so a list is
+not relevant).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Code
+----
+
+PROC runapp%:(appname$,cmdline$,ppid%)
+     local ax%,bx%,cx%,dx%,si%,di%
+     local ret%,flags%
+     local cmdl$(128),img$(128)
+     cmdl$=cmdline$
+     img$=appname$+chr$(0)
+     ax%=$0100
+     bx%=addr(img$)+1
+     cx%=addr(cmdl$)
+     di%=ppid%
+     flags%=os($87,addr(ax%)) REM FilExecute
+     if (flags% and 1)
+          ret%=(ax% and $FF)-256 REM If a problem set ret% to err
+     else
+          ax%=$0600
+          bx%=peekw(ppid%)
+          flags%=os($88,addr(ax%)) REM ProcResume
+          if (flags% and 1)
+               ret%=(ax% and $FF)-256 REM set ret% to err
+          else
+               ret%=0
+          endif
+     endif
+     return ret% REM return problem (zero if none)
+ENDP
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Release Information
+===================
+Version   Information
+---------------------
+1.0       First release to the public domain.
+
+1.0a      Bug-fix to actually make the program work on an S3!
+
+1.1       Dialogs are now shown differently if run on an S3 or an S3a
+          and appear in the style appropriate to the machine.
+          If the datafile is open, it can be closed and re-opened
+          under some circumstances.
+          Fixed occasional problem with making OPL Datafiles into Data
+          type files.
+          Added option to stay within the program after the sort is
+          complete.
+1.1.1     Stopped machine from switching off when sorting large
+          databases.
+          Increased memory availability checking to stop occasional
+          corruption of sorted file.
+1.1.2     Now closes database gracefully (allowing any changes to be
+          saved).
+          Cured problem of Alert when answering No to Close Datafile
+          dialog.
+1.1.2a    Will now search larger files before running out of memory.
+          Fixed obscure bug with release of memory.

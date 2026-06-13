@@ -1,0 +1,26 @@
+Note on Macro System 2.0 command PutText$
+=========================================
+(Date: 8/20/94)
+
+The information provided below is relevant to the users of Macro System 2.0 
+who own a localized S3a version other than ENG or USA.
+
+The problem has to do with the PutText function which has a hard-coded Psion-B 
+keystroke to initiate the Bring request in other applications. This keystroke 
+may be different on non-English machines.
+
+It is very simple to patch MACRO.OPA with a hex editor. If you don't 
+already have a hex editor, there is one called Dump3a which you can download from CompuServe or src.doc.ic.ac.uk.
+
+To patch MACRO.OPA follow these steps:
+
+1. Make sure your MACRO.OPA is 34,851 bytes in size.
+2. Open it in a hex editor and go to location $5F5C.
+3. At location $5F5C you should find a letter "b" ($62 hex).
+4. Change it to the letter that is used to initiate Bring on your machine. 
+E.g., Psion-J initiates Bring on German machines. In this case, you would 
+replace "b" with "j" (lowercase)
+
+The bug will be fixed in the next release of Macro System.
+
+	T O M

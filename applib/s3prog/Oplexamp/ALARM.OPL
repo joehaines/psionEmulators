@@ -1,0 +1,40 @@
+==========
+psion/opl #2557, from pdevelop, 906 chars, Dec 14 15:31 95
+Comment to 2556.
+----------
+> Alarms
+> Is there any way from an OPL program of interfacing the standard Psion 
+> alarms i.e. to set one from another application ?
+
+If you want to set an alarm from within an OPL program, the following 
+code ought to do you nicely:
+
+PROC alm:
+LOCAL h%,a&(2),a$(64),b$(65),d&,t&,t2&,a%,r%,s%
+r%=IOOPEN(h%,"ALM:",0)
+IF r%<0 :RAISE r% :ENDIF
+d&=DAYS(DAY,MONTH,YEAR) REM today
+t&=DATETOSECS(1970,1,1,HOUR,MINUTE,0)
+DINIT "Set alarm"
+DTIME t&,"Time",0,0,DATETOSECS(1970,1,1,23,59,59)
+DDATE d&,"Date",d&,DAYS(31,12,2049)
+DTIME t2&,"Alarm advance time",2,0,86399
+DEDIT a$,"Message"
+IF DIALOG
+        a&(2)=86400*(d&-25567)+t&
+        a&(1)=a&(2)-t2&
+        b$=a$+CHR$(0)
+        a%=ADDR(b$)
+        r%=IOA(h%,2,s%,a&(),#a%+1)
+        IF r%<0 :RAISE r% :ENDIF
+ENDIF
+r%=IOCLOSE(h%)
+IF r%<0 :RAISE r% :ENDIF
+ENDP
+
+Admiration and respect to Ali Manson for this code.
+
+Anthea
+
+
+

@@ -1,0 +1,51 @@
+>3.2 How do I speed up my OPL programs?
+>--------------------------------------
+>iii.The graphics on the Series 3/3a are generally very fast,
+>    but the fastest graphics command in OPL is gCOPY. If you are
+>    performing any complex tasks with many moving windows, you
+>    may be able to produce a considerable speed increase by
+>    instead using only gCOPY's onto one displayed window.
+Another popular way in the graphic/game worlds is double buffering. This
+is where you would display one bitmap whilst drawing in the other; once
+the drawing is complete you switch the buffers so that the one you
+were drawing on is now displayed and the other will be the one you
+will now draw into. This can be simply achieved by creating two
+windows using and using gORDER to move the windows between levels
+It works quite nicely if you have an array WIN%(2) pointing to the
+two bitmaps and a variable currwin% which you can use as follows:
+
+use WIN%(currwin%)				// select current window to draw into
+
+... draw ...
+
+gORDER(WIN%(currwin%),0)		// displays it and hides the other for free
+
+currwin%=3-currwin%				// switch to the next buffer for the next
+								// drawing (can't tell I can program C++
+								// can you ;-))
+
+Make sure the two bitmaps are defined to be the same size though!
+
+BTW, do the later versions of the 3a still have the '%=' bug where if
+you type those characters really quickly (as you would if you were
+programming) the machine would interpret it as the diamond key and
+switch you to outline mode. It's particularly annoying because you
+cannot program the diamond key functions like in the other programs.
+God! Don't they teach orthogonality anymore :-)
+
+>try some slower double buffering method where you again have
+>2 windows, but draw to the one in the background before bringing
+>it to the foreground and calling gUPDATE.
+Oops, got a little ahead of me there; but it's 4:30am. So tough:-)
+Also, it's not actually that slow. I manage to move 5 objects w/
+no trouble.
+
+>7.6 Sprites
+>-----------
+>The Series 3a offers limited support for *a* SPRITE with a set
+>of commands. What is not made clear in the manual is that
+>ONLY 1 sprite is available.
+Yeah, that was so annoying when I found that out! Hope this doesn't
+mean that they're going to release another machine until I've made
+my money back on this one!
+

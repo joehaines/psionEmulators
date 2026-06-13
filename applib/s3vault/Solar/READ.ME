@@ -1,0 +1,113 @@
+Usage Notes for Solar.opl
+Version 1.2.1
+
+Introduction
+
+This program will calculate sunrise, sunset and various twilight times for a given city in the World application for every day within a range of dates.  The results can be written to a new agenda file, appended to an existing agenda file, or displayed to the screen.
+
+
+Installation
+
+The SOLAR.ZIP file contains the following files
+
+READ.ME	This document in ascii text format
+SOLAR.WRD	This document in Psion Word format
+SOLAR.OPL	The source code for the Solar program
+SOLAR.OPO	The compiled code for the Solar program
+
+The only file that you actually need is SOLAR.OPO which should be copied to the directory \OPO on whichever disk you prefer.
+
+The source code, SOLAR.OPL, if required, should be put in the \OPL directory.
+
+The best place for SOLAR.WRD is \WRD directory.
+
+If you wish to extract the Psion files directly into the appropriate directories then execute the following command.
+
+pkunzip -d solar.zip solar.*
+
+PKUNZIP will create sub-directories as necessary for each of the three files.
+
+Hint:  This program runs much faster under the Psion 3a emulator on a PC.
+
+
+Operation
+
+On startup a title screen is display.  Press return to continue to the parameter screen.
+
+The first time you go into this screen the parameter will show their default values.  The city will be your home city.  The start and end dates will both be set to today's date.  The time zone and daylight saving regime will be read from the World application.  The default output is to the screen.
+
+You can enter any city in the world file.  You can put a partial name  and the first matching city will be found.
+
+You can enter any start and end dates between 1/1/1980 and 31/12/2049.  This is the range of dates allowed by the agenda application.  The end date must be greater than the start date.  If you press tab in either of the date fields a calendar will pop-up.  Pressing tab will toggle between a one month, three month and one year calendar.
+
+The time zone is defaulted from the World application.  The daylight saving regime is displayed for information and is also read from the World application.  The world database has four kinds of daylight saving.  SOLAR handles these as follows.
+
+Constant:  There is no daylight saving adjustment made.
+
+European:  Daylight saving of one hour applies between 2am on the last Sunday in March and 2am on the last Sunday in October.  From 1996 Britain moves at the same time as the rest of Europe.
+
+USA: Daylight saving of one hour applies between 2am on the first Sunday in April and 2am on the last Sunday in October.
+
+Southern:  Daylight saving of one hour applies between 2am on the last Sunday in October and 2am on the first Sunday in March.
+
+NB: All references to 2am refer to the unadjusted time.
+
+One hour is added for summer time daylight saving.  This approach is not perfect.  For instance, daylight saving ends a week later in New Zealand.  The information for timezones and daylight saving is available on most Unix computers in /etc/TZ.  I used the one available under HP-UX10.01.  These assumptions are hard coded in the program and are not user configurable.  If you need to ammend them, then you will have to change the code!
+
+The output field toggles between screen and agenda.  Pressing tab gives a pop-up list of values.
+
+If you select an output of agenda then you must enter a file name.  Press tab for a pick list of existing agenda files.  The default directory for these files is '\AGN\', which is the usual location for agenda files.
+
+You can choose to calculate the time of sunrise, or of sunset, or of both.
+
+If you select output to screen then the result for each day is displayed to the screen.  An asterisk after a time indicates that it has been adjusted for daylight saving.  A plus symbol indicates that the time relates to the following day.  As each day is displayed you can either press return to continue to the next day or escape to return to the parameter screen.  After the last day in the range you return to the parameter screen.
+
+Sunrise and sunset times are displayed separately and are written to the agenda as two timed entries for that day.  If, however, the sun does not rise or set then only a single result is returned to say whether it is light or dark all day.  This is written as an untimed entry in the agenda.  This occurs beyond arctic/antarctic circles.  The closer a place is to one of the poles, the more often this occurs.
+
+You can choose the style of the agenda entires, you can independantly select bold, italic, and underline styles.  Agenda entries can be alarmed.  You can determine how long before the event the alarm should souncd, and which sound effect should be used.  You can also test the sound effect.  There is no obvious way to determine whether daylight saving applies to an agenda entry.
+
+If the end of the date range is greater than its start, then you will be prompted to describe the repeat characteristics.  This is similar to the entries in the agenda program.
+
+Entries can be repeated daily, weekly, monthly by date, and monthly by days.  An interval can also be specified.
+
+If you specify daily repeat then the sunrise and sunset times will be calculated for every nth day where n is the value of the interval.  So every day in an interval of 1, every other day is an interval of 2. 
+
+If you specify weekly repeats then you will be asked on which days of the week the calculation should be performed.  If you specify an interval of 1 then the calculation will be performed for every week.  An interval of two will skip alternate weeks.  A week begins on a Monday.
+
+If you specify monthly repeats by date then you will select which date in each moth the calculation will be performed on.  For instance on the first of the month.  
+
+The final option is monthly repeats by day.  You can choose the first through fourth, or last occurrence of each day of the week in a month.  This allows you to select, for instance, the last Friday of the month.
+
+Both monthly repeat screens allow you to build up a list of the required dates or days.  When you wish to add a selection you press '+', or '-' to remove it.  When satisfied you press 'Enter' to continue to the calculation.
+
+
+Versions
+
+1.0	Initial release
+1.1.0	Repeat option added
+1.1.1	Bugfix to comma separator problem
+1.1.2	Correct lat/long numerical handling, and negative rounding
+1.2	added alarms, twilights, daylight saving
+1.2.1  remove debug code, clear error message, left pad hours to two digits
+
+
+Disclaimer
+
+This code comes with ABSOLUTELY NO GUARENTEE.  I take no responsibility for any inaccuracy in or loss caused by this program.  
+
+
+Acknowledgements
+
+The astronomical calculation is copied from a program called SUNNY.OPL, posted on Internet by Max A. Scheider (e-mail: 72570,3344@compuserve.com).  It is available from ftp://ftp.frontiernet.com/pub/psion/devel/sunopl.zip.
+
+Sunny is a program translated to OPL for the Psion Series 3a from a BASIC program by Chris Spratt.  It is based on a program originally published in Astronomy Magazine in April 1984.
+
+Acknowledgments also to  J. McGregor of London whose program to append entries to Agenda files appeared in Psion Support Bulletin Number 5 in April 1995.
+
+Thanks to Alan Boulden (alan@boulden.demon.co.uk) for suggesting the twilights enhancement and for testing version 1.2
+
+If you make change or have an enhancement to suggest then please tell me.
+
+David Kurtz
+david@kurzbyrn.demon.co.uk
+

@@ -1,0 +1,39 @@
+REM Soloimg: Draw an icon bitmap for
+REM solo program
+REM (c) 1993 Steve Hawtin
+
+PROC solodraw:
+	LOCAL dr%
+	REM Create a bitmap
+	dr% = gCREATE(0,0,24,24,1)
+	gUSE dr%
+
+	drawFig:(0,&00540,&00AC0,&01520,&02A20)
+	drawFig:(1,&05410,&0AA10,&15148,&2A1E8)
+	drawFig:(2,&151E4,&153E4,&0ABE2,&0A9F2)
+	drawFig:(3,&054F1,&05471,&02A32,&02A04)
+	drawFig:(4,&01508,&01510,&00AA0,&00AC0)
+	gSAVEBIT "SOLO"
+	GET
+ENDP
+
+PROC drawFig:(num%,n1&,n2&,n3&,n4&)
+	drawLine:(4*num%+0,n1&)
+	drawLine:(4*num%+1,n2&)
+	drawLine:(4*num%+2,n3&)
+	drawLine:(4*num%+3,n4&)
+ENDP
+
+PROC drawLine:(l%,val&)
+	LOCAL n%,m&
+	n% = 0
+	m& = 1
+	DO
+		IF (val& AND m&)
+			gAT l%+2,n%+2
+			gLINEBY 0,0
+		ENDIF
+		n% = n%+1
+		m& = m&*2
+	UNTIL n%>=20
+ENDP

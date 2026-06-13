@@ -1,0 +1,510 @@
+* HOL - calculate holidays and write to agenda file
+
+HOL is a program for the Psion 3a, 3c and Siena that can be configured
+to calculate many holidays and write them to your agenda.
+
+The program reads a holiday definition file, calculates dates for
+holidays according to the file, and writes the holidays to an agenda
+file. The user interface allows you to select which configured holidays
+to actually use, which years to calculate for, and preview the
+calculated dates on the screen before writing them to the agenda file.
+
+Holidays can be defined relative to a fixed date (e.g. New Years Day), 
+a fixed Hebrew date (e.g. Passover), a fixed Islamic date (e.g. the
+Islamic New Year's day), a specific weekday (e.g. Midsommardagen; 1st
+Saturday after June 20th), Easter, or selected among several dates
+depending on a condition.
+
+Style and year symbol can be specified generally and/or for each holiday. 
+The holidays are written to the agenda file as untimed day entries in
+the default time slot or as anniversaries. Some holidays can be written 
+as repeating entries.
+
+Holiday definition files for Sweden, USA, Holland, Argentina, Uruguay,
+Norway, Finland, Germany, the Church of Ireland, France, the Church
+in Wales, Denmark, UK and Hebrew holidays are included.
+Examples of Islamic holidays are also included.
+
+
+* If you are upgrading...
+
+If you already have version 1 of HOL installed you need to know this:
+
+ o HOL has become an OPA that must be installed with Psion-I to be used.
+ o The directory for HOL-files and HOL.RSC has been changed to \HOL\.
+
+
+* Quick quide
+
+** Installation
+
+This assumes that you have PsiWin.
+
+1) Unzip the archive with directories on the PC. (Use "PKUNZIP -d" or
+   check "Use Directory Names" in WinZip.)
+
+2) In PsiWin, drag the unzipped APP and HOL directories to the root
+   directory ("\") on the Psion. (This will copy HOL.OPA and HOLEDIT.ALS
+   to the APP directory and all holiday definitions files to \HOL\.)
+   
+3) Install HOL.OPA on the Psion system screen with Psion-I.
+
+
+** Using the program
+
+1) Exit the Agenda program if it has your agenda file open. 
+
+2) Select a file under the HOL icon with your country code and start
+   the program. 
+
+3) Preview holidays with Psion-P or write to the agenda file with 
+   Psion-W. The default settings will write all holidays for the current
+   year, using repeating entries if possible. 
+
+
+** Uninstallation
+
+1) Remove HOL from the system screen with Psion-/
+
+2) Delete HOL.OPA and HOLEDIT.ALS from the \APP\ directory.
+
+3) Delete the \HOL\ directory and all its contents.
+
+
+* Detailed usage instructions
+
+1) Install the files:
+   - Copy HOL.OPA to \APP\. Install it from the system screen with 
+     Psion-I.
+   - Copy *.HOL files to \HOL\. 
+   - Optionally, copy HOL.RSC to \HOL\. This is the help text for HOL.
+   - Optionally, copy HOLEDIT.ALS to \APP\. Install it from the system 
+     screen with Psion-I if you want to create or edit *.HOL files.
+
+2) Examine the *.HOL files with a text editor, e.g. HOLEDIT, to see if
+   one suits you. If not, you can modify or create one with guidance
+   from EXAMPLE.HOL and the configuration section below.
+
+3) Start the program and open the *.HOL file. All holidays that are 
+   defined in the file will be listed on the screen with the style and
+   year-symbol specified in the file. The listing can be scrolled with
+   PgUp, PgDn, Home, End and arrow keys.
+
+4) Initially all holidays are selected to be written to the agenda file. 
+   This is shown with a '*' on each row. Select or deselect holidays
+   with Psion-M, Psion-U, Psion-N, Psion-T or the SPACE-key. 
+   
+   Psion-N selects all holidays that can't be written to the agenda as
+   repeating entries. See "How to use repeating entries" below for a tip
+   on how to use this.
+
+5) Optionally, calculate and preview the dates with Psion-P. See below
+   for information about the dialog box. The dates will be listed on the
+   screen. Press ESC to cancel the listing or any other key to
+   temporarily pause the listing.
+
+6) Calculate and write the dates to an agenda file with Psion-W. Select
+   an agenda file to write to. See below for more information about the
+   dialog box. To be safe, accept the offer to make a backup copy of the
+   agenda file. The dates will be listed on the screen as they are
+   written to the file. Press any key to cancel.
+
+
+** The "Preview/Write holidays" dialog box
+
+When you preview or write holidays a dialog box be shown where you:
+
+ o Enter a year range to calculate dates for. 
+
+ o Select whether HOL should try to use repeating entries ("If
+   possible") or not ("No"). See the next section for information about
+   when it is possible to use repeating entries.
+
+ o Select whether the Agenda program should show all occurrences of
+   repeating entries or only the next outstanding occurrence. This
+   corresponds to the "Show"-line in the "Repeat entry" dialog box in
+   the Agenda program. If you selected not to use repeating entries this
+   information will be ignored.
+
+ o Select whether repeating entries should repeat forever or until the
+   end of the year range. If you selected not to use repeating entries
+   this information will be ignored.
+
+ o Select an agenda file (only in the "Write holidays" dialog).
+
+
+** How to use repeating entries.
+
+One of the many useful features of the Psion Agenda program is the
+ability to make an entry repeat at various intervals. An entry can for
+example be set to repeat on a specific date of the year or on the first,
+second, third, fourth or last occurrence of a weekday in a month.
+
+Many holidays or special dates that we want to enter into our agenda
+file can in fact be made into repeating entries, e.g. New Years Day and
+Mother's Day. HOL can be used to write these repeating entries under
+certain conditions.
+
+To be able to write a holiday as a repeating entry, the holiday must be
+specified in the holiday file with only one of these directives:
+
+  o FIX(m,d)      - Meaning a fixed day D of month M in a year.
+                    E.g. FIX(1,1) is January 1st (New Years Day).
+                    
+  o FLOAT(m,wd,n) - Meaning the N'th weekday WD of month M, where N is
+                    1,2,3,4 or -1. E.g. FLOAT(5,0,2) is the second Sunday of
+                    June (Mother's Day).
+
+(See the end of this file for more information about holiday files and
+directives.)
+
+When you preview or write holidays you can tell HOL to write repeating
+entries "If possible". This means that if a holiday is specified using
+FIX or FLOAT as shown above, HOL will write the holiday once and make it
+a repeating entry. The holiday will be written for the first year in the
+specified year range.
+
+The easiest way to use repeating entries is to accept the defaults in
+the "Write holidays" dialog box. This will give you repeating entries
+that are shown all years within the year range. 
+
+If you prefer to have repeating entries repeat forever, I suggest you 
+do the following when using HOL on an agenda file for the first time:
+
+1) Mark all holidays with Psion-M
+
+2) In the "Write holidays" dialog box, enter a year range. Accept the
+   default to use repeating entries if possible.
+   
+Holidays will now be written for the specified year range, with some
+holidays entered only on the first year in the range as repeating
+entries.
+
+The next time you use HOL on the same agenda file (when the first
+year range has passed) I suggest you:
+
+1) Mark holidays that can't be made to repeat with Psion-N. (The others
+   are already in the agenda file as repeating entries)
+
+2) Specify a new year range in the dialog box. 
+
+
+* License
+
+This program is free software under the terms of the GNU General Public 
+License. See the file COPYING.TXT for details.
+
+HOL.OPL was written by Odd Gripenstam <gripenstamol@decus.se>. 
+Calendar and holiday routines are translated from lisp code found in
+GNU Emacs.
+
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994 Free Software
+Foundation, Inc.
+Copyright (C) 1996 Odd Gripenstam
+
+
+* Acknowledgements
+
+The help compiler and the code that accesses the help was written by 
+Jezar at Psion. It is available as HELPKIT1.ZIP in the archives. 
+Contact me if you can't find it.
+
+I would like to thank Patrick Wildenborg, Horacio Hirsch, Mikael Tham,
+Knut Utne Hollund, Erlend Leganger, Jokitulppo Vesa, Holger Pfaff,
+Brian Mayne, Denis Casanova, Ian Day, Ole Carsten Pedersen, Klaus
+Singvogel, Paul Everington, Edward Arnowitz, Awi Szotten, David M. Kurtz 
+for contributing holiday definitions.
+
+
+* Feedback
+
+No registration is necessary, but I would appreciate if you send me a
+mail or postcard if you use the program.  If you try the program and 
+*don't* use it, please send me an e-mail and tell me why.
+
+If you write or modify a holiday file, please send it to me and I will
+include it in the distribution so more people can benefit from your
+effort. Before you start writing a file, I suggest you contact me to
+check that nobody else have already started writing the same file.
+
+You can reach me at:
+
+  E-mail:      
+                gripenol@decus.se
+  Snail-mail:  
+                Odd Gripenstam
+                Skagersvagen 14
+                120 38 ARSTA
+                SWEDEN
+
+The latest version of HOL can be found at:
+
+  http://decus.se/~gripenol/hol.html
+
+
+* Files in the distribution
+
+This distribution should contain:
+
+  \APP\HOL.OPA          The program
+  \APP\HOLEDIT.ALS      Text editor alias for \HOL\*.HOL 
+  \HOL\EXAMPLE.HOL      Example holiday file
+  \HOL\AR.HOL           Argentinian holidays
+  \HOL\COFI.HOL         Church of Ireland holidays
+  \HOL\CIWC.HOL         Church in Wales holidays, Welsh/Cymraeg
+  \HOL\CIWE.HOL         Church in Wales holidays, English
+  \HOL\DE.HOL           German holidays
+  \HOL\DK.HOL           Danish holidays
+  \HOL\FI.HOL           Finnish holidays
+  \HOL\FR.HOL           French holidays
+  \HOL\NL.HOL           Dutch holidays
+  \HOL\NO.HOL           Norwegian holidays
+  \HOL\SE.HOL           Swedish holidays
+  \HOL\UK.HOL           UK holidays
+  \HOL\US.HOL           US holidays
+  \HOL\UY.HOL           Uruguayan holidays
+  \HOL\ARUY.HOL         A mix of South American holidays
+  \HOL\HEBREW.HOL       Hebrew holidays
+  \HOL\ISLAMIC.HOL      Islamic holidays
+  \HOL\HOL.RSC          Compiled help text
+  HOL.OPL               Source code for the application
+  HOL.HLP               Help text source file
+  HOL.TXT               This file
+  HOLAPP.PIC            Icon for HOL.OPL
+  HOLEDIT.PIC           Icon for HOLEDIT.ALS
+  HOLCHANG.TXT          A history of changes to the files
+  COPYING.TXT           GNU General Public License
+
+
+* Translation
+
+Unfortunately, the source file HOL.OPL is too big to be translated on
+the Psion. You can translate the file on a PC with the MS-DOS translator
+S3ATRAN, or you can split the file in two parts before copying it to the
+Psion and add a LOADM command to first part.
+
+
+* Other resources
+
+Here are some other resources related to holidays and the Psion agenda.
+They are all available on the net. You can mail me if you have trouble
+finding a copy or if you know of a file that should be added to the
+list.
+
+JBWHOL.ZIP      Calculates predetermined English and German holidays and 
+                adds them to the agenda.
+                
+FEIER10.ZIP     Calculates German holidays and adds them to the agenda.
+                Probably configurable for other languages and holidays if 
+                you make a few educated guesses about its data file format.
+
+FTAG30.ZIP      Calculates and adds holidays related to easter and
+                whitsun to the agenda. Includes OPL source.
+                
+EASTER_E.ZIP    English translation of FTAG30.ZIP
+                
+HOLI3A.ZIP      An agenda file with US holidays 1992-1997. 
+                Some holidays are specified as repeating entries.
+
+LOTSOHOL.ZIP    Agenda files with US holidays 1995-2000. 
+                Some holidays are specified as repeating entries.
+
+HOLI_UK.ZIP     Agenda file with UK holidays 1994-2005.
+
+
+* Configuration
+
+Holidays are defined by writing a holiday definition file. 
+A holiday file is a text file with the file type .HOL. It contains
+directives to the HOL program on what holidays to calculate and how to
+write them to an agenda file.
+
+The text in a holiday file consists of comments, keywords, punctuation
+characters and quoted strings. 
+
+A comment is any text after an exclamation mark or the keyword REM up to
+the end of the current line. Keywords (e.g. STYLE) are not case
+sensitive. A quoted string is any text within double quotes (e.g. "H").
+A quoted string can not span lines. 
+
+The file EXAMPLE.HOL explains the syntax with commented examples. Here
+is a more formal looking definition:
+
+<directive> : 
+        <year-symbol-directive>
+        <style-directive>
+        <entry-type-directive>
+        <simple-holiday-directive>
+        <compound-holiday-directive>
+
+<compound-holiday-directive> : 
+        { <local-directive-list> }
+
+<local-directive-list> : 
+        <local-directive>
+        <local-directive-list local-directive>
+
+<local-directive> : 
+        <year-symbol-directive>
+        <style-directive>
+        <alias-directive>
+        <entry-type-directive>
+        <simple-holiday-directive>
+
+<year-symbol-directive> :
+        YEAR_SYMBOL = " <year-symbol> " ;
+
+<style-directive> :
+        STYLE = <style-list> ;
+
+<style-list> :
+        <style>
+        <style-list> , <style>
+
+<style> :
+        NORMAL
+        BOLD
+        ITALIC
+        UNDERLINE
+
+<alias-directive> :
+        ALIAS = <alias> ;
+
+<entry-type-directive> :
+        ENTRY_TYPE = <entry-type> ;
+
+<entry-type> :
+        IGNORE
+        UNTIMED
+        ANNIVERSARY
+
+<simple-holiday-directive>:
+        " <holiday-name> " = <date-expression-list> ;
+
+<date-expression-list> :
+        <date-expression>
+        <date-expression-list> <date-expression>
+
+<date-expression> :
+        <simple-date-expression>
+        <flow-control>
+
+<simple-date-expression> :
+        <date-setter> 
+        <date-modifier>
+
+<date-setter> :
+        <alias>
+        FIX ( <value> , <value> )
+        HFIX ( <value>, <value> )
+        IFIX ( <value>, <value> )
+        FLOAT ( <value> , <value> , <negvalue> <opt-value>(opt) )
+        LAST ( <value> )
+        EASTER
+
+<opt-value> : 
+        , <value>
+
+<date-modifier> : 
+        + <value>
+        - <value>
+
+<flow-control> :
+        DONEIF ( <condition-list> )
+        IF ( <condition-list> ) { <simple-date-expression> }
+        ELSEIF ( <condition-list> ) { <simple-date-expression> }
+        ELSE { <simple-date-expression> }
+        
+<condition-list> : 
+        <condition>
+        <condition-list> OR <condition>
+        NOT ( <condition-list> )
+
+<condition> :
+        WEEKDAY ( <value> )
+        
+<negvalue> :
+        -(opt) <value>
+        
+<year-symbol>  = max one character.
+<alias>        = a word with characters A-Z, max 33 characters.
+<holiday-name> = a sequence of printable characters (except quote (")),
+                 max 254 characters. If the text contains %IY or %HY
+                 then those three characters will be replaced by 
+                 the Islamic or Hebrew year for the calculated date.
+<value>        = a positive number, digits 0-9
+
+
+Functions:
+
+FIX(month, day)
+        Sets the date to day # DAY in month # MONTH. 
+        Day and month numbers start at 1.
+
+HFIX(month, day)
+        Sets the date to day # DAY in Hebrew month # MONTH.
+        Day and month numbers start at 1 (month 1 = Nisan).
+        Month 13 is the last month of the year, i.e. Adar or
+        Adar II depending on whether it is a leap year or not.
+
+IFIX(month, day)
+        Sets the date to day # DAY in Islamic month # MONTH.
+        Day and month numbers start at 1 (month 1 = Muharram).
+
+FLOAT(month, weekday, n)
+        Sets the date to the date of the Nth WEEKDAY in month # MONTH.
+        Day and month numbers start at 1. N starts at 1. If N < 0 count 
+        N WEEKDAYs from the end of the month. WEEKDAY numbers are from 
+        0 (Sunday) to 6 (Saturday).
+
+FLOAT(month, weekday, n, day)
+        Sets the date to the date of the Nth WEEKDAY on or before/after 
+        day # DAY in month # MONTH.
+        Day and month numbers start at 1. N starts at 1. If N < 0 count 
+        N WEEKDAYs before DAY MONTH, otherwise count N WEEKDAYs after 
+        DAY MONTH. WEEKDAY numbers are from 0 (Sunday) to 6 (Saturday).
+        
+LAST(month)
+        Sets the date to the date of the last day of month # MONTH.
+
+EASTER
+        Sets the date to the date of Easter Sunday (non-orthodox).
+        
+DONEIF(condition)
+        If the condition is true then the rest of the current holiday
+        directive (up to ';') will not be used.
+        A condition is 'WEEKDAY(day)' or 'WEEKDAY(day) OR WEEKDAY(day)'
+        etc.
+
+IF(condition) { simple-date-expression }
+        If the condition is true then the simple-date-expression will
+        be used. 
+
+ELSEIF(condition) { simple-date-expression }
+        If the condition is true and no preceeding IF or ELSEIF condition
+        was true then the simple-date-expression will be used.
+
+ELSE { simple-date-expression }
+        If no preceeding IF or ELSEIF condition was true then 
+        the simple-date-expression will be used.
+ 
+WEEKDAY(weekday)
+        Can only be used in DONEIF, IF and ELSEIF.
+        Returns 'true' if the date is on the weekday specified as a
+        parameter. WEEKDAY numbers are from 0 (Sunday) to 6 (Saturday).
+        
+NOT(condition)
+        Can only be used in DONEIF, IF and ELSEIF.
+        Returns the opposite value of the condition.
+
+* Limits
+
+Line length in holiday file: 255 characters
+Number of holiday definitions: 101
+Number of aliases: 10
+Number of characters in an alias: 33
+
+
+
+
+

@@ -1,0 +1,1190 @@
+! $Header: e:\proj\3uscript/rcs\uk_tv.scc 2.0 1996/02/16 19:36:08 Mark_Hadfield Exp $
+
+! $Log: uk_tv.scc $
+! Revision 2.0  1996/02/16  19:36:08  Mark_Hadfield
+! 3USCRIPT release 2.0
+!
+! Revision 1.4  1996/02/04  19:23:06  Mark_Hadfield
+! Replaced "choice !" by "!" to work with brief prompting
+!
+! Revision 1.3  1995/10/03  21:04:48  Mark_Hadfield
+! Added HTVWALES and S4C.
+!
+! Revision 1.2  1995/10/03  19:00:10  Mark_Hadfield
+! Added switches for each listing
+!
+
+
+
+NEXISTS "m:\cis\switch\Guide.On" GOTO intro
+ALERT ":-) UK_TV $Revision: 2.0 $"
+GOTO uktv
+intro:
+INFO "UK_TV $Revision: 2.0 $"
+GOTO uktv
+
+uktv:
+EXISTS "m:\cis\switch\uk_tv.Off" GOTO switchoff
+
+! PA News                                                                
+SENDWAIT 360 "go pao", "!" GOTO noprompt
+
+! 4 TV & Radio Listings
+SENDWAIT 240 "7", "!" GOTO noprompt
+SENDWAIT 240 "set page no", "!" GOTO noprompt
+
+
+! ------------------- 1 BBC1 ----------------------
+bbc1:
+EXISTS "m:\cis\switch\uk_tv.On" GOTO bbc1on
+NEXISTS "m:\cis\switch\Bbc1.On" GOTO bbc1noton
+
+bbc1on:
+EXISTS "m:\cis\switch\Bbc1.Off" GOTO bbc1off
+EXISTS "\cis\service\Bbc1.cis" GOTO bbc1exists
+SENDWAIT 120 "1", " 1 " GOTO noprompt
+bbc1pages1:
+WAIT 120 (ON REPLY " 2 " GOTO bbc1pages2
+         ON REPLY "!" GOTO bbc1pages1ok)
+GOTO noprompt
+         
+bbc1pages1ok:
+SEND "s 1"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1pages2:
+WAIT 120 (ON REPLY " 3 TV BBC1 " GOTO bbc1pages3
+         ON REPLY "!" GOTO bbc1pages2ok)
+GOTO noprompt
+
+bbc1pages2ok:
+SEND "s 2,1"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1pages3:
+WAIT 120 (ON REPLY " 4 TV BBC1 " GOTO bbc1pages4
+         ON REPLY "!" GOTO bbc1pages3ok)
+GOTO noprompt
+
+bbc1pages3ok:
+SEND "s 3,2,1"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1pages4:
+WAIT 120 (ON REPLY " 5 TV BBC1 " GOTO bbc1pages5
+         ON REPLY "!" GOTO bbc1pages5ok)
+GOTO noprompt
+
+bbc1pages4ok:
+SEND "s 4,3,2"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1pages5:
+WAIT 120 (ON REPLY " 6 TV BBC1 " GOTO bbc1pages6
+         ON REPLY "!" GOTO bbc1pages5ok)
+GOTO noprompt
+
+bbc1pages5ok:
+SEND "s 5,4,3"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1pages6:
+WAIT 120 (ON REPLY " 7 TV BBC1 " GOTO bbc1pages7
+         ON REPLY "!" GOTO bbc1pages6ok)
+GOTO noprompt
+
+bbc1pages6ok:
+SEND "s 6,5,4"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1pages7:
+WAIT 120 (ON REPLY " 8 TV BBC1 " GOTO bbc1pages8
+         ON REPLY "!" GOTO bbc1pages7ok)
+GOTO noprompt
+
+bbc1pages7ok:
+SEND "s 7,6,5"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1pages8:
+WAIT 120 (ON REPLY " 9 " GOTO unknownpage
+         ON REPLY "!" GOTO bbc1pages8ok)
+GOTO noprompt
+
+bbc1pages8ok:
+SEND "s 8,7,6"
+RECEIVE "\cis\service\Bbc1.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc1
+
+bbc1exists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO bbc2
+ALERT ":-O Bbc1.cis exists. Skipping."
+GOTO bbc2
+
+bbc1noton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO bbc2
+ALERT ":-O No Bbc1.On or Uk_Tv.On switch. Skipping."
+GOTO bbc2
+
+bbc1off:
+NEXISTS "m:\cis\switch\Guide.On" GOTO bbc2
+ALERT ":-O Bbc1.Off switch set. Skipping."
+GOTO bbc2
+
+leavebbc1:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO bbc2
+
+
+! ------------------- 2 BBC2 ----------------------
+bbc2:
+EXISTS "m:\cis\switch\Uk_Tv.On" GOTO bbc2on
+NEXISTS "m:\cis\switch\Bbc2.On" GOTO bbc2noton
+
+bbc2on:
+EXISTS "m:\cis\switch\Bbc2.Off" GOTO bbc2off
+EXISTS "\cis\service\Bbc2.cis" GOTO bbc2exists
+SENDWAIT 120 "2", " 1 " GOTO noprompt
+
+bbc2pages1:
+WAIT 120 (ON REPLY " 2 TV BBC2 " GOTO bbc2pages2
+         ON REPLY "!" GOTO bbc2pages1ok)
+GOTO noprompt
+         
+bbc2pages1ok:
+SEND "s 1"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+bbc2pages2:
+WAIT 120 (ON REPLY " 3 TV BBC2 " GOTO bbc2pages3
+         ON REPLY "!" GOTO bbc2pages2ok)
+GOTO noprompt
+
+bbc2pages2ok:
+SEND "s 2,1"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+bbc2pages3:
+WAIT 120 (ON REPLY " 4 TV BBC2 " GOTO bbc2pages4
+         ON REPLY "!" GOTO bbc2pages3ok)
+GOTO noprompt
+
+bbc2pages3ok:
+SEND "s 3,2,1"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+bbc2pages4:
+WAIT 120 (ON REPLY " 5 TV BBC2 " GOTO bbc2pages5
+         ON REPLY "!" GOTO bbc2pages4ok)
+GOTO noprompt
+
+bbc2pages4ok:
+SEND "s 4,3,2"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+bbc2pages5:
+WAIT 120 (ON REPLY " 6 TV BBC2 " GOTO bbc2pages6
+         ON REPLY "!" GOTO bbc2pages5ok)
+GOTO noprompt
+
+bbc2pages5ok:
+SEND "s 5,4,3"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+bbc2pages6:
+WAIT 120 (ON REPLY " 7 TV BBC2 " GOTO bbc2pages7
+         ON REPLY "!" GOTO bbc2pages6ok)
+GOTO noprompt
+
+bbc2pages6ok:
+SEND "s 6,5,4"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+bbc2pages7:
+WAIT 120 (ON REPLY " 8 TV BBC2 " GOTO bbc2pages8
+         ON REPLY "!" GOTO bbc2pages7ok)
+GOTO noprompt
+
+bbc2pages7ok:
+SEND "s 7,6,5"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+bbc2pages8:
+WAIT 120 (ON REPLY " 9 " GOTO unknownpage
+         ON REPLY "!" GOTO bbc2pages8ok)
+GOTO noprompt
+
+bbc2pages8ok:
+SEND "s 8,7,6"
+RECEIVE "\cis\service\Bbc2.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavebbc2
+
+
+bbc2exists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO itv
+ALERT ":-O Bbc2.cis exists. Skipping."
+GOTO itv
+
+bbc2noton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO itv
+ALERT ":-O No Bbc2.On or Uk_Tv.On switch. Skipping."
+GOTO itv
+
+bbc2off:
+NEXISTS "m:\cis\switch\Guide.On" GOTO itv
+ALERT ":-O Bbc2.Off switch. Skipping."
+GOTO itv
+
+leavebbc2:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO itv
+
+
+! ---------------- 3 ITV --------------------------
+itv:
+EXISTS "m:\cis\switch\Uk_Tv.On" GOTO itvon
+NEXISTS "m:\cis\switch\Itv.On" GOTO itvnoton
+
+itvon:
+EXISTS "m:\cis\switch\Itv.Off" GOTO itvoff
+EXISTS "\cis\service\itv.cis" GOTO itvexists
+SENDWAIT 120 "3", "!" GOTO noprompt
+
+! -------- ITV Page from <User1> --------------
+SENDWAIT 120 "<User1>", " 1 " GOTO noprompt
+
+itvpages1:
+WAIT 120 (ON REPLY " 2 TV " GOTO itvpages2
+         ON REPLY "!" GOTO itvpages1ok)
+GOTO noprompt
+         
+itvpages1ok:
+SEND "s 1"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+itvpages2:
+WAIT 120 (ON REPLY " 3 TV " GOTO itvpages3
+         ON REPLY "!" GOTO itvpages2ok)
+GOTO noprompt
+
+itvpages2ok:
+SEND "s 2,1"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+itvpages3:
+WAIT 120 (ON REPLY " 4 TV " GOTO itvpages4
+         ON REPLY "!" GOTO itvpages3ok)
+GOTO noprompt
+
+itvpages3ok:
+SEND "s 3,2,1"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+itvpages4:
+WAIT 120 (ON REPLY " 5 TV " GOTO itvpages5
+         ON REPLY "!" GOTO itvpages4ok)
+GOTO noprompt
+
+itvpages4ok:
+SEND "s 4,3,2"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+itvpages5:
+WAIT 120 (ON REPLY " 6 TV " GOTO itvpages6
+         ON REPLY "!" GOTO itvpages5ok)
+GOTO noprompt
+
+itvpages5ok:
+SEND "s 5,4,3"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+itvpages6:
+WAIT 120 (ON REPLY " 7 TV " GOTO itvpages7
+         ON REPLY "!" GOTO itvpages6ok)
+GOTO noprompt
+
+itvpages6ok:
+SEND "s 6,5,4"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+itvpages7:
+WAIT 120 (ON REPLY " 8 TV " GOTO itvpages8
+         ON REPLY "!" GOTO itvpages7ok)
+GOTO noprompt
+
+itvpages7ok:
+SEND "s 7,6,5"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+itvpages8:
+WAIT 120 (ON REPLY " 9 TV " GOTO unknownpage
+         ON REPLY "!" GOTO itvpages8ok)
+GOTO noprompt
+
+itvpages8ok:
+SEND "s 8,7,6"
+RECEIVE "\cis\service\itv.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaveitv
+
+
+itvexists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO htvwales
+ALERT ":-O Itv.cis exists. Skipping."
+GOTO htvwales
+
+itvnoton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO htvwales
+ALERT ":-O No Itv.On or Uk_Tv.On switch. Skipping."
+GOTO htvwales
+
+itvoff:
+NEXISTS "m:\cis\switch\Guide.On" GOTO htvwales
+ALERT ":-O Itv.Off switch set. Skipping."
+GOTO htvwales
+
+leaveitv:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO htvwales
+
+
+! ------------- HTV Wales (3 ITV) -----------------
+htvwales:
+EXISTS "m:\cis\switch\Uk_Tv.On" GOTO htvwaleson
+NEXISTS "m:\cis\switch\htvwales.On" GOTO htvwalesnoton
+
+htvwaleson:
+EXISTS "m:\cis\switch\htvwales.Off" GOTO htvwalesoff
+EXISTS "\cis\service\htvwales.cis" GOTO htvwalesexists
+SENDWAIT 120 "3", "!" GOTO noprompt
+
+! -------- ITV Page 7 ---- HTV Wales --------------
+SENDWAIT 120 "7", " 1 " GOTO noprompt
+
+htvwalespages1:
+WAIT 120 (ON REPLY " 2 TV " GOTO htvwalespages2
+         ON REPLY "!" GOTO htvwalespages1ok)
+GOTO noprompt
+         
+htvwalespages1ok:
+SEND "s 1"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+htvwalespages2:
+WAIT 120 (ON REPLY " 3 TV " GOTO htvwalespages3
+         ON REPLY "!" GOTO htvwalespages2ok)
+GOTO noprompt
+
+htvwalespages2ok:
+SEND "s 2,1"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+htvwalespages3:
+WAIT 120 (ON REPLY " 4 TV " GOTO htvwalespages4
+         ON REPLY "!" GOTO htvwalespages3ok)
+GOTO noprompt
+
+htvwalespages3ok:
+SEND "s 3,2,1"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+htvwalespages4:
+WAIT 120 (ON REPLY " 5 TV " GOTO htvwalespages5
+         ON REPLY "!" GOTO htvwalespages4ok)
+GOTO noprompt
+
+htvwalespages4ok:
+SEND "s 4,3,2"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+htvwalespages5:
+WAIT 120 (ON REPLY " 6 TV " GOTO htvwalespages6
+         ON REPLY "!" GOTO htvwalespages5ok)
+GOTO noprompt
+
+htvwalespages5ok:
+SEND "s 5,4,3"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+htvwalespages6:
+WAIT 120 (ON REPLY " 7 TV " GOTO htvwalespages7
+         ON REPLY "!" GOTO htvwalespages6ok)
+GOTO noprompt
+
+htvwalespages6ok:
+SEND "s 6,5,4"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+htvwalespages7:
+WAIT 120 (ON REPLY " 8 TV " GOTO htvwalespages8
+         ON REPLY "!" GOTO htvwalespages7ok)
+GOTO noprompt
+
+htvwalespages7ok:
+SEND "s 7,6,5"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+htvwalespages8:
+WAIT 120 (ON REPLY " 9 TV " GOTO unknownpage
+         ON REPLY "!" GOTO htvwalespages8ok)
+GOTO noprompt
+
+htvwalespages8ok:
+SEND "s 8,7,6"
+RECEIVE "\cis\service\htvwales.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavehtvwales
+
+
+htvwalesexists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO chan4
+ALERT ":-O HtvWales.cis exists. Skipping."
+GOTO chan4
+
+htvwalesnoton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO chan4
+ALERT ":-O No HtvWales.On or Uk_Tv.On switch. Skipping."
+GOTO chan4
+
+htvwalesoff:
+NEXISTS "m:\cis\switch\Guide.On" GOTO chan4
+ALERT ":-O HtvWales.Off switch set. Skipping."
+GOTO chan4
+
+leavehtvwales:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO chan4
+
+
+! ------------- 4 CHANNEL 4 -----------------------
+chan4:
+EXISTS "m:\cis\switch\Uk_Tv.On" GOTO chan4on
+NEXISTS "m:\cis\switch\C4.On" GOTO chan4noton
+
+chan4on:
+EXISTS "m:\cis\switch\c4.Off" GOTO chan4off
+EXISTS "\cis\service\c4.cis" GOTO chan4exists
+SENDWAIT 120 "4", " 2 " GOTO noprompt
+
+chan4pages2:
+WAIT 120 (ON REPLY " 4 " GOTO chan4pages4
+         ON REPLY "!" GOTO chan4pages2ok)
+GOTO noprompt
+         
+chan4pages2ok:
+SEND "s 2"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+chan4pages4:
+WAIT 120 (ON REPLY " 6 TV CHANNEL4 " GOTO chan4pages6
+         ON REPLY "!" GOTO chan4pages4ok)
+GOTO noprompt
+
+chan4pages4ok:
+SEND "s 4,2"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+chan4pages6:
+WAIT 120 (ON REPLY " 8 TV CHANNEL4 " GOTO chan4pages8
+         ON REPLY "!" GOTO chan4pages6ok)
+GOTO noprompt
+
+chan4pages6ok:
+SEND "s 6,4,2"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+chan4pages8:
+WAIT 120 (ON REPLY " 10 TV CHANNEL4 " GOTO chan4pages10
+         ON REPLY "!" GOTO chan4pages8ok)
+GOTO noprompt
+
+chan4pages8ok:
+SEND "s 8,6,4"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+chan4pages10:
+WAIT 120 (ON REPLY " 12 TV CHANNEL4 " GOTO chan4pages12
+         ON REPLY "!" GOTO chan4pages10ok)
+GOTO noprompt
+
+chan4pages10ok:
+SEND "s 10,8,6"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+chan4pages12:
+WAIT 120 (ON REPLY " 14 TV CHANNEL4 " GOTO chan4pages14
+         ON REPLY "!" GOTO chan4pages12ok)
+GOTO noprompt
+
+chan4pages12ok:
+SEND "s 12,10,8"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+chan4pages14:
+WAIT 120 (ON REPLY " 16 TV CHANNEL4 " GOTO chan4pages16
+         ON REPLY "!" GOTO chan4pages14ok)
+GOTO noprompt
+
+chan4pages14ok:
+SEND "s 14,12,10"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+chan4pages16:
+WAIT 120 (ON REPLY " 17 " GOTO unknownpage
+         ON REPLY "!" GOTO chan4pages16ok)
+GOTO noprompt
+
+chan4pages16ok:
+SEND "s 16,14,12"
+RECEIVE "\cis\service\c4.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavechan4
+
+
+chan4exists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO s4c
+ALERT ":-O C4.cis exists. Skipping."
+GOTO s4c
+
+chan4noton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO s4c
+ALERT ":-O No C4.On or Uk_Tv.On switch. Skipping."
+GOTO s4c
+
+chan4off:
+NEXISTS "m:\cis\switch\Guide.On" GOTO s4c
+ALERT ":-O C4.Off switch set. Skipping."
+GOTO s4c
+
+leavechan4:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO s4c
+
+
+! ------------- 4 CHANNEL 4 (S4C) -----------------
+s4c:
+EXISTS "m:\cis\switch\Uk_Tv.On" GOTO s4con
+NEXISTS "m:\cis\switch\S4C.On" GOTO s4cnoton
+
+s4con:
+EXISTS "m:\cis\switch\S4C.Off" GOTO s4coff
+EXISTS "\cis\service\S4C.cis" GOTO s4cexists
+SENDWAIT 120 "4", " 2 " GOTO noprompt
+
+s4cpages1:
+WAIT 120 (ON REPLY " 3 " GOTO s4cpages3
+         ON REPLY "!" GOTO s4cpages1ok)
+GOTO noprompt
+         
+s4cpages1ok:
+SEND "s 1"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+s4cpages3:
+WAIT 120 (ON REPLY " 6 TV CHANNEL4 " GOTO s4cpages5
+         ON REPLY "!" GOTO s4cpages3ok)
+GOTO noprompt
+
+s4cpages3ok:
+SEND "s 3,1"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+s4cpages5:
+WAIT 120 (ON REPLY " 8 TV CHANNEL4 " GOTO s4cpages7
+         ON REPLY "!" GOTO s4cpages5ok)
+GOTO noprompt
+
+s4cpages5ok:
+SEND "s 5,3,1"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+s4cpages7:
+WAIT 120 (ON REPLY " 10 TV CHANNEL4 " GOTO s4cpages9
+         ON REPLY "!" GOTO s4cpages7ok)
+GOTO noprompt
+
+s4cpages7ok:
+SEND "s 7,5,3"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+s4cpages9:
+WAIT 120 (ON REPLY " 12 TV CHANNEL4 " GOTO s4cpages11
+         ON REPLY "!" GOTO s4cpages9ok)
+GOTO noprompt
+
+s4cpages9ok:
+SEND "s 9,7,5"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+s4cpages11:
+WAIT 120 (ON REPLY " 14 TV CHANNEL4 " GOTO s4cpages13
+         ON REPLY "!" GOTO s4cpages11ok)
+GOTO noprompt
+
+s4cpages11ok:
+SEND "s 11,9,7"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+s4cpages13:
+WAIT 120 (ON REPLY " 16 TV CHANNEL4 " GOTO s4cpages15
+         ON REPLY "!" GOTO s4cpages13ok)
+GOTO noprompt
+
+s4cpages13ok:
+SEND "s 13,11,9"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+s4cpages15:
+WAIT 120 (ON REPLY " 17 " GOTO unknownpage
+         ON REPLY "!" GOTO s4cpages15ok)
+GOTO noprompt
+
+s4cpages15ok:
+SEND "s 15,13,11"
+RECEIVE "\cis\service\S4C.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leaves4c
+
+
+s4cexists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO sky
+ALERT ":-O S4C.cis exists. Skipping."
+GOTO sky
+
+s4cnoton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO sky
+ALERT ":-O No S4C.On or Uk_Tv.On switch. Skipping."
+GOTO sky
+
+s4coff:
+NEXISTS "m:\cis\switch\Guide.On" GOTO sky
+ALERT ":-O S4C.Off switch set. Skipping."
+GOTO sky
+
+leaves4c:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO sky
+
+
+! --------------- 5 SATELLITE ---------------------
+sky:
+EXISTS "m:\cis\switch\Uk_Tv.On" GOTO skyon
+NEXISTS "m:\cis\switch\Sky.On" GOTO skynoton
+
+skyon:
+EXISTS "m:\cis\switch\Sky.Off" GOTO skyoff
+EXISTS "\cis\service\sky.cis" GOTO skyexists
+SENDWAIT 120 "5", " 1 " GOTO noprompt
+
+skypages1:
+WAIT 120 (ON REPLY " 2 TV SATELLITE " GOTO skypages2
+         ON REPLY "!" GOTO skypages1ok)
+GOTO noprompt
+         
+skypages1ok:
+SEND "s 1"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages2:
+WAIT 120 (ON REPLY " 3 TV SATELLITE " GOTO skypages3
+         ON REPLY "!" GOTO skypages2ok)
+GOTO noprompt
+
+skypages2ok:
+SEND "s 2,1"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages3:
+WAIT 120 (ON REPLY " 4 TV SATELLITE " GOTO skypages4
+         ON REPLY "!" GOTO skypages3ok)
+GOTO noprompt
+
+skypages3ok:
+SEND "s 3,2,1"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages4:
+WAIT 120 (ON REPLY " 5 TV SATELLITE " GOTO skypages5
+         ON REPLY "!" GOTO skypages4ok)
+GOTO noprompt
+
+skypages4ok:
+SEND "s 4,3,2"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages5:
+WAIT 120 (ON REPLY " 6 TV SATELLITE " GOTO skypages6
+         ON REPLY "!" GOTO skypages5ok)
+GOTO noprompt
+
+skypages5ok:
+SEND "s 5,4,3"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages6:
+WAIT 120 (ON REPLY " 7 TV SATELLITE " GOTO skypages7
+         ON REPLY "!" GOTO skypages6ok)
+GOTO noprompt
+
+skypages6ok:
+SEND "s 6,5,4"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages7:
+WAIT 120 (ON REPLY " 8 TV SATELLITE " GOTO skypages8
+         ON REPLY "!" GOTO skypages7ok)
+GOTO noprompt
+
+skypages7ok:
+SEND "s 7,6,5"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages8:
+WAIT 120 (ON REPLY " 9 TV SATELLITE " GOTO skypages9
+         ON REPLY "!" GOTO skypages8ok)
+GOTO noprompt
+
+skypages8ok:
+SEND "s 8,7,6"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages9:
+WAIT 120 (ON REPLY " 10 TV SATELLITE " GOTO skypages10
+         ON REPLY "!" GOTO skypages9ok)
+GOTO noprompt
+
+skypages9ok:
+SEND "s 9,8,7"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+skypages10:
+WAIT 120 (ON REPLY " 11 " GOTO unknownpage
+         ON REPLY "!" GOTO skypages10ok)
+GOTO noprompt
+
+skypages10ok:
+SEND "s 10,9,8"
+RECEIVE "\cis\service\sky.cis", "ASCII"
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO leavesky
+
+
+skyexists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO radio
+ALERT ":-O Sky.cis exists. Skipping."
+GOTO radio
+
+skynoton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO radio
+ALERT ":-O No Sky.On or Uk_Tv.On switch. Skipping."
+GOTO radio
+
+skyoff:
+NEXISTS "m:\cis\switch\Guide.On" GOTO radio
+ALERT ":-O Sky.Off switch set. Skipping."
+GOTO radio
+
+leavesky:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO radio
+
+
+! ----------------- 6 RADIO -----------------------
+radio:
+EXISTS "m:\cis\switch\Uk_Tv.On" GOTO radioon
+NEXISTS "m:\cis\switch\Radio.On" GOTO radionoton
+
+radioon:
+EXISTS "m:\cis\switch\Radio.Off" GOTO radiooff
+EXISTS "\cis\service\radio.cis" GOTO radioexists
+SENDWAIT 120 "6", " 1 " GOTO noprompt
+
+radiopages1:
+WAIT 120 (ON REPLY " 2 RADIO SUMMYS " GOTO radiopages2
+         ON REPLY "!" GOTO radiopages1ok)
+GOTO noprompt
+         
+radiopages1ok:
+SEND "s 1"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages2:
+WAIT 120 (ON REPLY " 3 RADIO SUMMYS " GOTO radiopages3
+         ON REPLY "!" GOTO radiopages2ok)
+GOTO noprompt
+
+radiopages2ok:
+SEND "s 2,1"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages3:
+WAIT 120 (ON REPLY " 4 RADIO SUMMYS " GOTO radiopages4
+         ON REPLY "!" GOTO radiopages3ok)
+GOTO noprompt
+
+radiopages3ok:
+SEND "s 3,2,1"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages4:
+WAIT 120 (ON REPLY " 5 RADIO SUMMYS " GOTO radiopages5
+         ON REPLY "!" GOTO radiopages4ok)
+GOTO noprompt
+
+radiopages4ok:
+SEND "s 4,3,2"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages5:
+WAIT 120 (ON REPLY " 6 RADIO SUMMYS " GOTO radiopages6
+         ON REPLY "!" GOTO radiopages5ok)
+GOTO noprompt
+
+radiopages5ok:
+SEND "s 5,4,3"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages6:
+WAIT 120 (ON REPLY " 7 RADIO SUMMYS " GOTO radiopages7
+         ON REPLY "!" GOTO radiopages6ok)
+GOTO noprompt
+
+radiopages6ok:
+SEND "s 6,5,4"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages7:
+WAIT 120 (ON REPLY " 8 RADIO SUMMYS " GOTO radiopages8
+         ON REPLY "!" GOTO radiopages7ok)
+GOTO noprompt
+
+radiopages7ok:
+SEND "s 7,6,5"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages8:
+WAIT 120 (ON REPLY " 9 " GOTO radiopages9
+         ON REPLY "!" GOTO radiopages8ok)
+GOTO noprompt
+
+radiopages8ok:
+SEND "s 8,7,6"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages9:
+WAIT 120 (ON REPLY " 10 " GOTO radiopages10
+         ON REPLY "!" GOTO radiopages9ok)
+GOTO noprompt
+
+radiopages9ok:
+SEND "s 9,8,7"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+radiopages10:
+WAIT 120 (ON REPLY " 11 " GOTO unknownpage
+         ON REPLY "!" GOTO radiopages10ok)
+GOTO noprompt
+
+radiopages10ok:
+SEND "s 10,9,8"
+RECEIVE "\cis\service\radio.cis", "ASCII"
+GOTO leaveradio
+
+
+radionoton:
+NEXISTS "m:\cis\switch\Guide.On" GOTO goodbye
+ALERT ":-O No Radio.On or Uk_Tv.On switch. Skipping."
+GOTO goodbye
+
+radiooff:
+NEXISTS "m:\cis\switch\Guide.On" GOTO goodbye
+ALERT ":-O Radio.Off switch set. Skipping."
+GOTO goodbye
+
+radioexists:
+NEXISTS "m:\cis\switch\Guide.On" GOTO goodbye
+ALERT ":-O Radio.cis exists. Skipping."
+GOTO goodbye
+
+leaveradio:
+! -- return to TV and Radio menu
+SENDWAIT 120 "m", "!" GOTO noprompt
+GOTO goodbye
+
+
+switchoff:
+NEXISTS "m:\cis\switch\Guide.On" GOTO goodbye
+ALERT ":-O Uk_Tv.Off switch set. Skipping."
+GOTO goodbye
+
+
+ 
+
+ 
+
+
+
+
+
+
+
+noprompt:
+NEXISTS "m:\cis\switch\Guide.on" goto infnoprompt
+ALERT "Compuserve has not responded with a prompt"
+GOTO logoff
+infnoprompt:
+BEEP 5,300
+INFO "Compuserve has not responded with a prompt"
+WAIT 20
+GOTO logoff
+
+unknownpage:
+NEXISTS "m:\cis\switch\Guide.on" goto infnopage
+ALERT "Unknown page. Ask Mark to edit the script again!"
+GOTO logoff
+infnopage:
+BEEP 5,300
+INFO "Unknown page. Time to edit the script again!"
+WAIT 20
+GOTO logoff
+
+
+
+goodbye:
+ 
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+EXISTS "a:\sco\Charges.sco" GOTO acharges
+EXISTS "b:\sco\Charges.sco" GOTO bcharges
+EXISTS "m:\sco\Charges.sco" GOTO mcharges
+
+
+NEXISTS "m:\cis\switch\user2.on" GOTO user2off
+EXISTS "a:\sco\3user2.sco" GOTO atwo
+EXISTS "b:\sco\3user2.sco" GOTO btwo
+EXISTS "m:\sco\3user2.sco" GOTO mtwo
+
+GOTO farewell
+
+user2off:
+NEXISTS "m:\cis\switch\Guide.on" GOTO farewell
+ALERT ":-O User2.on switch not set. Skipping."
+GOTO farewell
+
+farewell:
+NEXISTS "m:\cis\switch\Guide.on" goto logoff
+ALERT ":-O No other scripts installed. Logging off."
+GOTO logoff
+
+
+
+
+
+
+
+
+
+acharges:
+NEXISTS "m:\cis\switch\Guide.on" goto callacharges
+ALERT ":-) Charges installed on A:"
+callacharges:
+CALL "a:\sco\Charges.sco"
+
+bcharges:
+NEXISTS "m:\cis\switch\Guide.on" goto callbcharges
+ALERT ":-) Charges installed on B:"
+callbcharges:
+CALL "b:\sco\Charges.sco"
+
+mcharges:
+NEXISTS "m:\cis\switch\Guide.on" goto callmcharges
+ALERT ":-) Charges installed on M:"
+callmcharges:
+CALL "m:\sco\Charges.sco"
+
+
+atwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callatwo
+ALERT ":-) 3user2 installed on A:"
+callatwo:
+CALL "a:\sco\3user2.sco"
+
+btwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callbtwo
+ALERT ":-) 3user2 installed on B:"
+callbtwo:
+CALL "b:\sco\3user2.sco"
+
+mtwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callmtwo
+ALERT ":-) 3user2 installed on M:"
+callmtwo:
+CALL "m:\sco\3user2.sco"
+
+
+logoff:
+SENDWAIT 360 "go top", "!" GOTO bombout
+bombout:
+EXISTS "a:\app\readcis\Logoff.sco" GOTO alogoff
+EXISTS "b:\app\readcis\Logoff.sco" GOTO blogoff
+EXISTS "m:\app\readcis\Logoff.sco" GOTO mlogoff
+GOTO mylogoff
+
+alogoff:
+CALL "a:\app\readcis\Logoff.sco"
+blogoff:
+CALL "b:\app\readcis\Logoff.sco"
+mlogoff:
+CALL "m:\app\readcis\Logoff.sco"
+
+mylogoff:
+SENDWAIT 60 "off", "Connect" GOTO modemhangup
+
+modemhangup:
+SENDWAIT 20 "+++", "OK" GOTO disconnect
+SENDWAIT 60 "ATH", "NO CARRIER" GOTO terminate 
+WAIT 20
+
+disconnect:
+HANGUP
+
+terminate:
+EXIT
+
+

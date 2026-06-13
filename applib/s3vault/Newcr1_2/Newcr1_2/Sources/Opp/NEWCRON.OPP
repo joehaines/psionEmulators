@@ -1,0 +1,1100 @@
+#define VERSION "1.2"
+#define LANG 1
+#define ONEWND
+#define GREY
+
+#include <keys.oph>
+#include "newcron.oph"
+
+APP NewCron
+	TYPE $1003
+	ICON "\pic\newcron.pic"
+	path "\cron"
+	ext "crn"
+ENDA
+
+PROC startup:
+	global date&,time&,message$(40),intval&,actstrt&,actend&
+	global wve$(128),flag%,rep&,opo$(128),intvkn%,mco$(128)
+	global endflag%,version$(3)
+	global fonth%,oldx%,windh%,mwid%,ewid%,mflag%
+	global pstat%,kstat%
+	global macxist%
+	global tstat%,tpend%,timhnd%
+	global alrmpos%
+			
+#ifdef CACHE
+	trap cache 2000,10000
+#endif
+#ifdef GREY
+	defaultwin 1
+#endif
+	call ($6c8d)
+	ginit:
+	copyrite:
+	openfile:(cmd$(2),cmd$(3))
+	ioopen(timhnd%,"TIM:",0)
+	captoff:
+	gprint OPENED_TIMER :nl:
+	testmac:
+	pause 100
+	endflag%=0
+	mflag%=0
+	cpevnt:
+	loop:
+	tcheck:
+	ioclose(timhnd%)
+ENDP
+
+PROC loop:
+	local k%,h$(13),func$(5),cmds$(128)
+	local f$(13,8),l%
+
+	endflag%=0
+	prntevnt:
+	findevnt:
+	h$=KEY_STRING
+	f$(1)="pnew": f$(2)="popen": f$(3)="pcopy": f$(4)="pins": f$(5)="pdel"
+	f$(6)="pfrst": f$(7)="plast": f$(8)="pprev": f$(9)="pnext": f$(10)="pgoto": f$(11)="pfind"
+	f$(12)="pinfo": f$(13)="pexit"
+	WHILE endflag%<>1
+		if mflag%=1
+			gorder mwid%,1
+		elseif mflag%=0
+			gorder ewid%,1
+		endif
+		k%=events%:
+		IF k%=-1
+			tcheck:
+			position alrmpos%
+			doevnt:
+			findevnt:
+			prntevnt:
+		ELSEIF k%=-2
+			cmds$=getcmd$
+			IF left$(cmds$,1)="X"
+				endflag%=1
+			ELSEIF left$(cmds$,1)="O" or left$(cmds$,1)="C" 
+				close
+				openfile:(right$(cmds$,len(cmds$)-1),left$(cmds$,1))
+				prntevnt:
+			ENDIF
+		ELSEIF k%=-3
+			tcheck:
+			findon:
+			findevnt:
+			prntevnt:
+		ELSEIF k%=-4
+			tcheck:
+			findoff:
+rem			if mflag%=1
+rem				gorder mwid%,1
+rem			elseif mflag%=0
+rem				gorder ewid%,1
+rem			endif
+			findevnt:
+			prntevnt:
+			off
+		ELSEIF k%=HELP
+			dohelp:(1,1)
+		ELSEIF k%=RET
+			setevnt:
+		ELSEIF k%=RIGHT
+			pnext:
+		ELSEIF k%=LEFT
+			pprev:
+		ELSEIF k%=UP
+			pfrst:
+		ELSEIF k%=DOWN
+			plast:
+		ELSEIF k%=DEL
+			pdel:
+		ELSEIF k%=DIAMOND
+			if mflag%=1
+				mflag%=0
+				diampos 1
+				prntevnt:
+			else
+				mflag%=1
+				diampos 2
+				shwevwnd:				
+			endif
+		ELSE
+			IF k%=MENUKEY
+				k%=menu%:
+			ELSEIF k% and $200
+				k%=k%-$200
+			ENDIF
+			l%=loc(h$,chr$(k%))
+			if l%<>0
+				func$=f$(l%)
+				@(func$):
+			ENDIF
+		ENDIF
+	ENDWH
+ENDP
+
+PROC menu%:
+	local k%
+	
+	minit
+	mcard FILE_ITEM,NEW_ITEM,NEW_KEY,OPEN_ITEM,OPEN_KEY
+	mcard ENTRY_ITEM,COPY_ITEM,COPY_KEY,INS_ITEM,INS_KEY,DEL_ITEM,DEL_KEY
+	mcard SEARCH_ITEM,FIRST_ITEM,FIRST_KEY,LAST_ITEM,LAST_KEY,PREV_ITEM,PREV_KEY,NEXT_ITEM,NEXT_KEY,GOTO_ITEM,GOTO_KEY,SEARCH_ITEM,SEARCH_KEY
+	mcard EXTRAS_ITEM,INFO_ITEM,INFO_KEY,EXIT_ITEM,EXIT_KEY
+	lock on
+	k%=menu
+	lock off
+	return k%
+ENDP
+
+PROC events%:
+	local event%(6)
+	local cmds$(128)
+	
+	WHILE 1
+		ioa(-2,14,kstat%,event%(1),#0)
+		iowait
+		IF kstat%<>-46
+			IF (event%(1) and SPECIAL_EVENT)=0
+				if event%(1)=OFFKEY
+					return (-4)
+				elseif event%(1)=HELP
+					return(HELP)
+				elseif mflag%=1
+					return 292
+				else
+					return event%(1)
+				endif
+			ELSEIF event%(1)=EVENT_COMMAND
+				return -2
+			ELSEIF event%(1)=EVENT_ON_OFF
+				return -3
+			ENDIF
+		ELSEIF tpend% and tstat%<>-46
+			keyc(kstat%)
+			return -1
+		ENDIF
+	ENDWH
+ENDP
+		
+PROC findevnt:
+	local max&
+	local oldpos%
+	
+	oldpos%=pos
+	while tpend%=0 and key=0
+		findmax:
+		alrmpos%=pos
+		IF a.flag%=2			
+			max&=daytos&:(a.date&)+a.time&
+	 		IF max&>DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)+1
+				busy WAIT+num$(pos,3)
+ 				ioc(timhnd%,2,tstat%,max&)
+	 			tpend%=1
+			ELSE 
+				doevnt:
+			ENDIF
+		ELSE
+			position oldpos%
+			return
+		ENDIF
+	endwh
+	if key<>0
+		giprint INTERRUPTED
+	endif
+	position oldpos%
+ENDP
+
+PROC findmax:
+	local add&,max%,max&
+	
+	busy SEARCHING
+	WHILE 1
+		max%=0
+		max&=datetosecs(2038,1,1,0,0,0)
+		first
+		WHILE not eof
+			IF a.flag%=2 and (daytos&:(a.date&)+a.time&)<max&
+				max&=daytos&:(a.date&)+a.time&
+				max%=pos
+			ENDIF
+			next
+		ENDWH
+	
+		IF max%=0
+			busy off
+			return
+		ELSE
+			position max%
+		ENDIF
+
+		IF a.time&<a.actstrt& or a.time&>a.actend&
+			IF a.intvkn%=3
+				add&=a.intval&*3600
+			ELSEIF a.intvkn%=4
+				add&=a.intval&*60
+			ELSEIF a.intvkn%=5
+				add&=a.intval&
+			ENDIF
+			time&=a.time&
+			/* Bugfix ? */
+			time&=time&-(time&/86400)*86400
+			WHILE time&<a.actstrt& or time&>a.actend&
+				time&=time&+add&
+				IF time&>86399
+					date&=date&+time&/86400
+					time&=time&-(time&/86400)*86400
+				ENDIF
+			ENDWH
+			a.time&=time&
+			a.date&=date&
+			update
+		ELSE
+			busy off
+			return
+		ENDIF
+	ENDWH
+ENDP
+
+PROC findon:
+	local oldpos%,time&
+	
+	oldpos%=pos
+	time&=DATETOSECS(1970,1,1,HOUR,MINUTE,SECOND)	
+	
+	busy SEARCHING
+	first
+	WHILE not eof
+		IF a.flag%=3 and (a.actstrt&<=time&) and (a.actend&>=time&)
+			doevnt:			
+		ENDIF
+		next
+	ENDWH
+	position oldpos%
+ENDP
+
+PROC findoff:
+	local oldpos%,time&
+	
+	oldpos%=pos
+	time&=DATETOSECS(1970,1,1,HOUR,MINUTE,SECOND)	
+	
+	busy SEARCHING
+	first
+	WHILE not eof
+		IF a.flag%=4 and (a.actstrt&<=time&) and (a.actend&>=time&)
+			doevnt:			
+			pause 30
+			while pstat%=-46
+				pause 2
+			endwh
+		ENDIF
+		next
+	ENDWH
+	position oldpos%
+ENDP
+
+#ifdef GREY
+PROC prntevnt:
+	local year%,month%,day%,hour%,min%,sec%,ktag%
+	local abstime&
+	
+	if mflag%=1
+		return
+	endif
+	abstime&=daytos&:(a.date&)+int(a.time&)
+	secstodate abstime&,year%,month%,day%,hour%,min%,sec%,ktag%
+	gupdate off
+	guse ewid%
+	ggrey 2
+	gcls
+	gfont 4
+	gstyle 3
+	ggrey 0
+	gat 3,7
+	initnl:
+	gprint EVENT
+	gstyle 0
+	gprint EVENT_GAP;pos :nl: :nl:
+	gprint ACTIVE;ACTIVE_GAP1
+	IF a.flag%=1
+		gprint NO
+	ELSEIF a.flag%=2
+		gprint YES
+	ELSEIF a.flag%=3
+		gprint SWITCHON
+	ELSEIF a.flag%=4
+		gprint SWITCHOFF
+	ENDIF
+	nl:
+	if a.flag%=1
+		ggrey 1
+	endif
+	gprint ACTIVE_GAP2;actstr$:(a.actstrt&,a.actend&) :nl:
+	if a.flag%=2
+	 ggrey 0
+	else
+		ggrey 1
+	endif
+	gprint START_TIME;START_TIME_GAP;nnum$:(hour%,2);":";nnum$:(min%,2);":";nnum$:(sec%,2) :nl:
+	gprint START_DATE;START_DATE_GAP;nnum$:(day%,2);".";nnum$:(month%,2);".";nnum$:(year%,4) :nl:
+	IF a.intvkn%<>1 and a.flag%=2
+		ggrey 0
+	else
+		ggrey 1
+	endif
+	gprint REPETITION;REPETITION_GAP;repstr$:(a.flag%,a.intvkn%,a.rep&,a.intval&) :nl:
+	if a.flag%<>1
+		ggrey 0
+	else
+		ggrey 1
+	endif
+	IF a.message$<>""
+		gprint MESSAGE;MESSAGE_GAP;a.message$ :nl:
+	ENDIF
+	IF right$(a.wve$,5)<>"*.WVE" and right$(a.wve$,1)<>"\"
+		gprint SOUND;SOUND_GAP;a.wve$ :nl:
+	ENDIF
+	IF right$(a.opo$,5)<>"*.OPO" and right$(a.opo$,1)<>"\"
+		gprint OPL_MODULE;OPL_MODULE_GAP;a.opo$ :nl:
+	ENDIF
+	IF macxist% and right$(a.mco$,5)<>"*.MCO" and right$(a.mco$,1)<>"\"
+		gprint MACRO;MACRO_GAP;a.mco$ :nl:
+	ENDIF
+	gupdate on
+ENDP
+
+#else
+
+PROC prntevnt:
+	local year%,month%,day%,hour%,min%,sec%,ktag%
+	local abstime&
+	
+	if mflag%=1
+		return
+	endif
+	abstime&=daytos&:(a.date&)+int(a.time&)
+	secstodate abstime&,year%,month%,day%,hour%,min%,sec%,ktag%
+	gupdate off
+	guse ewid%
+	gcls
+	gfont 4
+	gstyle 3
+	gat 3,7
+	initnl:
+	gprint EVENT
+	gstyle 0
+	gprint EVENT_GAP;pos :nl: :nl:
+	gprint ACTIVE;ACTIVE_GAP1
+	IF a.flag%=1
+		gprint NO
+	ELSEIF a.flag%=2
+		gprint YES
+	ELSEIF a.flag%=3
+		gprint SWITCHON
+	ELSEIF a.flag%=4
+		gprint SWITCHOFF
+	ENDIF
+	nl:
+	if a.flag%<>1
+		gprint ACTIVE_GAP2;actstr$:(a.actstrt&,a.actend&) :nl:
+	endif
+	if a.flag%=2
+		gprint START_TIME;START_TIME_GAP;nnum$:(hour%,2);":";nnum$:(min%,2);":";nnum$:(sec%,2) :nl:
+		gprint START_DATE;START_DATE_GAP;nnum$:(day%,2);".";nnum$:(month%,2);".";nnum$:(year%,4) :nl:
+	endif
+	IF a.intvkn%<>1 and a.flag%=2
+		gprint REPETITION;REPETITION_GAP;repstr$:(a.flag%,a.intvkn%,a.rep&,a.intval&) :nl:
+	endif
+	IF a.message$<>""
+		gprint MESSAGE;MESSAGE_GAP;a.message$ :nl:
+	ENDIF
+	IF right$(a.wve$,5)<>"*.WVE" and right$(a.wve$,1)<>"\"
+		gprint SOUND;SOUND_GAP;a.wve$ :nl:
+	ENDIF
+	IF right$(a.opo$,5)<>"*.OPO" and right$(a.opo$,1)<>"\"
+		gprint OPL_MODULE;OPL_MODULE_GAP;a.opo$ :nl:
+	ENDIF
+	IF macxist% and right$(a.mco$,5)<>"*.MCO" and right$(a.mco$,1)<>"\"
+		gprint MACRO;MACRO_GAP;a.mco$ :nl:
+	ENDIF
+	gupdate on
+ENDP
+#endif
+
+PROC doevnt:
+	report:
+	IF right$(a.opo$,5)<>"*.OPO" and right$(a.opo$,1)<>"\"
+		launch:(a.opo$)
+	ENDIF
+	IF macxist% and right$(a.mco$,5)<>"*.MCO" and right$(a.mco$,1)<>"\"
+		runmacro:(a.mco$,"macro")
+	ENDIF
+	IF right$(a.wve$,5)<>"*.WVE" and right$(a.wve$,1)<>"\"
+		playa:(a.wve$)
+	ENDIF
+	IF a.intvkn%>2 and a.rep&>0 and a.flag%=2
+		a.rep&=a.rep&-1
+		update
+		IF a.rep&=0
+			a.flag%=1
+			update
+		ENDIF
+	ENDIF
+	IF a.flag%=2
+		IF a.intvkn%=2
+			a.date&=a.date&+a.intval&
+		ELSEIF a.intvkn%=3
+			a.time&=a.time&+3600*a.intval&
+		ELSEIF a.intvkn%=4
+			a.time&=a.time&+60*a.intval&
+		ELSEIF a.intvkn%=5
+			a.time&=a.time&+a.intval&
+		ELSEIF a.intvkn%=6
+			a.date&=days(day,month+a.intval&,year)
+		ELSEIF a.intvkn%=7
+			a.date&=days(day,month,year+a.intval&)
+		ELSE
+			a.flag%=1
+		ENDIF
+		update
+	ENDIF
+ENDP
+
+PROC report:
+	gupdate off
+	#ifdef ONEWND
+	if mflag%=0
+		shwevwnd:
+		mflag%=1
+		diampos 2
+	endif
+	IF a.message$<>""
+		foreg:
+	endif
+	#else
+	IF a.message$<>""
+		if mflag%=0
+			shwevwnd:
+			mflag%=1
+			diampos 2
+		endif
+		foreg:
+	endif
+	#endif
+	if mflag%=1
+		gprint "["+nnum$:(DAY,2)+"."+nnum$:(MONTH,2)+". "+nnum$:(HOUR,2)+":"+nnum$:(MINUTE,2)+":"+nnum$:(SECOND,2)+"] - "
+		if a.message$=""
+			gprint "..."
+		else
+			gprint a.message$
+		endif
+	endif
+	nl:
+	gupdate on
+ENDP
+
+PROC pinfo:
+	copyrite:
+	pause 300
+	prntevnt:
+endp
+
+PROC pnew:
+	local filenam$(128)
+	
+	filenam$="\cron\*.crn"
+	dinit NEW_FILE
+		dfile filenam$,FILE,65
+	IF dialog
+		tcheck:
+		openfile:(filenam$,"C")
+		findevnt:
+		prntevnt:
+	ENDIF
+ENDP
+
+PROC popen:
+	local filenam$(128)
+	
+	filenam$="\cron\*.crn"
+	dinit OPEN_FILE
+		dfile filenam$,FILE,64
+	IF dialog
+		tcheck:
+		openfile:(filenam$,"O")
+		findevnt:
+		prntevnt:
+	ENDIF
+ENDP
+
+PROC pcopy:
+	cpevnt:
+	giprint EVENT_COPIED
+ENDP
+
+PROC pins:
+	tcheck:
+	insevnt:
+	findevnt:
+	giprint EVENT_INSERTED
+	prntevnt:
+ENDP
+
+PROC pdel:
+	local key%
+	
+	dinit DEL_EVENT
+		dbuttons NO,NO_KEY,YES,YES_KEY
+	IF dialog=YES_KEY
+		tcheck:
+		IF count=1
+			initevnt:
+			update
+		ELSE
+			erase
+			first
+		ENDIF
+		findevnt:
+		prntevnt:
+	ENDIF
+ENDP
+
+PROC pfrst:
+	giprint FIRST_EVENT
+	first
+	prntevnt:
+ENDP
+
+PROC plast:
+	giprint LAST_EVENT
+	last
+	prntevnt:
+ENDP
+
+PROC pnext:
+	IF pos=count
+		giprint CREATED_NEW
+		initevnt:
+		append
+	ELSE
+		next
+	ENDIF
+	prntevnt:
+ENDP
+
+PROC pprev:
+	IF pos=1
+		beep 5,500
+		giprint FIRST_EVENT
+	ELSE
+		back
+		prntevnt:
+	ENDIF
+ENDP
+
+PROC pgoto:
+	local c&
+	
+	dinit GOTO_EVENT
+		dlong c&,NUMBER,1,101
+	IF dialog
+		IF c&>count
+			giprint LAST_EVENT
+			position count
+		ELSE
+			position c&
+		ENDIF
+		prntevnt:
+	ENDIF	
+ENDP
+
+PROC pfind:
+	local c$(40),oldpos%
+	
+	oldpos%=pos
+	dinit FIND_ITEM
+		dedit c$,TEXT
+	IF dialog and c$<>""
+		busy SEARCH
+		if findfield (c$,1,1,3)=0
+			giprint NOT_FOUND
+			position oldpos%
+		else
+			prntevnt:
+		ENDIF
+		busy off
+	ENDIF	
+ENDP
+
+PROC pexit:
+	endflag%=1
+ENDP
+
+PROC openfile:(filenam$,mode$)
+	trap close
+	IF exist(filenam$)
+		open filenam$,a,date&,time&,message$,intval&,wve$,flag%,rep&,intvkn%,opo$,mco$,actstrt&,actend&
+		giprint filenam$+OPENED
+	ELSEIF mode$="C"
+		create filenam$,a,date&,time&,message$,intval&,wve$,flag%,rep&,intvkn%,opo$,mco$,actstrt&,actend&
+		initevnt:
+		append
+		giprint  filenam$+CREATED
+	ENDIF
+	setname(filenam$)
+ENDP
+
+PROC initevnt:
+	a.time&=DATETOSECS(1970,1,1,HOUR,MINUTE,SECOND)	
+	a.date&=DAYS(DAY,MONTH,YEAR)
+	a.wve$="\WVE\*.WVE"
+	a.flag%=1
+	a.message$=""
+	a.intval&=1
+	a.rep&=2
+	a.intvkn%=1
+	a.opo$="\OPO\*.OPO"
+	a.mco$="\MACRO\MCO\*.MCO"
+	a.actstrt&=0
+	a.actend&=86340
+ENDP
+
+PROC cpevnt:
+	flag%=a.flag%
+	time&=a.time&
+	date&=a.date&
+	message$=a.message$
+	wve$=a.wve$
+	intvkn%=a.intvkn%
+	intval&=a.intval&
+	rep&=a.rep&
+	opo$=a.opo$
+	mco$=a.mco$
+	actstrt&=a.actstrt&
+	actend&=a.actend&
+ENDP
+
+PROC insevnt:
+	a.flag%=flag%
+	a.time&=time&
+	a.date&=date&
+	a.message$=message$
+	a.wve$=wve$
+	a.intvkn%=intvkn%
+	a.intval&=intval&
+	a.rep&=rep&
+	a.opo$=opo$
+	a.mco$=mco$
+	a.actstrt&=actstrt&
+	a.actend&=actend&
+	update
+ENDP
+
+PROC nnum$:(nr%,r%)
+	local n$(10)
+	
+	n$=rept$("0",r%-len(num$(nr%,r%)))+num$(nr%,r%)
+	return n$
+ENDP
+
+PROC tcheck:
+	busy off
+	if tpend%=1
+		iocancel(timhnd%)
+	endif
+	tpend%=0
+ENDP
+
+PROC setevnt:
+	local aktiv$(128),rep$(128),exitf%,dia%,help%
+
+	tcheck:
+	exitf%=0
+	IF daytos&:(a.date&)+int(a.time&)<DATETOSECS(YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)	
+		a.time&=DATETOSECS(1970,1,1,HOUR,MINUTE,SECOND)	
+		a.date&=DAYS(DAY,MONTH,YEAR)
+		giprint ADAPTED_START
+	ENDIF
+	cpevnt:
+	if flag%=1
+		flag%=2
+	endif
+	DO
+		dinit
+			dchoice flag%,ACTIVE,ACTIVE_CHOICE
+			dtext " ",actstr$:(actstrt&,actend&),$600
+			dtime time&,START_TIME,1,0,int(86399)
+			ddate date&,START_DATE,days(DAY,MONTH,YEAR),days(19,1,2038)
+			dtext REPETITION,repstr$:(flag%,intvkn%,rep&,intval&)+" ",$600
+			dedit message$,MESSAGE
+			IF right$(wve$,5)="*.WVE" or right$(wve$,1)="\"
+				dtext SOUND,NO_SOUND,$400
+			ELSE
+				dtext SOUND,wve$,$400
+			ENDIF
+			IF right$(opo$,5)="*.OPO" or right$(opo$,1)="\"
+				dtext OPL_MODULE,NO_OPL,$400
+			ELSE
+				dtext OPL_MODULE,opo$,$400
+			ENDIF
+			IF (macxist%)
+				IF right$(mco$,5)="*.MCO" or right$(mco$,1)="\"
+					dtext MACRO,NO_MACRO,$400
+				ELSE
+					dtext MACRO,mco$,$400
+				ENDIF
+			ENDIF
+		dia%=dialog
+		IF dia%=7
+			dinit SELECT_SOUND
+				dfile wve$,"Wve:",97
+			dialog
+		ELSEIF dia%=8
+			dinit SELECT_OPL
+				dfile opo$,"Opo:",97
+			dialog
+		ELSEIF dia%=9
+			dinit SELECT_MACRO
+				dfile mco$,"Mco:",97
+			dialog
+		ELSEIF dia%=5
+			IF rep&=0
+				help%=1
+				rep&=2
+			ELSE
+				help%=2
+			ENDIF
+			dinit SELECT_REP
+				dchoice intvkn%,INTVAL_KIND,INTVAL_CHOICE
+				dlong intval&,INTVAL_SIZE,1,10000000
+				dchoice help%,KIND,REP_KIND_CHOICE
+				dlong rep&,COUNT,2,10000000
+			IF dialog and help%=1
+				rep&=0
+			ENDIF
+		ELSEIF dia%=2
+			dinit SELECT_ACTIVITY
+				dtime actstrt&,ACTIVE_FROM,0,0,int(86340)
+				dtime actend&,TIL,0,0,int(86340)
+			dialog
+		ELSE
+			exitf%=1
+		ENDIF
+	UNTIL exitf%
+	IF dia%
+		insevnt:
+		IF a.intvkn%<>1 and a.rep&=1
+				a.intvkn%=1
+		ENDIF
+		update
+		checkact:
+		prntevnt:
+	ENDIF
+	findevnt:
+ENDP
+
+PROC repstr$:(flag%,intvkn%,rep&,intval&)
+	local rep$(128)
+
+	IF intvkn%=1
+		rep$=NO_REP
+	ELSE
+		IF rep&=0			
+			rep$=INFINITE+", "
+		ELSE
+			rep$=STILL+" "+num$(rep&,10)+" "+TIMES+" , "
+		ENDIF
+		IF intvkn%=2
+			IF intval&=1
+
+				rep$=rep$+EACH_DAY
+			ELSE
+				rep$=rep$+EVERY+" "+num$(intval&,10)+" "+DAYSS
+			ENDIF
+		ELSEIF intvkn%=3
+			IF intval&=1
+				rep$=rep$+EACH_HOUR
+			ELSE
+				rep$=rep$+EVERY+" "+num$(intval&,10)+" "+HOURS
+			ENDIF
+		ELSEIF intvkn%=4
+			IF intval&=1
+				rep$=rep$+EACH_MINUTE
+			ELSE
+				rep$=rep$+EVERY+" "+num$(intval&,10)+" "+MINUTES
+			ENDIF
+		ELSEIF intvkn%=5
+			IF intval&=1
+				rep$=rep$+EACH_SECOND
+			ELSE
+				rep$=rep$+EVERY+" "+num$(intval&,10)+" "+SECONDS
+			ENDIF
+		ELSEIF intvkn%=6
+			IF intval&=1
+				rep$=rep$+EACH_MONTH
+			ELSE
+				rep$=rep$+EVERY+" "+num$(intval&,10)+" "+MONTHS
+			ENDIF
+		ELSEIF intvkn%=7
+			IF intval&=1
+				rep$=rep$+EACH_YEAR
+			ELSE
+				rep$=rep$+EVERY+" "+num$(intval&,10)+" "+YEARS
+			ENDIF
+		ENDIF
+	ENDIF
+	return rep$
+ENDP
+
+PROC checkact:
+	local add&
+
+	IF a.flag%=2 and (a.time&<a.actstrt& or a.time&>a.actend&)
+		IF a.intvkn%=1 or a.intvkn%=2 or a.intvkn%=6 or a.intvkn%=7
+			a.flag%=1
+			giprint NEVER_ACTIVE
+			update
+		ELSE
+			IF a.intvkn%=3
+				add&=a.intval&*3600
+			ELSEIF a.intvkn%=4
+				add&=a.intval&*60
+			ELSEIF a.intvkn%=5
+				add&=a.intval&
+			ENDIF
+			add&=add&-(add&/86400)*86400
+			IF add&>a.actend&-a.actstrt&
+				IF (86400/add&)*add&=86400
+					a.flag%=1
+					giprint NEVER_ACTIVE
+					update
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDP
+
+PROC actstr$:(actstrt&,actend&)
+	local year%,month%,day%,hour%,min%,sec%,ktag%
+	local str$(30)
+	
+	IF (actstrt&<>0 or actend&<>86340)
+		secstodate actstrt&,year%,month%,day%,hour%,min%,sec%,ktag%
+		str$=FROM+" "+nnum$:(hour%,2)+":"+nnum$:(min%,2)
+		secstodate actend&,year%,month%,day%,hour%,min%,sec%,ktag%
+		str$=str$+" "+TIL+" "+nnum$:(hour%,2)+":"+nnum$:(min%,2)+" "+O_CLOCK
+		return str$
+	ELSE
+		return ALL_DAY
+	ENDIF
+ENDP
+
+PROC backg:
+	call($198d,100,0)
+	gUpdate
+ENDP
+
+PROC foreg:
+	call($198d,0,0)
+	gUpdate
+ENDP
+
+PROC daytos&:(date&)
+	if date&<DAYS(1,1,1970)
+		busy ERR_PRESS_KEY
+		giprint num$(date&-DAYS(1,1,1970),10)
+		get
+		busy off
+		return 0
+	endif
+	return (date&-DAYS(1,1,1970))*int(86400)
+ENDP
+
+PROC playa:(f$)
+	LOCAL n$(128),ticks%,vol%
+	
+	n$=f$+chr$(0)
+  CALL($1e86,UADD(ADDR(n$),1),ticks%,vol%,0,pstat%)
+ENDP
+
+PROC initnl:
+	local info%(32)
+	
+	ginfo info%(1)
+	fonth%=info%(3)+1
+	windh%=gheight
+	oldx%=gx
+ENDP
+
+PROC nl:
+	IF gy>=windh%-fonth%
+		gscroll 0,-fonth%
+		gmove 0,-fonth%
+	ENDIF
+	gat oldx%,gy+fonth%
+ENDP
+
+PROC Shwevwnd:
+	guse mwid%
+#ifdef ONEWND
+#ifdef GREY
+	ggrey 2
+#endif
+	gcls
+	gorder mwid%,1
+	gfont 6
+	gstyle 3
+	gat 3,10
+	gprint MESSAGES
+	gfont 5
+	gstyle 16
+	gat 3,22
+#endif
+	initnl:
+ENDP
+
+PROC Ginit:
+  gupdate off
+	statuswin on
+	guse 1
+	gsetwin 0,0,408,156
+	ewid%=1
+#ifdef ONEWND
+	mwid%=ewid%
+#else
+	mwid%=gcreate(0,0,408,156,1,1)
+#ifdef GREY
+	ggrey 2
+#endif
+	gcls
+	gorder mwid%,1
+	gfont 6
+	gstyle 3
+	gat 3,10
+	gprint MESSAGES
+	gfont 5
+	gstyle 16
+	gat 3,22
+	initnl:
+#endif
+	diaminit 1,EVNT_WIN,MESS_WIN
+	gupdate on
+ENDP
+
+PROC launch2:(nm$)
+	giprint LAUNCH+" "+nm$
+	loadm(nm$)
+	@("main"):
+endp
+
+PROC launch:(nm$)
+	local n$(128),cmdl$(128)
+	local off%(6)
+	local pid%
+	
+	n$=nm$
+	cmdl$="ORunOpl"+chr$(0)+chr$(0)+n$+chr$(0)
+	n$="rom::sys$prgo"+chr$(0)
+	call($0187,addr(n$)+1,addr(cmdl$),0,0,addr(pid%))
+	call($0688,pid%,0,0,0,0)
+ENDP
+
+PROC testmac:
+	local opa$(128)
+	
+	opa$="m:\APP\MACRO.OPA"
+	IF fexist:(addr(opa$))
+		trap loadm opa$
+		IF err
+			macxist%=0
+
+			gprint ERR_LOAD_MACSYS :nl:
+		ELSE
+			macxist%=1
+			gprint LOADED_MACSYS :nl:
+		ENDIF
+	ELSE
+		macxist%=0
+		gprint MACSYS_NOT_FOUND :nl:
+	ENDIF
+ENDP
+
+PROC fexist:(ptr%)
+	IF exist(peek$(ptr%))
+		return -1
+	ENDIF
+	pokeb ptr%+1,%a
+	IF exist(peek$(ptr%))
+		return -1
+	ENDIF
+	pokeb ptr%+1,%b
+	IF exist(peek$(ptr%))
+		return -1
+	ENDIF
+	return 0
+ENDP	
+
+proc captoff:
+	if (call ($c58d,OFFKEY,$e08) and $ff)
+		gprint NOT_CAPTURED :nl:
+	else
+		gprint CAPTURED :nl:
+	endif	
+endp
+
+PROC dohelp:(page%,base%)
+	LOCAL gate%,buf%(65),fname$(130)
+	LOCAL lpage&, lbase&
+	
+	lpage&=int(page%)
+	lbase&=int(base%)
+	
+	fname$="m:\cron\"+RSC_FILE_NAME
+	if fexist:(addr(fname$))
+		/* Convert filename to "C" string */
+		POKE$ ADDR(buf%(1)),"#"+fname$
+	
+		gate%=PEEKW($38)
+		SEND(gate%,27,buf%(2)) /* Set help filename */
+		SEND(gate%,26,#lpage&,#lbase&) /* Do help */
+	else
+		giprint HELP_NOT_FOUND
+		beep 5,400
+	endif
+ENDP
+
+proc copyrite:
+	guse ewid%
+	gorder ewid%,1
+	gcls
+	gfont 13
+	gstyle 0
+	gat 0,7
+	initnl:
+	gstyle 21
+#ifdef GREY
+	ggrey 0
+#endif
+	gprint "                  NewCron ";VERSION;" event scheduler                  ":nl:
+	gprint "              Copyright (C) 1995,1996 Stefan Radig                        ":nl:
+	gstyle 0
+	gprint "" :nl:
+	gprint "This program is free software; you can redistribute it and/or modify":nl:
+	gprint "it under the terms of the GNU General Public License as published by":nl:
+	gprint "the Free Software Foundation; either version 2 of the License, or":nl:
+	gprint "(at your option) any later version.":nl:
+	gprint "" :nl:
+	gprint "This program is distributed in the hope that it will be useful,":nl:
+	gprint "but WITHOUT ANY WARRANTY; without even the implied warranty of":nl:
+	gprint "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the":nl:
+	gprint "GNU General Public License for more details.":nl:
+	gprint "" :nl:
+	gprint "You should have received a copy of the GNU General Public License":nl:
+	gprint "along with this program; if not, write to the Free Software":nl:
+	gprint "Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.":nl:
+endp
+
+rem #include <oppdbg.oph>
+

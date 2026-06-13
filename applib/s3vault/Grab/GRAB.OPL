@@ -1,0 +1,139 @@
+APP Grap :TYPE 2 :EXT "pic" :ICON "loc::m:\opd\grab.pic" :ENDA
+PROC main:
+	global p%,i%,x%,y%,w%,g%,gg%,gr%,pic%
+	global a%,gx&,gy&,gh%,gw%,d%,fl$(128)
+	fl$=cmd$(2)
+	gx&=24 :gy&=24
+	p%=test%:
+	i%=0
+	a%=0
+	gg%=gcreate(0,0,240,80,0)
+	w%=gcreate(0,0,240,80,1)
+	pic%=gloadbit(fl$,1,i%)
+	gh%=gheight :gw%=gwidth
+	x%=(240-gw%)/2 :y%=(80-gh%)/2
+while 1
+	guse gg% :gcls
+	gat (240-gw%)/2,(80-gh%)/2
+	gcopy pic%,0,0,gw%,gh%,0
+	gorder gg%,1
+	guse w% :gcls
+	gat (240-gw%)/2,(80-gh%)/2
+	gcopy pic%,0,0,gw%,gh%,0
+	gat x%,y%
+	gbox gx&,gy&
+	gorder w%,1
+	g%=getk%:
+	if g%=257      rem down
+		if y%<70
+			y%=y%+10
+		endif
+	elseif g%=256  rem up
+		if y%>0
+			y%=y%-10
+		endif
+	elseif g%=258  rem right
+		if x%<230
+			x%=x%+10
+		endif
+	elseif g%=259  rem left
+		if x%>0
+			x%=x%-10
+		endif
+	elseif g%=$123
+		dINIT"Grab help"
+		dTEXT "","Use cursor keys or "+chr$(2)+" + keys",0
+		dTEXT "","to select Grabspace",2
+		dTEXT "","+ or - select next picture",2
+		dTEXT "","ESC to quit",2
+		dTEXT "","EIsoft 32.52/21.22.23",$102
+		dialog
+	elseif g%=27
+		stop
+	elseif g%=%+ and i%<=p%-2
+		i%=i%+1
+		gclose pic%
+		pic%=gloadbit(fl$,1,i%)
+		gh%=gheight :gw%=gwidth
+		x%=(240-gw%)/2
+		y%=(80-gh%)/2
+	elseif g%=%- and i%>0
+		i%=i%-1
+		gclose pic%
+		pic%=gloadbit(fl$,1,i%)
+		gh%=gheight :gw%=gwidth
+		x%=(240-gw%)/2
+		y%=(80-gh%)/2
+	elseif g%=$122
+		lock on
+		dinit "Grab"	
+		dfile fl$,"Pic",16
+		dtext "Pic info",gen$(gw%,3)+"/"+gen$(gh%,3)+" * "+gen$(p%,3)
+		dlong gx&,"Grab width",1,240
+		dlong gy&,"Grab hight",1,80
+		dchoice gr%,"Save as","Grab1,Grab2,Grab3,Grab4,Grab5"
+		d%=dialog
+		if d%=7
+			guse gg%
+			gat x%,y%
+			gsavebit "Grab"+gen$(gr%,1)+".pic",gx&,gy&
+		elseif d%=2
+			gclose pic% :i%=0
+			p%=test%:
+			pic%=gloadbit(fl$,1,i%)
+			gh%=gheight :gw%=gwidth
+			x%=(240-gw%)/2 :y%=(80-gh%)/2
+			guse w% :gcls
+			gat (240-gw%)/2,(80-gh%)/2
+			gcopy pic%,0,0,gw%,gh%,0
+			gorder w%,1
+		endif
+		lock off
+	elseif g%=262  rem p-left
+		if x%>0
+			x%=x%-1
+		endif
+	elseif g%=263  rem p-right
+		if x%<240
+			x%=x%+1
+		endif
+	elseif g%=260  rem p-up
+		if y%>0
+			y%=y%-1
+		endif
+	elseif g%=261  rem p-down
+		if y%<80
+			y%=y%+1
+		endif
+	endif
+endwh
+endp
+
+proc test%:
+	local p%
+	onerr loop::
+	busy"Counting pictures"
+	while 1
+		trap gclose pic%
+		pic%=gloadbit(fl$,1,p%)	
+		p%=p%+1
+	endwh
+	loop::
+	busy off
+	return p%
+endp
+
+proc getk%:
+local g%,a%(6),t$(1)
+	do
+		while not testevent :endwh
+		getevent a%()
+		if a%(1)=$404
+			t$=left$(getcmd$,1)
+			if t$="X"
+				stop
+			endif
+		endif
+	until not (a%(1) and $400)
+	return a%(1)
+endp

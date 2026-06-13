@@ -1,0 +1,139 @@
+PSIONICS FILE - DBF.FMT
+=======================
+Format and use of Data files
+Last modified 1994-09-14
+========================
+
+File format
+-----------
+
+A data file (also called a DBF file) begins with a 22 byte header of the
+following form:
+  Offset  0 to  15: file signature
+  Offset 16 (word): DBF software version number used to create the file
+  Offset 18 (word): size of header in bytes (N)
+  Offset 20 (word): earliest DBF software version number that can use the file
+  Offset 22 to N-1: extended header
+
+The signature is used to verify that the file is applicable to the application
+using it. The version numbers are used to verify that the format is compatible;
+only the top 4 bits are tested.
+
+Files created using the Data or Agenda (Series 3s) applications or the CREATE
+keyword have a signature which is the cstr "OPLDatabaseFile".
+
+The rest of the file consists of records. All records have the form:
+  Offset  0 (word):
+    Bits  0 to 11: size of data portion (L)
+    Bits 12 to 15: record type
+       0 = deleted record (should be ignored)
+       1 = mergable data record
+       2 = field information record
+       3 = descriptive record
+       4 = private data record
+       5 = private data record
+       6 = private data record
+       7 = private data record
+       8 = mergable data record
+       9 = mergable data record
+      10 = mergable data record
+      11 = mergable data record
+      12 = mergable data record
+      13 = mergable data record
+      14 = mergable voice data record
+      15 = reserved for system use
+  Offset  2 to L+1: data portion
+
+There may be at most 65534 records, and the data portion of each is limited
+to 65534 bytes (so the total record length is limited to 65536 bytes).
+
+When a file is merged into another one, mergable data records will be copied,
+but not private data records, the field information record, or the descriptive
+record.
+
+Data files are based around fields. fields may be words, longs, reals, or
+qstrs (limited to 254 characters). Fields after the first 32 are less usable;
+for example, they must be qstrs, and cannot be accessed through OPL data file
+keywords.
+
+The first record in the file must be a field information record, and all other
+field information records in the file will be ignored. Each byte of the record
+specifies the type of the corresponding field:
+    0 = word
+    1 = long
+    2 = real
+    3 = qstr
+The field information record must define between 1 and 32 fields; if it defines
+exactly 32, then fields 33 onwards are all qstrs, as noted above.
+
+Data records are broken into fields by the DBF software according to the field
+information record; there are no separators between the fields of a record.
+Trailing fields that are empty qstrs or zero numbers may be omitted from a
+record.
+
+The Data application uses the following special character codes within qstr
+fields:
+   5 = diallable telephone number follows
+  20 = (if first character of field) treat this field as joined on to the
+       previous one, which must also be a qstr
+  21 = forced line feed
+
+There should only be one descriptive record in a file, but it can occur
+anywhere in the file. The descriptive record consists of one or more subrecords
+with the same format (length, type, data) as normal records. In general,
+unknown types of subrecord should be copied unchanged, as other applications
+may be using them.
+
+The Data application uses the following types of subrecord. Types 2 and 3 are
+used on the MC and are not described. Types 6 to 11 are only used on the
+Series 3a version of Data.
+
+* Sub-record type 1
+This contains 2 bytes:
+  Offset  0 (word): tab size
+
+* Sub-record type 4
+This contains the field labels as qstrs, in order. Trailing blank labels may,
+but need not, be omitted.
+
+* Sub-record type 5
+This contains 2 bytes:
+  Offset  0 (byte):
+    Bit 0: status window visible
+    Bit 1: wrap on
+    Bit 2: labels visible
+    Bit 4: @seen used on Series 3a, purpose unknown@
+  Offset  1 (byte): unused
+
+* Sub-record type 6
+This holds information about printer set-up and is identical to record type 2
+in Word files (see WORD.FMT).
+
+* Sub-record type 7
+This is used to store the printer driver. It is identical to record type 3 in
+Word files:
+  Offset  0 (byte): printer driver model number
+  Offset  1 (cstr): printer driver library
+A printer driver library can support several similar printers; the model number
+specifies which is selected.
+
+* Sub-record type 8
+This holds the header text as a cstr.
+
+* Sub-record type 9
+This holds the footer text as a cstr.
+
+* Sub-record type 10
+This contains 3 bytes and holds diamond settings:
+  Offset  0 (byte): 0=omit Find,   255=include Find
+  Offset  1 (byte): 0=omit Change, 255=include Change
+  Offset  2 (byte): 0=omit Add,    255=include Add
+
+* Sub-record type 11
+This contains 4 bytes and holds the current search status:
+  Offset  0 (word): start field (0 means all fields, 1 means first field, etc.)
+  Offset  2 (word): end field (255 means all from start field)
+
+* Sub-record type 15
+This is used by the Series 3s Agenda. See AGENDA.FMT for more details.
+

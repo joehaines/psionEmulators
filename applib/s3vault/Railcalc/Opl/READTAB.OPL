@@ -1,0 +1,99 @@
+PROC readtab:
+	LOCAL file$(128),name$(25),pk%
+	LOCAL hr%,mn%,sc%,m,ext$(4),p%,fl$(7)
+	dINIT
+	dTEXT "","Seleect File Type",$302
+	dCHOICE pk%,"Direction","Outward,Return"
+	DIALOG
+			IF pk%=1
+		file$="*.out"
+		fl$="Outward"
+		ELSEIF pk%=2
+		file$="*.rtn"
+		fl$="Return"
+		ENDIF
+	dINIT
+	dTEXT "","Select Timetable",$302
+	dFILE file$,"Destination",8
+	p%=DIALOG
+		IF p%=0
+			RETURN
+		ENDIF
+		IF EXIST (file$)
+		OPEN file$,A,nm$,idx$,ml,stop$,tabA,tabD
+		LAST 
+		name$=A.nm$
+		FIRST
+	DO
+			hr%=INT(A.tabD/3600)
+			m=A.tabD-hr%*INT(3600)
+			mn%=INT(m/60)
+			sc%=INT(m-mn%*60)
+		dINIT
+		dTEXT "Timetable for ...",name$,$301
+		dTEXT "",A.nm$,$102
+		dTEXT "Miles from home",GEN$(A.ml,-6),$101
+		dTEXT "Whether stops",A.stop$,$101
+		dTEXT "Station INDEX no:",A.idx$,$101
+		dTEXT "Leaves  "+A.nm$+"  at",GEN$(hr%,-2)+":"+GEN$(mn%,-2)+":"+GEN$(sc%,-2),$101
+		p%=DIALOG
+			IF p%=0
+				CLOSE
+				RETURN
+			ENDIF
+	NEXT
+	UNTIL EOF
+		dINIT
+		dTEXT "","No more stations"
+		DIALOG
+		CLOSE
+		ENDIF
+ENDP
+
+PROC readrut:
+	LOCAL file$(128),name$(25),p%
+	file$="*.rut"
+	dINIT
+	dTEXT "","Select Destination",$302
+	dFILE file$,"Destination",8
+	p%=DIALOG
+		IF p%=0
+			RETURN
+		ENDIF
+		IF EXIST (file$)
+		OPEN file$,A,nm$,ml
+		LAST
+		name$=A.nm$
+		FIRST
+	DO
+		dINIT
+		dTEXT "Route Table for ...",name$,$301
+		dTEXT "",A.nm$,$102
+		dTEXT "Miles from London",GEN$(A.ml,-6),$101
+		p%=DIALOG
+			IF p%=0
+				CLOSE
+				RETURN
+			ENDIF
+	NEXT
+	UNTIL EOF
+		dINIT
+		dTEXT "","No more stations"
+		DIALOG
+		CLOSE
+		ENDIF
+ENDP
+
+PROC readcat:
+	LOCAL d$(128)
+		FONT 11,16
+		d$=DIR$("M:\OPD\*.rut")
+		WHILE d$<>""
+		PRINT d$
+		d$=DIR$("")
+		PAUSE 10
+		ENDWH
+		GET
+		CLS
+ENDP
+

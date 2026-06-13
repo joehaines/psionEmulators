@@ -1,0 +1,129 @@
+APP Bit
+TYPE 3
+PATH "\PIC"
+EXT "PIC"
+ICON "\PIC\BITMAP.PIC"
+ENDA
+
+PROC Bitmap:
+	GLOBAL bit%,wid%,hgt%
+
+	LOCAL left%,top%,fname$(128),index%
+	LOCAL cm$(128),ev%(6),f$(1),nochg%,step%
+
+	bit% = 0
+	index% = 0
+	f$ = CMD$(3)
+	IF f$ = "O"
+		fname$ = cmd$(2)
+		LoadBit:(fname$,index%)
+		left% = (240 - wid%)/2
+		top% = (80 - hgt%)/2
+		ShowBit:(left%,top%)
+	ELSEIF f$ = "C"
+		STOP
+	ENDIF
+	DO
+		nochg% = 0
+		GETEVENT ev%()
+		IF ev%(2) AND 4 REM Control
+			step% = 32
+		ELSEIF ev%(2) AND 2 REM Shift
+			step% = 1
+		ELSE
+			step% = 8
+		ENDIF
+		IF ev%(1) = $404
+			cm$ = GETCMD$
+			IF LEFT$(cm$,1) = "X"
+				STOP
+			ELSEIF LEFT$(cm$,1) = "O"
+				fname$ = MID$(cm$,2,128)
+				LoadBit:(fname$,index%)
+				nochg% = 1
+			ENDIF
+		ELSEIF ev%(1) = $278 REM Rem Psion-x
+			STOP
+		ELSEIF ev%(1) = $104 REM Page Up
+			top% = 0
+		ELSEIF ev%(1) = $105 REM Page Down
+			top% = 80 - hgt%
+		ELSEIF ev%(1) = $106 REM Home
+			left% = 0
+		ELSEIF ev%(1) = $107 REM End
+			left% = 240 - wid%
+		ELSEIF ev%(1) = $100 REM Up
+			top% = top% + step%
+		  	IF top% > 0
+		  		top% = 0
+		  	ENDIF
+		ELSEIF ev%(1) = $101 REM Down
+			top% = top% - step%
+		  	IF top% < 80 - hgt%
+		  		top% = 80 - hgt%
+		  	ENDIF
+		ELSEIF ev%(1) = $102 REM Right
+			left% = left% - step%
+		  	IF left% < 240 - wid%
+		  		left% = 240 - wid%
+		  	ENDIF
+		ELSEIF ev%(1) = $103 REM Left
+			left% = left% + step%
+			IF left% > 0
+				left% = 0
+			ENDIF
+		ELSEIF ev%(1) = 9    REM tab
+			index% = index%+1
+		ELSEIF ev%(1) = 32   REM space
+			REM position to centre
+			left% = (240 - wid%)/2
+			top% = (80 - hgt%)/2
+		ELSE
+			nochg% = 1
+		ENDIF
+		IF nochg% = 0
+			ShowBit:(left%,top%)
+		ENDIF
+	UNTIL 0
+ENDP
+
+PROC LoadBit:(fname$,index%)
+	LOCAL i%
+
+	ONERR LoadErr
+	i% = index%
+Load1::
+	IF bit% > 0
+		gCLOSE bit%
+	ENDIF
+	bit% = gLOADBIT(fname$,0,i%)
+	SETNAME fname$
+	wid% = gWidth
+	hgt% = gHeight
+	gUSE 1
+	RETURN
+LoadErr::
+	i% = 0
+	ONERR OFF
+	GOTO Load1
+ENDP
+
+PROC ShowBit:(left%,top%)
+	LOCAL x%,y%
+
+	IF wid% < 240
+		x% = 0
+	ELSE
+		x% = left%
+	ENDIF
+	IF hgt% < 240
+		y% = 0
+	ELSE
+		y% = top%
+	ENDIF
+
+	gAT x%,y%
+	gCOPY bit%,0,0,wid%,hgt%,3
+	gUPDATE
+ENDP
+

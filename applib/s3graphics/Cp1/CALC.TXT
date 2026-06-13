@@ -1,0 +1,373 @@
+                         CALCULATOR PROCEDURES
+
+A Library of Add-on Procedures for the Series 3 / Series 3a Calculator.
+     
+     Version 1.
+
+     The procedures and the documentation are copyright (c) James Wilkinson
+1996.
+     Note: `The' documentation for CALC.OPL is CALC.WRD and MANUAL.WRD. 
+These files were written on a Series 3a, and are designed for use with Psion
+Word. This ASCII version is based on those files, but cannot convey
+everything I would like it to - so use the Word files if you can. I have had
+to re-write this file slightly, to ensure that it still makes sense without
+some of Word's facilities.
+
+     WHAT ARE THESE PROCEDURES?
+
+     It is possible to add to the (rather limited) functions available in
+the Psion Series 3 range Calculator, by writing your own procedures in OPL.
+     I use my Psion regularly in my Maths courses at university, and so
+I've developed a library of procedures that I find useful either in Calc,
+or when I'm simulating mathematical processes in OPL.
+     Partly because the procedures do not write to the screen (exept for
+some information messages), they will work normally on any Series 3 or
+Series 3a - they will just run slower on a Series 3, and that's only
+because a Series 3 has a slower processor.
+     In this document, I'm going to assume that you are familiar with a
+Series 3 and with some maths, but not necessarily with programming
+languages.
+
+     WHY HAVE I MADE THEM AVAILABLE?
+
+     When looking around the Imperial College FTP site, among others, I
+noticed the lack of such libraries of procedures. I finally came across a
+related program, and thought "My library is better than that!" So I
+decided to make the library available to all and sundry, in the hope that
+it might be useful - and encourage some-one with a bit more knowledge and
+programming skill to make their procedures available. (Because I'd like
+some better procedures myself).
+     Since I wrote the procedures for myself, and since I use them in Calc
+or in programming, there's no `front end' - either use them through Calc,
+or, if you're desperate, write your own. Similarly, the comments are not
+very thorough, and there's no on-line help - use the end of this document
+or MANUAL.WRD.
+     You won't need all of this document or all the procedures - cut both
+files down to size to save on your disk space.
+
+     HOW TO PREPARE THE LIBRARY
+
+     You should find with this document a file named CALC.OPL. This is a
+plain text `source' file, suitable for use in the Program Editor. This is
+because I think you will find these procedures much more useful if you can
+customize them to suit how you use the Calculator.
+     To cut down on distribution file size, and to encourage you to alter
+the procedures, I have only included the (untranslated) OPL file - you will
+have to `Translate' it yourself (eg in Program). Don't run the file through
+the Program Editor or RunOPL - go to the calculator.
+
+     HOW TO USE THE LIBRARY
+
+     Every time you open the calculator, you will have to load the library
+to use the procedures. (Choose `Special / Load OPL', and choose `Calc' or
+whatever you choose to call the file). I personally call it `Maths', which
+describes what it's used for, not how it's used.
+     You could try calling the library `Sys$calc', which would stop the
+file from being shown under the RunOPL icon (and also stop the untranslated
+source from being shown under the Program icon, unfortunately) (1). Setting
+the `Hidden' flag has a similar effect, but then Program won't `Translate'
+a new version until the flag is cleared. This can be a pain in the neck.
+
+     To use a procedure, enter its name, *followed by a colon (:)* (yes,
+I often forget), then add the parameters (the numbers you're working with)
+in brackets, separated by commas.
+     For example:
+Calc: quad:(1,2,4)
+     (Of course, you don't type `Calc').
+
+     These procedures can only directly return one number. Sometimes I use
+information messages, but usually if I have more than one number to return,
+some information will be in the calculator memories. I use the `first'
+three memories - M1 to M3, which I label X, Y and Z. There is a note on
+calculator memories at the end of the document.
+
+     IMPORTANT NOTE FOR FOREIGN USERS
+
+If you use a full stop as a decimal point (eg 12.5 = 12 1/2), you should
+separate the parameters with commas, as above. If you use a comma (,) not
+a full stop (.) as the decimal point (eg 12,5 = 12 1/2) then you should
+separate the parameters with semicolons (;) *in Calc* (and in Sheet).
+     For example:
+Calc: quad:(1;2;4)
+     *Everyone* should still use the full stop (.) when writing OPL
+programs. In my Series 3a User Guide, this is explained on page 235, under
+`Customising the System screen'. It isn't made very clear, which is unusual
+for Psion manuals.
+     I am going to assume that you use a full stop as a decimal point. If
+anyone would like to produce French, German, Swedish, Italian, Welsh,
+Spanish, or any other versions of this manual, with the `correct' notation,
+please feel free to do so. (Just credit me).
+     That brings me nicely on to
+
+     COPYRIGHT AND DISTRIBUTION
+
+     I have tested these procedures for up to a year in some cases, and
+have fixed all the bugs I can find. If you find any more, please let me
+know so I can fix them. However, I cannot take responsibility if you lose
+any marks or anything else by relying on these procedures.
+     I have asserted copyright mainly to ensure no-one else does, and to
+ensure another 5 seconds of fame. If you want to change the source, *do so*
+- that's why you've got it. If you want to distribute changed code, or
+additions to the code, or portions of the code, *do so*. All I ask is that
+you credit me, and that you provide adequate documentation if you are
+distributing code as a library (like this).
+     There is no shareware fee or anything else. If anyone wants to get in
+touch (2), you can e-mail me at J.P.Wilkinson@exeter.ac.uk, but remember
+I won't be there during vacations (or after June 1998, when I should
+graduate). Or you can write to
+     James Wilkinson,
+     28, Juniper Drive,
+     Salisbury,
+     Wiltshire,
+     SP1 3RA
+     England.
+
+     Those of you with knowledge of England and e-mail addresses will spot
+that I'm studying at Exeter University, that Salisbury is eighty miles
+away, and that this must mean that the above address is my home address.
+(3)
+
+     DESCRIPTIONS OF THE PROCEDURES
+     Warning - this manual has to be mathematically technical in some
+places, because most procedures use advanced mathematics. If you don't
+understand, you probably don't need to use that procedure. I've avoided
+asking the question `Why?' when something mathematically interesting crops
+up - but I haven't explained it, either.
+     Some procedures expect integer (whole) numbers, but since Calc sends
+numbers in floating point format, they expect them in this format. You do
+not need to use Int(5) or anything else.
+
+     Thankyou:
+     The only procedure not to take parameters, this is a Terry Pratchett
+joke (from `Interesting Times') and is here so that the module does
+*something* if you run it from the System screen. (Without it, you'll raise
+an error).
+
+     Cross:(x1,y1,z1,x2,y2,z2)
+     This procedure calculates the vector (cross) product of (x1,y1,z1) and
+(x2,y2,z2). The x-component is returned in the `bottom line' of Calc and
+in M1, the y-component is returned in M2 and the z-component is returned
+in M3.
+     For example
+Cross:(1,0,0,0,1,0) = 0, M2 = 0, M3 = 1, so
+i x j = (1,0,0) x (0,1,0) = 1 k where i, j, k are vectors.
+
+     Det2:
+     Det3:
+     Det4:
+     These take four, nine, and sixteen parameters respectively, and
+calculate the determinant of a 2 by 2 matrix, a 3 by 3 matrix, and a 4 by
+4 matrix respectively. For example, for the matrix
+     [ 1  2  3 ]
+     [ 4  5  6 ]
+     [ 7  8  9 ]
+det3:(1,2,3,4,5,6,7,8,9) = 0.
+
+     Fact:(x)
+     This produces the factorial of the positive part of x. For example,
+fact:(-3) = 3 * 2 * 1 = 6 (written 3!).
+     This procedure is unusual in that, although the calculator will not
+handle numbers greater than 10**100, the procedure will happily give the
+factorials of numbers up to 1e5 = 100 000. (1e5! is 2.8e456573. Most
+calculators and routines stop at 69!, which is 1.7e98). If x is less than
+(or equal to) 69, the procedure just gives the factorial, as usual.
+     If x is greater than 69, then x! will be larger than the calculator
+can handle. The routine divides by 10**100 every so often, to keep the
+number within Calc's limits. It counts the number of times it has to divide
+by 10**100 and returns it in calculator memory M1. Put this number in front
+of the exponent to get the real answer.
+     For example:
+fact:(200) `= 7.88657867365E+74' and M1=3, so
+200! = 7.887*10**374.
+     This may not be of much use (and it slows the procedure down
+slightly), but I find it interesting. The procedure will take several
+minutes to calculate factorials of numbers in the high thousands - you hve
+been warned!
+
+     Frac:(x)
+     This procedure returns x as an approximate fraction. The numerator
+(top number) is returned in M2 and the calculator's `bottom line', while
+the denominator (bottom number) is returned in M1.
+     For example, frac:(pi) `= 355', M1 = 113, so pi is *approximately*
+355/113. (Of course, pi *cannot* be written exactly as a fraction.)
+     The denominator will always be less than 10000, and the accuracy is
+set so that there will always be a match by then.
+
+     Mod:(a,b)
+     This is the modulus example procedure in the manual. It gives the
+remainder after division, or (to put it another way) it gives you `clock
+face' calculations.
+mod:(9,4) = 1
+mod:(10+5,12) = 3 (five hours after 10 o'clock is 3 o'clock.
+
+     Muller:(fn,x1,x2,x3)
+     Muller's method is a fast numerical method for solving equations. It
+takes a bit of work, partly because Calc won't let you use `='.
+     1.   Rewrite the equation so that it is equal to zero. (Try putting
+          `right-hand side' - `left hand side'). For example, xý=2 becomes
+          x**2-2=0.
+     2.   Put the equation in terms of what you call M1. For example,
+          M1**2-2=0.
+     3.   Put the left-hand side in quotation marks. For example,
+          "M1**2-2".
+     This is the `fn' to put in the parameters. `x1' to `x3' are just
+starting guesses. They should be in the rough vicinity of the true answer.
+If they are too close to each other and too far from the true answer, you
+may get an `Invalid arguments' error as the answer enters the complex
+plane...
+     For example, Muller:("M1**2-2",-1,0,1)
+= -1.41421356237, which is (about) the negative square root of two. Which
+root you get depends on which estimates you start with. If you try squaring
+answers to check them, don't forget to put them in brackets:
+`-1.41421356237**2' = -1.99999999999, while
+(-1.41421356237)**2 = 1.99999999999.
+     The accuracy is built-in to about as high as it will go: it's much
+faster to have maximum accuracy than to type in a less accurate figure,
+because this method is just so efficient.
+
+     Newton:(fn,diff,start)
+     This is a version of the famous (or infamous) Newton-Raphson equation
+solver. I could have estimated the differential for you, but instead I
+opted to use the more accurate version, which (however) requires you to do
+some differentiation. The method converges at the same rate as Muller's
+method, but there is less calculation involved in each iteration. Which
+method is `faster' is a difficult question - in practice, it depends on
+where you start.
+     Again, `fn' is a statement in double quotes, such as "x**2+1" and
+`diff' is the differential of this, also in quotes - here "2*x". The
+variable should be whatever you have called M1. `Start' is a first
+approximation.
+     The routine calculates the value of x which makes `fn' equal to zero.
+*It cannot always do this*. For example, in this example, it is trying to
+calculate the square root of minus one... (Try it.)
+     That is why the procedure stops at 50 iterations.
+     Another example:
+newton:("cos(M1/2)","-.5*sin(M1/2)",3) = 3.14159265359 (= pi).
+
+     ncr:(n,r)
+     npr:(n,r)
+     return the number of combinations and the number of permutations of
+r objects from n objects. These work as normal, except that they will
+calculate answers for some values of n and r greater than 69 (the obvious
+method won't let you do this).
+     For example
+ncr:(90,89) = 90.
+npr:(600,3) = 214921200
+
+     Pois:(x,lambda)
+     returns the probability of getting a result of x from a Poisson
+process with mean lambda. If you don't understand that, you won't need this
+procedure. If you see a message, this is because I had a Stats lecturer
+with a strange sense of humour. When he introduced the process, he called
+it `the Poisson process, invented by a Frenchman - who was a marine
+biologist.' I put this into the procedure to remind me of John Hinde.
+Princess Camilla and the frogs have not yet made it into the library...
+     Example: Pois:(5,3) = 0.01364
+
+     Prime:(n)
+     calculates whether or not n is prime. Note that this only makes sense
+if n is a `natural' number (a positive integer), so anything else will
+raise an error, but the procedure does not expect n to be in the special
+integer format. It will take some time if n is very large, but for
+reasonable numbers it should come back fairly quickly.
+     It will return 1 and display "False" if the number is prime. If not,
+it will return the smallest factor of the number that is greater than one,
+and display "True". Repeated use of this procedure will completely
+factorise a number.
+     (The exception is when n is 1. 1 is defined not to be prime, but there
+aren't any factors of 1 except 1. So the procedure returns 0, just to be
+awkward, and displays the message `1 is not prime').
+     Some `algebraic manipulation packages', such as `Mathematica' and
+`Maple' have a similar function. They use various tests to deduce whether
+or not a number is prime, but when they *say* a number is prime, it is
+possible that it isn't. I don't know about these tests, so I have to go
+through proving that numbers are prime.
+     Examples:
+prime:(1234567) = 127, and "False" is displayed (since 9721*127=1234567).
+prime:(1234577) = 1, and "True" is displayed.
+
+     Quad:(a,b,c)
+     Yes, there are ten million different quadratic equation solvers. This
+one is based on a first-year university computing exercise, which had
+higher specifications than most. For example, this one will work when a=0,
+or return complex conjugate pairs (when the answer is complex).
+     Quadratic equations take the form ax**2 + bx + c = 0, and usually have
+two answers, or `roots'. You will have to watch the bottom right-hand
+corner of the screen, where a message will appear telling you the exact
+nature of the answer(s). The output is as follows:
+     If a is not equal to zero, then *either* "Real roots" will be
+displayed, with one root in M1 and the other in M2 and in the `bottom line'
+of Calc;
+     *or* "Repeated roots" - the same root in M1, M2 *and* returned;
+     *or* "Complex roots" - the real part in M1 and returned to the `bottom
+line', *and* the imaginary part in M2 - don't forget this! The correct
+answer is M1 +/- M2 * i.
+     If a = 0, but b is not zero: "Linear equation" is displayed. There is
+only one answer here, and it is returned in M1 and in the calculator's
+bottom line.
+     If a = b = 0, but c is not zero: "c=0?" is returned - because it's
+impossible! If a, b, and c are all zero: there are infinitely many answers,
+and "0=0..." is displayed.
+     Examples:
+quad:(1,3,2) = -2, M1 = -1, `Two real roots' displayed.
+quad:(1,2,1) = -1, M1 = M2 = -1, `One repeated root' displayed.
+quad:(1,2,5) = -1, M2 = 2, `Complex roots' displayed, x = -1 +/- 2 i.
+quad:(0,-1,2) = 2, `Linear equation' displayed.
+quad:(0,0,1) = 0, `1=0?' displayed.
+quad:(0,0,0) = 0, `0=0...' displayed.
+
+cosh:(x)
+sinh:(x)
+tanh:(x)
+acosh:(x)
+asinh:(x)
+atanh:(x)
+are the standard hyperbolic functions - the procedures almost *are* the
+definitions. I don't actually use these procedures very much - by the time
+maths students discover the functions, they're always expected to quote the
+results in terms of e. Perhaps some physicists or engineers can make use
+of the procedures.
+cosh:(0) = 1
+acosh:(1) = 0
+
+                                        NOTES
+     MEMORIES
+
+     Calculator memories are useful for several reasons. Besides the
+obvious use in Calc, these reasons include:
+     1.   Calculator memories allow OPL procedures to return more than one
+          number to Calc.
+     2.   They allow you to use variables in OPL `EVAL' statements. (In the
+          programming manual, there is an example eval("sin(x)/(2**3)").
+          What is not made clear is that x *must* be the name of a
+          calculator memory.
+     3.   Memories allow you to `export' numbers from Calc. (This was very
+          useful when I was writing this document, since I could export the
+          results of my procedures. `Evaluate' in Word et ceteras won't let
+          you access procedures.)
+
+     However, there are some drawbacks, which you should know about.
+     1.   There is no standard way of naming memories, apart from M1 to M9
+          and M0, which are not very helpful. These names will actually
+          work even if you rename the memories.
+     2.   M1 to M9 and M0 are the only names which will work in OPL, so
+          even if you know memory 1 will be called X (as in the OPL manual
+          EVAL example, above), a program must still call it M1.
+     3.   You can't call your own OPL variables m1 or m2, even in programs
+          which have nothing to do with EVAL or the calculator.
+     I have set these procedures up to use M1 and M2 (and occasionally M3),
+which I label X, Y and Z. You may find that having a pair of memories
+called X and Y useful. If you don't want the procedures to use M1 to M3,
+(Search and) `Replace' `M1' with (say) `M8' in the OPL source. Do the same
+for M2 and M3 - just make sure you never try calling two memories the same
+thing!
+     `(Search and) Replace' `M1' shouldn't find anything apart from memory
+references.
+     Currently, `cross:' is the only procedure to use M3, so if you delete
+`cross:', you can ignore all references to M3.
+
+                              OTHER NOTES
+     (1) `Sys$' files still appear in the file selector, and in the Calc
+`Load OPL' requestor.
+(2) Please do.
+(3) And that I like living in cathedral cities...

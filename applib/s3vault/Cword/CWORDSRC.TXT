@@ -1,0 +1,136 @@
+Comments on source code for CWORD.DYL
+-------------------------------------
+
+The .CAT file just defines one class which in turn only has one
+method:
+
+  LIBRARY cword
+  
+  EXTERNAL olib
+  
+  INCLUDE olib.g
+  
+  CLASS cword root
+      {
+      ADD cword_count
+      }
+
+The working of the "hook" command (via the ws_launch_dyl method of
+the WSERV class) is that the named DYL is loaded, then the first
+class in that DYL is instantiated, and then the first method of that
+object is invoked.
+
+The basic supplied code
+-----------------------
+
+/* CWORDC.C
+
+  Copyright (C) Psion PLC 1994
+  Started by : DavidW
+  Started on:  17/7/94
+*/
+
+#include <p_std.h>
+#include <epoc.h>
+#include <edit.g>
+#include <scrimg.g>
+#include <edwin.g>
+#include <cword.g>
+
+GLREF_D PR_EDWIN *DatApp1;
+
+LOCAL_C INT IsWordProcess(VOID)
+    {
+    TEXT pName[E_MAX_NAME+2];
+
+    p_pname(p_getpid(),&pName[0]);
+    return(pName[0]=='W' && pName[1]=='O' && pName[2]=='R'
+                         && pName[3]=='D' && pName[4]=='.');
+    }
+
+LOCAL_C UINT CountWordsInSelectBlock(VOID)
+    {
+    UWORD selLen;
+    UWORD pos;
+    UWORD selEnd;
+    UWORD count;
+    VOID *doc;
+
+    selLen=p_send3(DatApp1->edwin.scrimg,O_SI_GET_SELECT,&pos);
+    if (!selLen)
+        return(0);
+    selEnd=pos+selLen;
+    doc=DatApp1->edwin.doc;
+    count=1;
+    FOREVER
+        {
+        p_send4(doc,O_EP_SCAN_WORD,&pos,EP_SCAN_TO_BEGIN|EP_SCAN_JOIN_DELIM);
+        if (pos>selEnd)
+            break;
+        count++;
+        }
+    return(count);
+    }
+
+LOCAL_C VOID TellUser(UINT count)
+    {
+    TEXT buf[8];
+
+    buf[p_itob(&buf[0],count)]=0;
+    wInfoMsg(&buf[0]);
+    }
+
+#pragma METHOD_CALL
+
+METHOD INT cword_cword_count(PR_CWORD *self,HANDLE cathand)
+    {
+    if (IsWordProcess())
+        TellUser(CountWordsInSelectBlock());
+    return(TRUE);     /* system will tidy everything up */
+    }
+
+How this works
+--------------
+The only knowledge this code has about the Word Processor is that
+  1. The main Word Processor editing window is a subclass of EDWIN
+  2. The handle of this object is written to DatApp1
+
+Before looking at DatApp1, however, the code checks that it has been
+invoked from within an instance of the Word Processor.  (The macro
+launching this DYL could include a line "xpWORD" to much the same
+effect.)
+
+On establishing that the process is a Word Processor, the code finds
+the two ends of the current selected region of text (if any), and
+then uses EP_SCAN_WORD to walk along this region, word at a time.
+
+Telling the user the result
+---------------------------
+The above version of the routine TellUser results in a barely
+noticeable InfoPrint.  Better alternatives would include
+
+  * building up a longer text string to display
+  * using p_notify to obtain a dialog with the result
+  * use a little more knowledge about the Word Processor
+
+The third option is what is adopted in the actual shipped version of
+CWORD.DYL, in which the code for TellUser is as follows:
+
+  LOCAL_C VOID TellUser(UINT count)
+      {
+      hErrorDialog(0,105,count);
+      }
+
+which also requires the additional header declaration
+
+  #include <hwim.h>
+
+This relies on the facts that
+
+1. hErrorDialog(0,...) functions like a kind of dialog version of puts
+
+2. Resource 105 for the word processor is (in English) the format
+string "%d Words"
+
+(strictly speaking an f_leave should be done on the result of
+hErrorDialog).

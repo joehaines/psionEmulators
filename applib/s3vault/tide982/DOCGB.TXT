@@ -1,0 +1,487 @@
+TIDE98   (tide level calculator with link to GPS)
+Version 2.2  (September 1998)
+Jean-Yves  Pontailler
+
+                     DISCLAIMER
+
+This   program  has  been  tested  and   should   run
+successfully  on your Series 3a/c. You can  copy  and
+distribute it in its zipped form as long as you don't
+modify  it. TIDE98 is used entirely at the  user  own
+risk.  To  reduce this risk, please review  carefully
+this instruction file. When sailing, be sure to check
+all the local parameters you are using to run it.  In
+all  cases,  you must absolutely add a  large  safety
+margin to the program estimates.
+
+INSTALLATION
+Copy  the  file TIDE982.OPA to an \APP\ directory  on
+any  drive.  Copy  the  file  TIDE.DAT  on  an  \OPD\
+directory on any drive. This file contains  the  tide
+coefficients for 1998 but the program is able to  run
+without it. If you are interested in an on-line help,
+install  the  TIDE.RSC file in an \OPD\ directory  on
+any  drive. The use of Flash disks causes no problem.
+Then  install  the  OPA  file using  Psion-I  or  the
+"Application" menu.
+
+UPGRADING TIDE97
+If  you are using TIDE97 and if you wish to carry  on
+with  it,  simply rename TIDE.DAT as  COEF97.DAT  and
+install  it instead of the previous COEF97.DAT  file.
+This new file contains coefficients applicable to the
+year 1998.
+
+TIDE98  has several improvements compared with TIDE97
+(see  below).  To install it if you have  been  using
+TIDE97 previously, you can delete all ancient files :
+TIDE97.OPO in \OPO\ directory, COEF97.DAT,  MARGB.RSC
+and  MARS.INI in \OPD\ directory (the latter file  is
+in  the  internal  disk). The  MARK.ODP  file,  which
+contains your own GPS data, is unchanged but  has  to
+be renamed as TIDE.GPS. Then install the new files as
+exposed above. Upgrading TIDE98 (from version 2.0  to
+v.  2.2)  requires the replacement of the application
+file (.OPA) and that of the help file if necessary.
+
+BRIEF DESCRIPTION
+TIDE98  calculates  the tide height  (above  zero  on
+charts)  for any coast in western Europe and displays
+it  continuously, the screen being updated every  60,
+30  or 20 seconds. For that, the time for the nearest
+high  tide is required, as well as the maximum  tidal
+range in the considered zone (constant). TIDE98  does
+not  predict the time of the tide : you have to enter
+it  (at  least once). I have added to this version  a
+very simple follow-up of the tide schedule (day after
+day),  but it has to be handled with caution. If  you
+are  interested in a reliable prediction of the  time
+of  tides,  try  Ocean  by Pierre  Pellot,  it  works
+extremely well !
+
+If  the  Series  3a/c is connected to  a  Garmin  GPS
+receiver, TIDE98 displays coordinates from  GPS.  The
+user  can save these coordinates and other data in  a
+database file compatible with the "DATA" application.
+Distance, bearing and speed are now displayed in this
+new version.
+
+When  familiar with the programme, the user  has  the
+possibility  to adjust other parameters in  order  to
+obtain a better fit.
+
+FROM THE THEORY TO THE APPLICATION
+The  tide  phenomenon appears rather  complicated  as
+soon as you try do describe it precisely all over the
+world.  Its  cause  is  astronomical,  that  is   the
+attraction  of the water of the oceans  by  the  moon
+and,  to  a lower degree, by the sun. In theory,  one
+must  observe  two tidal waves in  24  hours  and  50
+minutes, duration of an apparent rotation of the moon
+as seen from the earth.
+**** The time of the tide
+High  tide  is supposed to occur twice during  this
+period, once when the moon is above the site and once
+when  it  is  in  the  opposite  direction,  but  the
+presence  of continents makes the reality  much  more
+complex. As an example, the tide wave should go  from
+east  to  west through the channel in less  than  one
+hour..  but it goes the other way round and  takes  8
+hours to do so !
+**** The amplitude of the tide
+The  intensity of the phenomenon varies according  to
+the  respective position of both moon and sun  (their
+effects acting together or opposing themselves),  but
+also  depends on the shape of the shore  and  on  the
+size of the oceans and seas.
+**** The option chosen in TIDE98
+I  thought  it  was pertinent to make use,  in  every
+harbour,  of precise local data that are  freely  and
+easily  available : the time of the  high  tide,  the
+maximal tidal range (a constant local parameter)  and
+the  tide coefficient. The first two of them are easy
+to  find  nearly  everywhere. By contrast,  the  tide
+coefficient exists in France only.
+**** The tide coefficient
+It  is calculated by the SHOM (Service Hydrographique
+et  Oceanographique de la Marine), has  no  unit  and
+ranges   from   20  to  120.  The  tide   coefficient
+integrates twice a day the astronomical components of
+the   tide.  People  often  suppose  that  the   tide
+coefficient is valid in France only since  it  refers
+to  Brest. In fact, it is reliable in a large part of
+western Europe (showing semi-daily tides). In France,
+the  tide coefficient is present everywhere, even  at
+the TV. As it is not the case in other countries, the
+program  will  load it every day  of  1998  from  the
+TIDE.DAT file.
+**** Calculation mode
+The  program  assumes  that  the  tide  wave  has   a
+sinusoidal  shape  and  modifies  its  period  and/or
+amplitude  according to the value  of  several  input
+parameters.  This period is about  12  hours  and  25
+minutes, but is lightly weighted as a function of the
+tide  coefficient (the period is longer  during  neap
+tides).   The   program  is   able   to   deal   with
+dissymetrical  tide  waves (ebb taking  often  longer
+than flow) if you expect so.
+
+TIDE98  has kept a reasonable size (16k and 21k  with
+the two associated files) and usually provides a good
+fit.  When  you  will be familiar  with  one  or  two
+constant characteristics of your favourite spot,  you
+will  only have to enter the time of the nearest high
+tide to run it.
+
+The  following  comments also appear in  the  on-line
+help in an abridged form.
+
+MAIN PARAMETERS
+When  you  launch TIDE98, a dialog appears  requiring
+several  parameters. You must at least  document  two
+parameters :
+-  The time of the nearest high tide (no matter if it
+is  passed or in the future) in a 24 hour format.  If
+you  are sailing in the evening and if the high  tide
+is  expected  after midnight (so the following  day),
+you can use it but you must type H+24 (i.e. 27 for  3
+am).  The  programme  will be more  accurate  if  you
+always enter the nearest high tide.
+- The maximal tidal range in the concerned zone. This
+parameter  is constant for a given site.  Some  tidal
+ranges  are  mentioned at the end of  this  file  for
+about  60  harbours  in  western  Europe.  For  other
+places,  you  can contact me or have a look  at  this
+site : www.shom.fr.
+
+The  tide  coefficient of the current day is supplied
+(for  1998)  if you have loaded the file TIDE.DAT  in
+any  \OPD\ directory. If no coefficient is available,
+the   dialog   displays  the  default  value   :   20
+corresponding  to an exceptional neap tide.  Enter  a
+coefficient within the valid range (20-120).
+
+When   you  validate  the  dialog,  the  main  screen
+appears,  showing the tide level on  the  right.  The
+expected  range for the current day is also shown.  I
+have  added a tide level expressed in feet. Menu  and
+Help keys are now active. You can shift time forwards
+or  backwards using the right or left arrows (15  min
+step).
+
+After  60, 30 or 20 seconds (depending on the  option
+you  have selected, default value is 60), the display
+indicates  a tide status : rising tide, tide  on  the
+ebb   or   slack   tide.  Then  the  programme   runs
+continuously (no auto shut-off) but you can check the
+battery level on the status window.
+
+TYPE OF TIDE
+TIDE98  supports semi-daily tides only :  two  cycles
+every 24 H 50 mn, i.e. 6 H 12 mn between a high  tide
+and  the following (or previous) low tide. Semi-daily
+tides are dominant in western Europe.
+
+PRESSURE CORRECTION
+An  elevated  atmospheric pressure lightly  decreases
+the  water  level.  Enter  a  value  for  atmospheric
+pressure (mb), the default value is 1013 mb  or  hPa.
+The  program applies a correction equal to  -1cm  per
+extra  millibar. Without correction, an error  rises,
+that  can  reach 30 cm. This correction is  optimized
+for  the  Channel and may be too important at  places
+experiencing lower tidal ranges.
+
+DISSYMMETRICAL TIDE WAVE
+The  rise and the fall often differ in duration,  the
+latter  being usually longer. If known, this lag  can
+be  taken  into  account.   Use  the  line  "ebb-flow
+differential" in the main dialog. Beware of the  sign
+of  "ebb minus flow". The lag is negative in the rare
+case  where flow takes longer than ebb. Default value
+is  0. Dissymetry is moderate in the western part  of
+the  channel (+20 mn) but increases up to +45 mn when
+approaching the Straits of Dover.
+
+This  correction  is valid only within  the  two  low
+tides  that  are  immediately before  and  after  the
+considered  high  tide. If you let  the  program  run
+further, it will return to a symmetrical mode but you
+won't  notice it since it occurs at low  tide  during
+the slack.
+
+ACCURACY
+Accuracy is globally satisfying when local parameters
+are  used. Errors are mainly due to the fact that the
+period  fluctuates a little around its average  value
+(that  is  12 h 25 mn). This causes discrepancies  on
+the  water  level that may reach 30 cm.  Total  error
+should  not  go  beyond 70 cm in  zones  experiencing
+important  tidal ranges, when including  unfavourable
+wind and pressure effects.
+
+TIDE98 is not a tide time calculator but, if you have
+used  it  at least once, it will propose an estimated
+tide  time  at  every subsequent use.  For  that,  it
+computes  a 50 minutes lag per day, an average  value
+whereas  the real lag fluctuates between  25  and  90
+minutes. As a result, the estimation of the  time  of
+the tide will oscillate around the correct value with
+an error reaching 120 minutes in the worst cases. The
+magnitude  of  this  error is not  depending  on  the
+number  of  days passed since the last entry.  It  is
+always  preferable to enter a new tide  time  from  a
+local tide table.
+
+ZERO LEVEL
+TIDE98  displays the tide level above a "zero  level"
+that  corresponds to the minimum effectively possible
+(in  fact,  a  few  centimeters are often  added  for
+security).  Lower  values (negative)  should  not  be
+displayed, unless you have applied a large barometric
+correction.  This zero level usually  corresponds  to
+the   zero  level  on  charts  but  there  are   some
+exceptions  in UK (zero level=average  low  level  of
+spring tides) making a correction necessary. You  can
+adjust this zero offset in "Options" if you wish so.
+
+SOLAR AZIMUTH
+I  thought  that it could be of some interest  to  be
+aware of the direction of the sun. This function uses
+data  from  the "WORLD" option, such as the longitude
+and  the GMT offset of your home city (even if a  GPS
+receiver is connected). So you have to select a  home
+city  that  is  close  to the  place  where  you  are
+navigating.   You  can  also  create  one   at   your
+convenience.
+
+Initially,  the  programme calculates a  geographical
+bearing. To display a compass bearing, you must enter
+a magnetic declination in "Options".
+
+The  calculation is rather simple and does  not  take
+into  account the "equation of time" that  quantifies
+the  observed difference between the mean solar  time
+and  the true solar time. The error is less than  1.5
+degree  during  summer and less  than  4  degrees  in
+winter (in northern hemisphere).
+
+OPTIONS
+This dialog gives access to several settings :
+*Magnetic  declination  : if documented,  a  magnetic
+bearing  is  displayed  for  solar  azimuth  and  for
+bearing.
+*Updating rate : you can update the display every 60,
+30 or 20 seconds.
+*Geodesic  system  :  coordinates  from  GPS  can  be
+displayed (and saved) either  in  EUROPEAN 50  or  in
+WGS 84 system.
+*Daylight savings time: the estimation of the  height
+of  the  tide uses the system time, so DST  is  taken
+into  account.  By contrast, the calculation  of  the
+azimuth  of the sun uses the GMT offset from  "WORLD"
+that  ignores DST. Thus, select "Yes" during  summer.
+This   won't  affect  your  settings  in  the  "TIME"
+application.
+*Reference  mark  : you can enter a  threshold  level
+(rock,  anchorage) to be displayed in  the  tide  bar
+diagram. Enter the sum draught + level above zero.
+*Zero  offset : to adjust the gap between zero  level
+on  charts  and  lowest  water level  at  exceptional
+spring tides (default value : 0.20 m).
+
+DELAYED ESTIMATION
+You can also calculate the tide level at a time which
+differs  from the system time. For that,  select  the
+option  "Time  different from system" at  the  bottom
+right of the main screen.
+
+LINK TO GARMIN GPS RECEIVERS
+This function should work with models II, 38, 40, 45,
+65 and 75 and enables :
+1-   to   display  continuously  on  the   3a/c   the
+coordinates from the GPS unit (using either WGS 84 or
+EURO  50  grid),  the  distance  covered,  speed  and
+bearing,
+2-  if you wish so, to save these coordinates in real
+time, together with other information, for example to
+mark  your  route or a remarkable diving  or  fishing
+spot.  This  function is useful but  is  far  from  a
+complete  GPS  utility programme such  as  PSIGAR  by
+Jonathan Duff.
+**** Connecting to the GPS receiver
+For  this, you need a Psion serial link and a  Garmin
+lead with bare wires. In my opinion, the best way  to
+achieve  the connection is to link the bare wires  to
+the  podule on the serial link. You have  to  find  a
+male  9 pin mini-Din plug and solder the three  wires
+as follows :
+   - pin 2 : brown (GPS to Psion)
+   - pin 3 : white (Psion to GPS)
+   - pin 5 : black (ground)
+The  soldering operation will be easier if you  first
+cut  the useless pins. To identify the correct  pins,
+refer  to the appendix C of the 3-Link manual  or  to
+the  end  of  the  PSIWIN manual. If  you  prefer  to
+connect  the bare wires to the Sub-9 female  plug  of
+the  3-Link,  note  that the brown  wire  has  to  be
+soldered on pin 3 and the white one on pin 2  (pin  5
+being unchanged).
+**** Achieving the connection
+As  soon as the cable is in place, setup your  Garmin
+receiver  to  GRMN/GRMN communication  protocole  and
+make  sure that the Psion link is turned OFF  on  the
+system  screen of your 3a/c. In TIDE98 menu, validate
+the option "Link to GPS". After a control dialog, the
+link is established and the coordinates from the  GPS
+are  displayed  in real time instead  of  those  from
+"WORLD".  If you launch the connection with a  faulty
+cable  or  a  GPS  not  being  set  for  the  correct
+protocole, the program will hang up and you will have
+to exit using Psion-ESC. Beware, when connected, your
+Psion  draws twice as much power as usual  (about  65
+mA).
+
+In  this  version, distance, speed  and  bearing  are
+calculated   (using   coordinates   from   GPS)   and
+displayed.  The distance is that covered between  the
+connection of the GPS unit and the present  location.
+If you go back to your starting point, zero should be
+displayed. Use key R to reset. A magnetic bearing  is
+displayed  if  you  enter a magnetic  declination  in
+"Options".
+
+If you select the "Mark" option (key M), you can save
+your  actual  position together with time,  date  and
+depth,  into a data file. You can document two  lines
+in  the  dialog : the depth from a depth finder  (the
+program will substract the tide level from it) and  a
+comment   (36   characters  max.).  The   data   file
+(\OPD\TIDE.GPS) is created in the internal drive when
+you  use the "Mark" function for the first time.  You
+can  browse  and modify it using the DATA application
+(it  does  not appear on the system screen, you  must
+select  it with the file manager). You can  also  add
+pertinent line titles (time, latitude...).
+
+
+
+GRID CONVERSION AND DISTANCE CALCULATION
+Several  converting utilities are  available  in  the
+"GPS   SECTION"  menu.  Have  regard  at  the  format
+indicated in the dialogs. These routines are  totally
+independent  of  the other sections  of  TIDE98.  The
+option   "Distance   between  two  points"   requests
+coordinates    expressed   in   degrees   (ddd.dddd),
+negatives values being used for South and West.
+
+EXIT
+When  you  exit  the program, your own  settings  are
+saved  in an \OPD\TIDE.INI file in the internal disk.
+This  file  is created when you launch the  programme
+for the first time. The high tide time is used during
+the current day only. Every following day, a time lag
+is   added  in  order  to  follow  roughly  the  tide
+schedule. The tide coefficient is not saved since  it
+is retrieved from another data file.
+
+
+SOME VALUES  FOR  THE  MAX. TIDAL  RANGE  IN  WESTERN
+EUROPE :
+
+Northern countries and islands
+Arendal : 0.50 m    Bergen : 1.60 m   Bodo :  3.30 m
+Reykjavik : 4.90 m  Rorvik : 2.89 m
+Shetland I. : 2.40 m
+
+Scotland
+Aberdeen : 4.90 m Dundee : 5.60 m Greenock  : 4.60 m
+Inverness : 5.30 m  Leith  (Edinburgh)  : 6.40 m
+Ullapool  :  5.60  m    Wick : 4 m
+
+Ireland
+Belfast : 4.10 m  Cobh (Cork) : 4.60 m  Dublin : 5 m
+Galway : 5.50 m  Londonderry : 3.10 m
+Shannon river : 5.30 m
+
+Denmark and Germany
+Borkum : 3.70 m Bremerhaven : 5.10 m
+Cuxhaven : 4.80  m  Esbjerg : 2.50 m
+Helgoland :  3.90  m   Hirtshals : 0.30 m
+
+Belgium & Holland
+Antwerpen : 6.50 m   Oostende : 6.10 m
+The hague : 3.10 m   Terschelling : 2.70 m
+
+Great Britain & Channel Islands
+Barrow  in Furness : 10.90 m    Liverpool : 10.90  m
+Holyhead : 6.20 m  Fishguard  :  5.60  m
+Milford  Haven  :  7.50  m
+Swansea : 10.30 m  Cardiff : 12.60 m  Falmouth : 6 m
+Plymouth : 6.30 m  Torquay :  5 m  Lyme bay : 4.40 m
+Portland  I.  :  2.90  m     Portsmouth  :  5.50   m
+Shoreham (Brighton) : 6.90 m
+Dover : 8.30 m  Sheerness : 6.90 m  Harwich : 4.80 m
+Lowesoft : 3 m  Hull  :  8.30  m
+Tyne R. (Newcastle)  :  5.70  m  Jersey : 11.90 m
+Guernesey : 9.40 m
+
+France
+Calais : 7.30 m    Dieppe : 10 m    Fecamp : 8.60 m
+Port-en-Bessin : 7.50 m   Cherbourg : 6.70 m
+Portbail : 12.50     Granville : 14.40 m
+Saint-Malo : 13.40 m Les  Heaux de Brehat : 10.70 m
+Roscoff :  9.50  m  Brest  :  7.50  m
+Audierne : 5.60 m   Concarneau  : 5.40 m
+Lorient : 5.50 m    Belle-Ile (Le Palais) :  5.60  m
+Houat : 5.60 m   Le Croisic  :  6.10  m
+St-Nazaire : 6.50 m Ile d'Yeu (P Joinville) : 5.50 m
+Les sables d'Olonne : 5.70 m    La Rochelle : 6.50 m
+Pointe de Grave : 5.40 m
+Arcachon (Eyrac) : 4.80 m    Cote landaise : 4.50  m
+St Jean de Luz : 4.80 m
+
+Spain, Portugal, Canary, Madeira & Acores
+Bilbao : 4.40 m  Santander : 4.70 m  La Coruna : 4 m
+Vigo : 3.90 m   Lisbon : 4.10 m     Cadiz : 3.50 m
+Acores :  1.80  m  Canary : 2.40 m  Madeira : 2.50 m
+
+                    ************
+
+Thanks  are  due to Jonathan Duff, Simon  Pooley  and
+Mike Rudin for their efficient help. I am indebted to
+the  SHOM  (Service Hydrographique et Oceanographique
+de  la  Marine) for allowing me to give  out  a  file
+containing  the  tide coefficients among  Psion  3a/c
+users.
+
+You  can contact me to obtain precise data concerning
+your  favourite spot (especially if it is in France).
+I   am  interested  in  any  feedback  on  GPS  link,
+especially on the accuracy of coordinates using  EURO
+50  grid  or  any  report  on various  models  within
+Garmin's range (only models 38 and II+ were tested).
+
+Few  developments are planned yet but it will largely
+depend  on you. Feel free to mail me, I will be  very
+happy to read your comments :
+
+       jean-yves.pontailler@eco.u-psud.fr
+
+If  you are angry with my bad English, please mail me
+a few amendments...
+
+Thanks  to Pierre Pellot for hosting me on its  Psion
+Nautical   Site,   you  will  find  there   excellent
+software.
+
+      http://www.enfrance.com/p.pellot/
+
+Tide  coefficients  to run TIDE98  in  1999  will  be
+available on this site by Christmas.
+
+A French version is also available (TIDE982f).
+Have fun
+
+
+

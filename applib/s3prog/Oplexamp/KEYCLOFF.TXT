@@ -1,0 +1,31 @@
+==========
+psion/opl #1453, from jezar, 661 chars, Sep 29 9:41 94
+----------
+Getting rid of clicks
+
+If you write games for the Series 3a, (or anything else
+which involves *holding* down keys during use) then you
+may be interested in this routine, which disables
+key-clicks in your OPL program ONLY (not in the other apps)
+
+PROC SetClick:(on%)
+        REM Set on% to zero to turn off
+        REM keyclicks. Non zero turns
+        REM them back on.
+     
+        LOCAL ax%,bx%,pad3%
+        LOCAL pad4%,pad5%,pad6%
+     
+        ax%=$7e02
+        IF on%=0
+                bx%=1
+        ENDIF
+        OS($8d,ADDR(ax%))
+ENDP
+     
+NOTE: This ONLY works on the 3a, as it is a new feature
+introduced in version 4 of the window server.
+
+Jezar.
+
+

@@ -1,0 +1,118 @@
+
+<opts>
+<isrc>keybd</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss13</scrfont>
+<statwin>on</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>inptr</rtype>
+<rfmt>\n\N</rfmt>
+<rall>yes</rall>
+<starg>x</starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>3</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>5.000</xmax>
+<xmin>-5.000</xmin>
+<ymax>50.000</ymax>
+<ymin>-50.000</ymin>
+<xintrvls>10</xintrvls>
+<yintrvls>10</yintrvls>
+<xycells>x,y</xycells>
+<cell>
+<cname>a</cname>
+<text>Left end of interval in which a root is sought</text>
+<val>-2.293</val></cell>
+<cell>
+<cname>b</cname>
+<text>Right end of interval in which a root is sought</text>
+<val>-2.289</val></cell>
+<cell>
+<cname>bisect</cname>
+<text>Script to determine the roots, if any, of the polynomial in cell y, over the interval [a,b].
+
+Set a to the left end of the closed interval within which a root for the polynomial in cell y is sought.  Set b to the right end of the interval.
+
+Set delta to maximum error you are willing to accept in the root.  (Use preferences to set the number of decimal places one greater than the most significant place in delta.)
+
+Then execute the script of this cell to zero in (so to speak) on the root.
+</text>
+<script>#
+# find an approximate root in the interval between a and b
+#
+    out("\nInterval ",a,",",b)
+    if(y(a)*y(b)>0) {
+        out("\nNo root in interval [",a,",",b,"]")
+        exit
+    } #endif
+    set c to (a+b)/2
+    if(abs(y(c))&lt;delta){
+       out("\nRoot is ",c)
+       exit
+    } elseif ( y(a)*y(c)&lt;0 ) {
+        set b to c
+        bisect()
+    } else {
+       set a to c
+       bisect()
+    } #endif</script></cell>
+<cell>
+<cname>c</cname>
+<val>-2.291</val></cell>
+<cell>
+<cname>delta</cname>
+<val>0.01</val></cell>
+<cell>
+<cname>home</cname>
+<text>Find the roots of the polynomial in cell y, on the interval [-5,5].
+
+By executing the script in the home cell, we see that there is one or more roots between -3 and -2, between 0 and 1, and between 2 and 3.
+
+We will use the script of the cell &amp;bisect to find the root between 0 and 1.  Set the value of cell a to 0, and value of cell b to 1.  Then go execute the script of cell bisect.
+
+To find the root between 2 and 3, set x to a value between 2 and 3, put the expression for the derivative of cell y into the script of cell yprime, and go execute the script of the cell Newton.
+
+Find the root between -3 and -2 using first the bisection method, and then the Newton method.</text>
+<val>11.000</val>
+<script>for(x=-5 to 5 step 0.5) {
+        out("\n",x,",",y(x))
+}</script></cell>
+<cell>
+<cname>Newton</cname>
+<text>If you can write the derivative of the expression in the y cell with respect to x, this method is often superior to the methos of bisection.  Enter the expression for the derivative in the cell yprime, set x to a location near a suspected root, and execute the script of this cell.</text>
+<val>5.975</val>
+<script>y(x)
+while(abs(y(x))>delta){
+    out("\nValue of x, ",x())
+}
+out(" is root.")
+</script></cell>
+<cell>
+<cname>x</cname>
+<text>Independent variable of polynomial whose roots are sought.</text>
+<val>5.000</val>
+<script>#
+# This formula is not invoked by the bisect method
+# It is invoked only by the Newton method
+#
+x-y(x)/yprime(x) 
+</script></cell>
+<cell>
+<cname>y</cname>
+<text>This cell contains the polynomial whose roots are sought. </text>
+<val>2503.000</val>
+<script>pow(%1,5) -5*pow(%1,3)+3</script></cell>
+<cell>
+<cname>yprime</cname>
+<val>59.219</val>
+<script>5*pow(%1,4)-15*pow(%1,2)</script></cell></eof>

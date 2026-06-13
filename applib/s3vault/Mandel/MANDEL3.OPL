@@ -1,0 +1,58 @@
+PROC main:
+	local infin&,iter%,xmin,ymin,xl%,yl%,size,xc,yc
+	local rpart,ipart,nreal,nimag,rsqr,isqr,modul,swap
+	
+	xc=-.75
+	yc=0
+	size=2.5
+	infin&=40
+	
+	dinit "Mandlebrot s3 V1.00"
+	dfloat xc,"X centre [R]",-4,4
+	dfloat yc,"Y centre [I]",-4,4
+	dfloat size,"Zoom",0,4
+	dlong infin&,"Infinity at",0,100
+	
+	if dialog=0
+		return
+	endif
+	
+	xmin=xc-size/2
+	ymin=yc+size/2
+
+	rpart=xmin
+	ipart=ymin
+	
+	xl%=1
+	do
+		yl%=0
+		do
+			iter%=0
+			nreal=0
+			nimag=0
+			modul=0
+			while(modul<4 and iter%<infin&)
+				rsqr=nreal*nreal
+				isqr=nimag*nimag
+				modul=rsqr+isqr
+				swap=rsqr-isqr+rpart
+				nimag=(2*nreal)*nimag+ipart
+				nreal=swap
+				iter%=iter%+1
+			endwh
+			if(iter%<infin& and iter%/2.0=iter%/2)
+				gat xl%,yl%
+				glineby 0,0
+			endif
+			ipart=ipart-size/80
+			yl%=yl%+1
+		until(yl%=80)
+		rpart=rpart+size/80
+		ipart=ymin
+		xl%=xl%+1
+	until(xl%=80)
+
+while(get<>27)
+endwh
+
+ENDP

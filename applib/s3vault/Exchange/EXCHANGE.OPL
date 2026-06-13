@@ -1,0 +1,115 @@
+PROC currency:
+GLOBAL a$(12),b$(12),y$(1),sel$(15)
+GLOBAL a,b,c,sel,cur
+GLOBAL vers
+vers=7.06
+CLS
+gMOVE 40,10
+gLINEBY 160,0
+gLINEBY 0,-5
+gLINEBY -5,0
+gLINEBY 0,55
+gLINEBY -150,0
+gLINEBY 0,-55
+gLINEBY -5,0
+gLINEBY 0,5
+gAT 45,25:gFONT 2
+gPRINT "    Currency Convertor"
+gAT 45,35
+gPRINT "           by Keith Pirie"
+gAT 45,45
+gPRINT "             Version ",vers
+gAT 45,55
+gPRINT "                   @1994"
+PAUSE -100
+CLS
+sel$="Convert from:"
+sel=1
+select:
+CLS
+
+sel$="Convert to:"
+sel=2
+select:
+CLS
+
+PRINT "How many ";a$;
+PRINT " to the ";b$
+INPUT a
+CLS
+
+calc:
+ENDP
+PROC calc:
+CLS
+PRINT "How many ";a$;" to convert?"
+INPUT b
+CLS
+c=b/a :c=INT (c*100) :c=c/100
+PRINT b;" ";a$;" = ";c;" ";b$;" "
+PRINT
+PRINT
+yesno:
+ENDP
+
+PROC select:
+dINIT sel$
+dTEXT "1","Pounds",$400
+dTEXT "2","Pesetas",$400
+dTEXT "3","Cyprus œ",$400
+dTEXT "4","Escudos",$400
+dTEXT "5","Francs",$400
+dTEXT "6","Lira",$400
+
+cur =dialog-1
+IF sel=1
+GOTO allo1
+ENDIF
+IF sel=2
+GOTO allo2
+ENDIF
+RETURN DIALOG
+allo1::
+IF cur =1
+a$="Pounds"
+ELSEIF cur =2
+a$="Pesetas"
+ELSEIF cur =3
+a$="Cyprus œs"
+ELSEIF cur =4
+a$="Escudos"
+ELSEIF cur =5
+a$="Francs"
+ELSEIF cur =6
+a$="Liras"
+ENDIF
+
+allo2::
+IF cur =1
+b$="Pounds"
+ELSEIF cur =2
+b$="Pesetas"
+ELSEIF cur =3
+b$="Cyprus œs"
+ELSEIF cur =4
+b$="Escudos"
+ELSEIF cur =5
+b$="Francs"
+ELSEIF cur =6
+b$="Liras"
+ENDIF
+
+ENDP
+
+PROC yesno:
+LOCAL yn%,ans
+dINIT "Another?"
+dCHOICE yn%,"Choose Now","Yes,No"
+DIALOG
+IF yn% =1
+calc:
+ELSE
+STOP
+ENDIF
+ENDP
+

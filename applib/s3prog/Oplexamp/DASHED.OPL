@@ -1,0 +1,94 @@
+==========
+psion/3_series3 #3234, from rovoreed, 2773 chars, Dec 13 15:25 94
+----------
+Line Drawing with attributes. See psion/wishlist #1153
+
+The following code works. It isn't brilliant. May need to tweak the
+size of a% if on a small pixcel screen. OPL never was my strong point.
+
+Because it effectively does a binary chop, it shouldn't be that much
+longer plotting a longer line than a shorter line, but the size of the
+dash may vary slightly between two lines of different lengths.
+
+It isn't a serious program, just may be of use to someone so uploaded
+as a message rather than a file.
+
+PROC main:
+REM Plot from x1,y1 to x2,y2
+    LOCAL x1%,y1%,x2%,y2%,a%
+    DO
+        CLS
+        INPUT x1%
+        IF x1%<0 : STOP : ENDIF
+        INPUT y1%
+        INPUT x2%
+        INPUT y2%
+        INPUT a%
+        gAt x1%,y1%
+        Lineto:(x2%,y2%,a%)
+        GET
+    UNTIL x1%<0
+ENDP
+
+PROC Lineto:(x%, y%, attr%)
+REM Draw line from current position to x%,y% with attributes
+REM Meant as a complete replacement for calls to gLINETO
+REM    attr%   =    0 Solid line (like gLINETO)
+REM            =    1 Dashed line
+REM            =    2 Chain link
+
+    LOCAL a%(150),c%,dx%,dy%,i%,j%
+    LOCAL dash%
+
+    IF attr%<1 OR attr%>2
+        gLINETO x%, y%
+        return
+    ELSE
+        dash%=5
+        IF attr%=2 : dash%=1 : ENDIF
+        a%(1)=gX : a%(2)=gY
+        c%=1 : dx%=(x%-gX) : dy%=y%-gY
+        a%(4)=dx%+dx% : a%(5)=dy%        REM Seed
+        dy%=dy%/2 : dx%=dx%/2
+        WHILE IABS(dx%)+IABS(dy%) > dash%
+            REM We can still split the line.
+            i%=3+(c%*2)
+            j%=3+(c%*4)
+            WHILE i%>3
+                IF i% AND 1
+                    a%(j%)=dy%
+                    a%(j%-2)=a%(i%)-dy%
+                ELSE
+                    a%(j%-1)=dx%+dx%
+                    a%(j%-3)=a%(i%)-a%(j%-1)
+                    j%=j%-4
+                    c%=c%+1
+                ENDIF
+                i%=i%-1
+            ENDWH
+            dx%=dx%/2 : dy%=dy%/2
+        ENDWH
+        a%(3)=c%            REM Save count of co-ordinates
+        WHILE c%>0
+            REM    Dash it !
+            REM    Would be nice to have a pointer variable here to
+            REM    save working out a%(2+(c%+c%)) every time.
+            IF attr%=1
+                a%(2+(c%+c%))=a%(2+(c%+c%)) OR (c% AND 1)
+            ELSEIF attr%=2
+                i%=c% AND 7
+                IF i%=5 OR i%=7
+                    a%(2+(c%+c%))=a%(2+(c%+c%)) OR 1
+                ENDIF
+            ENDIF
+            c%=c%-1
+        ENDWH
+        c%=a%(3)
+REM May not need the next two lines, the last may always be shown
+REM anyway. Can't make my mind up.
+        i%=2+c%+c%
+        a%(i%) = a%(i%) AND (NOT 1)        : REM Always show the last
+        gPoly a%()
+    ENDIF
+ENDP
+

@@ -1,0 +1,172 @@
+==========
+Usenet/comp.sys.psion #19429, from psioncorp@cix.compulink.co.uk, 4381 chars, Nov 15 13:34 95
+Comment to 19422.
+----------
+Article: 19429 of comp.sys.psion
+Newsgroups: comp.sys.psion
+Path: cix.compulink.co.uk!usenet
+From: psioncorp@cix.compulink.co.uk ("Psion UK plc")
+Subject: Re: Workabout & TTL access
+Message-ID: <DI371K.68B@cix.compulink.co.uk>
+Organization: Compulink Information eXchange
+References: <48baod$a5b@mapperley.innotts.co.uk>
+Date: Wed, 15 Nov 1995 13:34:32 GMT
+X-News-Software: Ameol
+
+> Anybody actually managed to program for the TTL port
+> on the Psion Workabout to link to a laser scanner.
+> 
+> I'm trying to in OPL.
+> 
+> 
+
+Here's some geneic code that works for scanners or barcode readers, which 
+I'm sure you'll be able to adapt.  All you need to do is open the correct 
+port.  E for the barcode reader, D or G for the TTL
+
+It requires the OPL/g SDK & HCTRAN
+
+Regards,  Dave@Psion
+
+
+#include <l_err.oph>
+#include <l_serial.oph>
+#include <l_serial.mac>
+#include <l_std.oph>
+#include <l_std.mac>
+#include <l_zts.mac>
+#include <l_file.oph>
+#define TMASK_LINE_FEED $2400
+
+proc scanner:
+
+LOCAL a$(200)
+LOCAL ky$(1)
+GLOBAL DevTop$(5)
+GLOBAL DevBot$(5)
+
+
+DO
+  AT 1,1
+  print "Scanner Type ?"
+
+  AT 1,3
+  print "<I>ntegral"
+  AT 1,5
+  print "<N>on-inverted Current"
+  AT 1,7
+  print "In<V>erted Current"
+  ky$ = UPPER$(GET$)
+UNTIL ky$ = "I" or ky$ = "N" or ky$ = "V"
+
+
+
+IF ky$ = "I"
+        DevTop$ = "TTY:A"
+        DevBot$ = "TTY:B"
+ELSEIF ky$ = "N"
+        DevTop$ = "TTY:G"
+        DevBot$ = "TTY:H"
+ELSEIF ky$ = "V"
+        DevTop$ = "TTY:D"
+        DevBot$ = "TTY:E"
+ENDIF
+
+CLS
+
+do
+    print "Scan Code:";
+    a$ = scan$:
+    print a$
+until a$ = ""
+
+endp
+
+
+
+proc scan$:
+
+        LOCAL ConHand%,SerHand%,Maxlen%,SerStat%,ConStat%,ret%,Key%(4)
+        LOCAL buf$(200)
+        LOCAL DECL_OS
+        LOCAL srChar%(WORDS_SerialCharEnt)
+        LOCAL pSrchar%
+
+
+        maxlen% = 200
+
+        ConHand% = DAT_CONSOLE_HANDLE
+        pSrchar% = addr(srChar%())
+
+        ret% = IOOPEN(SerHand%,DevTop$,-1)
+        if ret% < 0
+                ret% = IOOPEN(SerHand%,DevBot$,-1)
+                if ret% < 0
+                         print err$(ret%)
+                         get
+                         stop
+                endif
+        endif
+
+      IOW(SerHand%,FSENSE,srChar%(),#0)
+      SET_ScTmask(pSrchar%,TMASK_LINE_FEED)  /* read a record at a time */
+      IOW(SerHand%,FSET,srChar%(),#0)
+
+
+      _IOC_PTR(ConHand%,FREAD,addr(ConStat%),addr(key%()),0) 
+       
+_IOC_PTR(SerHand%,FREAD,addr(SerStat%),ADDR_TEXT(buf$),addr(Maxlen%))
+ 
+        while 1
+
+                iowait
+
+                if SerStat%<>E_FILE_PENDING 
+                 /* serial read completed */
+                 if (SerStat%=0)
+                   iow(ConHand%,FCANCEL,#0,#0)   /* Yes cancel Key read */
+                   iowaitstat ConStat%   /* Wait for cancel to complete */
+                   SET_COUNT_BYTE(addr(buf$))
+                   Maxlen% = 200
+                   if buf$ <> ""         /* Was it a good read */
+                    print chr$(7);    /* Yes then beep */
+                    ioclose(SerHand%) /* Close bar code reader and exit */
+                         SerHand%=0
+                         break
+                    else
+                               
+_IOC_PTR(SerHand%,FREAD,addr(SerStat%),ADDR_TEXT(buf$),addr(Maxlen%))
+                               
+_IOC_PTR(ConHand%,FREAD,addr(ConStat%),addr(key%()),0)
+                          endif
+                      else
+                          print err$(SerStat%)
+                          get
+                          break
+                      endif
+                elseif ConStat%<>E_FILE_PENDING
+                      if key%(1)=KEY_ESCAPE
+                              /* Nominated exit key */
+                              iow(SerHand%,FCANCEL,#0,#0)
+                              iowaitstat SerStat%
+                              buf$ = ""
+                              break
+                      else
+                          beep 5,250
+                      endif
+                      
+_IOC_PTR(ConHand%,FREAD,addr(ConStat%),addr(key%()),0)
+                else
+                      print "Stray signal!"
+                      get
+                      ret%=-1
+                      break
+                endif
+        endwh
+        return buf$
+
+endp
+
+
+
+

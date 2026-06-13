@@ -1,0 +1,94 @@
+;
+;   Setup file for the AEA PK232
+;
+;   Start with the flow control stuff.
+;   If we don't, there is the possibility
+;   the session might lock up immediately.
+;
+;   We must have RTS/CTS handshake.
+;
+XFLOW OFF
+FLOW OFF
+XON $00
+XOFF $00
+START $00
+STOP $00
+TRFLOW OFF
+;
+;   Set character formats, and any other
+;   formatting that the PK232 might fool
+;   us with.
+;
+OPMODE PACKET
+;
+AWLEN 8
+8BITCONV OFF
+PARITY NONE
+DELETE OFF
+ESCAPE OFF
+ACRDISP 0
+ACRPACK OFF
+ALFDISP OFF
+ALFPACK OFF
+CMDTIME 10
+COMMAND $03
+ECHO OFF
+NEWMODE OFF
+NUCR OFF
+NULF OFF
+NULLS 0
+MSTAMP OFF
+DAYSTAMP OFF
+CONSTAMP OFF
+MCON 0
+MON 6
+;
+;   Set operating mode
+;
+OPMODE PACKET
+VHF ON
+HBAUD 1200
+CFROM ALL
+CMSG ON
+CTEXT No PMS, & can't chat. TNC controlled by Psion computer.
+USERS 0
+AX25L2V2 ON
+RELINK OFF
+CHECK 30
+RETRY 10
+DCDCONN ON
+CHCALL OFF
+;
+;   The legal bits
+;
+MSPEED 20
+MID 180
+MYCALL PK232
+;
+;   Set up packet timings
+;
+HEADERLN OFF
+DWAIT 0
+FRACK 7
+MAXFRAME 4
+PACLEN 80
+PPERSIST ON
+PERSIST 38
+RESPTIME 30
+TXDELAY 35
+SLOTTIME 10
+BEACON EVERY 0
+BTEXT
+;
+; Changes for PT V0.12
+; We nolonger use transparent text mode.
+;
+8BITCONV ON
+ACRPACK ON
+SENDPAC $0D
+CPACTIME OFF
+;
+; Changes for 7+. Without this, the TNC can change channels.
+;
+CHSWITCH $00
+RESTART

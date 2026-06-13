@@ -1,0 +1,82 @@
+The physical structure of font files
+====================================
+Font files start with a P_FSIG header:
+    typedef struct
+        {
+        TEXT app_id[3]; /* application id */
+        UBYTE chk_sum; /* application id checksum */
+        UBYTE file_vn; /* file version number */
+        UBYTE app_vn; /* application version number */
+        } P_FSIG;
+
+For a normal font file, appropriate values for the P_FSIG header are:
+    P_FSIG sig = {"FON",'F'+'O'+'N',0x30,0x30};
+For a fast font file, the appropriate values are:
+    P_FSIG sig = {"FN1",'F'+'N'+'1',0x10,0x10};
+The window server automatically recognises the difference
+between normal and fast fonts.
+
+The P_FSIG header is followed by the data which makes up
+the WS_FONT_FILE_HEADER
+    typedef struct
+        {
+        P_FSIG sig;
+        UWORD checksum;
+        UWORD size;
+        G_FONT_INFO info;
+        } WS_FONT_FILE_HEADER;
+
+The checksum is calculated by applying p_crc (see below) to the data
+that follows the WS_FONT_FILE_HEADER header (the character width
+array and the font bitmap).
+
+The size is the byte size remaining in the file after the size field.
+The G_FONT_INFO struct is as returned by gFontInfo:
+    typedef struct
+        {
+        UWORD low_ch;  /* lowest code in font */
+        UWORD high_ch; /* highest code in font */
+        UWORD height;  /* height of font */
+        UWORD descent;   /* height of bottom part of character */
+        UWORD ascent; /* height of top part of character */
+        UWORD numeric_width; /* Width of numeric character */
+        UWORD max_width; /* The width of the widest character in the font */
+        UWORD flags;
+        TEXT name[FONT_NAME_LEN];
+        } G_FONT_INFO;
+
+In a normal font, the WS_FONT_FILE_HEADER is followed by:
+  *  an array of (high_ch-low_ch+2) WORD offsets into the font bitmap
+  *  the font bitmap.
+
+The font bitmap contains the characters in the font as one long
+string in code order.  The window server literally bit copies the
+characters from this font bitmap to the drawable (the screen or a
+bitmap).
+
+Each word in the array of offsets contains the doubled pixel offset
+within the font bitmap with the least significant bit of the word set
+to 1 if the character is missing from the font and left as 0
+otherwise.  The offset corresponding to a missing character must be
+that of the next existing character.  An extra offset is stored at
+the end of the array containing what would have been the offset of
+the next character so that the width of a character may be calculated
+by subtracting its offset from the offset of the next character.
+
+Fast fonts are stored in an expanded form that uses more memory but
+can be drawn faster. In a fast font, the WS_FONT_FILE_HEADER is
+followed by:
+  *  an array of 256 BYTE character pixel widths (each set to between
+zero and 8, inclusive)
+  *  the font bitmap for all 256 characters (which is 256*height
+bytes long).
+
+All characters in a fast font must be less than or equal to 8 pixels
+wide.  The font bitmap contains all 256 characters, stored left
+aligned in their 8 pixel slot.  Unused bits are, by convention, set
+to zero.
+
+The CRC checksum
+----------------
+The polynomial used is (X power 16 + X power 12 + X power 5 + 1), as
+recommended by CCITT.

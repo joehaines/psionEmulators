@@ -1,0 +1,49 @@
+PROC main:
+	global s&,ax%,bx%,t&,a%, v%, a$(20)
+	PRINT "Psion Hourly Beep  ¸1995 PROTRONICS USA 404-351-1055"
+	PRINT "If POWERUP is running Psion will shut down by itself"
+	PRINT "Press System to exit or press Psion-Esc to unload me"
+	
+	if call($178b) = $FFFF
+		call($188b,60)
+		endif
+	call($138b)
+	call($198d,100,0)
+	gUPDATE
+	v%=exist ("\OPD\0.SPK")
+	do
+	if v%
+		Playit: (gen$(hour-(hour/13)*12,2))
+	else
+		BEEP 4,600
+		BEEP 4,600
+		endif
+	PAUSE 25
+	s&=(60-MINUTE)*60-SECOND+1
+	IF HOUR < 7 : s& = s&+(7-HOUR)*3600 :ENDIF
+	ax%=$0200
+	os($89,addr(ax%))
+	t&=unsig&:(ax%)*&10000 + unsig&:(bx%)
+	t&=t& + s&
+	a%=addr(t&)
+	call($0c89,0,peekw(uadd(a%,2)),peekw(a%))
+	until 0
+ENDP
+
+PROC unsig&:(num%)
+	local ret&
+	ret&=num%
+	if num% < 0 :ret&=ret&+65536 :endif
+	return ret&
+ENDP
+REM Psion Hourly Beep  ¸1995 PROTRONICS USA 404-351-1055
+
+proc PlayIt:(no$)
+a%=1
+do
+a$ = "\opd\"+mid$(no$,a%,1)+".SPK"+chr$(0)
+call ($1F86,UADD(ADDR(a$),1),0,0)
+a%=a%+1
+until a%>len(no$)
+endp
+

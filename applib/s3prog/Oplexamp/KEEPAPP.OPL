@@ -1,0 +1,102 @@
+==========
+Usenet/comp.sys.psion #23297, from brown@rnibncw.demon.co.uk, 3606 chars, Jan 25 11:24 96
+----------
+Article: 23297 of comp.sys.psion
+Path: cix.compulink.co.uk!news.compulink.co.uk!btnet!zetnet.co.uk!demon!mail2news.demon.co.uk!rnibncw.demon.co.uk
+From: brown@rnibncw.demon.co.uk
+Newsgroups: comp.sys.psion
+Subject: OPL program: Password protect all except 1 app
+Date: Thu, 25 Jan 1996 11:24:01 GMT
+Organization: RNIB New College Worcester.
+Lines: 87
+Message-ID: <9601290813.aa26518@news.demon.net>
+X-NNTP-Posting-Host: rnibncw.demon.co.uk
+X-Mail2News-Path: rnibncw.demon.co.uk
+
+rem Program to prevent most attempts at using applications other than a
+rem particular one - for lending out your Psion
+rem If application exits or switches, this remains in foreground until
+rem password entered, and rings alarm
+rem RunOpl also runs OPAs, which appear under RunOpl icon
+PROC keepapp:
+	local fname$(128),app%,als$(5),pgname$(128),apname$(8),extn$(4),pass$(10)
+	local ap%,newfile%,cbyte$(1),pid%,cmdl$(128),ret%,rcal%,allpids%(22)
+	call ($138b,0,0,0,0,0) :rem GenMarkNonActive
+	FONT 8,16
+	ap%=1 :newfile%=1
+	while 1
+		dInit "Start and keep application"
+		dChoice ap%,"Application","Data,Word,Agenda,World,Sheet (S3a),Record,Program,RunOpl,APP"
+		dChoice newfile%,"Open","Existing file,New file"
+		dEdit pass$,"Password"
+		if dialog=0 :continue :endif
+		vector ap% :dbf,word,agn,wld,sheet,rec,prog,opo,cust :endv
+dbf::   fname$="\dat\*.dbf" :pgname$="rom::data.app"
+		apname$="Data" :extn$=".DBF" :als$="" :goto d2
+word::  fname$="\wrd\*.wrd" :pgname$="rom::word.app"
+		apname$="Word" :extn$=".WRD" :als$="" :goto d2
+agn::   fname$="\agn\*.agn" :pgname$="rom::agenda.app"
+		apname$="Agenda" :extn$=".AGN" :als$="" :goto d2
+wld::   fname$="\wld\*.wld" :pgname$="rom::world.app"
+		apname$="World" :extn$=".WLD" :als$="" :goto d2
+sheet:: fname$="\spr\*.spr" :pgname$="rom::sh3.app"
+		apname$="Sheet" :extn$=".SPR" :als$="" :goto d2
+rec::   fname$="\wve\*.wve" :pgname$="rom::record.app"
+		apname$="Record" :extn$=".WVE" :als$="" :goto d2
+prog::  fname$="\opl\*.opl" :pgname$="rom::word.app"
+		apname$="Program" :extn$=".OPL" :als$="OROPO" :goto d2
+opo::   apname$="RunOpl" :extn$=".OPO" :als$=""
+		fname$="\OPO\*.OPO" :pgname$="rom::sys$prgo" :goto d2
+cust::  fname$="\*.*" :pgname$="\app\*.app"
+		apname$="App" :extn$="" :als$=""
+		dInit "Choose APP"
+		dFile pgname$,"File:",0
+		if dialog=0 :continue :endif
+d2::    dInit "Choose file"
+		pgname$=pgname$+chr$(0)
+		if newfile%=1
+			dFile fname$,"Open:",0
+			cbyte$="O"
+		else
+			dFile fname$,"Create:",1
+			cbyte$="C"
+		endif
+		if dialog=0 :continue :endif
+		cmdl$=cbyte$+apname$+chr$(0)+extn$+" "+als$+chr$(0)+fname$+chr$(0)
+		ret%=call($0187,addr(pgname$)+1,addr(cmdl$),0,0,addr(pid%))
+		if ret%<0
+			pgname$=left$(pgname$,len(pgname$)-1)
+			print "Couldn't start",pgname$
+			print err$(ret%) :get :continue
+		endif
+		call($0688,pid%)
+		do
+			if call($8c8d,pid%,0,0,0,0)<0:break :endif :rem App exited
+			call($d98d,0,0,0,addr(allpids%(1)),0):rem allpids%(1) is foreg. app
+		until allpids%(1)<>pid%
+		FONT 8,16
+		print "Changing application - Enter password"
+		while pass$<>""
+			call($198d,0,0)
+			if key=asc(left$(pass$,1)):pass$=right$(pass$,len(pass$)-1):else :beep 5,500:endif
+		endwh
+	endwh
+ENDP
+
+---===---
+
+Automatic appendment: There is a multi-user expandable adventure on 
+adventur@rnibncw.demon.co.uk
+
+I am a pupil at this college and the opinions expressed hereby are 
+not necessarily those of the RNIB nor those of RNIB New College 
+Worcester.
+
+Silas S. Brown,
+RNIB New College Worcester,
+Whittington Road,
+WORCESTER,
+WR5  2JX
+brown@rnibncw.demon.co.uk
+
+

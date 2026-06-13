@@ -1,0 +1,98 @@
+proc test:
+	local ph$(80)
+	font 8,16
+	do
+	print "Enter text"
+	input ph$
+	say:(ph$)
+	until 0
+endp
+
+proc say:(s$)
+	local z$(255),ph$(255)
+	local got$(80),t%,h%,m$(1),fit$(80)
+	z$=lower$(s$):ph$=""
+	do
+		ioopen(h%,"loc::m:\spk\speech.dat",$20)
+		do
+			t%=ioread(h%,uadd(addr(got$),1),80)
+			if t%<0:break :endif
+			pokeb addr(got$),t%
+			t%=loc(got$,"*")-1
+			if t%<0:break :endif
+		until comp:(left$(z$,t%),left$(got$,t%))
+		ioclose(h%)
+		if t%<0:t%=1:else
+			fit$=right$(got$,len(got$)-loc(got$,"*"))
+			if loc(got$,"#")
+				m$=mid$(z$,loc(got$,"#"),1)
+				fit$=left$(fit$,loc(fit$,"#")-1)+m$+m$+right$(fit$,len(fit$)-loc(fit$,"#"))
+			endif
+			ph$=ph$+fit$
+			rem print fit$;
+		endif
+		z$=right$(z$,len(z$)-t%)
+		if left$(z$,1)=" "
+			phoenome:(ph$)
+			ph$=""
+		endif
+	until z$=""
+	rem print
+	IF LEN(ph$):phoenome:(ph$):ENDIF
+endp
+
+proc comp:(a$,b$)
+	local l%,x$(80),y$(80)
+	if len(a$)<>len(b$):return 0:endif
+	if right$(b$,1)="_"
+		if loc(" !.,?)\/:;",right$(a$,1))=0:return 0:endif
+		x$=left$(a$,len(a$)-1)
+		y$=left$(b$,len(b$)-1)
+	else
+		x$=a$ :y$=b$
+	endif
+	l%=loc(y$,"#")
+	if l% :return left$(x$,l%-1)=left$(y$,l%-1) and right$(x$,len(x$)-l%)=right$(y$,len(y$)-l%):endif
+	return x$=y$
+endp
+
+proc phoenome:(ph$)
+	local lp%,f$(27)
+	f$="loc::m:\wve\spktmp00.wve"
+	copy "\spk\"+left$(ph$,2)+".wve",f$
+	lp%=3:while lp%<len(ph$)
+		append:(f$,"\spk\"+mid$(ph$,lp%,2)+".wve")
+		lp%=lp%+2
+	endwh
+	f$=f$+chr$(0):call($1f86,uadd(addr(f$),1),0,0)
+	delete left$(f$,len(f$)-1)
+endp
+
+proc append:(f1$,f2$)
+	local px&,fn$(130),noin%,ret%,b%,buf%(512)
+	local hdr1%(16),hdr2%(16),h%,h2%,out%,in%
+	h%=addr(hdr1%(1)):h2%=addr(hdr2%(1))
+	noin%=0:b%=addr(buf%(1))
+	ret%=ioopen(out%,f1$,$103)
+	ret%=ioopen(in%,f2$,$600)
+	if ret%>=0
+		px&=32
+		while 1
+			ioseek(in%,1,px&)
+			ret%=ioread(in%,b%,1024)
+			if ret%<=0:break :endif
+			iowrite(out%,b%,ret%)
+			px&=px&+ret%
+		endwh :px&=0
+		ioclose(out%)
+		ioopen(out%,f1$,$300)
+		ioseek(in%,1,px&)
+		ioread(in%,h%,32)
+		ioread(out%,h2%,32)
+		ioseek(out%,1,px&)
+		pokel uadd(h%,18),peekl(uadd(h2%,18))+peekl(uadd(h%,18))
+		iowrite(out%,h2%,32)
+	endif
+	ioclose(in%)
+	ioclose(out%)
+endp

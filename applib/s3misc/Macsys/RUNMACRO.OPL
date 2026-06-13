@@ -1,0 +1,30 @@
+PROC main:
+local opa$(128), mco$(128)
+gsetwin 0, 0, 0, 0
+opa$ = "m:\app\macro.opa"
+if fexist:( addr( opa$ ) )
+	trap loadm opa$
+	if err
+		alert( err$( err ) )
+		stop
+	endif
+	mco$ = "\macro\mco\"
+	dinit "Select macro to run"
+	dfile mco$, "Macro", 16
+	if dialog
+		busy "Busy..."
+		runmacro:( mco$, "macro" )
+	endif
+else
+	alert( "Macro application not found" )
+endif
+ENDP
+
+PROC fexist:( ptr% )
+rem -- Look for Macro on all drives
+if exist( peek$( ptr% ) ) : return -1 : endif
+pokeb ptr% + 1, %a
+if exist( peek$( ptr% ) ) : return -1 : endif
+pokeb ptr% + 1, %b
+if exist( peek$( ptr% ) ) : return -1 : endif
+ENDP

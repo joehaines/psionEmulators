@@ -1,0 +1,107 @@
+PSIONICS FILE - AGENDA.FMT
+==========================
+Format of Series 3s Agenda files
+Last modified 1994-09-14
+================================
+
+Series 3s Agenda files are normal database files (see Psionics file DBF.FMT).
+
+Each record holds five fields: four words followed by one qstr.
+
+The descriptive record contains one subrecord of type 15. This subrecord
+always contains exactly 12 bytes:
+  Offset  0 (word): time of first appointment slot shown on a day, in minutes
+                    past midnight
+  Offset  2 (word): default length of an appointment, in minutes
+  Offset  4 (word): 0 = alarms off by default, else alarms on by default
+  Offset  6 (word): default advance time for alarms, in minutes
+  Offset  8 (word): default alarm time for untimed appointments, in minutes
+                    past midnight
+  Offset 10 (byte): time separator character
+  Offset 11 (byte): unused
+
+Each data record holds one calendar event (possibly repeating), one day-note
+event (possibly repeating), or one to-do item. The record contents for each
+of these are described here.
+
+Calendar events have the format:
+  Field 1 (word): day number of the event
+  Field 2 (word): duration of the event in minutes, times 2, plus 1 if there
+                  is not an alarm attached
+  Field 3 (word): time of the event, in minutes past midnight
+  Field 4 (word): time of the alarm in minutes before 23:59 of the day the
+                  event occurs on, or $FFFF if there is no alarm
+  Field 5 (qstr): item text
+
+Repeating calendar events have the format:
+  Field 1 (word): $FFFE
+  Field 2 (word): duration of the event in minutes, times 2, plus 1 if there
+                  is not an alarm attached
+  Field 3 (word): time of the event, in minutes past midnight
+  Field 4 (word): time of the alarm in minutes before 23:59 of the day the
+                  event occurs on, or $FFFF if there is no alarm
+  Field 5 (qstr): item text followed by repeat information
+
+Day note events have the format:
+  Field 1 (word): day number of the event
+  Field 2 (word): 0 if an alarm is attached, or 1 if not
+  Field 3 (word): position of item in list:
+    $8000 = first day item on that date
+    $8001 = second day item on that date
+    etc.
+  Field 4 (word): time of the alarm in minutes before 23:59 of the day the
+                  event occurs on, or $FFFF if there is no alarm
+  Field 5 (qstr): item text
+
+Repeating day note events have the format:
+  Field 1 (word): $FFFE
+  Field 2 (word): 0 if an alarm is attached, or 1 if not
+  Field 3 (word): position of item in list:
+    $8000 = first day item on that date
+    $8001 = second day item on that date
+    etc.
+  Field 4 (word): time of the alarm in minutes before 23:59 of the day
+  Field 5 (qstr): item text followed by repeat information
+
+To-do items have the format:
+  Field 1 (word): $FFFF
+  Field 2 (word): position of item among those with this priority:
+    0 = first item
+    2 = second item
+    4 = third item
+    6 = fourth item
+    etc.
+  Field 3 (word): item priority (1 to 9 inclusive)
+  Field 4 (word): unused
+  Field 5 (qstr): item text
+
+
+For repeating items, the item text is always followed by a 6 byte block giving
+the repeat information (this block is included in the qstr as far as the
+database format is concerned). This block has the form:
+  Offset  0 (byte): repeat type:
+    0 = yearly
+    1 = monthly by date
+    2 = monthly by day
+    3 = weekly
+    4 = daily
+    5 = workdays
+  Offset  1 (byte): repeat interval
+  Offset  2 (word): day number of the first occurence
+  Offset  4 (word): day number of the last occurence, or 0 if repeats forever
+
+
+Day numbers must lie between 29219 and 54786 (years 1980 and 2049) inclusive.
+The end of a calendar event must lie in the same day as its start.
+#! rnews 1521
+Article: 5367 of comp.sys.psion
+Newsgroups: comp.sys.psion
+Path: cix.compulink.co.uk!uknet!inmos-root!fulcrum!warwick!pipex!hunts.x.co.uk!scone.london.sco.com!clive
+From: clive@sco.com (Clive D.W. Feather)
+Subject: Psionics file BITMAP.FMT
+Organization: Santa Cruz Operation Ltd., Watford, United Kingdom
+Date: Wed, 14 Sep 1994 09:51:12 GMT
+Message-ID: <Cw461E.JMC@scone.london.sco.com>
+References: <Cw45Bq.JGp@scone.london.sco.com>
+Lines: 28
+

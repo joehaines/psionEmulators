@@ -1,0 +1,255 @@
+proc showwave:(fn$)
+
+	local w%,p&
+	local h%,mode%,k%,a%
+	local ret%,buffer%(512)
+	local y%,i,len&,p%,s,offset
+	local sp&,sl&
+
+	setname	fn$
+	
+	w%=512
+	p&=0
+
+	mode%=$0600
+	ret%=ioopen(h%,fn$,mode%)
+	
+	if ret%<0
+		showerr:(ret%)
+		return
+	endif
+	
+	a%=addr(buffer%(1))
+	ret%=ioread(h%,a%,32)
+	sp&=int(sp)
+	ioseek(h%,3,sp&)
+
+	len&=peekl(uadd(a%,18))
+	
+	if sp+sl>=len&
+		if sp=0 : sl=0 : else : sl=len&-sp : endif
+	endif
+
+rem *** calculate scale ***
+	if sl=0
+		iadd=flt(len&)/gwidth
+	else
+		iadd=sl/gwidth
+	endif
+
+	guse 1
+	gcls
+	gat 1,12
+	gprint "File:",fn$
+	gat 1,24
+	gprint "Length:",len&,"          "
+	
+	if sl
+		gprint "[Zoom pos:",int(sp),"Zoom len:",int(sl),"]"
+	endif
+	
+	guse swin%
+	gcls
+	gfont 13
+	gat	0,0 : glineby gwidth,0
+
+	if iadd
+		offset=.1
+		if iadd>10 : offset=.2 : endif
+		if iadd>50 : offset=.5 : endif
+		if iadd>100 : offset=1 : endif
+		while s*(8192/iadd)<gwidth
+			gat s*(8192/iadd),1
+			glineby 0,3
+			gat s*(8192/iadd)+3,8
+			gprint s+int((sp/8192)*10)/10
+			s=s+offset
+		endwh
+	endif
+	
+	gat 0,14
+	gprint "SECONDS"
+
+	guse wwin%	
+	gcls
+	gat 0,4
+	gborder 0,gwidth,gheight-8
+
+	p%=0 : i=0 : ret%=0
+
+	gupdate off
+	gat 0,gheight/2 : glineby gwidth,0
+	gat 0,gheight/2
+	
+	if iadd
+
+		do
+			if i>=ret%
+				i=i-ret%
+				ret%=ioread(h%,a%,w%)
+			endif
+			y% = et%(peekb( uadd(a%,i))+1) : i=i+iadd
+			glineto p%,(y%)/(8192.0/(gheight-10))+gheight/2
+			p%=p%+1
+		until p%>=gwidth
+
+		gupdate
+	
+	endif
+	ret%=ioclose(h%)
+	if ret%
+		showerr:(ret%)
+	endif
+
+endp
+
+
+proc showerr:(val%)
+
+	at 1,14
+	print "Error",val%,err$(val%)
+	get
+ENDP
+
+proc showinfo:
+
+	lock on
+	if reg%
+	dinit "WaveMod 1.1 (Registered)"
+	else
+	dinit "WaveMod 1.1 (Unregistered)"
+	endif
+	dtext "","Programmed By Dylan Cuthbert",2
+	dtext "","Icon designed by Alistair McNally",2
+	dtext "","----------------------",2
+	dtext "","(C) Takoyaki Software 1993/4",2
+	dtext "","----------------------",2
+	dtext "","Please report ideas/bugs to:",2
+	dtext "","dyl@cix.compulink.co.uk",2
+	dialog
+
+	if reg%=0
+		dinit "Registration"
+		dtext "","For a full registered version send",2
+		dtext "","5 (five) UK pounds to:",2
+		dtext "","Dylan Cuthbert, 30 Mitton Road, Whalley, Clitheroe, Lancs, BB7 9RX",2
+		dtext "","----------------------",2
+		dtext "","Feel reassured you are improving the availability,",2
+		dtext "","quality, and variety of future Shareware by sending",2
+		dtext "","your money today.",2
+		dialog
+	
+		dinit "Registration"
+		dtext "","Note:",0
+		dtext "","I can only send registered versions via",2
+		dtext "","e-mail (due to the cost of s3 media), so",2
+		dtext "","please specify the address and type of",2
+		dtext "","encoding/compression to use.",2
+		dtext "","----------------------",2
+		dtext "","Registered users will receive an updated",2
+		dtext "","version whenever there is one available.",2
+		dialog
+
+	dINIT "Other PD/Shareware software"
+	dTEXT "","S3A SACI",2
+	dTEXT "","Sound Activated Command Interpreter",2
+	dTEXT "",REPT$(chr$(196),15),2
+	dTEXT "","S3Asm",2
+	dTEXT "","S3/S3a based assembler",2
+	dTEXT "",REPT$(chr$(196),15),2
+	dTEXT "","Email: gsg@cix.compulink.co.uk",2
+	dTEXT "","CIS: 71125,532",2
+	dialog
+
+	else
+		dinit "Registered"
+		dtext "","----------------------",2
+		dtext	"","Thanks for registering.",2
+		dtext "","----------------------",2
+		dtext "","(C) Takoyaki Software 1993/4",2
+		dtext "","Not for resale or re-distribution.",2
+		dtext "","All Rights Reserved.",2
+		dtext "","----------------------",2
+		
+		dialog
+		
+	endif
+
+	lock off
+endp
+
+proc domenu:
+local ret%
+
+	minit
+	mcard "File","New file",%n,"Open file",-%o,"Rename file",%N,"Copy file",%C,"Insert file",-%I,"Write region",-%w,"Revert",%V
+	mcard "Edit","Insert region",%i,"Copy region",%c,"Cut region",%d
+	mcard "Play/Record","Play whole sample",%p,"Play region",-%P,"Record and insert",%r,"Record and replace",-%R,"Volume",%v
+	mcard "Speed","Double speed sample",%g,"Double speed range",-%G,"Half speed sample",%h,"Half speed range",%H
+	mcard "Function","Fade region in",%f,"Fade region out",-%F,"Reverse sample",%t,"Reverse region",-%T,"Filter sample",%l,"Filter range",-%L,"Phase sample",%s,"Phase range",%S
+	mcard "Special","Zoom region in",%z,"Zoom out",-%Z,"About WaveMod",-%a,"Exit",%x
+	return menu
+
+endp
+
+proc drawcurs:(cx%,cw%)
+
+	gat cx%,4
+	gfill cw%,gheight-8,2
+	
+	gat cx%-2,0
+	gfill 5,4,2
+
+	gat cx%-2,gheight-4
+	gfill 5,4,2
+	
+	if cw%>1
+		gat cx%+cw%-2,0
+		gfill 5,4,2
+		gat cx%+cw%-2,gheight-4
+		gfill 5,4,2
+	endif
+
+endp
+
+proc dispprog:(fp&,len&)
+
+	busy "Processing... ("+num$((fp&*100)/len&,3)+"%)"
+
+endp
+
+
+
+proc dohelp:
+	dinit "WaveMod Help"
+	dtext "","Movement:",$100
+	dtext "","-----------------",2
+	dtext "","Cursor keys move the cursor.",0
+	dtext "","Shifted cursor keys mark a region.",0
+	dtext "","Shift-psion-cursor keys alter region's left margin.",0
+	dtext "","Ctrl-(above) accelerates cursor movement.",0
+	dtext "","-----------------",2
+	dialog
+	
+	dinit "WaveMod Help"
+	dtext "","Zooming:",$100
+	dtext "","-----------------",2
+	dtext	"","Mark a region and then press Psion-Z",0
+	dtext	"","to zoom it in. Psion-Shift-Z will zoom out",0
+	dtext	"","by two. If no region is marked then",0
+	dtext	"","Psion-Z will zoom out to full size.",0
+	dtext "","-----------------",2
+	dialog
+
+	dinit "WaveMod Help"
+	dtext "","Safety:",$100
+	dtext "","-----------------",2
+	dtext	"","Before making a change you will always",0
+	dtext	"","be prompted whether to make a backup",0
+	dtext	"","or not. Answering yes will allow you to",0
+	dtext	"","use Psion-Shift-V to revert to the backup.",0
+	dtext "","The backup file is deleted when you exit.",0
+	dtext "","-----------------",2
+	dialog
+endp
+

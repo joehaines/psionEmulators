@@ -1,0 +1,74 @@
+! HP2.WD
+! Printer driver file for HP II laser printers
+
+COMMANDS
+    HP_PCL_COMPATIBLE
+    RESET               "<27>E"
+    FORM_LENGTH         "<27>&l%dP"
+!<27>&l
+! 0o - Portrait
+! 0e - top margin to zero
+! 0C - VMI to zero
+!<27>9 - clear horizontal margins
+!<27>(12U - code page 850 character set
+    PREAMBLE            "<27>&l0o0e0C<27>9<27>(12U"
+    POSTAMBLE           "<27>E"
+    BOLD_ON             "<27>(s3B"
+    BOLD_OFF            "<27>(s0B"
+    ITALIC_ON           "<27>(s1S"
+    ITALIC_OFF          "<27>(s0S"
+    UNDERLINE_ON        "<27>&dD"
+    UNDERLINE_OFF       "<27>&d@"
+    SUPERSCRIPT_ON      "<27>&a-60V"
+    SUPERSCRIPT_OFF     "<27>&a+60V"
+    SUBSCRIPT_ON        "<27>&a+60V"
+    SUBSCRIPT_OFF       "<27>&a-60V"
+    NEW_PAGE            "<12>"
+    CARRIAGE_RETURN     "<13>"
+    MOVE_DOWN           "<27>&a+%dV"
+    MOVE_RIGHT_PREFIX   ""
+    MOVE_RIGHT          "<27>&a+%dH"
+    MOVE_RIGHT_SUFFIX   ""
+    LANDSCAPE           "<27>&l1o0E<27>9"
+END_COMMANDS
+
+TRANSLATES telephone
+    5:35
+END_TRANSLATES
+
+TYPEFACE lineprinter
+    NAME            "Lineprinter"
+    TYPE            LINEPRINTER
+    TRANSLATE       telephone
+    FONT
+        HEIGHT          170
+        WIDTH           43
+        COMMAND         "<27>(s0p16.67h8.5v0T"
+    END_FONT
+END_TYPEFACE
+
+TYPEFACE courier
+    NAME            "Courier"
+    SERIF
+    TYPE            COURIER
+    TRANSLATE       telephone
+    FONT
+        HEIGHT          200
+        WIDTH           60
+        COMMAND         "<27>(s0p12h10v3T"
+    FONT
+        HEIGHT          240
+        WIDTH           72
+        COMMAND         "<27>(s0p10h12v3T"
+    END_FONT
+END_TYPEFACE
+
+MODEL
+    NAME        "HP LaserJet II"
+    LANDSCAPE_AVAILABLE
+    MIN_X       2  ! twips
+    MIN_Y       2  ! twips
+    SKIP_X      180
+    SKIP_Y      0
+    TYPEFACE    courier,lineprinter
+END_MODEL

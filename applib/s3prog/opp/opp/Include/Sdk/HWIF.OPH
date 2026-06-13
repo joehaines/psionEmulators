@@ -1,0 +1,221 @@
+
+#define HWIF_OPH
+
+#ifndef P_GRAF_OPH
+#include <p\graf>
+#endif
+
+#ifndef WLIB_OPH
+#include <sdk\wlib>
+#endif
+
+#ifdef STDEPOC_OPH
+#  ifndef P_CONS_OPH
+#  include <p\cons>
+#  endif
+#endif
+
+STRUCT H_MENU_DATA
+	title%
+	nlines%
+ENDS
+
+#define H_DIALOG_TEXT    0
+#define H_DIALOG_CHOICE   1
+#define H_DIALOG_NUMBER   2
+#define H_DIALOG_FLOAT   3
+#define H_DIALOG_TIME    4
+#define H_DIALOG_DATE    5
+#define H_DIALOG_EDIT    6
+#define H_DIALOG_SEDIT   7
+#define H_DIALOG_XINPUT   8
+#define H_DIALOG_FSEL    9
+#define H_DIALOG_BUTTONS  10
+
+STRUCT H_DI_TEXT
+	str%
+	type%
+ENDS
+
+#define H_DTEXT_ALIGN_LEFT   0
+#define H_DTEXT_ALIGN_RIGHT   1
+#define H_DTEXT_ALIGN_CENTRE  2
+#define H_DTEXT_BOLD      0x100
+#define H_DTEXT_UNDERLINE    0x200
+#define H_DTEXT_SELECTABLE   0x400
+
+STRUCT H_DI_CHOICE
+	u%
+	menu%
+ENDS
+
+STRUCT H_DI_NUMBER
+	value%
+	low&
+	high&
+ENDS
+
+STRUCT H_DI_FLOAT
+	value%
+	low 
+	high 
+ENDS
+
+STRUCT H_DI_TIME
+	value%
+	low&
+	high&
+	type%
+ENDS
+
+#define H_DTIME_SHOW_SECONDS  1
+#define H_DTIME_DURATION    2
+
+STRUCT H_DI_DATE
+	value%
+	low&
+	high&
+ENDS
+
+#define H_LAST_DAY   93501
+#define H_FIRST_SYS_DAY 25567
+#define H_LAST_SYS_DAY 75276
+
+STRUCT H_DI_EDIT
+	str%
+	len%
+ENDS
+
+STRUCT H_DI_SEDIT
+	str%
+	len%
+	width%
+ENDS
+
+STRUCT H_DI_XINPUT
+	str%
+ENDS
+
+STRUCT H_DI_FSEL
+	fname%
+	flags%
+ENDS
+
+STRUCT H_CARD
+	str%
+	accel%
+ENDS
+
+STRUCT H_CHOICE
+	str%
+ENDS
+
+STRUCT H_BUTTON
+	str%
+	keycode%
+ENDS
+
+#define W_EVENT_KEY (CONS_SPECIAL_EVENT*256)
+#define H_FILE_ALLOW_DIRS 0x02
+#define H_FILE_JUST_DIRS 0x04
+#define H_FILE_FORCE_NXIST 0x08
+#define H_FILE_NO_AUTOQUERY 0x10
+#define H_FILE_ACCEPT_NULL 0x20
+#define H_FILE_SET_DEFEXT 0x40
+#define H_FILE_CAN_WILDCARD 0x80
+#define H_FILE_RESTRICT_LIST H_FILE_FORCE_NXIST
+#define H_FILE_PICK_SELECTOR 0
+#define H_FILE_NEW_EDITOR 0x01
+#define H_PRINT_PAGE 0x01
+#define H_PRINT_LINE 0x02
+#define H_PRINT_RIGHT 0x04
+#define H_PRINT_TEXT 0x10
+#define H_PRINT_KEEP 0x8000
+#define H_PRINT_STY_UNDERLINE 0x01
+#define H_PRINT_STY_BOLD 0x02
+#define H_PRINT_STY_ITALIC 0x04
+#define H_PRINT_STY_SUPER 0x08
+#define H_PRINT_STY_SUB 0x10
+
+STRUCT H_PRINT
+	flags%
+	typf%
+	fheight%
+	style%
+	down%
+	indent%
+	height%
+	right%
+	buf%
+	blen%
+ENDS
+
+#define H_TIME_SET_SDATE 0
+#define H_TIME_SET_DATE 1
+#define H_TIME_SET_DAYSEC 2
+#define H_TIME_SET_NOW 3
+#define H_TIME_SENSE_BOTH 3
+#define H_TIME_SENSE_DATE 4
+#define H_TIME_SENSE_TIME 5
+#define H_TIME_FORMAT_NO_DAY 0x0004
+#define H_TIME_FORMAT_NO_MONTH 0x0008
+#define H_TIME_FORMAT_NO_YEAR 0x0010
+#define H_TIME_FORMAT_MONTH_NAME 0x0020
+#define H_TIME_FORMAT_SUFFIX 0x0040
+#define H_TIME_FORMAT_DAY_NAME 0x0080
+#define H_TIME_FORMAT_NO_CENTURY 0x0100
+#define H_TIME_FORMAT_NO_SECONDS 0x0200
+#define H_ALARM_TIMED 2
+#define H_ALARM_UNTIMED 1
+
+STRUCT H_EDIT_BOX
+	maxchars%
+	vulen%
+	vislines%
+	pos#(SIZEOF(P_POINT))
+	win%
+	font%
+	style%
+	lead_tot%
+	lead_top%
+ENDS
+
+STRUCT H_SCRLAY_PLX
+	pos%
+	line%
+	x%
+ENDS
+
+#define H_EDIT_BOX_CLIPBOARD 0x0040
+#define H_EDIT_BOX_LEFT_CURSOR 0x0200
+#define H_EDIT_BOX_FONT 0x1000
+#define H_EDIT_BOX_LEADING 0x2000
+#define H_EDIT_BOX_VISLINES 0x4000
+#define HEB_FIND_BACKWARDS 0x01
+#define HEB_FIND_CASESENS 0x02
+#define H_DTEDIT_DDMMYYYY       0x0000
+#define H_DTEDIT_HHMMSS         0x1100
+#define H_DTEDIT_HHMM           0x0100
+#define H_DTEDIT_HHMMSS_D       0x1300
+#define H_DTEDIT_HHMM_D         0x0300
+#define H_DTEDIT_SET_VALUE      0x0001
+#define H_DTEDIT_SET_LOW        0x0002
+#define H_DTEDIT_SET_HIGH       0x0004
+
+STRUCT H_DTEDIT
+	flags%
+	value&
+	low&
+	high&
+	pos#(SIZEOF(P_POINT))
+	win%
+	width%
+	emph%
+ENDS
+
+STRUCT H_SE_DTEDIT
+	flags%
+	value&
+	low&
+	high&
+ENDS

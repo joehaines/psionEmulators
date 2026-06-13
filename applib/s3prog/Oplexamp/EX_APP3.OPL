@@ -1,0 +1,71 @@
+APP myapp3
+	TYPE 3
+	ICON "\opd\me"
+ENDA
+
+
+
+PROC start:
+	GLOBAL a%(6),k%,w$(128)
+	STATUSWIN ON
+	SCREEN 30,9,1,1
+	gSETWIN 0,0,179,79
+	w$=CMD$(2)
+ 	fset:(CMD$(3))
+  PRINT "Q to Quit"
+  PRINT " or press Delete in the"
+  PRINT "the System screen"
+  PRINT " or create/swap files in the"
+  PRINT "System screen"
+	DO
+		k%=getk%:
+		PRINT CHR$(k%);
+	UNTIL (k% AND $ffdf)=%Q
+ENDP
+
+
+
+PROC getk%:
+	LOCAL t$(1)
+ 	DO
+		GETEVENT a%()
+		IF a%(1)=$404
+			w$=GETCMD$
+			t$=LEFT$(w$,1)
+			w$=MID$(w$,2,128)
+			IF t$="X"
+				endit:
+			ELSEIF t$="C" OR t$="O"
+				TRAP CLOSE
+				IF ERR
+					CLS :PRINT ERR$(ERR)
+					GET :CONTINUE
+				ENDIF
+				fset:(t$)
+			ENDIF
+		ENDIF
+	UNTIL a%(1)<256
+	RETURN a%(1)
+ENDP
+
+
+
+PROC fset:(t$)
+	LOCAL p%(6)
+	IF t$="C"
+		TRAP CREATE w$,A,A$
+	ELSEIF t$="O"
+		TRAP OPEN w$,A,A$
+	ENDIF
+	IF ERR
+		CLS :PRINT ERR$(ERR)
+		GET :STOP
+	ENDIF
+	SETNAME w$
+ENDP
+
+
+
+PROC endit:
+	STOP
+ENDP

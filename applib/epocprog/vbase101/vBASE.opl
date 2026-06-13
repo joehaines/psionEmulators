@@ -1,0 +1,362 @@
+REM vBASE is Copyright Gary Belcher 1998.
+
+include "const.oph"
+
+PROC Global:
+	global apppath$(255), rec%, pos%, temptext$(255), temptext2$(255), total2%, total%, a1&, length%
+	apppath$="c:\system\apps\vbase\"
+	TRAP MKDIR "c:\system\apps\vbase\"
+	vbasecheck:
+ENDP
+
+PROC vbasecheck:
+	local num&,name$(30),addr$(60)
+	IF EXIST (apppath$+"vbase.dat")
+		openvbase:
+	ELSE
+		trap delete apppath$+"vbase.dat"
+		create apppath$+"vbase.dat",a,num&,name$,addr$
+		a.num&=4445676
+		a.name$=""
+		a.addr$=""
+		append
+		close
+		adddata:
+		openvbase:
+	ENDIF
+	REM The reason I allocated the number 4445676 to the first record, is because it will
+	REM then be easy to find this record by searching for the number, and deleting it. The
+	REM effect of not doing this will be to create a blank record, which will PRINT blank
+	REM on the screen :-) See below, how I grab this record and delete it!! This is probably not
+	REM the correct way of doing things, but I find it works well :-)
+ENDP
+
+PROC openvbase:
+	OPEN apppath$+"vbase.dat",a,num&,name$,addr$
+	first	REM Goes to the first record on the database
+	pos%=1
+	IF a.num&=4445676
+		ERASE
+		CLOSE
+	ELSE
+		CLOSE
+	ENDIF
+	TRAP OPEN apppath$+"vbase.dat",a,num&,name$,addr$
+	total2%=count	REM Number of records
+	if total2%=0
+		giprint "No Database records ..."
+		pause 20
+		close
+		exit:	REM If no records, it closes vBASE down. Obviously, in a real app, you'd send it back to the main screen
+	else
+		gcls
+		a1&=20
+		total%=0
+		designs:	REM Calls the design proc, where the lines etc will be drawn
+		a1&=a1&*2
+		IF total2%>10
+		do
+			gat 15,a1&
+			gfont kfontarialbold13&
+			gstyle 0
+			gprint a.num&
+			gat 90,a1&	
+			temptext2$=a.name$
+			length%=len(temptext2$)		REM This part is just used to restrict
+		if length%>30				REM the length of what is gonna be printed
+			temptext$=left$(temptext2$,30)
+			gprint temptext$
+		else
+			gprint a.name$
+		endif
+			temptext$=""
+			gat 340,a1&
+			length%=len(a.addr$)
+		if length%>30
+			temptext$=left$(a.addr$,30)
+			gprint temptext$
+		else
+			gprint a.addr$
+		endif
+			temptext$=""
+			NEXT				REM Goes to the next entry in the database
+			a1&=a1&+20
+			total%=total%+1
+		UNTIL total%=10
+		ELSE
+			do
+			gat 15,a1&
+			gfont 7
+			gstyle 1
+			gprint a.num&
+			gat 90,a1&	
+			gprint a.name$
+			gat 340,a1&
+			gprint a.addr$
+			NEXT
+			a1&=a1&+20
+			until eof	REM Prints to the screen until the End Of File is reached
+		ENDIF
+	CLOSE
+	a1&=20				REM Here is the start of the selection code
+	gat 7,a1&+7
+	gfill 628,16,2
+	pos%=0		REM This is just my reference for knowing where abouts on the screen the selector is on. I allow only 10 entries per screen !! Please note it is a GLOBAL variable
+	rec%=1		REM Allocates a reference to the database entry number ie: record 1. Please note it is a GLOBAL variable
+	giprint "You have "+gen$(total2%,10)+" records..."
+	key:				REM This calls the keypress procedure
+	endif
+ENDP
+
+PROC key:
+	local key%,key9%,key11%
+	start::
+	key%=get
+	IF key%=kkeydownarrow%
+		down:	REM Shifts the screen down
+	ELSEIF key%=kkeyuparrow%
+		up:	REM Shifts the screen up
+	ELSEIF key%=13
+		OPEN apppath$+"vbase.dat",a,num&,name$,addr$
+		POSITION rec%	REM Goes to the relevant position in the database file
+		REM You can add the rest of the code you want here, when the user presses ENTER whilst selecting an entry		
+		CLOSE
+		openrecord:	REM goes to the relevant PROC to initiate the ENTER keypress
+	ELSEIF key%=27
+		exit:	REM exits the program	
+	ELSEIF key%=kgetmenu%
+		menu:	REM Takes you to the menu
+	ENDIF
+	GOTO start::
+ENDP
+
+PROC up:
+	local temp&
+		temp&=pos%*20
+		IF rec%=1		REM Here you can see how I always keep a track of which database entry I am currently selecting
+			giprint "Start..."
+		ELSEIF rec%>10 AND pos%=0
+			rec%=rec%-1	REM Here you can see the program asking for a record - 1 which will then allocate the correct record number should the user wish to view the record
+			pos%=9
+			prevrec:	REM If you are on the record at the top of the screen, vBASE calls this procedure to update the whole screen with the next 10 entries
+		ELSEIF pos%<>0
+			gat 7,a1&+7+temp&	REM Here vBASE gets rid of the previous selector, and updates a new one above it
+			gfill 628,16,2		REM whilst updating both the POS and REC variables
+			pos%=pos%-1		REM
+			rec%=rec%-1		REM
+			temp&=pos%*20		REM
+			gat 7,a1&+7+temp&	REM
+			gfill 628,16,2		REM
+		ENDIF
+ENDP
+
+PROC down:
+	local temp&
+		temp&=pos%*20
+		IF rec%<total2% AND pos%<9	REM Same applies here as above
+			gat 7,a1&+7+temp&
+			gfill 628,16,2
+			pos%=pos%+1
+			rec%=rec%+1
+			temp&=pos%*20
+			gat 7,a1&+7+temp&
+			gfill 628,16,2
+		ELSEIF rec%=total2%
+			giprint "End..."
+		ELSEIF rec%<total2% AND pos%>=9
+			rec%=rec%+1
+			pos%=0
+			nextrec:		REM Same applies here
+		ENDIF
+ENDP
+
+PROC nextrec:
+	local temp2%, temp3%
+	gcls
+	a1&=20
+	total%=0
+	designs:
+	a1&=a1&*2
+	TRAP OPEN apppath$+"vbase.dat",a,num&,name$,addr$
+	POSITION rec%		REM This retrieves the record at the position rec%
+	temp2%=rec%-1
+	temp3%=total2%-temp2%
+		IF temp3%>10
+			do
+				gat 15,a1&
+				gfont kfontarialbold13&
+				gstyle 0
+				gprint a.num&
+				gat 90,a1&	
+				length%=len(a.name$)
+		if length%>36
+			temptext$=left$(a.name$,36)
+			gprint temptext$		REM Prints the database entries
+		else
+			gprint a.name$
+		endif
+			gat 340,a1&
+			length%=len(a.addr$)
+		if length%>37
+			temptext$=left$(a.addr$,37)
+			gprint temptext$
+		else
+			gprint a.addr$
+		endif
+				NEXT
+				a1&=a1&+20
+				total%=total%+1
+			UNTIL total%=10
+		ELSE
+			do
+			gat 15,a1&
+			gfont 7
+			gstyle 1
+			gprint a.num&
+			gat 90,a1&	
+			gprint a.name$
+			gat 340,a1&
+			gprint a.addr$
+			NEXT
+			a1&=a1&+20
+			until eof
+		ENDIF
+	a1&=20
+	gat 7,a1&+7
+	gfill 628,16,2
+	pos%=0
+	CLOSE
+	key:
+ENDP
+
+PROC prevrec:
+	local temp2%, temp3%,temp4%
+	temp4%=rec%-9
+	gcls
+	a1&=20
+	total%=0
+	designs:
+	a1&=a1&*2
+	TRAP OPEN apppath$+"vbase.dat",a,num&,name$,addr$
+	POSITION temp4%
+			do
+				gat 15,a1&
+				gfont kfontarialbold13&
+				gstyle 0
+				gprint a.num&
+				gat 90,a1&	
+				length%=len(a.name$)
+		if length%>36
+			temptext$=left$(a.name$,36)
+			gprint temptext$
+		else
+			gprint a.name$
+		endif
+			gat 340,a1&
+			length%=len(a.addr$)
+		if length%>37
+			temptext$=left$(a.addr$,37)
+			gprint temptext$
+		else
+			gprint a.addr$
+		endif
+				NEXT
+				a1&=a1&+20
+				total%=total%+1
+			UNTIL total%=10
+	a1&=20
+	gat 7,a1&+7+180
+	gfill 628,16,2
+	pos%=9
+	CLOSE
+	key:
+ENDP
+
+PROC designs:
+		gat 2,2
+		glineby 636,0
+		gat 2,3
+		glineby 636,0
+		gat 2,25
+		glineby 636,0
+		gat 2,24
+		glineby 636,0
+		gat 637,2
+		glineby 0,236
+		gat 638,2
+		glineby 0,236
+		gat 2,2
+		glineby 0,236
+		gat 3,2
+		glineby 0,236
+		gat 86,2
+		glineby 0,236
+		gat 336,2
+		glineby 0,236
+		gat 2,237
+		glineby 636,0
+		gat 2,238
+		glineby 636,0
+		gfont kfontarialnormal15&
+		gstyle 0
+		gat 7,20
+		gprint "Number"
+		gat 90,20
+		gprint "Name"
+		gat 340,20
+		gprint "Address"
+ENDP
+
+PROC adddata:
+	local num&,name$(50),addr$(60),temp$(30),temp%,keyd%
+	start::
+	dINIT "vBASE - Add"
+	dlong num&,"Number: ",0,4000000
+	dedit name$,"Name: ",20
+	dedit addr$,"Email Address: ",20
+	Dialog
+	if num&=0 or name$="" or addr$=""
+		goto end::
+	endif
+	trap open apppath$+"vbase.dat",a,num&,name$,addr$
+	eof
+	a.num&=num&
+	a.name$=name$
+	a.addr$=addr$
+	append
+	close
+	dINIT "vBASE - Add another?"
+	dBUTTONS "No",27,"Yes",13
+	keyd%=DIALOG
+	IF keyd%=27
+		goto end::
+	ELSEIF keyd%=13
+		goto start::
+	ENDIF
+	end::
+	vbasecheck:
+ENDP
+
+PROC openrecord:
+	GIPRINT " You pressed ENTER whilst on record # "+gen$(rec%,10)
+	key:
+ENDP
+
+PROC exit:
+	STOP
+ENDP
+
+proc menu:
+	local key%
+	mINIT
+	mCARD "File","Exit",%e
+	mCARD "Utilities","Refresh screen",%r,"Add data",%a
+	key%=menu
+	if key%=%e
+		exit:
+	elseif key%=%r
+		vbasecheck:
+	elseif key%=%a
+		adddata:
+	endif
+endp

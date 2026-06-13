@@ -1,0 +1,122 @@
+Filters
+-------
+
+  The native image format on S3a computers is the PIC format.
+  To access other formats filters are required.
+
+  All filter modules are stored in directory \APP\COMMON\PLUGS\
+
+  The Find File function depends on the filters installed in this directory
+  and will only show files that can be converted.
+
+  The file extension is the criterion for applying a filter:
+
+    PCX files must have the extension .PCX
+    PIC files must have the extension .PIC
+    GIF files must have the extension .GIF
+    BMP files must have the extension .BMP
+                                          and so on
+
+
+  At present the only supported formats are PIC,PCX,GIF,BMP (read and write).
+
+  All filters support 3 dither options during import:
+  
+  - 2x2-dithering uses PicPocs 5 colour model.
+    The result looks usually a bit posterised.
+    Grey values are mapped to
+         - solid black
+         - grey/black pattern
+         - solid grey
+         - grey/white pattern
+         - white
+    If an image is placed on a black-only image the grey values
+    are mapped to
+         - solid black
+         - black/white pattern
+         - white
+
+  - diffusion-dithering (Floyd/Steinberg)
+    Grey and black dots are spaced to simulate grey values.
+    If an image is placed on a black-only image only black dots are used.
+
+  - no dithering
+    The fastest import method. 
+    Good for drawings. With halftone images this option should be used when
+    the image was already dithered.
+
+    Grey values are mapped to
+         - solid black
+         - solid grey
+         - white
+    If an image is placed on a black-only image the grey values
+    are mapped to
+         - solid black
+         - white
+
+  If an image contains only <= 3 (2) colours, the filter will automatically
+  switch off dithering, as all grey values can be mapped to solid colours.
+  
+
+-------------- PCX
+
+  The PCX filter can read the following formats
+  
+  - bitmapped images (b/w and 4-plane):
+
+  - grey scale and indexed colour (8 and 4 bit).
+    These files include a palette.
+
+  - RGB colours (24-bit colour)
+
+  The PCX filter always outputs as a bitmap with 2 or 3 colours.
+
+-------------- GIF
+
+  The GIF filter reads the following formats:
+
+  - bitmapped images (b/w):
+
+  - indexed colour (up to 256).
+
+   The GIF filter supports the following options:
+
+   - local colour table/global colour table
+   - interleave option
+     Diffusion dither is not available with interleave.
+     The filter will switch back to 2x2 dither.
+   - GIFLITE compressed images
+     (GIFLITE is a shareware GIF to GIF compression program
+      that achieves further compression of GIF images
+      using a lossy compression technique)
+
+  The GIF filter outputs as indexed colour with 2 or 3 colours:
+
+-------------- BMP
+
+  The BMP filter reads the following formats
+    (compressed files are not supported)
+  
+  - 1 bit per pixel
+    These files include a palette with 2 colours.
+
+  - 4 or 8 bits per pixel
+    These files include a palette with up to 16 or 256 colours.
+
+  - 24 bits per pixel
+    These files do not include a palette.
+    
+  Files from the following platforms are supported:
+
+   - in Windows
+   - OS2/1.x,
+   - OS2/2.x format
+
+  Compressed files are not supported (uncommon).
+
+  The BMP filter always outputs black/grey/white images with 4 bits per
+  pixel with a palette of 3 colours.
+  Black/white images are exported with 1 bit per pixel with a palette
+  of 2 colours.
+  Output is always in Windows format.
+

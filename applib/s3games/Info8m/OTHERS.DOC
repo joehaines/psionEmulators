@@ -1,0 +1,139 @@
+This file discusses how the proposed Z-machine standard is likely to
+impact Infocom and goes on to discuss some other interpreters for the
+platforms which Infocom supports.
+
+The Standard
+============
+
+Graham Nelson has recently proposed a standard for the Z-machine.  A
+major motive for this is the severe problem which game authors face
+when presented with a range of interpreters of wildly varying
+accuracy.  With the help of quite a few others, Graham has tried to
+nail down exactly what Infocom intended the opcodes to do, based where
+possible the evidence provided by Infocom story files and genuine
+interpreters.
+
+Of course, the available evidence (especially for V6) is a little thin
+on the ground, which is why the errors in some interpreters are
+understandable.  Screen handling, especially in the presence of colour
+and proportional fonts, seems particularly tricky to get right.
+
+As far as standard conformance goes, Infocom 1.7 was hopeless; it
+seems to have been about as far from conformance as possible while
+still having a vague chance of being fixed.  For example the header
+handling in the original ITF sources is almost pure Version3.  The
+subtleties required for indicating availability of fonts, colour and
+sound were not present at all.
+
+Infocom 1.8 should be better; the revamp needed to add colour support
+has helped the header handling somewhat.  However, real-time support
+is still missing and seems difficult to implement in a portable
+manner.  Equally, the `multiple output-streams' mandated by the
+standard have only the vaguest resemblance to the four-layer ITF
+output model.
+
+In summary, this interpreter is *not* conformant and needs quite a lot
+of work before it can be.  (It looks like 2.0 might stand a chance,
+which at the current release rate of every six months means Infocom
+might be conformant some time (very) late in 1997.)
+
+
+Acorn
+=====
+
+When !Infocom was first ported to the Acorn, the other main Infocom
+interpreters on the Archimedes were Frank Lancaster's Zip program and
+Edouard Poor's desktop interpreters (called !AUInfocom and !Zip.)
+
+Zip is blindingly fast, and very compact, but runs outside the desktop
+using the standard system font and plays only version 3 games.  The
+font size this implies is enough to make it almost unusable on an A4.
+Frank Lancaster has also released ZipDebug, which is a combined
+debugger and interpreter; the main point of interest is prototype
+support for version 6 games.
+
+Edouard Poor's interpreters (at least early versions) run in the
+desktop, but fail to display a cursor and fail to handle backspacing
+properly.
+
+Since !Infocom 1.7 was released, Kevin Bracey has released his port of
+Mark Howell's Zip interpreter.  This has quite a few advantages over
+Infocom:
+
+* Faster screen redraw (presumably due to a better 'fit' between his screen
+  model and the Acorn font screen code.)
+* Full version 5 support including the real-time support.
+* Version 6 support for playing the late `graphical' games.
+* Conformant with the proposed Z-machine specification, due in large
+  part to using the cleaner Zip interpreter core.
+* Colour and sound support.
+
+This raises the obvious question of why !Infocom is still being
+supported on the Acorn.  There are four reasons:
+
+* Save file compatibility.  From time to time I play Infocom games on
+  all the machine Infocom runs on, and it is very useful to be able to
+  transfer saved positions freely.
+* I have some users who also have multiple platforms and like the same
+  portability.  (And will complain loudly if I take it away.)
+* !Infocom uses slightly less memory, at least on older machines.  (If
+  the ToolBox is in ROM, the situation may be reversed.)
+* It is mostly a no-brain operation to keep the Acorn version in step.
+
+Conclusion: If you need the portability !Infocom provides, or you have
+a really old machine, you might prefer !Infocom to !Zip2000.  You ought
+to give !Zip2000 a good look anyway though.
+
+
+Psion
+=====
+
+The only other Infocom interpreter I have seen on the Series3 is
+InfoPlay ported by Oliver Wagner, and based on Mark Howell's ZIP
+interpreter rather than the ITF interpreter.  Currently, InfoPlay
+suffers 3 main disadvantages; it uses more memory (typically 6 to
+10K), it uses simple fixed-width fonts for output, and the OS
+integration is slightly buggy; try ESCaping from a save dialogue, or
+killing the task from the System screen.
+
+(InfoPlay used more memory than the 1.4x version of Infocom; the new
+memory handling in 1.7 means that for larger games like Trinity the
+gain is even more noticeable.  A naive port of Zip or ITF would be
+unable to fit the resident pages of Trinity into the 64K small memory
+model of the Psion.)
+
+(Brief advert: There is also a commercial version of Infocom for
+Psion, sold under the name InfoZip.  This is supplied in both 3A and
+S3 versions, both of which are smaller than shareware version since
+they are essentially preregistered, along with a printed manual and a
+companion application InfoStat. It is available bundled with either or
+both of the Lost Treasures packages from Lacegem on (0)61-792-2871.)
+
+
+Unix
+====
+
+The main infocom interpreters in use under UNIX appear to be simple
+ports of the ITF and ZIP interpreters, usually running under the
+curses screen handling library.  The other X11 based interpreters seem
+to have fairly crude screen handling, but tracking down all the
+available interpreters is not practical.
+
+
+Windoze
+=======
+
+I haven't played with any of the Windoze based Zip ports.  I have used
+the DOS port of Zip occasionally, but not in anger.  My beta-testers
+report that they prefer Infocom to the other Windoze interpreters they
+have tried.
+
+The main pluses for Infocom are
+
+* Dynamic window resizing and font selection.
+* Save file compatibility with the other ports, including Psion.
+* Command line editing.
+* Double clicking a saved position can start the correct game
+  and restore automatically.
+
+

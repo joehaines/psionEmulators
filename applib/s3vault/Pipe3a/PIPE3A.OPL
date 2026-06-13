@@ -1,0 +1,449 @@
+REM Pipe3a ¸1994 Rudolf K”nig
+REM rfkoenig@immd4.uni-erlangen.de
+REM Pipe3a has to be distributed under
+REM the GNU Copyleft (Version 2)
+
+REM Following files are used:
+REM   \pic\pipeicon.pic  icon for pipe3a
+REM   \pic\pipedata.pic  the pipe pieces
+REM   \opd\pipe3a.dat    scorefile, created if necessary
+
+APP Pipe3a
+	type $1100
+	icon "\pic\pipeicon.pic"
+ENDA
+
+PROC xpipe:
+	global bmapid%, width%, height%, scorew%
+	global field%, empty%, crs%, source%,level%, offset%
+	global posx%, posy%, sourcex%, sourcey%
+	global sccur%, scbon%, sctot%, scmin%
+	global flen%, mgidx%, occ%(7), totime%, tpcl$(8)
+	global flowdir%, fillgr%, drs$(50)
+	global hscfile$(64), hscname$(5,32), hsc%(5)
+        local path$(50),off%(6)
+	local i%, j%, ins%
+
+	width% = 12 : height% = 10 : offset% = 40
+	flen% = width% * height% : scorew% = 140
+	field% = alloc(flen%+8)
+	if(field% = 0)
+		print "Not enough memory"
+		get : stop
+	endif
+
+	gsetwin 0,0, 1,1 : screen 1,1,1,1
+        path$=left$(parse$("",cmd$(1),off%()),off%(2)+1) rem get drive
+        bmapid% = gloadbit(path$+"\pic\pipedata.pic",0)
+        hscfile$ = path$+"\opd\pipe3a.dat"
+	i% = gcreate(0,0, 16*width%+2*offset%+scorew%,16*height%, 1, 1)
+	statuswin on, 2
+
+	rem *** possible flow direction per piece ***
+	drs$ = "20031430010140300213103010204402044103010204410301"
+	rem *** timeout per level: 200,180,160... ***
+	tpcl$ = "È´ ŒxdP<"
+	posx% = width%/2 : posy% = height%/2
+	empty% = 78 :crs% = 79 :source% = 54
+	fillgr% = 1
+	
+	rem *** load highscore ***
+	if exist (hscfile$)
+		open hscfile$, A, name$, score%
+		i% = 1 : j% = count
+		while j%
+			hscname$(i%) = A.name$ : hsc%(i%) = A.score%
+			i% = i% + 1 : j% = j% -1 : next
+		endwh
+		close
+	endif
+
+	cache 2000,2000
+	level% = 0
+
+	rem *** total of sixteen levels ***
+	while (level% < 16)
+		sctot% = sctot% + sccur% + scbon%
+		initlev:
+		if (playlev:) : break : endif
+		level% = level% + 1
+	endwh
+
+	rem *** Change highscore ***
+	if sctot% > hsc%(5)
+		dinit
+		dtext "", "Congratulations! You are in the top five!", 2
+		drs$ = ""
+		dedit drs$, "Your name", 16
+		if(dialog)
+			if exist(hscfile$) : delete hscfile$ : endif
+			create hscfile$, A, name$, score%
+			i% = 1 : j% = 0 : ins% = 1
+			while(j% < 5)
+				if ins% AND sctot% > hsc%(i%)
+					A.name$ = drs$ : A.score% = sctot%
+					ins% = 0
+				else
+					A.name$ = hscname$(i%) : A.score% = hsc%(i%)
+					i% = i% + 1
+				endif
+				append : j% = j% + 1
+			endwh
+			close
+		endif
+	endif
+	
+	showsc:
+ENDP
+
+PROC showsc:
+	local i%, j%, k%, ins%
+
+	dinit
+	dtext "", "Pipe3a Highscore", 2
+	dtext "", " "
+	i% = 1 : j% = 1 : ins% = 1
+	while(j% < 6)
+		if ins% AND sctot% > hsc%(i%)
+			dtext gen$(j%,5)+"   *** Current game ***",gen$(sctot%,-10)
+			ins% = 0 : k% = k% + 1
+		else
+			if hscname$(i%) <> ""
+				dtext gen$(j%,5)+"   "+hscname$(i%),gen$(hsc%(i%),-10)
+				k% = k% + 1
+			endif : i% = i% + 1
+		endif : j% = j% + 1
+	endwh
+	if k% = 0 : dtext "", "*** No highscore yet ***" : endif
+	dialog
+ENDP
+
+PROC initlev:
+	local i%, j%, k%, w%
+
+	i% = 0
+	while (i% < flen%)
+		pokeb field%+i%, empty%
+		i% = i% + 1
+	endwh
+
+	rem *** place the artifacts ***
+	randomize int(second)
+	i% = level% and 7
+	while(i% > 0)
+		j% = field% + int(rnd * flen%)
+		if(peekb(j%) = empty%)
+			i% = i% - 1
+			pokeb j%, 80 + rnd * 8
+		endif
+	endwh
+
+	rem *** place the source ***
+	while(1)
+		sourcex% = 1 + int(rnd * (width%-2))
+		sourcey% = 1 + int(rnd * (height%-2))
+		j% = field% + sourcey%*width%+sourcex%
+		if(peekb(j%) = empty% and peekb(j%+1) = empty%)
+			pokeb j%, source% : break
+		endif
+	endwh
+	flowdir% = 4
+	
+	rem *** and now draw the field ***
+	ggrey 2 : gcls : ggrey 0
+	drawfld:
+	
+	gat 4,0 : gxborder 1, $201, 32, height%*16
+	gat offset%+16*width%+4,0 : gxborder 1, $201, 32, height%*16
+	drawp:(crs%,posx%,posy%,0)
+
+	rem *** buid the magazin ***
+	i% = 0
+	while(i% < 8)
+		j% = getp:
+		pokeb field%+flen%+i%, j%
+		drawp:(j%, -1, i%, 3)
+		i% = i% + 1
+	endwh
+	mgidx% = 7
+
+	rem *** draw the status fields ***
+	i% = 0
+	scmin% = 2*level%+1 : sccur% = 0 : scbon% = 0
+
+	while( i% < 6 )
+		gat 2*offset% + width% * 16 + 4, i% * 27
+		gxborder 1,$201, scorew%-8,25
+		pscore:(i%+1, 0) : i% = i% + 1
+	endwh
+	
+ENDP
+
+PROC drawfld:
+	local i%, j%, k%, w%
+	
+	k% = 0 : i% = 0 : j% = 0
+	while(k% < flen%)
+		w% = peekb(field% + k%)
+		drawp:(w%, i%, j%, 3)
+		i% = i% + 1 : k% = k% + 1
+		if(i% = width%)
+			i% = 0 : j% = j% + 1
+		endif
+	endwh
+ENDP
+
+rem *** change status line row% by amount d% ***
+PROC pscore:(row%,d%)
+	local txt$(30)
+
+	gat 2*offset% + width% * 16 + 16, (row%-1) * 27 + 18
+	vector row%
+		cur, bon, tot, ren, hig, lev
+	endv
+	cur:: sccur% = sccur%+d% : txt$="Current: "+gen$(sccur%,7) : goto drsc
+	bon:: scbon% = scbon%+d% : txt$="Bonus: "+gen$(scbon%,7) : goto drsc
+	tot:: sctot% = sctot%+d% : txt$="Score: "+gen$(sctot%,7) : goto drsc
+	ren:: scmin% = scmin%+d% : if(scmin% < 0) : return : endif : txt$="Minimum: "+gen$(scmin%,7) : goto drsc
+	hig:: txt$="Hiscore: "+gen$(hsc%(1),7) : goto drsc
+	lev:: txt$="Level: "+gen$(level%+1,7)
+  drsc::
+	gprintb txt$, scorew%-32, 3
+ENDP
+
+rem *** generate a new piece ***
+PROC getp:
+	local i%, idx%
+	rem *** rnd is not very equally distributed ***
+	do
+		idx% = 1+int(rnd*7) : i% = 1
+		while(occ%(idx%) - occ%(i%) < 2)
+			i% = i% + 1
+			if i% > 7 : break : endif
+		endwh
+	until i% > 7
+
+	occ%(idx%) = occ%(idx%)+1
+	idx% = (idx%-1)*8
+
+	rem *** the unidirectonal parts ***
+	if level% > 7 AND idx% < 48 AND rnd < 0.3
+		if rnd > .5 : idx% = idx% + 6 : else : idx% = idx% + 7 : endif
+	endif
+	
+	return idx%
+ENDP
+
+rem *** draw piece idx% at x%,y%, for x% < 0 in the magazin ***
+PROC drawp:(idx%,x%,y%,mode%)
+	if(x% >= 0)
+		gat 16*x%+offset%, 16*y%
+	else
+		gat 12, 18*y%+10
+	endif
+	gcopy bmapid%, 16*(idx% AND 7), 16*(idx%/8),16,16,mode%
+ENDP
+
+rem *** take a piece from  the magazin and place it at the current position ***
+PROC setp:
+        local b%, c%, w%, j%
+	
+	j% = field% + posy% * width% + posx%
+	w% = peekb(field%+flen%+mgidx%)
+	b% = peekb(j%)
+	if(b% <> empty%)
+                c%=b% and 7
+                if(b%>48 or (c%>0 and c%<6))
+			beep 5,300: return
+		else
+			pscore:(2,-20)
+		endif
+	endif
+	drawp:(w%, posx%,posy%, 3)
+	pokeb j%, w%
+	gscroll 0, 18, 12, 10, 16, 126
+	w% = getp:
+	pokeb field%+flen%+mgidx%, w%
+	drawp:(w%, -1, 0, 3)
+	mgidx% = (mgidx%-1) and 7
+	drawp:(crs%, posx%, posy%, 0)
+ENDP
+
+rem *** remove the unused pieces ***
+PROC remrest:
+	local w%, v%, i%, j%, k%(6)
+
+	rem *** remove not filled stones ***
+	while(j% < height%)
+		i% = 0
+		while(i% < width%)
+			w% = peekb(field% + j%*width% + i%)
+			v% = w% AND 7
+			if (v% = 0 and w% < 56) or ((v% = 6 or v% = 7) and w% < 48)
+				pscore:(2, -10)
+			endif
+			i% = i% + 1
+		endwh
+		j% = j% + 1
+	endwh
+	while testevent : getevent k%() : endwh
+	get
+ENDP
+
+rem *** handle a keypress event ***
+PROC dokey:(ky%):
+	local i%, j%, r%, c%, w%, k%
+
+	k% = ky%
+	if(k% > 255 AND k% < 260)
+		w% = peekb(field% + posy%*width%+posx%)
+		r% = w% / 8 : c% = w% AND 7
+		if fillgr% and r%<10 and ((c%>0 and c%<6) or (r%>7 and c%=0))
+			if r% > 6 : r% = 6 : endif
+			drawp:(r%*8, posx%, posy%, 3)
+			ggrey 1 : drawp:(w%, posx%, posy%, 3) : ggrey 0
+		else
+			drawp:(w%, posx%, posy%, 3)
+		endif
+		
+		vector k% - 255
+			doup,dodown, doright, doleft
+		endv
+		doup::    posy% = posy% - 1 : if(posy% < 0) : posy% = height%-1 : endif : goto dodraw
+		dodown::  posy% = posy% + 1 : if(posy% > height%-1) : posy% = 0 : endif : goto dodraw
+		doright:: posx% = posx% + 1 : if(posx% > width%-1)  : posx% = 0 : endif : goto dodraw
+		doleft::  posx% = posx% - 1 : if(posx% < 0) : posx% = width% -1 : endif
+		dodraw::  drawp:(crs%, posx%, posy%, 0)
+	endif
+	if(k% = 32 or k% = 13) : setp: : endif
+	if(k% = 27)
+		while(flowing:) : pause 2 : endwh
+		remrest: : return 0
+	endif
+	if k% = 290 : rem Menu
+		minit
+		mcard "Pipe3a", "Show highscore", %s, "Version", %v, "Exit", %x
+		k% = menu + $200
+	endif
+	if k% = $267 : fillgr% = 1 - fillgr% : endif
+	if k% = $278 : stop : endif
+	if k% = $273 : showsc: : endif
+	if k% = $276
+		dinit
+		dtext "", "Pipe3a - Version  1.00", 2
+		dtext "", "Copyright ¸ 1994 by Rudolf K”nig", 2
+		dtext "", "Pipe3a has to be distributed under the", 2
+		dtext "", "GNU Copyleft (Version 2)", 2
+		dialog
+	endif
+	return 1
+
+ENDP
+
+rem *** handle all events for a level ***
+PROC playlev:
+	local k%(6), t%, tpc%
+
+	totime% = 0 : tpc% = asc(mid$(tpcl$,(level% and 7) + 1,1)) * 7
+	while 1
+		pause 1
+
+		rem *** do timout ***
+		t% = t% + 1
+		if t% > tpc%
+			t% = 1
+			if(totime% < 150)
+				timeout:
+			else
+				tpc% = 200
+				if flowing: = 0
+					remrest:
+					if scmin% > 0 : return 1 : else : return 0 : endif
+				endif
+			endif
+		endif
+		
+		while testevent
+			getevent k%()
+			if k%(1) and $400
+				if k%(1) = $402 : rem background
+					while 1
+						getevent k%()
+						if k%(1) = $401 : break : endif
+						if k%(1) = $404 : stop : endif
+					endwh
+				endif
+				break
+			endif
+		  
+			if dokey:(k%(1)) = 0
+				if scmin% > 0 : return 1 : else : return 0 : endif
+			endif
+		endwh
+	endwh
+ENDP
+
+rem *** fill the pipe a little more ***
+PROC flowing:
+	local row%, col%, r%, j%, k%, x%, y%, p%
+	local d%
+	
+	r% = 1
+	x% = sourcex% : y% = sourcey%
+	j% = field% + y% * width% + x%
+	p% = peekb(j%)
+	if(p% = 62) : p% = 63 : sourcex% = sourcex% + 1 : goto drawit : endif
+	if(p% = 55) : p% = 62 : goto drawit : endif
+	if(p% = 54) : p% = 55 : goto drawit : endif
+
+        if(p% = empty%) or (p% >= 80) : return 0 : endif
+
+	row% = p% / 8 : col% = p% and 7
+	vector col%
+		c1,c2,c3,c4
+	endv
+
+	if row% = 6 and (flowdir% = 1 or flowdir% = 3) : row% = 7 : endif
+	d% = asc(mid$(drs$,row%*5+flowdir%,1))-48
+	if d% = 0 : return 0 : endif
+	k% = asc(mid$(drs$,row%*5+5,1))-48
+	if col%
+		if (k% = flowdir% AND col% = 7) OR (k% <> flowdir% AND col% = 6)
+			return 0
+		endif
+		pscore:(2, 10)
+	endif
+	if k% = flowdir% : p% = row%*8+1 : else : p% = row%*8+3 : endif
+	flowdir% = d% 
+	goto drawit
+	c1::p% = p% + 1 : goto drawit
+	c2::p% = p% + 3 : goto c5
+	c3::p% = p% + 1 : goto drawit
+	c4::p% = p% + 1
+	c5::
+		pscore:(4, -1) : pscore:(1, 10)
+		if(row% > 7) : pscore:(2, 40) : endif
+		if(row% = 6) : p% = 72 : endif
+		if(row% = 7) : p% = 64 : endif
+		if(flowdir% = 3) : sourcey% = sourcey% - 1 : if(sourcey% < 0) : r% = 0 : endif : endif
+		if(flowdir% = 4) : sourcex% = sourcex% + 1 : if(sourcey% > width%) : r% = 0 : endif : endif
+		if(flowdir% = 1) : sourcey% = sourcey% + 1 : if(sourcey% > height%) : r% = 0 : endif : endif
+		if(flowdir% = 2) : sourcex% = sourcex% - 1 : if(sourcex% < 0) : r% = 0 : endif : endif
+
+	drawit::
+	if(fillgr%)
+		ggrey 1 : drawp:(p%,x%,y%,3) : ggrey 0
+	else
+		drawp:(p%,x%,y%,3)
+	endif
+	pokeb j%, p%
+
+	return r%
+ENDP
+
+rem *** draw the timeout bar ***
+PROC timeout:
+	gat offset%+width%*16+8, 5 + totime%
+	glineby 24,0
+	totime% = totime% + 1
+ENDP

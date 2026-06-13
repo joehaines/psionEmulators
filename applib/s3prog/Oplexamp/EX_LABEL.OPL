@@ -1,0 +1,42 @@
+PROC label:
+LOCAL a%,b%,c%,d%,s$(128),s&,i$(17,255)
+s$="\dat\*.dbf"
+dINIT "Insert new field"
+dFILE s$,"Data file",0
+dLONG s&,"Break at line (1-16)",1,16
+IF DIALOG
+OPEN s$,A,a$,b$,c$,d$,e$,f$,g$,h$,i$,j$,k$,l$,m$,n$,o$,p$,q$
+	c%=COUNT :a%=1
+	WHILE a%<=c%
+		AT 1,1 :PRINT "Entry",a%,"of",c%,
+		IF A.q$="" REM Entry (hopefully) not too long
+			i$(1)=A.a$ :i$(2)=A.b$ :i$(3)=A.c$ :i$(4)=A.d$
+			i$(5)=A.e$ :i$(6)=A.f$ :i$(7)=A.g$ :i$(8)=A.h$
+			i$(9)=A.i$ :i$(10)=A.j$ :i$(11)=A.k$ :i$(12)=A.l$
+			i$(13)=A.m$ :i$(14)=A.n$ :i$(15)=A.o$ :i$(16)=A.p$
+			d%=0 :b%=0
+			WHILE d%<s&+b% REM find field to break at
+				d%=d%+1
+				IF LEFT$(i$(d%),1)=CHR$(20) REM line>255...
+					b%=b%+1 REM ...so it's 2 fields
+				ENDIF
+			ENDWH
+			b%=17
+			WHILE b%>d% REM copy the fields down
+				i$(b%)=i$(b%-1) :b%=b%-1 
+			ENDWH
+			i$(d%)="" REM and make an empty field
+			A.a$=i$(1) :A.b$=i$(2) :A.c$=i$(3) :A.d$=i$(4)
+			A.e$=i$(5) :A.f$=i$(6) :A.g$=i$(7) :A.h$=i$(8)
+			A.i$=i$(9) :A.j$=i$(10) :A.k$=i$(11) :A.l$=i$(12)
+			A.m$=i$(13) :A.n$=i$(14) :A.o$=i$(15) :A.p$=i$(16)
+			A.q$=i$(17)
+		ELSE
+			PRINT "has too many fields"
+			PRINT "Press a key..." :GET
+		ENDIF
+		UPDATE :FIRST
+		a%=a%+1
+	ENDWH :CLOSE
+ENDIF
+ENDP

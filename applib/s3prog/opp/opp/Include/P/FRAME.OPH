@@ -1,0 +1,30 @@
+#define P_FRAME_OPH
+
+#ifndef P_CRC_OPH
+#include <p\crc>
+#endif
+
+#ifndef P_LLMAC_OPH
+#include <p\llmac>
+#endif
+
+STRUCT P_FRMCB
+/* Transmit stuff */
+	tcrc#(SIZEOF(P_CRC))
+	pbuf%
+	pend%
+	tcntl#
+	tstat#
+/* receive stuff */
+	rlen%
+	rstat#
+	rtyp#
+	rseq#
+	rfull#
+	rcrc#(SIZEOF(P_CRC))
+	dfrm#(SIZEOF(P_FRAME))
+	numfrm%
+	prfin%
+	prfout%
+	rfrm#(OPPEVAL(SIZEOF(P_FRAME)*MAXFRM))
+ENDS

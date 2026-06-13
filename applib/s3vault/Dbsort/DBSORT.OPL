@@ -1,0 +1,232 @@
+rem DBSORT - Database sort 1.0
+rem Copyright 1993 Michael Geary - All rights reserved
+
+proc dbsort:
+	global info%(4), maxrec%, r%(2000), s%(2000)
+	local off%(6), total%, time0&, from$(128), to$(128)
+	maxrec% = 2000 : rem should match r% and s% array sizes
+	trap cache 1500, 1500
+	font 7, 0
+	from$ = "\dat\*.dbf"
+	to$ = "\dat\"
+	do
+		dinit "Sort database file"
+		dfile from$, "Input file", 64
+		dfile to$, "Output file", 1+2+64
+		if dialog = 0
+			stop
+		endif
+		to$ = parse$( to$, from$, off%() )
+	until okwrite%:( from$, to$ )
+	trap mkdir left$( to$, off%(4)-1 )
+	time0& = time&:
+	openr from$, a, a$, b$
+	trap delete to$
+	create to$, b, a$, b$, c$, d$, e$, f$, g$, h$, i$, j$, k$, l$, m$, n$, o$, p$, q$, r$, s$, t$, u$, v$, w$, x$, y$, z$, aa$, bb$, cc$, dd$, ee$, ff$
+	odbinfo info%()
+	use a
+	print "Input file: " + from$
+	print "Output file: " + to$
+	if dsccopy%:( 1, 2 ) < 0
+		fatal:( "Error writing file!" )
+	endif
+	total% = count
+	if total% = 0
+		fatal:( "File is empty!" )
+	endif
+	print "Reading key fields"
+	rdkeys:( total% )
+	print "Sorting " + num$(total%,99) + " records"
+	qsort:( 1, total% )
+	print "Copying records"
+	cpyall:( total% )
+	use b
+	close
+	print "All done! " + num$(time&:-time0&,99) + " seconds elapsed"
+	beep 4,400
+	beep 4,350
+	beep 4,300
+	get
+endp
+
+proc rdkeys:( total% )
+	local i%, keys&, l1%, l2%, m%, t$(255)
+	keys& = 0
+	i% = 0
+	first
+	while not eof
+		i% = i% + 1
+		if i% > maxrec%
+			fatal:( "Too many records!" )
+		endif
+		r%(i%) = i%
+		l1% = len(a.a$)
+		l2% = len(a.b$)
+		keys& = keys& + l1% + l2% + 2 + 2
+		m% = alloc( l1% + l2% + 2 )
+		if m% = 0
+			fatal:( "Out of memory for keys!" )
+		endif
+		s%(i%) = m%
+		t$ = upper$(a.a$)
+		memcpy:( uadd(addr(t$),1), m%, l1% )
+		m% = uadd( m%, l1% )
+		pokeb m%, 1
+		m% = uadd( m%, 1 )
+		t$ = upper$(a.b$)
+		memcpy:( uadd(addr(t$),1), m%, l2% )
+		m% = uadd( m%, l2% )
+		pokeb m%, 0
+		next
+	endwh
+	if i% <> total%
+		fatal:( "File contains wrong number of records!" )
+	endif
+	print "Used " + num$(keys&,99) + " bytes for key fields"
+endp
+
+proc cpyall:( total% )
+	local i%, ok%
+	i% = 1
+	while i% <= total%
+		ok% = reccopy%:( 1, r%(i%), 2 )
+		if ok% < 0
+			fatal:( "Error writing file!" )
+		endif
+		i% = i% + 1
+	endwh
+endp
+
+proc qsort:( left%, right% )
+	local i%, last%
+	if left% < right%
+		swap:( left%, (left%+right%)/2 )
+		last% = left%
+		i% = left% + 1
+		while i% <= right%
+			if strcmp%:( s%(r%(i%)), s%(r%(left%)) ) < 0
+				last% = last% + 1
+				swap:( last%, i% )
+			endif
+			i% = i% + 1
+		endwh
+		swap:( left%, last% )
+		qsort:( left%, last%-1 )
+		qsort:( last%+1, right% )
+	endif
+endp
+
+proc swap:( i%, j% )
+	local t%
+	t% = r%(i%)
+	r%(i%) = r%(j%)
+	r%(j%) = t%
+endp
+
+proc dsccopy%:( fsrc%, fdest% )
+	local len%
+	len% = dscread%:( fsrc% )
+	if len% <= 0
+		return len%
+	endif
+	memcpy:( peekw(uadd(info%(fsrc%),8)), peekw(uadd(info%(fdest%),8)), len%+2 )
+	return dscwrt%:( fdest%, len% )
+endp
+
+proc dscread%:( file% )
+	local ax%, bx%, cx%, dx%, si%, di%
+	bx% = peekw(info%(file%))
+	ax% = $1700
+	if os( $D8, addr(ax%) ) and 1
+		return ax% or $FF00
+	endif
+	return ax%
+endp
+
+proc dscwrt%:( file%, len% )
+	local ax%, bx%, cx%, dx%, si%, di%
+	cx% = len%
+	bx% = peekw(info%(file%))
+	ax% = $1800
+	if os( $D8, addr(ax%) ) and 1
+		return ax% or $FF00
+	endif
+	return 0
+endp
+
+proc reccopy%:( fsrc%, recno%, fdest% )
+	local len%, offset%, pbuf%, psrc%
+	position recno%
+	pbuf% = peekw(uadd(info%(fsrc%),8))
+	offset% = peekw(uadd(info%(fsrc%),2))
+	psrc% = uadd(pbuf%,offset%)
+	len% = peekw(psrc%) and $0FFF
+	memcpy:( psrc%, peekw(uadd(info%(fdest%),8)), len%+2 )
+	return recapp%:( fdest%, len% )
+endp
+
+proc recapp%:( file%, len% )
+	local ax%, bx%, cx%, dx%, si%, di%
+	cx% = len%
+	bx% = peekw(info%(file%))
+	ax% = $1100
+	if os( $D8, addr(ax%) ) and 1
+		return ax% or $FF00
+	endif
+	return 0
+endp
+
+proc memcpy:( psrc%, pdest%, len% )
+	call( $A1, 0, len%, 0, psrc%, pdest% )
+endp
+
+proc strcmp%:( s1%, s2% )
+	local ax%, bx%, cx%, dx%, si%, di%
+	local f%
+	si% = s1%
+	di% = s2%
+	f% = os( $AF, addr(ax%) )
+	if f% and $0040
+		return 0
+	elseif ( ( f% * 8 ) and $0400 ) = ( f% and $0400 )
+		return 1
+	else
+		return -1
+	endif
+endp
+
+proc time&:
+	return int(hour)*3600 + minute*60 + second
+endp
+
+proc okwrite%:( from$, to$ )
+	if from$ = to$
+		errdlg:( "Input and output files cannot be the same" )
+		return 0
+	endif
+	if exist(to$)
+		dinit "File already exists: overwrite?"
+		dbuttons "No", %N, "Yes", %Y
+		if dialog <> %y
+			return 0
+		endif
+	endif
+	return -1
+endp
+
+proc errdlg:( msg$ )
+	dinit msg$
+	dbuttons "Continue", 27
+	dialog
+endp
+
+proc fatal:( msg$ )
+	print msg$
+	beep 4,300
+	beep 4,400
+	beep 4,300
+	beep 4,400
+	get
+	stop
+endp
+

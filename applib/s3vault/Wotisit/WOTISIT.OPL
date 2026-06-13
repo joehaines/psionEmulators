@@ -1,0 +1,1008 @@
+PROC start:
+LOCAL vers
+vers=5.06
+CLS
+gMOVE 40,10
+gLINEBY 160,0
+gLINEBY 0,-5
+gLINEBY -5,0
+gLINEBY 0,55
+gLINEBY -150,0
+gLINEBY 0,-55
+gLINEBY -5,0
+gLINEBY 0,5
+gAT 45,25:gFONT 2
+gPRINT "       Wotisit"
+gAT 45,35
+gPRINT "           by Keith Pirie"
+gAT 45,45
+gPRINT "             Version ",vers
+gAT 45,55
+gPRINT "                   @1994"
+PAUSE -100
+CLS
+wot:
+ENDP
+
+PROC wot:
+GLOBAL wrd$(20),answr$(20),ans$(20),gs$(1)
+GLOBAL length%,sofar%,cor%,title$(45)
+LOCAL y$(1)
+cor%=0
+choose:
+CLS
+PRINT title$
+makeans:
+display:
+letter:
+ENDP
+
+PROC letter:
+display:
+sofar%=1
+next::
+AT 1,5
+PRINT "Guess a Letter > ";
+INPUT gs$
+AT 1,7
+PRINT "Guesses so far > "
+AT sofar%,8
+PRINT gs$
+sofar%=sofar%+1
+check:
+GOTO next::
+ENDP
+
+PROC check:
+LOCAL chk%,try$(2),temp1$(20),temp2$(20)
+LOCAL flg%
+chk%=1
+flg%=0
+DO
+try$=mid$(wrd$,chk%,1)
+IF gs$=try$
+GOTO yes::
+ENDIF
+chk%=chk%+1
+nxtcheck::
+UNTIL chk%-1= length%
+flg%=0
+GOTO no::
+back::
+GOTO out::
+yes::
+IF flg%=0
+cor%=cor%+1
+ENDIF
+flg%=1
+GIPRINT "GOOD GUESS",0
+BEEP 4,200
+GIPRINT "GOOD GUESS",2
+BEEP 4,300
+GIPRINT "GOOD GUESS",3
+BEEP 4,400
+GIPRINT "GOOD GUESS",1
+BEEP 4,500
+GIPRINT "GOOD GUESS",0
+BEEP 4,200
+GIPRINT "GOOD GUESS",2
+BEEP 4,300
+GIPRINT "GOOD GUESS",3
+BEEP 4,400
+GIPRINT "GOOD GUESS",1
+BEEP 4,500
+GIPRINT""
+
+temp1$=""
+temp2$=""
+AT chk%,3
+PRINT try$
+temp1$=left$(ans$,chk%-1)
+temp2$=right$(ans$,(length%-(chk%)))
+ans$=temp1$+gs$+temp2$
+try$=""
+chk%=chk%+1
+
+IF ans$=wrd$
+finished:
+ELSE  GOTO nxtcheck::
+ENDIF
+
+GOTO back::
+
+no::
+BEEP 4,600
+GOTO back::
+out::
+ENDP
+
+PROC finished:
+LOCAL y$(1),pr%,p%,result%
+CLS
+result%=(sofar%-1)-cor%
+
+IF result%<2
+PRINT "Well done."
+ELSEIF result% >=2 and result% <4
+PRINT "Not bad."
+ELSEIF result% >=4 and result% <6
+PRINT "You could do better."
+ELSEIF result% >=6 and result% <9
+PRINT "Come on that's rubbish."
+ELSEIF result% >=9
+PRINT "Why did you bother?"
+ENDIF
+
+PRINT "The word was ";ans$;"."
+PRINT "You solved it with"
+
+IF result%=1
+PRINT result%;" mistake."
+ELSE
+PRINT result%;" mistakes."
+ENDIF
+
+BEEP 16,300
+BEEP 16,600
+BEEP 16,300
+PRINT
+
+PAUSE 50
+dINIT "Wotisit"
+dCHOICE pr%,"Another?","Yes,No"
+p%=DIALOG
+p%=pr%
+
+IF p%=2
+	STOP
+ENDIF
+
+CLS
+wot:
+ENDP
+
+PROC makeans:
+LOCAL count%
+count% =0
+ans$=""
+DO
+ans$=ans$+"*"
+count%=count%+1
+UNTIL length%=count%
+ENDP
+
+PROC display:
+AT 1,3
+PRINT ans$
+ENDP
+
+
+PROC scot:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="glasgow"
+word$(2)="aberdeen"
+word$(3)="dundee"
+word$(4)="montrose"
+word$(5)="edinburgh"
+word$(6)="inverness"
+word$(7)="dunblane"
+word$(8)="perth"
+word$(9)="hamilton"
+word$(10)="elgin"
+word$(11)="kelso"
+word$(12)="lauder"
+word$(13)="thurso"
+word$(14)="oban"
+word$(15)="wick"
+word$(16)="dumfries"
+word$(17)="lerwick"
+word$(18)="banff"
+word$(19)="banchory"
+word$(20)="stirling"
+word$(21)="stonehaven"
+word$(22)="peterhead"
+word$(23)="motherwell"
+word$(24)="ayr"
+word$(25)="kilmarnock"
+word$(26)="greenock"
+word$(27)="paisley"
+word$(28)="buckie"
+word$(29)="berwick"
+word$(30)="callander"
+word$(31)="tobermory"
+word$(32)="stornoway"
+word$(33)="largs"
+word$(34)="gretna"
+word$(35)="rosyth"
+word$(36)="glenrothes"
+word$(37)="cupar"
+word$(38)="scone"
+word$(39)="doune"
+word$(40)="tarbert"
+word$(41)="aboyne"
+word$(42)="braemar"
+word$(43)="kirkcaldy"
+word$(44)="aviemore"
+word$(45)="melrose"
+word$(46)="galashiels"
+word$(47)="brechin"
+word$(48)="arbroath"
+word$(49)="bathgate"
+word$(50)="livingston"
+wrd$=word$(num)
+title$="             SCOTTISH TOWNS"
+length%=len (wrd$)
+ENDP
+
+PROC eng:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="london"
+word$(2)="birmingham"
+word$(3)="manchester"
+word$(4)="newcastle"
+word$(5)="gloucester"
+word$(6)="crewe"
+word$(7)="sunderland"
+word$(8)="pentrith"
+word$(9)="carlisle"
+word$(10)="liverpool"
+word$(11)="southport"
+word$(12)="portsmouth"
+word$(13)="coventry"
+word$(14)="penzance"
+word$(15)="durham"
+word$(16)="stafford"
+word$(17)="bath"
+word$(18)="truro"
+word$(19)="bognor"
+word$(20)="sheffield"
+word$(21)="bradford"
+word$(22)="leeds"
+word$(23)="york"
+word$(24)="oxford"
+word$(25)="cambridge"
+word$(26)="derby"
+word$(27)="norwich"
+word$(28)="dover"
+word$(29)="hull"
+word$(30)="grimsby"
+word$(31)="blackpool"
+word$(32)="stoke"
+word$(33)="kendal"
+word$(34)="ipswich"
+word$(35)="brighton"
+word$(36)="bristol"
+word$(37)="chester"
+word$(38)="droitwich"
+word$(39)="lancaster"
+word$(40)="preston"
+word$(41)="maidenhead"
+word$(42)="maidstone"
+word$(43)="reading"
+word$(44)="leicester"
+word$(45)="chelmsford"
+word$(46)="gillingham"
+word$(47)="warwick"
+word$(48)="rugby"
+word$(49)="nottingham"
+word$(50)="rochdale"
+wrd$=word$(num)
+title$="             ENGLISH TOWNS"
+length%=len (wrd$)
+ENDP
+
+PROC sport:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="darts"
+word$(2)="rugby"
+word$(3)="football"
+word$(4)="billiards"
+word$(5)="basketball"
+word$(6)="netball"
+word$(7)="hockey"
+word$(8)="archery"
+word$(9)="athletics"
+word$(10)="discus"
+word$(11)="cycling"
+word$(12)="yachting"
+word$(13)="swimming"
+word$(14)="sailing"
+word$(15)="lacrosse"
+word$(16)="baseball"
+word$(17)="boxing"
+word$(18)="wrestling"
+word$(19)="fencing"
+word$(20)="judo"
+word$(21)="karate"
+word$(22)="golf"
+word$(23)="rallying"
+word$(24)="javelin"
+word$(25)="shinty"
+word$(26)="badminton"
+word$(27)="tennis"
+word$(28)="pole vault"
+word$(29)="high jump"
+word$(30)="surfing"
+word$(31)="long jump"
+word$(32)="shot putt"
+word$(33)="marathon"
+word$(34)="jogging"
+word$(35)="aerobics"
+word$(36)="squash"
+word$(37)="diving"
+word$(38)="polo"
+word$(39)="water polo"
+word$(40)="riding"
+word$(41)="skating"
+word$(42)="ice hockey"
+word$(43)="curling"
+word$(44)="bowls"
+word$(45)="snooker"
+word$(46)="cricket"
+word$(47)="volleyball"
+word$(48)="croquet"
+word$(49)="shooting"
+word$(50)="skateboard"
+wrd$=word$(num)
+title$="                 SPORTS"
+length%=len (wrd$)
+ENDP
+
+PROC spanish:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="casa"
+word$(2)="dia"
+word$(3)="beuno"
+word$(4)="donde"
+word$(5)="hablar"
+word$(6)="lunes"
+word$(7)="quatro"
+word$(8)="quarto"
+word$(9)="noches"
+word$(10)="cinco"
+word$(11)="enrero"
+word$(12)="porque"
+word$(13)="pues"
+word$(14)="hasta"
+word$(15)="playa"
+word$(16)="habitacion"
+word$(17)="farmacia"
+word$(18)="coche"
+word$(19)="muchas"
+word$(20)="calor"
+word$(21)="frio"
+word$(22)="beber"
+word$(23)="policia"
+word$(24)="domingo"
+word$(25)="carne"
+word$(26)="naranja"
+word$(27)="platano"
+word$(28)="huevo"
+word$(29)="idioma"
+word$(30)="espanol"
+word$(31)="todo"
+word$(32)="mundo"
+word$(33)="el"
+word$(34)="la"
+word$(35)="si"
+word$(36)="no"
+word$(37)="douche"
+word$(38)="desayuno"
+word$(39)="miercoles"
+word$(40)="julio"
+word$(41)="ano"
+word$(42)="cerveza"
+word$(43)="vino"
+word$(44)="sangria"
+word$(45)="alemanes"
+word$(46)="escoces"
+word$(47)="senor"
+word$(48)="senora"
+word$(49)="senorina"
+word$(50)="mujer"
+wrd$=word$(num)
+title$="              SPANISH WORDS"
+length%=len (wrd$)
+ENDP
+
+PROC animals:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="bear"
+word$(2)="dog"
+word$(3)="cat"
+word$(4)="lion"
+word$(5)="tiger"
+word$(6)="elephant"
+word$(7)="giraffe"
+word$(8)="whale"
+word$(9)="horse"
+word$(10)="lynx"
+word$(11)="leopard"
+word$(12)="puma"
+word$(13)="goat"
+word$(14)="pig"
+word$(15)="wolf"
+word$(16)="llama"
+word$(17)="camel"
+word$(18)="hyena"
+word$(19)="monkey"
+word$(20)="ape"
+word$(21)="babboon"
+word$(22)="gorilla"
+word$(23)="raccoon"
+word$(24)="possum"
+word$(25)="sloth"
+word$(26)="skunk"
+word$(27)="rhino"
+word$(28)="hippo"
+word$(29)="kangaroo"
+word$(30)="wallaby"
+word$(31)="platypus"
+word$(32)="snake"
+word$(33)="cobra"
+word$(34)="koala"
+word$(35)="zebra"
+word$(36)="sheep"
+word$(37)="squirrel"
+word$(38)="otter"
+word$(39)="martin"
+word$(40)="dingo"
+word$(41)="gazelle"
+word$(42)="eland"
+word$(43)="walrus"
+word$(44)="seal"
+word$(45)="frog"
+word$(46)="toad"
+word$(47)="hedgehog"
+word$(48)="badger"
+word$(49)="fox"
+word$(50)="bat"
+wrd$=word$(num)
+title$="               ANIMALS"
+length%=len (wrd$)
+ENDP
+
+PROC cars:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="metro"
+word$(2)="mini"
+word$(3)="cavalier"
+word$(4)="maestro"
+word$(5)="rover"
+word$(6)="vauxhall"
+word$(7)="ford"
+word$(8)="escort"
+word$(9)="fiesta"
+word$(10)="sierra"
+word$(11)="mondeo"
+word$(12)="nova"
+word$(13)="astra"
+word$(14)="citroen"
+word$(15)="lada"
+word$(16)="samara"
+word$(17)="riva"
+word$(18)="renault"
+word$(19)="clio"
+word$(20)="laguna"
+word$(21)="espace"
+word$(22)="colt"
+word$(23)="mitsibushi"
+word$(24)="galant"
+word$(25)="subaru"
+word$(26)="justy"
+word$(27)="honda"
+word$(28)="civic"
+word$(29)="accord"
+word$(30)="fiat"
+word$(31)="tempra"
+word$(32)="tipo"
+word$(33)="alfa"
+word$(34)="carlton"
+word$(35)="senator"
+word$(36)="omega"
+word$(37)="granada"
+word$(38)="morris"
+word$(39)="austin"
+word$(40)="kia"
+word$(41)="pride"
+word$(42)="mercedes"
+word$(43)="proton"
+word$(44)="hyundai"
+word$(45)="shogun"
+word$(46)="discovery"
+word$(47)="jaguar"
+word$(48)="daimler"
+word$(49)="uno"
+word$(50)="seat"
+wrd$=word$(num)
+title$="                  CARS"
+length%=len (wrd$)
+ENDP
+
+
+PROC birds:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="sparrow"
+word$(2)="blackbird"
+word$(3)="robin"
+word$(4)="starling"
+word$(5)="crow"
+word$(6)="rook"
+word$(7)="seagull"
+word$(8)="peewit"
+word$(9)="pheasant"
+word$(10)="partridge"
+word$(11)="eagle"
+word$(12)="owl"
+word$(13)="heron"
+word$(14)="buzzard"
+word$(15)="kestrel"
+word$(16)="hawk"
+word$(17)="duck"
+word$(18)="cormorant"
+word$(19)="shag"
+word$(20)="swallow"
+word$(21)="swift"
+word$(22)="lapwing"
+word$(23)="curlew"
+word$(24)="jackdaw"
+word$(25)="waxwing"
+word$(26)="kingfisher"
+word$(27)="wren"
+word$(28)="pigeon"
+word$(29)="dove"
+word$(30)="dipper"
+word$(31)="kittiwake"
+word$(32)="puffin"
+word$(33)="coot"
+word$(34)="tern"
+word$(35)="skua"
+word$(36)="petrel"
+word$(37)="cuckoo"
+word$(38)="chicken"
+word$(39)="turkey"
+word$(40)="ptarmigan"
+word$(41)="lark"
+word$(42)="thrush"
+word$(43)="goose"
+word$(44)="martin"
+word$(45)="tit"
+word$(46)="warbler"
+word$(47)="hoopoe"
+word$(48)="bantam"
+word$(49)="capon"
+word$(50)="pippit"
+wrd$=word$(num)
+title$="                BIRDS"
+length%=len (wrd$)
+ENDP
+
+PROC computer:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="processor"
+word$(2)="terminal"
+word$(3)="compaq"
+word$(4)="intel"
+word$(5)="laser"
+word$(6)="printer"
+word$(7)="dot matrix"
+word$(8)="tandem"
+word$(9)="zenith"
+word$(10)="modem"
+word$(11)="handshake"
+word$(12)="graphics"
+word$(13)="interface"
+word$(14)="card"
+word$(15)="bus"
+word$(16)="port"
+word$(17)="sound card"
+word$(18)="video card"
+word$(19)="mouse"
+word$(20)="mouse mat"
+word$(21)="scanner"
+word$(22)="tablet"
+word$(23)="light gun"
+word$(24)="light pen"
+word$(25)="epson"
+word$(26)="proprint"
+word$(27)="ink jet"
+word$(28)="compatible"
+word$(29)="ribbon"
+word$(30)="floppy"
+word$(31)="megabyte"
+word$(32)="kilobyte"
+word$(33)="memory"
+word$(34)="device"
+word$(35)="on line"
+word$(36)="off line"
+word$(37)="technology"
+word$(38)="gateway"
+word$(39)="windows"
+word$(40)="microsoft"
+word$(41)="dos"
+word$(42)="data"
+word$(43)="array"
+word$(44)="variable"
+word$(45)="psion"
+word$(46)="ibm"
+word$(47)="icl"
+word$(48)="vdu"
+word$(49)="program"
+word$(50)="computer"
+wrd$=word$(num)
+title$="             COMPUTER WORLD"
+length%=len (wrd$)
+ENDP
+
+PROC country:
+LOCAL num,word$(50,10)
+num=int (rnd*50)+1
+word$(1)="scotland"
+word$(2)="england"
+word$(3)="ireland"
+word$(4)="wales"
+word$(5)="cuba"
+word$(6)="egypt"
+word$(7)="holland"
+word$(8)="germany"
+word$(9)="sweden"
+word$(10)="finland"
+word$(11)="norway"
+word$(12)="hungary"
+word$(13)="turkey"
+word$(14)="france"
+word$(15)="tunisia"
+word$(16)="algeria"
+word$(17)="portugal"
+word$(18)="italy"
+word$(19)="brazil"
+word$(20)="argentina"
+word$(21)="canada"
+word$(22)="america"
+word$(23)="denmark"
+word$(24)="russia"
+word$(25)="iceland"
+word$(26)="austria"
+word$(27)="australia"
+word$(28)="singapore"
+word$(29)="thialand"
+word$(30)="japan"
+word$(31)="china"
+word$(32)="india"
+word$(33)="tibet"
+word$(34)="angola"
+word$(35)="andorra"
+word$(36)="korea"
+word$(37)="arabia"
+word$(38)="romania"
+word$(39)="belgium"
+word$(40)="zaire"
+word$(41)="zimbabwe"
+word$(42)="kuwait"
+word$(43)="jamacia"
+word$(44)="pakistan"
+word$(45)="sumatra"
+word$(46)="gibralter"
+word$(47)="mexico"
+word$(48)="uraguay"
+word$(49)="paraguay"
+word$(50)="peru"
+wrd$=word$(num)
+title$="               COUNTRIES"
+length%=len (wrd$)
+ENDP
+
+PROC football:
+LOCAL num,word$(50,20)
+num=int (rnd*50)+1
+word$(1)="aberdeen"
+word$(2)="dundee utd"
+word$(3)="dundee"
+word$(4)="morton"
+word$(5)="rangers"
+word$(6)="celtic"
+word$(7)="st mirren"
+word$(8)="hearts"
+word$(9)="hibs"
+word$(10)="everton"
+word$(11)="liverpool"
+word$(12)="chelsea"
+word$(13)="southampton"
+word$(14)="portsmouth"
+word$(15)="manchester utd"
+word$(16)="dunfermline"
+word$(17)="st johnstone"
+word$(18)="birmingham city"
+word$(19)="blackpool"
+word$(20)="coventry city"
+word$(21)="partick thistle"
+word$(22)="newcastle utd"
+word$(23)="grimsby town"
+word$(24)="sunderland"
+word$(25)="derby county"
+word$(26)="swindon town"
+word$(27)="aston villa"
+word$(28)="west ham utd"
+word$(29)="ayr utd"
+word$(30)="queens park"
+word$(31)="backburn"
+word$(32)="preston north end"
+word$(33)="gillingham"
+word$(34)="cowdenbeath"
+word$(35)="stenhousemuir"
+word$(36)="berwick rangers"
+word$(37)="arbroath"
+word$(38)="brechin city"
+word$(39)="cardiff city"
+word$(40)="swansea city"
+word$(41)="watford"
+word$(42)="fulham"
+word$(43)="millwall"
+word$(44)="rochdale"
+word$(45)="notts forest"
+word$(46)="notts county"
+word$(47)="scunthorpe utd"
+word$(48)="raith rovers"
+word$(49)="stirling albion"
+word$(50)="carlisle utd"
+wrd$=word$(num)
+title$="         BRITISH FOOTBALL TEAMS"
+length%=len (wrd$)
+ENDP
+
+PROC ecity:
+LOCAL num,word$(50,20)
+num=int (rnd*50)+1
+word$(1)="amsterdam"
+word$(2)="barcelona"
+word$(3)="venice"
+word$(4)="paris"
+word$(5)="rome"
+word$(6)="oslo"
+word$(7)="munich"
+word$(8)="rotterdam"
+word$(9)="naples"
+word$(10)="milan"
+word$(11)="brussells"
+word$(12)="madrid"
+word$(13)="valencia"
+word$(14)="bruges"
+word$(15)="prague"
+word$(16)="sofia"
+word$(17)="moscow"
+word$(18)="gothenberg"
+word$(19)="ostend"
+word$(20)="dusseldorf"
+word$(21)="lisbon"
+word$(22)="helsinki"
+word$(23)="riga"
+word$(24)="nice"
+word$(25)="monaco"
+word$(26)="copenhagen"
+word$(27)="marsaille"
+word$(28)="stuttgart"
+word$(29)="kiev"
+word$(30)="saltzberg"
+word$(31)="st petersberg"
+word$(32)="faro"
+word$(33)="verona"
+word$(34)="florence"
+word$(35)="frankfurt"
+word$(36)="gdansk"
+word$(37)="geneva"
+word$(38)="antwerp"
+word$(39)="ghent"
+word$(40)="le havre"
+word$(41)="stockholm"
+word$(42)="bergen"
+word$(43)="berne"
+word$(44)="geneva"
+word$(45)="zurich"
+word$(46)="berlin"
+word$(47)="genoa"
+word$(48)="turin"
+word$(49)="bologna"
+word$(50)="eindhoven"
+wrd$=word$(num)
+title$="             EUROPEAN CITIES"
+length%=len (wrd$)
+ENDP
+
+PROC tv:
+LOCAL num,word$(50,20)
+num=int (rnd*50)+1
+word$(1)="coronation st"
+word$(2)="countdown"
+word$(3)="brookside"
+word$(4)="eastenders"
+word$(5)="news"
+word$(6)="panorama"
+word$(7)="the bill"
+word$(8)="pebble mill"
+word$(9)="the flintstones"
+word$(10)="tommorrows world"
+word$(11)="world of sport"
+word$(12)="home and away"
+word$(13)="neighbours"
+word$(14)="this is your life"
+word$(15)="young doctors"
+word$(16)="wildlife on one"
+word$(17)="blue peter"
+word$(18)="munsters"
+word$(19)="desmonds"
+word$(20)="question of sport"
+word$(21)="telly addicts"
+word$(22)="happy days"
+word$(23)="wonder years"
+word$(24)="roseanne"
+word$(25)="gardeners world"
+word$(26)="red dwarf"
+word$(27)="stars in their eyes"
+word$(28)="opportunity knocks"
+word$(29)="magic roundabout"
+word$(30)="clothes show"
+word$(31)="the big breakfast"
+word$(32)="scooby doo"
+word$(33)="rab c nesbitt"
+word$(34)="this morning"
+word$(35)="emmerdale"
+word$(36)="thats showbusiness"
+word$(37)="cagney and lacey"
+word$(38)="knots landing"
+word$(39)="dallas"
+word$(40)="dynasty"
+word$(41)="fools and horses"
+word$(42)="the weather"
+word$(43)="jimmys"
+word$(44)="macgyver"
+word$(45)="going for gold"
+word$(46)="gladiators"
+word$(47)="newsround"
+word$(48)="black beauty"
+word$(49)="generation game"
+word$(50)="record breakers"
+wrd$=word$(num)
+title$="             TV PROGRAMMES"
+length%=len (wrd$)
+ENDP
+
+PROC shops:
+LOCAL num,word$(50,20)
+num=int (rnd*50)+1
+word$(1)="boots"
+word$(2)="woolworths"
+word$(3)="marks and spencer"
+word$(4)="milletts"
+word$(5)="timpsons"
+word$(6)="virgin"
+word$(7)="sainsbury"
+word$(8)="tesco"
+word$(9)="asda"
+word$(10)="ratners"
+word$(11)="safeway"
+word$(12)="dolcis"
+word$(13)="dixons"
+word$(14)="currys"
+word$(15)="w h smith"
+word$(16)="h samuels"
+word$(17)="wimpy"
+word$(18)="burger king"
+word$(19)="mcdonalds"
+word$(20)="h m v"
+word$(21)="comet"
+word$(22)="thorntons"
+word$(23)="john lewis"
+word$(24)="jessop"
+word$(25)="littlewoods"
+word$(26)="c and a"
+word$(27)="inter sport"
+word$(28)="sports division"
+word$(29)="ernest jones"
+word$(30)="next"
+word$(31)="richards"
+word$(32)="burtons"
+word$(33)="athena"
+word$(34)="texas"
+word$(35)="focus"
+word$(36)="b and q"
+word$(37)="halfords"
+word$(38)="argos"
+word$(39)="tandy"
+word$(40)="index"
+word$(41)="dillons"
+word$(42)="body shop"
+word$(43)="tie rack"
+word$(44)="sock shop"
+word$(45)="olivers"
+word$(46)="etam"
+word$(47)="textile world"
+word$(48)="timothy white"
+word$(49)="superdrug"
+word$(50)="game zone"
+wrd$=word$(num)
+title$="            HIGH STREET SHOPS"
+length%=len (wrd$)
+ENDP
+
+PROC choose:
+GLOBAL sub,sel$(24)
+sel$="Wotisit - Which Subject"
+dINIT sel$
+dTEXT "1","Television Programmes",$400
+dTEXT "2","Football Teams",$400
+dTEXT "3","Sports",$400
+dTEXT "4","Cars",$400
+dTEXT "5","Computer World",$400
+dTEXT "6","Next Page",$400
+sub =dialog-1
+if sub=1
+tv:
+ELSEIF sub=2
+football:
+ELSEIF sub=3
+sport:
+ELSEIF sub=4
+cars:
+ELSEIF sub=5
+computer:
+ELSEIF sub=6
+page2:
+endif
+ENDP
+
+PROC page2:
+dINIT sel$
+dTEXT "1","Countries",$400
+dTEXT "2","European Cities",$400
+dTEXT "3","English Towns",$400
+dTEXT "4","Scottish Towns",$400
+dTEXT "5","Previous Page ",$400
+dTEXT "6","Next Page",$400
+sub =dialog-1
+if sub=1
+country:
+ELSEIF sub=2
+ecity:
+ELSEIF sub=3
+eng:
+ELSEIF sub=4
+scot:
+ELSEIF sub=5
+choose:
+ELSEIF sub=6
+page3:
+endif
+ENDP
+
+PROC page3:
+dINIT sel$
+dTEXT "1","Animals",$400
+dTEXT "2","Birds",$400
+dTEXT "3","Spanish",$400
+dTEXT "4","Shops",$400
+dTEXT "5","Previous Page",$400
+dTEXT "6","Stop Progam",$400
+sub =dialog-1
+IF sub=1
+animals:
+ELSEIF sub=2
+birds:
+ELSEIF sub=3
+spanish:
+ELSEIF sub=4
+shops:
+ELSEIF sub=5
+page2:
+ELSEIF sub=6
+STOP
+ENDIF
+ENDP
+

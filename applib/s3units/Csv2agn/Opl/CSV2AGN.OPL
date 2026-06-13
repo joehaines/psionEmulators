@@ -1,0 +1,427 @@
+PROC Main:
+	GLOBAL dayoff&,month&,msg$(255),search$(10)
+	GLOBAL gh%,id%,pbarwid%(4),pbarid%,txtw% REM window ids & widths
+	GLOBAL buf%(132),bufadd%
+	GLOBAL ifile$(128),ifiladd%,ihandle%,ioffset&,isize&
+	GLOBAL ofile$(128),ofiladd%,ohandle%,ooffset&
+	GLOBAL record$(255),recadd%
+	LOCAL ret%
+	REM--------------------------------------------
+	REM personal stuff that may have to be changed
+	REM between the next two lines
+	REM ifile is default CSV to be converted
+	REM--------------------------------------------
+	ifile$="M:\PSOFT\AGN\SUPPORT.CSV"
+	REM SETPATH "\PSOFT\AGN\*.CSV"
+	search$="KURTZ"
+	REM--------------------------------------------
+	Initial:
+	Info:
+	ret%=csvfile:
+	IF ret%>0
+		ret%=Convert:
+	ENDIF
+	Dspparm:(2)
+	pause 50
+ENDP
+
+PROC Agnhead: REM write the agenda file header
+	LOCAL ret%,header$(32)
+	header$="AgendaFileType*"+CHR$(0)+CHR$($0f)+CHR$($10)
+	header$=header$+CHR$($20)+CHR$(&00)+REPT$(CHR$(0),12)
+	ret%=IOWRITE(ohandle%,UADD(ADDR(header$),1),32)
+	ooffset&=ooffset&+32
+	RETURN ret%
+ENDP
+
+PROC Agnopen: REM open the agneda for writing + header
+	LOCAL ret%
+	ret%=IOOPEN(ohandle%,ofile$,$102) :REM so open new or truncate
+	IF ret%>=0 :REM then write the header
+		ret%=Agnhead:
+	ELSE
+		Showerr:(ret%)
+	ENDIF
+	RETurn ret%
+ENDP
+
+PROC Convert: REM start the conversion process here
+	LOCAL ret%,ret2%
+	IF EXIST(ofile$)
+		DINIT "Warning: Agenda file exists!"
+		DTEXT "","Do you want to overwrite",$2
+		DTEXT "",ofile$,$2
+		DBUTTONS "Yes",%y,"No",%n
+		LOCK ON
+		ret%=DIALOG
+		LOCK OFF
+		IF ret%=%y
+			ret%=1
+			Fattrib:(0) REM writable
+		ELSE
+			ret%=-1
+			msg$="User aborted!"
+		ENDIF
+	ENDIF
+	IF ret%>=0
+		BUSY "Generating Agenda"
+		Pbarini:
+		isize&=Gfsize:
+		ioffset&=0
+		ret%=Agnopen:
+		IF ret%>=0
+			ret%=Writ11:
+		ENDIF
+		IF ret%>=0
+			ret%=Writ9:
+		ENDIF
+		IF ret%>=0
+			ret%=Readcsv:
+			ret2%=IOCLOSE(ohandle%)
+			IF ret%>=0 OR ret%=-36
+				ret%=ret2%
+				IF ret2%>=0
+					Fattrib:(1) REM read only
+				ENDIF
+			ENDIF
+		ENDIF
+		Pbardone:
+	ENDIF
+	BUSY OFF
+	return ret%
+ENDP
+
+PROC csvfile: REM choose input CSV file
+	LOCAL ret%
+	dINIT "Choose Input CSV file"
+	dFILE ifile$,"",82 REM 128+64+2+16
+	LOCK ON
+	ret%=DIALOG
+	LOCK OFF
+	Dspparm:(0)
+	IF UPPER$(RIGHT$(ifile$,4)) <> ".CSV"
+		msg$="Input file "+ifile$+" is not a .CSV file"
+		ret%=-1
+	ELSE
+		ofile$=LEFT$(ifile$,LOC(ifile$,"."))+"AGN"
+		Dspparm:(1)
+	ENDIF
+	RETURN ret%
+ENDP
+
+PROC Datcnv:(date$) REM convert the Day DD/MM/YY to an agenda day number
+	LOCAL year%,daynum&
+	year%=VAL(MID$(date$, 11,2))
+	IF year%<80
+		year%=year%+2000
+	ELSE
+		year%=year%+1900
+	ENDIF
+	daynum&=DAYS(VAL(MID$(date$, 5,2)),VAL(MID$(date$, 8,2)),year%)-dayoff&
+	RETURN daynum&
+ENDP
+
+PROC Dspparm:(parm%) REM display other params
+	LOCAL string$(128),y%
+	IF parm%=0 REM input
+		string$=Snam$:(ifile$)
+	ELSEIF parm%=1
+		string$=Snam$:(ofile$)
+	ELSEIF parm%=2
+		string$=msg$
+	ENDIF
+	y%=16*parm%+13
+	gUSE id%
+	gAT 90,y%
+	gPRINTB string$,txtw%-96
+ENDP
+
+PROC Fattrib:(parm%) REM set out file attribs
+	LOCAL ax%,bx%,cx%,dx%,si%,di%,status%
+	bx%=ofiladd%+1
+	dx%=ADDR(status%)
+	IF parm%=0 REM writable
+		cx%=1 REM set bit 0 only
+		di%=1 REM to not read only
+	ELSE REM read only
+		cx%=33 REM set attribs
+		di%=32 REM bit 0=>1=!ro 5=>1=modified
+	ENDIF
+	ax%=$0900
+	OS($87,ADDR(ax%))
+ENDP
+
+PROC Gfname$:(filenam$) REM strip full file name to 8 chars
+	LOCAL fname$(128),len%,pos%
+	fname$=filenam$
+	DO REM strip path
+		len%=LEN(fname$)
+		pos%=LOC(fname$,"\")
+		IF pos%>0
+			fname$=MID$(fname$,pos%+1,len%-pos%)
+		ENDIF
+	UNTIL pos%=0
+	pos%=LOC(fname$,".")
+	IF pos%>0
+		fname$=LEFT$(fname$,pos%-1)
+	ENDIF
+	len%=LEN(fname$)
+	fname$=UPPER$(LEFT$(fname$,1))+LOWER$(MID$(fname$,2,len%-1))
+	RETURN fname$
+ENDP
+
+PROC Gfsize: REM get file size
+	LOCAL ax%,bx%,cx%,dx%,status%,buf&(4) REM Keep together
+	ax%=$0800
+	bx%=UADD(ifiladd%,1)
+	cx%=ADDR(buf&(1))
+	dx%=ADDR(status%)
+	OS($87,ADDR(ax%))
+	RETURN buf&(2)
+ENDP
+
+PROC Info: REM info screen
+	dINIT "Csv2Agn"
+	dTEXT "","MS Project CSV -> Psion 3a Agenda",$2
+	dTEXT "","File Conversion Utility",$2
+	dTEXT "","Version 1.0",$202
+	dTEXT "","David M. Kurtz "+CHR$(184)+" 1997",$2
+	dTEXT "","david@kurzbyrn.demon.co.uk",$202
+	dBUTTONS "Press enter to continue",13
+	LOCK ON
+	DIALOG
+	LOCK OFF
+ENDP
+
+PROC Initial: REM initialise on startup
+	LOCAL gw%
+	gw%=gWIDTH REM screen width
+	gh%=gHEIGHT REM screen height
+	IF gw%<480
+		STATUSWIN OFF
+		txtw%=gw%
+	ELSE
+		STATUSWIN ON,2 REM set wide status window
+		txtw%=gw%-64
+	ENDIF
+	id%=gCREATE(0,gh%-50,txtw%,50,1,1) REM main window
+	gBORDER $100
+	gFONT 10 REM font display
+	gSTYLE 0
+	gAT 85,1 : gLINETO 85,63
+	gAT 6,13 : gPRINT "Input"
+	gAT 1,17 : gLINETO txtw%-1,16
+	gAT 6,29 : gPRINT "Output"
+	gAT 1,33 : gLINETO txtw%-1,32
+	gAT 6,45 : gPRINT "Message"
+	FONT -$3fff,0 REM set text window to max size
+	dayoff&=DAYS(1,1,1970) REM daynum conv offset
+	month&=DAYS(1,month,year)-dayoff& REM today
+	pbarwid%(1)=3*txtw%/4
+	pbarwid%(2)=pbarwid%(1)-20
+	pbarwid%(3)=pbarwid%(2)-12
+	pbarwid%(4)=pbarwid%(3)-2
+	bufadd%=ADDR(buf%(1))
+	ifiladd%=ADDR(ifile$)
+	ofiladd%=ADDR(ofile$)
+	recadd%=ADDR(record$)
+ENDP
+
+PROC Parsrec: REM parse the CSV record
+	LOCAL count%,code%,loc%,start%,lrec$(255),len%,param$(8,255),ret%,title$(255),from&,to&
+	lrec$=record$
+	count%=1
+	len%=LEN(lrec$)
+	WHILE 1
+		loc%=LOC(lrec$,",")
+		IF count%>8
+			BREAK
+		ELSEIF loc%>0
+			param$(count%)=LEFT$(lrec$,loc%-1) REM load CSVs into param$ array
+			count%=count%+1
+			len%=len%-loc%
+			lrec$=MID$(lrec$,loc%+1,len%)
+		ELSE
+			param$(count%)=lrec$
+			BREAK
+		ENDIF
+	ENDWH
+	title$=param$(2)
+	IF param$(7)<>"" REM resource
+		title$=param$(7)+": "+title$
+		IF LOC(upper$(param$(7)),search$)
+			code%=ASC(LEFT$(param$(2),1))
+		ENDIF
+	ENDIF
+	from&=Datcnv:(param$(4))
+	to&=Datcnv:(param$(5))
+	IF to&>=month&
+		IF from&<month&
+			from&=month&
+		ENDIF
+	ret%=Writrec:(from&,to&,title$,code%)
+	ENDIF
+	RETURN ret%
+ENDP
+
+PROC Pbardone: REM remove bar graph
+	gUSE pbarid%
+	gCLS 
+	gCLOSE pbarid%
+ENDP
+
+PROC Pbarini: REM initialise bar graphs
+	LOCAL headtxt$(128)
+	headtxt$=ifile$
+	IF gTWIDTH(headtxt$)>pbarwid%(2)
+		headtxt$=Gfname$:(ifile$)
+	ENDIF
+	pbarid%=gCREATE(txtw%/8,gh%/2-50,pbarwid%(1),50,1,1)
+	gXBORDER 1,$203
+	gFONT 10 :gSTYLE 0
+	gAT 10,20 :gPRINTB headtxt$,pbarwid%(2),3
+	gAT 10,24 :gLINEBY pbarwid%(2),0
+	gAT 16,27 :gBORDER $400,pbarwid%(3),12
+ENDP
+
+PROC Pbarupd:(curr&,max&,pass%,passes%) REM draw bar in graph
+	LOCAL frac
+	gUSE pbarid%
+	gAT 17,28
+	IF curr&>=max&
+		frac=1
+	ELSE
+		frac=1.0*curr&/max&
+	ENDIF
+	IF passes%>1
+		frac=(frac+pass%)/passes%
+	ENDIF
+	gPATT -1,pbarwid%(4)*frac,10,3
+ENDP
+
+PROC Readcsv: REM read in the csv record file by line
+	LOCAL ret%,ret2%,ihandle%
+	ret%=IOOPEN(ihandle%,ifiladd%,$0420)
+	IF ret%>=0
+		DO
+			ret%=IOREAD(ihandle%,recadd%+1,255)
+			IF ret%<0
+				IF ret%<>-36
+					Showerr:(ret%)
+				ELSE
+					msg$="Finished"
+				ENDIF
+			ELSE
+				ioffset&=ioffset&+ret%+2 rem +LF+Cr
+				POKEB recadd%,ret%
+				ret%=Parsrec:
+				Pbarupd:(ioffset&,isize&,1,1)
+			ENDIF
+		UNTIL ret%<0
+		ret2%=IOCLOSE(ihandle%)
+		IF ret2%<0
+			Showerr:(ret2%)
+			ret%=ret2%
+		ENDIF
+	ENDIF
+	RETURN ret%
+ENDP
+
+PROC Showerr:(val%) REM put error details in message
+	IF val%<-1
+		msg$="Error "+NUM$(val%,5)+" "+ERR$(val%)
+	ENDIF
+ENDP
+
+PROC Snam$:(filenam$) REM return filename only if narrow window
+	IF txtw%<416
+		RETURN Gfname$:(filenam$)
+	ELSE
+		RETURN filenam$
+	ENDIF
+ENDP
+
+PROC Writ9: REM write type 9 record
+	LOCAL ret%
+	POKEW bufadd%,$902A  REM 42 bytes of type 9 record
+	POKEB bufadd%+ 2,255 REM signature byte always 255
+	POKEL bufadd%+ 4,0   REM null name list for 16 bytes
+	POKEL bufadd%+ 8,0
+	POKEL bufadd%+12,0
+	POKEL bufadd%+16,0
+	POKE$ bufadd%+ 3,"To-Do List" REM name of list
+	POKEB bufadd%+ 3,0   REM category 0
+	POKEB bufadd%+20,0   REM 17th byte of to do list name always 0
+	POKEB bufadd%+21,0   REM category 0
+
+	POKEB bufadd%+22,225 REM flags
+	POKEB bufadd%+23,10
+
+	POKEW bufadd%+24,360 REM default slot 360 - 6am
+
+	POKEB bufadd%+26,0   REM advance days
+	POKEB bufadd%+27,84  REM year code
+
+	POKEB bufadd%+28,0   REM no alarm by default
+	POKEB bufadd%+29,0   REM no days in advance
+	POKEW bufadd%+30,540 REM default to 9am
+
+	POKEB bufadd%+32,1   REM sound name length
+	POKEB bufadd%+33,2   REM filename chr$(2)
+
+	POKEB bufadd%+41,0   REM null
+	POKEB bufadd%+42,0   REM style - none
+	POKEB bufadd%+43,0   REM spare
+	ret%=IOWRITE(ohandle%,bufadd%,44)
+	ooffset&=ooffset&+44
+	RETURN ret%
+ENDP
+
+PROC Writ11: REM write type 11 record
+	LOCAL ret%
+	POKEW bufadd%,$B003
+	POKEB bufadd%+2,$6C REM signature byte
+	POKEB bufadd%+3,1 REM number of categories
+	POKEB bufadd%+4,0 REM first category id is 0
+	ret%=IOWRITE(ohandle%,bufadd%,5)
+	ooffset&=ooffset&+5
+	RETURN ret%
+ENDP
+
+PROC Writrec:(from&,to&,title$,code%) REM write agenda record(s)
+	LOCAL len%,ret%,loffset&,attr%
+	loffset&=ooffset&
+	attr%=26 REM ...11010=no memo,no alarm,pending
+	IF to&=from&
+		attr%=attr%+1 REM set only only
+	ENDIF
+	IF code%>32
+		attr%=attr%+4 REM set year code flag
+	ENDIF
+	POKEL bufadd%+2,from& REM day
+	POKEW bufadd%+4,0 REM slot
+	POKEB bufadd%+6,attr%
+	POKEB bufadd%+7,code% REM code
+	POKEB bufadd%+8,0 REM style
+	POKE$ bufadd%+9,title$ REM len & title string
+	len%=PEEKB(bufadd%+9)+8
+	POKEW bufadd%,len%+8192
+	ret%=IOWRITE(ohandle%,bufadd%,len%+2)
+	ooffset&=ooffset&+len%+2
+	IF ret%>=0 AND to&>from&
+		POKEW bufadd%,20491 REM type 5 , 11 bytes
+		POKEB bufadd%+2,1 REM repeat weekly
+		POKEB bufadd%+3,0 REM ival 1
+		POKEL bufadd%+4,to& REM end date
+		POKEB bufadd%+6, 2 REM type 2 record
+		POKEW bufadd%+7,31 REM every week day
+		POKEL bufadd%+9,loffset& REM offset of previous record
+		ret%=IOWRITE(ohandle%,bufadd%,13)
+		ooffset&=ooffset&+13
+	ENDIF
+	IF ret%<0
+		Showerr:(ret%)
+	ENDIF
+	RETURN ret%
+ENDP
+

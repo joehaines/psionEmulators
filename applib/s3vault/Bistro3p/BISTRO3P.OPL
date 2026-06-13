@@ -1,0 +1,128 @@
+REM APP Bistro
+REM TYPE 0
+REM ICON "\opd\bistro.pic"
+REM ENDA
+
+PROC BISTRO3:
+local pr$(12,9),pmt(12),p$(9),m$(200)
+local tot,a,p%,np%,i%,j%,q%
+
+np%=0
+layout:
+p$="MarkE"
+i%=3
+j%=2
+do
+  if i%>8
+    i%=3
+    j%=22
+  endif
+  AT j%,i%
+  print np%+1;":";
+  trap edit p$
+  if err
+    break
+  elseif p$=""
+    break
+  endif
+  np%=np%+1
+  m$=m$+p$+","
+  pr$(np%)=p$
+  p$=""
+  if np%=12
+    beep 5,300
+    giprint "Maximum guests"
+    i%=i%+1
+    break
+  endif
+  i%=i%+1
+until 0
+m$=m$+"All,Each,Tax,Show,Quit"
+do
+  cls
+  layout:
+  do
+    a=0:p%=1
+    dinit "Menu Item"
+    dchoice p%,"For:",m$
+    dfloat a,"Price:",0,99.99
+    dialog
+    if (a=0) and (P%=np%+4)
+      break
+    endif
+REM --------------- ALL
+    if p%=np%+1
+      tot=tot+a
+      a=a/np%
+      p%=1
+      while p%<=np%
+        pmt(p%)=pmt(p%)+a
+        p%=p%+1
+      endwh
+REM --------------- EACH
+    elseif p%=np%+2
+      tot=tot+a*np%
+      p%=1
+      while p%<=np%
+        pmt(p%)=pmt(p%)+a
+        p%=p%+1
+      endwh
+REM --------------- TAX
+    elseif p%=np%+3
+      p%=1
+      while p%<=np%
+        pmt(p%)=pmt(p%)+a*(pmt(p%)/tot)
+        p%=p%+1
+      endwh
+      tot=tot+a
+REM ----------------- QUIT
+    elseif p%=np%+5
+        beep 5,300
+        dinit
+        dtext "Quit","Bistro",$201
+        dbuttons "Yes",%Y,"No",%N
+        q%=dialog
+        if q%=%Y or q%=%y
+          return
+        endif
+    else
+REM -------------- Just Add
+      pmt(P%)=pmt(p%)+a
+      tot=tot+a
+    endif
+    at 23,9
+    print "Total:",fix$(tot,2,8)
+  until 0
+  doneit::
+  cls
+  layout:
+  p%=1
+  j%=1
+  i%=1
+  do
+    if i%>6
+      i%=1
+      j%=22
+    endif
+    at j%,i%+2
+    print pr$(p%)+": "+fix$(pmt(P%),2,8)
+    p%=p%+1: i%=i%+1
+  until (P%>np%) or (p%=13)
+  at 23,9
+  print "Total:";fix$(tot,2,8)
+  get
+until q%=%Y or q%=%y
+endp
+
+proc layout:
+gat 210,2
+gclock off
+gclock on
+gat 45,0
+gpatt -1,150,9,2
+at 14,1
+print " Bistromathics "
+gfill 150,9,2
+endp
+
+

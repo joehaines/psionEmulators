@@ -1,0 +1,406 @@
+
+PROC ATTEN:
+GLOBAL zi,c%,db,e,r1,r2,r3,r4,r5,r6
+GLOBAL r1$(10),r2$(10),r3$(10)
+GLOBAL r4$(10),r5$(10),r6$(10)
+GLOBAL ra$(1),rb$(1),ry$(10),rz$(10),res$(20)
+GLOBAL newx%,newy%,k%,Res,low,hi
+GLOBAL ra,rb,ral,rah,rbl,rbh,z
+LOADM "E12R"
+  k%=1 :ESCAPE OFF
+  Start::
+  IF k%=0 :beep 5,234 :beep 3,200 :ENDIF
+
+DINIT"ATTENUATION REQUIRED"
+dFLOAT db,"ATTENUATION IN dBs",3,60
+	k%= DIALOG
+   	IF K%=0
+   	GOTO start
+	ENDIF
+	CLS
+	e=10**(-db/20)
+	DINIT "IMPEDANCE IN/OUT "
+	dFLOAT zi,"Input Impedance in Ohms",50,1000
+	k%=DIALOG
+	
+   IF k%=0
+     GOTO start
+  ENDIF
+CLS
+	
+	DINIT "TYPE OF ATTENUATOR"
+	DCHOICE c%,"CHOOSE FROM LIST","Pi,Bal-Pi,Tee,Bal-Tee,Lattice"
+	k%=DIALOG
+     IF k%=0
+      GOTO start
+  ENDIF
+CLS
+
+	VECTOR c%
+	 P,Bp,T,Bt,L
+	ENDV
+	
+  
+  P:: :Pi: :Pipoly: :Quit: :STOP
+  Bp:: :Pi: :Pipoly: :Quit: :STOP
+  T:: :Tee: :Teepoly: :Quit: :STOP
+  Bt:: :Tee: :Teepoly: :Quit: :STOP
+	L:: :Lattice: :Latpoly: :Quit: :STOP
+	ENDP
+	
+	PROC Quit:
+  LOCAL k%
+  DO :k%=GET :UNTIL k%>=0
+	k%=ALERT("Optional E12 Resistors ?","Run Program again ?","options","run again","quit")
+	IF k%=3
+	  STOP
+	   ELSEIF k%=2
+	     CLS :gCLS :BEEP 4,400 :BEEP 3,347
+	     UNLOADM"E12R" :Atten:
+     ELSEIF k%=1
+  OptionR: 
+	ENDIF
+	ENDP
+
+	PROC Pi:
+	r2=zi*(1+e)/(1-e)
+	r3=zi*(1-e**2)/(2*e)
+	r2$=FIX$(r2,2,10) :ry$=r2$ :ra$="2" :res$="Pi Network"
+	r3$=FIX$(r3,2,10) :rz$=r3$ :rb$="3"
+	r5=r3/2 :r5$=FIX$(r5,2,10)
+	IF c%=2 
+	bpPrint:
+	ENDIF
+	Allprint:
+	ENDP  
+	
+PROC bpPrint:
+	rz$=r5$
+	res$="Balanced Pi Network"
+	ENDP
+
+PROC Pipoly:
+newx%=145 :newy%=20
+pPolyln1:
+newx%=160 :newy%=50
+Vpolybox:
+newx%=200 :newy%=50
+Vpolybox:
+newx%=165 :newy%=15
+Hpolybox:
+IF c%=2
+newx%=165 :newy%=55
+Hpolybox:
+ENDIF
+IF c%=1
+newx%=165 :newy%=60
+polyLn2:
+ENDIF
+ENDP
+
+PROC Teepoly:
+newx%=135 :newy%=20
+TpolyLn:
+IF c%=3
+newx%=145 :newy%=60
+polyLn3:
+ENDIF
+IF c%=4
+newx%=145 :newy%=55
+Hpolybox:
+newx%=185 :newy%=55
+Hpolybox:
+ENDIF
+newx%=145 :newy%=15
+Hpolybox:
+newx%=185 :newy%=15
+Hpolybox:
+newx%=180 :newy%=50
+Vpolybox:
+pause 5
+ENDP
+
+PROC pPolyLn1:
+LOCAL a%(35) rem declare array first
+a%(1)=newx% :a%(2)=newy%
+a%(3)=16  rem no of pairs of moves
+a%(4)=20*2 :a%(5)=0
+a%(6)=20*2+1 :a%(7)=0
+a%(8)=20*2 :a%(9)=0
+a%(10)=0*2+1 :a%(11)=40
+a%(12)=-20*2 :a%(13)=0
+a%(14)=0*2+1 :a%(15)=0
+a%(16)=-40*2+1 :a%(17)=0
+a%(18)=20*2 :a%(19)=0
+a%(20)=-10*2+1 :a%(21)=0
+a%(22)=0*2 :a%(23)=-10
+a%(24)=0*2+1 :a%(25)=-20
+a%(26)=0*2 :a%(27)=-10
+a%(28)=40*2+1 :a%(29)=0
+a%(30)=0*2 :a%(31)=10
+a%(32)=0*2+1 :a%(33)=20
+a%(34)=0*2 :a%(35)=10
+gPOLY a%()
+ENDP
+
+PROC polyLn2:
+LOCAL a%(5)
+a%(1)=newx% :a%(2)=newy%
+a%(3)=1
+a%(4)=20*2 :a%(5)=0
+gPOLY a%()
+ENDP
+
+PROC TpolyLn:
+LOCAL a%(33)
+a%(1)=newx%  :a%(2)=newy%
+a%(3)=15
+a%(4)=10*2  :a%(5)=0
+a%(6)=20*2+1 :a%(7)=0
+a%(8)=20*2 :a%(9)=0
+a%(10)=20*2+1 :a%(11)=0
+a%(12)=10*2  :a%(13)=0
+a%(14)=-40*2+1 :a%(15)=0
+a%(16)=0*2 :a%(17)=10
+a%(18)=0*2+1 :a%(19)=20
+a%(20)=0*2 :a%(21)=10
+a%(22)=40*2+1 :a%(23)=0
+a%(24)=-10*2 :a%(25)=0
+a%(26)=-20*2+1 :a%(27)=0
+a%(28)=-20*2 :a%(29)=0
+a%(30)=-20*2+1 :a%(31)=0
+a%(32)=-10*2 :a%(33)=0
+gPOLY a%()
+ENDP
+
+
+
+PROC Latpoly:
+newx%=145 :newy%=10
+Lpoly:
+newx%=165 :newy%=5
+Hpolybox:
+newx%=165 :newy%=65
+Hpolybox:
+newx%=160 :newy%=40
+Vpolybox:
+newx%=200 :newy%=40
+Vpolybox:
+ENDP
+
+
+
+PROC Lpoly:
+LOCAL a%(41)
+a%(1)=newx% :a%(2)=newy%
+a%(3)=19
+a%(4)=20*2 :a%(5)=0
+a%(6)=20*2+1 :a%(7)=0
+a%(8)=20*2 :a%(9)=0
+a%(10)=0*2+1 :a%(11)=60
+a%(12)=-20*2 :a%(13)=0
+a%(14)=-20*2+1 :a%(15)=0
+a%(16)=-20*2 :a%(17)=0
+a%(18)=10*2+1 :a%(19)=-60
+a%(20)=0*2 :a%(21)=10
+a%(22)=0*2+1 :a%(23)=20
+a%(24)=0*2 :a%(25)=5
+a%(26)=40*2 :a%(27)=20
+a%(28)=0*2 :a%(29)=5
+a%(30)=0*2+1 :a%(31)=-60
+a%(32)=0*2 :a%(33)=10
+a%(34)=0*2+1 :a%(35)=20
+a%(36)=0*2 :a%(37)=5
+a%(38)=-40*2 :a%(39)=20
+a%(40)=0*2 :a%(41)=5
+ gPoly a%()
+ ENDP
+
+PROC polyLn3:
+LOCAL a%(9)
+a%(1)=newx% :a%(2)=newy%
+a%(3)=3
+a%(4)=20*2 :a%(5)=0
+a%(6)=20*2+1 :a%(7)=0
+a%(8)=20*2 :a%(9)=0
+gPOLY a%()
+ENDP
+
+PROC Vpolybox:
+LOCAL a%(13)
+a%(1)=newx% :a%(2)=newy%
+a%(3)=(5)
+a%(4)=0*2 :a%(5)=-20
+a%(6)=-10*2 :a%(7)=0
+a%(8)=0*2 :a%(9)=20
+a%(10)=10*2 :a%(11)=0
+a%(12)=0*2 :a%(13)=0
+gPOLY a%()
+ENDP
+
+PROC Hpolybox:
+LOCAL a%(13)
+a%(1)=newx% :a%(2)=newy%
+a%(3)=(5)
+a%(4)=0*2 :a%(5)=10
+a%(6)=20*2 :a%(7)=0
+a%(8)=0*2 :a%(9)=-10
+a%(10)=-20*2 :a%(11)=0
+a%(12)=0*2 :a%(13)=0
+gPOLY a%()
+ENDP
+
+
+
+	PROC Tee:
+	r1=zi*(1-e)/(1+e)
+	r4=(zi**2-r1**2)/(2*r1)
+	r1$=FIX$(r1,2,10) :ry$=r1$ :ra$="1" :res$="Tee Network"
+	r4$=FIX$(r4,2,10) :rz$=r4$ :rb$="4"
+	r6=r1/2 :r6$=FIX$(r6,2,10)
+	IF c%=4
+	btPrint:
+	ENDIF
+	AllPrint:
+	ENDP
+
+	PROC btPrint:
+	ry$=r6$
+	res$="Balanced Tee Network"
+	ENDP
+
+
+	PROC Lattice:
+	r1=zi*(1-e)/(1+e)
+	r2=zi*(1+e)/(1-e)
+	r1$=FIX$(r1,2,10) :ry$=r1$ :ra$="1" :res$="Lattice Network "
+	r2$=FIX$(r2,2,10) :rz$=r2$ :rb$="2"
+	AllPrint:
+	ENDP
+
+	
+	PROC Allprint:
+ LOCAL a%
+	gAT 0,0 :gBorder 2,239,79
+	gAT 4,48
+	gFONT 1 :gSTYLE 9
+	gPRINT res$ 
+	gAT 4,60 :gSTYLE 0
+	gPRINT db;"Db ";zi;" Ohm attenuator"
+  gAT 2,9 :gSTYLE 0
+	gPRINT " R";ra$;" = ";ry$;" Ohms"
+  gAT 2,19
+	gPRINT " R";rb$;" = ";rz$;" Ohms"
+  IF c%=1 OR c%=2
+     gAT 169,24 :gPRINT "R";rb$
+     gAT 152,40 :gPRINT "R"
+     gAT 152,48 :gPRINT ra$
+     gAT 192,40 :gPRINT "R"
+     gAT 192,48 :gPRINT ra$
+     
+       IF c%=2
+       gAT 169,64 :gPRINT "R";rb$ 
+       ENDIF
+       
+  ELSEIF c%=3 OR c%=4
+     gAT 151,24 :gPRINT "R";ra$
+     gAT 191,24 :gPRINT "R";ra$
+     gAT 173,40 :gPRINT "R"
+     gAT 173,48 :gPRINT rb$
+
+      IF c%=4
+      gAT 151,64 :gPRINT "R";ra$
+      gAT 191,64 :gPRINT "R";ra$
+      ENDIF
+      
+    ELSEIF c%=5
+     gAT 169,14 :gPRINT "R";ra$
+     gAT 169,74 :gPRINT "R";ra$
+     gAT 152,30 :gPRINT "R"
+     gAT 152,38 :gPRINT rb$
+     gAT 192,30 :gPRINT "R"
+     gAT 192,38 :gPRINT rb$
+   ENDIF
+  ENDP
+
+  PROC optionR:
+  LOCAL a%
+  cls :z=zi
+    Res=VAL(Ry$)
+    RE12calc: :ral=low :rah=hi
+    Res=VAL(Rz$)
+    RE12calc: :rbl=low :rbh=hi
+    Ry$=FIX$(ral,2,10) :ra=ral
+    Rz$=FIX$(rbl,2,10) :rb=rbl
+Changepi:
+    VEKTOR2: :a%=GET :cls
+    Ry$=FIX$(ral,2,10) :ra=ral
+    Rz$=FIX$(rbh,2,10) :rb=rbh
+Changepi:
+    VEKTOR2: :a%=GET :cls
+    Ry$=FIX$(rah,2,10) :ra=rah
+    Rz$=FIX$(rbl,2,10) :rb=rbl
+Changepi:
+    VEKTOR2: :a%=GET :cls 
+    Ry$=FIX$(rah,2,10) :ra=rah
+    Rz$=FIX$(rbh,2,10) :rb=rbh
+Changepi:
+    VEKTOR2: :pause -500 :cls
+    QUIT:
+    ENDP
+    
+
+PROC VEKTOR2:
+VECTOR c%
+p,bp,t,bt,l
+ENDV  
+p:: 
+Allprint: :Pipoly: :GOTO domore
+bp:: 
+Allprint: :Pipoly: :GOTO domore
+t:: 
+Allprint: :Teepoly: :GOTO domore
+bt::
+Allprint: :Teepoly: :GOTO domore
+l:: 
+Allprint: :Latpoly: :GOTO domore
+domore:: 
+ENDP
+
+Proc Changepi:
+LOCAL r,v,dbs,a%
+IF c%=2 
+rb=rb*2
+ELSEIF c%=3 OR c%=4
+GOTO Change
+ELSEIF c%=5
+cls :beep 10,2000 :gAT 30,40
+gFONT 1 :gSTYLE 9 :gPRINT"No Data Available * press enter"
+pause 0 :QUIT:
+ENDIF 
+r=ra*z/(ra+z)
+v=r/(r+rb)
+r=ra*(r+rb)/(r+ra+rb)
+dbs=-20*LOG(v)/LOG(10)
+db=INT(dbs*100+0.5)/100
+zi=INT(r*100+.5)/100
+GOTO done
+change::
+Changete:
+done::
+ENDP
+
+
+PROC Changete:
+LOCAL r,v,dbs
+IF c%=4
+ra=ra*2
+ENDIF
+r=rb*(z+ra)/(rb+z+ra)
+v=z/(z+ra)*r/(r+ra)
+r=r+ra
+dbs=-20*(LOG(v)/LOG(10))
+db=INT(dbs*100+0.5)/100
+zi=INT(r*100+0.5)/100
+ENDP
+

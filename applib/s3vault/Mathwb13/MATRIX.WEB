@@ -1,0 +1,304 @@
+
+<opts>
+<isrc>cell</isrc>
+<iname>INPUT</iname>
+<iecho>yes</iecho>
+<odest>screen</odest>
+<oname>OUTPUT</oname>
+<onewl>lf</onewl>
+<scrfont>swiss13</scrfont>
+<statwin>on</statwin>
+<cfmt>~\n</cfmt>
+<citer>1</citer>
+<cdisp>nolist</cdisp>
+<rtype>fmt</rtype>
+<rfmt>\n\N\n\S\n</rfmt>
+<rall>yes</rall>
+<starg>test</starg>
+<srpl></srpl>
+<scount>1</scount>
+<sout>yes</sout>
+<nfmt>fixed</nfmt>
+<ndec>3</ndec>
+<nang>degrees</nang>
+<pltng>off</pltng>
+<xmax>5.000</xmax>
+<xmin>-5.000</xmin>
+<ymax>5.000</ymax>
+<ymin>-5.000</ymin>
+<xintrvls>5</xintrvls>
+<yintrvls>5</yintrvls>
+<xycells>home,home</xycells>
+<cell>
+<cname>a00</cname>
+<val>5</val></cell>
+<cell>
+<cname>a01</cname>
+<val>6</val></cell>
+<cell>
+<cname>a02</cname>
+<val>-7</val></cell>
+<cell>
+<cname>a03</cname>
+<val>8</val></cell>
+<cell>
+<cname>a10</cname>
+<val>0.800</val></cell>
+<cell>
+<cname>a11</cname>
+<val>-8.800</val></cell>
+<cell>
+<cname>a12</cname>
+<val>22.600</val></cell>
+<cell>
+<cname>a13</cname>
+<val>-3.400</val></cell>
+<cell>
+<cname>a20</cname>
+<val>0.400</val></cell>
+<cell>
+<cname>a21</cname>
+<val>-0.182</val></cell>
+<cell>
+<cname>a22</cname>
+<val>15.909</val></cell>
+<cell>
+<cname>a23</cname>
+<val>-5.818</val></cell>
+<cell>
+<cname>a30</cname>
+<val>0.200</val></cell>
+<cell>
+<cname>a31</cname>
+<val>-0.091</val></cell>
+<cell>
+<cname>a32</cname>
+<val>0.406</val></cell>
+<cell>
+<cname>a33</cname>
+<val>-3.549</val></cell>
+<cell>
+<cname>b0</cname>
+<val>-0.134</val></cell>
+<cell>
+<cname>b1</cname>
+<val>0.779</val></cell>
+<cell>
+<cname>b2</cname>
+<val>-0.151</val></cell>
+<cell>
+<cname>b3</cname>
+<val>-0.258</val></cell>
+<cell>
+<cname>big</cname>
+<val>0.887</val></cell>
+<cell>
+<cname>dum</cname>
+<val>0.887</val></cell>
+<cell>
+<cname>home</cname>
+<text>This web solves a non-singular set of four linear equations in four unknowns:
+
+     a00*x0+a01*x1+a02*x2+a03*x3=b0
+     a10*x0+a11*x1+a12*x2+a13*x3=b1
+     a20*x0+a21*x1+a22*x2+a23*x3=b2
+     a30*x0+a31*x1+a32*x2+a33*x3=b3
+
+using an LU decomposition algorithm.
+
+To print solution values of x0,x1,x2,and x3, put the values of the aij elements in row/column order into the text field of the input cell. Put the four b's after that.  Then return to home and choose execute from the special menu.
+
+The algorithm for this example is described in the First edition of "Numerical Recipies in C", Section 2.3 LU Decomposition.
+
+</text>
+<script>input()
+solve()
+output()</script></cell>
+<cell>
+<cname>idex</cname>
+<val>0.000</val></cell>
+<cell>
+<cname>ii</cname>
+<val>0</val></cell>
+<cell>
+<cname>imax</cname>
+<val>3.000</val></cell>
+<cell>
+<cname>indx0</cname>
+<val>1.000</val></cell>
+<cell>
+<cname>indx1</cname>
+<val>2.000</val></cell>
+<cell>
+<cname>indx2</cname>
+<val>3.000</val></cell>
+<cell>
+<cname>indx3</cname>
+<text> </text>
+<val>3.000</val></cell>
+<cell>
+<cname>input</cname>
+<text>1 2  3  - 4    #row1 
+5 6 -7 8     #row2
+4 -4 17  3    #row3
+2 4 9 -2      #row4
+2 3 -7 2
+
+</text>
+<val>0.00</val>
+<script>in(a00,a01,a02,a03)
+in(a10,a11,a12,a13)
+in(a20,a21,a22,a23)
+in(a30,a31,a32,a33)
+in(b0,b1,b2,b3)</script></cell>
+<cell>
+<cname>ip</cname>
+<val>3.000</val></cell>
+<cell>
+<cname>jdex</cname>
+<val>3.000</val></cell>
+<cell>
+<cname>kdex</cname>
+<val>2.000</val></cell>
+<cell>
+<cname>loop1</cname>
+<script>for(idex=0 to jdex-1){
+    set sum to a00[idex*4+jdex]
+    for(kdex=0 to idex-1) {
+        set sum to sum - a00[idex*4+kdex] * a00[kdex*4+jdex]
+    } #endfor
+    set a00[idex*4+jdex] to sum
+} #endfor
+</script></cell>
+<cell>
+<cname>loop2</cname>
+<script>for(idex=jdex to 3) {
+    set sum to a00[idex*4+jdex]
+    for(kdex=0 to jdex-1) {
+         set sum to sum - a00[idex*4+kdex] * a00[kdex*4+jdex]
+    } #endfor
+    set a00[idex*4+jdex] to sum
+    set dum to vv0[idex]*abs(sum)
+    if(dum>=big) {
+        set big to dum
+       set imax to idex
+    } #endif
+} #endfor
+</script></cell>
+<cell>
+<cname>loop3</cname>
+<script>for(kdex=0 to 3) {
+    set dum to a00[imax*4+kdex]   ####
+    set a00[imax*4+kdex] to a00[jdex*4+kdex]
+    set a00[jdex*4+kdex] to dum
+} #endf</script></cell>
+<cell>
+<cname>lubksb</cname>
+<script>set ii to -1
+for(idex=0 to 3) {
+    set ip to indx0[idex]
+    set sum to b0[ip]
+    set b0[ip] to b0[idex]
+    if(ii>=0) {    
+        for(jdex=ii to idex-1) {
+            set sum to sum - a00[idex*4+jdex]*b0[jdex]
+        } #endfor
+    } else {
+        if(sum) {
+            set ii to idex
+        } # endif
+    } #endif
+    set b0[idex] to sum
+} #endfor
+#
+# now do the backsubstitution
+#
+for(idex=3 to 0 step -1) {
+    set sum to b0[idex]    
+    for(jdex=idex+1 to 3) {
+          set sum to sum - a00[idex*4+jdex]*b0[jdex]
+    } #endfor
+    set b0[idex] to sum/a00[idex*4+idex]
+}</script></cell>
+<cell>
+<cname>ludcmp</cname>
+<script>for(idex=0 to 3) {
+    scale!
+}#endfor
+
+for(jdex=0 to 3){
+    loop1!
+    set big to 0.0
+    loop2!
+    if(jdex&lt;>imax) {
+        loop3!
+        set vv0[imax] to vv0[jdex]
+   } #endif
+  set indx0[jdex] to imax
+   if(a00[jdex*4+jdex]=0) {
+         set a00[jdex*4+jdex] to tiny
+  } #endif
+
+   if(jdex&lt;>3) {
+        set dum to 1/a00[jdex*4+jdex]
+        for(idex=jdex+1 to 3){
+            set a00[idex*4+jdex] to a00[idex*4+jdex]*dum
+        }#endfor
+    }#endif
+}</script></cell>
+<cell>
+<cname>matrixout</cname>
+<script>out("\nRow0 ",a00," ",a01," ",a02," ",a03)
+out("\nRow1 ",a10," ",a11," ",a12," ",a13)
+out("\nRow2 ",a20," ",a21," ",a22," ",a23)
+out("\nRow3 ",a30," ",a31," ",a32," ",a33)
+</script></cell>
+<cell>
+<cname>output</cname>
+<script>out("\n\nx0    x1    x2    x3    ")
+out("\n",b0," ",b1," ",b2," ",b3)</script></cell>
+<cell>
+<cname>scale</cname>
+<script>#
+# loop over rows to get scaling information
+#
+set big 0.0
+for(jdex=0 to 3) {
+    set temp  abs(a00[idex*4+jdex])
+    if(temp>big) {
+        set big temp
+   } #endif
+} #endfor
+if(big=0.0) {
+    out("Singular matrix")
+    exit
+} #endif
+set vv0[idex] to 1.0/big</script></cell>
+<cell>
+<cname>solve</cname>
+<script>imax=0
+ludcmp()
+lubksb()
+</script></cell>
+<cell>
+<cname>sum</cname>
+<val>-0.672</val></cell>
+<cell>
+<cname>temp</cname>
+<val>2.000</val></cell>
+<cell>
+<cname>tiny</cname>
+<val>0.0000000001</val>
+<script>0.0000000001</script></cell>
+<cell>
+<cname>vv0</cname>
+<val>0.250</val></cell>
+<cell>
+<cname>vv1</cname>
+<val>0.250</val></cell>
+<cell>
+<cname>vv2</cname>
+<val>0.250</val></cell>
+<cell>
+<cname>vv3</cname>
+<val>0.250</val></cell></eof>

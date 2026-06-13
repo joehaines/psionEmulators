@@ -1,0 +1,83 @@
+==========
+Usenet/comp.sys.psion #9532, from markc@compnews.co.uk, 1959 chars, Feb 1 18:30 95
+----------
+Article: 9532 of comp.sys.psion
+Path: cix.compulink.co.uk!uknet!cardamom.compnews.co.uk!markc
+From: markc@compnews.co.uk (Mark Cooper)
+Newsgroups: comp.sys.psion
+Subject: DIR$ and directories
+Date: 1 Feb 1995 18:30:50 GMT
+Organization: Computer Newspaper Services, Howden, UK.
+Lines: 67
+Message-ID: <3gok0qINNjln@cardamom.compnews.co.uk>
+NNTP-Posting-Host: annatto.compnews.co.uk
+X-Newsreader: Tin 1.1 PL4
+
+As an adjunct to my earlier follow-up regarding DIR$, EXIST and directories,
+below is a (short) program which displays the entire contents of a disk,
+file by file, directory by directory. I'd wondered how to do this (given that
+the output of DIR$ strips the final "\" from directory names) until I saw the
+aforementioned discussion. Feel free to use/abuse this progette - it's only
+a rudimentary thing anyway.
+
+Note:
+The parameter lev% was originally included to produce an indented output -
+it's not really worth using for a screen as small as the Psion, but would be
+handy if directed to a printer :)
+
+Note 2:
+Press ENTER after each line is displayed.
+
+Mark
+
+PROC dtree:
+  tree:("B:\",0)
+ENDP
+
+PROC tree:(filspec$,lev%)
+  LOCAL fspec$(50,128),i%,d$(128),j%
+
+  PRINT filspec$
+  GET
+
+  d$=DIR$(filspec$)
+  IF d$=""
+    PRINT "Empty directory"
+    GET
+    GOTO finish
+  ENDIF
+
+  i%=0
+  WHILE d$<>""
+    IF NOT EXIST(d$)
+      i%=i%+1
+      fspec$(i%)=d$+"\"
+    ELSE
+      PRINT d$
+      GET
+    ENDIF
+    d$=DIR$("")
+  ENDWH
+
+  IF i%>0
+    j%=1
+    DO
+      tree:(fspec$(j%),lev%+1)
+      j%=j%+1
+    UNTIL j%>i%
+  ENDIF
+
+  finish::
+ENDP
+
+
+
+--
+------------------------------------------------------------------------------
+
+Mark A. Cooper, "PA" Data Designmarkc@compnews.co.uk
+
+Philip Pickett's exuberance in concert and on record reflects his origins as
+a brass player - "We like a good blow!" he explains...
+ -- from Behind the Masque, Radio 3 (Saturday 4 February 1995)
+

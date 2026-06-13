@@ -1,0 +1,133 @@
+REM This is a nice and simple
+REM introduction to the timer device
+REM present in all Series 3 models.
+REM It just produces two flashing
+REM squares on screen, each one is
+REM tied to a different timer, and
+REM at the same time, the user is
+REM still free to type.
+
+REM This example uses function 1
+REM of the timer device known as
+REM P_FRELATIVE - start timing in
+REM tenths of a second relative
+REM to now. Note that the timer
+REM device expects the tenths
+REM variable to be a LONG integer.
+
+REM It also uses function 4
+REM (known as P_FCANCEL)
+REM which cancels IOAs on ANY
+REM device, and is always safe
+REM to use, even if an IOA isn't
+REM outstanding.
+
+REM The `magic' value -46 in this
+REM code means "I/O pending".
+REM In other words, the IOA hasn't
+REM finished yet.
+
+REM Note the importance of error
+REM checking. This is vital when
+REM dealing with device drivers.
+
+REM Do not remove the keymod%
+REM variable, although it looks
+REM unused, it is actually
+REM filled in by the KEYA
+REM function.
+
+REM Feel free to use this example
+REM in any OPL programs.
+REM
+REM jezar@cix
+
+
+PROC Squares:
+	LOCAL tenths1&,tenths2&
+	LOCAL thand1%,thand2%
+	LOCAL tstat1%,tstat2%
+	LOCAL kstat%,keyprs%,keymod%
+	LOCAL bitmap%
+	
+	bitmap%=gCREATE(140,10,75,50,1)
+	gBORDER 1
+	
+	CURSOR ON
+	PRINT "Type something,"
+	PRINT "`Esc' to quit."
+	PRINT "";
+	
+	REM Our timer speeds:
+	tenths1&=5 :tenths2&=7
+	
+	REM Open two timer channels:
+	iocheck%:(IOOPEN(thand1%,"TIM:",-1))
+	iocheck%:(IOOPEN(thand2%,"TIM:",-1))
+	
+	REM Start both timers going:
+	iocheck%:(IOA(thand1%,1,tstat1%,tenths1&,#0))
+	iocheck%:(IOA(thand2%,1,tstat2%,tenths2&,#0))
+	
+	REM Issue a request for a keypress:
+	iocheck%:(KEYA(kstat%,keyprs%))
+	
+	DO
+		REM Wait for anything
+		IOWAIT
+		
+		REM Was key pressed?
+		IF kstat%<>-46
+			iocheck%:(kstat%)
+			IF keyprs%=13
+				PRINT
+				PRINT "";
+			ELSE
+				PRINT CHR$(keyprs%);
+			ENDIF
+			
+			REM We now request another keypress:
+			iocheck%:(KEYA(kstat%,keyprs%))
+			
+		REM Has 1st timer finished?
+		ELSEIF tstat1%<>-46
+			iocheck%:(tstat1%)
+			gAT 5,5
+			gINVERT 20,20
+			
+			REM We now restart this timer:
+			iocheck%:(IOA(thand1%,1,tstat1%,tenths1&,#0))
+			
+		REM Has 2nd timer finished?
+		ELSEIF tstat2%<>-46
+			iocheck%:(tstat2%)
+			gAT 30,5
+			gINVERT 40,40
+			
+			REM We now restart this timer:
+			iocheck%:(IOA(thand2%,1,tstat2%,tenths2&,#0))
+			
+		ELSE
+			REM This shouldn't happen:
+			ALERT("Stray signal")
+		ENDIF
+	
+	UNTIL keyprs%=27 :REM `Esc' code
+	
+	REM Cancel everything:
+	KEYC(kstat%)
+	IOW(thand2%,4,#0,#0)
+	IOW(thand1%,4,#0,#0)
+	
+	REM ..and close:
+	IOCLOSE(thand2%)
+	IOCLOSE(thand1%)
+	gCLOSE(bitmap%)
+ENDP
+
+PROC iocheck%:(code%)
+	IF code%
+		RAISE code%
+	ENDIF
+ENDP
+

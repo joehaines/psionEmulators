@@ -1,0 +1,425 @@
+APP Paint
+rem *** Paint program from Julian Toler    ***
+rem *** 24, Parkcroft Road, West Bridgford ***
+rem *** Nottingham, NG2 6FN, UK            ***
+type $1000
+icon "\pic\paint.pic"
+ENDA
+
+PROC paint:
+GLOBAL gg%,gm%,d%,g%,w&,h&,fn$(128)
+GLOBAL x%,y%,dx%,dy%,km%,s%,txt$(50)
+GLOBAL draw%,gt%,st%,st1%,st2%,st3%,st4%,f%,but%
+GLOBAl filled%,message$(25),z%,i%
+init:
+do
+	gat x%,y%
+	if draw% and gg%=0
+		cursor off
+	else
+		cursor 1,0,s%,s%,0
+	endif
+	if draw%
+		gfill s%,s%,gm%
+	endif
+	g%=get :km%=kmod
+	if g%=%p
+		paste:
+	elseif g%=%h or g%=291
+		help:
+	elseif g%=32
+		if draw%
+			draw%=0 :giprint "Pen Off"
+		else
+			draw%=1 :giprint "Pen On"
+		endif
+	elseif g%=%w
+		giprint "White"
+		ggmode 1 :gm%=1
+		ggrey 2 :gg%=2
+	elseif g%=%b
+		giprint "Black"
+		ggmode 0 :gm%=0
+		ggrey 0 :gg%=0
+	elseif g%=%g
+		giprint "Grey"
+		ggrey 1 :gg%=1
+		ggmode 0 :gm%=0
+	elseif g%=%l :line:
+	elseif g%=%t :text:
+	elseif g%=%s :save:
+	elseif g%=%c :circle:
+	elseif g%=%r :rect:
+	elseif g%=%i :icon:
+	elseif g%=43
+		s%=s%+1 :giprint "Pen size "+gen$(s%,3)+" pixels"
+	elseif g%=45 and s%>1
+		s%=s%-1 :giprint "Pen size "+gen$(s%,3)+" pixels"
+	elseif g%=27
+		if alert("Abort Picture?","","No","Yes")=2 :stop :endif
+	else
+		move:
+	endif
+until g%=999
+ENDP
+
+
+PROC line:
+message$="Line Options"
+options:
+message$="Go start of line"
+locate:
+dx%=x% :dy%=y%
+ggrey 2 :ggmode 2
+draw%=0
+do
+	busy "Stretch Line..",3
+	gat x%,y%
+	cursor off
+	glineto dx%,dy%
+	g%=get :km%=kmod
+	glineto x%,y%
+	move:
+until g%=13
+busy off
+ggrey gg% :ggmode gm%
+cursor on
+gat dx%,dy% :glineto x%,y%
+ENDP
+
+PROC circle:
+local a%(963),c&,x&,y&,r&,h,y1%,y2%,c2%
+draw%=0
+dinit "Circle"
+dchoice gg%,"Colour Plane","Black,Grey,Both"
+dchoice gm%,"Graphic Mode","Normal,Clear,Invert"
+r&=20 :dlong r&,"Radius",1,120
+h=1 :dfloat h,"Relative height",0.25,4
+dchoice filled%,"Circle Type","Empty,Filled"
+d%=dialog
+ggrey gg%-1 :ggmode gm%-1
+if d%=0 :return :endif
+message$="Go circle centre"
+locate:
+x&=x% :y&=y%
+c&=(1) :d%=2*r&
+if filled%=2
+	gat x%-r&,y% :glineby 0,0
+	while c&<d%
+		y2%=-sqr(r&*c&*2-c&**2)*h
+		gat x%-r&+c&,y%-y2%
+		glineby 0,2*y2%
+		c&=c&+1
+	endwh
+else rem not filled
+	a%(1)=x&+r& :a%(2)=y& :a%(3)=4*r& :y1%=0
+	while c&<=d%
+		giprint "Calculating "+gen$(d%-c&,5)
+		c2%=c&*2 :y2%=-sqr(r&*c2%-c&**2)*h
+		a%(2+c2%)=-2 :a%(3+c2%)=y2%-y1%
+		y1%=y2% :c&=c&+1
+	endwh
+	c&=1
+	while c&<=d%
+		giprint "More Calculating "+gen$(d%-c&,5)
+		c2%=c&*2 :y2%=sqr(r&*c2%-c&**2)*h
+		a%(2+a%(3)+c2%)=2 :a%(3+a%(3)+c2%)=y2%-y1%
+		y1%=y2% :c&=c&+1
+	endwh
+	gpoly a%()
+endif
+ENDP
+
+PROC rect:
+draw%=0
+dinit "Choose Rectangle"
+dbuttons "Empty",%e,"Filled",%f,"Button",%b
+d%=dialog
+if d%=%b
+	dinit "Button"
+	dedit txt$,"Button Text",15
+	gt%=gt%+1 :dchoice gt%,"Style","Raised,Normal,Depressed"
+	dchoice f%,"Font","Mono 8x8,Roman 8,Roman 11,Roman 13,Roman 16,Swiss 8,Swiss 11,Swiss 13,Swiss 16,Mono 6x6"
+	dchoice st1%,"Bold","No,Yes"
+	dchoice st2%,"Underlined","No,Yes"
+	dchoice st3%,"Double Height","No,Yes"
+	dchoice st4%,"Italic","No,Yes"
+	if dialog=0 :return :endif
+	st%=(st1%-1)+((st2%-1)*2)+((st3%-1)*8)+((st4%-1)*32)
+	gfont f%+3
+	gstyle st%
+	gt%=gt%-1
+elseif d%=%f or d%=%e
+	message$="Rectangle Options"
+	options:
+endif
+message$="Go top left corner"
+locate:
+dx%=x% :dy%=y%
+gat x%,y%
+ggrey 2 :ggmode 2
+busy "Stretch box.."
+do
+	gat dx%,dy%
+	gbox x%-dx%,y%-dy% rem draws box
+	giprint num$(x%-dx%,3)+" x "+num$(y%-dy%,3)
+	g%=get :km%=kmod
+	gbox x%-dx%,y%-dy% rem deletes box
+	move:
+until g%=13
+busy off
+gat dx%,dy%
+ggrey gg% :ggmode gm%
+if d%=%e :gbox x%-dx%,y%-dy% rem empty
+elseif d%=%f :gfill x%-dx%,y%-dy%,gm% rem filled
+elseif d%=%b :gbutton txt$,1,x%-dx%,y%-dy%,gt% rem button
+endif
+ENDP
+
+PROC text:
+draw%=0
+gg%=gg%+1
+dinit
+dedit txt$,"Text",15
+dchoice f%,"Font","Mono 8x8,Roman 8,Roman 11,Roman 13,Roman 16,Swiss 8,Swiss 11,Swiss 13,Swiss 16,Mono 6x6"
+gg%=gg%+1 :dchoice gg%,"Colour Plane","Black,Grey,Both"
+gt%=gt%+1 :dchoice gt%,"Draw Mode","Normal,Clear,Invert,Replace"
+dchoice st1%,"Bold","No,Yes"
+dchoice st2%,"Underlined","No,Yes"
+dchoice st3%,"Double Height","No,Yes"
+dchoice st4%,"Italic","No,Yes"
+if dialog=0 :return :endif
+st%=(st1%-1)+((st2%-1)*2)+((st3%-1)*8)+((st4%-1)*32)
+gfont f%+3
+gstyle st%
+gt%=gt%-1
+gg%=gg%-1
+cursor off
+gtmode 2
+ggrey 2
+busy "Hit ENTER to paste",3
+do
+	gat x%,y%
+	gprint txt$
+	g%=get :km%=kmod
+	gat x%,y%
+	gprint txt$
+	move:
+until g%=13
+busy off
+ggmode 0
+gtmode gt%
+ggrey gg%
+gat x%,y%
+gprint txt$
+ENDP
+
+PROC move:
+if g%=256 rem up
+	y%=y%-1
+	if km% and 2
+		y%=y%-9
+	endif
+elseif g%=257 rem down
+	y%=y%+1
+	if km% and 2
+		y%=y%+9
+	endif
+elseif g%=259 rem left
+	x%=x%-1
+	if km% and 2
+		x%=x%-9
+	endif
+elseif g%=258 rem right
+	x%=x%+1
+	if km% and 2
+		x%=x%+9
+	endif
+endif
+ENDP
+
+PROC locate:
+x%=x%-1
+y%=y%-1
+busy message$
+do
+	gat x%,y%
+	giprint num$(x%+1,3)+" x "+num$(y%+1,3)
+	cursor 1,0,3,3,3
+	g%=get :km%=kmod
+	move:
+until g%=13
+busy off
+x%=x%+1
+y%=y%+1
+ENDP
+
+PROC paste:
+local bit%,id%
+draw%=0
+dinit "Load and Paste Picture File"
+dfile fn$,"File",1+2
+if dialog=0 : alert("Aborted Picture Load")
+return :endif
+dinit
+i%=1 :dchoice i%,"Colour Plane to Load","Black,Grey"
+gg%=4 :dchoice gg%,"Colour to Paste","Black,Grey,Both,Same"
+gt%=4 :dchoice gt%,"Paste Mode","Set,Clear,Invert,Replace"
+if dialog=0
+	return
+endif
+i%=i%-1
+gt%=gt%-1
+if gg%=4
+	gg%=i%
+else
+	gg%=gg%-1
+endif
+ggrey gg%
+onerr nogrey
+bit%=gloadbit(fn$,1,i%)
+h&=gheight :w&=gwidth
+guse 1
+Busy "Hit ENTER to Paste"
+giprint num$(w&,3)+" x "+num$(h&,3)+" Bitmap"
+do
+	gat x%,y%
+	gcopy bit%,0,0,w&,h&,2
+	g%=get :km%=kmod
+	giprint num$(x%,3)+" x "+num$(y%,3)
+	move:
+	gcopy bit%,0,0,w&,h&,2
+until g%=13
+busy off
+gcopy bit%,0,0,w&,h&,gt%
+gclose bit%
+return
+nogrey::
+giprint "Error loading bitmap"
+onerr off
+ENDP
+
+PROC icon:
+local id%
+draw%=0
+ggrey 2
+ggmode 2
+busy "Grab icon move box",3
+do
+	gat x%,y%
+	gbox 48,48 rem draws box
+	g%=get :km%=kmod
+	gbox 48,48 rem deletes box
+	move:
+until g%=13
+id%=gcreate (0,0,48,48,1,1)
+ggrey 2
+busy off
+gat 0,0
+gcopy 1,x%,y%,48,48,3
+dinit "Save Icon"
+dtext "Size",gen$(gwidth,3)+" x "+gen$(gheight,3)
+dfile fn$,"File",1+2+16
+if dialog
+	gsavebit fn$
+	giprint "Icon Saved"
+	gclose id%
+else
+	gclose id%
+	giprint "Aborted Filesave!"
+endif
+return
+ENDP
+
+PROC save:
+local id%
+draw%=0
+dinit
+gg%=3 :dchoice gg%,"Save Which Colour Plane(s)","Black,Grey,Both"
+dialog
+gg%=gg%-1
+busy "Go top left Corner",3
+do
+	gat x%-1,y%-1
+	cursor 1,0,3,3,1
+	g%=get :km%=kmod
+	move:
+until g%=13
+dx%=x% :dy%=y%
+cursor 1,0,1,1
+busy "Stretch box",3
+ggrey 0
+do
+	gat dx%,dy%
+	ggmode 2
+	gbox x%-dx%,y%-dy% rem draws box
+	g%=get :km%=kmod
+	gbox x%-dx%,y%-dy% rem deletes box
+	ggmode 0
+	move:
+until g%=13
+cursor off
+busy off
+if gg% :i%=1 :else :i%=0 :endif
+id%=gcreate (0,0,x%-dx%,y%-dy%,1,i%)
+gat 0,0
+ggrey gg%
+gcopy 1,dx%,dy%,x%-dx%,y%-dy%,3
+dinit "Save Picture File"
+dtext "Size",gen$(gwidth,3)+" x "+gen$(gheight,3)
+dfile fn$,"File",1+2+16
+if dialog
+	gsavebit fn$
+	giprint "Picture Saved"
+	gclose id%
+else
+	gclose id% :giprint "Aborted Filesave!"
+endif
+ENDP
+
+PROC help:
+dinit "Paint Help"
+dtext "","To change size of paint brush use +/-"
+dtext "","To move cursor rapidly, use Shift"
+dtext "","(this moves 10 pixels at a time)"
+dtext "","Toggle pen on/off with Space Bar"
+dialog
+ENDP
+
+PROC init:
+defaultwin 1
+gsetwin 0,0,400,160
+x%=20 :y%=20
+s%=3
+txt$="Example Text"
+f%=7
+fn$="m:\opd\*.pic"
+gcreate(400,0,80,160,1)
+gborder 1
+gfont 6 rem medium roman
+gat 5,12 :gprint "MENU"
+gfont 9 rem small swiss
+gat 5,22 :gprint "B black"
+gat 5,32 :gprint "G grey"
+gat 5,42 :gprint "W white"
+gat 5,52 :gprint "T text"
+gat 5,62 :gprint "L line"
+gat 5,72 :gprint "C circle"
+gat 5,82 :gprint "R rectangle"
+gstyle 1
+gat 5,122 :gprint "H help"
+gat 5,132 :gprint "I grab icon"
+gat 5,142 :gprint "P paste"
+gat 5,152 :gprint "S save"
+guse 1
+cursor 1,0,s%,s%,0
+ENDP
+
+PROC options:
+dinit message$
+gg%=gg%+1 :dchoice gg%,"Colour Plane","Black,Grey,Both"
+gm%=gm%+1 :dchoice gm%,"Graphic Mode","Normal,Clear,Invert"
+dialog
+gg%=gg%-1
+gm%=gm%-1
+ENDP

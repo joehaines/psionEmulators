@@ -1,0 +1,85 @@
+PROC POWERUP:
+	REM Plays .WVE file on power up or records a message
+	REM Developed by: R. Steve Walker Email ccocssw@acme.gatech.edu
+	global ev%(10), dname$(128), name$(128), RSecs%, t&, s%
+	dname$ = "\wve\tricord.wve"+chr$(0)
+	RSecs%=5 :REM Default record length
+	print "Psion PowerUp  ¸1995 PROTRONICS USA 404-351-1055"
+	print "Quick Recorder: hold ESC key down with Psion off"
+	print "Space records/stops",RSecs%,"secs S changes ",chr$(2);"Esc quits"
+	beep 4,600 :beep 4,600
+	name$ = dname$
+	call ($6c8d)
+	call ($138b)
+	rem call ($198d,100,0)
+	gUPDATE
+	s%=22
+	do
+	getevent ev%()
+	if SECOND < 4 and MINUTE = 0
+	  OFF 
+	elseif ev%(1)=$403
+		call ($288e, ADDR(ev%()))
+		if ev%(8) and $100
+			if ev%(3) and $80
+			call ($198d,0,0)
+			else
+			QR:
+			OFF
+			endif
+		else
+			if ev%(5) and $200
+				s%=-s%+12
+				call (4235,s%)
+				endif
+			if s%=22
+			call ($1F86,UADD(ADDR(name$),1),0,0)
+			name$=dname$
+			endif
+			endif
+		ELSEIF ev%(1)=32
+			QR:
+		ELSEIF ev%(1)=115
+			t&=RSecs%
+			dINIT
+			dLONG t&,"Seconds",1,200
+			if DIALOG : RSecs%=t& :endif
+		ELSEIF ev%(1)>48 and ev%(1)<59
+			name$="\WVE\REC"+gen$(ev%(1)-48,1)+".WVE"+chr$(0)
+			IF EXIST (name$)
+			call ($1F86,UADD(ADDR(name$),1),0,0)
+			AT 16,ev%(1)-43
+			dINIT 
+			dTEXT "","Delete "+name$+"?",2
+			dBUTTONS "Yes",%Y,"No",%N
+			IF DIALOG=%y :DELETE name$ :Print "deleted To record" :ENDIF
+			ELSE
+			 QR:
+			 ENDIF
+			name$=dname$
+		endif
+	until 0
+ENDP
+
+proc QR:
+	local sstat%, ret%
+	BEEP 5,400
+	do
+		ret%=ret%+1
+		name$="\WVE\REC"+gen$(ret%,3)+".WVE"+chr$(0)
+		until not exist(name$)
+	AT 1,ret%+5
+	giprint "Recording "+name$,1
+	call ($2186,UADD(ADDR(name$),1),4*RSecs%,0,0,ADDR(sstat%))
+	do
+	CALL ($288e,ADDR(ev%()))
+	IF ev%(5)=1 :call ($2386) :ENDIF
+	until sstat%<>-46
+	if exist(name$) 
+		BEEP 5,400
+		print name$,"recorded  To play press",ret%
+	ELSE
+		print "Out of memory" :ENDIF
+	while key>0
+		endwh
+endp

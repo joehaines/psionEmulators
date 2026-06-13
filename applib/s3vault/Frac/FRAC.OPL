@@ -1,0 +1,217 @@
+REM Frac - HopALong Graphics
+REM (c) By Markus Illenseer
+REM 1992,93 
+REM markus@techfak.uni-bielefeld.de
+REM Freely Distributable
+REM No Public Domain !
+REM Giftware, send me a postcard if
+REM you like this program.
+REM Include standard disclaimer..
+REM Run at your own risc !
+
+REM Basically, Frac is a visualisation
+REM of the forumala:
+REM x=y-sign(x)*sqrt(abs(b*x-c))
+REM y=a-x
+
+REM Delete this if you don't want an
+REM app-icon, or don't have one
+APP Frac
+  type 1
+  icon "\OPD\view"
+ENDA
+
+PROC Hop:
+REM Main()
+	Global i,r,ii,rr,a,b,c
+	Global str,sti,rrange,irange
+	Global x%,y%,xoff%,yoff%,k$(1)
+	Global Num,flag%,g%
+	Local a$(20)
+	Randomize 2
+	g%=Gcreate (Gwidth/4,Gheight/4,Gwidth-(Gwidth/2),Gheight-(Gheight/2),1)
+	Gborder $200+3
+	Gat 2,15 : Gprint " Frac V1.0  "
+	Gat 2,25 : Gprint " Markus Illenseer 1992"
+	Giprint "Init Randomizer"
+	RandInit:
+	Gclose g%
+	g%=GCreate (0,0,Gwidth,Gheight,1)
+	rrange=2.5 :irange=2.5
+	xoff%=Gwidth/2 :yoff%=Gheight/2
+	flag%=0
+	init:
+	While 1
+	REM Forever Loop, quit with /X
+		i=0 :r=0 
+		If flag%=0
+			a=5.0-Rnd*10.0 
+			b=5.0-Rnd*10.0 
+			c=Rnd*1.0
+		EndIf
+		flag%=0
+		a$="a"+Fix$(a,3,6)+"b"+Fix$(b,3,6)+"c"+Fix$(c,3,6)
+		Giprint a$
+		draw:
+		If flag%<=3
+			keypr:
+		EndIf
+		If flag%=4
+			flag%=0
+		EndIf
+		Gcls
+	Endwh
+EndP
+
+PROC init:
+	Local aa,bb,cc
+	Gcls 
+	If flag%=0
+		a=5.0-Rnd*10.0 
+		b=5.0-Rnd*10.0 
+		c=Rnd*1.0
+	EndIf
+	aa=a :bb=b :cc=c
+	Dinit "Start Values"
+	Dfloat aa,"a",-10,10
+	Dfloat bb,"b",-10,10
+	Dfloat cc,"c",-10,10
+	Dbuttons "No Change",-27,"Start",13
+	If Dialog=13
+		a=aa :b=bb :c=cc
+		flag%=2
+	EndIf
+EndP
+
+PROC draw:
+Local k%
+str=(Gwidth-xoff%)/rrange
+sti=(Gheight-yoff%)/irange
+while k%<(10000)
+	REM normally, after 5000, the gfx
+	REM won't change anymore
+	x%=xoff%+(r*str)
+	y%=yoff%-(i*sti)
+	While (x%<0)and(x%>Gwidth)and(y%<0)and(y%>Gheight)
+		If x%<0
+			x%=-x%
+		EndIf
+		If x%>Gwidth
+			x%=2*Gwidth-x%
+		EndIf
+		If y%<0
+			y%=-y%
+		EndIf
+		If y%>Gheight
+			y%=2*Gheight-y%
+		EndIf
+	Endwh
+	gat x%,y%
+	Glineby 0,0
+	rr=(b*r-c) 
+	If rr<0
+		rr=-rr
+	EndIf
+	rr=Sqr(rr)
+	If r<0
+		rr=-rr
+	EndIf
+	rr=i-rr
+	ii=a-r
+	r=rr
+	i=ii
+	k%=k%+1
+	k$=Key$
+	If k$<>""
+		flag%=1
+		Keypr:
+		If flag%=2 or flag%=4
+			Break
+		EndIf
+	EndIf
+Endwh
+If flag%=2
+ flag%=3
+EndIf
+Endp
+
+proc menu:
+	Local k%
+	Minit 
+	Mcard "Program","Info",%I,"Quit",%Q
+	Mcard "Values","Define",%D,"New Randoms",%N
+	k%=Menu
+	If Chr$(k%)="q"
+		Stop
+	ElseIf Chr$(k%)="d"
+		flag%=1
+		init:
+	ElseIf Chr$(k%)="i"
+		about:
+	ElseIf Chr$(k%)="n"
+		flag%=4
+	EndIf
+Endp
+
+PROC RandInit:
+REM The normal Rnd always starts with
+REM the same numbers, here is a way
+REM to try to get real randoms from
+REM the beginning...
+
+	Local Num,t
+	Num=Second*Month+Year/Minute
+	While Num>1
+		t=Rnd
+		Num=Num-1
+	Endwh
+Endp
+
+Proc about:
+	Local k%
+	Local a$(30)
+	REM g%=GCreate (0,0,Gwidth,Gheight,1)
+	REM Gborder 0
+	Gorder 1,0
+	Cls
+	Print "Frac, Hop-a-Long-Style graphics program"
+	Print "Based upon algorithms of an article in"
+	Print "'Scientific American' about fractals."
+	Print "(c) by Markus Illenseer 1993 "
+	Print "markus@techfak.uni-bielefeld.de"
+	Print "Freely distributable, no public Domain!"
+	Print "Giftware. Menu Key for functions."
+	Print " Have fun!    Press any key"
+	a$="a: "+Fix$(a,3,6)+" b: "+Fix$(b,3,6)+" c: "+Fix$(c,3,6)
+	Print "Current: ";a$
+	Get
+	Gorder g%,0
+Endp
+
+Proc keypr:
+	If kmod=8
+	REM Psion-key 
+		If k$=Chr$(632)
+		REM Psion-X
+			Stop
+		ElseIf k$=Chr$(612)
+		REM Psion-D
+			init:
+		ElseIf k$=Chr$(617)
+		REM Psion-I
+			about:
+		ElseIf k$=Chr$(622)
+		REM Psion-N
+			flag%=4
+		EndIf
+	ElseIf k$=Chr$(27) or k$=" "
+	REM Recalc gfx with cur. val.
+		flag%=2
+	ElseIf k$=Chr$($122)
+	REM Menu Key
+		menu:
+	ElseIf k$=Chr$(291)
+	REM Help-Key
+		about:
+	EndIf
+Endp

@@ -1,0 +1,310 @@
+APP Tsmp
+	TYPE $1000
+	ICON "\pic\tsmp.pic"
+ENDA
+	
+PROC tsmp:
+  global pcb%
+  global buf%(8000)
+	Global assa%,assb%
+	Global	a&(25)
+	Global	b&(14)
+	global maxbar%, barwid%, bartime%
+	global freqs(12)
+	global tones$(12,3)
+	global t&
+	local dia%
+	
+	defaultwin 1	
+	t&=200
+	dia%=0
+  deldrv:
+  loaddrv:
+  opench:
+  setmode:(-1)
+	inita:
+	while dia%<>5
+	dinit "Funktion:"
+		dtext "","Alarm",$402
+		dtext "","Tuner",$402
+		dtext "","Levelmeter",$602
+		dtext "","Exit",$402
+	dia%=dialog
+	if dia%=2
+		mainalrm:
+	elseif dia%=3
+		maintune:
+	elseif dia%=4
+		mainlevl:
+	endif
+	endwh
+  ioclose(pcb%)
+ENDP
+
+PROC deldrv:
+  local s$(4)
+  s$="SMP"
+  call($0885,addr(s$)+1,0,$dd01)
+ENDP
+
+PROC loaddrv:
+  local off%(6),f$(130),r%
+  local ax%,bx%,cx%,dx%,si%,di%,fl%
+  f$=parse$("\sys$samp.LDD",cmd$(1),off%(1))
+  bx%=addr(f$)+1
+  ax%=$0600
+  fl%=os($85,addr(ax%))
+  ax%=ax% or $ff00
+  if (fl% and 1) and (ax% <> -32)
+    alert("Failed to load SYS$SAMP.LDD",err$(ax%))
+    stop
+  endif
+ENDP
+
+PROC opench:
+  local r%
+  r%=IOOPEN(pcb%,"SMP:",-1)
+  if r%
+    alert("Failed to open channel to SMP:",err$(r%))
+    stop
+  endif
+	IOREAD(pcb%,addr(buf%(1)),2000)
+	pause 20	
+ENDP
+
+PROC setmode:(mo%)
+  IOW(pcb%,7,#mo%,#0)
+ENDP
+
+PROC mainalrm:
+	local v%
+	
+	dinit "Trigger:"
+		dlong t&,"Level:",10,8192
+	dialog
+	initbar:(200,10)
+	while key=0
+		fillbuf:(addr(buf%(1)),20,0)
+		v%=volume%:(addr(buf%(1)),20)
+		if v%<t&
+			v%=v%*(3840/t&)
+			bar:(v%)
+		else
+			bar:(3840)
+			alarm:
+		endif
+	endwh
+	exitbar:
+ENDP
+
+PROC mainlevl:
+	initbar:(200,10)
+	while key=0
+		fillbuf:(addr(buf%(1)),50,0)
+		bar:(volume%:(addr(buf%(1)),50))
+	endwh
+	exitbar:
+ENDP
+
+PROC maintune:
+	global vol%,fr%
+	
+	initton%:
+	font 8,9
+	initbar:(400,10)
+	while key=0
+		fillbuf:(addr(buf%(1)),50,0)
+		vol%=volume%:(addr(buf%(1)),4000)
+		bar:(vol%)
+		if bartime%=0
+			at 10,2
+			print "                "
+		endif
+		if vol%>30
+			fillbuf:(addr(buf%(1)),4000,50)
+			at 10,2
+			fr%=freq%:(addr(buf%(1)),4000)
+			print fr%;" Hz   "
+			at 10,4
+			print calcton$:(fr%)
+		endif
+	endwh
+	exitbar:
+ENDP
+
+proc initbar:(x%,y%)
+	barwid%=gcreate (x%,y%,50,146,1,1)
+	gcls
+	gxborder 1,$303
+	maxbar%=0
+	guse 1
+endp
+
+proc exitbar:
+	gclose barwid%
+endp
+
+proc bar:(volume%)
+	guse barwid%
+	if volume%>maxbar%
+		maxbar%=volume%
+		bartime%=20
+		ggrey 1
+		gat 10,10+120-volume%/32
+		gfill 30,volume%/32,0
+	endif
+	if bartime%<=0
+		ggrey 1
+		gat 10,10
+		gfill 30,126,1
+		maxbar%=0
+	else
+		bartime%=bartime%-1
+	endif
+	ggrey 0
+	gat 10,10
+	gfill 30,126-volume%/32,1
+	gat 10,10+126-volume%/32
+	gfill 30,volume%/32,0
+	guse 1
+endp
+
+proc waittrig:(bufptr%,skip%,level%)
+	do
+		IOREAD(pcb%,addr(buf%(1)),skip%)
+	until volume%:(bufptr%,skip%)>level%
+endp
+
+proc fillbuf:(bufptr%,buflen%,skip%)
+	IOREAD(pcb%,bufptr%+skip%*2,buflen%-skip%)
+endp
+
+proc volume%:(bufptr%,buflen%)
+	local v%
+	return iabs(usr(assb%,bufptr%,0,buflen%,0))
+endp
+
+proc freq%:(bufptr%,buflen%)
+	local n%
+			
+	n%=usr(assa%,bufptr%,0,buflen%,0)-1
+	return int(n%*(flt(4000)/buflen%))
+endp
+
+proc calcton$:(fr%)
+	local mini,minpos%,s%,diff,freq
+	
+	mini=4000
+	minpos%=0
+	s%=1
+	if fr%>509
+		freq=flt(fr%)/2
+	elseif fr%<254
+		freq=fr%*2
+	else
+		freq=fr%
+	endif
+	while s%<=12
+		diff=freq-freqs(s%)
+		if abs(diff)<abs(mini)
+			mini=diff
+			minpos%=s%
+		endif
+		s%=s%+1
+	endwh
+	
+	if mini<-.5
+		return "-"+tones$(minpos%)+"     "
+	elseif mini>0.5
+		return tones$(minpos%)+"+     "
+	else
+		return "*"+tones$(minpos%)+"*     "
+	endif
+endp
+
+proc alarm:
+  ioclose(pcb%)
+	beep 10,200
+	pause 10
+  opench:
+  setmode:(-1)
+endp
+	
+proc inita:
+		a&(1)=&73413353
+	a&(2)=&4C504F6D
+	a&(3)=&00000010
+	a&(4)=&200C0000
+	a&(5)=&07BE0049
+	a&(6)=&0050FF00
+	a&(7)=&8B0009CB
+	a&(8)=&0000B8F0
+	a&(9)=&8100548B
+	a&(10)=&7F0000FA
+	a&(11)=&0001BB06
+	a&(12)=&BB0003E9
+	a&(13)=&548B0000
+	a&(14)=&00FA8100
+	a&(15)=&810E7F00
+	a&(16)=&750000FB
+	a&(17)=&BBC0FF13
+	a&(18)=&0BE90001
+	a&(19)=&01FB8100
+	a&(20)=&FF057500
+	a&(21)=&0000BBC0
+	a&(22)=&C6FFC6FF
+	a&(23)=&02C3D8E2
+	a&(24)=&07000100
+	a&(25)=&00000000
+	
+	b&(1)=&73413353
+	b&(2)=&4C504F6D
+	b&(3)=&00000010
+	b&(4)=&200C0000
+	b&(5)=&07BE001E
+	b&(6)=&0050FF00
+	b&(7)=&8B0009CB
+	b&(8)=&0000B8F0
+	b&(9)=&3B00548B
+	b&(10)=&8B027FD0
+	b&(11)=&FFC6FFC2
+	b&(12)=&C3F1E2C6
+	b&(13)=&00010002
+	b&(14)=&00000007
+	
+	loadm ("m:\opo\s3obj.opo")
+	assa%=Reloc:(addr(a&()))
+	assb%=Reloc:(addr(b&()))
+	if assa%=0 or assb%=0
+		alert ("Cannot relocate")
+		stop
+	endif
+endp
+
+proc initton%:
+	freqs(1)=261.63
+	freqs(2)=277.18
+	freqs(3)=293.67
+	freqs(4)=311.13
+	freqs(5)=329.63
+	freqs(6)=349.23
+	freqs(7)=369.99
+	freqs(8)=392
+	freqs(9)=415.31
+	freqs(10)=440
+	freqs(11)=466.16
+	freqs(12)=493.88
+
+	tones$(1)="C"
+	tones$(2)="Cis"
+	tones$(3)="D"
+	tones$(4)="Dis"
+	tones$(5)="E"
+	tones$(6)="F"
+	tones$(7)="Fis"
+	tones$(8)="G"
+	tones$(9)="Gis"
+	tones$(10)="A"
+	tones$(11)="B"
+	tones$(12)="H"
+endp

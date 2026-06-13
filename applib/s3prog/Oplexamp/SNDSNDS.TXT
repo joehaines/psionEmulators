@@ -1,0 +1,23 @@
+==========
+psion/4_series3 #1868, from stevegodfrey, 321 chars, Jul 26 8:59 95
+Comment to 1854.
+----------
+
+The ring and chime alarms use the SND: driver to produce an
+alarm note sequence. You can use the sounds as follows:
+
+PROC alarm:
+  global ret%,id%,alarm&
+
+  alarm&=1
+
+  ret%=ioopen(id%,"SND:",-1)
+  iow(id%,9,alarm&, #0)
+  get
+  ioclose(id%)
+ENDP
+
+set alarm& to 0 for rings, and to 1 for chimes.
+
+Steve
+

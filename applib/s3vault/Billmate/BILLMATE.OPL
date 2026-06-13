@@ -1,0 +1,55 @@
+APP Billmate
+ TYPE 0
+ENDA
+
+PROC BILLMATE:
+GLOBAL A,B,C,A$(15),COUT,HRATE,VAT,VRATE,HRS,PARTS,SUB,TOT,HRSTOT,SUNDRIES
+START::
+FONT 11,16
+VRATE=17.5
+HRATE=26
+HRS=.5
+COUT=10.00
+SUNDRIES=2.50
+DINIT "Please enter the following information"
+DTEXT "","Use the arrow keys to select call out , labour , sundries and ",2
+DTEXT "","parts (ex-Vat) , use bottom line for parts inc vat , then press enter",$202
+
+DFLOAT COUT,"Call out.                             œ12.50 or œ10",0,12.5
+DFLOAT HRS,"Labour in Hrs or parts of",0,99
+DFLOAT SUNDRIES,"Sundry parts.            Recommend œ2.50",0,10
+DFLOAT A,"Price of parts",0,9999
+DFLOAT B,"Price of parts",0,9999
+DFLOAT C,"Price of parts                      (inc vat) ",0,9999
+DIALOG
+PARTS=A+B+(C>(VRATE)%)
+HRSTOT=HRS*HRATE
+SUB=HRSTOT+PARTS+SUNDRIES+COUT
+A$=FIX$( PARTS,2,10)
+PRINT"      Parts œ",A$
+PRINT"   Sundries œ", SUNDRIES
+A$=FIX$( COUT,2,10)
+PRINT"   call out œ",A$
+PRINT"     Labour œ", HRSTOT
+PRINT"   ------------------"
+A$=FIX$( SUB,2,10)
+PRINT"    Sub Tot œ",A$
+VAT=SUB*(VRATE)%
+A$=FIX$( VAT,2,10)
+PRINT"   ------------------"
+PRINT"        Vat œ",A$
+PRINT"   ------------------"
+TOT=SUB+VAT
+A$=FIX$( TOT,2,10)
+PRINT"      Total œ",A$
+PRINT"   ------------------"
+DINIT " Calculate another bill ? "
+DPOSITION 1,0
+DBUTTONS "another Bill",%B,"Quit",%Q
+IF DIALOG=%b
+GOTO START::
+ELSE
+STOP
+ENDIF
+	
+ENDP

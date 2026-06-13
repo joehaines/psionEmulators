@@ -1,0 +1,31 @@
+LIBRARY gpic$pcx
+
+EXTERNAL olib
+
+INCLUDE olib.g
+
+CLASS gpic root
+    {
+    ADD version                 Return version info about DYL
+    ADD info                    Return info about image file
+    ADD load                    Attempt to load image from file
+    ADD doload                  Repeat call to process load
+    ADD save                    Attempt to save image to file
+    ADD dosave                  Repeat call to process save
+    PROPERTY
+        {
+        HANDLE file;            Handle of open file
+        INT by;                 Current scanline 
+        VOID *inbuf;            P_FBLKSIZE input buffer
+        LONG done;              Bytes done
+        VOID *palhand;          Pointer to palette info
+        VOID *pcxhead;          Pointer to PCX header
+        VOID *fsbuf1;           Floyd steinberg buffer 1 
+        VOID *fsbuf2;           Floyd steinberg buffer 2
+        VOID *scanline;         Buffer for one scanline of data
+        VOID *pixel;            Buffer for pixel info
+        LONG datapos;           Where we are in pcx file
+        UBYTE *bufpos;          Current position in buffer
+        }
+    }
+

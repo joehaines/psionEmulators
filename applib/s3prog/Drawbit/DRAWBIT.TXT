@@ -1,0 +1,124 @@
+Comments on DRAWBIT.OPL:
+========================
+The following program demonstrates Opl access to the C-level Window
+Server functions gInitBit and gDrawBit.  These functions may be found
+useful for transferring bitmaps from files bitmaps.  They have the
+advantage that they do not involve an intermediate drawable (in
+distinction to, say, gLOADBIT).
+
+Note that for full appreciation of some of the points in this
+program, it will be necessary to refer to the Window Server manual
+available as part of the Psion C SiboSDK.
+
+To run the program
+------------------
+You'll need a dual-plane bitmap \OPO\TEST\TEST.PIC.  The program
+treats the first bitmap in this file as black and the second as grey.
+
+Window server IDs
+-----------------
+The function gDrawBit, like all C-level Window Server functions,
+refers to a window by its so-called Window Server ID.  This is
+different from the ID by which Opl refers to the window.  To convert
+between the two kinds of IDs, use the OPL gINFO function (see p186 of
+the Opl programming manual).
+
+Temporary GC
+------------
+The mechanism used in this program to draw one of the bitmaps to the
+grey plane is to change a setting in the so-called "temporary GC". 
+The two calls made to gDrawBit are in fact bracketed between a call
+to gCreateTempGC and a call to gFreeTempGC.  (Normally OPL would take
+care of this kind of thing for you.)
+
+The program itself
+------------------
+
+  PROC test:
+    local i%(32),j%(6),fn$(130),c%,h%
+REM i% is for gINFO, j% ("junk") for PARSE$
+REM fn$ is for the filename where the bitmaps are stored
+REM c% is for the number of bitmaps in the file
+REM h% is the "handle" of the opened bitmap file
+
+    local x%,y%    rem keep together
+REM the offset in the window to draw to
+
+    local tlx%,tly%,w%,h2%    rem keep together
+REM the rectangle inside the bitmap to copy from
+
+    local gc%(3)
+REM for gSetGC
+
+    defaultwin 1
+    ginfo i%(1)
+    print i%(31)
+REM the Window Server ID of the main window
+
+    fn$=parse$("\opo\test\test.pic",cmd$(1),j%(1))
+REM fills in which drive we're running on
+
+    h%=call($e78d,addr(fn$)+1,0,0,addr(c%))
+REM $e78d is gInitBit
+REM opens channel to file for direct blitting to screen, later
+REM returns open handle if successful, else an error
+REM C-style ZTS string of filename goes in BX
+REM SI takes address of integer to write number of bitmaps to
+
+    call($ea8d,h%,0,0,addr(w%))
+REM $ea8d is gQueryBit
+REM queries information about specified bitmap within file
+REM BX is handle of open bitmap file
+REM CX is index of bitmap within file (0 for first, etc)
+REM SI takes address of point(x,y) to write size of bitmap to
+REM returns 0 for success, or negative error
+
+    print h%,c%
+    print w%,h2%
+    tlx%=0
+    tly%=0
+    call($228d,i%(31),0)
+REM $228d is gCreateTempGC
+REM Creates temporary graphics context to receive following commands
+REM BX is Window Server ID of drawable to draw to
+REM CX is 0 to specify use of default values
+REM always succeeds (or panics if temp GC is already in use)
+
+    x%=20 :y%=30
+    call($e98d,addr(x%),h%,addr(tlx%),0,0)
+REM $e98d is gDrawBit
+REM Blits straight from open file to drawable in current GC
+REM BX is address of point in drawable to draw to
+REM CX is handle of open bitmap file
+REM DX is address of rectangle to copy from bitmap
+REM in this case, we copy *all* of the bitmap
+REM SI is the index of the bitmap in the file
+REM DI is the transfer mode (G_TRMODE_ number: 0 for default)
+
+    gc%(2)=$100
+REM set "flags" field of G_GC struct to select grey plane drawing
+
+    call($248d,0,$20,addr(gc%(1)))
+REM $248d is gSetGC
+REM alters features of current graphics context
+REM (can also be used to *switch* graphics contexts)
+REM BX is Window Server ID of graphics context
+REM just set BX 0 to alter the current graphics context
+REM CX is which fields to alter in the GC
+REM $20 means altering the grey plane status
+REM DX is the address of the G_GC struct
+
+    call($e98d,addr(x%),h%,addr(tlx%),1,0)
+REM draws second bitmap in file (index number is 1)
+
+    call($038d)
+REM gFreeTempGC (no parameters required)
+
+    get
+  ENDP
+
+Other notes:
+------------
+If your program continues afterwards, you should call wFree:
+    call($118d,h%)
+to close down the file channel.

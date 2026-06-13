@@ -1,0 +1,108 @@
+rem  SPEAKING CLOCK PROGRAM FOR PSION 3A
+rem  author	Richard Moore		Jan 1996
+rem
+rem  Requires a set of sound files in
+rem  the specified directory: 
+rem  one.wve, two.wve etc
+rem
+
+PROC sclock:
+	local hour$(2), minute$(2), time$(4)
+	local file$(52),i,tim%, v%, dr$(52)
+	local ht1,ht2
+	v%=2
+rem	dr$="a:\wve\italy\" : tim%=25
+ 	dr$="a:\wve\time\" : tim%=20
+
+Font 12,1
+
+	at 1,9
+	print "PSION-ESC to quit"
+
+gFont 5
+	gat 420,160
+	gprint "RRM Jan 96"
+gFont 12
+	gat 182,22
+	gclock on,9
+
+	start::
+
+	at 22,8
+	print "              "
+rem pause 32*60
+get
+
+	ht1=hour
+	hour$=gen$(hour,2)
+	if len(hour$)=1 
+		hour$="0"+hour$
+	endif
+	minute$=gen$(minute,2)
+	if len(minute$)=1
+		minute$="0"+minute$
+	endif
+	time$=hour$+minute$
+
+		if ht1<> hour : goto start :endif
+	i=1
+at 22,8
+	print hour$+":"+minute$
+	while i <5
+		if i=3 :pause 3 :endif
+		if mid$(time$,i,1)="1" 
+			file$=dr$+"one.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="2" 
+			file$=dr$+"two.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="3" 
+			file$=dr$+"three.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="4" 
+			file$=dr$+"four.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="5" 
+			file$=dr$+"five.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="6" 
+			file$=dr$+"six.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="7" 
+			file$=dr$+"seven.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="8" 
+			file$=dr$+"eight.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="9" 
+			file$=dr$+"nine.wve"
+			play%:(file$,tim%,v%)
+		endif
+		if mid$(time$,i,1)="0" 
+			file$=dr$+"zero.wve"
+			play%:(file$,tim%,v%)
+		endif
+	i=i+1
+	endwh
+	while key : endwh
+goto start
+ENDP
+
+proc play%:(inname$,ticks%,vol%)
+	local name$(128),p%,ret%
+	p%=peekw($1c)+6
+	name$=inname$+chr$(0)
+	ret%=call($1f86,uadd(addr(name$),1),ticks%,vol%)
+	if peekw(p%) and 1
+		return ret% or $FF00
+	endif
+ENDP
+

@@ -1,0 +1,104 @@
+==========
+psion/opl #2158, from stevegodfrey, 2024 chars, Aug 30 15:7 95
+----------
+Faster redrawing in OPL
+Here is a technique for getting:
+
+a) Faster redrawing in OPL
+b) Redrawing the screen while showing something else
+c) Smooth animation
+
+all using just the standard OPL window and OPL graphics
+commands. This is very useful for having instantly
+appearing or changing screens.
+
+To do this, use the following section of code:
+
+call($108d,wid%)
+<your redraw code here>
+call($04d6)
+call($008d)
+call($158d,wid%)
+testevent
+
+where wid% is obtained using ginfo. Your redraw code can
+be as long/complicated as you like - the user sees nothing
+happening - they just see the previously drawn screen.
+You can even use gcls to redraw completely.
+
+It works as follows:
+
+call($108d,wid%) is wBeginRedrawWin.
+
+Any following OPL graphics commands will be directed to
+the backup bitmap of the window.
+
+call($04d6) flushes the graphics buffer.
+
+call($008d) is wEndRedraw. Returns drawing to normal.
+
+call($158d,wid%) calls wInvalidateWin. This makes the
+window server copy the backup bitmap (to which you have
+just drawn) to the main window. The copying of the backup
+bitmap wont occur until you use testevent (or get, getevent).
+
+A simple demo follows. It draws a pattern while displaying
+the please wait. It is far quicker than drawing directly.
+
+I'll upload a file to cix shortly giving full details
+of this and other techniques for fast graphics.
+
+PROC demo:
+ global wid%
+ 
+ defaultwin 1
+ 
+ wid%=getid:
+ 
+ gat 0,80
+ gfont 12
+ gprintb "Please wait ... drawing screen",480,3
+ 
+ call($108d,wid%)
+ drawpat: 
+ call($04d6)
+ call($008d)
+ call($158d,wid%)
+ get
+ENDP
+ 
+PROC drawpat:
+ local x%,y%
+ ggrey 2
+ gcls
+ ggrey 0
+ x%=0
+ y%=0
+ do
+   gat x%,0
+   glineto 480,y%
+   glineto 480-x%,160
+   glineto 0,160-y%
+   glineto x%,0
+   y%=y%+8
+   x%=x%+24
+ until x%=480
+ENDP
+
+ENDP
+
+PROC getid:
+ rem return window handle
+ local gi%(31)
+ 
+ ginfo gi%()
+  
+ return gi%(31)
+ENDP
+
+Hope this is useful to someone :-)
+
+Steve Godfrey
+Psion PLC
+
+

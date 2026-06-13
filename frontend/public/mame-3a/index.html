@@ -1,0 +1,417 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Psion Series 3a (MAME)</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #f4f4f2;
+      color: #2b2b2b;
+      font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    }
+
+    #wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+      gap: 12px;
+      box-sizing: border-box;
+    }
+
+    /* Canvas and button bar share the same container width */
+    #frame {
+      width: min(960px, 100vw - 32px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #canvas {
+      display: none;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 3 / 1;
+      image-rendering: pixelated;
+      background: #1a1a1a;
+      cursor: crosshair;
+    }
+
+    /* SIBO app-button bar image with invisible hit zones on top */
+    #btn-bar {
+      display: none;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    #btn-bar img {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #btn-bar-zones {
+      position: absolute;
+      inset: 0;
+      display: flex;
+    }
+
+    .sibo-zone {
+      flex: 1;
+      opacity: 0;
+      cursor: pointer;
+      transition: opacity 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .sibo-zone:hover   { opacity: 0.12; background: white; }
+    .sibo-zone.pressed { opacity: 0.30; background: #fadf3c; }
+
+    /* Key buttons — match native emulator styling */
+    .key-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      padding: 0 16px;
+    }
+
+    .key-row.mobile-only { display: none; }
+
+    @media (pointer: coarse), (any-pointer: none) {
+      .key-row.mobile-only { display: flex; }
+    }
+
+    .key-btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      background: #f4f4f2;
+      border: 1px solid rgba(91,92,94,0.5);
+      color: #2b2b2b;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .key-btn:hover  { background: #5b5c5e; color: white; border-color: #5b5c5e; }
+    .key-btn:active { background: #2b2b2b; color: white; border-color: #2b2b2b; }
+
+    .key-spacer { width: 8px; }
+
+    /* "Bundle not built" notice */
+    #missing {
+      max-width: 640px;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    #missing h1 { font-size: 15px; margin: 0 0 12px; color: #2b2b2b; }
+
+    #missing code {
+      background: rgba(91,92,94,0.12);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    #missing pre {
+      background: rgba(91,92,94,0.12);
+      padding: 10px 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+
+    #log {
+      display: none;
+      max-height: 200px;
+      width: min(960px, 100vw - 32px);
+      overflow-y: auto;
+      font-size: 11px;
+      white-space: pre-wrap;
+      background: rgba(91,92,94,0.1);
+      padding: 8px;
+      border-radius: 4px;
+      color: #5b5c5e;
+    }
+
+    /* MAME bundle now renders chrome-free: native is the default for 3a/PB2
+       and the MAME view is reached from a discreet header link only for
+       direct comparison against the native core. The SIBO app-button bar
+       image, Psion/Menu/Diamond key row, mobile soft-keys, and
+       Keyboard/Fullscreen/Logs controls are CSS-hidden with !important so
+       the JS that wires them (button-bar zones, sendKey forwarders,
+       fullscreen handler, logsBtn toggle) stays intact for future use but
+       never appears on screen. */
+    #btn-bar,
+    #sibo-keys,
+    #mobile-keys,
+    #mobile-arrows,
+    #controls {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="wrap">
+
+    <!-- Emulator canvas + SIBO button bar at matched width -->
+    <div id="frame">
+      <canvas id="canvas" width="960" height="320" tabindex="0"></canvas>
+      <!-- Image button bar (psion3a / pocketbk2) -->
+      <div id="btn-bar">
+        <img id="btn-bar-img" src="" alt="App buttons" draggable="false">
+        <div id="btn-bar-zones"></div>
+      </div>
+    </div>
+
+    <!-- SIBO special keys: Psion logo, Menu, Diamond (shown when MAME is running) -->
+    <div class="key-row" id="sibo-keys" style="display:none">
+      <button class="key-btn" data-key="Alt"      data-code="AltLeft"  data-kc="18" title="Psion key">&#x2294;</button>
+      <button class="key-btn" data-key="F11"      data-code="F11"      data-kc="122" title="Menu key">Menu</button>
+      <button class="key-btn" data-key="CapsLock" data-code="CapsLock" data-kc="20" title="Diamond key">&#x25C6;</button>
+    </div>
+
+    <!-- Mobile-only: Esc, Tab (touch screens only) -->
+    <div class="key-row mobile-only" id="mobile-keys" style="display:none">
+      <button class="key-btn" data-key="Escape" data-code="Escape" data-kc="27">Esc</button>
+      <button class="key-btn" data-key="Tab"    data-code="Tab"    data-kc="9">Tab</button>
+    </div>
+    <!-- Mobile-only: arrow keys on their own line -->
+    <div class="key-row mobile-only" id="mobile-arrows" style="display:none">
+      <button class="key-btn" data-key="ArrowLeft"  data-code="ArrowLeft"  data-kc="37">&#x2190;</button>
+      <button class="key-btn" data-key="ArrowUp"    data-code="ArrowUp"    data-kc="38">&#x2191;</button>
+      <button class="key-btn" data-key="ArrowDown"  data-code="ArrowDown"  data-kc="40">&#x2193;</button>
+      <button class="key-btn" data-key="ArrowRight" data-code="ArrowRight" data-kc="39">&#x2192;</button>
+    </div>
+
+    <!-- General controls (shown when MAME is running) -->
+    <div class="key-row" id="controls" style="display:none">
+      <button class="key-btn" id="keyboard-btn">Keyboard</button>
+      <button class="key-btn" id="fullscreen-btn">Fullscreen</button>
+      <button class="key-btn" id="logs-btn">Show Logs</button>
+    </div>
+
+    <!-- Shown when the wasm bundle is absent -->
+    <div id="missing">
+      <h1>MAME bundle not built</h1>
+      <p>
+        This Series 3a profile is served by MAME 0.253 compiled to WebAssembly.
+        The bundle (<code>psion3aweb.js</code>, <code>psion3aweb.wasm</code>,
+        <code>psion3aweb.data</code>) was not found in <code>/mame-3a/</code>.
+      </p>
+      <p>Build it via GitHub Actions:</p>
+      <pre>Actions &#x2192; Build MAME Series 3a Bundle &#x2192; Run workflow</pre>
+      <p>Or locally:</p>
+      <pre>source ~/emsdk/emsdk_env.sh    # emsdk 3.0.0
+bash scripts/build-mame-3a.sh</pre>
+      <p>
+        See <code>reference/psion3a_web_mame_build_guide.md</code> for the
+        full procedure (MAME source checkout, ROM packaging, etc.).
+      </p>
+    </div>
+
+    <pre id="log"></pre>
+  </div>
+
+  <script>
+    var machine    = new URLSearchParams(window.location.search).get('machine') || 'psion3a';
+    // Map frontend device IDs to MAME machine names (they differ for Series 3a)
+    var MACHINE_MAP = { 'series3a': 'psion3a' };
+    machine = MACHINE_MAP[machine] || machine;
+    var canvas     = document.getElementById('canvas');
+    var missing    = document.getElementById('missing');
+    var btnBar     = document.getElementById('btn-bar');
+    var btnBarImg  = document.getElementById('btn-bar-img');
+    var zones      = document.getElementById('btn-bar-zones');
+    var siboKeys     = document.getElementById('sibo-keys');
+    var mobileKeys   = document.getElementById('mobile-keys');
+    var mobileArrows = document.getElementById('mobile-arrows');
+    var controls     = document.getElementById('controls');
+    var log          = document.getElementById('log');
+    var logsVisible = false;
+
+    // Only surface fatal JS errors in the log; MAME's normal stdout/stderr
+    // goes to the browser console so it never makes the log area visible.
+    function appendLog(t) {
+      log.textContent += t + '\n';
+      log.scrollTop = log.scrollHeight;
+      if (logsVisible) log.style.display = 'block';
+    }
+
+    window.onerror              = function(m, _s, line) { appendLog('JS ERROR: ' + m + ' line ' + line); };
+    window.onunhandledrejection = function(e) { appendLog('PROMISE ERROR: ' + e.reason); };
+
+    // Hidden textarea — focused by the Keyboard button to raise the mobile
+    // soft keyboard. Keydown/keyup events are forwarded to the MAME canvas.
+    var hiddenInput = document.createElement('textarea');
+    hiddenInput.setAttribute('autocomplete',   'off');
+    hiddenInput.setAttribute('autocorrect',    'off');
+    hiddenInput.setAttribute('autocapitalize', 'off');
+    hiddenInput.setAttribute('spellcheck',     'false');
+    hiddenInput.setAttribute('aria-hidden',    'true');
+    hiddenInput.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:1px;opacity:0;resize:none;border:none;padding:0;outline:none;z-index:-1;pointer-events:none;';
+    document.body.appendChild(hiddenInput);
+
+    function forwardKey(type, e) {
+      var opts = { bubbles: true, cancelable: true, key: e.key, code: e.code,
+                   keyCode: e.keyCode, which: e.which,
+                   shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey };
+      canvas.dispatchEvent(new KeyboardEvent(type, opts));
+    }
+    hiddenInput.addEventListener('keydown', function(e) { forwardKey('keydown', e); });
+    hiddenInput.addEventListener('keyup',   function(e) { forwardKey('keyup',   e); });
+    // Clear accumulated text so the textarea never fills up
+    hiddenInput.addEventListener('input', function() { hiddenInput.value = ''; });
+
+    // Dispatch a keydown+keyup pair to the MAME canvas.
+    // In MAME 0.253 the UI mode is inactive by default so all key events
+    // reach the psion3a driver directly without MAME intercepting F-keys.
+    function sendKey(key, code, keyCode) {
+      canvas.focus();
+      var opts = { bubbles: true, cancelable: true, key: key, code: code, keyCode: keyCode, which: keyCode };
+      canvas.dispatchEvent(new KeyboardEvent('keydown', opts));
+      setTimeout(function() { canvas.dispatchEvent(new KeyboardEvent('keyup', opts)); }, 120);
+    }
+
+    // SIBO app buttons: F1–F8 per machine
+    var APP_BTNS_3A = [
+      { label: 'System', key: 'F1', code: 'F1', keyCode: 112 },
+      { label: 'Data',   key: 'F2', code: 'F2', keyCode: 113 },
+      { label: 'Word',   key: 'F3', code: 'F3', keyCode: 114 },
+      { label: 'Agenda', key: 'F4', code: 'F4', keyCode: 115 },
+      { label: 'Time',   key: 'F5', code: 'F5', keyCode: 116 },
+      { label: 'World',  key: 'F6', code: 'F6', keyCode: 117 },
+      { label: 'Calc',   key: 'F7', code: 'F7', keyCode: 118 },
+      { label: 'Sheet',  key: 'F8', code: 'F8', keyCode: 119 },
+    ];
+    var APP_BTNS_PB2 = [
+      { label: 'Desktop',  key: 'F1', code: 'F1', keyCode: 112 },
+      { label: 'Cards',    key: 'F2', code: 'F2', keyCode: 113 },
+      { label: 'Write',    key: 'F3', code: 'F3', keyCode: 114 },
+      { label: 'Schedule', key: 'F4', code: 'F4', keyCode: 115 },
+      { label: 'Time',     key: 'F5', code: 'F5', keyCode: 116 },
+      { label: 'World',    key: 'F6', code: 'F6', keyCode: 117 },
+      { label: 'Calc',     key: 'F7', code: 'F7', keyCode: 118 },
+      { label: 'Abacus',   key: 'F8', code: 'F8', keyCode: 119 },
+    ];
+    var APP_BTNS = machine === 'pocketbk2' ? APP_BTNS_PB2 : APP_BTNS_3A;
+
+    // Point the button bar image at the correct skin for this machine
+    var BTN_BAR_SKIN = { 'pocketbk2': '../skins/AcornPB2_buttons.png' };
+    btnBarImg.src = BTN_BAR_SKIN[machine] || '../skins/3a_buttons.png';
+
+    // Build transparent click zones over the button bar image
+    APP_BTNS.forEach(function(btn) {
+      var zone = document.createElement('button');
+      zone.type      = 'button';
+      zone.title     = btn.label;
+      zone.className = 'sibo-zone';
+      zone.addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        zone.setPointerCapture(e.pointerId);
+        zone.classList.add('pressed');
+        sendKey(btn.key, btn.code, btn.keyCode);
+      });
+      zone.addEventListener('pointerup',     function() { zone.classList.remove('pressed'); });
+      zone.addEventListener('pointercancel', function() { zone.classList.remove('pressed'); });
+      zone.addEventListener('contextmenu',   function(e) { e.preventDefault(); });
+      zones.appendChild(zone);
+    });
+
+    // Wire static key buttons with pointer events (covers both touch and mouse)
+    document.querySelectorAll('.key-btn[data-key]').forEach(function(btn) {
+      var key     = btn.dataset.key;
+      var code    = btn.dataset.code;
+      var keyCode = parseInt(btn.dataset.kc, 10);
+      btn.addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+        btn.setPointerCapture(e.pointerId);
+        sendKey(key, code, keyCode);
+      });
+      btn.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    });
+
+    function showUI() {
+      missing.style.display    = 'none';
+      canvas.style.display     = 'block';
+      btnBar.style.display       = 'block';
+      siboKeys.style.display     = '';   // reverts to .key-row CSS (flex)
+      mobileKeys.style.display   = '';   // reverts to .mobile-only media query
+      mobileArrows.style.display = '';   // reverts to .mobile-only media query
+      controls.style.display     = '';   // reverts to .key-row CSS (flex)
+      canvas.focus();
+    }
+
+    document.getElementById('keyboard-btn').addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      hiddenInput.style.pointerEvents = 'auto';
+      hiddenInput.focus();
+      hiddenInput.style.pointerEvents = 'none';
+    });
+
+    document.getElementById('fullscreen-btn').addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function() {});
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    var logsBtn = document.getElementById('logs-btn');
+    logsBtn.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      logsVisible = !logsVisible;
+      log.style.display = logsVisible ? 'block' : 'none';
+      logsBtn.textContent = logsVisible ? 'Hide Logs' : 'Show Logs';
+    });
+
+    // Probe for the data shim. If absent, leave the "not built" notice;
+    // if present, hide it and hand control to MAME's Module.
+    fetch('psion3aweb.data.js', { method: 'HEAD' })
+      .then(function(r) {
+        if (!r.ok) return;
+        showUI();
+        window.Module = {
+          canvas: canvas,
+          // print / printErr omitted intentionally: MAME's normal startup
+          // chatter goes to the browser console so it never reveals the log div.
+          arguments: [
+            machine,
+            '-rompath', '/roms;roms;.',
+            '-video',   'soft',
+            '-sound',   'none',
+            '-skip_gameinfo',
+            '-resolution', '960x320',
+            '-nokeepaspect',
+            '-unevenstretch',
+            '-nomaximize',
+          ],
+        };
+        var s1 = document.createElement('script');
+        s1.src = 'psion3aweb.data.js';
+        s1.onload = function() {
+          var s2 = document.createElement('script');
+          s2.src = 'psion3aweb.js';
+          document.body.appendChild(s2);
+        };
+        document.body.appendChild(s1);
+      })
+      .catch(function() { /* leave the missing-bundle notice */ });
+  </script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+REM TIME2.OPL by Mark Emery / Psion Tech Support.
+REM A time and date setting program based on source
+REM code supplied by Psion Technical Support Team.
+REM Changes made: Shorten some variables, make some
+REM variables ints.
+
+REM Remove this APP header if you dont want to create
+REM an application.
+
+APP time2
+ICON "\opd\time2.pic"
+ENDA
+
+PROC time:
+GLOBAL AM12HR%
+GLOBAL PM12HR%
+GLOBAL T24HR%
+LOCAL er%
+
+	AM12HR%=1
+	PM12HR%=2
+	T24HR%=4
+
+	PRINT "Setting time."
+
+REM Change this line to show the correct time.
+
+	er%=ossettm%:(13,25,00,T24HR%)
+
+	IF er% < 0
+		PRINT "Error =",er%
+		GET
+		STOP
+	ENDIF
+	
+	PRINT "Setting Date."
+
+REM Change this line to show the correct date.
+
+	er%=ossetdt%:(17,1,1992)
+
+	IF er% < 0
+		PRINT "Error =",er%
+		GET
+		STOP
+	ENDIF
+	
+	PRINT "Done"
+	GET
+ENDP
+
+PROC ossettm%:(hh%,mm%,ss%,md%)
+LOCAL hr%
+
+	IF md%<AM12HR% OR md%>T24HR% OR hh%<0 OR mm%<0 OR SS%<0
+		RETURN -2
+	ENDIF
+	hr%=hh%
+	IF (md%=AM12HR% OR md%=PM12HR%)
+		IF (hr%<1 OR hr%>12)
+			RETURN -2
+		ELSEIF md% = AM12HR% AND hr%=12
+			hr%=0
+		ELSEIF md%=PM12HR% AND hr%<>12
+			hr%=hr%+12
+		ENDIF
+	ELSEIF md%=T24HR% AND hr%>23
+		RETURN -2
+	ENDIF
+	IF mm%<=59 AND SS%<=59
+		RETURN setdttm%:(DAY,MONTH,YEAR,hr%,mm%,ss%)
+	ENDIF
+	RETURN -2
+ENDP
+
+PROC ossetdt%:(dd%,mm%,yyyy%)
+	RETURN setdttm%:(dd%,mm%,yyyy%,HOUR,MINUTE,SECOND)
+ENDP
+
+PROC setdttm%:(day%,month%,year%,hr%,min%,sec%)
+LOCAL ax%,bx%,cx%,dx%,si%,di%
+LOCAL sec&
+	IF year%>=1970
+		onerr e::
+
+REM Calculate the number of seconds elapsed between 00:00 on 1st Jan 1970.
+
+	sec&=((days(day%,month%,year%)-25567)*86400) + (hr%*&e10+min%*60+sec%)
+
+REM Psions comment to the above. /* seconds since 01/01/1970 00:00:00
+REM 25567 = days (01/01/1970) 86400 = seconds in a day (24*60*60)
+REM &e10 = 3600 (seconds in an hour) */
+
+REM Put MS Word into cx, LS word into dx and "TimSetSystem" value into
+REM dx. TimSetSystem is function 3 of TimManager.
+
+		cx%=peekw(addr(sec&)+2)
+		dx%=peekw(addr(sec&))
+		ax%=$0300
+
+REM $89 = TimManager interrupt - no flags returned
+
+		os($89,addr(ax%))
+
+		RETURN 0
+	ENDIF
+
+REM Jump here if error.
+
+	e::
+	ONERR OFF
+	RETURN -2
+ENDP

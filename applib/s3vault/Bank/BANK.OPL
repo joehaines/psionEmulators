@@ -1,0 +1,507 @@
+PROC bank:
+	LOCAL ld%,lm%,ly%,k%,f$(20)
+	GLOBAL file$(128),fileso$(128),bal
+	k%=290
+	f$="LOC::M:\OPD\BANK"
+	TRAP MKDIR f$+"\SO"
+	DO
+		IF k%=290
+			mINIT
+			mCARD "File","Open",%O,"Create",%C
+			IF ld%
+				mCARD "Edit","Transact",%T,"Add S/O",%S,"Delete S/O",%D,"Edit S/O",%E,"Verify",%V
+				mCARD "View","First",%F,"Next",%N,"Back",%B,"Last",%L
+				mCARD "Special","Print",%P,"Exit",%X
+			ENDIF
+			k%=MENU
+		ENDIF
+		IF k%=%c
+			dINIT "Create New File"
+			file$=f$+"\*.odb"
+			dFILE file$,"",25
+			IF DIALOG
+				TRAP USE a : TRAP CLOSE
+				TRAP USE b : TRAP CLOSE
+				setfilso: : bal=0
+				CREATE file$,a,r$,d$,s,b,dy%,mn%,yr%
+				CREATE fileso$,b,i$,amt,nop%,pm%,pd%
+				addtrans:("Opening Balance")
+				IF yorn%:("Any S/Orders")
+					addso:
+				ELSE
+					USE b
+					b.pm%=0 : APPEND : ERASE
+				ENDIF
+				USE a : FIRST
+			ELSE
+				k%=290 : CONTINUE
+			ENDIF
+		ELSEIF k%=%o
+			dINIT "Open File"
+			file$=f$+"\*.odb"
+			dFILE file$,"",16
+			IF DIALOG
+				TRAP USE a : TRAP CLOSE
+				TRAP USE b : TRAP CLOSE
+				setfilso: : bal=0
+				OPEN file$,a,r$,d$,s,b,dy%,mn%,yr%
+				OPEN fileso$,b,i$,amt,nop%,pm%,pd%
+				USE a : LAST
+				bal=a.b : FIRST
+			ELSE
+				k%=290 : CONTINUE
+			ENDIF
+		ELSEIF k%=%x
+			BREAK
+		ENDIF
+
+		IF k%=0
+			break
+		ENDIF
+
+		IF ld%<>DAY OR lm%<>MONTH OR ly%<>YEAR
+			proso:
+			ld%=DAY : lm%=MONTH : ly%=YEAR
+		ENDIF
+
+		IF k%=%s
+			addso:
+		ELSEIF k%=%d OR k%=%e
+			amendso:(k%)
+		ELSEIF k%=%t
+			DO
+				addtrans:("")
+			UNTIL NOT yorn%:("Add Another")
+		ELSEIF k%=%v
+			verify:
+		ELSEIF k%=%f
+			FIRST
+		ELSEIF k%=%n
+			NEXT
+			IF EOF
+				LAST
+			ENDIF
+		ELSEIF k%=%b
+			BACK
+		ELSEIF k%=%l
+			LAST
+		ELSEIF k%=%p
+			print:
+		ENDIF
+		k%=display:
+	UNTIL k%=0
+	TRAP CLOSE
+	TRAP CLOSE
+ENDP
+
+
+PROC setfilso:
+	REM Setup filename for standing orders
+	LOCAL p%(6)
+	fileso$=PARSE$(file$,"",p%())
+	IF p%(5)-p%(4)>6
+		fileso$=left$(fileso$,p%(5)-3)+"SO"+right$(fileso$,len(fileso$)-(p%(5)-1))
+	ELSE
+		fileso$=left$(fileso$,p%(5)-1)+"SO"+right$(fileso$,len(fileso$)-p%(5)+1)
+	ENDIF
+	fileso$=PARSE$(fileso$,"",p%())
+	fileso$=left$(fileso$,p%(4)-1)+"SO\"+right$(fileso$,len(fileso$)-p%(4)+1)
+ENDP
+
+PROC display:
+	REM Display current transaction
+	LOCAL c%,a%
+	IF COUNT = POS
+		BUSY "Last Record"
+	ENDIF
+	DO
+		dINIT
+		dTEXT "Date",NUM$(a.dy%,2)+"/"+NUM$(a.mn%,2)+"/"+NUM$(a.yr%-(INT(a.yr%/100)*100),2)
+		IF LEN(a.r$)
+			dTEXT "Reference",a.r$
+		ENDIF
+		IF LEN(a.d$)
+			dTEXT "Desc.    ",a.d$
+		ENDIF
+		dTEXT "Amount",FIX$(a.s,2,-7),1
+		dTEXT "Balance",FIX$(a.b,2,-9),1
+		dCHOICE c%,"Option","Next,Back,First,Last,Menu"
+		a%=DIALOG
+
+		IF c%=1
+			c%=%n
+		ELSEIF c%=2
+			c%=%b
+		ELSEIF c%=3
+			c%=%f
+		ELSEIF c%=4
+			c%=%l
+		ELSE
+			c%=290
+		ENDIF
+	UNTIL c%<>0
+	BUSY OFF
+	RETURN c%
+ENDP
+
+PROC addtrans:(d$)
+	REM Add an account transaction
+	LOCAL a$(50),r$(20),c%,amt,a%
+	a$=d$
+	DO
+		dINIT "Add Transaction"
+		dEDIT r$,"Reference",30
+		dEDIT a$,"Desc.",30
+		dCHOICE c%,"","Debit,Credit"
+		dFLOAT amt,"Amount",0,99999
+		a%=DIALOG
+	UNTIL amt<>0 or a%=0
+	IF a%
+		IF c%=1
+			amt=-amt
+		ENDIF
+		bal=bal+amt
+		USE a
+		a.dy%=DAY : a.mn%=MONTH : a.yr%=YEAR
+		a.s=amt : a.b=bal
+		a.d$=a$ : a.r$=r$
+		APPEND
+	ENDIF
+ENDP
+
+
+PROC addso:
+	REM Add a standing order
+	LOCAL payee$(30),amt,nop&,day&,c%,s%
+	USE b
+	DO
+		payee$="" : amt=0 : nop&=-1 : day&=1
+		dINIT "Add Standing Order"
+		dEDIT payee$,"Pay to",20
+		dCHOICE s%,"","Debit,Credit"
+		dFLOAT amt,"Amount",0,99999
+		dLONG nop&,"No of payments",-1,99999
+		dLONG day&,"Date paid",1,28
+		dCHOICE c%,"Already paid THIS Month","No,Yes"
+		IF DIALOG
+			IF s%=1
+				amt=-amt
+			ENDIF
+			b.i$=payee$ : b.amt=amt
+			b.nop%=nop& : b.pd%=day&
+			IF c%=1
+				b.pm%=(MONTH-1)-12*(MONTH<=1)
+			ELSE
+				b.pm%=MONTH
+			ENDIF
+			APPEND
+		ENDIF
+	UNTIL NOT yorn%:("Add another")
+	proso:
+ENDP
+
+
+PROC amendso:(mode%)
+	LOCAL s$(30),t$(6),ret%,s%
+	LOCAL nop&,day&,amt,c%,payee$(30)
+	REM Amend a standing order. mode% holds %d for delete, %e for edit
+	USE b
+	IF mode%=%e
+		t$="Edit"
+	ELSE
+		t$="Delete"
+	ENDIF
+	DO
+		dINIT t$+" S/Order"
+		dEDIT s$,"Search String"
+		IF DIALOG
+			FIRST
+			IF FIND("*"+s$+"*")=0
+				ALERT("Not Found")
+			ELSE
+				DO
+					payee$=b.i$ : nop&=b.nop% : day&=b.pd%
+					c%=-(b.pm%>=MONTH)+1
+					amt=abs(b.amt) : s%=-(b.amt>=0)+1
+					dINIT t$+" Standing Order"
+					dEDIT payee$,"Pay to",20
+					dCHOICE s%,"","Debit,Credit"
+					dFLOAT amt,"Amount",0,99999
+					dLONG nop&,"No of payments",-1,99999
+					dLONG day&,"Date paid",1,28
+					dCHOICE c%,"Already paid THIS Month","No,Yes"
+					ret%=DIALOG
+					IF ret%
+						IF s%=1
+							amt=-amt
+						ENDIF
+						b.i$=payee$ : b.amt=amt
+						b.nop%=nop& : b.pd%=day&
+						IF c%=1
+							b.pm%=(MONTH-1)-12*(MONTH<=1)
+						ELSE
+							b.pm%=MONTH
+						ENDIF
+						IF mode%=%e
+							UPDATE
+						ELSE
+							IF yorn%:("Are you sure you want to delete")
+								ERASE
+							ENDIF
+						ENDIF
+						BREAK
+					ELSE
+						NEXT
+					ENDIF
+					FIND("*"+s$+"*")
+					IF EOF
+						ALERT("No more matching records")
+						BREAK
+					ENDIF
+				UNTIL 0
+			ENDIF
+		ELSE
+			BREAK
+		ENDIF
+	UNTIL NOT yorn%:(t$+" Another")
+	proso:
+ENDP
+
+
+PROC proso:
+	REM Process any outstanding standing orders
+	LOCAL f%,d%
+	USE b
+	FIRST
+	WHILE NOT EOF
+		IF b.nop%
+			f%=0
+			IF b.pm%<>MONTH
+				IF b.pm%<>(MONTH-1)-12*(MONTH<=1)
+					f%=1
+				ELSE
+					IF DAY>=b.pd%
+						f%=1
+					ENDIF
+				ENDIF
+			ENDIF
+			IF f%
+				d%=b.pd%
+				b.pm%=(b.pm%+1)+12*(b.pm%>=12)
+				USE a
+				LAST
+				a.r$="S/O"
+				a.s=b.amt
+				a.d$="S/O to "+b.i$+" for "+MONTH$(b.pm%)
+				bal=bal+a.s : a.b=bal
+				a.dy%=d% : a.mn%=b.pm% : a.yr%=YEAR
+				APPEND
+				USE b
+				b.nop%=b.nop%-1
+				UPDATE
+				FIRST
+			ELSE
+				NEXT
+			ENDIF
+		ELSE
+			NEXT
+		ENDIF
+	ENDWH
+	USE a
+ENDP
+
+
+proc BASO:
+LOCAL C%,D%
+USE B
+CLS
+DO
+rem D%=MENU("ADD,CHANGE,DELETE,END")
+ IF D%=1
+  addso:
+ ELSEIF D%=2
+  MSG:("Select S/Order")
+  BLAR:(2)
+  DO
+rem   C%=MENU("NAME,AMOUNT,DAY,MONTHS-LEFT,END")
+   IF C%=1
+    EDIT B.I$
+   ELSEIF C%=2
+    b.amt=EF:(b.amt,2)
+   ELSEIF C%=3
+    B.PD%=EI%:(B.PD%)
+    IF B.PD% > 28
+     B.PD%=28
+    ENDIF
+   ELSEIF C%=4
+    B.NOP%=EI%:(B.NOP%)
+   ELSE
+    C%=0
+   ENDIF
+  UNTIL C%=0
+  UPDATE
+ ELSEIF D%=3
+  MSG:("Select S/O")
+  BLAR:(2)
+  PRINT "Delete",LEFT$(B.I$,6);"-"
+  IF YORN%:
+   ERASE
+  ENDIF
+ ELSE D%=0
+ ENDIF
+UNTIL D%=0
+endp
+
+PROC verify:
+	LOCAL agreed,amt,c$(128),c%,f%,p%(6)
+
+	c$=PARSE$(file$,"",p%())
+	IF p%(5)-p%(4)>6
+		c$=left$(c$,p%(5)-3)+"XX"+right$(c$,len(c$)-(p%(5)-1))
+	ELSE
+		c$=left$(c$,p%(5)-1)+"XX"+right$(c$,len(c$)-p%(5)+1)
+	ENDIF
+
+	IF EXIST(c$)
+		DELETE(c$)
+	ENDIF
+
+	CREATE c$,c,r$,d$,s,b,dy%,mn%,yr%
+	USE a : FIRST
+
+	agreed=a.b
+
+	NEXT
+	WHILE NOT EOF
+		dINIT "Verifying Statement"
+		dTEXT "Date",NUM$(a.dy%,2)+"/"+NUM$(a.mn%,2)+"/"+RIGHT$(NUM$(a.yr%,4),2)
+		IF LEN(a.r$)
+			dTEXT "Reference",a.r$
+		ENDIF
+		IF LEN(a.d$)
+			dTEXT "Desc.    ",a.d$
+		ENDIF
+		dTEXT "Amount",FIX$(a.s,2,-7),1
+		dCHOICE c%,"On Stmnt?","Yes,No,Adjust"
+		IF DIALOG
+			IF c%=1
+				agreed=agreed+a.s
+			ELSEIF c%=2
+				c.r$=a.r$ : c.d$=a.d$ : c.s=a.s : c.b=0
+				c.dy%=a.dy% : c.mn%=a.mn% : c.yr%=a.yr%
+				USE c : APPEND
+			ELSE
+				DO
+					dINIT "Adjust Transaction"
+					dTEXT "Reference",a.r$
+					dTEXT "Desc.",a.d$
+					dCHOICE c%,"","Debit,Credit"
+					dFLOAT amt,"Amount",0,99999
+					f%=DIALOG
+				UNTIL amt<>0 or f%=0
+				IF f%
+					IF c%=1
+						amt=-amt
+					ENDIF
+					agreed=agreed+amt
+				ELSE
+					GOTO tidyup::
+				ENDIF
+			ENDIF
+		ELSE
+			GOTO tidyup::
+		ENDIF
+		USE A : NEXT
+	ENDWH
+
+	IF yorn%:("Items still on stmt")
+		f%=1
+		WHILE f%
+			amt=0
+			dINIT "Adjust Transaction"
+			dCHOICE c%,"","Debit,Credit"
+			dFLOAT amt,"Amount",0,99999
+			dBUTTONS "More",%M,"End",%E
+			f%=DIALOG
+			IF f%
+				IF c%=1
+					amt=-amt
+				ENDIF
+				agreed=agreed+amt
+				IF f%=%e
+					f%=0
+				ENDIF
+			ENDIF
+		ENDWH
+	ENDIF
+
+	USE c : LAST : c%=COUNT
+	c.r$="" : c.d$="Opening Balance"
+	c.s=0 : c.b=agreed
+	c.dy%=DAY : c.mn%=MONTH : c.yr%=YEAR
+	APPEND : FIRST
+
+	WHILE c%
+		agreed=agreed+c.s : c.b=agreed
+		UPDATE : FIRST
+		c%=c%-1
+	ENDWH
+	CLOSE
+
+	USE a : CLOSE : DELETE file$
+	RENAME c$,file$
+
+	OPEN file$,a,r$,d$,s,b,dy%,mn%,yr%
+
+	LAST : bal=a.b
+
+	RETURN
+
+TIDYUP::
+	USE c : CLOSE : DELETE(c$)
+ENDP
+
+
+PROC print:
+	LOCAL t$(1),p$(128)
+	t$=CHR$(9)
+	USE b
+	FIRST
+	dINIT "Configure Output"
+	p$="m:\wrd\*.wrd"
+	dFILE p$,"Device",25
+	if DIALOG
+		BUSY "Printing"
+		LOPEN p$
+		LPRINT "Standing Orders"
+		LPRINT
+		LPRINT "Name";t$;"Amount";t$;"NOP";t$;"Last Paid"
+		WHILE NOT EOF
+			LPRINT LEFT$(b.i$,8);t$;FIX$(b.amt,2,-9);t$;NUM$(b.nop%,-3);t$;
+			LPRINT MONTH$(b.pm%)
+			NEXT
+		ENDWH
+		LPRINT : LPRINT
+		USE a
+		FIRST
+		LPRINT "Records"
+		LPRINT "Date";t$;"Ref.";t$;"Amount";t$;"Details";T$;"Balance"
+		WHILE NOT EOF
+			LPRINT NUM$(a.dy%,2);"-";MONTH$(a.mn%);"-";RIGHT$(NUM$(a.yr%,4),2);t$;
+			LPRINT a.r$;t$;FIX$(a.s,2,-8);t$;LEFT$(a.d$,15);
+			LPRINT FIX$(a.b,2,-8)
+			NEXT
+		ENDWH
+		LCLOSE
+		BUSY OFF
+	ENDIF
+	LAST
+ENDP
+
+
+PROC yorn%:(d$)
+	dINIT
+	dTEXT "",d$+" ?",2
+	dBUTTONS "No",%N,"Yes",%Y
+	RETURN DIALOG=%y
+ENDP

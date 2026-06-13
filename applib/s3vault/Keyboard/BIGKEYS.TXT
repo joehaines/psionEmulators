@@ -1,0 +1,165 @@
+From: ns103@fim.uni-erlangen.de (Marko Schuster)
+Newsgroups: comp.sys.psion
+Subject: Type on your S3a with a big keyboard via the serial port [SOURCE]
+Reply-To: ns103@fim.uni-erlangen.de (Marko Schuster)
+Date: Sat Apr 30 21:57:25 1994
+
+
+ok.. thats the result of the last 2-3 hours of programming ..
+(and now i'll go to bed %-) )
+
+This is a small macro for the MACRO-Programm by Tom Dolbilin.
+
+It can be used to write, use, programm your psion with your 'big'
+keyboard.
+
+There is  N O  kind of error-handling!! (Hey, it was a 2-hour-hack :-) )
+
+Limitations with Macro: It can not be used with OPL-prgs. (OPO/OPA) !!
+
+Usage:
+Just plug your link-cable in your psion and start a terminal-prg. on the
+remote computer. Be sure to set the BPS/BAUD-rate to 1200 in the
+terminalprg. (or change it in the source) .. you should test it first in
+the 'comms'-app if everything is ok. Be sure you have not started the
+link, and closed all other prgs. which uses the serial port.
+Be sure your terminal has ANSI - it must send the cursorkeys as ansi-codes.
+
+After translating and installing this macro in the MACRO-App (just look in
+its doc how to do this) just execute the macro (maybe you have it installed
+to 'r' (remote) or 't' (terminal)..)
+
+Then the serial-link-sign should go on in your status windows.
+Now you can type on your big keyboard. (for tests, just jump into the
+system screen and open a word-document dor excample)
+
+YOU CAN EMULATE NEARLY EVERY KEYSTROKE. Ok, there could be some enhance-
+ments in the source for really every key-combination. But who cares .-)
+
+Ok. Just test it out now. Cause the Ansi-Cursors needs 3 (!) chars for
+every press the speed is not too fast (but not too bad).
+
+Press ... (on your big keyboard of course!)
+
+  ctrl - a  : toggles the ctrl-key on your psion on/off (for cursor, menu..)
+  ctrl - s  : toggles the shift-key on your psion on/off (for cursor, cr..)
+  ctrl - q  : the next key will be a PSION one.. (incl. cursor)
+  ctrl - w  : MENU
+  ctrl - e  : ESC  (same as pressing ESC twice)
+  ctrl - l  : HELP
+  ctrl - d  : DIAMOND
+  ctrl - y  : jumps to the system-screen (wait some seconds then..)
+  ctrl - z  : quits this macro and closes the port
+
+
+cause ansi needs the ESC-code for the ansi-codes, there will nothing
+happening if you press ESC once (the source thinks that a cursor-key may
+come..) - so press it twice or press ctrl-e instead.
+
+Some examples:
+
+ ctrl-c ctrl-w [ctrl-w] ctrl-c : toggles the status-wins
+ ctrl-c ctrl-s cursor-right : marks a word in a editor
+ ctrl-q x : exit the application (same as pressing PSION-X on your psion)
+ ctrl-s enter ctrl-s : same as pressing shift-enter on your psion
+
+
+FEEL FREE TO CHANGE THE CTRL-CODES TO WHAT YOU WANT, BUT:
+never use used ctrl-keys like ctrl-m (enter), ctrl-h (del), ctrl-i (tab) !!
+
+
+..bye..
+
+Ok.. and now the source for the macro-system / macro-program-editor...
+
+---
+
+PROC macro:
+ rem ** REMOTE-S3A-KEYBOARD-Macro for the Macro-App. **
+ rem ** v1.0 by Marko Schuster 1994 .. Public Domain **
+ rem ** EMail: ns103@fim.uni-erlangen.de
+ global k%
+ local a%,co%,a$(1),p%,e%,t%,ad%,s%,c%
+ a%=ioopen(k%,"TTY:A",$100)
+ rsset:(8,0,8,1,4) :rem 1200 8n1
+ a$=" "
+ ad%=addr(a$)+1
+ do
+  a%=ioread(k%,ad%,1) :rem wait until a char is received..
+  t%=peekb(ad%)
+  useapp:("Active")
+  if e%=2
+   if t%=%A
+    if p%=0 :a%=sendkey:(up%,s%+c%,1)
+    else :a%=sendkey:(pgup%,s%+c%,1) :endif
+   elseif t%=%B
+    if p%=0 :a%=sendkey:(down%,s%+c%,1)
+    else :a%=sendkey:(pgdn%,s%+c%,1) :endif
+   elseif t%=%C
+    if p%=0 :a%=sendkey:(right%,s%+c%,1)
+    else :a%=sendkey:(end%,s%+c%,1) :endif
+   elseif t%=%D
+    if p%=0 :a%=sendkey:(left%,s%+c%,1)
+    else :a%=sendkey:(home%,s%+c%,1) :endif
+   endif
+   e%=0 :p%=0
+  elseif e%=1
+   if t%=%[ :e%=2
+   elseif t%=27
+    a%=sendkey:(27,0,1) :rem press ESC twice or Ctrl-e on remote for ESC
+   else :e%=0 :p%=0
+   endif
+  elseif t%=27 :rem esc .. for ansi-cursor-keys...
+   e%=1
+  elseif t%=23 :rem ctrl-w = menu
+   a%=sendkey:(menu%,c%,1)
+   p%=0
+  elseif p%=1
+   a%=psion:(t%)
+   p%=0
+  elseif t%=4 :rem ctrl-d = diamond
+   a%=sendkey:(diamond%,s%,1)
+  elseif t%=17 :rem ctrl-q = psion for next key
+   p%=1
+  elseif t%=5 :rem ctrl-e = esc (or esc-key twice)
+   a%=sendkey:(27,0,1)
+  elseif t%=12 :rem ctrl-l = help
+   a%=sendkey:(help%,0,1)
+  elseif t%=25 :rem ctrl-y = system-screen (wait some seconds..)
+   useapp:("Sys$shll")
+   tofront:
+  elseif t%=19 :rem ctrl-s = toggles shift for cursor, enter...
+   if s%=0
+    s%=shift%
+   else
+    s%=0
+   endif
+  elseif t%=1 :rem ctrl-a = toggles ctrl for cursor, menu ...
+   if c%=0
+    c%=ctrl%
+   else
+    c%=0
+   endif
+  else
+   a%=sendkey:(t%,s%+c%,1)
+  endif
+ until a$=chr$(26) :rem ctrl-z = quit
+ a%=ioclose(k%)
+endp
+
+proc rsset:(ba%,pa%,da%,st%,ha%)
+ local frame%,srchar%(6),du%,er%
+ frame%=da%-5
+ srchar%(1)=ba% or (ba%*256)
+ srchar%(2)=frame% or (pa%*256)
+ srchar%(3)=(ha% and 255) or $1100
+ srchar%(4)=$13
+ er%=iow(k%,7,srchar%(1),du%)
+ if er% :raise er% :endif
+ENDP
+
+---
+
+--
+ *    ns103@fim.uni-erlangen.de  **  Sysop Lonely Times 0911/3939034 [GER]   *
+ *     Amiga 4000 & Psion Series 3a - Multitasking Power Wherever You Are    * 

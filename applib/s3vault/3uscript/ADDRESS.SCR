@@ -1,0 +1,233 @@
+! $Header: e:\proj\3uscript/rcs\address.scc 2.0 1996/02/16 19:36:08 Mark_Hadfield Exp $
+
+! $Log: address.scc $
+! Revision 2.0  1996/02/16  19:36:08  Mark_Hadfield
+! 3USCRIPT release 2.0
+!
+! Revision 1.1  1995/10/03  21:04:48  Mark_Hadfield
+! Initial revision
+!
+
+
+
+NEXISTS "m:\cis\switch\Guide.on" goto intro
+ALERT ":-) ADDRESS $Revision: 2.0 $"
+goto address
+
+intro:
+INFO "ADDRESS $Revision: 2.0 $"
+goto address
+
+address:
+NEXISTS "m:\cis\switch\address.on" GOTO switchoff
+EXISTS "\cis\address.cis" GOTO filexists
+SENDWAIT 120 "go mail", " !" GOTO noprompt
+SENDWAIT 120 "address", "choice !" GOTO noprompt
+SENDWAIT 120 "set page no", "choice !" GOTO noprompt
+SEND "list"
+RECEIVE "\cis\address.cis", "ASCII"
+goto goodbye
+
+
+switchoff:
+NEXISTS "m:\cis\switch\Guide.on" goto goodbye
+ALERT ":-O Address.On switch not set. Skipping."
+goto goodbye
+
+filexists:
+NEXISTS "m:\cis\switch\Guide.on" goto goodbye
+ALERT ":-O Address.cis exists. Skipping."
+goto goodbye
+
+ 
+
+ 
+
+
+
+
+
+
+
+noprompt:
+NEXISTS "m:\cis\switch\Guide.on" goto infnoprompt
+ALERT "Compuserve has not responded with a prompt"
+GOTO logoff
+infnoprompt:
+BEEP 5,300
+INFO "Compuserve has not responded with a prompt"
+WAIT 20
+GOTO logoff
+
+unknownpage:
+NEXISTS "m:\cis\switch\Guide.on" goto infnopage
+ALERT "Unknown page. Ask Mark to edit the script again!"
+GOTO logoff
+infnopage:
+BEEP 5,300
+INFO "Unknown page. Time to edit the script again!"
+WAIT 20
+GOTO logoff
+
+
+
+goodbye:
+ 
+
+ 
+
+
+
+
+
+
+
+
+
+
+EXISTS "a:\sco\Files.sco" GOTO afiles
+EXISTS "b:\sco\Files.sco" GOTO bfiles
+EXISTS "m:\sco\Files.sco" GOTO mfiles
+
+
+
+EXISTS "a:\sco\Uk_Tv.sco" GOTO auktv
+EXISTS "b:\sco\Uk_Tv.sco" GOTO buktv
+EXISTS "m:\sco\Uk_Tv.sco" GOTO muktv
+
+
+
+EXISTS "a:\sco\Charges.sco" GOTO acharges
+EXISTS "b:\sco\Charges.sco" GOTO bcharges
+EXISTS "m:\sco\Charges.sco" GOTO mcharges
+
+
+NEXISTS "m:\cis\switch\user2.on" GOTO user2off
+EXISTS "a:\sco\3user2.sco" GOTO atwo
+EXISTS "b:\sco\3user2.sco" GOTO btwo
+EXISTS "m:\sco\3user2.sco" GOTO mtwo
+
+GOTO farewell
+
+user2off:
+NEXISTS "m:\cis\switch\Guide.on" GOTO farewell
+ALERT ":-O User2.on switch not set. Skipping."
+GOTO farewell
+
+farewell:
+NEXISTS "m:\cis\switch\Guide.on" goto logoff
+ALERT ":-O No other scripts installed. Logging off."
+GOTO logoff
+
+
+
+
+
+afiles:
+NEXISTS "m:\cis\switch\Guide.on" goto callafiles
+ALERT ":-) Files installed on A:"
+callafiles:
+CALL "a:\sco\Files.sco"
+
+bfiles:
+NEXISTS "m:\cis\switch\Guide.on" goto callbfiles
+ALERT ":-) Files installed on B:"
+callbfiles:
+CALL "b:\sco\Files.sco"
+
+mfiles:
+NEXISTS "m:\cis\switch\Guide.on" goto callmfiles
+ALERT ":-) Files installed on M:"
+callmfiles:
+CALL "m:\sco\Files.sco"
+
+
+
+auktv:
+NEXISTS "m:\cis\switch\Guide.on" goto callauktv
+ALERT ":-) Uk_Tv installed on A:"
+callauktv:
+CALL "a:\sco\uk_tv.sco"
+
+buktv:
+NEXISTS "m:\cis\switch\Guide.on" goto callbuktv
+ALERT ":-) Uk_Tv installed on B:"
+callbuktv:
+CALL "b:\sco\uk_tv.sco"
+
+muktv:
+NEXISTS "m:\cis\switch\Guide.on" goto callmuktv
+ALERT ":-) Uk_Tv installed on M:"
+callmuktv:
+CALL "m:\sco\uk_tv.sco"
+
+
+
+acharges:
+NEXISTS "m:\cis\switch\Guide.on" goto callacharges
+ALERT ":-) Charges installed on A:"
+callacharges:
+CALL "a:\sco\Charges.sco"
+
+bcharges:
+NEXISTS "m:\cis\switch\Guide.on" goto callbcharges
+ALERT ":-) Charges installed on B:"
+callbcharges:
+CALL "b:\sco\Charges.sco"
+
+mcharges:
+NEXISTS "m:\cis\switch\Guide.on" goto callmcharges
+ALERT ":-) Charges installed on M:"
+callmcharges:
+CALL "m:\sco\Charges.sco"
+
+
+atwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callatwo
+ALERT ":-) 3user2 installed on A:"
+callatwo:
+CALL "a:\sco\3user2.sco"
+
+btwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callbtwo
+ALERT ":-) 3user2 installed on B:"
+callbtwo:
+CALL "b:\sco\3user2.sco"
+
+mtwo:
+NEXISTS "m:\cis\switch\Guide.on" goto callmtwo
+ALERT ":-) 3user2 installed on M:"
+callmtwo:
+CALL "m:\sco\3user2.sco"
+
+
+logoff:
+SENDWAIT 360 "go top", "!" GOTO bombout
+bombout:
+EXISTS "a:\app\readcis\Logoff.sco" GOTO alogoff
+EXISTS "b:\app\readcis\Logoff.sco" GOTO blogoff
+EXISTS "m:\app\readcis\Logoff.sco" GOTO mlogoff
+GOTO mylogoff
+
+alogoff:
+CALL "a:\app\readcis\Logoff.sco"
+blogoff:
+CALL "b:\app\readcis\Logoff.sco"
+mlogoff:
+CALL "m:\app\readcis\Logoff.sco"
+
+mylogoff:
+SENDWAIT 60 "off", "Connect" GOTO modemhangup
+
+modemhangup:
+SENDWAIT 20 "+++", "OK" GOTO disconnect
+SENDWAIT 60 "ATH", "NO CARRIER" GOTO terminate 
+WAIT 20
+
+disconnect:
+HANGUP
+
+terminate:
+EXIT
+
+

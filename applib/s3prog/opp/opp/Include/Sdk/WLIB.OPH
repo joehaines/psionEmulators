@@ -1,0 +1,602 @@
+#define WLIB_OPH
+
+#ifndef P_GRAF_OPH
+#include <p\graf>
+#endif
+
+#ifndef WSKEYS_OPH
+#include <sdk\wskeys>
+#endif
+
+#ifndef P_OBJECT_OPH
+#include <p\object>
+#endif
+
+#ifndef P_FILE_OPH
+#include <p\file>
+#endif
+
+#define G_GC_MASK_GMODE         0x2
+#define G_GC_MASK_TEXTMODE      0x4
+#define G_GC_MASK_STYLE         0x8
+#define G_GC_MASK_FONT          0x10
+#define G_GC_MASK_GREY          0x20
+#define G_GC_MASK_DOUBLE        0x40
+
+#define G_GC_FLAG_GREY_PLANE    0x1
+#define G_GC_FLAG_BOTH_PLANES   0x2
+#define G_GC_FLAG_DOUBLE        0x4
+
+#define G_TEXT_ALIGN_RIGHT 1
+#define G_TEXT_ALIGN_LEFT 2 
+#define G_TEXT_ALIGN_CENTRE 4
+#define G_FONT_FLAG_ASCII 0x01
+#define G_FONT_FLAG_CP850 0x02
+#define G_FONT_FLAG_BOLD 0x04
+#define G_FONT_FLAG_ITALIC 0x08
+#define G_FONT_FLAG_SERIF 0x10
+#define G_FONT_FLAG_MONO 0x20
+#define G_FONT_FLAG_HANG 0x40    /* Has over/under hang table */
+#define G_FONT_SPECIAL_1 0x8000 /* Font is stored in Special format 1 */ 
+#define G_TRMODE_SET 0
+#define G_TRMODE_CLR 1 
+#define G_TRMODE_INV 2
+#define MAX_GMODE 2 /* max trmode allowed in the gmode of a gc */ 
+#define G_TRMODE_REPL 4
+#define MAX_BLITMODE 5 /* .. .. in a blit-type command */ 
+#define MAX_TEXTMODE 5 /* .. .. in the textmode of a gc */ 
+#define G_STY_NORMAL 0
+#define G_STY_BOLD 0x01
+#define G_STY_UNDERLINE 0x02
+#define G_STY_INVERSE 0x04
+#define G_STY_DOUBLE 0x08
+#define G_STY_MONO 0x10
+#define G_STY_ITALIC 0x20
+#define G_STY_SUBSCRIPT2 0x40
+#define G_STY_SUPERSCRIPT2 0x80
+#define G_STY_SUBSCRIPT 0x100
+#define G_STY_SUPERSCRIPT 0x200
+#define G_XP_INV_BLOCK 0x01
+#define G_XP_INV_OBLOID 0x02
+#define G_XP_UND_BLOCK 0x04
+#define G_XP_REDUCED 0x08
+#define W_BORD_CORNER_2 0x00
+#define W_BORD_CUSHION 0x01
+#define W_BORD_CORNER_4 0x02
+#define W_BORD_SHADOW_S 0x04
+#define W_BORD_SHADOW_D 0x08
+#define W_BORD_SHADOW_ON 0x10
+#define W_BORD_OPEN 0x20
+#define W_BORD_CORNER_1 0x40
+#define W_BORD_TOP_OFF 0x80
+#define W_BORD_BOT_OFF 0x100
+#define W_BORD_TOP_ON 0x200
+#define W_BORD_BOT_ON 0x400
+#define X_BORD_SHADOW_BOX 0x8000
+#define W_BORDER_TYPE_0 0
+#define W_BORDER_TYPE_1 1
+#define X_BORDER_TYPE_MAX 1
+#define G_DRAW_OBJECT_TYPE_0 0
+#define X_DRAW_OBJECT_TYPE_MAX 0
+#define G_APPEND 0x01
+#define G_DISPLAY 0x02
+#define W_CTBY_S3   0x0001
+#define W_SUPPORT_GREY      0x01
+#define W_SUPPORT_CTBY_S3   0x02
+
+STRUCT W_SUPPORT_INFO
+	flags%
+	fillers%(15)
+ENDS
+
+#define WS_MAX_CLIENTS 21 /* Includes rubber band client */ 
+#define FONT_NAME_LEN 16
+#define FONT_MAX_HEADER_LEN 128
+
+STRUCT G_FONT_INFO
+	low_ch%
+	high_ch%
+	height%
+	descent%
+	ascent%
+	numeric_width%
+	max_width%
+	flags%
+	name#(FONT_NAME_LEN)
+ENDS
+
+#define WS_FONT_SYSTEM 0x4099
+#define WS_DEFAULT_ICON (WS_BITMAP_BASE+8)
+
+STRUCT WMSG_KEY
+	keycode%
+	modifiers#
+	count#
+ENDS
+
+STRUCT WMSG_CAPS
+	unused%
+	modifiers#
+	filler#
+ENDS
+
+STRUCT WMSG_MOUSE
+	event#
+	state#
+	pos#(SIZEOF(P_POINT))
+ENDS
+
+STRUCT WMSG_RUBBER
+	state%
+	extent#(SIZEOF(P_EXTENT))
+ENDS
+
+STRUCT WS_EVENT_UNION
+	dummy#(OPPEVAL(max(	SIZEOF(P_RECT),\
+				SIZEOF(WMSG_KEY),\
+				SIZEOF(WMSG_MOUSE),\
+				SIZEOF(WMSG_RUBBER),\
+				SIZEOF(WMSG_CAPS))))
+ENDS
+
+STRUCT WS_EVENT_X
+	handle%
+	time%
+	u#(SIZEOF(WS_EVENT_UNION))
+ENDS
+
+STRUCT WS_EVENT
+	type%
+	x#(SIZEOF(WS_EVENT_X))
+ENDS
+
+STRUCT WS_EV
+/* but is in a simplified form without the WS_EVENT_X */
+/* sub structure */
+	type%
+	handle%
+	time%
+	p#(SIZEOF(WS_EVENT_UNION))
+ENDS
+
+#define MAX_CLIENT_TO_WSERV_BUFFER 300
+#define MAX_WSERV_TO_CLIENT_BUFFER 300
+#define W_INFO_MSG_MAX_LEN 64
+#define W_BUSY_MSG_MAX_LEN 20
+#define W_DRAW_BUTTON_MAX_LEN 64
+#define W_ALERT_TEXT_MAX_LEN 80
+#define W_PASSWORD_ALERT_TEXT_MAX_LEN 128
+#define W_BUTTON_TYPE_1 0
+#define W_BUTTON_TYPE_2 1
+
+STRUCT G_GC
+	gmode#
+	textmode#
+	style#
+	flags#
+	font%
+ENDS
+
+STRUCT W_RUBBER_BAND
+	start#(SIZEOF(P_EXTENT))
+	outer#(SIZEOF(P_EXTENT))
+	inner#(SIZEOF(P_EXTENT))
+	flags%
+	minx%
+	miny%
+	maxx%
+	maxy%
+	grid_snap#(SIZEOF(P_POINT))
+ENDS
+
+STRUCT W_WINDATA
+	flags%
+	extent#(SIZEOF(P_EXTENT))
+	mouse_icon%
+	background#
+	filler#
+ENDS
+
+STRUCT W_CURSOR
+	pos#(SIZEOF(P_POINT))
+	height#
+	ascent#
+	width#
+	flags#
+ENDS
+
+#define W_CURSOR_OBLOID 0x01
+#define W_CURSOR_NO_FLASH 0x02
+#define W_CURSOR_GREY 0x04
+
+STRUCT WS_WIN_BITMAP
+	bitmap%
+	pos#(SIZEOF(P_POINT))
+	rect#(SIZEOF(P_RECT))
+	mode%
+	time&
+ENDS
+
+#define WS_WIN_BITMAP_GREY 0x8000
+
+STRUCT W_SPRITE
+	bit_set%
+	bit_clr%
+	bit_inv%
+	bit_gr_set%
+	bit_gr_clr%
+	bit_gr_inv%
+	offset#(SIZEOF(P_POINT))
+	time%
+ENDS
+
+#define MAX_SET_SPRITE 13
+#define W_SPRITE_CLIP_CHILDREN 0x0001
+
+STRUCT WS_CREATE_CLOCK
+	id%
+	type%
+	pos#(SIZEOF(P_POINT))
+	offset%
+	flags%
+	font%
+	style%
+ENDS
+
+STRUCT G_FONT_CONFIG
+	FontId%
+	Styles#
+	FontStyles#
+	BaseOffset%
+ENDS
+
+STRUCT G_SHADOW
+	BodyColour#
+	ShadowColour#
+	LightColour#
+	filler#
+	Flags%
+	ShadowSizeX%
+	ShadowSizeY%
+	LightSizeX%
+	LightSizeY%
+	Spacing%
+ENDS
+
+#define G_COLOUR_BLACK 0
+#define G_COLOUR_WHITE 1
+#define G_COLOUR_GREY  2
+#define G_COLOUR_NONE  3
+#define G_COLOUR_DARK_GREY 4
+#define G_COLOUR_LIGHT_GREY 5
+#define G_COLOUR_MAX   5
+#define G_SHADOW_SOLID      0x01
+#define G_SHADOW_CORNER_1   W_BORD_CORNER_1
+#define G_SHADOW_CORNER_4   W_BORD_CORNER_4
+#define WE_KEY     0x0001
+#define WE_REDRAW  0x0002
+#define WE_STATUS  0x0004
+#define WE_MOUSE   0x0008
+#define WE_OTHERS  0x0010
+#define WE_ESC     0x8000
+#define WE_NORMAL  0x0FFF
+#define WSIPC_LINK_PASTE 0x0004
+#define WSIPC_LINK_SERVER 0x0003
+#define WSIPC_CLIENT_TO_SERVER 0x0100
+#define WSIPC_OS_CLIENT_DIED 0x0200
+#define WSIPC_NOTIFY 0x0300
+#define WSIPC_ALERT 0x0400
+#define WSIPC_WATCHALL 0x0500
+#define IPC_HEAD_FLAG_REPORT_ERRORS 0x0100
+#define IPC_HEAD_FLAG_READ_FLAGS 0x0200
+
+STRUCT IPC_HEAD
+	data%
+	word_len#
+	flags#
+	read%
+	r#(2)
+ENDS
+
+STRUCT W_SERVER_INFO
+	pixels#(SIZEOF(P_POINT))
+	width_1000_pixels_mm%
+	height_1000_pixels_mm%
+	set_is_dark#
+	version_id#
+	system_font_handle%
+	flags%
+	dummy%
+ENDS
+
+#define W_SERVER_INFO_FLAG_GREY1    0x0001
+
+STRUCT CONNECT_INFO
+	client_handle%
+	info#(SIZEOF(W_SERVER_INFO))
+ENDS
+
+STRUCT CLINK_REDIRECTOR
+	write%
+	close%
+	init_transmit%
+	panic%
+ENDS
+
+STRUCT WSERV_CLIENT_DATA
+/* The following symbols are only used in debug mode but have been left
+   in as they be useful for future expansion */
+	log%
+	par_file%
+	cpanic_handler%
+/* */
+	usage_count%
+	p_commands%
+	p_end%
+	msg#(MAX_CLIENT_TO_WSERV_BUFFER)
+ENDS
+
+/* AC:WSERV_SPEC union should be here */
+
+STRUCT W_OPEN_BIT_SEG
+	size#(SIZEOF(P_POINT))
+	seg_name#(14)
+ENDS
+
+STRUCT WS_PIC_HEADER
+	checksum%
+	size#(SIZEOF(P_POINT))
+	byte_size%
+	offset&
+ENDS
+
+STRUCT PIC_HEAD
+	sig#(SIZEOF(P_FSIG))
+	count%
+	wspic#(SIZEOF(WS_PIC_HEADER))
+ENDS
+
+/* Flags used in field set and the flag field in the window structure */
+
+#define W_WIN_INPUT_ONLY 0x01
+#define W_WIN_RUBBER_BAND_CAPTURE 0x02
+#define W_WIN_INACTIVE 0x04
+#define W_WIN_MOUSE_MOVE 0x08
+#define W_WIN_MOUSE_DRAG 0x10
+#define W_WIN_MOUSE_GRAB 0x20
+#define W_WIN_DOUBLE_PIXEL 0x40
+#define W_WIN_FOREGROUND_ONLY 0x80
+#define W_WIN_PRIORITY 0x100
+#define W_WIN_NO_REDRAW 0x200
+#define W_WIN_NO_MOUSE 0x400
+#define W_WIN_RUBBER_BAND_COMPLETE_ON_RELEASE 0x800
+#define W_WIN_ALL_FLAGS 0xfff
+
+/* Flags used in field set only */
+
+#define W_WIN_EXTENT 0x1000
+#define W_WIN_MOUSE_ICON 0x2000
+#define W_WIN_BACKGROUND 0x4000
+#define W_STATUS_HIDDEN 0x8000 /* Used internally to mark window as hidden */ 
+
+/* Status flags */
+
+#define W_UNINITIALISED 0x80
+#define W_REDRAW 0x40
+#define W_BACKGROUND 0x20 /* Window is invisible because it is background */ 
+#define W_SET_INVISIBLE 0x10 /* Window is set to invisible by client */ 
+#define W_XXXXXXX 0x08
+#define W_INVALID 0x04 /* The whole window contents is invalid */ 
+
+#define X_WIN_BACK_NO_REDRAW        0x08    /* Private */
+#define X_WIN_BACK_GREY_REDRAW      0x80    /* Private */
+#define W_WIN_BACK_NONE             0x00
+#define W_WIN_BACK_CLR              0x01
+#define W_WIN_BACK_SET              0x02
+#define W_WIN_BACK_BITMAP           0x03
+#define W_WIN_BACK_NONE_NO_REDRAW   (00+X_WIN_BACK_NO_REDRAW)
+#define W_WIN_BACK_CLR_NO_REDRAW    (01+X_WIN_BACK_NO_REDRAW)
+#define W_WIN_BACK_SET_NO_REDRAW    (02+X_WIN_BACK_NO_REDRAW)
+#define W_WIN_BACK_GREY_CLR         (00+X_WIN_BACK_GREY_REDRAW)
+#define W_WIN_BACK_GREY_NONE        (16+X_WIN_BACK_GREY_REDRAW)
+#define W_WIN_BACK_GREY_SET         (32+X_WIN_BACK_GREY_REDRAW)
+#define W_WIN_BACK_GREY_BITMAP      (48+X_WIN_BACK_GREY_REDRAW)
+#define W_WIN_BACK_GREY_CLR_NO_REDRAW   0x00
+#define W_WIN_BACK_GREY_NONE_NO_REDRAW  0x10
+#define W_WIN_BACK_GREY_SET_NO_REDRAW   0x20
+#define W_VER_DOUBLE_BITS   0x0001
+#define X_CORNER_BOTTOM 0x40
+#define X_CORNER_RIGHT 0x80
+#define W_CORNER_TOP_LEFT 0x00
+#define W_CORNER_TOP_RIGHT X_CORNER_RIGHT
+#define W_CORNER_BOTTOM_LEFT X_CORNER_BOTTOM
+#define W_CORNER_BOTTOM_RIGHT (X_CORNER_RIGHT+X_CORNER_BOTTOM)
+#define WSERV_FLAG_NO_SHELL_REBOOT 0x0001
+#define WSERV_FLAG_NO_NOTIFIER_REBOOT 0x0002
+#define WSERV_FLAG_NO_PANIC_NOTIFYS 0x0004
+#define WSERV_FLAG_HOOK_NOTIFIER 0x0008
+#define WSERV_FLAG_UPDATE_MSGS 0x0010
+#define WSERV_FLAG_LOW_BATTERY_WARNINGS 0x0020
+#define WSERV_FLAG_HUNG_UP_SW 0x0040
+#define WSERV_FLAG_SW_NO_LOW_BATTERY  0x0080
+#define WSERV_FLAG_SW_NO_PACKS        0x0100
+#define WSERV_FLAG_SW_NO_LINK         0x0200
+#define WSERV_FLAG_SW_NO_CAPS         0x0400
+#define WSERV_FLAG_TOP_BIT 0x8000 /* Can not be set */ 
+#define W_CONNECT_AT_BACK 0x01
+#define W_CONNECT_CONNECTED 0x01 /* Only used in replys to wClientInfo() */ 
+#define W_CONNECT_USER_FLAG 0x02
+#define W_CONNECT_SYSTEM_MODAL 0x04
+#define W_CONNECT_PRIORITY 0x40
+#define W_CONNECT_DISABLE_LEAVES 0x80
+#define WS_TEMPORARY_GC 1
+#define WS_BIT_WRITE 0x01
+#define WS_BIT_SEG 0x02
+#define WS_BIT_SEG_NAME 0x04
+#define WS_BIT_SEG_ACCESS (WS_BIT_SEG|WS_BIT_SEG_NAME)
+#define WS_BIT_SEG_ZERO_SIZE 0x08
+#define WS_BIT_MASK (WS_BIT_WRITE+WS_BIT_SEG+WS_BIT_SEG_NAME+WS_BIT_SEG_ZERO_SIZE)
+#define WS_BIT_ROM 0x80
+#define WS_BIT_FILE 0x100
+#define WX_BIT_GREY 0x8000  /* secret do not use */
+#define WS_CLOCK_SMALL_DIGITAL 0x00
+#define WS_CLOCK_MEDIUM 0x01
+#define WS_CLOCK_LARGE_ANALOG 0x02
+#define WS_CLOCK_MEDIUM2 0x03
+#define WS_CLOCK_XL_ANALOG 0x04
+#define WS_CLOCK_FORMATTED 0x05
+#define WS_CLOCK_MAX 0x06
+#define CLOCK_FLAG_COLON_OFFSET 0x04
+#define CLOCK_FLAG_DIGITAL 0x08
+#define CLOCK_FLAG_WSRV 0x04
+#define CLOCK_FLAG_XXXX 0x08
+#define WS_CLOCK_WITH_DATE 0x10
+#define WS_CLOCK_WITH_SECONDS 0x20
+#define WS_CLOCK_FORCE_ANALOG 0x40
+#define WS_CLOCK_FORCE_DIGITAL 0x80
+#define WS_CLOCK_AM_PM 0x100
+#define WS_CLOCK_AM_PM_BUT_NOT_IN_MEDIUM_ANALOG 0x400
+#define WS_CLOCK_CENTRED 0x200
+#define WS_CLOCK_WITH_DATE_EXTRA 0x400
+#define WS_CLOCK_GREY 0x800
+#define WS_CLOCK_DBL_PLANE 0x1000
+#define WS_CLOCK_RIGHT_ALIGN 0x2000
+#define WS_CLOCK_SUMMER_TIME 0x4000
+#define WS_CLOCK_BOX 0x8000
+#define OLD_CLOCK_FLAGS 0xFFF0
+#define WS_BITMAP_CLOCK_SIZE_X 36
+#define WS_BITMAP_CLOCK_SIZE_Y 32
+#define WS_BITMAP_LARGE_CLOCK_SIZE_X 66
+#define WS_BITMAP_LARGE_CLOCK_SIZE_Y 60
+#define WS_BITMAP_XL_CLOCK_SIZE_X 99
+#define WS_BITMAP_XL_CLOCK_SIZE_Y 99
+#define WS_BITMAP_MEDIUM2_CLOCK_SIZE_X 58
+#define WS_BITMAP_MEDIUM2_CLOCK_SIZE_Y 51
+#define WS_LEFT_POS_CONS 189
+#define WS_LEFT_POS_CORP 109
+#define WS_TOP_POS 0
+#define WS_WIDTH 51
+#define WS_HEIGHT 80
+#define WS_WIDTH_V4 64
+#define WS_WIDTH_SMALL_V4 32
+
+/* Basic WSERV-to-client message types */
+
+#define WM_KEY 1
+#define WM_MOUSE 2
+#define WM_REDRAW 3
+#define WM_BACKGROUND 5
+#define WM_FOREGROUND 6
+#define WM_RUBBER 7
+#define WM_USER_MSG 8
+#define WM_ACTIVE 9
+#define WM_CANCELLED 11
+#define WM_KEYBOARD_STATE_CHANGE 12
+#define WM_RUBBER_BAND_INIT 13
+#define WM_DEICONISE 14
+#define WM_ATTACHED 15
+#define WM_DETACHED 16
+#define WM_COMMAND 17
+#define WM_TASK_KEY 18
+#define WM_TASK_UPDATE 19
+#define WM_ON 20
+#define WM_ESCAPE 21
+#define WM_DATE_CHANGED 22
+#define WM_MAX_WSERV 23
+#define WM_NULL_EVENT 24
+#define WS_BITMAP_GREY 0x4000
+#define WS_BITMAP_GREY_SIZE_X 192
+#define WS_BITMAP_GREY_SIZE_Y 16
+#define WS_BITMAP_BASE 0x4001
+#define WS_FONT_BASE 0x4000
+#define WS_FONT_BASE2 0x6000
+#define WS_MI_BASE 0x4002
+#define WS_LAST_CLIENT_POSITION 100
+
+/* system mouse icon handles */
+
+#define W_WIN_MI_STANDARD 0x4000 /* index 0 + Base 0x4000 */ 
+#define W_WIN_MI_NULL 0x4001 /* index 1 + Base 0x4000 */ 
+#define WM_MOUSE_RELEASE 1
+#define WM_MOUSE_PRESS 2
+#define WM_MOUSE_MOVE 3
+#define P_MAX_COORD 0x7fff
+#define WS_MAX_PRINT_TEXT_LEN 246
+#define WS_MAX_PRINT_CLIP_TEXT_LEN 244
+#define WS_MAX_PRINT_BOX_TEXT_LEN 236
+#define WS_MAX_XPRINT_TEXT_LEN 244
+#define WS_MAX_SHADOW_TEXT_LEN 234
+#define WS_MAX_FORMATTED_CLOCK 238
+#define W_MAX_FONT_CONFIG 24
+#define WM_BAND_NOMOVE 0
+#define WM_BAND_MOVE 1
+#define WM_BAND_RESIZE 2
+#define WM_BAND_CANCEL 3
+#define WM_BAND_ERROR 4
+#define W_BAND_RESIZE 0x01
+#define W_BAND_INNER 0x02
+#define W_BAND_OUTER 0x04
+#define W_BAND_START 0x08
+#define W_BAND_COMPLETE_ON_UP 0x10
+#define W_BAND_KILL_CAPTURE 0x20
+#define W_BAND_GRID_SNAP_SIZE 0x40
+#define W_XXXX_GRID_SNAP_POS 0x80 /* Secret internal #define */ 
+#define W_BAND_GRID_SNAP (W_XXXX_GRID_SNAP_POS|W_BAND_GRID_SNAP_SIZE)
+#define WS_TYPE_MASK 0xF0
+#define WS_VERSION_MASK 0x0F
+#define WS_TYPE_MC 0x00
+#define WS_TYPE_S3 0x10
+#define WS_TYPE_HC 0x20
+#define WS_TYPE_MCA 0x30
+#define WS_TYPE_S3A 0x40
+#define WS_TYPE_HCA 0x50
+#define WS_TYPE_S3C 0x60
+#define WS_VERSION_2 0x00
+#define WS_VERSION_3 0x01
+#define WS_VERSION_3_5 0x02
+#define WS_VERSION_4 0x02
+
+/* The alert type is made of a base value one of ...*/
+
+#define WS_ALERT_CLIENT 0x00
+#define WS_ALERT_TIMED 0x01
+#define WS_ALERT_CANCEL 0x08
+
+/* ...with one or none of the following flags or'ed in */
+
+#define WS_ALERT_PERMANENT 0x02
+#define WS_ALERT_UPDATE 0x04 /* Wserv internal use only */ 
+#define WS_ALERT_B 0x10
+#define WS_UPDATE_NAME 0x01
+#define WS_UPDATE_CLOCK 0x02
+#define WSERV_PANIC_FIRST 81
+#define WSERV_PANIC_LAST 116
+#define W_STATUS_WINDOW_OFF 0
+#define W_STATUS_WINDOW_SMALL 1
+#define W_STATUS_WINDOW_BIG 2
+#define W_STATUS_WINDOW_CTBY 3
+#define W_STATUS_WINDOW_MAX W_STATUS_WINDOW_CTBY
+#define W_STATUS_WIN_NO_DIAMOND -1
+#define W_STATUS_WINDOW_ICON -1
+
+STRUCT DESC
+	hposition#
+	length#
+	offset%
+ENDS
+
+STRUCT WS_ALERT_DESC
+	zero#
+	filler#
+	desc#(OPPEVAL(SIZEOF(DESC)*3))
+ENDS
+
+#define G_OPEN_MODE_NORMAL 0
+#define G_OPEN_MODE_OFFSET 1
+#define G_OPEN_MODE_LONG_PTR_OFFSET 2
+#define G_OPEN_MODE_WORD_PTR_OFFSET 3
+#define MAX_G_OPEN_MODE 3
+#define W_SYSTEM_FONT_S3B 0
+#define W_SYSTEM_FONT_S3 1
+#define W_SYSTEM_FONT_INTERNAL_S3B 2
+#define W_SYSTEM_FONT_INTERNAL_S3 3

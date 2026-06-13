@@ -1,0 +1,29 @@
+INCLUDE "z:\System\OPL\System.oxh"
+
+PROC teddy_startup:
+	LOCAL r%,flag%,size&,file$(255),title$(20),temp&,App&
+	size&=60000	REM make sure size is larger than max size of file.
+	flag%=0		REM use zero for existing file, 1 for new file.
+	file$="c:\projects\teddy\readme.txt"	REM full name of file.
+	title$="Edit your text"
+
+	REM use the following call if your program is an .OPO file
+	App&=GetThreadIDFromOpenDoc&:(cmd$(1),temp&)
+
+	REM or use this if your program is an .APP file (remove the leading REM!).
+	REM App&=GetThreadIDFromAppUid&:(UID&,temp&)
+
+	LOADM("c:\projects\teddy\teditor.opo")	REM path may be important here...
+	BUSY "Loading..."	REM optional.
+	
+	r%=ted%:(file$,title$,size&,flag%,App&)
+	
+	BUSY OFF		REM This is essential.
+	UNLOADM("teditor.opo")	REM optional.
+	
+	IF r%		REM this code shows teddy error codes.
+		PRINT ERR$(r%)
+		GET
+	ENDIF
+ENDP
+

@@ -1,0 +1,158 @@
+Darren's changes in vserion 0.5.13 (Nov.28):
+
+- Fixed "String too long" error in intervt:
+- Shortened intervt timeout from 10 to 2 seconds.
+- Removed/cleaned up Jochen's debug code
+
+Jochen's changes/bug fixes in version 0.5.12 (completed 20 Nov 1995):
+
+- Added additional debugging aids with GLOBAL proc$(8) and LOCAL last$(8) 
+  variables. proc$ holds the current procedure name, and last$ the last
+  procedure name. 
+  This is used with the error trap in the main loop to find which PROC 
+  caused the error.
+- Changed variable name ta% to ky% to be consistant with rest of FreeVT
+- Added detection of changes in FreeVT settings. User now asked to
+  save settings upon exit (if settings have changed).
+- Changed dialog for handshaking to be consistant with Comms and added DCD
+- Vthelp: now looks for files on M:, A: and B: before reporting file 
+  not found. The freevt.rsc file can now be in \FVT\ on any drive.
+- Added search procedure to look for the freelib.opo library file.
+  The freelib.opo file can now be in \OPO\ on any drive.
+- Corrected bug in the escape handling in vtmenu: for the serial port 
+  settings dialog
+
+Darren's changes in version 0.5.11:
+- Finished adding support for line character set
+- Removed duplicate sorry() procedure
+- Removed extra local echo code (as result of an earlier merge)
+
+
+Jochen's changes/bug fixes (Nov 8) in version 0.5.10:
+
+1. Changed Darren's error handling in vthelp: to show standard error
+   dialog.
+2. Added LOCK ON/OFF to prevent a user from stopping a vt100 session
+   from the system screen with delete (FreeVT could be online at the 
+   time)
+3. Added SETFILE and SETPATH to loadp: and savep: so that the system 
+   screen name changes when the loaded file is changed
+4. Changed some spaces to tab stops (smaller OPL file sizee :-) )
+5. Improved some REM commenting in procedures I made
+6. Changed GOTO to a DO...UNTIL in fiOvWr: procedure
+7. Added error trapping to LOADM and opening COM port
+8. Moved errdia: to freevt.opl Must be here due to error handlers!
+9. Corrected Esc handling in recvfl:
+10. Changed GIPRINT error messages to errdia: messages in sendfl: and 
+    recvfi: (I know Darren, this is your area, but with these dialogs 
+    the error stays on the screen so you can see it)
+11. Changed dialogs in sendfl: and recvfl: to errdia: for consistancy
+12. Removed space in "Connecting..." busy messages (for consistancy)
+13. Corrected protocol menu text to be consistant with comms
+14. Corrected send file dialog title and prompt to be consistant with comms
+15. Corrected vthelp: call from transmit dialog to bring up correct help
+    page
+16. Changed the V in the version display to a v (I think it looks
+    better)
+17. Help file updated due to 16.
+
+
+Jochen's changes incorporated into 0.5.9:
+
+- Added full border function
+- Improved screen capture feature added.
+- Data bits setting/status corrected
+- New "about" message.
+- Added menu hooks for future zoom in/out.
+- Improved error handling/reporting
+- New load and save (watch out: new format!)
+- last file spec is now saved for up/down loads
+- Updated FreeVT help file.
+
+Darren's changes incorporated into version 0.5.7:
+
+- Improved error handling and error recovery
+- Incorporated X/Ymodem code from Jeremy Wakefield (jezar@compulink.co.uk)
+- Replaced lread() and lreadl() with single bread() function.
+- Placed the source code under VCS control.
+
+FreeVT Change Log by Jochen (31-8-95)
+
+Changes from 0.5c.2 to make 0.5c.3
+All changes are REMed with New3!! so that everyone can find them...
+0.5c.3 distributed 31-August-95
+10.Changed p$ and q$ in freevt: from 2 to 255 to cure the String to Long 
+   error that Alan and I experienced. This needs further looking into to 
+   find the cause of the error.
+9. Reduced the code required to load preference file at the start of 
+   the freevt: procedure
+8. Changed the APP name from freevt to FreeVT as this looks nicer
+   under the icon when you have no *.fvt files
+7. Added cursor option to screen menu, with settings stored bit-mapped 
+   in a new global variable curs%.
+   Main changes are in vtmenu: and all cursor settings are now done in 
+   the new setcurs: procedure. If you need to set the cursor just call
+   setcurs:
+   Added the cursor setting to the savep: and loadp: procs so that the
+   cursor is saved in the setup file
+6. Combined delete: and backs: procedures into one (as they are so
+   similar, this avoids redundancy of code) with a switch to enable 
+   the delete function.
+   New procedure is bsdel:(del) where del%=TRUE (-1) to delete.
+   Delete works by going back one col%, printing a space, and then
+   going back once col% again.
+5. Changed the capture filename to fvtcap.txt, so as not to overwrite
+   capture.txt (when I get this finished, that is). Still doesn't do 
+   anything, but it's next on the list
+4. Changed the save and load settings file name in vtmenu to CMD$(2).
+   This means that the current filename will always appear in the dialog
+   box when saving, or loading a file. This is much neater
+3. Got the local echo working well - changes are to freevt:, to loadp: and
+   savep:, and to vtmenu:.
+   Two new procedures are included - these are used in loadp, savep, and
+   vtmenu. They will also be used in the capture routine, when ready.
+   The new procs are cvthxs:() and cvtshx:(), being convert hex to string
+   and string to hex respectively. These procedures are heavily commented
+   and if anyone knows a way to reduce the code please let me know.
+2. Trapped the LOPEN to generate a nicer alert dialog when an error
+   occurs during startup (link not plugged in, etc)
+1. Fixed the bug with the databits not showing correct in the 
+   serial port dialog. (when it was 7, dialog showed 8, & 6 showed 5)
+
+
+Changes from 0.5c.1 to make 0.5c.2
+All changes are REMed with New!! so that everyone can find them...
+9. Added local echo function - it works!!
+8. Fixed problem with [24H from CIS - see intervt: and look for 
+   all New!! comments
+7. Changed window 1 from 479 to 480 pixels wide.
+   (Why was this 479??)
+6. Fixed border on/off to work correctly.
+   Initial setting is off. Not yet saved. We may need to reduce text window
+   size to fit the text in???
+5. Changed file load and save BUSY to GIPRINT
+4. Added GIPRINT "Initialising..." to start of code
+3. Added global cap% variable, init = 0 (capture off)   
+2. Improved the capture code to toggle cap% on and off.
+   cap%=1 = on, cap%=0 = off
+1. Took the REM out of pstat: in Port setup in vtmenu
+
+
+   
+Changes from 0.5c to make 0.5c.1
+6. Help file contents improved.
+5. Psion-Help (=Dial) added to freevt: main loop and new mnbr: procedure 
+   added.
+   Pressing Psion-Help now does exactly the same as Modem Dial from menu.
+4. Context sensitive help added for most dialogs - more to come
+3. Capture dialog added (looks same as Comms) - doesn't do anything yet!
+2. Display menu card changed to "Screen" for consistancy with Comms
+   All menu names and positions now same as Comms
+1. All 0.5b.1 and b.2 changes added
+
+   
+Changes from 0.5b.2
+2. Psion-Help (=Dial) added to main loop and mdial: procedure added.
+   Pressing Psion-Help now dials (same as Modem Dial from menu)
+1. Display menu card changed to "Screen" for consistancy with Comms
+

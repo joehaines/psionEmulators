@@ -1,0 +1,40 @@
+In article <33hirk$dcq@sungy.Germany.Sun.COM>, hendrik 
+<hendrik@Germany.SUN.COM> wrote :
+
+> I am trying to write an OPL wherein I want to distinguish between > 
+files and directories. I use a > >      e$=dir$(dir$)
+>       do
+>        e$=dir$("")
+>       until e$=""
+>       
+> construct. This works fine, but how can I find out if the entity
+> referenced bu e$ is a file or a directory?
+
+Hendrik,
+I use something like ...
+
+PROC CheckDir:(path$)
+REM Looking for directory.
+        LOCAL name$(128)
+        ONERR NoDir::
+        name$=DIR$(path$)
+        RETURN -1 REM path$ *is* a directory.
+NoDir::
+        ONERR OFF
+REM -42 = "Directory does not exist".
+        IF ERR<>-42
+                ALERT(ERR$(ERR))
+                STOP
+        ENDIF
+        RETURN 0 REM path$ is a file.
+ENDP
+
+It uses the DIR$ command to check if the path$ is a directory. Normally, 
+for a file, using DIR$ would cause an error, but the ONERR command 
+vectors the error to the label where it is handled. If the error is 
+unexpected (that is, its not -42 'directory does not exist'), the code 
+alerts the user and stops.
+
+Regards,
+Rick.
+rick@cix.compulink.co.uk

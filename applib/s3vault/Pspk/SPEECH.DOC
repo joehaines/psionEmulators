@@ -1,0 +1,60 @@
+*** If too slow, see section on "Dictionary" below
+
+Intended improvements: Working with menu systems
+Or macros to impliment an alternative menu system
+
+Installation with Macro System
+==============================
+
+1.  Copy all WVE and DAT files to M:\SPK directory
+2.  Make sure M:\WVE directory exists
+3.  Copy all OPLs to M:\OPL directory and translate to M:\OPO directory
+4.  Install KMac macro system to Psion as normal
+5.  Delete default KMac.Kma and put Speech.Kma in that directory to use
+speech when launching KMac
+6.  When KMac is launched, pressing Ctrl-Shift-S speaks selected text:
+- If there is any highlighted text, speaks highlighted text
+- Otherwise, speaks currently selected entry in Agenda, or current cell in
+spreadsheet
+- Notice that it works identically to the Bring option
+
+***
+
+As it stands, the program accepts input from the keyboard and builds, plays
+and deletes a WVE file - so have enough room.  The *.wve files should be on
+LOC::m:\spk\, as should SPEECH.DAT, and SPEECH.OPL is the program to run.
+SORTFILE.OPL should be run if you add to SPEECH.DAT, producing the new
+SPEECH2.DAT which you could rename SPEECH.DAT.
+
+SPEECH.DAT is the dictionary.  The program uses it until it either finds a
+match or drops a character from the input.  It translates into the filenames
+of the .WVE files.  For example, if "superior*ssooppeerriiorrr" is a line in
+the dictionary, it would play SS.WVE followed by OO.wve followed by PP.wve
+and so on if it finds "superior" in the input string.  The dictionary also
+contains part words.
+
+The # character may be used once in both input and output strings (either side
+of the *).  It stands for any letter, and is replaced by double that letter.
+So "i#y*iy#ee" replaces "ity" with "iyttee".  If the last character of the
+input is an underline, the translation is only accepted if the next character
+is a space or punctuation.  Spaces may also be included in the input.  Please
+keep the input lower case.
+
+Don't worry if you try to play some of the .WVE files using Record and get a
+"No sound to play" message - Record only bothers if the files are above a
+certain length, and many of them are not.
+
+The program could be made faster with a shorter dictionary - try deleting some
+of the longer entries toward the beginning - but it is then less accurate and
+spelling has to be altered more often in order to get correct pronunciation.
+
+If transferring the files using Odyssey's YModem protocol, use YModem-G.  It
+is more likely to work.
+
+Using speech in your own OPL programs - a quick guide
+=====================================================
+Use the instruction:
+LOADM "SPEECH"
+early on in the program.  Then, instead of PRINT "Hello", use
+say:("Hello")
+Etc.

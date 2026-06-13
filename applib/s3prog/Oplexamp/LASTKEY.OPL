@@ -1,0 +1,82 @@
+==========
+Usenet/comp.sys.psion #16537, from alim@psioninc.com, 2285 chars, Sep 10 19:32 95
+Comment to 16509.
+----------
+Article: 16537 of comp.sys.psion
+Path: cix.compulink.co.uk!news.compulink.co.uk!btnet!tank.news.pipex.net!pipex!news.mathworks.com!news.kei.com!sundog.tiac.net!usenet
+From: alim@psioninc.com (ALasdair Manson)
+Newsgroups: comp.sys.psion
+Subject: Re: OPL
+Date: 10 Sep 1995 19:32:43 GMT
+Organization: Psion Incorporated
+Lines: 63
+Message-ID: <42vegr$m23@sundog.tiac.net>
+References: <51c14c0@donor2.demon.co.uk>
+NNTP-Posting-Host: psioninc.tiac.net
+Mime-Version: 1.0
+X-Newsreader: WinVN 0.93.14
+
+In article <51c14c0@donor2.demon.co.uk>, alanc@donor2.demon.co.uk says...
+>
+>Hello all
+>
+>I have a dialog set up in an OPL program.  The ESC key completes the 
+dialog as
+>it should with zero and the enter key returns the line number. However, 
+the
+>HELP key also completes the dialog and, unfortunately, also returns zero. 
+ Is
+>it possible to either, prevent the help key from completing the dialog 
+or,
+>better still, detect whether the ESC key or the HELP key completed the 
+dialog?
+>
+>Alan
+>
+Try the following code which will only work on a 3a (i.e. not the older 
+Series 3):
+
+#define O_GT_LAST_KEY  23
+
+/*  This method gets the last key processed by the system
+    on behalf of the application  */
+
+
+PROC main:
+
+        LOCAL   gate%  /*  Handle of the gate object  */
+        LOCAL   c%  /*  Live variable fo rthe dCHOICE  */
+        LOCAL   k%  /*  Variable to receive the key  */
+        LOCAL   mods%  /*  Variable to receive modifiers  */
+        LOCAL   pmods%  /*  Pointer to above  */
+
+        dINIT "Test dialog"
+        dCHOICE c%, "Choice", "No, Yes, Maybe"
+        DIALOG  /*  Run the dialog  */
+
+        gate% = PEEKW($38)  /*  Find the handle of the GATE object  */
+        pmods% = ADDR(mods%)  /*  Point pmods% to the right place  */
+        k% = ENTERSEND(gate%, O_GT_LAST_KEY, #pmods%)  /*  Send the 
+message  */
+
+        PRINT "Key was   =", k%
+        PRINT "Mods were =", mods%
+        GET
+
+ENDP
+
+The comments should be straightforward. The only other thing you need to 
+know is that the modifiers written to 'pmods%' will be:
+
+2 for <Shift>
+4 for <Control>
+8 for <Psion>
+
+and these can be combined (i.e. <Psion><Shift><Help> will return 291 in k% 
+and 10 in mods%)
+
+Hope this helps
+
+Ali
+
+

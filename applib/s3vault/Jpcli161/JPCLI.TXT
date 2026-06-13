@@ -1,0 +1,661 @@
+JPcli v1.61
+A command line interface for the Psion 3a
+By John Portwin
+
+* What is JPcli?
+	JPcli is, basically, an MS-DOS emulator for the Psion 3a. You will find that lots of the commands of MS-DOS are available, as well as many more. See later in this file for a command by command list.
+	So why would you want to turn your multitasking, GUI based Psion into a single process, CLI (i.e. user unfriendly) machine? There are a number of reasons. Firstly, it is much quicker. There are also a lot of more advanced commands available (do you see an encryption facility in the system screen?). You can easily run a number of applications from the command line - such as Word, Agenda - in fact, all of the internal applications, including Script and Comms - and you can also run OPA, OPO and APP files. Other powerful commands are available - the encoding program already mentioned, a facility to copy files over from the ROM:: device (such as the internal applications!), ability to play .WVE files and dial telephone numbers, full online help, full compatibility with MS-DOS filing systems, ability to view PIC files, a string search facility, binary file views and editing, file type identification, seamless interfacing with your own type 2+ apps, complete battery checking facilities, sound setting control, and much, much more!
+
+* What files should I have?
+
+	If you have the internal help version, you should have the following files:
+
+	JPCLI.OPA 		- JPcli main program
+	JPCLI.WRD		- This file
+	JPCLI.TXT		- This file in .TXT (ASCII) format
+	JPPRINT.OPL	- A background print spooler (An example on using JPcli
+				   dropfiles!)
+	FILE_ID.DIZ	- Description file
+	
+	If you have the external help version:
+
+	JPCLI.OPA		- JPcli main program
+	JPCLI.WRD		- This file
+	JPCLI.TXT		- This file in .TXT (ASCII) format
+	JPPRINT.OPL	- A background print spooler (An example on using JPcli
+				   dropfiles!)
+	FILE_ID.DIZ	- Description file
+	JPCLI.HLP		- Help file
+
+* So how do I install this wonderful program?
+
+	Simple. Just make a directory on your LOC::M: drive called JPCLI, and copy JPCLI.OPA into it. Then go to the system screen and press PSION-I - change to the M:\JPCLI directory and select JPCLI.OPA. If you have the external help version, copy JPCLI.HLP into the \JPCLI directory as well. This file can be deleted and JPCLI will still run (with more limited help!)
+
+* OK, Now what do I do?
+
+	Select the JPcli icon (the picture of a Psion 3a with JPcli on the screen - sorry, but I'm not a particularly good .PIC file artist) and press enter. The JPcli welcome screen will come up and ask you for your name. Enter your name as you would like it to be when you register (if you register - WHICH YOU WILL!!). You will be asked to confirm. JPcli will then exit. (Don't worry - it will be back in a minute).
+
+* Now what?
+	Once again, run JPcli. It will display some blurb about registering and then display a single M:\> prompt, which as MS-DOS fanatics will know means that you are in the root (\) directory of drive M:. JPcli is now waiting for you to input commands.
+	Of course, I hope you know how to use MS-DOS - this program isn't going to be much use to you if you don't!
+	Each time JPcli loads, it checks your internal battery, backup battery, and then checks A: and B: for RAM SSDs and, if it finds any, checks their batteries as well. This is dependant on the semaphore NOBATT.SEM not existing (see later).
+
+* Help!!
+	A brief summary of all the available commands is accessible by entering HELP, or by pressing the HELP key and pressing enter. If you have the internal help version, or the external version with JPCI.HLP, full help for each command is available by typing HELP <commandname> where <commandname> is the name of the command you want help on (duh...). If you have the external help version of JPcli and don't have JPCLI.HLP, only a brief summary of commands is available.
+
+* Preamble by the author
+	I wrote JPcli in about 4 months of on-and-off work. I'm 15, and spend far too much time in lessons and at home writing this program. ;)
+	The source code for JPcli is huge - over  3,838 lines of OPL, roughly 73 pages of A4. There aren't any major bugs, and expect more updates soon. Probably. :)
+	If you don't like the manual, blame me. Never ask the programmer to write the manuals. (any offers??)
+	Thanks to the Beta testers:
+
+	Matthew Horsnell
+	Kenneth Wright
+	Neil Worton
+	and the others...
+	
+	With special thanks to Ken Wright - who supplied me with the source code when I accidentally deleted it. I am forever in your debt!!
+
+* Artificial Intelligence?
+	JPcli is a very intelligent program. It will automatically detect the date format and time format that is set in the time application, as well as the separators and the am/pm format. It will also check your batteries each time you start off. It will resize the cache it uses depending upon the amount of memory free. And it knows how long it has been unregistered!
+
+* Warranty and technical support
+	There is no warranty. If JPcli wipes your internal disk, blows up your speaker, destroys your screen, crashes, causes world war III, or whatever, I am not to be held responsible (although I'd appreciate knowing about it!)
+	Any questions? Email me at john@lyster.demon.co.uk, or netmail me (John Portwin) at 2:252/337@fidonet or 405:110/7@bbsnet.
+
+* What can I do, anyway?
+	The following commands are available:
+
+ATTRIB (file) [one of -r +r -h +h -s +s -m +m]
+	Sets file attributes (read only, system, hidden, modified)
+BACK
+	Sends JPcli to the background. Press CTRL-Z to bring it back.
+BATT
+	Shows battery power levels. 
+CD
+	Show current directory.
+CD (directory)
+	Change to specified directory.
+CFILE (filename)
+	Load the SLE (single line editor) and create the specified file. See later.
+CHARMAP
+	Displays a character map.
+CLS
+	Clear screen. If the /G optional switch is used, the screen is cleared but the
+	current position remains unchanged.
+CRASH
+	Emergency stop!
+COMPARE (file 1) (file 2)
+	Sees if the two specified files are indentical, and if not, shows where and what the
+	differences are.
+COMPRESS (file)
+	Compresses the specified data (.DBF) file.
+COPY (file 1) (file 2/directory)
+	Copies file 1 to file 2 or to the specified directory. If you specify a directory it
+	must have an \ on the end i.e. \APP\.
+CURDEF
+	View current JPcli settings.
+CURPROC
+	Sees which processes are currently running
+DATE 
+	Shows the current date
+DECODE (file) (file-to-write)
+	Decodes the specfied file and asks for the two encryption keys. This command only
+	decodes RUF (Rotary Unit Fixing) files.
+DELETE (file)
+DEL (file)
+ERASE (file)
+	Erases the specified file.
+DIAL (number)
+	Dials the given telephone number. (Sound must be on). The number may consist of
+	the following: (0123456789ABCDEF#*)
+DINFO
+	Displays information about the current drive.
+DINFO (device)(drive)
+	Displays information about the specified drive and/or device.
+DIR
+	Shows a listing of files in current directory. See later in the manual.
+DOS
+	Exits to DOS (only if you are running on the PC emulator) - WARNING - you will lose
+	all unsaved data in all applications.
+EDIT (file)
+	Loads the word processor in text mode, editing the specified file.
+ENCODE (file) (file-to-write)
+	Encodes a file using the Rotary Unit Fixing (RUF) method. You will be asked for two
+	encoding keys. Don't forget them! See later in the manual.
+ENVINFO
+	Dislays misc. s3a user defaults.
+EVAL (string)
+	Evaluates the specified string.
+EXIT
+	Returns to the System screen. Optional switch /B does the same as the command
+	BACK.
+FINFO [filing system]
+	Shows information about the specified filing system (default is the current)
+FONT (font)
+	Sets the font used by JPcli. The font can be any of the internal fonts or one
+	loaded by LOADF.
+GETENV
+	Shows what the environment variables are set to.
+GETFTYPE (filename)
+	Makes JPcli says what it thinks the file format is.
+GETLANG
+	Shows the language your s3a is set to.
+GETUSER
+	Shows who JPcli is registered (or not registered) to.
+HELP
+	Shows brief help.
+HELP (command)
+	Shows help on a command.
+KILL (Process ID)
+	Kills the specified process. See later for details.
+LOADF (font name)
+	Loads the font specified and returns the font number to use with FONT.
+LOADM (.OPO file)
+	Loads an .OPO file into memory. A maximum of three can be loaded at any one time.
+	(Two with the external help version). The loaded procedures in the file can be
+	run with RP.
+LOC::
+	Change to the local filing system - this will change to the M:\ directory.
+MCOPY (file 1) (file 2)
+	Copies file 1 to file 2, however, this appends files (if file 2 already exists,
+	file 1 will be added after the existing code)
+MD (directory)
+	Makes a directory with the given name.
+MEM [/c]
+	Sees how much memory is available (/c switch sees which processes are running)
+MOVE (filename) (directory to move to)
+	Moves a file to another location
+NEWSIZE (filename) (new size in bytes)
+	Changes the specified file's size to the new size.
+OFF [time]
+	Turns the s3a off, optionally for the specifed time.
+PATH
+	Shows the current path
+PATH (path)
+	Sets the path to the specified one.
+PAUSE
+	Pauses JPcli and waits for a keypress.
+PINFO (Process ID)
+	Shows information on the specified process.
+PRINTF (file)
+	Prints the specified file to another file.
+PRINTP (file)
+	Prints the specified file to the parallel port.
+PRINTS (file)
+	Prints the specified file to the serial port.
+PROMPT
+	Shows the current prompt.
+PROMPT (prompt)
+	Sets the prompt.
+RD (directory name)
+	Removes a directory.
+REM::
+	Changes to an external filing system and returns to the  \ directory.
+RENAME (file 1) (file 2)
+	Renames file 1 to file 2. File 2 must not already exist. You can also rename
+	directories with this command.
+ROM::
+	Change to s3a internal ROM - you cannot change drive or path.
+RP
+	Runs a procedure previously loaded in a module loaded with LOADM. Don't put a :
+	after the procedure name.
+RUNAPP (app) (file)
+	Runs another application (app) using the specified file (file). See later in the
+	manual for this.
+RUNJPC (.JPC file)
+	Run a .JPC batch file. See later in the manual.
+SET
+	Shows help on setting JPcli default.
+SET [default=value]
+	Lets you set JPcli defaults. 
+SSEARCH (filename) (string to find)
+	Searches the filename specified for the specified string, and gives offset 
+	positions for occurences.
+SINFO
+	Shows the current sound settings.
+SSOUND (any of +KL +KS -K +P -P +S -S +O -O)
+	Sets the sound settings. See later.
+STATUSWIN [on/off/small]
+	Sets the status window to the specified size.
+STYLE (style)
+	Sets the text style to use.
+SWOFF (time)
+	Sets the auto-off timer. Time should be in seconds, or OFF to disable
+	auto-switch-off.
+SWOFFM (ON/OFF)
+	Turns on/off switchoff if external power is present.
+SYSINFO
+	Displays system info.
+TIME
+	Shows the current time.
+TYPE (text file)
+	Views a file (text mode)
+ULOADF (font number)
+	Unloads a font previously loaded with LOADF.
+ULOADM (name)
+	 Unloads an .OPO module previously loded with LOADM.
+VER
+	Displays the current version of JPcli.
+VFILE (file)
+	Views a file (binary mode/byte-by-byte)
+VPIC (file)
+	Views a .PIC file.
+VPICG (file)
+	Views a .PIC file in grey mode.
+WAIT (time)
+	Pauses JPcli for the specified time.
+WPLAY (full path+.WVE file)
+	Plays a .WVE file (sound must be on).
+
+More help is available in JPcli by typing HELP (command)..
+
+* DIR (Directory)
+	The DIR command in JPcli is quite easy to use - just type DIR and a listing of the files in the current directory, along with sizes, flags, and date of last modification.
+To only view certain files, type DIR (filespec), ie DIR *.JPC would list only .JPC files, etc.
+Here is an example dir listing:
+
+JPCLI.OPA   22775        -R-S-M        08:43:50 09/03/95
+
+This shows the file JPCLI.OPA is 22775 bytes long, is read only (R), a system file (S), has been modified (M), and was last changed at 8:43am on the 9th March '95.
+
+The flags are as follows:
+
+D - Shows that the entry is a directory
+R - Shows the file is read only
+H - Shows the file is hidden
+S - Shows the file is a system file
+V - The file is a volume label (PC/DOS only)
+M - Shows the file has been modified since it was first written.
+
+DIR can have five optional switches:
+
+/1 - Formats list to 1 column (default)
+/2 - Formats list to 2 columns 
+/W - Formats list to widescreen format
+/G - Shows first 16 bytes of each file
+/T - Makes JPcli ID each file (like GETFTYPE)
+
+The default format can be set with the SET DIRCMD command.
+
+	
+* Keys to press
+	In many places you can either press ESC or Control-C to stop commands continuing (like DIR, VFILE, TYPE etc). If you want to temporarily halt screen output, press Control-S to pause the screen and then press a key to resume. You can also press Control-Shift-Psion-s together to save \SCREEN.PIC, a copy of the current screen. Registered versions of JPcli can also quick exit by pressing Psion-ESC.
+
+* The ROM:: device
+	Using JPcli, you can see all the files that are on the s3a's internal rom. Simply change to the ROM device (enter ROM:: and press enter). All of the internal apps are there - WORD.APP, AGENDA.APP, DATA.APP - as well as some .WVE and .FON files. You can grab a copy of some of these files with the COPY command.
+
+* Setting sound
+	The SSOUND command is very similar to the Psion-S command from the system screen.
+The optional parameters are:
+
++KL Sets loud key clicks
++KS Sets soft key clicks
+-K Turns off key clicks
++P Sets piezo buzzer on
+-P Turns it off
++S Sets loudspeaker on
+-S Turns it off
++O All sound on (obey individual flags)
+-O All sound off
+
+Prefix each parameter with a + to turn it on, and a - to turn it off. JPcli will ignore a parameter if it is already set.
+
+* Cache tradeoffs
+	If you want to use the cache, JPcli runs faster, but uses *lots* more memory (almost twice as much). If you don't want to, use the appropriate semaphore file.
+
+* Killing apps
+	Although this is a useful command, it can cause problems. Firstly, make sure that
+the application has saved all its data. And it is very important that you do not kill SYS$WSRV.$04 - if you do, your s3a will lock up and crash, and you will have to reset it or leave it for five minutes (after which time it will reset itself). Also, if you kill SYS$SHLL.$05, it will appear as if your s3a has reset, but it hasn't really - only the System screen will have exited, so you lose the icons of installed applications, but just re-install them and they will still be running. In theory. :) There don't seem to be any drawbacks to killing the Time app - you will, however, lose any alarms that are set.
+
+* The PATH command
+	Using the path command, you can give JPcli a list of directories to search for valid files. A path must contain a list of directories, each separated by a ;
+This is what a valid path may look like:
+
+PATH \;\APP\;\OPO\;\JPCLI\;
+
+The path can be up to 128 characters long. A long path can really slow JPcli down.
+To clear the path, type PATH CLEAR or PATH OFF.
+
+* The PROMPT command
+	The default M:\> prompt can be changed to suit your needs. Simply set the prompt, using the PROMPT command, as follows:
+
+PROMPT (new prompt).
+
+	The new prompt can be whatever you like - there are some shortcuts that can be intermingled with the text:
+
+$P - Drive and Path
+$F - Filing System
+$D - Drive
+$I - Path
+$G - >
+$$ - Dollar sign
+$T - Time (24hr format)
+$A - Date
+$* - Carriage return
+$M - Memory free
+$W - Day of week
+$V - Version of JPcli
+
+* The SLE (Single Line Editor)
+	The single line editor provides an easy way to create your own textfiles. To use it, just type CFILE (filename). Then, enter the data as normal, pressing enter at the end of each line. If you make a mistake, press Delete. When you have finished, press ESC. Any existing file with the same name will be deleted.
+
+* COM.DAT
+	The COM.DAT provides an easy way of getting JPcli and other JP applications (like JPprint, the background print spooler) - to run your serial port correctly.
+If COM.DAT exists in your \JPCLI directory, it will be read and the serial port set correctly. It has the following format:
+
+Line 1:Baud rate (value between 1-16)
+Line 2:Parity (value between 0 and 2)
+Line 3:Data bits (5,6,7,8)
+Line 4:Stop bits (2,1)
+Line 5:Handshaking (11,4,7,0,3,12,15,8)
+
+For an explanation of the values, see your s3a programming manual, pages 237 and 238.
+
+* Semaphore files
+	JPcli can recognise the following files. If they are present in your \JPCLI directory, they will do something..
+
+	NOENV.SEM - Won't create environment dropfile
+	NOCACHE.SEM - Won't create the cache
+	NOBATT.SEM - Won't do initial battery checking
+	SMCACHE.SEM - Makes JPcli always use a small, 5k cache.
+	MDCACHE.SEM - Makes JPcli always use a medium, 10k cache.
+	LGCACHE.SEM - Makes JPcli always use a large, 20k cache.
+
+NOCACHE.SEM overrides the three other cache semaphores. If the relevant ??CACHE.SEM file exists then that cache will always be created, no matter how much memory is free.
+
+* File redirection/output
+	If you want to redirect output of a command (e.g. DIR, HELP, ENVINFO, etc.) to a file, there are two ways of doing it. Use a single > to create a file and a >> to append to the end of the file. ie:
+
+DIR *.APP >DIR.TXT
+
+Does a DIR *.APP but redirects all screen output to DIR.TXT. If DIR.TXT already exists it will be overwritten.
+
+DIR *.APP >>DIR.TXT
+
+Does a DIR *.APP but redirects all screen output to DIR.TXT. If that file exists then new data will be added to the end.
+
+	Redirection works with most commands, except <MORE> prompts aren't redirected so you can see what to do.
+
+* Error messages
+	Following is a description of some of the more.. freqent.. errors, and why they occur.
+
+Bad command or file name
+	This is when JPcli cannot find the command or filename you just entered. If you were trying to do a command, check your spelling. If you were trying to run a file, check the file exists, that ARIA is set to on if you are trying to run an internal app, and that the file is in the current directory or path.
+	
+Invalid arguments
+	This is when you don't specify the right amount of arguments for a command, or specify a name when JPcli expects a number (and vce versa).
+
+In use
+	This is usually when you are trying to use the serial/parallel port when it's being used by another program.
+
+Insufficient Memory
+	JPcli does not have enough memory to continue the current command. Free up some memory and try again.
+
+End of file
+	This can happen when trying to view a single plane .PIC file with VPICG. Use VPIC to view single plane .PICs.
+
+File system not found
+	Usually when you unplug the PC cable.
+
+Font not loaded
+	You have not loaded the specified font. Check you got the right font number, and use LOADF to load the font into memory.
+
+File already exists
+File does not exist
+Directory does not exist
+File or device in use
+Invalid name
+	These are obvious. (!!)
+
+Record too large
+	Ths usually happens with TYPE. Make sure each line in your text file is less than 255 characters long and that the file is a text file.
+
+Access denied
+	This happens if you try to delete a file that is write protected. It also happens if you do not specify a correct filename for use with VFILE.
+
+Read only file
+	This happens usually when you try to change a file with VFILE that is in use. To edit the fie JPcli must be the only app using the file.
+
+Invalid volume/Media is corrupt/Unknown media
+	Your disk needs reformatting as it is corrupt. :(
+
+You shouldn't get any other errors, but if you do.. well.. e-mail me and say so.
+
+* The SET command
+	Using the set command, you can set a variety of JPcli defaults. To set a command, do the following:
+
+SET <command>=<value>
+
+	The following commands can be set:
+
+CHARSUB
+	1 - Sets Low-ASCII character substitution on
+	0 - Turns it off again
+DRVACD
+	1 - Turns on the "virtual drive access light"
+	0 - Turns it off again
+DIRCMD
+	4 - Sets default DIR format to /T
+	3 - Sets default DIR format to /G
+	2 - Sets default DIR format to two-column format
+	1 - Sets default DIR format to widescreen format
+	0 - Sets default DIR format to single column format
+RUNINT
+	0 - Turns off default running of internal apps
+	1 - Turns it on
+SETVOL
+	0-5 - Default volume for playing .WVE files
+
+* Batch Files
+	JPcli lets you run groups of commands together, in one batch, from a file. This file is called a batch file. An example batch file might consist of:
+
+@ECHO OFF
+CD \APP
+DIR
+CD \
+
+	Each command is executed, one after the other. The first command, @ECHO, has two parts to it. The @ means that the command itself will not be printed on the screen, and ECHO OFF makes sure no further commands are printed on the screen. This is the same:
+
+@CD \APP
+@DIR
+@CD \
+
+ If it sounds quite complicated, just try it for yourself. You'll soon find out. You can create batch files using the CFILE command, and make sure that the file has a .JPC extension. Either run it by typing RUNJPC (filename) or by just typing the filename.
+	A file called AUTOEXEC.JPC, if it exists in your LOC::M:\ directory, will be run each time JPcli is started.
+
+* External Help
+	If you have the external help version of JPcli, you can delete the JPCLI.HLP file, but then you won't be able to get complete help (only just a listing of commands)	
+
+* PC linking
+	If you have the 3-link, you can connect JPcli to a PC and use the PC drives as if they were on the s3a themselves. Make sure you turn the link on at both ends.
+	Due to the fact that Macs use a *completely* different filing system to the PC, JPcli can't be used with the Mac. Sorry. :( Large changes would be necessary before this would be an option.
+
+* Running External Applications
+	The RUNAPP command is the most powerful command in JPcli. With it, you can run any of the internal applications, and indeed any of your own programs, and specify your own file to use. The following internal programs can be run from JPcli (and they don't need to be installed on the system screen):
+
+Application			Appcode
+- Data 				DATA
+- Word				WORD
+- Agenda				AGENDA
+- World				WORLD
+- Calc				CALC
+- Sheet				SH3
+- Comms				COMMS
+- Record				RECORD
+- Script				SCRIPT
+- RunOpl				EXTAPP
+- APP and IMG files		APPIMG
+- Program				PROGRAM
+
+All but Calc require a filename to load or run - simply enter RUNAPP <appcode> <file>, so, for example, to load word with the file \WRD\JPCLI.WRD, simply enter (at the prompt):
+
+RUNAPP WORD \WRD\JPCLI.WRD
+
+If you want to run your own applications (.OPO, .OPA or .APP files), you can by entering the following (this example runs a file \APP\JPCLI.OPA)
+
+RUNAPP EXTAPP \APP\JPCLI.OPA
+
+It's all rather easy to use. (!!). So there are some shortcuts. If you just enter the name of the file (with no extension), JPcli will run it if it can find an application that will load it.
+
+JPcli searches the current directory and then each directory in the path (see the path section in this manual) for files matching that name. For example, if you are in the \WRD directory, and you type README, JPcli will search for README.*, and if it matches a valid extension then it will automatically run WORD with the file README.WRD (assuming the README file was a .WRD file!)
+
+However, if the file README.WVE existed in the \WRD directory or any of the path directories then it would automatically run record with file README.WVE. JPcli searches in the following order:
+
+- .JPC (JPcli batch file)
+- .OPA
+- .OPO (runs first procedure)
+- .APP
+- .IMG
+- .OPL
+- .WRD
+- .WVE
+- .AGN
+- .DBF
+- .SPR
+- .WLD
+- .SCR
+- .SCO
+
+(Make sure RUNINT is set to on, or this won't work! See the SET command for further info on RUNINT.)
+
+It's a lot easier than all that RUNAPP stuff!
+
+You can also run your own applications with their own data files - for example, if you want to load \APP\TYPE2.OPA with the file \APP\DATA.DAT, you can type:
+
+RUNAPP \APP\TYPE2.OPA \APP\DATA.DAT
+
+And JPcli will load it for you.
+
+Another useful thing you can do is directly specify the name of the file to load on the command line - so if you wanted to load \APP\TYPE2.OPA with the file \APP\DATA.DAT, you could just enter (at the command line)
+
+TYPE2 \APP\DATA.DAT
+
+Presuming that TYPE2.OPA was in the path or current directory.
+
+** NEVER even THINK about trying to run an .IMG file using the extapp command - your s3a WILL (in most cases) reset **
+
+* The RUNEXT.DAT file
+	This file basically provides JPcli with a way of running files. If it exists in your \JPCLI\ directory, JPcli will read it and look at its contents. It is set up as follows: the first word per line is an extension and the second word is a file to run specifiying the file you first entered plus the first word... if you see what I mean. It's easier with an example. Say your RUNEXT.DAT file had the following:
+
+; Lines starting with this are a comment and are ignored
+
+ZIP LOC::M:\APP\UNZIP.OPA
+
+(remember the space between ZIP and LOC...)
+
+Now, if you typed JPCLIZ, and the file JPCLIZ.ZIP was in the current directory/path, JPcli would run LOC:M:\APP\UNZIP.OPA specifying JPCLIZ.ZIP as the file to load.
+
+* The VFILE command
+	The VFILE command views a file, byte-by-byte. Press ESC or Ctrl-C to abort and return to the prompt at any time. To jump to a position in the file, press J, and you will be asked to enter a number. This is the offset you want to jump to - to move to byte number 4505, enter 4505 here, or -1 not to jump at all.
+	Press C to change a byte, enter the offset you want to change and then enter the new value (must be in the range 0-255, or -1 to abort the edit)
+
+* Encoding your data
+	The ENCODE word encodes any type of file using Rotary Unit Fixing - an extremely efficient system that, using two code keys, can encode in lots of different combinations. Simply encode a file by the following:
+
+ENCODE (file to encode) (file to write)
+
+and then enter your two encryption keys (both must be in a range of -255 to 255)
+Don't forget the two keys! There is no way of knowing which key was used, so without them, your encoded file is useless! Then, to decode your files:
+
+DECODE (file to decode) (file to write)
+
+and then enter your two keys again.
+
+* The JP environment variable
+	The JP environment variable provides external applications with a link to JPcli. It has the following info:
+
+	ú Command line and switches
+	ú Current path
+	ú Current drive
+	ú Current file system
+	ú JPcli's Process ID
+
+The commands are simply stored one after the other, separated by character code 174.
+
+Command line®current path®file system (LOC, ROM or REM)®current drive (1 character)®process ID
+
+The environment variable is deleted whenever you exit JPcli.
+
+* Updates
+
+v1.0		First version of JPcli. Very limited. Only two commands (DIR and SETDIR).
+v1.1		More commands added.
+v1.2		Even more commands added. More of a command line interface.
+v1.3		RUNAPP command added. Major bugs in DIR command revealed.
+v1.35 	Encode command added. Now shareware. JPCOMMND.DAT.
+v1.39	DIR problems fixed. RUNAPP revised - now runs external apps.
+v1.4		Can run batch files and view text files and binary files. 
+v1.5		Most/all bugs now fixed. First public release. Able to run type 2 apps w.files.
+v1.6		Too many to list (but REM:: now works!!)
+v1.61	v1.6 updates reapplied after I lost the source code. :( JPCOMMND.DAT
+		removed - all one file.
+	
+* Registration
+	Of course, like many other good quality programs, JPcli is shareware. That means that if you like it you have to register it after a thirty day period. After that, you must either delete it or register. Just œ15! The benefits of registering are just two things:
+
+- The delay at the start is removed, as is the messages that occasionally come up.
+- The quick exit system is enabled, letting you just press Psion-ESC to exit.
+
+	I don't really agree with some current shareware that is limited-until-registered, as you don't really get a good idea of what you are paying for. That's why shareware JPcli is as close to the registered JPcli as possible.
+
+	Of course, registering JPcli makes sure that brilliant programs like this are available (and written!) in the future. Not registering JPcli after 30 days is illegal!
+
+	This program is not public domain - I still hold the copyright to this program (and have proof) - so do not break the law by stealing this program (by leaving it unregistered for more that 30 days) or by passing it off as your own.
+
+You can send registrations, enclosing œ15 in UK sterling (cash or cheque) to:
+
+John Portwin
+Shareware Registrations Department
+Beechwood Farm
+Buckland Common
+Nr Tring
+Herts
+HP23 6PB
+
+
+***	Make sure you enclose your name as you entered it when you first used JPcli - if the two differ then the registration key will be invalid!! ***
+
+* How to get your key: **
+
+For those of you with modems:
+
+1) If you send me an e-mail address with your cash+name, I will uuencode your file
+    and return it to you.
+2) If you send me a netmail address, I will uuencode you file and send it that way.
+3) I can put the file 'on hold' at my BBS - a message will be sent to you with the password
+    required to access it.
+
+For those of you with mailers:
+
+4) For œ1 extra (œ2 outside UK), I will crash the file to your mailer (remember to enclose
+    hours that your mailer is up and your telephone no or fido netmail address). If I
+    cannot transfer the key in four tries:
+5) I will put it on hold at my BBS' mailer (Fidonet 2:252/337, 01494758998) for you to
+     poll.
+
+For those of you without either:
+
+6) I can send you the file on an SSD, but you must send an SAE with the SSD inside it.
+
+* Remember to specify which method you want to use!!! * 
+
+Whichever method you use, you will end up with a new JPCLI.OPA file. Copy that into your JPCLI directory and you're registered!
+
+* Contacting the author
+E-mail:	john@lyster.demon.co.uk
+Complaints: bin@lyster.demon.co.uk
+Netmail:	John Portwin @ 2:252/337
+BBS:		+44 (0) 1494758998 
+		Psychotic Mouse BBS, where everyone gets the latest in Psion files! It's
+		the home of the Psion mail network PsionNet! All users get access to E-mail
+		(with their own e-mail address) and Usenet newsgroups, like comp.sys.psion,
+		and comp.binaries.psion.
+		For more information about PMB, finger bbs@lyster.demon.co.uk or send a
+		blank e-mail to info@lyster.demon.co.uk.
+
+		(Cheap plug over)
+
+
+--- * ---
+JPcli is copyright John Portwin, 1995. Please do not modify and distribute, or try to pass this off as your own.

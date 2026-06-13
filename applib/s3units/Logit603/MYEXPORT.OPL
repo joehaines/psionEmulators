@@ -1,0 +1,63 @@
+Proc Myexport:
+local newfil$(128),del%,q%,l$(1),m%,s%,st&,q$(1)
+        q$="?"
+        exp::
+        if count=0 :nada:("Export") :return :endif
+        trap mkdir "M:\wrd"
+        giprint"Path is M:\Wrd" :beep 3,400
+        newfil$="M:\Wrd\*.csv"
+        dinit
+        dtext"","Export Log File",$302
+        dfile newfil$,"",17
+        dtext""," ",$200
+        dchoice del%,"Delimiter","Comma,Tab,Space"
+        dchoice q%,"Use Quotes","No,Yes"
+        if dialog
+                l$=mid$(","+chr$(9)+" ",del%,1)
+                m%=pos :s%=0
+                first
+                trap lopen newfil$
+                if err
+                        dinit
+                        dtext"","Error Creating File",$302
+                        dtext"",err$(err),2
+                        dbuttons "Continue",13
+                        dialog
+                        goto exp::
+                endif
+                busy"Exporting"
+                Do
+                        st&=0 :if b.st$<>"" :st&=val(b.st$) :endif
+                        if q%=1
+                                lprint date$:(b.dt$,0)+l$+time$:(st&)+l$+b.desc$+l$+b.t$+l$+timamt$:+l$+b.rate$+l$+b.note$
+                        else
+                                lprint q$+date$:(b.dt$,0)+q$+l$+q$+time$:(st&)+q$+l$+q$+b.desc$+q$+l$+q$+b.t$+q$+l$+q$+timamt$:+q$+l$+q$+b.rate$+q$+l$+q$+b.note$+q$
+                        endif
+                        next :s%=s%+1
+                Until eof
+                lclose
+                busy off :beep 3,400
+                dinit
+                dtext"","("+fix$(s%,0,5)+")  Log Entries Exported!",$302
+                dtext"","Saved to "+fit$:(newfil$,300),2
+                dtext""," ",$200
+                dtext"","View Printout in Word?",$302
+                dbuttons "NO",%N,"Yes",%Y
+                if dialog=%y
+                        LaunchT:(newfil$)
+                        dinit
+                        dtext"","Save Report File",$302
+                        dbuttons "No",%N,"Yes",%Y
+                        if dialog<>%y
+                                trap delete newfil$
+                                if err
+                                        dinit
+                                        dtext"","Couldn't Delete File",$302
+                                        dtext"","Error: "+err$(err)
+                                        dialog
+                                endif
+                        endif
+                endif
+                position m%
+        endif
+Endp

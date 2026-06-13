@@ -1,0 +1,104 @@
+#define FILELIST_OPH
+
+#ifndef FACTIVE_OPH
+#include <sdk\factive>
+#endif
+
+#ifndef H_FILE_OPH
+#include <sdk\h_file>
+#endif
+
+#ifndef LISTBOX_OPH
+#include <sdk\listbox>
+#endif
+
+#ifndef TIME_OPH
+#include <sdk\time>
+#endif
+
+/* Property of nonode */
+
+STRUCT PR_NONODE
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fnode#(SIZEOF(PRS_FNODE))
+ENDS
+
+/* Property of hpsel */
+
+STRUCT PRS_HPSEL
+	owner%
+ENDS
+
+STRUCT PR_HPSEL
+	root#(SIZEOF(PRS_ROOT))
+	active#(SIZEOF(PRS_ACTIVE))
+	factive#(SIZEOF(PRS_FACTIVE))
+	fscan#(SIZEOF(PRS_FSCAN))
+	psel#(SIZEOF(PRS_PSEL))
+	hpsel#(SIZEOF(PRS_HPSEL))
+ENDS
+
+/* Constants for filelist */
+
+#define PR_FILELIST_ISFILE 0x100
+#define PR_FILELIST_TAGS_CHANGED 0x0200
+#define PR_FILELIST_NOSCAN 0x0400
+#define PR_FILELIST_SCANNING 0x0800
+#define PR_FILELIST_LOCAL 0x1000
+#define PR_FILELIST_WILDCARDED 0x2000
+#define PR_FILELIST_SET_UNMARKED 0x4000
+#define IN_FILELIST_ALLOW_DIRS H_FILE_ALLOW_DIRS
+#define IN_FILELIST_JUST_DIRS H_FILE_JUST_DIRS
+#define IN_FILELIST_CAN_TAG H_FILE_CAN_TAG
+#define IN_FILELIST_CAN_WILDCARD H_FILE_CAN_WILDCARD
+#define IN_FILELIST_NO_FORCE_WILD 0x8000
+#define FILENAME_WIDTH 12
+#define FILESIZE_WIDTH 7
+#define FILETIME_WIDTH 7
+#define FILEDATE_WIDTH 9
+
+/* Types for filelist */
+
+STRUCT PR_FILELIST_X
+	dtype%
+	vadev%
+	ascoff%
+	tagoff%
+	sizeoff%
+	timeoff%
+	dateoff%
+	dateendoff%
+	asc#(P_FNAMESIZE)
+ENDS
+
+/* Property of filelist */
+
+STRUCT PRS_FILELIST
+	hpsel%
+	contexts%
+	date%
+	tags%
+	ptags%
+	next%
+	locmask%
+	flags%
+	parent%
+	thisdir%
+	crk#(SIZEOF(P_FPARSE))
+	derr%
+	x%
+	dfree&
+	wild#(P_FNAMESIZE)
+	subd#(P_FNAMESIZE)
+	scr#(P_FNAMESIZE)
+	targ#(P_FNAMESIZE)
+ENDS
+
+STRUCT PR_FILELIST
+	root#(SIZEOF(PRS_ROOT))
+	win#(SIZEOF(PRS_WIN))
+	listbox#(SIZEOF(PRS_LISTBOX))
+	filelist#(SIZEOF(PRS_FILELIST))
+ENDS

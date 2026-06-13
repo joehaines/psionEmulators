@@ -1,0 +1,166 @@
+==========
+Usenet/comp.sys.psion #23300, from brown@rnibncw.demon.co.uk, 4589 chars, Jan 25 11:22 96
+----------
+Article: 23300 of comp.sys.psion
+Path: cix.compulink.co.uk!news.compulink.co.uk!btnet!zetnet.co.uk!demon!mail2news.demon.co.uk!rnibncw.demon.co.uk
+From: brown@rnibncw.demon.co.uk
+Newsgroups: comp.sys.psion
+Subject: OPL program: Two-part tune playing for composers on move
+Date: Thu, 25 Jan 1996 11:22:08 GMT
+Organization: RNIB New College Worcester.
+Lines: 151
+Message-ID: <9601290813.ad26518@news.demon.net>
+X-NNTP-Posting-Host: rnibncw.demon.co.uk
+X-Mail2News-Path: rnibncw.demon.co.uk
+
+REM Two-part sound playing
+REM PD; sorry no support available; comments to brown@rnibncw.demon.co.uk
+REM Psion 3a only
+
+REM Module M_TUNE.OPL
+
+PROC Wrong:
+	PRINT "Libary module - do not run"
+	GET
+ENDP
+
+PROC playtune:(sndHand%,part1$,part2$)
+	GLOBAL max%
+	local notes1%(40)
+	local len1%,len2%
+	max%=256:rem Normally 128
+	len1%=getFreq:(part1$)
+	len2%=1:while len2%<=len1%*2:notes1%(len2%)=notes%(len2%):len2%=len2%+1:endwh
+	IOC(sndhand%,1,s1stat%,notes1%(),len1%)
+	len2%=getFreq:(part2$)
+	IOW(sndHand%,2,notes%(),len2%)
+	IOWAITSTAT s1stat%
+ENDP
+
+PROC getFreq:(part$)
+	local loop%,len%,oct%,a$(1),b$(1),c$(1)
+	len%=0:oct%=0
+	loop%=1:while loop%<=len(part$)
+		a$=upper$(mid$(part$,loop%,1))
+		if loop%<len(part$):b$=upper$(mid$(part$,loop%+1,1)):else :b$="":endif
+		if loop%<len(part$)-1:c$=upper$(mid$(part$,loop%+2,1)):else :c$="":endif
+		if a$="C":len%=len%+1:doNote:(len%,oct%+3,b$,c$)
+		elseif a$="D":len%=len%+1:doNote:(len%,oct%+5,b$,c$)
+		elseif a$="E":len%=len%+1:doNote:(len%,oct%+7,b$,c$)
+		elseif a$="F":len%=len%+1:doNote:(len%,oct%+8,b$,c$)
+		elseif a$="G":len%=len%+1:doNote:(len%,oct%+10,b$,c$)
+		elseif a$="A":len%=len%+1:doNote:(len%,oct%+12,b$,c$)
+		elseif a$="B":len%=len%+1:doNote:(len%,oct%+14,b$,c$)
+		elseif a$="L":doNote:(len%,-999,b$,c$)
+		elseif a$=">":oct%=oct%+12
+		elseif a$="<":oct%=oct%-12
+		endif
+		loop%=loop%+1
+	endwh
+	return len%
+endp
+
+proc doNote:(len%,t%,shrp$,dot$)
+	local d$(1),tone%
+	if t%=-999
+		if asc(dot$)>asc("9") or asc(dot$)<asc("0")
+			dur%=max%/(asc(shrp$)-asc("0"))
+		else
+			dur%=max%/((asc(shrp$)-asc("0"))*10+asc(dot$)-asc("0"))
+		endif
+	else
+		d$=shrp$ :tone%=t%
+		if shrp$="#" or shrp$="+":tone%=tone%+1:d$=dot$
+		elseif shrp$="-" or shrp$="!":tone%=tone%-1:d$=dot$
+		endif
+		notes%((len%-1)*2+1)=440*(2.0**(tone%/12.0))
+		notes%((len%-1)*2+2)=dur%*(1-0.5*(d$="."))
+	endif
+ENDP
+
+
+rem Module SOUND.OPL
+
+PROC main:
+	local ret%,sndHand%,s1$(40),s2$(40),s3$(40),s4$(40)
+	global dur%,s1stat%,notes%(40)
+	local d%,d$(1),handle%
+	LOADM "M_TUNE.OPO"
+	FONT 8,16
+	dur%=32
+	ret%=IOOPEN(sndHand%,"SND:",-1)
+	if ret%<0
+		raise ret%
+	else
+		while 1
+			dInit "Play tune"
+			dEdit s1$,"Part 1"
+			dEdit s3$,"Part 1"
+			dEdit s2$,"Part 2"
+			dEdit s4$,"Part 2"
+			dButtons "Append",290,"Play",13,"Keyboard",9
+			d%=dialog
+			if d%=13:playtune:(sndHand%,s1$,s2$):playtune:(sndHand%,s3$,s4$)
+			elseif d%=290:rem***append s1$ and s2$ to file
+			rem then offer to play file
+			rem See iotype routines
+				ret%=ioopen(handle%,"\opl\snd_dat.opl",$0123)
+				if ret%<0
+					ret%=ioopen(handle%,"\opl\snd_dat.opl",$0121)
+					if ret%<0:raise ret% :endif
+					lprt:("PROC Main:",handle%)
+					lprt:(" LOCAL sndHand%",handle%)
+					lprt:(" global dur%,s1stat%,notes%(40)",handle%)
+					lprt:(" dur%=32",handle%)
+					lprt:(" LOADM "+chr$(34)+"M_TUNE.OPO"+chr$(34),handle%)
+					lprt:(" IOOPEN(sndHand%,"+chr$(34)+"SND:"+chr$(34)+",-1)",handle%)
+				endif
+				outText:(handle%,s1$,s2$):outText:(handle%,s3$,s4$)
+				ioclose(handle%)
+			elseif d%=9
+				while 1
+					d$=get$
+					if d$=chr$(27):break :endif
+					notes%(1)=440*(2.0**((2.0+loc("q2w3er5t6y7ui9o0p-",d$))/12.0))
+					notes%(2)=16
+					d%=1
+					IOC(sndhand%,1,s1stat%,notes%(),d%)
+					IOW(sndHand%,2,notes%(),d%)
+					IOWAITSTAT s1stat%
+				endwh
+			else :break :endif
+		endwh
+		ioclose(sndHand%)
+	endif 
+ENDP
+
+PROC outText:(handle%,a$,b$)
+	local s$(255)
+	s$="    playtune:(sndHand%,"+chr$(34)+a$+chr$(34)+","+chr$(34)+b$+chr$(34)+")"
+	lprt:(s$,handle%)
+ENDP
+
+PROC lprt:(x$,handle%)
+	local ret%,s$(255)
+	s$=x$
+	ret%=iowrite(handle%,addr(s$)+1,len(s$))
+	if ret% :raise ret% :endif
+ENDP
+
+---===---
+
+Automatic appendment: There is a multi-user expandable adventure on 
+adventur@rnibncw.demon.co.uk
+
+I am a pupil at this college and the opinions expressed hereby are 
+not necessarily those of the RNIB nor those of RNIB New College 
+Worcester.
+
+Silas S. Brown,
+RNIB New College Worcester,
+Whittington Road,
+WORCESTER,
+WR5  2JX
+brown@rnibncw.demon.co.uk
+
+

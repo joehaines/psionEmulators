@@ -1,0 +1,1614 @@
+APP Advent4D, &04baff1e
+  CAPTION "Advent4D", 1
+  ICON "Advent4D.mbm"
+ENDA
+
+REM Adventures in 4 Dimensions
+REM Version 8.0 (9/26/98)
+REM Written by James L. Dean (csvcjld@nomvs.lsumc.edu)
+REM This program may be distributed or run without payment to its author.
+
+DECLARE EXTERNAL
+
+INCLUDE "SYSTEM.OXH"
+
+EXTERNAL AddLine:(strText$)
+EXTERNAL cmdBackward_Click:
+EXTERNAL cmdCarry_Click:
+EXTERNAL cmdDown_Click:
+EXTERNAL cmdDrop_Click:
+EXTERNAL cmdEast_Click:
+EXTERNAL cmdForward_Click:
+EXTERNAL cmdHelp_click:
+EXTERNAL cmdNorth_Click:
+EXTERNAL cmdQuit_click:
+EXTERNAL cmdSouth_Click:
+EXTERNAL cmdUp_Click:
+EXTERNAL cmdWayOut_Click:
+EXTERNAL cmdWest_Click:
+EXTERNAL GameUpdate:
+EXTERNAL Initialize:
+EXTERNAL nCellIndex%:(nX%, nY%, nZ%, nT%)
+EXTERNAL nConnectedIndex%:(nRoom%, nDimension%, nDirection%)
+EXTERNAL nRandomNumber&:
+EXTERNAL TerminateHelp:
+EXTERNAL WayOut1:
+
+CONST BUTTONWIDTH%=90
+CONST BUTTONHEIGHT%=24
+CONST LINEHEIGHT%=18
+CONST INVENTORYWIDTH%=60
+
+CONST nRooms%=100
+CONST nRoomsTimes8%=800:REM 8*nRooms%
+CONST nMaxCells%=256:REM max (INT((2*FLT(nRooms%))**(1.0/FLT(i%)))+1)**i%,i%=2,3,4
+CONST nTreasures%=15
+
+CONST True%=-1
+CONST False%=0
+
+PROC Initialize:
+  GLOBAL bEuclidean%
+  GLOBAL bInitialized%
+  GLOBAL nDimensions%
+  GLOBAL strGameNumber$(8)
+
+  GLOBAL bVisited%(nRooms%)
+  GLOBAL nAddIndex%
+  GLOBAL nGuardRoom%(nTreasures%)
+  GLOBAL nMoves&
+  GLOBAL nReplaceIndex%
+  GLOBAL nRN&(8)
+  GLOBAL nRNPartialSum&
+  GLOBAL nRoom1%
+  GLOBAL nScore%
+  GLOBAL nTCoordinate%
+  GLOBAL nTreasureRoom%(nTreasures%)
+  GLOBAL nVisited%
+  GLOBAL nWeaponRoom%(nTreasures%)
+  GLOBAL nXCoordinate%
+  GLOBAL nYCoordinate%
+  GLOBAL nZCoordinate%
+
+  GLOBAL bConnected%(nRoomsTimes8%)
+  GLOBAL bRoomUsed%(nRooms%)
+  GLOBAL bTreasureCarried%
+  GLOBAL nCell%(nMaxCells%)
+  GLOBAL nWidth%(4)
+  GLOBAL strDescription$(nRooms%,255)
+  GLOBAL strGuard$(nTreasures%,255)
+  GLOBAL strPendingMsg$(255)
+  GLOBAL strTreasure$(nTreasures%,255)
+  GLOBAL strWayOut$(255)
+  GLOBAL strWeapon$(nTreasures%,255)
+
+  GLOBAL bBackward%
+  GLOBAL bCarry%
+  GLOBAL bDown%
+  GLOBAL bDrop%
+  GLOBAL bEast%
+  GLOBAL bForward%
+  GLOBAL bNorth%
+  GLOBAL bSouth%
+  GLOBAL bUp%
+  GLOBAL bWest%
+  GLOBAL gHeight%
+  GLOBAL gWidth%
+  GLOBAL gLineWidth%
+  GLOBAL idBackward%
+  GLOBAL idCarry%
+  GLOBAL idDown%
+  GLOBAL idDrop%
+  GLOBAL idEast%
+  GLOBAL idForward%
+  GLOBAL idHelp%
+  GLOBAL idNorth%
+  GLOBAL idQuit%
+  GLOBAL idSouth%
+  GLOBAL idUp%
+  GLOBAL idWayOut%
+  GLOBAL idWest%
+  GLOBAL nHelpThread&
+
+  LOCAL bDirectionFound%
+  LOCAL bFinished%
+  LOCAL bSpace%
+  LOCAL bUpdate%
+  LOCAL bWeaponRoomFound%
+  LOCAL bWidthsFound%
+  LOCAL chkEuclidean%
+  LOCAL nCellNum%
+  LOCAL nConnection%
+  LOCAL nCoordinate%(4)
+  LOCAL nCoordinateNext%(4)
+  LOCAL nDimension1%
+  LOCAL nDimension2%
+  LOCAL nDirection1%
+  LOCAL nEvent&(20)
+  LOCAL nKeyEnd%
+  LOCAL nKeyIndex%
+  LOCAL nKeyLength%
+  LOCAL nKeyStart%
+  LOCAL nMaxWidth%
+  LOCAL nRoom2%
+  LOCAL nTreasure1%
+  LOCAL nVolume%
+  LOCAL radDimensions%
+  LOCAL Response%
+  LOCAL strLine$(255)
+
+  ESCAPE OFF
+  bInitialized% = False%
+  nHelpThread& = 0
+  nDimensions% = 3
+  bEuclidean% = True%
+  strGameNumber$ = "1"
+  chkEuclidean% = bEuclidean%
+  radDimensions%= nDimensions% - 1
+  DINIT "Adventures in 4 Dimensions"
+  DTEXT "","Return all the treasures to the entrance while visiting all the rooms."
+  DEDIT strGameNumber$,"Game Number",8
+  DCHOICE radDimensions%,"Number of Dimensions","2,3,4"
+  DCHECKBOX chkEuclidean%,"Euclidean space"
+  DBUTTONS "Ok",%O
+  Response% = DIALOG
+  bEuclidean% = chkEuclidean%
+  nDimensions% = radDimensions% + 1
+  nKeyLength% = LEN(strGameNumber$)
+  nKeyStart% = 1
+  bSpace% = True%
+  WHILE (nKeyStart% <= nKeyLength%) AND bSpace%
+    IF MID$(strGameNumber$, nKeyStart%, 1) = " "
+      nKeyStart% = nKeyStart% + 1
+    ELSE
+      bSpace% = False%
+    ENDIF
+  ENDWH
+  IF bSpace%
+    strGameNumber$ = "1"
+    nKeyStart% = 1
+    nKeyEnd% = 1
+  ELSE
+    nKeyEnd% = nKeyLength%
+    bSpace% = True%
+    WHILE (nKeyEnd% > 0) AND bSpace%
+      IF MID$(strGameNumber$, nKeyEnd%, 1) = " "
+        nKeyEnd% = nKeyEnd% - 1
+      ELSE
+        bSpace% = False%
+      ENDIF
+    ENDWH
+  ENDIF
+  nKeyIndex% = 1
+  WHILE ((nKeyStart% <= nKeyEnd%) AND (nKeyIndex% <= 8))
+    nRN&(nKeyIndex%) = 1 + Asc(MID$(strGameNumber$, nKeyStart%, 1))
+    nKeyIndex% = nKeyIndex% + 1
+    nKeyStart% = nKeyStart% + 1
+  ENDWH
+  WHILE (nKeyIndex% <= 8)
+    nRN&(nKeyIndex%) = 16411
+    nKeyIndex% = nKeyIndex% + 1
+  ENDWH
+  nRNPartialSum& = 0
+  nKeyIndex% = 8
+  WHILE nKeyIndex% > 1
+    nRNPartialSum& = nRNPartialSum& + nRN&(nKeyIndex%)
+    IF nRNPartialSum& >= 32771
+      nRNPartialSum& = nRNPartialSum& - 32771
+    ENDIF
+    nKeyIndex% = nKeyIndex% - 1
+  ENDWH
+  nReplaceIndex% = 2
+  nAddIndex% = 1
+  strWayOut$ = ""
+  strTreasure$(1) = "a complete set of superman comic books"
+  strGuard$(1) = "giant"
+  strWeapon$(1) = "dagger"
+  strTreasure$(2) = "a bag full of gold coins"
+  strGuard$(2) = "ferocious lion"
+  strWeapon$(2) = "axe"
+  strTreasure$(3) = "a large blue-white diamond"
+  strGuard$(3) = "grizzly bear"
+  strWeapon$(3) = "mace"
+  strTreasure$(4) = "a four ounce emerald"
+  strGuard$(4) = "Tasmanian devil"
+  strWeapon$(4) = "sword"
+  strTreasure$(5) = "a platinum crucifix"
+  strGuard$(5) = "crocodile"
+  strWeapon$(5) = "staff"
+  strTreasure$(6) = "a string of pearls"
+  strGuard$(6) = "giant crayfish"
+  strWeapon$(6) = "silver bullet"
+  strTreasure$(7) = "a ming vase"
+  strGuard$(7) = "troll"
+  strWeapon$(7) = "hand of glory"
+  strTreasure$(8) = "an oriental rug"
+  strGuard$(8) = "boa constrictor"
+  strWeapon$(8) = "trident"
+  strTreasure$(9) = "a pile of rubies"
+  strGuard$(9) = "harpy"
+  strWeapon$(9) = "sling shot"
+  strTreasure$(10) = "a previously undiscovered Rembrandt painting"
+  strGuard$(10) = "cobra"
+  strWeapon$(10) = "blow gun"
+  strTreasure$(11) = "an ounce of human interferon"
+  strGuard$(11) = "singularly large leech"
+  strWeapon$(11) = "pike"
+  strTreasure$(12) = "a stack of silver bars"
+  strGuard$(12) = "rabid Doberman pinscher"
+  strWeapon$(12) = "cutlass"
+  strTreasure$(13) = "a set of ivory tusks"
+  strGuard$(13) = "colossal cockroach"
+  strWeapon$(13) = "spear"
+  strTreasure$(14) = "an ancient Greek statue"
+  strGuard$(14) = "giant rat"
+  strWeapon$(14) = "stileto"
+  strTreasure$(15) = "a small amount of radium in a lead container"
+  strGuard$(15) = "titanic toad"
+  strWeapon$(15) = "magic wand"
+  strDescription$(1) = "the entrance to a large network of caverns."
+  strDescription$(2) = "a spherical room."
+  strDescription$(3) = "the hall of bones.  Dinosaur bones are everywhere."
+  strDescription$(4) = "a subway tunnel.  Don't touch that third rail!"
+  strDescription$(5) = "a railroad tunnel.  A whistle wails in the distance."
+  strDescription$(6) = "an elfin quiche factory.  The elves are out mowing spinach."
+  strDescription$(7) = "an abandoned Plymouth plant.  Beware of Road Runners and Barracudas."
+  strDescription$(8) = "an abandoned Dodge plant.  There is a Dart embedded in the North wall."
+  strDescription$(9) = "a mouse's nest.  You'd best exhale; this is a small room."
+  strDescription$(10) = "a giant crayfish hole.  An immense chicken neck is hanging from a rope."
+  strDescription$(11) = "an abandoned coal mine.  Beware of methane."
+  strDescription$(12) = "the hall of winds.  Presently, the wind is from the south."
+  strDescription$(13) = "a stove pipe!"
+  strDescription$(14) = "a totally darkened room.  Although you can see nothing, the sound of dripping water echos from the walls."
+  strDescription$(15) = "an industrial waste site.  Hold your breath and don't touch anything."
+  strDescription$(16) = "the warehouse for an extremely popular brand of home computer.  Tacky plastic enclosures abound."
+  strDescription$(17) = "a hobbit's bedroom.  The hobbit does not look pleased!"
+  strDescription$(18) = "a troll sewerage processing plant.  The air quality is not good."
+  strDescription$(19) = "a rabbit hole.  There is a jar of marmalade on a shelf in the wall."
+  strDescription$(20) = "the giant's oven.  Fortunately, it hasn't been used for years."
+  strDescription$(21) = "a hobbit's drying room.  Tobacco leaves abound."
+  strDescription$(22) = "a large circular room.  It is dark in here."
+  strDescription$(23) = "the Crystal Palace.  Quartz crystals cover the walls."
+  strDescription$(24) = "the Emerald Room.  Green crystals cover the ceiling."
+  strDescription$(25) = "a curtained room."
+  strDescription$(26) = "an air conditioning duct!"
+  strDescription$(27) = "a giant kiln.  Smoke stains the walls."
+  strDescription$(28) = "the Hall of Mists.  Wisps of white vapor rise from the floor."
+  strDescription$(29) = "an Aztec pyramid.  A mummy lies in the northwest corner."
+  strDescription$(30) = "the Room of the Eternal Flame.  A large natural gas flame burns in the center of the room.  Coming from the west wall you can barely hear the words, 'Fee Fye Foe Fum'."
+  strDescription$(31) = "the Giant's store room.  You are surrounded by old rugs, books, chairs, etc."
+  strDescription$(32) = "the Leprechaun's Treasure Room.  Unfortunately, the leprechaun's treasure was stolen years ago."
+  strDescription$(33) = "a large tiled room.  A girl is inquiring after a rabbit.  Feel free to ignore her."
+  strDescription$(34) = "a former nuclear test site.  There is a large pile of rubble in the center of the floor.  The walls are streaked with a multitude of colors."
+  strDescription$(35) = "a drainage system holding tank.  Either it is no longer used, or it hasn't rained in a long time; the room is dry."
+  strDescription$(36) = "Mayor Schiro's bomb shelter."
+  strDescription$(37) = "a room with a waterfall.  It is not very impressive; it looks like someone left a water faucet running."
+  strDescription$(38) = "an abandoned Neanderthal home."
+  strDescription$(39) = "a volcanic chimney.  The air is getting warmer."
+  strDescription$(40) = "a pit full of snakes.  Let's get out of here!!!!"
+  strDescription$(41) = "a salt dome."
+  strDescription$(42) = "Eleanor Roosevelt's privy.  Wendall Wilkie buttons cover the wall."
+  strDescription$(43) = "Napoleon's wine cellar.  German wines line the shelves."
+  strDescription$(44) = "the space behind the giant's bathroom wall. Large razor blades litter the floor.  Step lightly."
+  strDescription$(45) = "the room where all old toe nail clipping come to rest.  Used corn pads litter the floor."
+  strDescription$(46) = "the Den of the Horta.  The walls are covered with a sticky fluid.  Don't touch it; it is extremely corrosive."
+  strDescription$(47) = "a damp room.  A small creek runs into a crack in the West wall."
+  strDescription$(48) = "what appears to be a NOPSI manhole."
+  strDescription$(49) = "the cafeteria of Mammoth Cave.  The aroma of rancid corned beef assails your nostrils."
+  strDescription$(50) = "a small room with a large table.  On the table is a bottle that says, 'Drink me.'"
+  strDescription$(51) = "a Confederate States of America bank vault.  Once worthless currency papers the walls."
+  strDescription$(52) = "an abandoned subway station."
+  strDescription$(53) = "a mine shaft.  In the distance you can hear seven high pitched voices singing, 'Hi Ho, Hi Ho, ...'"
+  strDescription$(54) = "a Minuteman missile silo."
+  strDescription$(55) = "the giant's mouse trap.  Fortunately, you are small enough to escape."
+  strDescription$(56) = "Adolph Hitler's summer bunker."
+  strDescription$(57) = "a dwarf work site.  A sign says, 'Under construction. Enter at your own risk.'"
+  strDescription$(58) = "the giant's refrigerator.  Dwarf bodies hang from hooks."
+  strDescription$(59) = "the Dragon's Lair.  Slightly melted suits of armor litter the floor."
+  strDescription$(60) = "a nuclear waste depository.  The walls glow faintly."
+  strDescription$(61) = "Millard Filmore's tomb.  It is dull."
+  strDescription$(62) = "an abandoned corridor of the Strategic Air Command Headquarters.  A graffito reads, 'Beware of Bat Guano.'"
+  strDescription$(63) = "a gnome's workshop.  Half-completed whoopee cushions line the tables."
+  strDescription$(64) = "the Mummy's Tomb.  You've triggered some mechanism and the ceiling is slowly descending."
+  strDescription$(65) = "the Underground Gourmet's retreat.  Twinky and King Don wrappers are piled knee deep."
+  strDescription$(66) = "a Hoola Hoop warehouse.  The words 'Shoop Shoop' echo from the walls."
+  strDescription$(67) = "the first circle of hell.  The living are not allowed here."
+  strDescription$(68) = "the hall of the pixies.  The furniture appears to have been made from cradles."
+  strDescription$(69) = "a sulfur mine.  Molten sulfur churns in a nearby pit. It is becoming difficult to breath."
+  strDescription$(70) = "a fairy mushroom farm.  Brilliantly colored mushrooms cover the floor."
+  strDescription$(71) = "an ice cave.  Along the western wall, a brontosaurus is defrosting."
+  strDescription$(72) = "the giant's stove.  Fortunately, the giant now owns a microwave oven."
+  strDescription$(73) = "the rib cage of a long deceased whale."
+  strDescription$(74) = "a room with six walls.  The walls appear to be made of wax.  A loud buzzing noise can be heard."
+  strDescription$(75) = "the tomb of a Pharoah.  It has obviously been visited by others; the tomb is in a state of total disarray."
+  strDescription$(76) = "a coal bin.  There is a fossilized fern stump here."
+  strDescription$(77) = "a diamond mine.  It is uncomfortably hot here."
+  strDescription$(78) = "the bottom of an oil well.  The walls are slick."
+  strDescription$(79) = "the lowest level of Project Mohole.  The funding bubble burst before the earth did."
+  strDescription$(80) = "the giant's cesspool.  Fortunately, the giant was connected to the city sewerage system years ago."
+  strDescription$(81) = "an eighteenth century sewer.  The walls are crumbling brick.  Small alligators snap at your feet."
+  strDescription$(82) = "the lair of a giant trapdoor spider."
+  strDescription$(83) = "a giant gopher tunnel."
+  strDescription$(84) = "a shell -- the sole remains of a prehistoric turtle."
+  strDescription$(85) = "a small chamber.  The walls are made of earth.  The air smells of formic acid.  A strange squeaking noise can be heard in the distance."
+  strDescription$(86) = "a chamber of columns.  The stalagmites and stalactites join here."
+  strDescription$(87) = "a service tunnel.  Ducts, pipes, and cables are everywhere."
+  strDescription$(88) = "a gas tank below an abandoned service station.  No smoking!"
+  strDescription$(89) = "a huge dark chamber.  To one side, a dark, muddy river moves sluggishly.  A sign written in ancient Greek says, 'Ferry out of order.'"
+  strDescription$(90) = "a small chamber. It is brightly lit by a peculiar lichen growing on the walls and ceiling.  The floor is rocky and steeply sloping.  Nearby, a cold, clear creek boils into the floor and out of sight."
+  strDescription$(91) = "the nest of a very large pack rat.  There are discarded aluminum Christmas trees, broken steel utility poles, and other shiny, worthless items here."
+  strDescription$(92) = "a dungeon.  An iron maiden, a rack, a piano, and other machines of torture can be seen."
+  strDescription$(93) = "the hall of bats.  Thousands of bats hang from the ceiling.  Watch your step; the droppings are quite deep in places."
+  strDescription$(94) = "a hobgoblin's hideaway."
+  strDescription$(95) = "an electrical substation.  A transformer is humming loudly.  Nearby, cables crackle with high voltage."
+  strDescription$(96) = "the 'gold' room.  The walls are covered with iron pyrite."
+  strDescription$(97) = "a room with one of Dracula's emergency coffins.  The Count is out."
+  strDescription$(98) = "a saltpeter mine.  To one side there is a huge wooden evaporation vat.  Small crystals of saltpeter cause the walls to sparkle."
+  strDescription$(99) = "the basement cafeteria of a local hospital.  Some say that there has been nothing edible here for years."
+  strDescription$(100) = "a troll arsenal.  Kegs of gun powder surround you."
+  nConnection% = 1
+  nRoom1% = 1
+  WHILE nRoom1% <= nRooms%
+    bVisited%(nRoom1%) = False%
+    nDimension1% = 1
+    WHILE nDimension1% <= nDimensions%
+      nDirection1% = 1
+      WHILE nDirection1% <= 2
+        bConnected%(nConnection%) = False%
+        nConnection% = nConnection% + 1
+        nDirection1% = nDirection1% + 1
+      ENDWH
+      nDimension1% = nDimension1% + 1
+    ENDWH
+    nRoom1% = nRoom1% + 1
+  ENDWH
+  nMaxWidth% = 1 + INT(FLT(2 * nRooms%) ** (1.0 / FLT(nDimensions%)))
+  bWidthsFound% = False%
+  WHILE NOT bWidthsFound%
+    nDimension1% = 1
+    nVolume% = 1
+    WHILE nDimension1% <= nDimensions%
+      nWidth%(nDimension1%) = nMaxWidth% - MOD&:(nRandomNumber&:, 2)
+      nVolume% = nVolume% * nWidth%(nDimension1%)
+      nDimension1% = nDimension1% + 1
+    ENDWH
+    IF nVolume% > nRooms%
+      bWidthsFound% = True%
+    ENDIF
+  ENDWH
+  nDimension1% = nDimensions% + 1
+  WHILE nDimension1% <= 4
+    nWidth%(nDimension1%) = 1
+    nDimension1% = nDimension1% + 1
+  ENDWH
+  nRoom1% = 2
+  WHILE nRoom1% <= nRooms%
+    nRoom2% = 2 + MOD&:(nRandomNumber&:, (nRooms% - 1))
+    strLine$ = strDescription$(nRoom1%)
+    strDescription$(nRoom1%) = strDescription$(nRoom2%)
+    strDescription$(nRoom2%) = strLine$
+    nRoom1% = nRoom1% + 1
+  ENDWH
+  nCellNum% = 1
+  nXCoordinate% = 1
+  WHILE nXCoordinate% <= nWidth%(1)
+    nYCoordinate% = 1
+    WHILE nYCoordinate% <= nWidth%(2)
+      nZCoordinate% = 1
+      WHILE nZCoordinate% <= nWidth%(3)
+        nTCoordinate% = 1
+        WHILE nTCoordinate% <= nWidth%(4)
+          nCell%(nCellNum%) = -1
+          nCellNum% = nCellNum% + 1
+          nTCoordinate% = nTCoordinate% + 1
+        ENDWH
+        nZCoordinate% = nZCoordinate% + 1
+      ENDWH
+      nYCoordinate% = nYCoordinate% + 1
+    ENDWH
+    nXCoordinate% = nXCoordinate% + 1
+  ENDWH
+  nXCoordinate% = 1
+  nYCoordinate% = 1
+  nZCoordinate% = 1
+  nTCoordinate% = 1
+  nCoordinate%(1) = nXCoordinate%
+  nCoordinate%(2) = nYCoordinate%
+  nCoordinate%(3) = nZCoordinate%
+  nCoordinate%(4) = nTCoordinate%
+  nRoom1% = 1
+  nRoom2% = 1
+  nCell%(1) = 1
+  WHILE nRoom1% < nRooms%
+    bDirectionFound% = False%
+    WHILE NOT bDirectionFound%
+      nDirection1% = MOD&:(nRandomNumber&:, 2) + 1
+      nDimension1% = MOD&:(nRandomNumber&:, nDimensions%) + 1
+      IF bEuclidean%
+        IF nCoordinate%(nDimension1%) + 2 * (nDirection1% - 1) - 1 >= 1
+          IF nCoordinate%(nDimension1%) + 2 * (nDirection1% - 1) - 1  <= nWidth%(nDimension1%)
+            bDirectionFound% = True%
+          ENDIF
+        ENDIF
+      ELSE
+        bDirectionFound% = True%
+      ENDIF
+    ENDWH
+    bConnected%(nConnectedIndex%:(nRoom2%, nDimension1%, nDirection1%)) = True%
+    nCoordinateNext%(1) = nCoordinate%(1)
+    nCoordinateNext%(2) = nCoordinate%(2)
+    nCoordinateNext%(3) = nCoordinate%(3)
+    nCoordinateNext%(4) = nCoordinate%(4)
+    nCoordinateNext%(nDimension1%) = nCoordinate%(nDimension1%) + 2 * (nDirection1% - 1) - 1
+    IF (NOT bEuclidean%)
+      IF nCoordinateNext%(nDimension1%) < 1
+        nDimension2% = 1
+        WHILE nDimension2% <= nDimensions%
+          nCoordinateNext%(nDimension2%) = nWidth%(nDimension2%) - nCoordinateNext%(nDimension2%) + 1
+          nDimension2% = nDimension2% + 1
+        ENDWH
+        nCoordinateNext%(nDimension1%) = nWidth%(nDimension1%)
+      ELSE
+        IF nCoordinateNext%(nDimension1%) > nWidth%(nDimension1%)
+          nDimension2% = 1
+          WHILE nDimension2% <= nDimensions%
+            nCoordinateNext%(nDimension2%) = nWidth%(nDimension2%) - nCoordinateNext%(nDimension2%) + 1
+            nDimension2% = nDimension2% + 1
+          ENDWH
+          nCoordinateNext%(nDimension1%) = 1
+        ENDIF
+      ENDIF
+    ENDIF
+    nCellNum%=nCellIndex%:(nCoordinateNext%(1), nCoordinateNext%(2), nCoordinateNext%(3), nCoordinateNext%(4))
+    IF nCell%(nCellNum%) < 0
+      nRoom1% = nRoom1% + 1
+      nCell%(nCellNum%) = nRoom1%
+    ENDIF
+    nRoom2% = nCell%(nCellNum%)
+    bConnected%(nConnectedIndex%:(nRoom2%, nDimension1%, 3 - nDirection1%)) = True%
+    nCoordinate%(1) = nCoordinateNext%(1)
+    nCoordinate%(2) = nCoordinateNext%(2)
+    nCoordinate%(3) = nCoordinateNext%(3)
+    nCoordinate%(4) = nCoordinateNext%(4)
+  ENDWH
+  nTreasure1% = 1
+  WHILE nTreasure1% <= nTreasures%
+    nTreasureRoom%(nTreasure1%) = 2 + MOD&:(nRandomNumber&:, (nRooms% - 1))
+    nGuardRoom%(nTreasure1%) = nTreasureRoom%(nTreasure1%)
+    bWeaponRoomFound% = False%
+    WHILE NOT bWeaponRoomFound%
+      nWeaponRoom%(nTreasure1%) = 2 + MOD&:(nRandomNumber&:, (nRooms% - 1))
+      IF nWeaponRoom%(nTreasure1%) <> nTreasureRoom%(nTreasure1%)
+        bWeaponRoomFound% = True%
+      ENDIF
+    ENDWH
+    nTreasure1% = nTreasure1% + 1
+  ENDWH
+  nVisited% = 0
+  bInitialized% = True%
+  gWidth% = gWIDTH
+  gHeight% = gHEIGHT
+  gLineWidth% = gWidth% - 3*BUTTONWIDTH% - gTWidth("W")
+  bFinished% = False%
+  DO
+    GameUpdate:
+    bUpdate% = False%
+    DO
+	    GETEVENT32 nEvent&()
+  	  IF nEvent&(1) = &408
+        IF nEvent&(3) = idBackward%
+          IF bBackward%
+            PRINT CHR$(7);
+            cmdBackward_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idDown%
+          IF bDown%
+            PRINT CHR$(7);
+            cmdDown_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idEast%
+          IF bEast%
+            PRINT CHR$(7);
+            cmdEast_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idForward%
+          IF bForward%
+            PRINT CHR$(7);
+            cmdForward_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idNorth%
+          IF bNorth%
+            PRINT CHR$(7);
+            cmdNorth_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idSouth%
+          IF bSouth%
+            PRINT CHR$(7);
+            cmdSouth_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idUp%
+          IF bUp%
+            PRINT CHR$(7);
+            cmdUp_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idWest%
+          IF bWest%
+            PRINT CHR$(7);
+            cmdWest_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idCarry%
+          IF bCarry%
+            PRINT CHR$(7);
+            cmdCarry_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idDrop%
+          IF bDrop%
+            PRINT CHR$(7);
+            cmdDrop_Click:
+            bUpdate% = True%
+          ENDIF
+        ELSEIF nEvent&(3) = idQuit%
+          PRINT CHR$(7);
+          bFinished% = True%
+          cmdQuit_click:
+        ELSEIF nEvent&(3) = idHelp%
+          PRINT CHR$(7);
+          cmdHelp_Click:
+        ELSE
+          IF nEvent&(3) = idWayOut%
+            PRINT CHR$(7);
+            cmdWayOut_Click:
+            bUpdate% = True%
+          ENDIF
+        ENDIF
+      ELSE
+        IF nEvent&(1) = &404
+          IF LEFT$(GETCMD$,1) = "X"
+            TerminateHelp:
+            STOP
+          ENDIF
+        ENDIF
+      ENDIF
+    UNTIL bUpdate% OR bFinished%
+   	gClose idDrop%
+   	gClose idWayOut%
+   	gClose idCarry%
+   	gClose idBackward%
+   	gClose idDown%
+   	gClose idSouth%
+   	gClose idEast%
+   	gClose idWest%
+   	gClose idNorth%
+   	gClose idUp%
+   	gClose idForward%
+    gClose idQuit%
+    gClose idHelp%
+  UNTIL bFinished%
+  TerminateHelp:
+ENDP
+
+PROC nCellIndex%:(nX%, nY%, nZ%, nT%)
+  EXTERNAL nWidth%()
+  LOCAL nResult%
+  nResult%=nT%+nWidth%(4)*((nZ%-1)+nWidth%(3)*((nY%-1)+(nX%-1)*nWidth%(2)))
+  RETURN nResult%
+ENDP
+
+PROC nConnectedIndex%:(nRoom%, nDimension%, nDirection%)
+  LOCAL nResult%
+  nResult%=nDirection%+2*(nDimension%-1)+8*(nRoom%-1)
+  RETURN nResult%
+ENDP
+
+PROC nRandomNumber&:
+  EXTERNAL nAddIndex%
+  EXTERNAL nReplaceIndex%
+  EXTERNAL nRN&()
+  EXTERNAL nRNPartialSum&
+  LOCAL nResult&
+  REM      Each pseudo-random number is the modulo sum of the
+  REM previous eight pseudo-random numbers.  A prime modulus
+  REM makes it likely that the pseudo-random numbers will be
+  REM uniformly distributed.  To speed computation, a partial
+  REM sum of 7 of the 8 previous pseudo-random numbers is maintained.
+  REM      For a given set of initial values nRN&(i), i=0,1,2,...,7,
+  REM this random number generator should produce the same sequence
+  REM of random numbers, no matter what interpreter it is run under.
+  DO
+    nResult& = nRNPartialSum& + nRN&(nAddIndex%)
+    IF nResult& >= 32771
+      nResult& = nResult& - 32771
+    ENDIF
+    nRNPartialSum& = nResult& - nRN&(nReplaceIndex%)
+    IF nRNPartialSum& < 0
+      nRNPartialSum& = nRNPartialSum& + 32771
+    ENDIF
+    nRN&(nReplaceIndex%) = nResult&
+    nAddIndex% = nReplaceIndex%
+    nReplaceIndex% = nReplaceIndex% + 1
+    IF nReplaceIndex% > 8
+      nReplaceIndex% = 1
+    ENDIF
+  UNTIL nResult& <= 32767
+  RETURN nResult&
+ENDP
+
+PROC WayOut1:
+  EXTERNAL bEuclidean%
+  EXTERNAL nCoordinateNext%()
+  EXTERNAL nDimension1%
+  EXTERNAL nDimensions%
+  EXTERNAL nWidth%()
+  LOCAL nDimension2%
+
+  IF (NOT bEuclidean%)
+    IF nCoordinateNext%(nDimension1%) <= 0
+      nDimension2% = 1
+      WHILE nDimension2% <= nDimensions%
+        nCoordinateNext%(nDimension2%) = nWidth%(nDimension2%) - nCoordinateNext%(nDimension2%) + 1
+        nDimension2% = nDimension2% + 1
+      ENDWH
+      nCoordinateNext%(nDimension1%) = nWidth%(nDimension1%)
+    ELSE
+      IF nCoordinateNext%(nDimension1%) > nWidth%(nDimension1%)
+        nDimension2% = 1
+        WHILE nDimension2% <= nDimensions%
+          nCoordinateNext%(nDimension2%) = nWidth%(nDimension2%) - nCoordinateNext%(nDimension2%) + 1
+          nDimension2% = nDimension2% + 1
+        ENDWH
+        nCoordinateNext%(nDimension1%) = 1
+      ENDIF
+    ENDIF
+  ENDIF
+ENDP
+
+PROC cmdWayOut_Click:
+  EXTERNAL bConnected%()
+  EXTERNAL bEuclidean%
+  EXTERNAL bRoomUsed%()
+  EXTERNAL bTreasureCarried%
+  EXTERNAL nCell%()
+  EXTERNAL nDimensions%
+  EXTERNAL nRoom1%
+  EXTERNAL nTCoordinate%
+  EXTERNAL nTreasureRoom%()
+  EXTERNAL nWidth%()
+  EXTERNAL nXCoordinate%
+  EXTERNAL nYCoordinate%
+  EXTERNAL nZCoordinate%
+  EXTERNAL strPendingMsg$
+  EXTERNAL strWayOut$
+  GLOBAL nCoordinateNext%(4)
+  GLOBAL nDimension1%
+  LOCAL bDirectionFound%
+  LOCAL bDirectionUsed%(nRoomsTimes8%)
+  LOCAL bPathFound%
+  LOCAL nCoordinate%(4)
+  LOCAL nDimension2%
+  LOCAL nDirection1%
+  LOCAL nDirection2%
+  LOCAL nDirection3%
+  LOCAL nDirectionsPossible%
+  LOCAL nDirectionsUsed%(255)
+  LOCAL nRoom2%
+  LOCAL nTreasure1%
+  LOCAL nTrial%
+  LOCAL nWayOutDimension%(255)
+  LOCAL nWayOutDirection%(255)
+  LOCAL nWayOutHead%
+  bPathFound% = False%
+  strPendingMsg$ = ""
+  IF (bTreasureCarried%) AND (nRoom1% <> 1)
+    nCoordinate%(1) = nXCoordinate%
+    nCoordinate%(2) = nYCoordinate%
+    nCoordinate%(3) = nZCoordinate%
+    nCoordinate%(4) = nTCoordinate%
+    nWayOutHead% = 1
+    nRoom2% = 1
+    WHILE nRoom2% <= nRooms%
+      bRoomUsed%(nRoom2%) = False%
+      nRoom2% = nRoom2% + 1
+    ENDWH
+    bRoomUsed%(nRoom1%) = True%
+    nDirectionsUsed%(nWayOutHead%) = 0
+    nDirectionsPossible% = 2 * nDimensions%
+    nDirection3% = 1
+    nDimension1% = 1
+    WHILE nDimension1% <= nDimensions%
+      nDirection1% = 1
+      WHILE nDirection1% <= 2
+        bDirectionUsed%(nDirection3%) = False%
+        nDirection3% = nDirection3% + 1
+        nDirection1% = nDirection1% + 1
+      ENDWH
+      nDimension1% = nDimension1% + 1
+    ENDWH
+    strWayOut$ = ""
+    nRoom2% = nRoom1%
+    nTrial% = 0
+    WHILE (nTrial% < 500) AND (nRoom2% <> 1) AND (nWayOutHead% < 255)
+      nTrial% = nTrial% + 1
+      bDirectionFound% = False%
+      WHILE (NOT bDirectionFound%) AND (nDirectionsUsed%(nWayOutHead%) < nDirectionsPossible%)
+        nDirection1% = MOD&:(nRandomNumber&:, 2) + 1
+        nDimension1% = MOD&:(nRandomNumber&:, nDimensions%) + 1
+        nDirection3% = nConnectedIndex%:(nWayOutHead%, nDimension1%, nDirection1%)
+        IF (NOT bDirectionUsed%(nDirection3%))
+          bDirectionUsed%(nDirection3%) = True%
+          nDirectionsUsed%(nWayOutHead%) = nDirectionsUsed%(nWayOutHead%) + 1
+          IF bConnected%(nConnectedIndex%:(nRoom2%, nDimension1%, nDirection1%))
+            nCoordinateNext%(1) = nCoordinate%(1)
+            nCoordinateNext%(2) = nCoordinate%(2)
+            nCoordinateNext%(3) = nCoordinate%(3)
+            nCoordinateNext%(4) = nCoordinate%(4)
+            nCoordinateNext%(nDimension1%) = nCoordinate%(nDimension1%) + 2 * (nDirection1%-1) - 1
+            WayOut1:
+            IF NOT bRoomUsed%(nCell%(nCellIndex%:(nCoordinateNext%(1), nCoordinateNext%(2), nCoordinateNext%(3), nCoordinateNext%(4))))
+              bDirectionFound% = True%
+            ENDIF
+          ENDIF
+        ENDIF
+      ENDWH
+      IF bDirectionFound%
+        nRoom2% = nCell%(nCellIndex%:(nCoordinateNext%(1), nCoordinateNext%(2), nCoordinateNext%(3), nCoordinateNext%(4)))
+        nWayOutHead% = nWayOutHead% + 1
+        bRoomUsed%(nRoom2%) = True%
+        nDirectionsUsed%(nWayOutHead%) = 0
+        nDirection3% = nConnectedIndex%:(nWayOutHead%, 1, 1)
+        nDimension2% = 1
+        WHILE nDimension2% <= nDimensions%
+          nDirection2% = 1
+          WHILE nDirection2% <= 2
+            bDirectionUsed%(nDirection3%) = False%
+            nDirection3% = nDirection3% + 1
+            nDirection2% = nDirection2% + 1
+          ENDWH
+          nDimension2% = nDimension2% + 1
+        ENDWH
+        nWayOutDimension%(nWayOutHead%) = nDimension1%
+        nWayOutDirection%(nWayOutHead%) = 3 - nDirection1%
+        IF nDimension1% = 1
+          IF nDirection1% = 1
+            strWayOut$ = strWayOut$ + "N"
+          ELSE
+            strWayOut$ = strWayOut$ + "S"
+          ENDIF
+        ELSEIF nDimension1% = 2
+          IF nDirection1% = 1
+            strWayOut$ = strWayOut$ + "E"
+          ELSE
+            strWayOut$ = strWayOut$ + "W"
+          ENDIF
+        ELSEIF nDimension1% = 3
+          IF nDirection1% = 1
+            strWayOut$ = strWayOut$ + "U"
+          ELSE
+            strWayOut$ = strWayOut$ + "D"
+          ENDIF
+        ELSE
+          IF nDirection1% = 1
+            strWayOut$ = strWayOut$ + "F"
+          ELSE
+            strWayOut$ = strWayOut$ + "B"
+          ENDIF
+        ENDIF
+      ELSE
+        nDirection1% = nWayOutDirection%(nWayOutHead%)
+        nDimension1% = nWayOutDimension%(nWayOutHead%)
+        nCoordinateNext%(1) = nCoordinate%(1)
+        nCoordinateNext%(2) = nCoordinate%(2)
+        nCoordinateNext%(3) = nCoordinate%(3)
+        nCoordinateNext%(4) = nCoordinate%(4)
+        nCoordinateNext%(nDimension1%) = nCoordinateNext%(nDimension1%) + 2 * (nDirection1% - 1) - 1
+        IF (NOT bEuclidean%)
+          IF nCoordinateNext%(nDimension1%) <= 0
+            nDimension2% = 1
+            WHILE nDimension2% <= nDimensions%
+              nCoordinateNext%(nDimension2%) = nWidth%(nDimension2%) - nCoordinateNext%(nDimension2%) + 1
+              nDimension2% = nDimension2% + 1
+            ENDWH
+            nCoordinateNext%(nDimension1%) = nWidth%(nDimension1%)
+          ELSE
+            IF nCoordinateNext%(nDimension1%) > nWidth%(nDimension1%)
+              nDimension2% = 1
+              WHILE nDimension2% <= nDimensions%
+                nCoordinateNext%(nDimension2%) = nWidth%(nDimension2%) - nCoordinateNext%(nDimension2%) + 1
+                nDimension2% = nDimension2% + 1
+              ENDWH
+              nCoordinateNext%(nDimension1%) = 1
+            ENDIF
+          ENDIF
+        ENDIF
+        nRoom2% = nCell%(nCellIndex%:(nCoordinateNext%(1), nCoordinateNext%(2), nCoordinateNext%(3), nCoordinateNext%(4)))
+        nWayOutHead% = nWayOutHead% - 1
+        IF LEN(strWayOut$) > 1
+          strWayOut$ = LEFT$(strWayOut$, LEN(strWayOut$) - 1)
+        ELSE
+          strWayOut$ = ""
+        ENDIF
+      ENDIF
+      nCoordinate%(1) = nCoordinateNext%(1)
+      nCoordinate%(2) = nCoordinateNext%(2)
+      nCoordinate%(3) = nCoordinateNext%(3)
+      nCoordinate%(4) = nCoordinateNext%(4)
+    ENDWH
+    IF nRoom2% = 1
+      bPathFound% = True%
+    ENDIF
+  ENDIF
+  IF bPathFound%
+    nTreasure1% = 1
+    nRoom2% = 1
+    WHILE (nTreasure1% <= nTreasures%) AND (nRoom2% >= 1)
+      nRoom2% = nTreasureRoom%(nTreasure1%)
+      IF nRoom2% >= 1
+        nTreasure1% = nTreasure1% + 1
+      ENDIF
+    ENDWH
+    nRoom2% = nRoom1%
+    WHILE nRoom1% = nRoom2%
+      nRoom2% = 2 + MOD&:(nRandomNumber&:, (nRooms% - 1))
+    ENDWH
+    nTreasureRoom%(nTreasure1%) = nRoom2%
+    strPendingMsg$ = "  The pirate takes one of your treasure.  As he leaves,  he shouts the letters, '" + strWayOut$ + "'."
+  ELSE
+    strPendingMsg$ = "  Nothing happens.  Try again later."
+  ENDIF
+ENDP
+
+PROC AddLine:(strText$)
+  EXTERNAL gHeight%
+  EXTERNAL gLineWidth%
+  EXTERNAL gLineY%
+  EXTERNAL strLine$
+  LOCAL bSpace%
+  LOCAL c$(1)
+  LOCAL i%
+  LOCAL j%
+  LOCAL nLen%
+  LOCAL strWord$(255)
+  nLen% = LEN(strText$)
+  i% = 1
+  WHILE i% <= nLen%
+    bSpace% = True%
+    WHILE bSpace% AND (i% <= nLen%)
+      IF MID$(strText$, i%, 1) = " "
+        IF GTWIDTH(strLine$ + " ") > gLineWidth%
+          gAt 0, gLineY%
+          IF gLineY% <= gHeight%
+            gPrintB strLine$, gLineWidth%, 2
+          ENDIF
+          gLineY% = gLineY% + LINEHEIGHT%
+          strLine$ = ""
+          WHILE bSpace% AND (i% <= nLen%)
+            IF MID$(strText$, i%, 1) = " "
+              i% = i% +1
+            ELSE
+              bSpace% = False%
+            ENDIF
+          ENDWH
+        ELSE
+          strLine$ = strLine$ + " "
+          i% = i% + 1
+        ENDIF
+      ELSE
+        bSpace% = False%
+      ENDIF
+    ENDWH
+    strWord$ = ""
+    WHILE ((NOT bSpace%) AND (i% <= nLen%))
+      c$ = MID$(strText$, i%, 1)
+      IF c$ = " "
+        bSpace% = True%
+      ELSE
+        strWord$ = strWord$ + c$
+        i% = i% + 1
+      ENDIF
+    ENDWH
+    IF GTWIDTH(strLine$ + strWord$) > gLineWidth%
+      gAt 0, gLineY%
+      IF gLineY% <= gHeight%
+        gPrintB strLine$, gLineWidth%, 2
+      ENDIF
+      gLineY% = gLineY% + LINEHEIGHT%
+      strLine$ = ""
+      WHILE GTWIDTH(strWord$) > gLineWidth%
+        j% = LEN(strWord$)
+        WHILE GTWIDTH(LEFT$(strWord$, j%)) > gLineWidth%
+          j% = j% - 1
+        ENDWH
+        gAt 0, gLineY%
+        IF gLineY% <= gHeight%
+          gPrintB LEFT$(strWord$, j%), gLineWidth%, 2
+        ENDIF
+        gLineY% = gLineY% + LINEHEIGHT%
+        strWord$ = RIGHT$(strWord$, LEN(strWord$) -j%)
+      ENDWH
+    ENDIF
+    strLine$ = strLine$ + strWord$
+  ENDWH
+ENDP
+
+PROC GameUpdate:
+  EXTERNAL bBackward%
+  EXTERNAL bCarry%
+  EXTERNAL bConnected%()
+  EXTERNAL bDown%
+  EXTERNAL bDrop%
+  EXTERNAL bEast%
+  EXTERNAL bEuclidean%
+  EXTERNAL bForward%
+  EXTERNAL bNorth%
+  EXTERNAL bSouth%
+  EXTERNAL bTreasureCarried%
+  EXTERNAL bUp%
+  EXTERNAL bVisited%()
+  EXTERNAL bWest%
+  EXTERNAL gHeight%
+  EXTERNAL gLineWidth%
+  EXTERNAL gWidth%
+  EXTERNAL idBackward%
+  EXTERNAL idCarry%
+  EXTERNAL idDown%
+  EXTERNAL idDrop%
+  EXTERNAL idEast%
+  EXTERNAL idForward%
+  EXTERNAL idHelp%
+  EXTERNAL idNorth%
+  EXTERNAL idQuit%
+  EXTERNAL idSouth%
+  EXTERNAL idUp%
+  EXTERNEL idWayOut%
+  EXTERNAL idWest%
+  EXTERNAL nCell%()
+  EXTERNAL nDimensions%
+  EXTERNAL nGuardRoom%()
+  EXTERNAL nMoves&
+  EXTERNAL nRoom1%
+  EXTERNAL nScore%
+  EXTERNAL nTreasureRoom%()
+  EXTERNAL nTCoordinate%
+  EXTERNAL nVisited%
+  EXTERNAL nWeaponRoom%()
+  EXTERNAL nWidth%()
+  EXTERNAL nXCoordinate%
+  EXTERNAL nYCoordinate%
+  EXTERNAL nZCoordinate%
+  EXTERNAL strDescription$()
+  EXTERNAL strGuard$()
+  EXTERNAL strPendingMsg$
+  EXTERNAL strTreasure$()
+  EXTERNAL strWayOut$
+  EXTERNAL strWeapon$()
+  GLOBAL gLineY%
+  GLOBAL strLine$(255)
+  LOCAL c$(1)
+  LOCAL dblScore
+  LOCAL gX%
+  LOCAL gY%
+  LOCAL nCoordinate%(4)
+  LOCAL nDimension1%
+  LOCAL nInventory%
+  LOCAL nItem%
+  LOCAL nRoom2%
+  LOCAL nTreasure1%
+  LOCAL nTreasure2%
+  LOCAL nTreasuresCarried%
+  LOCAL nTreasuresRecovered%
+  LOCAL strTreasures$(255)
+  IF (NOT bEuclidean%)
+    IF nXCoordinate% <= 0
+      nYCoordinate% = nWidth%(2) - nYCoordinate% + 1
+      nZCoordinate% = nWidth%(3) - nZCoordinate% + 1
+      nTCoordinate% = nWidth%(4) - nTCoordinate% + 1
+      nXCoordinate% = nWidth%(1)
+    ELSE
+      IF nXCoordinate% > nWidth%(1)
+        nYCoordinate% = nWidth%(2) - nYCoordinate% + 1
+        nZCoordinate% = nWidth%(3) - nZCoordinate% + 1
+        nTCoordinate% = nWidth%(4) - nTCoordinate% + 1
+        nXCoordinate% = 1
+      ENDIF
+    ENDIF
+    IF nYCoordinate% <= 0
+      nXCoordinate% = nWidth%(1) - nXCoordinate% + 1
+      nZCoordinate% = nWidth%(3) - nZCoordinate% + 1
+      nTCoordinate% = nWidth%(4) - nTCoordinate% + 1
+      nYCoordinate% = nWidth%(2)
+    ELSE
+      IF nYCoordinate% > nWidth%(2)
+        nXCoordinate% = nWidth%(1) - nXCoordinate% + 1
+        nZCoordinate% = nWidth%(3) - nZCoordinate% + 1
+        nTCoordinate% = nWidth%(4) - nTCoordinate% + 1
+        nYCoordinate% = 1
+      ENDIF
+    ENDIF
+    IF nZCoordinate% <= 0
+      nXCoordinate% = nWidth%(1) - nXCoordinate% + 1
+      nYCoordinate% = nWidth%(2) - nYCoordinate% + 1
+      nTCoordinate% = nWidth%(4) - nTCoordinate% + 1
+      nZCoordinate% = nWidth%(3)
+    ELSE
+      IF nZCoordinate% > nWidth%(3)
+        nXCoordinate% = nWidth%(1) - nXCoordinate% + 1
+        nYCoordinate% = nWidth%(2) - nYCoordinate% + 1
+        nTCoordinate% = nWidth%(4) - nTCoordinate% + 1
+        nZCoordinate% = 1
+      ENDIF
+    ENDIF
+    IF nTCoordinate% <= 0
+      nXCoordinate% = nWidth%(1) - nXCoordinate% + 1
+      nYCoordinate% = nWidth%(2) - nYCoordinate% + 1
+      nZCoordinate% = nWidth%(3) - nZCoordinate% + 1
+      nTCoordinate% = nWidth%(4)
+    ELSE
+      IF nTCoordinate% > nWidth%(4)
+        nXCoordinate% = nWidth%(1) - nXCoordinate% + 1
+        nYCoordinate% = nWidth%(2) - nYCoordinate% + 1
+        nZCoordinate% = nWidth%(3) - nZCoordinate% + 1
+        nTCoordinate% = 1
+      ENDIF
+    ENDIF
+  ENDIF
+  gLineY%=LINEHEIGHT%
+  strLine$ = ""
+  AddLine:(strPendingMsg$)
+  IF LEN(strLine$) > 0
+    gAt 0, gLineY%
+    IF gLineY% <= gHeight%
+      gPrintB strLine$, gLineWidth%, 2
+    ENDIF
+    gLineY% = gLineY% + LINEHEIGHT%
+    strLine$ = ""
+  ENDIF
+  strPendingMsg$ = ""
+  nRoom1% = nCell%(nCellIndex%:(nXCoordinate%, nYCoordinate%, nZCoordinate%, nTCoordinate%))
+  IF (nRoom1% <> 1) AND (strWayOut$ = "") AND (MOD&:(nRandomNumber&:, 100) = 0)
+    nRoom2% = 1
+    WHILE nRoom2% <= 1
+      nXCoordinate% = MOD&:(nRandomNumber&:, nWidth%(1)) + 1
+      nYCoordinate% = MOD&:(nRandomNumber&:, nWidth%(2)) + 1
+      nZCoordinate% = MOD&:(nRandomNumber&:, nWidth%(3)) + 1
+      nTCoordinate% = MOD&:(nRandomNumber&:, nWidth%(4)) + 1
+      nRoom2% = nCell%(nCellIndex%:(nXCoordinate%, nYCoordinate%, nZCoordinate%, nTCoordinate%))
+    ENDWH
+    IF nRoom2% <> nRoom1%
+      nRoom1% = nRoom2%
+      strPendingMsg$ = "  Yeowwww!  A flock of bats grabs you,  flies you through the caverns,  and drops you."
+    ENDIF
+  ENDIF
+  AddLine:(strPendingMsg$)
+  IF LEN(strLine$) > 0
+    gAt 0, gLineY%
+    IF gLineY% <= gHeight%
+      gPrintB strLine$, gLineWidth%, 2
+    ENDIF
+    gLineY% = gLineY% + LINEHEIGHT%
+    strLine$ = ""
+  ENDIF
+  strPendingMsg$ = ""
+  strWayOut$ = ""
+  nTreasuresRecovered% = 0
+  nTreasure1% = 1
+  bTreasureCarried% = False%
+  WHILE (nTreasure1% <= nTreasures%) AND (NOT bTreasureCarried%)
+    IF nTreasureRoom%(nTreasure1%) < 0
+      bTreasureCarried% = True%
+    ELSE
+      nTreasure1% = nTreasure1% + 1
+    ENDIF
+  ENDWH
+  IF bTreasureCarried%
+    IF MOD&:(nRandomNumber&:, (2 * nRooms%)) = 0
+      nRoom2% = 1
+      WHILE nRoom2% <= 1
+        nDimension1% = 1
+        WHILE nDimension1% <= nDimensions%
+          nCoordinate%(nDimension1%) = MOD&:(nRandomNumber&:, nWidth%(nDimension1%)) + 1
+          nDimension1% = nDimension1% + 1
+        ENDWH
+        nRoom2% = nCell%(nCellIndex%:(nCoordinate%(1), nCoordinate%(2), nCoordinate%(3), nCoordinate%(4)))
+        IF nRoom1% = nRoom2%
+          nRoom2% = -1
+        ENDIF
+      ENDWH
+      nTreasure1% = 1
+      WHILE nTreasure1% <= nTreasures%
+        IF nTreasureRoom%(nTreasure1%) < 0
+          nTreasureRoom%(nTreasure1%) = nRoom2%
+        ENDIF
+        nTreasure1% = nTreasure1% + 1
+      ENDWH
+      bTreasureCarried% = False%
+      strPendingMsg$ = "  A pirate jumps out of the shadows and takes your treasure.  As he leaves,  he says,  'Arggh!  I'll hide me booty better this time.'"
+    ENDIF
+  ENDIF
+  AddLine:(strPendingMsg$)
+  IF LEN(strLine$) > 0
+    gAt 0, gLineY%
+    IF gLineY% <= gHeight%
+      gPrintB strLine$, gLineWidth%, 2
+    ENDIF
+    gLineY% = gLineY% + LINEHEIGHT%
+    strLine$ = ""
+  ENDIF
+  strPendingMsg$ = ""
+  AddLine:("  You're in " + strDescription$(nRoom1%))
+  nTreasure1% = 1
+  nTreasure2% = 0
+  strTreasures$ = ""
+  nInventory% = 0
+  nTreasuresCarried% = 0
+  WHILE nTreasure1% <= nTreasures%
+    IF nTreasureRoom%(nTreasure1%) = 1
+      nTreasuresRecovered% = nTreasuresRecovered% + 1
+      IF nRoom1% = 1
+        strTreasures$ = "  There's " + strTreasure$(nTreasure1%) + " here. "
+        AddLine:(strTreasures$)
+      ENDIF
+    ELSE
+      IF nTreasureRoom%(nTreasure1%) = nRoom1%
+        strTreasures$ = "  There's " + strTreasure$(nTreasure1%) + " here. "
+        AddLine:(strTreasures$)
+        IF nGuardRoom%(nTreasure1%) = nRoom1%
+          c$ = LEFT$(strGuard$(nTreasure1%), 1)
+          IF ((c$ = "a") OR (c$ = "e") OR (c$ = "i") OR (c$ = "o") OR (c$ = "u"))
+            strTreasures$ = "  It's guarded by an " + strGuard$(nTreasure1%) + "."
+            AddLine:(strTreasures$)
+          ELSE
+            strTreasures$ = "  It's guarded by a " + strGuard$(nTreasure1%) + "."
+            AddLine:(strTreasures$)
+          ENDIF
+        ENDIF
+      ELSE
+        IF nTreasureRoom%(nTreasure1%) = -1
+          nInventory% = nInventory% + 1
+          bTreasureCarried% = True%
+          nTreasuresCarried% = nTreasuresCarried% + 1
+          nTreasure2% = nTreasure2% + 1
+        ENDIF
+      ENDIF
+    ENDIF
+    IF nWeaponRoom%(nTreasure1%) = nRoom1%
+      c$ = LEFT$(strWeapon$(nTreasure1%), 1)
+      IF (c$ = "a") OR (c$ = "e") OR (c$ = "i") OR (c$ = "o") OR (c$ = "u")
+        strTreasures$ = " There's an " + strWeapon$(nTreasure1%) + " here."
+        AddLine:(strTreasures$)
+      ELSE
+        strTreasures$ = " There's a " + strWeapon$(nTreasure1%) + " here."
+        AddLine:(strTreasures$)
+      ENDIF
+    ELSE
+      IF nWeaponRoom%(nTreasure1%) = -1
+        nInventory% = nInventory% + 1
+        nTreasure2% = nTreasure2% + 1
+      ENDIF
+    ENDIF
+    nTreasure1% = nTreasure1% + 1
+  ENDWH
+  IF LEN(strLine$) > 0
+    gAt 0, gLineY%
+    IF gLineY% <= gHeight%
+      gPrintB strLine$, gLineWidth%, 2
+    ENDIF
+    gLineY% = gLineY% + LINEHEIGHT%
+    strLine$ = ""
+  ENDIF
+  IF nInventory% > 0
+    strLine$ = "  You're carrying the following:  "
+  ENDIF
+  nItem% = 0
+  nTreasure1% = 1
+  WHILE nTreasure1% <= nTreasures%
+    IF nTreasureRoom%(nTreasure1%) = -1
+      nItem% = nItem% + 1
+      IF nItem% = nInventory%
+        AddLine:(" " + strTreasure$(nTreasure1%) + ".")
+      ELSE
+        AddLine:(" " + strTreasure$(nTreasure1%) + ",")
+      ENDIF
+    ENDIF
+    IF nWeaponRoom%(nTreasure1%) = -1
+      nItem% = nItem% + 1
+      c$ = LEFT$(strWeapon$(nTreasure1%), 1)
+      IF (c$ = "a") OR (c$ = "e") OR (c$ = "i") OR (c$ = "o") OR (c$ = "u")
+        IF nItem% = nInventory%
+          AddLine:(" an " + strWeapon$(nTreasure1%) + ".")
+        ELSE
+          AddLine:(" an " + strWeapon$(nTreasure1%) + ",")
+        ENDIF
+      ELSE
+        IF nItem% = nInventory%
+          AddLine:(" a " + strWeapon$(nTreasure1%) + ".")
+        ELSE
+          AddLine:(" a " + strWeapon$(nTreasure1%) + ",")
+        ENDIF
+      ENDIF
+    ENDIF
+    nTreasure1% = nTreasure1% + 1
+  ENDWH
+  IF LEN(strLine$) > 0
+    gAt 0, gLineY%
+    IF gLineY% <= gHeight%
+      gPrintB strLine$, gLineWidth%, 2
+    ENDIF
+    gLineY% = gLineY% + LINEHEIGHT%
+    strLine$ = ""
+  ENDIF
+  WHILE gLineY% <= gHeight%
+    gAt 0, gLineY%
+    gPrintB " ", gLineWidth%, 2
+    gLineY% = gLineY% + LINEHEIGHT%
+  ENDWH
+  gX%=gWidth%-3*BUTTONWIDTH%
+  gY%=gHeight%-9*BUTTONHEIGHT%+BUTTONHEIGHT%/2
+  gAt gX%,gY%
+  gPrintB "Moves: " + NUM$(FLT(nMoves&), 9),2*BUTTONWIDTH%,1
+  gX%=gWidth%-3*BUTTONWIDTH%
+  gY%=gHeight%-7*BUTTONHEIGHT%+BUTTONHEIGHT%/2
+  gAt gX%,gY%
+  gPrintB "Treasures recovered: " + NUM$(FLT(nTreasuresRecovered%), 2) + " of " + NUM$(FLT(nTreasures%), 2),3*BUTTONWIDTH%,1
+  IF (NOT bVisited%(nRoom1%))
+    nVisited% = nVisited% + 1
+    bVisited%(nRoom1%) = True%
+  ENDIF
+  gX%=gWidth%-3*BUTTONWIDTH%
+  gY%=gHeight%-8*BUTTONHEIGHT%+BUTTONHEIGHT%/2
+  gAt gX%,gY%
+  gPrintB "Rooms visited: " + NUM$(FLT(nVisited%), 3) + " of " + NUM$(FLT(nRooms%), 3),3*BUTTONWIDTH%,1
+  dblScore = 25.0 * FLT(nVisited%) / FLT(nRooms%) + 75.0 * FLT(nTreasuresRecovered%) / FLT(nTreasures%) + 45.0 * FLT(nTreasuresCarried%) / FLT(nTreasures%)
+  IF nVisited% > 5 * nRooms%
+    dblScore = dblScore - FLT(nVisited%) / (5.0 * FLT(nRooms%))
+    IF dblScore < 0.0
+      dblScore = 0.0
+    ENDIF
+  ENDIF
+  nScore% = INT(dblScore)
+  gX%=gWidth%-3*BUTTONWIDTH%
+  gY%=gHeight%-6*BUTTONHEIGHT%+BUTTONHEIGHT%/2
+  gAt gX%,gY%
+  gPrintB "Score:  " + NUM$(FLT(nScore%), 3) + " of 100",3*BUTTONWIDTH%,1
+  gX% = gWidth% - 3*BUTTONWIDTH%
+  gY% = 0
+  idHelp% = gCreate(gX%, gY%, BUTTONWIDTH%/2, BUTTONHEIGHT%, 1, $101)
+	gButton "Help", 2, BUTTONWIDTH%/2, BUTTONHEIGHT%, 0
+  gX% = gWidth% - BUTTONWIDTH%/2
+  gY% = 0
+  idQuit% = gCreate(gX%, gY%, BUTTONWIDTH%/2, BUTTONHEIGHT%, 1, $101)
+	gButton "Quit", 2, BUTTONWIDTH%/2, BUTTONHEIGHT%, 0
+	gX%=gWidth%-3*BUTTONWIDTH%
+	gY%=gHeight%-BUTTONHEIGHT%
+	gAt gX%,gY%
+	idCarry%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF strTreasures$ = ""
+    bCarry% = False%
+  	gButton "Carry",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ELSE
+    bCarry% = True%
+  	gButton "Carry",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ENDIF
+  gX%=gWidth%-BUTTONWIDTH%
+	gY%=gHeight%-BUTTONHEIGHT%
+	gAt gX%,gY%
+	idDrop%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF ((nRoom1% = 1) AND (bTreasureCarried%))
+    bDrop% = True%
+  	gButton "Drop",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bDrop% = False%
+  	gButton "Drop",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-2*BUTTONWIDTH%
+	gY%=gHeight%-9*BUTTONHEIGHT%/2
+	gAt gX%,gY%
+	idNorth%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 1, 1))
+    bNorth% = True%
+  	gButton "North",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bNorth% = False%
+  	gButton "North",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-2*BUTTONWIDTH%
+	gY%=gHeight%-7*BUTTONHEIGHT%/2
+	gAt gX%,gY%
+	idSouth%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 1, 2))
+    bSouth% = True%
+  	gButton "South",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bSouth% = False%
+  	gButton "South",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-BUTTONWIDTH%
+	gY%=gHeight%-4*BUTTONHEIGHT%
+	gAt gX%,gY%
+	idEast%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 2, 1))
+    bEast% = True%
+  	gButton "East",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bEast% = False%
+  	gButton "East",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-3*BUTTONWIDTH%
+	gY%=gHeight%-4*BUTTONHEIGHT%
+	gAt gX%,gY%
+	idWest%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 2, 2))
+    bWest% = True%
+  	gButton "West",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bWest% = False%
+  	gButton "West",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-BUTTONWIDTH%
+  gY%=gHeight%-5*BUTTONHEIGHT%
+	gAt gX%,gY%
+	idUp%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 3, 1))
+    bUp% = True%
+  	gButton "Up",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bUp% = False%
+  	gButton "Up",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-3*BUTTONWIDTH%
+	gY%=gHeight%-3*BUTTONHEIGHT%
+	gAt gX%,gY%
+	idDown%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 3, 2))
+    bDown% = True%
+  	gButton "Down",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bDown% = False%
+  	gButton "Down",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+  gX%=gWidth%-3*BUTTONWIDTH%
+  gY%=gHeight%-5*BUTTONHEIGHT%
+  gAt gX%,gY%
+  idForward%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 4, 1))
+    bForward% = True%
+  	gButton "Forward",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bForward% = False%
+  	gButton "Forward",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-BUTTONWIDTH%
+	gY%=gHeight%-3*BUTTONHEIGHT%
+	gAt gX%,gY%
+	idBackward%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+  IF bConnected%(nConnectedIndex%:(nRoom1%, 4, 2))
+    bBackward% = True%
+  	gButton "Backward",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+  ELSE
+    bBackward% = False%
+  	gButton "Backward",2,BUTTONWIDTH%,BUTTONHEIGHT%,1
+  ENDIF
+	gX%=gWidth%-2*BUTTONWIDTH%
+	gY%=gHeight%-BUTTONHEIGHT%
+	gAt gX%,gY%
+	idWayOut%=gCreate(gX%,gY%,BUTTONWIDTH%,BUTTONHEIGHT%,1,$101)
+	gButton "Way Out",2,BUTTONWIDTH%,BUTTONHEIGHT%,0
+ENDP
+
+PROC cmdCarry_Click:
+  EXTERNAL nGuardRoom%()
+  EXTERNAL nRoom1%
+  EXTERNAL nTreasureRoom%()
+  EXTERNAL nWeaponRoom%()
+  EXTERNAL strGuard$()
+  EXTERNAL strPendingMsg$
+  EXTERNAL strWeapon$()
+  LOCAL nTreasure1%
+  strPendingMsg$ = ""
+  nTreasure1% = 1
+  WHILE nTreasure1% <= nTreasures%
+    IF nWeaponRoom%(nTreasure1%) = nRoom1%
+      nWeaponRoom%(nTreasure1%) = -1
+    ENDIF
+    nTreasure1% = nTreasure1% + 1
+  ENDWH
+  nTreasure1% = 1
+  WHILE nTreasure1% <= nTreasures%
+    IF nTreasureRoom%(nTreasure1%) = nRoom1%
+      IF nWeaponRoom%(nTreasure1%) < 0
+        nTreasureRoom%(nTreasure1%) = -1
+        IF nGuardRoom%(nTreasure1%) = nRoom1%
+          nGuardRoom%(nTreasure1%) = -1
+          nWeaponRoom%(nTreasure1%) = -2
+          strPendingMsg$ = strPendingMsg$ + "  Your " + strWeapon$(nTreasure1%) + " overcomes the " + strGuard$(nTreasure1%) + "."
+        ENDIF
+      ELSE
+        strPendingMsg$ = strPendingMsg$ + "  You carry nothing to overcome the " + strGuard$(nTreasure1%) + "."
+      ENDIF
+    ENDIF
+    IF nWeaponRoom%(nTreasure1%) = nRoom1%
+      nWeaponRoom%(nTreasure1%) = -1
+    ENDIF
+    nTreasure1% = nTreasure1% + 1
+  ENDWH
+ENDP
+
+PROC cmdDrop_Click:
+  EXTERNAL nTreasureRoom%()
+  EXTERNAL strPendingMsg$
+  LOCAL nTreasure1%
+  nTreasure1% = 1
+  WHILE nTreasure1% <= nTreasures%
+    IF nTreasureRoom%(nTreasure1%) = -1
+      nTreasureRoom%(nTreasure1%) = 1
+    ENDIF
+    nTreasure1% = nTreasure1% + 1
+  ENDWH
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdBackward_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nTCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nTCoordinate% = nTCoordinate% + 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdDown_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nZCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nZCoordinate% = nZCoordinate% + 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdEast_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nYCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nYCoordinate% = nYCoordinate% - 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdForward_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nTCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nTCoordinate% = nTCoordinate% - 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdNorth_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nXCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nXCoordinate% = nXCoordinate% - 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdSouth_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nXCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nXCoordinate% = nXCoordinate% + 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdUp_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nZCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nZCoordinate% = nZCoordinate% - 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdWest_Click:
+  EXTERNAL nMoves&
+  EXTERNAL nYCoordinate%
+  EXTERNAL strPendingMsg$
+  nMoves& = nMoves& + 1
+  nYCoordinate% = nYCoordinate% + 1
+  strPendingMsg$ = ""
+ENDP
+
+PROC cmdHelp_Click:
+  EXDERNAL nHelpThread&
+  LOCAL bHelpFilePresent%
+  LOCAL Response%
+  LOCAL strHelpFile$(255)
+  
+  strHelpFile$ = CMD$(1)
+  IF LEN(strHelpFile$) > 5
+    IF LOWER$(RIGHT$(strHelpFile$, 4)) = ".app"
+      strHelpFile$ = LEFT$(strHelpFile$, LEN(strHelpFile$) - 3) + "hlp"
+    ELSE
+      strHelpFile$ = "C:\System\Apps\Advent4D\Advent4D.hlp"
+    ENDIF
+  ELSE
+    strHelpFile$ = "C:\System\Apps\Advent4D\Advent4D.hlp"
+  ENDIF
+  IF EXIST(strHelpFile$)
+    IF nHelpThread& <> 0
+      ONERR noHelpThread
+      SETFOREGROUNDBYTHREAD&:(nHelpThread&, 0)
+    ELSE
+noHelpThread::
+      ONERR OFF
+      nHelpThread& = RUNAPP&:("Data", strHelpFile$, "", 0)
+    ENDIF
+  ELSE
+    DINIT "Error"
+    DTEXT "", strHelpFile$ + " is not present."
+    DBUTTONS "Ok",%O
+    Response% = DIALOG
+  ENDIF
+ENDP
+
+PROC TerminateHelp:
+  EXTERNAL nHelpThread&
+  IF nHelpThread& <> 0
+    ONERR noHelpThread
+    ENDTASK&:(nHelpThread&, 0)
+  ENDIF
+noHelpThread::
+  ONERR OFF
+  nHelpThread& = 0
+ENDP
+
+PROC cmdQuit_click:
+  EXTERNAL bInitialized%
+  EXTERNAL nScore%
+  LOCAL O%
+  LOCAL Response%
+  IF bInitialized%
+    IF nScore% < 10
+      DINIT "You scored " + NUM$(FLT(nScore%),3) + " out of 100 points."
+      DTEXT "", "Your score ranks you as a beginner."
+    ELSE
+      IF nScore% < 20
+        DINIT "You scored " + NUM$(FLT(nScore%),3) + " out of 100 points."
+        DTEXT "", "Your score ranks you as a beginner."
+      ELSE
+        IF nScore% < 40
+          DINIT "You scored " + NUM$(FLT(nScore%),3) + " out of 100 points."
+          DTEXT "", "Your score ranks you as a novice adventurer."
+        ELSE
+          IF nScore% < 60
+            DINIT "You scored " + NUM$(FLT(nScore%),3) + " out of 100 points."
+            DTEXT "", "Your score ranks you as a seasoned explorer."
+          ELSE
+            IF nScore% < 80
+              DINIT "You scored " + NUM$(FLT(nScore%),3) + " out of 100 points."
+              DTEXT "", "Your score ranks you as a grissly old prospector."
+            ELSE
+              IF nScore% < 100
+                DINIT "You scored " + NUM$(FLT(nScore%),3) + " out of 100 points."
+                DTEXT "", "Your score ranks you as an expert treasure hunter."
+              ELSE
+                DINIT "You scored " + NUM$(FLT(nScore%),3) + " out of 100 points."
+                DTEXT "", "Your score ranks you as a wizard;  there is no higher rating."
+              ENDIF
+            ENDIF
+          ENDIF
+        ENDIF
+      ENDIF
+    ENDIF
+  ENDIF
+  DBUTTONS "Ok",%O
+  Response% = DIALOG
+ENDP

@@ -1,0 +1,237 @@
+Running a PSION S3a-emulator under Windows95
+--------------------------------------------
+
+The PSION-S3a emulator is software to simulate
+a PSION S3a on a PC. This can be handy to exchange
+data with the PC, to have a virtual backup S3a
+in emergency situations, or for development work.
+
+The emulator is available from CompuServe's PSION forum,
+at PSION's web site http://www.psion.com/downloads/pc/,
+and from traders specialising in PSION software.
+The emulator was written by PSION staff to support
+inhouse development, but is not an official
+PSION product and is not supported by PSION.
+The emulator is freeware, however, traders might
+charge a nominal amount for the floppy.
+
+The emulator run's under DOS, and unfortunately
+it does not run in a DOS window but only in full screen
+mode. Windows95, however, can switch to DOS mode
+automatically. To set up the emulator for Windows95
+proceed as follows:
+
+
+1. Create a new directory on the C-harddrive.
+   and call it 's3emu'. (using Windows Explorer).
+   Copy all emulator files into this directory.
+
+   Other drives are fine too, simply replace
+   the drive letters in the following instructions.
+   Stay away from compressed drives - in case
+   of an emulator crash a scandisk might become
+   necessary. On a compressed drive this takes
+   ages.
+
+   Delete all batch files that came with the
+   emulator. Do NOT try to execute them as they
+   will hang up Windows95.
+
+2. Open the new directory.
+   Within this new directory create the following directories:
+   M		for the internal disk
+   A		for flash disk A
+   B		for flash disk B
+
+3. Copy the following files from this package into \s3emu
+
+     S3a.ico		Icon representing an S3a
+
+     hhserver.s3a	parameters for emulator
+     s3a.bat		runs an S3a with the original screen size 480x160
+
+     hhserver.pc	parameters for emulator
+     bigs3a.bat		runs an S3a with screen size 640x400
+
+     hhserver.pcv	parameters for emulator
+     verts3a.bat	runs an S3a with screen size 480x480
+
+
+4. Within \S3emu
+
+   - Right click S3a.bat and select 'Properties'.
+   - Click the 'Program' tab.
+   - In the first line change the name to 'S3a' (or whatever your like).
+   - Under 'Working' enter the name of the emulator directory: C:\S3emu .
+   - Leave the other lines unchanged but click 'Advanced'.
+   - In the following dialogue click the 'MS-DOS mode' check box.
+   - Check or uncheck 'Warn before entering MS-DOS mode' (up to you).
+   - Now set 'Specify a new MS-DOS configuration' to checked.
+     The windows for CONFIG.SYS and AUTOEXEC.BAT should now show some content.
+   - In the last window (AUTOEXEC.BAT) add the following lines
+      under the last line:
+
+        lastdrive=z
+        SUBST M: C:\S3emu\m
+        SUBST A: C:\S3emu\a
+        SUBST B: C:\S3emu\b
+
+     Make sure that this window does not contain any other conflicting
+     SUBST commands.
+     These SUBST commands simulate the disks for the emulated S3a.
+     You must specify them all, even if you do not want Drive A or B.
+     Otherwise the emulator would ask for floppies when started.
+   - Click OK
+   - Click 'Change Icon'.
+   - Under File Name specify: C:\s3emu\s3a.ico
+   - Click OK, Click OK, Click OK
+   - You should now be back in the directory window and there should
+     be a new element called 'S3a'. If not, click 'Refresh'. You can now
+     drag this icon to the desktop, if you like. To test, double click
+     the new icon. Windows will shut down and there will be a brief moment
+     where you look at the clouds and contemplate where you want to go today.
+     Eventually MS-DOS will boot up and start the emulator.
+     Your new S3a will be equipped with two Flash disks (A and B) and they
+     will be huge. You can also access all other disks on the PC, including
+     compressed disks, CD-ROMs, Cartridges.
+     The only thing which you cannot access are floppy disks, because their
+     drive letters have been taken away.
+     Printing is possible through parallel and serial port, and it is also
+     possible to exchange data with a real S3a through the serial port.
+
+     To stop the emulator press CTRL-ALT-Esc. The emulator will inform
+     you about FATAL ERROR 0 (= no error) and ask you to press a key. Do so
+     and Windows will boot up again.
+   - You can now repeat this process for BigS3a.BAT and VertS3a.BAT. Or you can
+     simply make copies of the new S3a item and change the Command line in
+     'Properties|Program' accordingly.
+
+  5. Unfortunately there is no emulator for the S3c, but there is an emulator
+     for PSION-Siena (from the same sites). If you want to install this emulator,
+     copy its files into a different directory, say C:\SienEmu, and copy the file
+     Siena.BAT from this package into this directory, too.
+     Then proceed as described under 4, but use C:\SienEmu as working directory.
+
+  6. We found it convenient to add a few lines to C:\AUTOEXEC.BAT
+
+	lastdrive=z
+        SUBST I: C:\S3emu\m
+        SUBST L: C:\S3emu\a
+        SUBST R: C:\S3emu\b
+
+     These instructions will list your S3a drives as separate drives in Windows.
+     They will appear in the 'My computer' folder and can behave like disks.
+     To avoid name clashes with floppies they have been renamed:
+
+                Windows     S3a
+                ---------------
+                I           M   internal drive
+                L           A   left flash disk
+                R           B   right flash disk
+
+     You may choose other drive letters if you like.
+
+  7. Startup
+     Leaving the emulator is like a hard reset on the real thing.
+     When you start the emulator again, all applications and groups
+     must be reinstalled.
+     This process can be automated with a program found in
+     AUTOINST.ZIP in this package. Please refer to the documentation
+     provided there.
+
+  8. Exchange of data
+     Connect your palmtop to the PC with the serial cable (3-link).
+     Activate the Link function in the palmtop and in the emulator.
+     You are now able to copy files, directories, or whole disks
+     between both computers, or to backup disks to from one computer
+     to the other, using the functions in the PSION system menu.
+     When running applications on your palmtop, you can open files
+     on the emulator, and vice versa.
+
+  9. Printing
+     Printing from the emulator is possible in the usual way, either
+     through the parallel or serial port.
+
+     It is also possible to print from a real palmtop through the
+     emulator to a printer:
+     On both the palmtop and the emulator start the Link function.
+     Invoke printer Setup on the palmtop, specify the printer model
+     and select 'File' as printer port.
+     For the file name specify 'REM::LPT1' if your printer is connected
+     to the LPT1 port of your PC. Then use the applications print function.
+
+     Note: Both printing function require that your printer works
+     in DOS mode. This is not possible with some GDI printers, which
+     require the Windows GDI active.
+     Newer PC's can set up the parallel port as ECP port using
+     DMA instead of IRQ. For DOS printing, set the parallel port
+     up as a bidirectional port (using IRQs). This must be done
+     in the BIOS - changing the setting in Windows doesn't affect DOS.
+
+  10. Troubleshooting
+
+     Emulators have usually a few shortcomings and this one is no exception.
+     There are a few things that are not quite compatible:
+
+     - gtmode 2 in OPL doesn't always work properly.
+       This can for instance make cursors leave a trace on the screen.
+
+     - ioopen mode 4 (unique filename)
+       The file name reported differs from the actual generated filename.
+       A following ioread with the reported filename will not find the file.
+       If an application uses this file mode, you may get an error message
+       'File does not exist'. Our own applications do not use this mode.
+
+     - Some key combinations don't work
+       CTRL+3digits are not translated into an ASCII character.
+       Shift-F9, Shift-F10, Shift-F12 are not reported as
+         Shift-MENU, Shift-HELP, Shift-Diamond.
+
+     - Keyboard scan codes are always zero. Applications using
+       keyboard scan codes, such as some games, do not work.
+
+     - The PC sound card is not supported. Instead you get only very basic
+       sound effects from the emulator. Tone dialling doesn't work either.
+
+     - ALT + cursor key cannot be used as PageUp,PageDown,Home,End.
+       Instead, use the original PageUp,PageDown,Home,End keys on your keyboard.
+
+     - BigS3a and VertS3a. We have observed some applications bombing out when
+       used with a big screen. OPL-written applications (OPAs) don't have this
+       problem, but badly C-written applications (APPs) may.
+       The inbuilt applications work all very well with the big screen.
+
+11. Purpose
+
+     - We provide this information to make our applications for the PSION S3 range
+       more useful. The following applications run on the emulator:
+
+	F11:	  yes, but some keys are different:
+		  use ALT-Esc followed by F9 (Menu)  for Shift-Menu.
+		  use ALT-Esc followed by F10 (Help) for Shift-Help.
+                  Text selection by pressing the two Shift-keys doesn't work.
+	HyperPoc: but Sound effects are very basic, no tone dialling
+	MusiPoc:  tunes can be edited, but not played, and the piano doesn't work
+	FlowPoc:  yes, no tone dialling
+	PicPoc:   yes
+	PocDoc:   yes, no tone dialling
+	PocView:  yes
+	ProPoc:   yes
+	RepPoc:   yes, no tone dialling
+
+	All applications: cosmetic problem in Help (Morpheus) - the cursor leaves
+              a trace when moved.
+
+12. Open questions
+    Users of Windows95sr2 have the choice between to file systems FAT (the traditional)
+    and FAT32. I haven't tested the emulator under FAT32 yet but can't see a reason
+    why it should not run under this system. Please drop me a line if you have
+    experience with this setup.
+
+Author contact:
+
+    Berthold Daum
+    lichtbild@compuserve.com
+    http://ourworld.compuserve.com/homepages/lichtbild
+
+End of document

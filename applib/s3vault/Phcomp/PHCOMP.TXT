@@ -1,0 +1,97 @@
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *  Project: PHCOMP - PSION HELP COMPILER    *  Written by: Nick Matthews  *
+ *   Module: COMPILER SPECIFICATION          *  Date Started: 13 Aug 1996  *
+ *     File: PHCOMP.TXT    Type: NOTES       *  Date Revised:  6 Sep 1996  *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ 
+    Copyright (c) 1996 Nick Matthews, KizzyCo
+ 
+Introduction
+~~~~~~~~~~~~
+
+  The Psion Help Compiler (phcomp.exe) is designed to simplify writing Psion
+  help resouce files, particularly when modifing them. Text can be modified
+  and rejustified using a standard text editor. Include files can be used to
+  create files that contain just one help page of text.
+  
+  The output of the compiler is a file that can be included in the project
+  .rss file for further compilation by the Psion Resource Compiler.
+
+Usage
+~~~~~
+
+  PHCOMP filename[.RHT] [-Ofilename[.RHI]] [-Ipath] [-L] [-S] [-V]
+
+  filename  Input File Name. The default extension is .RHT
+  -O  Output filename. The default is the input filename.
+      The default extension is .RHI.
+  -I  Path(s) to be searched for Include files
+  -L  Left trim whitespace from text.
+  -S  Silent, suppress startup banner.
+  -V  Verbose, outputs compiler progress to stdout.
+
+     Case or order for command line switches is not significant
+     and either "-" or "/" may be used.
+
+Input File Spec
+~~~~~~~~~~~~~~~
+
+  The input file uses 5 keyword: #Page, #Topic, #Include, #End and # by
+  itself. The keywords must be at the start of a new line.
+
+  The help text is placed between the #Page and either the next #Page or
+  #End keywords. The #Topic keyword, if required, must follow the #Page
+  keyword and come before the help text. An #End keyword must appear after
+  the final #Page. Any text outside a #Page/#End block is ignored. Any line
+  starting with # and followed by whitespace is also ignored.
+  
+  The #Include keyword may be placed anywhere in the file and may be nested.
+ 
+  Blank lines before and after the help text is ignored, while multiple
+  blank lines within the text are reduced to one.
+  
+  The case of the keywords is not significant.
+  
+  #Page identifier title
+  
+     Everything following the identifer is included in the title.
+     
+  #Topic identifer
+  
+     If used, this must appear after #Page and before the help text, if any.
+     Note that a TOPIC_ARRAY identifer is created by appending __i to the
+     page identifier.
+
+  #Include filename
+  
+     Optional. There is no default extension. Filename does not require
+     quotes.
+          
+  #End
+  
+     This may be placed at the end of any page but must be used after the
+     last one.
+     
+  # Any comments can go here
+  
+     Comment lines are ignored.
+     
+
+History
+~~~~~~~
+
+  13/Aug/96  D1.00  Compiler completed for keywords #Page, #Topic and #End.
+  
+  26/Aug/96  D1.10  Added #Include keyword to enable include files.
+                    Added -Ipath and -L flags to Command Line,
+
+Current Wishlist
+~~~~~~~~~~~~~~~~
+
+ 1. Create full hypertext help.
+ 
+ 2. Add a menu compiler
+ 
+ 3. Add a dialog compiler
+ 
+End of PHCOMP.TXT file

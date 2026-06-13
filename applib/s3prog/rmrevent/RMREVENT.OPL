@@ -1,0 +1,487 @@
+APP RMREvent
+	EXT  "RMR"
+	PATH "\RMREVENT"
+	ICON "\OPL\RMREVENT.PIC"
+	TYPE $1002
+ENDA
+
+PROC Main:  
+	GLOBAL Version$(5),Date$(10),Event%(10)
+	GLOBAL File$(255),Cmnd$(10),Key%,Program$(9)
+	GLOBAL Mod%,Control%,Shift%,Psion%,Dev$(2)
+	GLOBAL Screen%,TextScn%,GxScn%,Path$(128)
+	GLOBAL Yes%,No%,Width%,Height%,Home%,End%,Page%
+	GLOBAL Font%,Zoom%,Statwin%,off%(6),Ret%
+	GLOBAL ForeGnd%,BackGnd%,PowerOn%,Switch%,Close%
+	
+	File$=CMD$(2)
+	Cmnd$=CMD$(3)
+	Program$="RMREvent"
+	Path$="\APP\RMREvent\"
+	Version$="1.00"
+	Date$=" Jan 99"
+	Init: 
+	Event:
+	DO
+		Run:
+	UNTIL 0
+ENDP
+
+PROC Run:
+	ONERR Error::
+	DO
+		Event%(1)=0
+		GETEVENT Event%()
+		IF Event%(1)=ForeGnd%
+			ForeGnd:
+		ELSEIF Event%(1)=BackGnd%
+			BackGnd:
+		ELSEIF Event%(1)=PowerOn%
+			Switchon:
+		ELSEIF Event%(1)=Switch% OR Event%(1)=Close%
+			File$=GETCMD$
+			Cmnd$=LEFT$(File$,1)
+			File$=MID$(File$,2,128)
+			Event:
+		ELSE
+			Key%=Event%(1)
+			Mod%=Event%(2) AND 255
+			Modify:
+			Key:
+		ENDIF
+	UNTIL 0
+	Error::
+	ONERR OFF
+	GoError:
+ENDP
+
+PROC Init:
+	LOCAL D$(128)
+
+REM Event Calls
+	ForeGnd%=$401
+	BackGnd%=$402
+	PowerOn%=$403
+	Switch%=$404
+	Close%=$404
+	
+	Width%=gWIDTH : Height%=gHEIGHT
+
+	D$=PARSE$(D$,File$,off%())
+	D$=LEFT$(D$,off%(4)-2)
+	TRAP MKDIR D$
+
+	Yes%=-1 : No%=0
+
+	LoadCFG:
+	Initscn:
+ENDP
+
+PROC Event:
+	IF Cmnd$="C" : Create:
+	ELSEIF Cmnd$="O" : Load: : Display:
+	ELSEIF Cmnd$="X" : Exit:
+	ENDIF
+ENDP
+
+PROC Menu:
+	mINIT
+	mCARD "File","Create new file",%n,"Open file",%o
+	mCARD "Special","Set Preferences",-%q,"Zoom in",%z,"Zoom out",-%Z,"Raise an error",%r,"Print",%p,"Exit",%x
+	MCARD CHR$(4),"About",%b
+	Key%=MENU+512
+ENDP
+
+PROC Key:
+	LOCAL C3%,C4%
+	IF Key%=257     : giPRINT "Cursor Down"
+	ELSEIF Key%=256 : giPRINT "Cursor Up"
+	ELSEIF Key%=258 : giPRINT "Cursor Right"
+	ELSEIF Key%=259 : giPRINT "Cursor Left"
+	ELSEIF Key%=261 : Page%=Yes% : CursorDn:
+	ELSEIF Key%=260 : Page%=Yes% : CursorUp:
+	ELSEIF Key%=263 : End%=Yes%  : CursorDn:
+	ELSEIF Key%=262 : Home%=Yes% : CursorUp:
+	ELSEIF Key%=290
+		IF Control%
+			Status:
+		ELSE
+			Menu:
+		ENDIF
+	ELSEIF Key%=291 : Help:
+	ELSEIF Key%=292 : Diamond:
+	ENDIF
+	IF     Key%=ASC("n")+512 : Newfile:
+	ELSEIF Key%=ASC("o")+512 : Openfile:
+	ELSEIF Key%=ASC("r")+512 : RAISE -23
+	ELSEIF Key%=ASC("z")+512 : Zoom:(1)
+	ELSEIF Key%=ASC("Z")+512 : Zoom:(-1)
+	ELSEIF Key%=ASC("q")+512 : Prefs:
+	ELSEIF Key%=ASC("p")+512 : Print:
+	ELSEIF Key%=ASC("b")+512 : About:
+	ELSEIF Key%=ASC("x")+512 : Exit:
+	
+	REM Trap your keypresses here and 
+	REM remove the lines below, which
+	REM simply demonstrate some examples
+	REM on trapping of other keys
+	
+	ELSEIF Key%=9 AND Shift%=0
+		giPRINT "<Tab> pressed"
+	ELSEIF Key%=13 AND Shift%=0
+		giPRINT "<Enter> pressed"
+	ELSEIF Key%=8 AND Shift%=0
+		giPRINT "<Delete> pressed"
+	ELSEIF Key%=27
+		giPRINT "<Escape> pressed"
+	ELSEIF Key%>512
+		giPRINT "<Psion+"+CHR$(Key%-512)+"> pressed"
+	ELSEIF Key%<256
+		IF Shift%
+			giPRINT "<"+CHR$(Key%+32)+"> pressed"
+		ELSE
+			giPRINT "<"+CHR$(Key%)+"> pressed"
+		ENDIF
+	ENDIF
+ENDP
+
+PROC Display:
+	gFONT 12 : gAT 10,20 : gSTYLE 1 
+	gPRINT Program$+" - V"+Version$;
+	gFONT 6 : gSTYLE 0 
+	gPRINT "  OPL Event-Driven Core - Al Richey"
+	gAT 250,40 : gFONT 10
+	gPRINT "From RMR Software"
+	gAT 250,55
+	gPRINT "http://www.rmrsoft.com/"
+	Textscn:
+	Graphscn:
+	Instruct:
+ENDP
+
+PROC TextScn:
+	LOCAL Font$(40),Size$(2)
+	TRAP gCLOSE TextScn%
+	TextScn%=gCREATE (80,26,160,30,1)
+	gBORDER 1
+	IF Font%=0
+		Font$="Roman "
+	ELSE
+		Font$="Swiss "
+	ENDIF
+	IF Zoom%=0
+		Size$="8"
+	ELSEIF Zoom%=1
+		Size$="11"
+	ELSEIF Zoom%=2
+		Size$="13"
+	ELSEIF Zoom%=3
+		Size$="16"
+	ENDIF
+	gFONT 5+Font%+Zoom% : gAT 5,18
+	gPRINT "Font is "+Font$+Size$
+ENDP
+
+PROC GraphScn:
+	LOCAL Pic$(128),Tempsc1%,Tempsc2%
+	Pic$="\OPL\RMREVENT.PIC"
+	Ret%=Disc%:(Pic$)
+	IF Ret%
+		Pic$=Dev$+Pic$
+		TempSc1%=gLOADBIT(Pic$,0,0)
+		TempSc2%=gLOADBIT(Pic$,0,1)
+		TRAP gCLOSE GxScn%
+		GxScn%=gCREATE (10,30,48,48,1,1)
+		gBORDER 1
+		gGREY 0 : gAT 0,0
+		gCOPY TempSc1%,0,0,48,48,0
+		gCLOSE TempSc1%
+		gGREY 1
+		gCOPY TempSc2%,0,0,64,64,0
+		gCLOSE TempSc2%
+		gGREY 0
+	ENDIF
+ENDP
+
+PROC Instruct:
+	gUSE Screen%
+	gAT 70,74 : gFONT 6
+	gPRINTB "Current file is : "+RIGHT$(File$,LEN(File$)-5),408-32*Statwin%
+	gAT 5,90
+	gPRINT "This program is a basic framework for a SIBO program. It will"
+	gAT 5,103
+	gPRINT "support all the event handling requirements, so that files can"
+	gAT 5,116
+	gPRINT "be created, switched and shut down from the System screen."
+	gAT 5,129
+	gPRINT "Try the menu functions, the <Help> key, the <Diamond> key"
+	gAT 5,142
+	gPRINT "and hotkey combinations such as <Psion+Z>/<Psion+Shift+Z>"
+	gAT 5,155
+	gPRINT "to zoom the text, and <Ctrl+Menu> to cycle the Status Window."
+ENDP
+
+PROC Load:
+	SETNAME File$
+	
+	REM Use File$ to load in all new details
+	
+ENDP
+
+PROC Exit:
+	STOP
+ENDP
+
+PROC Newfile:
+	LOCAL Title$(8)
+	dINIT "New Data File"
+	dEDIT Title$,"Title",8
+	IF DIALOG
+		BUSY "Creating"
+		File$=PARSE$(Title$,File$,off%())
+		Create:
+		BUSY OFF
+	ENDIF
+ENDP
+
+PROC Create:
+	CREATE File$,B,F1%,F2$,F3$
+	CLOSE
+	SETNAME File$
+	Display:
+ENDP
+
+PROC Openfile:
+	LOCAL F$(128)
+	F$=File$
+	dINIT "Open file"
+	dFILE F$,"",0
+	IF DIALOG
+		File$=F$
+		Load: : Display:
+	ENDIF
+ENDP
+
+PROC LoadCFG:
+	LOCAL A$(128)
+	A$="\OPD\RMREVENT.CFG"
+	TRAP OPEN A$,A,F1%,F2%,F3%,F4,F5$
+	IF ERR
+		Statwin%=2
+		Font%=0
+		Zoom%=2
+		SaveCFG:
+	ELSE
+		Statwin%=A.F1%
+		Font%= A.F2%
+		Zoom%=A.F3%
+		CLOSE
+	ENDIF
+ENDP
+
+PROC SaveCFG:
+	LOCAL A$(128)
+	TRAP MKDIR "\OPD\"
+	A$="\OPD\RMREVENT.CFG"
+	A$=PARSE$(A$,A$,off%())
+	TRAP DELETE A$
+	CREATE A$,A,F1%,F2%,F3%,F4,F5$
+	A.F1%=Statwin%
+	A.F2%=Font%
+	A.F3%=Zoom%
+	A.F4=0
+	A.F5$=""
+	APPEND
+	
+	REM and for future expansion
+	
+	A.F1%=0
+	A.F2%=0
+	A.F3%=0
+	A.F4=0
+	A.F5$=""
+	APPEND
+	A.F1%=0
+	A.F2%=0
+	A.F3%=0
+	A.F4=0
+	A.F5$=""
+	APPEND
+	CLOSE
+ENDP
+
+PROC Modify:
+	IF Mod% AND 2
+		Shift%=Yes%
+	ELSE
+		Shift%=No%
+	ENDIF
+	IF Mod% AND 4
+		Control%=Yes%
+	ELSE
+		Control%=No%
+	ENDIF
+	IF Mod% AND 8
+		Psion%=Yes%
+	ELSE
+		Psion%=No%
+	ENDIF
+	IF Shift% AND Key%<>292
+		Key%=Key%-32
+	ENDIF
+ENDP
+
+PROC InitScn:
+	SCREEN 0,0
+	IF Statwin%=0
+		gSETWIN 0,0,Width%,Height%
+		STATUSWIN OFF
+	ELSEIF Statwin%=1
+		gSETWIN 0,0,Width%-32,Height%
+		STATUSWIN ON,1
+	ELSE
+		gSETWIN 0,0,Width%-64,Height%
+		STATUSWIN ON,2
+	ENDIF
+	Screen%=gCREATE (0,0,Width%-32*Statwin%,Height%,1)
+	gBORDER 1,Width%-32*Statwin%,Height%
+ENDP
+
+PROC Backgnd:
+	giPRINT "Program moved to background"
+	
+	REM Carry out any actions required
+ENDP
+
+PROC ForeGnd:
+	giPRINT "Program moved to foreground"
+	
+	REM Carry out any actions required
+	
+ENDP
+
+PROC Switchon:
+	giPRINT "Machine switched on"
+	
+	REM Carry out any actions required
+	
+ENDP
+
+PROC Diamond:
+	About:
+	
+	REM Purely as a demo.  The diamond key
+	REM is normally used to switch views
+	
+ENDP
+
+PROC Status:
+	Statwin%=Statwin%-1
+	IF Statwin%<0
+		Statwin%=2
+	ENDIF
+	gCLOSE Screen%
+	InitScn:
+	SaveCFG:
+	Display:
+ENDP
+
+PROC Zoom:(V%)
+	Zoom%=Zoom%+V%
+	IF Zoom%>3
+		Zoom%=0
+	ELSEIF Zoom%<0
+		Zoom%=3
+	ENDIF
+	SaveCFG:
+	Display:
+ENDP
+
+PROC Prefs:
+	LOCAL F%
+	F%=Font%/4+1
+	dINIT "Font"
+	dCHOICE F%,"Type","Roman,Swiss"
+	IF DIALOG
+		Font%=(F%-1)*4
+		SaveCFG:
+		Display:
+	ENDIF
+ENDP
+
+PROC Print:
+	LOCAL To%
+	dINIT "Print"
+	dCHOICE To%,"Send to","Parallel,Serial,File"
+	IF To%=1
+		LOPEN "LOC::PAR:A"
+	ELSEIF To%=2
+		LOPEN "LOC::TTY:A"
+	ELSE
+		LOPEN "LOC::M:\PRINT.TXT"
+	ENDIF
+	IF DIALOG
+		LPRINT "A test printout from RMREvent"
+		LPRINT ""
+		LPRINT "Simple eh ?"
+		LCLOSE
+		giPRINT "Print complete"
+	ENDIF
+ENDP
+
+PROC Disc%:(F$)
+	Dev$="M:"
+	IF EXIST (Dev$+F$) : RETURN Yes%
+	ELSE
+		Dev$="A:" 
+		IF EXIST (Dev$+F$) : RETURN Yes%
+		ELSE
+			Dev$="B:" 
+			IF EXIST (Dev$+F$) : RETURN Yes%
+			ELSE
+				RETURN No%
+			ENDIF
+		ENDIF
+	ENDIF
+ENDP
+
+PROC About:
+	dINIT 
+	dTEXT "","About "+Program$,$300
+	dTEXT "","A framework of a SIBO program"
+	dTEXT "","for you to adapt for yourself.",$200
+	dTEXT "","from RMR Software",2
+	dTEXT "","http://www.rmrsoft.com/",2
+	DIALOG
+ENDP
+
+PROC Help:
+	LOCAL buf%(65),Gate%,Page&,Base&
+	LOCAL Help$(128)
+	Help$=Path$+Program$+".rsc"
+	Ret%=Disc%:(Help$)
+	IF Ret%
+		Help$=Dev$+Help$
+		POKE$ ADDR(buf%(1)),"#"+Help$
+		Gate%=PEEKW($38)
+		Page&=1 : Base&=1
+		SEND(gate%,27,buf%(2))
+		SEND(Gate%,26,#Page&,#Base&)
+	ELSE
+		giPRINT "Help File Not Available !!"
+	ENDIF
+ENDP
+
+PROC GoError:
+	dINIT
+	dTEXT "","Error Message",$300
+	dTEXT "","Sorry, an unexpected error has occured"
+	dTEXT "","Please E-Mail me at xxx@xxx.xxx with"
+	dTEXT "","details of how the error occured, the"
+	dTEXT "","program name and version number.",$200
+	dTEXT "","The error was :"
+	dTEXT "",ERR$(ERR),2
+	DIALOG
+ENDP
+
+

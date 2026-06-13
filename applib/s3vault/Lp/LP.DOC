@@ -1,0 +1,155 @@
+Lp -- version 1.1C
+------------------
+
+Lp is a print spooler for the Series 3, inspired by the Unix
+utility of the same name.
+
+Lp presides over a directory \TMP on the S3, where various
+applications can leave plain text files. These file should have a
+.PRN extension; if so Lp will recognise them and the file names
+will be listed below the Lp icon.
+
+At any time a user can choose to print one of the files by simply
+keying ENTER on the filename. Lp will then send the file to the
+printer device currently selected. On completion the program
+offers the option to delete the file printed.
+
+
+Installing Lp
+-------------
+
+Copy the LP.APP file to the \APP directory of the Series 3
+internal drive. Create a new first-level subdirectory called \TMP
+on the internal drive. Use the Install application (Psion-I)
+option and pick LP.APP, whereupon the Lp icon will appear on the
+shell display.
+
+
+Using Lp
+--------
+
+Lp uses the printer settings established by the user in the
+Printer Setup (Psion-P) dialog. When Lp is first started, it
+displays the standard print control dialog, so that margins, page
+length etc. may be customised by the user.
+
+Any errors that arise during printing are communicated to the
+user by means of a standard notifier box. On completion of
+printing the user is prompted as to whether or not the file just
+printed should be deleted. The default (keying ENTER) is to
+delete the file; keying ESCAPE retains the file.
+
+Lp can be terminated by quitting it from the shell, using the
+Delete key when the 'Lp' name is highlighted. When Lp is next
+started, it will present the print control dialog again.
+
+For test purposes the file TEST.PRN can be used, once copied to
+the \TMP directory. TEST.PRN just exercises all the print
+controls recognised currently by Lp (see below).
+
+It is possible to print any text file using Lp - not just those
+in a \TMP directory. To do so from the shell, position the
+highlight beneath the Lp icon and key TAB. Navigate to the
+desired file and key ENTER with the file name highlighted.
+
+Print controls
+--------------
+
+Lp recognises the following print controls embedded in source
+files. The print control lead-in character is a circumflex (^).
+
+Code     Interpretation
+
+^0       Cancel all enhancements
+^1       Bold on
+^2       Bold off
+^3       Italics on
+^4       Italics off
+^5       Underscore on
+^6       Underscore off
+^7       Toggle superscript
+^8       Toggle subscript
+^9       Start a new page for following text
+
+Any other two-character sequence starting with ^ is ignored (not
+printed), except for '^^' which is printed as a single '^'.
+
+Note that ^7 and ^8 controls are toggles, to be used in pairs,
+for example:
+
+  Water, chemical name H^82^8O
+
+Any attributes set at the end of printing one file are not
+carried over to the next to be printed. Each file printed starts
+with all print controls disabled.
+
+The maximum line length in a file to be printed is 255
+characters.
+
+
+Note for OPL application developers
+-----------------------------------
+
+Here is a typical section of code that creates a print file for
+use by Lp.
+
+  #define TEMP_DIRECTORY "loc::m:\tmp\"
+
+  REM Ensure temporary directory exists
+  trap mkdir TEMP_DIRECTORY
+
+  REM Get a temporary file name
+  filenam$=prnname$:(TEMP_DIRECTORY,"Super")
+  trap lopen TEMP_DIRECTORY+filenam$
+  REM Out of space is the only likely error
+  if err :raise err :endif
+
+  REM Output then close
+  lprint "^1Super-Duper Version 69^2"
+  REM etc.
+  lclose
+  REM Announce the file created
+  giprint "Created "+filenam$
+
+Where the auxiliary prnname$ function is along the following
+lines:
+
+  proc prnname$:(loc$,app$)
+  local s$(5), i%
+
+  REM Make a filename prefix from first 5 letters
+  s$=left$(app$,5)
+  i%=1
+  while i%<999  REM Sanity check!
+    if not exist(loc$+s$+gen$(i%,5)+".prn")
+      break
+    endif
+    i%=i%+1
+  endwh
+  return s$+gen$(i%,5)+".prn"
+  endp
+
+The ^n print controls can be defined as macros or placed in
+string variables, of course.
+
+
+Disclaimer of Warranty
+----------------------
+
+This document and the program referred to within it are supplied
+in the belief that the contents are correct and they operate as
+described, but Ferret Information Systems Ltd. (the company)
+shall not be liable in any circumstances whatsoever for any
+direct or indirect loss or damage suffered by any person as a
+consequence of any fault or defect in any goods or services
+supplied by the company and in no circumstances shall the company
+be liable for consequential damage or loss arising from the use
+or performance of such goods or services.
+
+
+--------------------------
+David Palmer
+Ferret Information Systems
+Edinburgh
+October 1992
+

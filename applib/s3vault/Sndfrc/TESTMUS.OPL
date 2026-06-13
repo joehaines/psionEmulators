@@ -1,0 +1,136 @@
+PROC sing:
+	global mcb%
+	global mstat%,kstat%,key%(2)
+	local vals%(22)
+	key :rem so later flushkey: works
+	InstMus:
+	OpenMus:
+	vals%(1)=$30+(40*256)
+	vals%(2)=$32+(100*256)
+	vals%(3)=$34+(40*256)+(1*64)
+	vals%(4)=$35+(100*256)+(1*64)
+	vals%(5)=$37+(40*256)+(2*64)
+	vals%(6)=$39+(100*256)+(2*64)
+	vals%(7)=$29+(40*256)+(3*64)
+	vals%(8)=$3b+(100*256)+(3*64)
+	vals%(9)=$3b+(40*256)+(3*64)
+	vals%(10)=$29+(100*256)+(3*64)
+	vals%(11)=$39+(40*256)+(2*64)
+	vals%(12)=$37+(100*256)+(2*64)
+	vals%(13)=$35+(40*256)+(1*64)
+	vals%(14)=$34+(100*256)+(1*64)
+	vals%(15)=$32+(40*256)
+	vals%(16)=$30+(100*256)
+	play:(addr(vals%()),16)
+	pause 40
+	vals%(1)=$3b+(100*256)
+	vals%(2)=$3b+(100*256)+(1*64)
+	vals%(3)=$3b+(100*256)+(2*64)
+	vals%(4)=$3b+(100*256)+(3*64)
+	vals%(5)=$0+((200-256)*256)
+	vals%(6)=$3b+(100*256)+(3*64)
+	vals%(7)=$3b+(100*256)+(2*64)
+	vals%(8)=$3b+(100*256)+(1*64)
+	vals%(9)=$3b+(100*256)
+	play:(addr(vals%()),9)
+	pause 40
+	vals%(1)=$19+(25*256)+(2*64)
+	vals%(2)=$0+((256-150)*256)
+	vals%(3)=$10+(25*256)+(2*64)
+	vals%(4)=$0+(25*256)
+	vals%(5)=$11+(25*256)+(2*64)
+	vals%(6)=$0+(25*256)
+	vals%(7)=$12+(25*256)+(2*64)
+	vals%(8)=$0+(25*256)
+	vals%(9)=$13+(25*256)+(2*64)
+	vals%(10)=$0+(25*256)
+	vals%(11)=$14+(25*256)+(2*64)
+	vals%(12)=$0+(25*256)
+	vals%(13)=$15+(25*256)+(2*64)
+	vals%(14)=$0+(25*256)
+	vals%(15)=$16+(25*256)+(2*64)
+	vals%(16)=$0+(25*256)
+	vals%(17)=$17+(25*256)+(2*64)
+	vals%(18)=$0+(25*256)
+	vals%(19)=$18+(25*256)+(2*64)
+	vals%(20)=$0+(25*256)
+	vals%(21)=$19+(25*256)+(2*64)
+	vals%(22)=$0+(25*256)
+	flushkey:
+	queplay:(addr(vals%()),22)
+	quekey:
+	while 1
+		iowait
+		if kstat%=0 :rem keypress received
+			if key%(1)=27 :rem Esc
+				canplay:
+				break
+			endif
+			quekey:
+		else
+			cankey:
+			break
+		endif
+	endwh
+	pause 40
+	play:(addr(vals%()),22)
+	CloseMus:
+	FreeMus:
+ENDP
+
+PROC OpenMus:
+	local ret%
+	while 1
+		ret%=ioopen(mcb%,"MUS:",-1)
+		if ret%=0
+			return
+		endif
+		print err$(ret%)
+		print "Retrying ("+chr$(2)+"-Esc aborts)"
+		pause 10
+	endwh
+ENDP
+
+PROC CloseMus:
+	ioclose(mcb%)
+ENDP
+
+PROC play:(buf%,len%)
+	iowrite(mcb%,buf%,len%)
+ENDP
+
+PROC FreeMus:
+	local s$(4)
+	s$="MUS"+chr$(0)
+	call($885,addr(s$)+1,0,$dd01,0,0)
+ENDP
+
+PROC InstMus:
+	local s$(16)
+	s$="LOC::M:\SNDFRC"+chr$(0)
+	call($685,addr(s$)+1,0,0,0,0)
+ENDP
+
+PROC queplay:(buf%,len%)
+	local copylen%
+	copylen%=len%
+	ioa(mcb%,2,mstat%,#buf%,copylen%)
+ENDP
+
+PROC canplay:
+	iow(mcb%,4,#0,#0)
+	iowaitstat mstat%
+ENDP
+
+PROC quekey:
+	keya(kstat%,key%(1))
+ENDP
+
+PROC cankey:
+	keyc(kstat%)
+ENDP
+
+PROC flushkey:
+	while key
+	endwh
+ENDP

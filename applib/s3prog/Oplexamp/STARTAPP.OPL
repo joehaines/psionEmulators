@@ -1,0 +1,36 @@
+PROC startapp:
+    local fname$(128),app%,als$(5),pgname$(40),apname$(8),extn$(4)
+    local ap%,newfile%,cbyte$(1),pid%,cmdl$(128),ret%
+    ap%=1 :newfile%=1
+    while 1
+        dInit "Start application"
+        dChoice ap%,"Application","Database,Word Processor,Program Editor"
+        dChoice newfile%,"Open","Existing file,New file"
+        if dialog=0 :continue :endif
+        vector ap% :dbf,word,prog :endv
+dbf::   fname$="\dat\*.dbf" :pgname$="data"
+        apname$="Data" :extn$=".DBF" :als$="" :goto d2
+word::  fname$="\wrd\*.wrd" :pgname$="word"
+        apname$="Word" :extn$=".WRD" :als$="" :goto d2
+prog::  fname$="\opl\*.opl" :pgname$="word"
+        apname$="Program" :extn$=".OPL" :als$="OROPO"
+d2::    dInit "Choose file"
+        if newfile%=1
+            dFile fname$,"Open:",0
+            cbyte$="O"
+        else
+            dFile fname$,"Create:",1
+            cbyte$="C"
+        endif
+        if dialog=0 :continue :endif
+        pgname$="rom::"+pgname$+".app"+chr$(0)
+        cmdl$=cbyte$+apname$+chr$(0)+extn$+" "+als$+chr$(0)+fname$+chr$(0)
+        ret%=call($0187,addr(pgname$)+1,addr(cmdl$),0,0,addr(pid%))
+        if ret%<0
+            pgname$=left$(pgname$,len(pgname$)-1)
+            print "Couldn't start",pgname$
+            print err$(ret%) :get :continue
+        endif
+        call($0688,pid%)
+    endwh
+ENDP

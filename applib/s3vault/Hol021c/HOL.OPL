@@ -1,0 +1,3737 @@
+REM  HOL - calculate and write to agenda file
+REM  Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994 Free Software
+REM  Foundation, Inc.
+REM  Copyright (C) 1996 Odd Gripenstam
+REM
+REM  This program is free software; you can redistribute it and/or modify
+REM  it under the terms of the GNU General Public License as published by
+REM  the Free Software Foundation; either version 2 of the License, or
+REM  (at your option) any later version.
+REM
+REM  This program is distributed in the hope that it will be useful,
+REM  but WITHOUT ANY WARRANTY; without even the implied warranty of
+REM  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+REM  GNU General Public License for more details.
+REM
+REM  You should have received a copy of the GNU General Public License
+REM  along with this program; if not, write to the Free Software
+REM  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+
+REM  Magic numbers:
+REM    101   size of vectors for loaded holidays
+REM    33       characters in alias
+REM   -36       end-of-file error
+REM     2       size of vectors for simultaneously calculated holidays
+
+
+APP Hol
+    TYPE $9003
+    EXT  "HOL"
+    ICON "holapp.pic"
+    PATH "\HOL\"
+ENDA
+	
+PROC holmain%:
+
+	REM  Global variables for getting tokens from the rulefile
+	GLOBAL  Grow$(255)              REM the row from the rulefile we are processing
+	GLOBAL  Gtoken$(255)    REM string value of the last read token
+	GLOBAl  Gtoken&                 REM integer value (if possible) of the token
+	GLOBAL  Gtoktyp$(10)    REM type of the last token
+
+	REM  Global variables for calculated dates
+	GLOBAL  Gstyle%                 REM style-bits for current date
+	GLOBAL  Gyrsymb%                REM year view symbol
+	GLOBAL  Gdaytxt$(2,254) REM the text for the day entry
+	GLOBAL  Gdaynum&(2)             REM days since 1-JAN-1970 for current date (this is really a UWORD)
+	GLOBAL  Gabsdat&(2)             REM the calculated date as days since 31/12/-1 (?)
+	GLOBAL  Gdattot%                REM number of used elements in arrays
+	GLOBAL  Galias$(32)             REM name of alias for current date
+	GLOBAL  Gbool                   REM the current value of a boolean value
+	GLOBAL  Grepmon%                REM month date repeats on
+	GLOBAL  Grepday%                REM day in month / weekday date repeats on
+	GLOBAL  Grepnbr%                REM nth weekday date repeats on
+	GLOBAL  Greptyp%                REM type of repeat; 1 = can't repeat; 2 = FIX; 3 = FLOAT
+							REM i.e. FLOAT(Grepmon%, Grepday%, Grepnbr%)
+							REM      FIX(Grepmon%, Grepday%)
+	GLOBAL	Genttyp%				REM entry type: 0 = Don't write; 2 = untimed day entry; 3 = anniversary
+	GLOBAL	Gshoign%				REM if true show ignored entries
+
+	REM  Global variables for loaded holidays
+	GLOBAL  Gyrsyma%(101)    REM array of Gyrsymb%
+	GLOBAL	Gdaytxa%(101)	REM array of pointers to Gdaytxt$
+	GLOBAL  Gstylea%(101)    REM array of Gstyle%
+	GLOBAL  Gselcta(101)             REM True if holiday shall be used
+	GLOBAL  Gflags%(101)             REM Bit 0 = repeatable
+							REM Bit 1 = can't be skipped (sets alias)
+	GLOBAL  Gholtot%                REM Number of used elements in arrays
+	GLOBAL  Gholidx%                REM Current element in arrays
+
+	REM  Global variables for default values from rule file 
+	GLOBAL  Gdstyle%                REM default style
+	GLOBAL  Gdyrsym%                REM default year view symbol
+	GLOBAL	Gdenttp%				REM default entry type
+	
+	REM  Global variables for aliases
+	GLOBAL  Galias$(10,33)  REM symbolic names
+	GLOBAL  Galias&(10)             REM absolute date
+	GLOBAL  Galinxt%                REM index into alias arrays to next free
+
+	REM  Global variables for reading rule file
+	GLOBAL  Grulhnd%                REM handle to open file
+	GLOBAL  Grulfil$(128)   REM Name of rule file
+	GLOBAL  Growno%                 REM row number
+	GLOBAL  Gyear%                  REM year to create holidays for
+	GLOBAL  Gyear1%                 REM first year to create holidays for
+	GLOBAL  Gyear2%                 REM last year to create holidays for
+
+	GLOBAL  Gagnfil$(128)   REM Name of agenda file
+	GLOBAL  Grepmod%                REM 1 = Don't write repeating entries
+							REM 2 = Write repeating entries if possible
+	GLOBAL  Grepsho%                REM 1 = Show all occurrences
+							REM 2 = Next only
+	GLOBAL	Grepend%				REM 1 = Repeat forever; 2 = Repeat until end year
+	
+	REM  Global variables for fonts and screens
+	GLOBAL  Gcurfnt%                REM gFONT number of the current font
+	GLOBAL  Gscrows%                REM number of text rows on screen with current font
+	GLOBAL  Gscrowh%                REM height of one text row
+	GLOBAL  Gscrowd%                REM descent of characters in font
+	GLOBAL  Gscchrw%                REM max character width
+	GLOBAL  Gstatwn%                REM current type of status window
+	GLOBAL  Gscheit%                REM screen height
+	GLOBAL  Gscwidt%                REM screen width
+	GLOBAL  Gscreen%                REM screen type: 1 = 3a, 2=Siena
+
+	REM  Global variables for scrolling
+	GLOBAL  Gcurrow%                REM current screen row for cursor
+
+	REM  Global variables for event handling
+	GLOBAL  Gevent%(6)              REM events from GETEVENT
+	GLOBAL  Gevent                  REM true if unhandled events in Gevent
+
+	GLOBAL  Gvers$(8)               REM version number string
+	GLOBAL  Gabshow
+	GLOBAL  Gcalc                   REM really do calculate
+	GLOBAL  Gusrmod$(50)    REM current loaded user module
+	GLOBAL	Gdtfmt%					REM date format: 0 = MDY, 1 = DMY, 2 = YMD
+	GLOBAL  Gdtsep$(1)				REM date separator character
+
+	TRAP CACHE 2000,12000
+
+	init:	
+	mainloop:
+	
+	IF Grulhnd% <> 0
+		IOCLOSE(Grulhnd%)
+	ENDIF
+
+ENDP
+
+REM =======================================================================================
+REM  UI routines
+REM =======================================================================================
+
+PROC init:
+	LOCAL name$(9)
+	LOCAL disk$(2)
+
+	REM Rename process
+	REM $88 $00 ProcId
+	REM $88 $0C PrcRename 
+	name$ = "HOL"+chr$(0)
+	CALL($0C88, CALL($88), 0, 0, 0, UADD(ADDR(name$),1))
+
+	Gvers$   = "V2.1"
+	Grulhnd% = 0                    REM no file open
+	Gholidx% = 0                    REM nothing to show on screen
+	Gscheit% = gHEIGHT
+	Gscwidt% = gWIDTH
+	IF gWIDTH > 240
+		Gscreen% = 1
+	ELSE
+		Gscreen% = 2
+	ENDIF
+	Gyear1%  = YEAR
+	Gyear2%  = YEAR
+	Grepmod% = 2
+	Grepsho% = 1                    REM Show all
+	Grepend% = 2					REM Repeat until end year
+	Gabshow  = -1                   REM show the about window once
+	Gcalc    = -1
+	Gusrmod$ = ""
+	Gshoign% = 0
+
+	REM Assume the only "HOL."-file is a directory.
+	REM If there is no HOL directory the program can't be started,
+	REM so we don't need to check that.
+	disk$ = findfil$:("MAB", "\HOL.")
+	SETPATH disk$+"\HOL\"
+	getdtfmt:
+	setfont%:(10)
+	REM Start with no status window on small screens
+	IF Gscreen% = 2
+		setstat:(0)
+	ELSE
+		setstat:(2)
+	ENDIF
+
+	REM  Get initial file to open if we seem to be an APP
+	IF CMD$(3) = "O" AND CMD$(1) <> CMD$(2)
+		rulload%:(CMD$(2))
+	ELSE
+		REM Show open dialog
+		xHUo:
+	ENDIF
+
+ENDP
+
+PROC mainloop:
+	REM                            Help  Menu C-Menu Down  Up    PgDn  PgUp  Home  End   Space
+	evloop$:("acmnoptuwxz","IOZ","|xU291|xU290|xC290|xU257|xU256|xP261|xP260|xP262|xP263|xU032|", -1)
+ENDP
+
+REM  Get and process events.
+REM  For each event create a cmdcode.
+REM
+REM  If the event is a hotkey (PSION-<menuchar>) and the <menuchar>
+REM  is found in HOTKEYU$ (unshifted keys) or HOTKEYS$ (shifted),
+REM  call the cmdcode as a function.
+REM
+REM  If the event is a system command, call the cmdcode as
+REM  a function with the end of the system command as a parameter.
+REM
+REM  If the cmdcode is found in CMDS$, call the cmdcode as a function.
+REM  If the MENU-key was pressed, call the cmdcode (e.g. xU290) with
+REM  HOTKEYU$ and HOTKEYS$ as parameters.
+REM
+REM  If an unknown event is read and IGNORE is true, just ignore the
+REM  event, otherwise return the cmdcode.
+REM
+REM  Continue to read events until a cmdcode-function returns <>0 and
+REM  then return "".
+PROC evloop$:(hotkeyu$, hotkeys$, cmds$, ignore%)
+
+	LOCAL   done
+	LOCAL   k%                              REM code for key pressed
+	LOCAL   m%                              REM code for modifier pressed
+	LOCAL   cmdcode$(7)             REM code for command to perform:
+							REM x<H,C,S,P,A>...<char,code>
+							REM x    prefix
+							REM H    hotkey (menu-char or equiv. psion-<char>)
+							REM C    control pressed
+							REM S    shift pressed
+							REM P    psion pressed
+							REM A    system command ("argument")
+							REM char printable representation of
+							REM      key pressed/system command
+							REM code decimal key code for nonprintable char
+	LOCAL   cmdret                  REM return value from cmdcode proc
+	LOCAL   c$(127)                 REM system command
+	LOCAL   k$(3)
+	LOCAL   m$(5)
+	LOCAL   docall
+
+	Gevent = 0
+	done = 0
+
+	WHILE NOT done
+
+		IF NOT Gevent
+			GETEVENT Gevent%()
+		ENDIF
+		
+		REM Assume someone will deal with this event
+		Gevent = 0
+		docall = 0
+
+		IF Gevent%(1) = $404            REM system command
+			c$ = GETCMD$
+			cmdcode$ = "xA" + MID$(c$, 1, 1)
+			docall = -1
+			cmdret = @(cmdcode$):(RIGHT$(c$, LEN(c$)-1))
+		ELSEIF (Gevent%(1) AND $400) = 0        REM keypress
+			k% = Gevent%(1)
+			m% = Gevent%(2) AND $00FF
+			
+			m$ = ""
+			IF m% AND 2                             REM shift pressed
+				m$ = "S"
+			ENDIF
+			IF m% AND 4                             REM control pressed
+				m$ = m$ + "C"
+			ENDIF
+			IF m% AND 8                             REM psion pressed
+				m$ = m$ + "P"
+			ENDIF
+			IF m$ = ""                              REM unshifted
+				m$ = "U"
+			ENDIF
+
+			IF k% AND $200                  REM Psion hotkey character
+				REM ignore other modifiers
+				m$ = "H"
+				k% = k% - $200
+				IF m% AND 2                     REM Psion-SHIFT-
+					IF LOC(hotkeys$,CHR$(k%))
+						docall = -1
+						m$ = m$ + "S"
+					ENDIF
+				ELSE
+					IF LOC(hotkeyu$,CHR$(k%))
+						docall = -1
+						m$ = m$ + "U"
+					ENDIF
+				ENDIF
+			ENDIF
+			
+			REM is char OK in procedure name?
+			IF ((%0 <= k%) AND (k%<=%9)) OR ((%a<=k%) AND (k%<=%z)) OR ((%A<=k%) AND (k%<=%Z))
+				k$ = CHR$(k%)
+			ELSE
+				k$ = RIGHT$("000"+NUM$(k%, 3), 3)
+			ENDIF
+			cmdcode$ = "x"+m$+k$
+
+			IF LOC(cmds$, "|"+cmdcode$+"|")
+				docall = -1
+			ENDIF
+			
+			IF docall
+				IF k% = 290                     REM special treatment for Menu key
+					cmdret = @(cmdcode$):(hotkeyu$, hotkeys$)
+				ELSE
+					cmdret = @(cmdcode$):
+				ENDIF
+			ENDIF
+		ENDIF
+
+		IF (NOT docall) AND (NOT ignore%)
+			RETURN cmdcode$
+		ENDIF
+		IF docall AND (cmdret <> 0)
+			RETURN " "
+		ENDIF
+	ENDWH
+ENDP
+
+
+REM  Act upon hotkey
+PROC evmenu:(hotkeyu$, hotkeys$, k%)
+
+	LOCAL  docall
+	LOCAL  m$(4)
+	LOCAL  k$(3)
+	LOCAL  cmdcode$(10)
+
+	m$ = "H"
+	IF k% <= %Z                     REM Psion-SHIFT-
+		IF LOC(hotkeys$,CHR$(k%))
+			docall = -1
+			m$ = m$ + "S"
+		ENDIF
+	ELSE
+		IF LOC(hotkeyu$,CHR$(k%))
+			docall = -1
+			m$ = m$ + "U"
+		ENDIF
+	ENDIF
+
+	REM is char OK in procedure name?
+	IF ((%0 <= k%) AND (k%<=%9)) OR ((%a<=k%) AND (k%<=%z)) OR ((%A<=k%) AND (k%<=%Z))
+		k$ = CHR$(k%)
+	ELSE
+		k$ = RIGHT$("000"+NUM$(k%, 3), 3)
+	ENDIF
+	cmdcode$ = "x"+m$+k$
+
+	IF docall
+		return @(cmdcode$):
+	ELSE
+		return 0
+	ENDIF
+ENDP
+
+REM system command exit
+PROC xAX:(file$)
+	RETURN xHUx:
+ENDP
+
+REM system command open
+PROC xAO:(file$)
+	rulload%:(file$)
+ENDP
+
+REM Space - toggle mark
+PROC xU032:
+	IF Gholidx%<>0
+		Gselcta(Gholidx%) = NOT Gselcta(Gholidx%)
+		scupdate:(Gcurrow%, Gholidx%, 1, "gshowrow")
+	ELSE
+		gIPRINT "No holiday file open"
+	ENDIF
+	RETURN 0
+ENDP
+
+REM  Down 
+PROC xU257:
+	sccurmov:(Gholidx%+1)
+	RETURN 0
+ENDP
+
+REM  Up
+PROC xU256:
+	sccurmov:(Gholidx%-1)
+	RETURN 0
+ENDP
+
+REM  PgDown 
+PROC xP261:
+	sccurmov:(Gholidx%+Gscrows%-1)
+	RETURN 0
+ENDP
+
+REM  PgUp
+PROC xP260:
+	sccurmov:(Gholidx%-Gscrows%+1)
+	RETURN 0
+ENDP
+
+REM  Home 
+PROC xP262:
+	sccurmov:(1)
+	RETURN 0
+ENDP
+
+REM  End
+PROC xP263:
+	sccurmov:(Gholtot%)
+	RETURN 0
+ENDP
+
+REM  Menu key pressed
+PROC xU290:(hotkeyu$, hotkeys$)
+
+	LOCAL  k%
+
+	LOCK ON
+	mINIT
+	mCARD "File","Open file",%o,"Close file",%c
+	IF Gholidx%<>0
+		mCARD "Holidays","Preview",%p,"Write to agenda",-%w,"Toggle mark",%t,"Mark all",%m,"Unmark all",%u,"Mark not repeatable",%n
+	ENDIF
+	mCARD "Special","Zoom in",%z,"Zoom out",-%Z,"About Hol",%a,"Exit",%x
+	k% = MENU
+	LOCK OFF
+
+	RETURN evmenu:(hotkeyu$, hotkeys$, k%)
+ENDP
+
+PROC xC290:(hotkeyu$, hotkeys$)
+	IF Gstatwn% = 1
+		setstat:(0)
+	ELSEIF Gstatwn% = 2
+		setstat:(1)
+	ELSE
+		REM Small screens don't have large status window
+		IF Gscreen% = 2
+			setstat:(1)
+		ELSE
+			setstat:(2)
+		ENDIF
+	ENDIF
+	RETURN 0
+ENDP
+
+PROC xU291:
+	LOCAL helpfil$(12), file$(14), r%, disk$(2)
+	helpfil$ = "\HOL\HOL.RSC"
+
+	disk$ = findfil$:("MAB", helpfil$)
+	IF disk$ = ""
+		r% = ALERT("Sorry, no help available", "Could not find file "+helpfil$)
+		RETURN 0
+	ENDIF
+
+	showhelp:(disk$+helpfil$)
+	RETURN 0
+ENDP
+
+PROC xHUa:
+	LOCAL   winid%
+
+	winid% = abcre%:
+	evloop$:("","","",0)
+
+	IF Gevent%(1) = $404            REM system command
+		REM let the main event loop handle this
+		Gevent = -1
+	ENDIF
+	gCLOSE winid%
+ENDP
+
+REM  Close current rule file
+PROC xHUc:
+	rulclos%:
+	nofile:
+ENDP
+
+REM  Toggle show ignore
+PROC xHSI:
+	Gshoign% = NOT Gshoign%
+ENDP
+
+REM Select all holidays
+PROC xHUm:
+	LOCAL   i%
+	i% = 1
+	IF Gholidx%<>0
+		WHILE i%<=Gholtot%
+			Gselcta(i%) = -1
+			i% = i% + 1
+		ENDWH
+		scredraw:(1)
+	ELSE
+		gIPRINT "No holiday file open"
+	ENDIF
+ENDP
+
+REM Select holidays that can't be written as repeating entries
+PROC xHUn:
+	LOCAL   i%
+	i% = 1
+	IF Gholidx%<>0
+		WHILE i%<=Gholtot%
+			REM bit 0 not set
+			IF (Gflags%(i%) AND $1) = 0
+				Gselcta(i%) = -1
+			ELSE
+				Gselcta(i%) = 0
+			ENDIF
+			i% = i% + 1
+		ENDWH
+		scredraw:(1)
+	ELSE
+		gIPRINT "No holiday file open"
+	ENDIF
+ENDP
+
+REM Open rule file
+REM Prompt for a rule file. Open it and read into arrays
+REM Save file handle in Grulhnd%
+PROC xHUo:
+
+	LOCAL   d%
+	LOCAL   stat%                   REM return status
+	LOCAL   offset&
+	LOCAL	file$(128)
+
+	file$ = "*.hol"
+
+	LOCK ON
+	dINIT "Open holiday file"
+	dFILE file$, "File:", 8
+	d% = DIALOG
+	LOCK OFF
+
+	IF d%
+		Grulfil$ = file$
+		rulload%:(Grulfil$)
+	ELSEIF Gholidx% = 0
+		nofile:
+	ENDIF
+
+	RETURN 0
+ENDP
+
+REM  Preview holidays
+PROC xHUp:
+	RETURN holdo:("holview",0)
+ENDP
+
+REM Toggle mark. Menu option synonymous with space
+PROC xHUt:
+	RETURN xU032:
+ENDP
+
+REM  write holidays
+PROC xHUw:
+	RETURN holdo:("holwrit",-1)
+ENDP
+
+REM De-select all holidays
+PROC xHUu:
+	LOCAL   i%
+
+	IF Gholidx%<>0
+		i% = 1
+		WHILE i%<=Gholtot%
+			Gselcta(i%) = 0
+			i% = i% + 1
+		ENDWH
+		scredraw:(1)
+	ELSE
+		gIPRINT "No holiday file open"
+	ENDIF
+ENDP
+
+PROC xHUx:
+	REM  return <> 0 to exit event loop
+	RETURN 1
+ENDP
+
+REM Zoom in
+PROC xHUz:
+	RETURN zoom:(1)
+ENDP
+
+REM  Zoom out
+PROC xHSZ:
+	RETURN zoom:(-1)
+ENDP
+
+
+
+REM =======================================================================================
+REM  Misc routines
+REM =======================================================================================
+
+PROC abort%:(err%, errmsg$)
+	ALERT("Error when "+errmsg$, ERR$(err%), "Abort")
+	RETURN err%
+ENDP
+
+PROC quit%:(msg1$, msg2$)
+	ALERT(msg1$, msg2$, "Quit")
+	RETURN -1
+ENDP
+
+REM  Create and show the about-window.
+REM  Return window id.
+PROC abcre%:
+	LOCAL   winid%
+	LOCAL   oldfont%
+	LOCAL   xmargin%, ymargin%
+	LOCAL   xmax%, ymax%
+
+	xmargin% = 12    REM  move out of the border
+	ymargin% = 9
+	xmax% = 0
+	
+	REM Create max sized invisible gray window. Resize and move later.
+	winid% = gCREATE(0, 0, Gscwidt%, Gscheit%, 0, 1)
+	gUSE winid%
+
+	REM Make room for the centered title, write it later when we know the width
+	REM double height
+	gSTYLE 8
+	oldfont% = setfont%:(10)
+	gAT xmargin%,Gscrowh%+8
+
+	gSTYLE 1
+	setfont%:(9)
+
+	gAT xmargin%,gY+Gscrowh%*1.5
+	gPRINT "HOL version ",Gvers$
+	xmax% = MAX(xmax%, gX)
+
+	gAT xmargin%,gY+Gscrowh%
+	gPRINT "Copyright ",CHR$(184),"1996 Odd Gripenstam"
+	xmax% = MAX(xmax%, gX)
+
+	gAT xmargin%,gY+Gscrowh%
+	gPRINT "Copyright ",CHR$(184),"1988, 1989, 1990, 1991,"
+	xmax% = MAX(xmax%, gX)
+
+	gAT xmargin%,gY+Gscrowh%
+	gPRINT "1992, 1993, 1994 Free Software"
+	xmax% = MAX(xmax%, gX)
+	
+	gAT xmargin%,gY+Gscrowh%
+	gPRINT "Foundation, Inc."
+	xmax% = MAX(xmax%, gX)
+
+	gSTYLE 0
+	setfont%:(9)
+	gAT xmargin%,gY+Gscrowh%*1.5
+	gPRINT "HOL comes with ABSOLUTELY NO WARRANTY."
+	xmax% = MAX(xmax%, gX)
+
+	gAT xmargin%,gY+Gscrowh%
+	gPRINT "This is free software, and you are welcome"
+	xmax% = MAX(xmax%, gX)
+
+	gAT xmargin%,gY+Gscrowh%
+	gPRINT "to redistribute it under certain conditions."
+	xmax% = MAX(xmax%, gX)
+
+	gAT xmargin%,gY+Gscrowh%
+	gPRINT "See the file COPYING.TXT for details."
+	xmax% = MAX(xmax%, gX)
+
+	REM  Center the window now that we know how much we used.
+	xmax% = xmax% + xmargin%
+	ymax% = gY + ymargin%
+	gSETWIN MAX((Gscwidt%-xmax%)/2,0),(Gscheit%-ymax%)/2, xmax%, ymax%
+
+	REM  Write the centered title. Let's assume it will fit in the new width.
+	gSTYLE 8
+	setfont%:(10)
+	gAT xmargin%,Gscrowh%+8
+	gPRINTB "About HOL "+Gvers$,gWIDTH,3
+
+	REM 3a 3D-border, extra rounded
+	gXBORDER 1, $203
+
+	gVISIBLE ON
+	
+	gUSE 1
+	gSTYLE 0
+	setfont%:(oldfont%)
+	RETURN winid%
+ENDP
+
+PROC agnchek%:(agnhand%)
+	LOCAL   buf$(16), buf%
+	LOCAL   stat%
+
+	REM Read the header and check:
+	stat% = IOREAD(agnhand%, UADD(ADDR(buf$),1), 16)
+	IF stat% < 0
+		RETURN abort%:(stat%, "reading ID in "+Gagnfil$)
+	ENDIF
+	POKEB ADDR(buf$), stat%
+
+	IF buf$<>"AgendaFileType*"+CHR$(0)
+		IF Gscreen% = 1
+			RETURN quit%:("Wrong file label in "+Gagnfil$, buf$)
+		ELSE
+			RETURN quit%:("Wrong file label", buf$)
+		ENDIF
+	ENDIF
+	
+	stat% = IOREAD(agnhand%, ADDR(buf%), 2)
+	IF stat% < 0
+		RETURN abort%:(stat%, "reading version in "+Gagnfil$)
+	ENDIF
+
+	IF buf%<>$100f
+		IF Gscreen% = 1
+			RETURN quit%:("Wrong file version in "+Gagnfil$, "Found "+HEX$(buf%)+", expected "+HEX$($100f))
+		ELSE
+			RETURN quit%:("Wrong file version", "Found "+HEX$(buf%)+", expected "+HEX$($100f))
+		ENDIF
+	ENDIF
+ENDP
+
+PROC agnwrit%:(agnhand%, daynum&, yrsymb%, style%, txt$, reptyp%, repday%, repnbr%, repsho%, repend&, enttyp%)
+	LOCAL   buf%(8)
+	LOCAL   stat%, off&
+	LOCAL   daytxt$(254), day%
+
+	IF enttyp% <> 2 AND enttyp% <> 3
+		RETURN 0
+	ENDIF
+	
+	daytxt$ = txt$
+
+	IF enttyp% = 2
+		REM Untimed day entry
+		REM record type 2, length
+		buf%(1) = &2000 + 8 + LEN(daytxt$)
+	ELSEIF enttyp% = 3
+		REM Anniversary
+		REM record type 3, length
+		buf%(1) = &3000 + 11 + LEN(daytxt$)
+	ENDIF
+
+	REM daynum
+	buf%(2) = daynum&
+
+	REM slot
+	buf%(3) = $FFFF
+
+	REM attributes (low byte), year symbol (high byte)
+	IF yrsymb%>32
+		REM with year symbol
+		buf%(4) = 2 + 4 + 8 + 16
+		POKEB UADD(ADDR(buf%()), 7), yrsymb%
+	ELSE
+		buf%(4) = 2 + 8 + 16
+	ENDIF
+	
+	REM no repeat, then set bit 1
+	IF reptyp%=1
+		buf%(4) = buf%(4) OR 1
+	ENDIF
+
+	IF enttyp% = 2
+		REM title style (low byte)
+		buf%(5) = style%
+	ELSEIF enttyp% = 3
+		REM start year: 0 = none
+		buf%(5) = 0
+		REM show base/elapsed (low byte)
+		REM title style (high byte)
+		buf%(6) = 0
+		POKEB UADD(ADDR(buf%()), 11), style%
+	ENDIF
+
+	REM find current offset by seeking to the current position
+	off& = 0
+	stat% = IOSEEK(agnhand%, 3, off&)
+	IF stat% < 0
+		RETURN abort%:(stat%, "getting offset")
+	ENDIF
+
+	IF enttyp% = 2
+		stat% = IOWRITE(agnhand%, ADDR(buf%()), 9)
+	ELSE
+		stat% = IOWRITE(agnhand%, ADDR(buf%()), 12)
+	ENDIF
+	IF stat% < 0
+		RETURN abort%:(stat%, "writing header")
+	ENDIF
+
+	REM title text
+	stat% = IOWRITE(agnhand%, ADDR(daytxt$), LEN(daytxt$)+1)
+	IF stat% < 0
+		RETURN abort%:(stat%, "writing text")
+	ENDIF
+
+	IF reptyp%=2    REM repeat FIX date as annual repeat
+		REM record type 5, length
+		buf%(1) = &5000 + 9
+		IF repsho%=1
+			REM no interval, show all, annual repeat
+			buf%(2) = 4
+		ELSE
+			REM no interval, show next, annual repeat
+			buf%(2) = 12
+		ENDIF
+		REM ending date
+		buf%(3) = repend&
+		REM associated entry type
+		buf%(4) = enttyp%
+		REM offset of associated entry
+		POKEL UADD(ADDR(buf%()), 7) , off&
+		stat% = IOWRITE(agnhand%, ADDR(buf%()), 11)
+		IF stat% < 0
+			RETURN abort%:(stat%, "writing repeat")
+		ENDIF
+
+	ELSEIF reptyp%=3 REM repeat FLOAT date as monthly by day every 12 months
+		buf%(4) = 0
+		buf%(5) = 0
+		buf%(6) = 0
+		
+		REM record type 5, length
+		buf%(1) = &5000 + 14
+		IF repsho% = 1
+			REM interval 12-1 (B), show all , monthly by days (3)
+			buf%(2) = $0B03
+		ELSE
+			REM interval 12-1 (B), show next (8) , monthly by days (3)
+			buf%(2) = $0B0B
+		ENDIF
+		REM ending date
+		buf%(3) = repend&
+		REM associated entry type
+		buf%(4) = enttyp%
+
+		REM day to repeat on
+		IF repday% = 0  REM sunday = bit 6
+			day% = 2**6
+		ELSE
+			day% = 2**(repday%-1)
+		ENDIF
+
+		IF repnbr%=-1                   REM last days
+			POKEB UADD(ADDR(buf%()),11), day%
+		ELSE                                    REM 1st to 4th
+			POKEB UADD(ADDR(buf%()),6+repnbr%), day%
+		ENDIF
+
+		REM offset of associated entry
+		POKEL UADD(ADDR(buf%()),12), off&
+		stat% = IOWRITE(agnhand%, ADDR(buf%()), 16)
+		IF stat% < 0
+			RETURN abort%:(stat%, "writing repeat")
+		ENDIF
+	ENDIF
+	
+	RETURN stat%
+ENDP
+
+REM  Add an alias to the list.
+REM  We have a hard-coded limit of 10 aliases
+PROC aliadd%:(name$, value&)
+	IF Galinxt%>10
+		RETURN quit%:("Too many alias defined", "")
+	ENDIF
+	Galias$(Galinxt%) = name$
+	Galias&(Galinxt%) = value&
+	
+	Galinxt% = Galinxt%+1
+	RETURN 0
+ENDP
+
+REM  Return the index into the alias arrays for
+REM  the alias name$ or 0 if not found
+PROC aliget%:(name$)
+	LOCAL   i%
+	i% = 1
+	WHILE i%<Galinxt%
+		IF Galias$(i%)=name$
+			RETURN i%
+		ENDIF
+		i%=i%+1
+	ENDWH
+	RETURN 0
+ENDP
+
+REM Ask if the file should be backed up and do the backup.
+REM Return %y unless the user cancelled the dialogs
+PROC backup%:(file$)
+	LOCAL orig$(128), bck$(128), d%, off%(6)
+
+	orig$ = file$
+	PARSE$(orig$, "", off%())
+	LOCK ON
+	dINIT "Make a backup copy of """+MID$(orig$, off%(4), off%(5)-off%(4))+"""?"
+	dBUTTONS "No",%N,"Yes",%Y
+	d% = DIALOG
+	LOCK OFF
+	
+	IF d% = %y
+		bck$ = "M:\AGN\BACKUP.AGN"
+		LOCK ON
+		dINIT "Backup file"
+		dTEXT "From file:", MID$(orig$, off%(4), LEN(orig$))
+		dFILE bck$, "To file:", 1+2+8
+		d% = DIALOG
+		IF d% > 0
+			d% = %y
+			COPY orig$,bck$
+		ENDIF
+	ELSEIF d% = %n
+		REM Only skip the backup
+		d% = %y
+	ENDIF
+	RETURN d%
+ENDP
+
+REM  Calculate a date. Return it in Gdaynum& as days since 1970 and 
+REM  in Gabsdat& as days since 31/12/-1.
+REM  Expect '=' { EASTER | FIX(m,d) | HFIX(m,d) | IFIX(m,d) | FLOAT(???) |
+REM               DONEIF (...) | IF | ELSEIF | ELSE | '+' <value> |
+REM               '-' <value>}... ';'
+PROC calcdat%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   i%
+
+	REM skip over the '='
+	stat% = expect%:(rulhand%, "CALCDAT", "char", "=")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gdaynum&(1) = 0
+	Gabsdat&(1) = 0
+	Gdattot% = 1
+	Greptyp% = 0
+
+	REM  Calculate date as absolute date
+	DO
+		stat% = gettok%:(rulhand%)
+		IF stat% >= 0
+			IF Gtoken$ = "EASTER"
+				stat% = opeastr%:(rulhand%)
+			ELSEIF Gtoken$ = "FIX"
+				stat% = opfix%:(rulhand%)
+			ELSEIF Gtoken$ = "HFIX"
+				stat% = ophfix%:(rulhand%)
+			ELSEIF Gtoken$ = "IFIX"
+				stat% = opifix%:(rulhand%)
+			ELSEIF Gtoken$ = "FLOAT"
+				stat% = opfloat%:(rulhand%)
+			ELSEIF Gtoken$ = "LAST"
+				stat% = oplast%:(rulhand%)
+			ELSEIF Gtoken$ = "IGNORE"
+				stat% = opignor%:(rulhand%)
+			ELSEIF Gtoken$ = "DONEIF"
+				stat% = opdif%:(rulhand%)
+			ELSEIF Gtoken$ = "IF"
+				stat% = opif%:(rulhand%)
+			ELSEIF Gtoken$ = "ELSEIF"
+				stat% = opelif%:(rulhand%)
+			ELSEIF Gtoken$ = "ELSE"
+				stat% = opelse%:(rulhand%)
+			ELSEIF Gtoken$ = "@"
+				stat% = opcall%:(rulhand%)
+			ELSEIF Gtoken$ = "+"
+				stat% = opadd%:(rulhand%, 1)
+			ELSEIF Gtoken$ = "-"
+				stat% = opadd%:(rulhand%, -1)
+			ELSEIF Gtoken$ = "}"
+				REM It is the end of a if-block: nothing...
+			ELSEIF Gtoken$ = ";"
+				REM nothing...
+			ELSE
+				REM might be an alias
+				i% = aliget%:(Gtoken$)
+				IF i%>0
+					Gabsdat&(1) = Galias&(i%)
+					Greptyp% = 1
+				ELSE
+					synterr%:("CALCDAT: found unexpected token '"+Gtoken$+"'" )
+					RETURN skipto%:(rulhand%, ";", 0)
+				ENDIF
+			ENDIF
+		ENDIF
+	UNTIL stat%<0 OR Gtoken$=";"
+
+	REM For all calculated dates
+	i% = 1
+	WHILE i% <= Gdattot%
+		REM Convert to Psion daynum
+		IF Gabsdat&(i%) <> 0 AND Gcalc
+			Gdaynum&(i%) = dnumabs&:(Gabsdat&(i%))
+		ENDIF
+
+		IF Gtoken$=";" AND Gcalc
+			Gdaytxt$(i%) = fixtxt$:(Gabsdat&(i%), Gdaytxt$(i%))
+		ENDIF
+		i% = i% + 1
+	ENDWH
+
+	IF Greptyp% = 0
+		RETURN quit%:("Greptyp% not set","")
+	ENDIF
+	
+	RETURN stat%
+ENDP
+
+REM  Convert date (year, month, day) to daynum
+PROC dt2dnm&:(year%, month%, day%)
+	RETURN DATETOSECS(year%, month%, day%, 0, 0, 0) / 60/60/24
+ENDP
+
+REM  Get the next token. Check that it is of type type$.
+REM  If value$ is nonempty, check the token value as well.
+REM  Report and return a syntax error if not OK.
+PROC expect%:(rulhand%, where$, type$, value$)
+	LOCAl   stat%, negative
+
+	negative = 0
+	
+	stat% = gettok%:(rulhand%)
+	IF stat% >= 0
+
+		REM Check for "synthetic tokens" (really syntactic constructs)
+		IF type$="negvalue"
+			REM Expect {"-"} <value>
+			IF Gtoken$="-"
+				negative = -1
+				REM Get the value
+				stat% = gettok%:(rulhand%)
+				IF stat%<0
+					RETURN stat%
+				ENDIF
+			ENDIF
+			IF Gtoktyp$<>"value"
+				RETURN synterr%:(where$+": expected a "+type$+", found "+Gtoktyp$+" '"+Gtoken$+"'")
+			ENDIF
+			Gtoktyp$ = type$
+			IF negative
+				Gtoken$ = "-" + Gtoken$
+				Gtoken& = -Gtoken&
+			ENDIF
+		ENDIF
+	
+		IF Gtoktyp$<>type$
+			RETURN synterr%:(where$+": expected a "+type$+", found "+Gtoktyp$+" '"+Gtoken$+"'")
+		ENDIF
+		IF value$<>"" AND value$<>Gtoken$
+			RETURN synterr%:(where$+": expected '" +value$+ "', found '"+Gtoken$+"'")
+		ENDIF
+	ENDIF
+	RETURN stat%
+ENDP
+
+PROC expectr%:(rulhand%, where$, type$, low%, high%)
+	LOCAL   stat%
+
+	stat% = expect%:(rulhand%, where$, type$, "")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	IF type$="value" OR type$="negvalue"
+		IF Gtoken& < INT(low%) OR Gtoken& > INT(high%)
+			RETURN synterr%:(where$+": expected a value between " +NUM$(low%,5) +" and "+NUM$(high%,5)+", found "+NUM$(Gtoken&,5))
+		ENDIF
+	ENDIF
+	RETURN stat%
+ENDP
+
+REM  Fixup daytext.
+REM     %iy             islamic year, 4 digits
+REM     %hy             hebrew year, 4 digits
+PROC fixtxt$:(absdat&, txt$)
+	LOCAL   newtxt$(254), daytxt$(254)
+	LOCAL   pos%
+	LOCAL   tmp$(8)
+
+	newtxt$ = ""
+	daytxt$ = txt$
+	pos% = LOC(daytxt$, "%")
+	WHILE pos% <> 0
+		REM copy text up to %
+		newtxt$ = newtxt$ + LEFT$(daytxt$, pos%-1)
+		daytxt$ = MID$(daytxt$, pos%, LEN(daytxt$))
+
+		REM substitute %-code with text
+		IF LOC(daytxt$, "%iy") = 1
+			tmp$ = islabs$:(absdat&)
+			newtxt$ = newtxt$ + LEFT$(tmp$, 4)
+			daytxt$ = MID$(daytxt$, 4, LEN(daytxt$))
+		ELSEIF LOC(daytxt$, "%hy") = 1
+			tmp$ = hebabs$:(absdat&)
+			newtxt$ = newtxt$ + LEFT$(tmp$, 4)
+			daytxt$ = MID$(daytxt$, 4, LEN(daytxt$))
+		ENDIF
+		pos% = LOC(daytxt$, "%")
+	ENDWH
+	newtxt$ = newtxt$ + daytxt$
+	RETURN newtxt$
+ENDP
+
+REM  Look at the disk-letters in disk$ for file$
+REM  Return the first disk (with ":") where it was found or an
+REM  empty string if not found.
+PROC findfil$:(disks$, file$)
+	LOCAL i%, disk$(1)
+	i% = 1
+	WHILE i% <= LEN(disks$)
+		disk$ = MID$(disks$, i%, 1)
+		IF EXIST(disk$+":"+file$)
+			RETURN disk$+":"
+		ENDIF
+		i% = i% + 1
+	ENDWH
+	RETURN ""
+ENDP
+
+REM  Get an alias. Returns the alias name in global Galias$
+REM  Expect: '=' <symb> ':'
+PROC getali%:(rulhand%)
+
+	LOCAL stat%
+
+	REM skip over the '='
+	stat% = expect%:(rulhand%, "GETALI", "char", "=")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	REM Get the symbol
+	stat% = expect%:(rulhand%, "GETALI", "symb", "")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	REM  Save the name
+	IF LEN(Gtoken$)<=33
+		Galias$ = Gtoken$
+	ELSE
+		RETURN quit%:("Alias too long:", Gtoken$)
+	ENDIF
+
+	REM skip over the ';'
+	stat% = expect%:(rulhand%, "GETALI", "char", ";")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	REM  Check that the name hasn't been used yet
+	IF aliget%:(Galias$)<>0
+		RETURN synterr%:("GETALI: alias '"+Galias$+"' already defined")
+	ENDIF
+	
+	RETURN stat%
+ENDP
+
+REM Get a boolean expression. Return its value in Gbool
+REM Expect 'WEEKDAY' | 'OR' | 'NOT' 
+REM Expect  'WEEKDAY' '(' day ')' { 'OR' 'WEEKDAY' '(' day ')' } ')'
+PROC getbool%:(rulhand%)
+	LOCAL   stat%, result, state$(3)
+
+	Gbool = 0
+	result = 0
+	state$ = ""
+	DO
+		stat% = gettok%:(rulhand%)
+		IF stat% >= 0
+			IF Gtoken$ = "WEEKDAY"
+				stat% = opwd%:(rulhand%)
+				IF state$ = ""
+					result = Gbool
+				ELSEIF state$ = "OR"
+					result = result OR Gbool
+				ENDIF
+				state$ = ""
+				REM don't confuse the ending ) in WEEKDAY with the last
+				Gtoken$ = "" 
+			ELSEIF Gtoken$ = "OR"
+				state$ = "OR"
+			ELSEIF Gtoken$ = "NOT"
+				REM TBD: check for state
+				stat% = opnot%:(rulhand%)
+				result = Gbool
+				Gtoken$ = "" 
+			ELSEIF Gtoken$ = "@"
+				stat% = opcall%:(rulhand%)
+			ELSEIF Gtoken$ = ")"
+				REM nothing...
+			ELSE
+				synterr%:("GETBOOL: found unexpected token '"+Gtoken$+"'" )
+				RETURN skipto%:(rulhand%, ";", 0)
+			ENDIF
+		ENDIF
+	UNTIL stat%<0 OR Gtoken$=")"
+
+	Gbool = result
+	
+	RETURN stat%
+
+ENDP
+
+REM  Get and calculate this date. The '{' is already in Gtoken$.
+REM  Expect { ['style' '=' <keyword> ';'] | ['year_symbol' '=' <char> ';']  |
+REM           ['alias' '=' <symbol> ';']  | <dayname> '=' <calculation> ';' |
+REM           ['entry_type' '=' <keyword> ';' ] }...
+PROC getdate%:(rulhand%)
+	LOCAL   stat%, i%
+	LOCAL   gotdate
+
+	REM  Init with defaults
+	Gstyle%  = Gdstyle%
+	Gyrsymb% = Gdyrsym%
+	Galias$  = ""
+	Gabsdat&(1) = 0
+	Gdattot% = 1
+
+	gotdate  = 0
+	DO
+		stat% = gettok%:(rulhand%)
+		IF stat% >= 0
+			REM  handle top level tokens: 'style', 'year_symbol', alias, <dayname>, 'entry_type'
+			IF Gtoken$ = "STYLE"
+				stat% = getstyl%:(rulhand%)
+			ELSEIF Gtoken$ = "YEAR_SYMBOL"
+				stat% = getyrsm%:(rulhand%)
+			ELSEIF Gtoken$ = "ALIAS"
+				stat% = getali%:(rulhand%)
+			ELSEIF Gtoken$ = "ENTRY_TYPE"
+				stat% = getetyp%:(rulhand%)
+			ELSEIF Gtoken$ = "@"
+				stat% = opcall%:(rulhand%)
+			ELSEIF Gtoken$ = "}"
+				IF NOT gotdate
+					RETURN synterr%:("GETDATE: found no date")
+				ENDIF
+				BREAK
+			ELSEIF Gtoktyp$ = "text"
+				gotdate = -1
+
+				REM We don't know yet how many dates that will be calculated,
+				REM so we will save the text in the whole array
+				i% = 1
+				WHILE i% <= 2
+					Gdaytxt$(i%) = Gtoken$
+					i% = i% + 1
+				ENDWH
+				REM Returns the date in Gabsdat& and Gdaynum&
+				stat% = calcdat%:(rulhand%)
+			ELSE
+				RETURN synterr%:("GETDATE: expected a date, found '"+Gtoken$+"'")
+			ENDIF
+		ENDIF
+	UNTIL stat% < 0
+
+	REM  Save the date if there is an alias
+	IF Galias$<>"" AND stat%>=0
+		stat% = aliadd%:(Galias$, Gabsdat&(1))
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM Get date format, store in global variables.
+PROC getdtfmt:
+	LOCAL buf%(20)		REM 40 byte
+
+	REM Call GenGetCountryData
+	CALL($058B,ADDR(buf%()))
+
+	Gdtfmt% = PEEKB(UADD(ADDR(buf%()),4))
+	Gdtsep$ = CHR$(PEEKB(UADD(ADDR(buf%()),13)))
+ENDP
+
+REM  Read entry type into Genttyp%.
+REM  The keyword ENTRY_TYPE is already in Gtoken$
+REM  Expect '=' {"IGNORE"|"UNTIMED"|"ANNIVERSARY"} ';'
+PROC getetyp%:(rulhand%)
+
+	LOCAL stat%
+
+	REM skip over the '='
+	stat% = expect%:(rulhand%, "GETETYP", "char", "=")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	REM Get the keyword
+	stat% = expect%:(rulhand%, "GETETYP", "symb", "")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	IF Gtoken$="IGNORE"
+        Genttyp% = 0
+	ELSEIF Gtoken$="UNTIMED"
+        Genttyp% = 2
+	ELSEIF Gtoken$="ANNIVERSARY"
+        Genttyp% = 3
+	ELSE
+		RETURN synterr%:("GETETYP: found '"+Gtoken$+"', expected IGNORE,UNTIMED or ANNIVERSARY")
+	ENDIF
+
+	REM skip over the ';'
+	stat% = expect%:(rulhand%, "GETETYP", "char", ";")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	
+	RETURN stat%
+ENDP
+
+
+REM  Get next holiday from file rulhand%.
+REM  Return end-of-file at end or error.
+PROC gethol%:(rulhand%)
+	LOCAL   stat%, i%
+
+	REM  Set the default values
+	Gyrsymb% = Gdyrsym%
+	Gstyle%  = Gdstyle%
+	Galias$  = ""
+	Genttyp% = Gdenttp%
+	DO
+		stat% = gettok%:(rulhand%)
+		IF stat% >= 0
+			REM  handle top level tokens: 'style', 'year_symbol', '{', <dayname>, 'entry_type'
+			IF Gtoken$ = "STYLE"
+				stat% = getstyl%:(rulhand%)
+				Gdstyle% = Gstyle%
+			ELSEIF Gtoken$ = "YEAR_SYMBOL"
+				stat% = getyrsm%:(rulhand%)
+				Gdyrsym% = Gyrsymb%
+			ELSEIF Gtoken$ = "ENTRY_TYPE"
+				stat% = getetyp%:(rulhand%)
+			ELSEIF Gtoken$ = "@"
+				stat% = opcall%:(rulhand%)
+			ELSEIF Gtoken$ = "{"
+				stat% = getdate%:(rulhand%)
+				BREAK
+			ELSEIF Gtoktyp$ = "text"
+				i% = 1
+				WHILE i% <= 2
+					Gdaytxt$(i%) = Gtoken$
+					i% = i% + 1
+				ENDWH
+				REM Returns the date in Gabsdat& and Gdaynum&
+				stat% = calcdat%:(rulhand%)
+				BREAK
+			ELSE
+				RETURN synterr%:("GETHOL: found unexpected token '"+Gtoken$+"'" )
+			ENDIF
+		ENDIF
+	UNTIL stat% < 0
+	
+	RETURN stat%
+ENDP
+
+
+REM  Read style(s) into Gstyle%.
+REM  The keyword STYLE is already in Gtoken$
+REM  Expect '=' {"BOLD"|"ITALIC"|"UNDERLINE|NORMAL"} [","] ... ';'
+PROC getstyl%:(rulhand%)
+
+	LOCAL stat%
+
+	REM skip over the '='
+	stat% = expect%:(rulhand%, "GETSTYL", "char", "=")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gstyle% = 0
+	DO
+		REM Get the keyword
+		stat% = expect%:(rulhand%, "GETSTYL", "symb", "")
+		IF stat% < 0
+			RETURN stat%
+		ENDIF
+
+		IF Gtoken$="BOLD"
+			Gstyle% = Gstyle% OR 1
+		ELSEIF Gtoken$="UNDERLINE"
+			Gstyle% = Gstyle% OR 2
+		ELSEIF Gtoken$="ITALIC"
+			Gstyle% = Gstyle% OR 32
+		ELSEIF Gtoken$="NORMAL"
+			Gstyle% = 0
+		ELSE
+			RETURN synterr%:("GETSTYL: found '"+Gtoken$+"', expected BOLD,ITALIC,UNDERLINE or NORMAL")
+		ENDIF
+
+		REM Get a ',' or ';'
+		stat% = gettok%:(rulhand%)
+		IF stat% < 0
+			RETURN stat%
+		ENDIF
+		IF Gtoken$<>"," AND Gtoken$<>";"
+			RETURN synterr%:("GETSTYL: found '"+Gtoken$+"', expected ',' or ';'")
+		ENDIF
+	UNTIL Gtoken$=";"
+	
+	RETURN stat%
+ENDP
+
+REM Get a non-comment token
+PROC gettok%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   done
+
+	done = 0
+	DO
+		stat% = gettok0%:(rulhand%)
+		IF stat%<0
+			RETURN stat%
+		ENDIF
+
+		IF (Gtoktyp$="symb" AND Gtoken$="REM") OR (Gtoktyp$="char" AND Gtoken$="!")
+			REM comment; skip rest of line
+			stat% = readrow%:(rulhand%)
+			IF stat% < 0
+				RETURN stat%
+			ENDIF
+		ELSE
+			done = -1
+		ENDIF
+	UNTIL done
+	RETURN stat%
+ENDP
+
+REM  Get the next token from the file rulhand%
+REM  The token is returned in global variables Gtoktyp$, Gtoken$ and Gtoken&
+PROC gettok0%:(rulhand%)
+
+	LOCAL   stat%, c%
+	LOCAL   last%
+	
+	Gtoktyp$ = ""
+	Gtoken$  = ""
+	Gtoken&  = 0
+
+	REM remove leading blanks and read a new row if necessary
+	stat% = skipspc%:(rulhand%)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	REM If the first character is a letter, get a symbol
+	REM If the first character is a number or '-', get a numeric value
+	REM If the first character is a quote, get a text value
+	REM Otherwise, get a single character
+
+	c% = ASC(Grow$)
+	IF (c%>=%a AND c%<=%z) OR (c%>=%A AND c%<=%Z)
+		last%  = 0
+		WHILE (c%>=%a AND c%<=%z) OR (c%>=%A AND c%<=%Z) OR (c%>=%0 AND c%<=%9) OR c%=%_
+			last% = last% + 1
+			c% = ASC(MID$(Grow$, last%+1, 1))
+		ENDWH
+		Gtoktyp$ = "symb"
+		Gtoken$  = UPPER$(LEFT$(Grow$, last%))
+		Grow$    = MID$(Grow$, last%+1, LEN(Grow$))
+	ELSEIF (c%>=%0 AND c%<= %9)
+		last%  = 0
+		WHILE (c%>=%0 AND c%<=%9)
+			last% = last% + 1
+			c% = ASC(MID$(Grow$, last%+1, 1))
+		ENDWH
+		Gtoktyp$ = "value"
+		Gtoken$  = LEFT$(Grow$, last%)
+		Gtoken&  = VAL(Gtoken$)
+		Grow$    = MID$(Grow$, last%+1, LEN(Grow$))
+	ELSEIF c%=ASC("""")
+		last%  = 1
+		c% = ASC(MID$(Grow$, last%+1, 1))
+		WHILE c%<>ASC("""") AND c%<>0
+			last% = last% + 1
+			c% = ASC(MID$(Grow$, last%+1, 1))
+		ENDWH
+		IF c%<>ASC("""")
+			RETURN synterr%:("GETTOK0: no terminating "" found")
+		ENDIF                   
+		Gtoktyp$ = "text"
+		Gtoken$  = MID$(Grow$, 2, last%-1)
+		Grow$    = MID$(Grow$, last%+2, LEN(Grow$))
+	ELSE
+		Gtoktyp$ = "char"
+		Gtoken$  = LEFT$(Grow$, 1)
+		Grow$    = MID$(Grow$, 2, LEN(Grow$))
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM  Read year symbol into  Gyrsymb%.
+REM  The keyword YEAR_SYMBOL is already in Gtoken$
+REM  Expect '=' <TEXT> ';'
+PROC getyrsm%:(rulhand%)
+
+	LOCAL stat%
+
+	REM skip over the '='
+	stat% = expect%:(rulhand%, "GETYRSM", "char", "=")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gyrsymb% = 0
+	REM Get the character
+	stat% = expect%:(rulhand%, "GETYRSM", "text", "")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	IF LEN(Gtoken$)>1
+		RETURN synterr%:("GETYRSM: found '"+Gtoken$+"', expected one character")
+	ENDIF
+
+	Gyrsymb% = ASC(Gtoken$)
+
+	REM skip over the ';'
+	stat% = expect%:(rulhand%, "GETYRSM", "char", ";")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM  Move the current position down one character line, scrolling if necessary
+REM  Move the position down one font height. If the position + font descent 
+REM  then is below the windows lower border then scroll the window up and
+REM  move the position up one row.
+PROC gNL:
+	REM move down one line
+	gMOVE -gX,Gscrowh%
+	IF gY+Gscrowd%>gHEIGHT
+		gSCROLL 0,-Gscrowh%
+		gMOVE 0,-Gscrowh%
+	ENDIF
+ENDP
+
+REM  Get absolute date for hebrew date hday&/hmonth& in the hebrew
+REM  year that occurs during gregorian year year&
+REM  Dates returned in Gabsdat,Gdattot
+PROC hebfix:(hday&, hmonth&, year&)
+    LOCAL   hglim$(8)   REM  hebrew date for gregorian 1/1 in year&
+    LOCAL   md$(4)              REM  hmonth&/hday& as numeric string
+    LOCAL   hyear&      REM  hebrew year to use
+    LOCAL       abs&
+
+	REM Get the hebrew date for Jan 1st in selected gregorian year
+    hglim$ = hebabs$:(absgreg&:(INT(1), INT(1), year&))
+    
+    md$ = RIGHT$("00"+NUM$(hmonth&,2), 2) + RIGHT$("00"+NUM$(hday&,2), 2)
+
+	REM Is the requested hebrew month/day in the first part of
+	REM the gregorian year?
+    IF md$ >= RIGHT$(hglim$, 4) OR md$ < "0701"
+    	REM yes, we can use the hebrew year from Jan 1st
+		hyear& = VAL(LEFT$(hglim$, 4)) 
+    ELSE
+    	REM no, use the next year (after hebrew new year)
+		hyear& = VAL(LEFT$(hglim$, 4)) + 1
+    ENDIF
+
+	Gdattot% = 1
+	Gabsdat&(1) = absheb&:(hday&, hmonth&, hyear&)
+ENDP
+
+REM  Apply the selected rule file to a sequence of years.
+REM  Prompt for start year, end year.
+REM  Prompt for agenda file if AGN is true.
+REM  Call FUNC$ for each year.
+PROC holdo:(func$, agn%)
+
+	LOCAL   stat%
+	LOCAL   d%, dorep%
+	LOCAL   year1&, year2&, year%, repend&
+
+	year1& = Gyear1%
+	year2& = Gyear2%
+	dorep% = -1             REM write repeats for first year
+
+	Gagnfil$ = "m:\agn\*.agn"
+	IF Grulhnd% <> 0
+		LOCK ON
+		REM read the file and put the holidays in the arrays
+		IF agn%
+			dINIT "Write holidays"
+		ELSE
+			dINIT "View holidays"
+		ENDIF
+		dLONG year1&, "Start year", 1980, 2049
+		dLONG year2&, "End year", 1980, 2049
+		
+		IF Gscreen% = 2
+			dCHOICE Grepmod%, "Repeat entries", "No,If possible"
+			dCHOICE Grepsho%, "Repeat: Show","All occurrences,Next only"
+			dCHOICE Grepend%, "Repeat: Until","Forever,End year"
+		ELSE
+			dCHOICE Grepmod%, "Use repeating entries", "No,If possible"        
+			dCHOICE Grepsho%, "Repeating entry: Show","All occurrences,Next only"
+			dCHOICE Grepend%, "Repeating entry: Until","Forever,End year"
+		ENDIF
+		IF agn%
+			IF Gscreen% = 2
+				dFILE Gagnfil$, "File:", 8
+			ELSE
+				dFILE Gagnfil$, "Agenda file:", 8
+			ENDIF
+		ENDIF
+		d% = DIALOG
+		LOCK OFF
+		IF d%
+			Gyear1% = year1&
+			Gyear2% = year2&
+
+			IF Grepend% = 1
+				REM Repeat forever
+				repend& = $FFFF
+			ELSE
+				REM Repeat until end year
+				repend& = dt2dnm&:(Gyear2%, 12, 31)
+			ENDIF
+
+			IF agn%
+				LOCK ON
+				dINIT "Write to this file?"
+				dTEXT "",RIGHT$(Gagnfil$,25)
+				dBUTTONS "No",%N,"Yes",%Y
+				d% = DIALOG
+				LOCK OFF
+				IF d% = %y
+					d% = backup%:(Gagnfil$)
+				ENDIF
+			ELSE
+				d% = %y
+			ENDIF
+			IF d% = %y
+				gCLS
+	
+				year% = Gyear1%
+				WHILE year%<=Gyear2% AND (stat%>=0 OR stat%=-36)
+					stat% = rulrew:
+					IF stat% >= 0
+						Gyear% = year%
+						stat% = @%(func$):(Grulhnd%, Gyear%, dorep%, Grepsho%, repend&)
+						year% = year% + 1
+						dorep% = 0      REM any repeat only on first year
+					ENDIF
+				ENDWH
+				REM let the user view the result for a while unless there was an error
+				IF stat%>=0 OR stat%=-36
+					BUSY "Press any key",3
+					LOCK ON
+					GET
+					LOCK OFF
+				ENDIF
+				BUSY OFF
+				scredraw:(1)
+			ELSE
+				gIPRINT("Cancelled")
+			ENDIF
+		ENDIF
+	ELSE
+		gIPRINT "No holiday file open"
+	ENDIF
+	RETURN 0
+ENDP
+
+REM Load the holidays as specified in file rulhand% for year%
+PROC holload%:(rulhand%, year%)
+	LOCAL   stat%
+	LOCAL   i%
+
+	BUSY "Loading..."
+	i% = 1
+	Gholtot% = 0
+	DO
+		stat% = gethol%:(rulhand%)
+		IF stat% >= 0
+			IF i% <= 101
+				Gflags%(i%) = 0
+				Gholtot% = i%
+				Gyrsyma%(i%) = Gyrsymb%
+				REM Allocate memory for the day text
+				Gdaytxa%(i%) = ALLOC(LEN(Gdaytxt$(1))+1)
+				IF Gdaytxa%(i%) = 0
+					Gholtot% = Gholtot% - 1
+					BUSY OFF
+					RETURN quit%:("Not enough memory", "")
+				ENDIF
+				POKE$ Gdaytxa%(i%), Gdaytxt$(1)
+				Gstylea%(i%) = Gstyle%
+				Gselcta(i%)  = -1
+				IF Greptyp%<>1
+					Gflags%(i%) = 1
+				ENDIF
+				IF Galias$<>""
+					Gflags%(i%) = Gflags%(i%) OR 2
+				ENDIF
+				BUSY Gdaytxt$(1)
+				i% = i% + 1
+			ELSE
+				gIPRINT "Overflow"
+			ENDIF
+		ENDIF
+	UNTIL stat% < 0
+
+	Gholidx% = 1
+
+	BUSY OFF
+	RETURN stat%
+ENDP
+
+REM View the holidays as specified in file rulhand% for year%
+PROC holview%:(rulhand%, year%, dorep%, repsho%, repend&)
+	LOCAL   stat%
+	LOCAL   currow%
+	LOCAL   k%, i%, reptyp%
+
+	BUSY "Press key to pause",3
+	
+	currow% = 0
+	DO
+		currow% = currow% + 1
+		REM If we don't have to calculate and aren't asked to then don't
+		IF (Gflags%(currow%) AND $2) = 0 AND NOT Gselcta(currow%)
+			Gcalc = 0
+			gIPRINT "Skipping. Press key to pause"
+		ELSE
+			gIPRINT ""
+		ENDIF
+		stat% = gethol%:(rulhand%)
+		Gcalc = -1
+		IF stat% >= 0
+			i% = 1
+			WHILE i% <= Gdattot%
+				IF Gselcta(currow%)
+					IF Grepmod% = 1                 REM If we never write repeating entries...
+						reptyp% = 1                     REM then force the type to not repeatable
+					ELSE
+						reptyp% = Greptyp%
+					ENDIF
+					IF reptyp%=1 OR dorep%<>0
+						gshowhol:(Gdaynum&(i%), Gyrsymb%, Gstyle%, Gdaytxt$(i%), reptyp%, Grepmon%, Grepday%, Grepnbr%, repsho%, Genttyp%)
+					ELSE
+						gIPRINT "Skipping. Press key to pause"
+					ENDIF
+				ENDIF
+				i% = i% + 1
+			ENDWH
+			k% = KEY
+			IF k%<>0 AND k%<>27
+				BUSY "Press any key",3
+				LOCK ON
+				GET
+				LOCK OFF
+				BUSY "Press key to pause",3
+			ENDIF
+		ENDIF
+	UNTIL stat% < 0 OR k%=27 OR currow%=Gholtot%
+	
+	BUSY OFF
+	IF k%=27
+		gIPRINT "Cancelled"
+		RETURN -1000
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM  Write the holidays as specified in file rulhand% for year%
+REM  to agenda file Gagnfil$
+PROC holwrit%:(rulhand%, year%, dorep%, repsho%, repend&)
+	LOCAL   stat%, stat2%
+	LOCAL   agnhand%        REM handle for agenda file
+	LOCAL   offset&
+	LOCAL   currow%
+	LOCAL   k%, i%, reptyp%
+
+	REM Open the agenda file and verify that it is an agenda file
+	stat% = openagn%:(ADDR(agnhand%), Gagnfil$)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = agnchek%:(agnhand%)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	REM Position to the end of the file
+	offset& = 0
+	stat% = IOSEEK(agnhand%, 2, offset&)
+	IF stat% < 0
+		RETURN abort%:(stat%,"seeking end of agenda file")
+	ENDIF
+
+	BUSY "Press key to cancel",3
+	
+	currow% = 0
+	DO
+		currow% = currow% + 1
+		IF (Gflags%(currow%) AND $2) = 0 AND NOT Gselcta(currow%)
+			Gcalc = 0
+			gIPRINT "Skipping. Press key to cancel"
+		ELSE
+			gIPRINT ""
+		ENDIF
+		stat% = gethol%:(rulhand%)
+		Gcalc = -1
+		IF stat% >= 0
+			k% = key
+			IF Gselcta(currow%) AND k% = 0
+				i% = 1
+				WHILE i% <= Gdattot% AND stat% >= 0
+					IF Grepmod% = 1                 REM If we never write repeating entries...
+						reptyp% = 1                     REM then force the type to not repeatable
+					ELSE
+						reptyp% = Greptyp%
+					ENDIF
+					IF reptyp%=1 OR dorep%<>0
+						REM can repeat and should repeat
+						gshowhol:(Gdaynum&(i%), Gyrsymb%, Gstyle%, Gdaytxt$(i%), reptyp%, Grepmon%, Grepday%, Grepnbr%, repsho%, Genttyp%)
+						stat% = agnwrit%:(agnhand%, Gdaynum&(i%), Gyrsymb%, Gstyle%, Gdaytxt$(i%), reptyp%, Grepday%, Grepnbr%, repsho%, repend&, Genttyp%)
+					ELSE
+						gIPRINT "Skipping. Press key to cancel"
+					ENDIF
+					i% = i% + 1
+				ENDWH
+			ENDIF
+		ENDIF
+	UNTIL stat% < 0 OR k% <> 0 OR currow% = Gholtot%
+
+	REM Close the agenda file
+	stat2% = IOCLOSE(agnhand%)
+	IF stat2% < 0
+		RETURN abort%:(stat2%,"closing agenda file")
+	ENDIF
+
+	REM return a dummy error if a cancel key was pressed
+	IF k%<>0
+		gIPRINT "Cancelled"
+		RETURN -1000
+	ENDIF
+	RETURN stat%
+ENDP
+
+REM Return true if the first character of txt$ is empty, a space or a tab
+PROC isblank:(txt$)
+	LOCAL   c%
+
+	c% = ASC(txt$)
+	IF c%=0 OR c%=32 OR c%=9
+		RETURN -1
+	ELSE
+		RETURN 0
+	ENDIF
+ENDP
+
+REM  Get absolute date(s) for islamic date iday&/imonth& in the islamic
+REM  year that occurs during gregorian year year&
+REM  Dates returned in Gabsdat,Gdattot
+PROC islfix:(iday&, imonth&, year&)
+    LOCAL   iglim$(8)   REM  islamic date for gregorian 1/1 in year&
+    LOCAL   md$(4)              REM  imonth&/iday& as numeric string
+    LOCAL   iyear&      REM  islamic year to use
+    LOCAL       abs&
+
+    iglim$ = islabs$:(absgreg&:(INT(1), INT(1), year&))
+    md$ = RIGHT$("00"+NUM$(imonth&,2), 2) + RIGHT$("00"+NUM$(iday&,2), 2)
+
+    IF md$ >= RIGHT$(iglim$, 4) 
+	iyear& = VAL(LEFT$(iglim$, 4))
+    ELSE
+	iyear& = VAL(LEFT$(iglim$, 4)) + 1
+    ENDIF
+
+	Gabsdat&(1) = absisl&:(iday&, imonth&, iyear&)
+
+	REM Is there a second occurance of this date during year%?
+	REM Is it within current gregorian year?
+	abs& = absisl&:(iday&, imonth&, INT(iyear&+1))
+	IF abs& <= absgreg&:(INT(31), INT(12), year&)
+		Gabsdat&(2) = abs&
+		Gdattot% = 2
+	ENDIF
+ENDP
+
+PROC nofile:
+	LOCAL   oldfont%
+	LOCAL   msg$(15)
+
+	REM double height
+	gSTYLE 8
+	oldfont% = setfont%:(6)
+
+	msg$ = "No file open"
+
+	gAT Gscwidt%/2-gTWIDTH(msg$),Gscheit%/2+Gscrowh%/2
+	gPRINT msg$
+
+	gSTYLE 0
+	setfont%:(oldfont%)
+ENDP
+
+REM  add next value * factor to Gabsdat&
+PROC opadd%:(rulhand%, factor%)
+	LOCAL   stat%
+
+	Greptyp% = 1
+	
+	stat% = expect%:(rulhand%, "OPADD", "value", "")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gabsdat&(1) = Gabsdat&(1) + Gtoken& * factor%
+	
+	RETURN stat%
+ENDP
+
+REM Read [<string>] <token>
+PROC opcall%:(rulhand%)
+	LOCAL   module$(50)
+	LOCAL   proc$(8)
+	LOCAL   stat%
+
+	stat% = gettok%:(rulhand%)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	IF Gtoktyp$="text"
+		REM Got the optional module name
+		module$ = Gtoken$
+
+		IF Gusrmod$<>module$
+			IF Gusrmod$<>""
+				UNLOADM Gusrmod$
+			ENDIF
+			LOADM module$
+			Gusrmod$ = module$
+		ENDIF
+		
+		stat% = gettok%:(rulhand%)
+		IF stat% < 0
+			RETURN stat%
+		ENDIF
+	ENDIF
+
+	IF Gtoktyp$<>"symb"
+		RETURN synterr%:("OPCALL: found unexpected token '"+Gtoken$+"'" )
+	ENDIF
+
+	proc$ = Gtoken$
+
+	RETURN @%(proc$):(rulhand%)
+ENDP
+
+REM Read DONEIF (bool)
+REM Expect <bool-expr> ';'
+REM If bool is true, skip rest of directive up to ';'
+PROC opdif%:(rulhand%)
+	LOCAL   stat%
+
+	Greptyp% = 1
+	
+	stat% = expect%:(rulhand%, "OPDIF", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = getbool%:(rulhand%)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	IF Gbool
+		stat% = skipto%:(rulhand%, ";", -1)
+	ENDIF
+	
+	RETURN stat%
+ENDP
+
+REM  Set date in Gabsdat& for year Gyear%
+PROC opeastr%:(rulhand%)
+	Greptyp% = 1
+	Gdattot% = 1
+	IF Gcalc
+		Gabsdat&(1) = easter&:(INT(Gyear%))
+	ENDIF
+	RETURN 0
+ENDP
+
+REM  Read ELSEIF(bool) { ... }
+REM  Expect '(' <bool> '{'
+PROC opelif%:(rulhand%)
+	LOCAL stat%
+
+	Greptyp% = 1
+
+	stat% = expect%:(rulhand%, "OPELIF", "char", "(")
+	IF stat%<0
+		RETURN stat%
+	ENDIF
+
+	REM Look at the condition if previous tests were false
+	REM or we are not calculationg (only scanning)
+	IF NOT Gbool OR NOT Gcalc
+		stat% = getbool%:(rulhand%)
+		IF stat%<0
+			RETURN stat%
+		ENDIF
+	   
+		stat% = expect%:(rulhand%, "OPELIF", "char", "{")
+		IF stat%<0
+			RETURN stat%
+		ENDIF
+	
+		IF (NOT Gbool AND Gcalc)
+			stat% = skipto%:(rulhand%, "}", -1)
+		ENDIF
+	ELSE
+		stat% = skipto%:(rulhand%, "}", -1)
+	ENDIF
+	RETURN stat%
+ENDP
+
+REM  Read ELSE { ... }
+REM '{'
+PROC opelse%:(rulhand%)
+	LOCAL stat%
+
+	Greptyp% = 1
+	   
+	stat% = expect%:(rulhand%, "opelse", "char", "{")
+	IF stat%<0
+		RETURN stat%
+	ENDIF
+	
+	IF (Gbool AND Gcalc)
+		RETURN skipto%:(rulhand%, "}", -1)
+	ENDIF
+	RETURN stat%
+ENDP
+
+
+REM  Read FIX(m,d)
+REM  Expect '(' <value> ',' <value> ')'
+REM  Set date in Gabsdat& for year Gyear%
+PROC opfix%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   month%, day%            REM month in Gyear% and day in month%
+
+	IF Greptyp%<>1
+		Greptyp% = 2
+	ENDIF
+
+	stat% = expect%:(rulhand%, "OPFIX", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPFIX", "value", 1, 12)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	month% = Gtoken&
+	Grepmon% = month%
+
+	stat% = expect%:(rulhand%, "OPFIX", "char", ",")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPFIX", "value", 1, 31)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	day% = Gtoken&
+	Grepday% = day%
+
+	stat% = expect%:(rulhand%, "OPFIX", "char", ")")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gdattot% = 1
+	IF Gcalc
+		Gabsdat&(1) = absgreg&:(INT(day%), INT(month%), INT(Gyear%))
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM  Read FLOAT(month, dname, n [, day])
+REM  Holiday on nth dname (0=Sunday) in month [on or before day/month]
+REM
+REM  month      is month number
+REM  dname      is weekday (0=Sunday, 1=Monday...)
+REM  n          is nth occurance of dname; <>0. If < 0 then count from end of month
+REM  day        if specified, means nth dname on or after/before the DAYth of MONTH
+REM
+REM  Expect '(' <value> ',' <value> ',' <negvalue> [ ',' <value>] ')'
+REM  Set date in Gabsdat& for year Gyear%
+PROC opfloat%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   month&, dname&, n&, day&
+
+	stat% = expect%:(rulhand%, "OPFLOAT", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPFLOAT", "value", 1, 12)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	month& = Gtoken&
+	Grepmon% = month&
+
+	stat% = expect%:(rulhand%, "OPFLOAT", "char", ",")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPFLOAT", "value", 0, 6)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	dname& = Gtoken&
+	Grepday% = dname&
+
+	stat% = expect%:(rulhand%, "OPFLOAT", "char", ",")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expect%:(rulhand%, "OPFLOAT", "negvalue", "")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	n& = Gtoken&
+	Grepnbr% = n&
+
+	REM Get a ',' or ')'
+	stat% = gettok%:(rulhand%)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	IF Gtoken$<>"," AND Gtoken$<>")"
+		RETURN synterr%:("OPFLOAT: found '"+Gtoken$+"', expected ',' or ')'")
+	ENDIF
+
+	REM Get day if specified
+	day& = 0
+	IF Gtoken$=","
+		stat% = expectr%:(rulhand%, "OPFLOAT", "value", 1, 31)
+		IF stat% < 0
+			RETURN stat%
+		ENDIF
+		day& = Gtoken&
+		
+		stat% = expect%:(rulhand%, "OPFLOAT", "char", ")")
+		IF stat% < 0
+			RETURN stat%
+		ENDIF
+		Greptyp% = 1
+	ELSEIF Greptyp%<>1 AND n&>=-1 AND n&<=4 AND n&<>0
+		Greptyp% = 3
+	ELSE
+		Greptyp% = 1
+	ENDIF
+
+	Gdattot% = 1
+	IF Gcalc
+		Gabsdat&(1) = nthabs&:(n&, dname&, month&, INT(Gyear%), day&)
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM  Read HFIX(m,d)
+REM  Expect '(' <value> ',' <value> ')'
+REM  Set date in Gabsdat& for year Gyear%
+PROC ophfix%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   month%, day%            REM month in Gyear% and day in month%
+
+	Greptyp% = 1
+
+	stat% = expect%:(rulhand%, "OPHFIX", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPHFIX", "value", 1, 13)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	IF Gtoken& = 13
+		REM Last month of year (12 or 13 depending on leap year)
+		REM (Adar is always in the spring, so this is safe)
+		month% = hclmoy&:(INT(Gyear% + 3760))
+	ELSE
+		month% = Gtoken&
+	ENDIF
+
+	stat% = expect%:(rulhand%, "OPHFIX", "char", ",")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPHFIX", "value", 1, 30)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	day% = Gtoken&
+
+	stat% = expect%:(rulhand%, "OPHFIX", "char", ")")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gdattot% = 1
+	IF Gcalc
+		hebfix:(INT(day%), INT(month%), INT(Gyear%))
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM  Read IF(bool) { ... }
+REM  Expect '(' <bool> '{'
+PROC opif%:(rulhand%)
+	LOCAL stat%
+
+	Greptyp% = 1
+
+	stat% = expect%:(rulhand%, "OPIF", "char", "(")
+	IF stat%<0
+		RETURN stat%
+	ENDIF
+	
+	stat% = getbool%:(rulhand%)
+	IF stat%<0
+		RETURN stat%
+	ENDIF
+	   
+	stat% = expect%:(rulhand%, "OPIF", "char", "{")
+	IF stat%<0
+		RETURN stat%
+	ENDIF
+	
+	IF (NOT Gbool AND Gcalc)
+		RETURN skipto%:(rulhand%, "}", -1)
+	ENDIF
+	RETURN stat%
+ENDP
+
+REM  Read IFIX(m,d)
+REM  Expect '(' <value> ',' <value> ')'
+REM  Set date in Gabsdat& for year Gyear%
+PROC opifix%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   month%, day%            REM month in Gyear% and day in month%
+
+	Greptyp% = 1
+
+	stat% = expect%:(rulhand%, "OPIFIX", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPIFIX", "value", 1, 12)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	month% = Gtoken&
+
+	stat% = expect%:(rulhand%, "OPIFIX", "char", ",")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPIFIX", "value", 1, 30)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	day% = Gtoken&
+
+	stat% = expect%:(rulhand%, "OPIFIX", "char", ")")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gdattot% = 1
+	IF Gcalc
+		islfix:(INT(day%), INT(month%), INT(Gyear%))
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM Execute IGNORE
+REM Skip rest of directive up to ';'
+PROC opignor%:(rulhand%)
+	LOCAL   stat%
+
+	Greptyp% = 1
+    Genttyp% = 0  REM don't write
+    IF Gcalc
+    	stat% = skipto%:(rulhand%, ";", -1)
+    ENDIF
+	RETURN stat%
+ENDP
+
+
+REM  Read LAST(month)
+REM  Expect '(' <value> ')'
+REM  Set Gabsdat& to last day of month
+PROC oplast%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   month&
+
+	Greptyp% = 1
+
+	stat% = expect%:(rulhand%, "OPLAST", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPLAST", "value", 1, 12)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	month& = Gtoken&
+
+	stat% = expect%:(rulhand%, "OPLAST", "char", ")")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gdattot% = 1
+	IF Gcalc
+		Gabsdat&(1) = absgreg&:(ldom&:(month&, INT(Gyear%)), month&, INT(Gyear%))
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM  Read NOT(bool)
+REM  Expect '(' bool 
+REM  Let getbool set Gbool
+PROC opnot%:(rulhand%)
+	LOCAL   stat%
+
+	stat% = expect%:(rulhand%, "OPNOT", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = getbool%:(rulhand%)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	Gbool = NOT Gbool
+	RETURN stat%
+ENDP
+
+
+REM  Read WEEKDAY(day)
+REM  Expect '(' <value> ')'
+REM  Set Gbool to true if Gabsdat is on weekday day (0 = sunday)
+PROC opwd%:(rulhand%)
+	LOCAL   stat%
+	LOCAL   day%
+
+	stat% = expect%:(rulhand%, "OPWD", "char", "(")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	stat% = expectr%:(rulhand%, "OPWD", "value", 0, 6)
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+	day% = Gtoken&
+
+	stat% = expect%:(rulhand%, "OPWD", "char", ")")
+	IF stat% < 0
+		RETURN stat%
+	ENDIF
+
+	IF Gcalc
+		Gbool = day% = dow%:(Gabsdat&(1))
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+
+REM Open the agenda file as a binary file, positioned to the beginning
+PROC openagn%:(pHand%, file$)
+	LOCAL stat%
+	LOCAL mode%
+
+	REM     existing + binary + update + Random access
+	mode% = $0000    + $0000  + $0100  + $0200
+
+	stat% = IOOPEN(#pHand%, file$, mode%)
+	IF stat% < 0
+		RETURN abort%:(stat%, "opening "+file$)
+	ENDIF
+
+	RETURN stat%
+ENDP
+
+REM Open the rule file as a text file, positioned to the beginning
+PROC openrul%:(pHand%, file$)
+	LOCAL stat%
+	LOCAL mode%
+
+	REM     existing + text
+	mode% = $0000    + $0020
+
+	stat% = IOOPEN(#pHand%, file$, mode%)
+	IF stat% < 0
+		RETURN abort%:(stat%, "opening "+file$)
+	ENDIF
+	RETURN stat%
+ENDP
+
+REM Read the next row from handle% into global Grow$
+PROC readrow%:(handle%)
+
+	LOCAL   stat%
+
+	stat% = IOREAD(handle%, UADD(ADDR(Grow$), 1), 255)
+	IF (stat% < 0)
+		IF (stat% <> -36)       REM end-of-file
+			RETURN abort%:(stat%, "reading rule")
+		ENDIF
+		RETURN stat%
+	ENDIF
+
+	Growno% = Growno% + 1
+	
+	POKEB ADDR(Grow$),stat%
+	RETURN stat%
+ENDP
+
+PROC rulclos%:
+	LOCAL stat%, i%
+
+	IF Grulhnd%<>0
+		stat% = IOCLOSE(Grulhnd%)
+		IF stat%<0
+			abort%:(stat%, "closing")
+		ENDIF
+	ENDIF
+
+	i% = 1
+	WHILE i% <= Gholtot%
+		FREEALLOC Gdaytxa%(i%)
+		Gdaytxa%(i%) = 0
+		i% = i% + 1
+	ENDWH
+	SETNAME "Hol"
+	Grulhnd% = 0
+	Gholidx% = 0
+	Gholtot% = 0
+	gCLS
+	IF Gusrmod$<>""
+		UNLOADM Gusrmod$
+		Gusrmod$ = ""
+	ENDIF
+
+	RETURN 0
+ENDP
+
+PROC rulload%:(file$)
+	LOCAL   stat%, winid%
+
+	IF Gabshow
+		REM show the about-window while we load the file
+		winid% = abcre%:
+	ENDIF
+
+	Gcalc = 0
+	rulclos%:
+	
+	Grulfil$ = file$
+	stat% = openrul%:(ADDR(Grulhnd%), Grulfil$)
+	IF stat%>=0
+		REM read the file and put the holidays in the arrays
+		REM Rewind
+		stat% = rulrew:
+		IF stat%>=0
+			Gyear% = 1996
+			stat% = holload%:(Grulhnd%, Gyear%)
+
+			REM Update screen if we read anything
+			IF Gholtot%>0
+				SETNAME Grulfil$
+	
+				scupdate:(1, 1, Gscrows%, "gshowrow")
+				Gcurrow% = 1
+				sccursor:(1)
+			ELSE
+				rulclos%:
+				nofile:
+			ENDIF
+		ENDIF
+	ENDIF
+	IF Gabshow
+		REM once is enough
+		Gabshow = 0
+		gCLOSE winid%
+	ENDIF
+	Gcalc = -1
+	
+	RETURN stat%
+ENDP
+
+REM  Rewind the rule file and prepare globals
+PROC rulrew:
+	LOCAL   stat%
+
+	Growno%  = 0
+	Grow$    = ""
+	Galinxt% = 1
+	Gdyrsym% = 0
+	Gdstyle% = 0
+	Gdenttp% = 2
+
+	REM "Rewind"
+	stat% = IOCLOSE(Grulhnd%)
+	IF stat% >= 0
+		stat% = openrul%:(ADDR(Grulhnd%), Grulfil$)
+	ENDIF
+	IF stat% < 0
+		RETURN abort%:(stat%, "rewinding "+Grulfil$)
+	ENDIF
+	RETURN stat%
+ENDP
+
+REM  Show or hide the cursor at the current text row
+PROC sccursor:(onoff%)
+	scgorow:(Gcurrow%)
+	gSTYLE 0
+	IF onoff%=1
+		gPRINT CHR$($1c)
+	ELSE
+		gPRINTB " ",gTWIDTH(CHR$($1c))
+	ENDIF
+ENDP
+
+REM  Set current screen position to text row rowno% (1-n)
+PROC scgorow:(rowno%)
+	gAT 0,Gscrowh%*rowno%
+ENDP
+
+REM  Move the current index in the arrays to pos idx%
+REM  and update the screen accordingly.
+PROC sccurmov:(idxp%)
+	LOCAL   dist%           REM distance to move
+	LOCAL   idx%
+
+	idx% = idxp%
+	
+	REM anything on screen?
+	IF Gholidx% = 0
+		RETURN
+	ENDIF
+
+	REM Don't move outside the array
+	IF idx% < 1
+		idx% = 1
+	ENDIF
+	IF idx% > Gholtot%
+		idx% = Gholtot%
+	ENDIF
+
+	sccursor:(0)
+	dist% = idx% - Gholidx%
+
+	REM Is the destination already on screen?
+	IF ((Gcurrow% + dist%) >= 1) AND ((Gcurrow% + dist%) <= Gscrows%)
+		REM yes, just move the cursor to that position
+		Gcurrow% = Gcurrow% + dist%
+		Gholidx% = idx%
+
+	REM Can we scroll the screen into position?
+	ELSEIF (dist%=1) AND (Gcurrow%=Gscrows%)
+		gSCROLL 0,Gscrowh% * -dist%
+		Gholidx% = Gholidx% + dist%
+		scupdate:(Gcurrow%, Gholidx%, 1, "gshowrow")
+
+	ELSEIF (dist%=-1) AND (Gcurrow%=1)
+		gSCROLL 0,Gscrowh% * -dist%
+		Gholidx% = Gholidx% + dist%
+		scupdate:(Gcurrow%, Gholidx%, 1, "gshowrow")
+
+	REM Erase and redraw screen
+	ELSE
+		gUPDATE OFF
+		gCLS
+		Gholidx% = idx%
+		IF dist%<0              REM put new position at top of screen
+			Gcurrow% = 1
+			scupdate:(1, Gholidx%, Gscrows%, "gshowrow")
+		ELSE                    REM put new position at end of screen
+			Gcurrow% = Gscrows%
+			scupdate:(1, Gholidx%-Gscrows%+1, Gscrows%, "gshowrow")
+		ENDIF
+		gUPDATE ON
+	ENDIF
+	sccursor:(1)
+	
+ENDP
+
+REM  Redraw the list of holidays
+PROC scredraw:(cls%)
+	LOCAL   topidx%                 REM idx of line on top screen row
+	topidx% = Gholidx% - Gcurrow% + 1
+
+	IF cls%<>0
+		gCLS
+	ENDIF
+	scupdate:(1, topidx%, Gscrows%, "gshowrow")
+	sccursor:(1)
+ENDP
+
+REM  Print some of the lines on the screen
+REM  scrow%             first text row to print on
+REM  idx%               first array element to print
+REM  count%             number of rows to print
+REM  prtrow$    name of function to call to print one row
+PROC scupdate:(scrow%, idx%, count%, prtrow$)
+	LOCAL   idx1%           REM first element
+	LOCAL   idx2%           REM last element
+	LOCAL   i%
+	LOCAL   r%
+
+	REM Get first element to print
+	idx1% = idx%
+	IF idx% < 1
+		idx1% = 1
+	ENDIF
+
+	REM Get last element to print
+	idx2% = idx% + count% - 1
+	IF idx2% > Gholtot%
+		idx2% = Gholtot%
+	ENDIF
+
+	REM Don't print outside of window
+	IF scrow%+count%-1 > Gscrows%
+		idx2% = idx1% + (Gscrows% - scrow% + 1)
+	ENDIF
+
+	i% = idx1%
+	r% = scrow%
+	WHILE i% <= idx2%
+		scgorow:(r%)
+		@(prtrow$):(i%)
+		i% = i% + 1
+		r% = r% + 1
+	ENDWH
+
+ENDP
+
+REM  set current font to number id%. Update globals
+PROC setfont%:(id%)
+	LOCAL   info%(32)
+	LOCAL   oldfont%
+
+	oldfont% = Gcurfnt%
+	gFONT(id%)
+	Gcurfnt% = id%
+	
+	gINFO info%()
+	Gscrowh% = info%(3)+info%(4)    REM height + descent
+	Gscrowd% = info%(4)
+	Gscrows% = gHEIGHT / Gscrowh%
+	Gscchrw% = info%(7)
+	
+	RETURN oldfont%
+ENDP
+
+PROC setstat:(type%)
+	LOCAL   extent%(4)
+	
+	IF type% = 0
+		STATUSWIN OFF
+	ELSE
+		STATUSWIN ON,type%
+	ENDIF
+	Gstatwn% = type%
+	REM Adjust the main window size
+	STATWININFO(-1, extent%())
+	gSETWIN 0,0,extent%(1),Gscheit%
+	SCREEN 20,15,1,1
+	scredraw:(0)
+ENDP
+
+PROC gshowhol:(daynum&, yrsymb%, style%, daytxt$, reptyp%, repmon%, repday%, repnbr%, repsho%, enttyp%)
+	LOCAL   yr%, mo%, dy%, hr%, mn%, sc%, yrday%, info%(32)
+	LOCAL   mo$(2), dy$(2), nbr$(4), datwid%, agnfont%, oldfont%, y%
+
+	REM Don't show ignored entries if Gshoign% is false
+	IF enttyp% = 0 AND NOT Gshoign%
+		RETURN 0
+	ENDIF
+	
+	gNL:
+	gSTYLE 0
+
+	datwid% = gTWIDTH("9999"+Gdtsep$+"99"+Gdtsep$+"99")
+
+	SECSTODATE daynum&*24*60*60, yr%, mo%, dy%, hr%, mn%, sc%, yrday%
+	mo$ = RIGHT$("00"+NUM$(mo%,2), 2)
+	dy$ = RIGHT$("00"+NUM$(dy%,2), 2)
+	IF Gdtfmt% = 0		REM MDY
+		gPRINT mo$;Gdtsep$;dy$;Gdtsep$;yr%
+	ELSEIF Gdtfmt% = 1	REM DMY
+		gPRINT dy$;Gdtsep$;mo$;Gdtsep$;yr%
+	ELSE				REM YMD
+		gPRINT yr%;Gdtsep$;mo$;Gdtsep$;dy$
+	ENDIF
+	IF reptyp%<>1
+		gAT datwid%,gY
+		gPRINT CHR$(175)
+	ENDIF
+
+	gAT datwid%+gTWIDTH("M"),gY
+
+	IF yrsymb% >= 32
+		gXPRINT CHR$(yrsymb%),1
+	ENDIF
+
+	IF Genttyp% = 3
+		gAT gX+gTWIDTH("M"),gY
+		REM TBD "should be loaded only once"
+		agnfont% = gLOADFONT("ROM::AGN8SYM")
+		oldfont% = setfont%:(agnfont%)
+		gPRINT(CHR$(4)) REM candle
+		setfont%:(oldfont%)
+		gUNLOADFONT agnfont%
+	ENDIF
+	
+	gAT datwid%+gTWIDTH("MMM"),gY
+	gSTYLE style%
+	gPRINT daytxt$
+
+	REM Strikeout ignored entry
+	IF enttyp% = 0
+		gINFO info%()
+		y% = gY
+		gAT gX,gY-info%(3)/2
+		gLINETO 0,gY
+		gAT 0,y%
+	ENDIF
+
+	IF reptyp% <> 1
+		gNL:
+		gSTYLE 0
+		IF Gscreen% = 1
+			gAT datwid%+gTWIDTH("MMM"),gY
+		ELSE
+			gAT gTWIDTH("9"),gY
+		ENDIF
+		IF reptyp%=2
+			IF Gscreen% = 1
+				gPRINT "repeating yearly on ";MONTH$(repmon%);" ";repday%
+			ELSE
+				gPRINT "rpt yearly on ";MONTH$(repmon%);" ";repday%
+			ENDIF
+		ELSEIF reptyp%=3
+			dy% = repday%
+			IF dy% = 0
+				dy% = 7
+			ENDIF
+			IF repnbr% = 1
+				nbr$ = "1st"
+			ELSEIF repnbr% = 2
+				nbr$ = "2nd"
+			ELSEIF repnbr% = 3
+				nbr$ = "3rd"
+			ELSEIF repnbr% = 4
+				nbr$ = "4th"
+			ELSE
+				nbr$ = "last"
+			ENDIF
+			IF Gscreen% = 1
+				gPRINT "repeating yearly on ";nbr$;" ";DAYNAME$(dy%);" in ";MONTH$(repmon%);
+			ELSE
+				gPRINT "rpt yearly on ";nbr$;" ";DAYNAME$(dy%);" in ";MONTH$(repmon%);
+			ENDIF
+		ENDIF
+		IF repsho%=1
+			IF Gscreen% = 1
+				gPRINT ", all entries shown"
+			ELSE
+				gPRINT ", all shown"
+			ENDIF
+		ELSE
+			IF Gscreen% = 1
+				gPRINT ", next entry shown"
+			ELSE
+				gPRINT ", next shown"
+			ENDIF
+		ENDIF
+	ENDIF
+ENDP
+
+PROC gshowrow:(idx%)
+
+	gSTYLE 0
+
+	REM Make room for the cursor
+	gAT Gscchrw%,gY
+
+	REM print selection marker
+	IF Gselcta(idx%)
+		gPRINT "*"
+	ELSE
+		gPRINTB " ",gTWIDTH("*")
+	ENDIF
+	gAT Gscchrw%*3,gY
+	
+	IF Gyrsyma%(idx%) >= 32
+		gXPRINT CHR$(Gyrsyma%(idx%)),1
+	ENDIF
+
+	gAT 4.5*Gscchrw%,gY
+	
+	gSTYLE Gstylea%(idx%)
+	gPRINT PEEK$(Gdaytxa%(idx%))
+
+	gSTYLE 0
+ENDP
+
+PROC showhelp:(fname$)
+	LOCAL gate%,buf%(65)
+	LOCAL page&,base&
+	
+	page&=1 :base&=1
+	
+	REM Convert filename to "C" string:
+	POKE$ ADDR(buf%(1)),"#"+fname$
+	
+	gate%=PEEKW($38)
+	SEND(gate%,27,buf%(2)) :REM Set help filename
+	SEND(gate%,26,#page&,#base&) :REM Do help
+ENDP
+
+REM Move past all blank/tabs in Grow, reading a new line if necessary
+PROC skipspc%:(rulhand%)
+
+	LOCAL   stat%
+
+	stat% = 0
+	WHILE isblank:(Grow$)
+		IF LEN(Grow$) = 0               REM empty string
+			stat% = readrow%:(rulhand%)
+			IF stat% < 0
+				RETURN stat%
+			ENDIF
+		ELSE
+			Grow$ = RIGHT$(Grow$, LEN(Grow$)-1)
+		ENDIF
+	ENDWH
+
+	RETURN stat%
+ENDP
+
+PROC skipto%:(rulhand%, txt$, silent%)
+	LOCAL   stat%
+
+	IF NOT silent%
+		gIPRINT "Skipping to "+txt$
+	ENDIF
+	DO
+		stat% = gettok%:(rulhand%)
+	UNTIL Gtoken$=txt$ OR stat%<0
+	RETURN stat%
+ENDP
+
+PROC synterr%:(msg$)
+	ALERT("Syntax error at line "+GEN$(Growno%, 6), msg$, "OK")
+	RETURN -1
+ENDP
+
+PROC zoom:(step%):
+	LOCAL   topidx%
+
+	REM anything to zoom?
+	IF Gholidx%<>0
+		Gcurfnt% = Gcurfnt% + step%
+		IF Gcurfnt% < 9
+			Gcurfnt% = 12
+		ENDIF
+		IF Gcurfnt% > 12
+			Gcurfnt% = 9
+		ENDIF
+	
+		topidx% = Gholidx% - Gcurrow% + 1
+		setfont%:(Gcurfnt%)
+		IF Gcurrow% > Gscrows%
+			topidx% = topidx% + (Gcurrow% - Gscrows%)
+			Gcurrow% = Gscrows%
+		ENDIF
+		gCLS
+		scupdate:(1, topidx%, Gscrows%, "gshowrow")
+		sccursor:(1)
+	ENDIF
+	RETURN 0
+ENDP
+
+REM =======================================================================================
+REM  Special date routines
+REM =======================================================================================
+
+PROC mod&:(a&,b&)
+	LOCAL r&
+    r& = a&-INT(a&/b&)*b&
+	RETURN r&
+ENDP
+
+PROC mod%:(a%,b%)
+	LOCAL r%
+    r% = a%-INT(a%/b%)*b%
+    RETURN r%
+ENDP
+
+REM ===========================================================================
+REM
+REM  The functions in this section are derived from functions in calendar.el in emacs.
+REM  Calendar.el is Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994 Free Software
+REM  Foundation, Inc.
+REM  Author: Edward M. Reingold <reingold@cs.uiuc.edu>
+REM
+REM ===========================================================================
+
+REM
+REM (defun calendar-leap-year-p (year)
+REM   "Returns t if YEAR is a Gregorian leap year."
+REM   (or
+REM     (and (=  (% year   4) 0)
+REM          (/= (% year 100) 0))
+REM     (= (% year 400) 0)))
+REM 
+PROC isleap:(y&)
+    RETURN (mod&:(y&,INT(4))=0 AND mod&:(y&,INT(100))<>0) OR (mod&:(y&,INT(400))=0)
+ENDP
+
+
+REM ***************************************************************************
+REM (defun calendar-last-day-of-month (month year)
+REM   "The last day in MONTH during YEAR."
+REM   (if (and (= month 2) (calendar-leap-year-p year))
+REM      29
+REM    (aref [31 28 31 30 31 30 31 31 30 31 30 31] (1- month))))
+REM
+PROC ldom&:(m&, y&)
+    IF isleap:(y&) AND m&=2
+		RETURN 29
+    ELSEIF m&=2
+		RETURN 28
+    ELSEIF m&=1 OR m&=3 OR m&=5 OR m&=7 OR m&=8 OR m&=10 OR m&=12
+		RETURN 31
+    ELSE
+		RETURN 30
+    ENDIF
+ENDP
+
+
+REM ****************************************************************************
+REM (defun calendar-day-number (date)
+REM   "Return the day number within the year of the date DATE.
+REM For example, (calendar-day-number '(1 1 1987)) returns the value 1,
+REM while (calendar-day-number '(12 31 1980)) returns 366."
+REM     (let* ((month (extract-calendar-month date))
+REM            (day (extract-calendar-day date))
+REM            (year (extract-calendar-year date))
+REM          (day-of-year (+ day (* 31 (1- month)))))
+REM       (if (> month 2)
+REM           (progn
+REM             (setq day-of-year (- day-of-year (/ (+ 23 (* 4 month)) 10)))
+REM             (if (calendar-leap-year-p year)
+REM                 (setq day-of-year (1+ day-of-year)))))
+REM       day-of-year))
+REM 
+PROC dnum&:(d&, m&, y&)
+    LOCAL doy&  REM day-of-year
+	doy& = d& + 31 * (m& - 1)
+	IF m&>2
+		doy& = doy& - (23 + 4*m&) / 10
+		IF isleap:(y&)
+			doy& = doy& + 1
+		ENDIF
+	ENDIF
+	RETURN doy&
+ENDP
+
+
+REM ****************************************************************************
+REM (defun calendar-absolute-from-gregorian (date)
+REM   "The number of days elapsed between the Gregorian date 12/31/1 BC and DATE.
+REM The Gregorian date Sunday, December 31, 1 BC is imaginary."
+REM   (let ((prior-years (1- (extract-calendar-year date))))
+REM     (+ (calendar-day-number date);; Days this year
+REM        (* 365 prior-years);;        + Days in prior years
+REM        (/ prior-years 4);;          + Julian leap years
+REM        (- (/ prior-years 100));;    - century years
+REM        (/ prior-years 400))));;     + Gregorian leap years
+REM 
+PROC absgreg&:(d&, m&, y&)
+	LOCAL   prioryr&        REM prior-years
+	LOCAL   a&
+REM print "absgreg"
+	prioryr& = y& - 1
+	a& = dnum&:(d&, m&, y&)         REM days this year
+	a& = a& + 365*prioryr&          REM + days in prior years
+	a& = a& + prioryr& / 4          REM + Julian leap years
+	a& = a& - prioryr& / 100        REM - century years
+	a& = a& + prioryr& / 400        REM + Gregorian leap years
+	RETURN a&
+ENDP
+
+
+REM ****************************************************************************
+REM (defun calendar-gregorian-from-absolute (date)
+REM   "Compute the list (month day year) corresponding to the absolute DATE.
+REM The absolute date is the number of days elapsed since the (imaginary)
+REM Gregorian date Sunday, December 31, 1 BC."
+REM ;; See the footnote on page 384 of ``Calendrical Calculations, Part II:
+REM ;; Three Historical Calendars'' by E. M. Reingold,  N. Dershowitz, and S. M.
+REM ;; Clamen, Software--Practice and Experience, Volume 23, Number 4
+REM ;; (April, 1993), pages 383-404 for an explanation.
+REM   (let* ((d0 (1- date))
+REM          (n400 (/ d0 146097))
+REM          (d1 (% d0 146097))
+REM          (n100 (/ d1 36524))
+REM          (d2 (% d1 36524))
+REM          (n4 (/ d2 1461))
+REM          (d3 (% d2 1461))
+REM          (n1 (/ d3 365))
+REM          (day (1+ (% d3 365)))
+REM          (year (+ (* 400 n400) (* 100 n100) (* n4 4) n1)))
+REM     (if (or (= n100 4) (= n1 4))
+REM         (list 12 31 year)
+REM       (let ((year (1+ year))
+REM             (month 1))
+REM         (while (let ((mdays (calendar-last-day-of-month month year)))
+REM                  (and (< mdays day)
+REM                       (setq day (- day mdays))))
+REM           (setq month (1+ month)))
+REM         (list month day year)))))
+REM
+
+REM  daynum-from-absolute
+PROC dnumabs&:(date&)
+	LOCAL d0&,n400&,d1&,n100&,d2&,n4&,d3&,n1&,day&,year&
+	LOCAL month&, mdays&
+	LOCAL y%,m%,d%
+
+REM print "dnumabs:",date&
+	d0&     = date& - 1
+	n400&   = d0& / 146097
+	d1&             = mod&:(d0&, INT(146097))
+	n100&   = d1& / 36524
+	d2&             = mod&:(d1&, INT(36524))
+	n4&             = d2& / 1461
+	d3&             = mod&:(d2&, INT(1461))
+	n1&             = d3& / 365
+	day&    = 1 + mod&:(d3&, INT(365))
+	year&   = 400*n400& + 100*n100& + n4&*4 + n1&
+
+	IF n100&=4 OR n1&=4
+		day& = 31
+		month& = 12
+	ELSE
+		year& = year& + 1
+		month& = 1
+		WHILE 1
+			mdays& = ldom&:(month&, year&)  
+			IF mdays&<day&
+				day& = day& - mdays&
+				IF day&<>0
+					month& = month&+1
+					CONTINUE
+				ENDIF
+			ENDIF
+			BREAK
+		ENDWH
+	ENDIF
+
+	y% = year& : m% = month& : d% = day&
+REM print "y%=";y%
+REM print "m%=";m%
+REM print "d%=";d%
+	RETURN dt2dnm&:(y%, m%, d%)
+ENDP
+	
+REM ****************************************************************************
+REM (defun calendar-dayname-on-or-before (dayname date)
+REM   "Returns the absolute date of the DAYNAME on or before absolute DATE.
+REM DAYNAME=0 means Sunday, DAYNAME=1 means Monday, and so on.
+REM 
+REM Note: Applying this function to d+6 gives us the DAYNAME on or after an
+REM absolute day d.  Similarly, applying it to d+3 gives the DAYNAME nearest to
+REM absolute date d, applying it to d-1 gives the DAYNAME previous to absolute
+REM date d, and applying it to d+7 gives the DAYNAME following absolute date d."
+REM   (- date (% (- date dayname) 7)))
+REM 
+PROC doob&:(dayname&, date&)
+	LOCAL r&
+REM print "doob:",dayname&,date&
+	r& = date& - mod&:(date&-dayname&, INT(7))
+	RETURN r&
+ENDP
+
+
+REM ****************************************************************************
+REM (defun calendar-day-of-week (date)
+REM  "Returns the day-of-the-week index of DATE, 0 for Sunday, 1 for Monday, etc."
+REM  (% (calendar-absolute-from-gregorian date) 7))
+PROC dow%:(absdat&)
+	RETURN mod&:(absdat&, INT(7))
+ENDP
+
+
+REM ****************************************************************************
+REM (defun calendar-nth-named-absday (n dayname month year &optional day)
+REM   "The absolute date of Nth DAYNAME in MONTH, YEAR before/after optional DAY.
+REM A DAYNAME of 0 means Sunday, 1 means Monday, and so on.  If N<0,
+REM return the Nth DAYNAME before MONTH DAY, YEAR (inclusive).
+REM If N>0, return the Nth DAYNAME after MONTH DAY, YEAR (inclusive).
+REM 
+REM If DAY is omitted, it defaults to 1 if N>0, and MONTH's last day otherwise."
+REM   (if (> n 0)
+REM       (+ (* 7 (1- n))
+REM          (calendar-dayname-on-or-before
+REM                     dayname
+REM                     (+ 6 (calendar-absolute-from-gregorian
+REM                                     (list month (or day 1) year)))))
+REM     (+ (* 7 (1+ n))
+REM        (calendar-dayname-on-or-before
+REM             dayname
+REM             (calendar-absolute-from-gregorian
+REM             (list month
+REM            (or day (calendar-last-day-of-month month year))
+REM            year))))))
+REM 
+PROC nthabs&:(n&, dayname&, month&, year&, d&)
+	LOCAL day&
+
+	day& = d&
+	IF n&>0
+		IF day& = 0 
+			day& = 1
+		ENDIF
+		RETURN 7*(n&-1)+doob&:(dayname&, 6+absgreg&:(day&, month&, year&))
+	ELSE
+		IF day& = 0
+			day& = ldom&:(month&, year&)
+		ENDIF
+		RETURN 7*(n&+1)+doob&:(dayname&, absgreg&:(day&, month&, year&))
+	ENDIF
+ENDP
+
+
+REM ****************************************************************************
+REM (defun calendar-nth-named-day (n dayname month year &optional day)
+REM   "The date of Nth DAYNAME in MONTH, YEAR before/after optional DAY.
+REM A DAYNAME of 0 means Sunday, 1 means Monday, and so on.  If N<0,
+REM return the Nth DAYNAME before MONTH DAY, YEAR (inclusive).
+REM If N>0, return the Nth DAYNAME after MONTH DAY, YEAR (inclusive).
+REM 
+REM If DAY is omitted, it defaults to 1 if N>0, and MONTH's last day otherwise."
+REM   (calendar-gregorian-from-absolute
+REM    (calendar-nth-named-absday n dayname month year day)))
+REM 
+PROC nthdnum&:(n&, dayname&, month&, year&, d&)
+REM print "nthdnum(",n&, dayname&, month&, year&, d&,")"
+	RETURN dnumabs&:(nthabs&:(n&, dayname&, month&, year&, d&))
+ENDP
+
+REM ****************************************************************************
+REM (defun hebrew-calendar-leap-year-p (year)
+REM  "t if YEAR is a Hebrew calendar leap year."
+REM   (< (% (1+ (* 7 year)) 19) 7))
+
+PROC hclyp:(year&)
+	RETURN mod&:(INT((1 + (7*year&))), INT(19)) < 7
+ENDP
+
+
+REM ****************************************************************************
+REM (defun hebrew-calendar-elapsed-days (year)
+REM   "Days from Sun. prior to start of Hebrew calendar to mean conjunction of Tishri of Hebrew YEAR."
+REM   (let* ((months-elapsed
+REM           (+ (* 235 (/ (1- year) 19));; Months in complete cycles so far.
+REM              (* 12 (% (1- year) 19))      ;; Regular months in this cycle
+REM              (/ (1+ (* 7 (% (1- year) 19))) 19)));; Leap months this cycle
+REM          (parts-elapsed (+ 204 (* 793 (% months-elapsed 1080))))
+REM          (hours-elapsed (+ 5
+REM                            (* 12 months-elapsed)
+REM                            (* 793 (/ months-elapsed 1080))
+REM                            (/ parts-elapsed 1080)))
+REM          (parts                                  ;; Conjunction parts
+REM           (+ (* 1080 (% hours-elapsed 24)) (% parts-elapsed 1080)))
+REM          (day                                    ;; Conjunction day
+REM           (+ 1 (* 29 months-elapsed) (/ hours-elapsed 24)))
+REM          (alternative-day
+REM           (if (or (>= parts 19440)    ;; If the new moon is at or after midday,
+REM                   (and (= (% day 7) 2);; ...or is on a Tuesday...
+REM                        (>= parts 9924)  ;;    at 9 hours, 204 parts or later...
+REM                        (not (hebrew-calendar-leap-year-p year)));; of a
+REM                                                                 ;; common year,
+REM                   (and (= (% day 7) 1);; ...or is on a Monday...
+REM                        (>= parts 16789) ;;   at 15 hours, 589 parts or later...
+REM                        (hebrew-calendar-leap-year-p (1- year))));; at the end
+REM                                                      ;; of a leap year
+REM        ;; Then postpone Rosh HaShanah one day
+REM              (1+ day)
+REM        ;; Else
+REM             day)))
+REM    (if ;; If Rosh HaShanah would occur on Sunday, Wednesday, or Friday
+REM        (memq (% alternative-day 7) (list 0 3 5))
+REM   ;; Then postpone it one (more) day and return        
+REM         (1+ alternative-day)
+REM   ;; Else return        
+REM       alternative-day)))
+
+PROC hced&:(year&)
+	LOCAL   monthse&, partse&, hourse&, parts&, day&, altday&, d&
+
+	REM  Months in complete cycles so far.
+	monthse& = 235 * INT((year& - 1) / 19)
+	REM  Regular months in this cycle
+	monthse& = monthse& + 12 * mod&:((year& - 1), INT(19))
+	REM  Leap months this cycle
+	monthse& = monthse& + ((1 + (7 * mod&:((year& - 1), INT(19)))) / 19)
+
+	partse& = 204 + 793 * mod&:(monthse&, INT(1080))
+
+	hourse& = 5 + 12*monthse& + 793*INT(monthse& / 1080) + INT(partse& / 1080)
+
+	REM  Conjuction parts
+	parts& = 1080 * mod&:(hourse&, INT(24)) + mod&:(partse&, INT(1080))
+
+	REM  Conjuction day
+	day& = 1 + 29*monthse& + hourse&/24
+
+	IF parts& >= 19440                      REM  If the new moon is at or after midday,
+		altday& = day& + 1              REM  Then postpone Rosh HaShanah one day
+	ELSEIF mod&:(day&, INT(7))=2 AND parts&>=9924 AND NOT hclyp:(year&)  REM phew
+		altday& = day& + 1              REM  Then postpone Rosh HaShanah one day        
+	ELSEIF mod&:(day&, INT(7))=1 AND parts&>=16789 AND hclyp:(year& - 1)  REM phew
+		altday& = day& + 1              REM  Then postpone Rosh HaShanah one day
+	ELSE
+		altday& = day&
+	ENDIF
+
+	REM  If Rosh HaShanah would occur on Sunday, Wednesday, or Friday
+	d& = mod&:(altday&, INT(7))
+	IF d&=0 OR d&=3 OR d&=5
+		REM  Then postpone it one (more) day and return 
+		RETURN altday& + 1
+	ENDIF
+	RETURN altday&
+		
+ENDP
+
+REM ****************************************************************************
+REM (defun hebrew-calendar-days-in-year (year)
+REM   "Number of days in Hebrew YEAR."
+REM   (- (hebrew-calendar-elapsed-days (1+ year))
+REM      (hebrew-calendar-elapsed-days year)))
+PROC hcdiy&:(year&)
+	RETURN hced&:(year&+1) - hced&:(year&)
+ENDP
+
+REM ****************************************************************************
+REM (defun hebrew-calendar-short-kislev-p (year)
+REM   "t if Kislev is short in Hebrew YEAR."
+REM   (= (% (hebrew-calendar-days-in-year year) 10) 3))
+PROC hcskp:(year&)
+	RETURN mod&:(hcdiy&:(year&), INT(10)) = 3
+ENDP
+
+REM ***************************************************************************
+REM (defun hebrew-calendar-long-heshvan-p (year)
+REM   "t if Heshvan is long in Hebrew YEAR."
+REM   (= (% (hebrew-calendar-days-in-year year) 10) 5))
+PROC hclhp:(year&)
+	RETURN mod&:(hcdiy&:(year&), INT(10)) = 5
+ENDP
+
+REM ***************************************************************************
+REM (defun hebrew-calendar-last-day-of-month (month year)
+REM   "The last day of MONTH in YEAR."
+REM   (if (or (memq month (list 2 4 6 10 13))
+REM           (and (= month 12) (not (hebrew-calendar-leap-year-p year)))
+REM           (and (= month 8) (not (hebrew-calendar-long-heshvan-p year)))
+REM           (and (= month 9) (hebrew-calendar-short-kislev-p year)))
+REM       29
+REM     30))
+PROC hcldom&:(month&, year&)
+	IF month&=2 OR month&=4 OR month&=6 OR month&=10 OR month&=13
+		RETURN 29
+	ELSEIF month&=12 AND NOT hclyp:(year&)
+		RETURN 29
+	ELSEIF month&=8 AND NOT hclhp:(year&)
+		RETURN 29
+	ELSEIF month&=9 AND hcskp:(year&)
+		RETURN 29
+	ELSE
+		RETURN 30
+	ENDIF
+ENDP
+
+REM ***************************************************************************
+REM (defun hebrew-calendar-last-month-of-year (year)
+REM   "The last month of the Hebrew calendar YEAR."
+REM   (if (hebrew-calendar-leap-year-p year)
+REM       13
+REM     12))
+PROC hclmoy&:(year&)
+	IF hclyp:(year&)
+		RETURN 13
+	ENDIF
+	RETURN 12
+ENDP
+
+REM ***************************************************************************
+REM (defmacro calendar-sum (index initial condition expression)
+REM  "For INDEX = INITIAL et seq, as long as CONDITION holds, sum EXPRESSION."
+REM  (` (let (( (, index) (, initial))
+REM             (sum 0))
+REM       (while (, condition)
+REM         (setq sum (+ sum (, expression) ))
+REM         (setq (, index) (1+ (, index))))
+REM       sum)))
+REM 
+REM index = initial
+REM sum = 0
+REM WHILE condition
+REM     sum = sum + expression
+REM     index = index + 1
+REM ENDW
+REM RETURN sum
+
+
+
+REM ****************************************************************************
+REM (defun calendar-absolute-from-hebrew (date)
+REM   "Absolute date of Hebrew DATE.
+REM The absolute date is the number of days elapsed since the (imaginary)
+REM Gregorian date Sunday, December 31, 1 BC."
+REM   (let* ((month (extract-calendar-month date))
+REM          (day (extract-calendar-day date))
+REM          (year (extract-calendar-year date)))
+REM     (+ day                            ;; Days so far this month.
+REM        (if (< month 7);; before Tishri
+REM      ;; Then add days in prior months this year before and after Nisan
+REM            (+ (calendar-sum
+REM                m 7 (<= m (hebrew-calendar-last-month-of-year year))
+REM                (hebrew-calendar-last-day-of-month m year))
+REM               (calendar-sum
+REM                m 1 (< m month)
+REM                (hebrew-calendar-last-day-of-month m year)))
+REM      ;; Else add days in prior months this year
+REM          (calendar-sum
+REM           m 7 (< m month)
+REM           (hebrew-calendar-last-day-of-month m year)))
+REM     (hebrew-calendar-elapsed-days year);; Days in prior years.
+REM     -1373429)))                        ;; Days elapsed before absolute date 1.
+REM
+PROC absheb&:(day&, month&, year&)
+	LOCAL   a&, sum&, m&
+
+	a& = day&               REM  Days so far this month.
+	IF month&<7             REM  before Tishri
+					REM  Then add days in prior months this year before and after Nisan
+		m& = 7
+		sum& = 0
+		WHILE m&<=hclmoy&:(year&)
+			sum& = sum& + hcldom&:(m&, year&)
+			m& = m& + 1
+		ENDWH
+		a& = a& + sum&
+
+		m& = 1
+		sum& = 0
+		WHILE m&<month&
+			sum& = sum& + hcldom&:(m&, year&)
+			m& = m& + 1
+		ENDWH
+		a& = a& + sum&
+	ELSE                    REM  Else add days in prior months this year
+		m& = 7
+		sum& = 0
+		WHILE m&<month&
+			sum& = sum& + hcldom&:(m&, year&)
+			m& = m& + 1
+		ENDWH
+		a& = a& + sum&
+	ENDIF
+
+	a& = a& + hced&:(year&) REM  Days in prior years.
+	a& = a& - 1373429               REM  Days elapsed before absolute date 1.
+	RETURN a&
+ENDP
+
+
+REM ***************************************************************************
+REM (defun calendar-hebrew-from-absolute (date)
+REM   "Compute the Hebrew date (month day year) corresponding to absolute DATE.
+REM The absolute date is the number of days elapsed since the (imaginary)
+REM Gregorian date Sunday, December 31, 1 BC."
+REM   (let* ((greg-date (calendar-gregorian-from-absolute date))
+REM          (month (aref [9 10 11 12 1 2 3 4 7 7 7 8]
+REM                  (1- (extract-calendar-month greg-date))))
+REM          (day)
+REM          (year (+ 3760 (extract-calendar-year greg-date))))
+REM     (while (>= date (calendar-absolute-from-hebrew (list 7 1 (1+ year))))
+REM         (setq year (1+ year)))
+REM     (let ((length (hebrew-calendar-last-month-of-year year)))
+REM       (while (> date
+REM                 (calendar-absolute-from-hebrew
+REM                  (list month
+REM                        (hebrew-calendar-last-day-of-month month year)
+REM                        year)))
+REM         (setq month (1+ (% month length)))))
+REM     (setq day (1+
+REM                (- date (calendar-absolute-from-hebrew (list month 1 year)))))
+REM     (list month day year)))
+PROC hebabs$:(date&)
+	LOCAL   month&, day&, year&, length&
+	LOCAL   yr%, mo%, dy%, hr%, mn%, sc%, yrday%
+	LOCAL   mo$(2), dy$(2), heb$(8)
+
+	REM Get month and year from the absolute date
+	SECSTODATE dnumabs&:(date&)*24*60*60, yr%, mo%, dy%, hr%, mn%, sc%, yrday%
+	IF mo% = 1
+		month& = 9
+	ELSEIF mo% = 2
+		month& = 10
+	ELSEIF mo% = 3
+		month& = 11
+	ELSEIF mo% = 4
+		month& = 12
+	ELSEIF mo% = 5
+		month& = 1
+	ELSEIF mo% = 6
+		month& = 2
+	ELSEIF mo% = 7
+		month& = 3
+	ELSEIF mo% = 8
+		month& = 4
+	ELSEIF mo% = 9 OR mo% = 10 OR mo% = 11
+		month& = 7
+	ELSE
+		month& = 8
+	ENDIF
+
+	year& = yr% + 3760
+	while date& >= absheb&:(INT(1), INT(7), INT(year&+1))
+		year& = year& + 1
+	ENDWH
+	length& = hclmoy&:(year&)
+	WHILE date& > absheb&:(hcldom&:(month&, year&), month&, year&)
+		month& = mod&:(month&, length&) + 1
+	ENDWH
+	day& = 1 + date& - absheb&:(INT(1), month&, year&)
+    heb$ = NUM$(year&, 4) + RIGHT$("00"+NUM$(month&, 2), 2)
+    heb$ = heb$ + RIGHT$("00"+NUM$(day&, 2), 2)
+
+	RETURN heb$
+ENDP
+REM ***************************************************************************
+REM (defun islamic-calendar-day-number (date)
+REM   "Return the day number within the year of the Islamic date DATE."
+REM     (let* ((month (extract-calendar-month date))
+REM            (day (extract-calendar-day date)))
+REM       (+ (* 30 (/ month 2))
+REM          (* 29 (/ (1- month) 2))
+REM          day)))
+
+PROC icdn&:(day&, month&)
+	RETURN 30*INT(month&/2) + 29*INT((month&-1)/2) + day&
+ENDP
+
+REM ***************************************************************************
+REM (defun calendar-absolute-from-islamic (date)
+REM   "Absolute date of Islamic DATE.
+REM The absolute date is the number of days elapsed since the (imaginary)
+REM Gregorian date Sunday, December 31, 1 BC."
+REM   (let* ((month (extract-calendar-month date))
+REM          (day (extract-calendar-day date))
+REM          (year (extract-calendar-year date))
+REM          (y (% year 30))
+REM          (leap-years-in-cycle
+REM           (cond
+REM            ((< y 3) 0)  ((< y 6) 1)  ((< y 8) 2)  ((< y 11) 3) ((< y 14) 4)
+REM            ((< y 17) 5) ((< y 19) 6) ((< y 22) 7) ((< y 25) 8) ((< y 27) 9)
+REM            (t 10))))
+REM     (+ (islamic-calendar-day-number date);; days so far this year
+REM        (* (1- year) 354)                 ;; days in all non-leap years
+REM        (* 11 (/ year 30))                ;; leap days in complete cycles
+REM        leap-years-in-cycle               ;; leap days this cycle
+REM        227014)))                         ;; days before start of calendar
+PROC absisl&:(day&, month&, year&)
+	LOCAL   y&
+	LOCAL   lyic&   REM leap-years-in-cycle
+	LOCAL   a&
+
+	y& = mod&:(year&, INT(30))
+	IF y& < 3
+		lyic& = 0
+	ELSEIF y& < 6
+		lyic& = 1
+	ELSEIF y& < 8
+		lyic& = 2
+	ELSEIF y& < 11
+		lyic& = 3
+	ELSEIF y& < 14
+		lyic& = 4
+	ELSEIF y& < 17
+		lyic& = 5
+	ELSEIF y& < 19
+		lyic& = 6
+	ELSEIF y& < 22
+		lyic& = 7
+	ELSEIF y& < 25
+		lyic& = 8
+	ELSEIF y& < 27
+		lyic& = 9
+	ELSE
+		lyic& = 10
+	ENDIF
+
+	a& = icdn&:(day&, month&)
+	a& = a& + (year& - 1) * 354
+	a& = a& + INT(year& / 30) * 11
+	a& = a& + lyic& + 227014
+	RETURN a&
+ENDP
+
+
+REM ***************************************************************************
+REM (defun islamic-calendar-leap-year-p (year)
+REM   "Returns t if YEAR is a leap year on the Islamic calendar."
+REM   (memq (% year 30)
+REM         (list 2 5 7 10 13 16 18 21 24 26 29)))
+PROC iclyp:(year&)
+    LOCAL x&
+    x& = mod&:(year&, INT(30))
+    RETURN x&=2 OR x&=5 OR x&=7 OR x&=10 OR x&=13 OR x&=16 OR x&=18 OR x&=21 OR x&=24 OR x&=26 OR x&=29
+   
+ENDP
+
+REM ***************************************************************************
+REM (defun islamic-calendar-last-day-of-month (month year)
+REM   "The last day in MONTH during YEAR on the Islamic calendar."
+REM   (cond
+REM    ((memq month (list 1 3 5 7 9 11)) 30)
+REM    ((memq month (list 2 4 6 8 10)) 29)
+REM    (t (if (islamic-calendar-leap-year-p year) 30 29))))
+PROC icldom&:(month&, year&)
+    IF month&=1 OR month&=3 OR month&=5 OR month&=7 OR month&=9 OR month&=11
+	RETURN 30
+    ENDIF
+    IF month&=2 OR month&=4 OR month&=6 OR month&=8 OR month&=10
+	RETURN 29
+    ENDIF
+    IF iclyp:(year&)
+	RETURN 30
+    ELSE
+	RETURN 29
+    ENDIF
+ENDP
+
+REM ***************************************************************************
+REM 
+REM (defun calendar-islamic-from-absolute (date)
+REM   "Compute the Islamic date (month day year) corresponding to absolute DATE.
+REM The absolute date is the number of days elapsed since the (imaginary)
+REM Gregorian date Sunday, December 31, 1 BC."
+REM   (if (< date 227015)
+REM       (list 0 0 0);; pre-Islamic date
+REM     (let* ((approx (/ (- date 227014) 355));; Approximation from below.
+REM            (year           ;; Search forward from the approximation.
+REM             (+ approx
+REM                (calendar-sum y approx
+REM                              (>= date (calendar-absolute-from-islamic
+REM                                        (list 1 1 (1+ y))))
+REM                              1)))
+REM            (month          ;; Search forward from Muharram.
+REM             (1+ (calendar-sum m 1
+REM                               (> date
+REM                                  (calendar-absolute-from-islamic
+REM                                   (list m
+REM                                         (islamic-calendar-last-day-of-month
+REM                                          m year)
+REM                                         year)))
+REM                               1)))
+REM            (day            ;; Calculate the day by subtraction.
+REM             (- date
+REM                (1- (calendar-absolute-from-islamic (list month 1 year))))))
+REM       (list month day year))))
+PROC islabs$:(date&)
+    LOCAL   approx&, year&, month&, day&, sum&, y&, m&
+    LOCAL   isl$(8)     REM yyyymmdd
+
+    approx& = (date& - 227014) / 355
+
+    y& = approx&
+    sum& = 0
+    WHILE date& >= absisl&:(INT(1), INT(1), INT(y& + 1))
+	sum& = sum& + 1
+	y& = y& + 1
+    ENDWH
+    year& = approx& + sum&
+
+    m& = 1
+    sum& = 0
+    WHILE date& > absisl&:(icldom&:(m&, year&), m&, year&)
+	sum& = sum& + 1
+	m& = m& + 1
+    ENDWH
+    month& = 1 + sum&
+
+    day& = date& - (absisl&:(INT(1), month&, year&) - 1)
+
+    isl$ = NUM$(year&, 4) + RIGHT$("00"+NUM$(month&, 2), 2)
+    isl$ = isl$ + RIGHT$("00"+NUM$(day&, 2), 2)
+
+    RETURN isl$
+ENDP
+
+REM ===========================================================================
+REM
+REM End of functions derived from calendar.el
+REM
+REM ===========================================================================
+
+REM ===========================================================================
+REM
+REM  The functions in this section are derived from functions in holidays.el in emacs.
+REM  Holidays.el is Copyright (C) 1989, 1990, 1992, 1993, 1994 Free Software Foundation, Inc.
+REM  Author: Edward M. Reingold <reingold@cs.uiuc.edu>
+REM
+REM ===========================================================================
+
+REM   (let* ((century (1+ (/ displayed-year 100)))
+REM          (shifted-epact        ;; Age of moon for April 5...
+REM           (% (+ 14 (* 11 (% displayed-year 19));;     ...by Nicaean rule
+REM                 (-           ;; ...corrected for the Gregorian century rule
+REM                  (/ (* 3 century) 4))
+REM                 (/    ;; ...corrected for Metonic cycle inaccuracy.
+REM                  (+ 5 (* 8 century)) 25)
+REM                 (* 30 century));;              Keeps value positive.
+REM              30))
+REM          (adjusted-epact       ;;  Adjust for 29.5 day month.
+REM           (if (or (= shifted-epact 0)
+REM                   (and (= shifted-epact 1) (< 10 (% displayed-year 19))))
+REM               (1+ shifted-epact)
+REM             shifted-epact))
+REM          (paschal-moon       ;; Day after the full moon on or after March 21.
+REM           (- (calendar-absolute-from-gregorian (list 4 19 displayed-year))
+REM              adjusted-epact))
+REM          (abs-easter (calendar-dayname-on-or-before 0 (+ paschal-moon 7)))
+REM          (mandatory
+REM           (list
+REM            (list (calendar-gregorian-from-absolute abs-easter)
+REM                  "Easter Sunday")
+
+REM  Calculate the absolute date for easter sunday
+PROC easter&:(year&)
+	LOCAL   century&
+	LOCAL   shepact&        REM shifted-epact; age of moon for April 5
+	LOCAL   adepact&        REM adjusted-epact; adjustfor 29.5 day month
+	LOCAL   pasmoon&        REM pascal-moon; day of full moon on or after March 21
+	LOCAL   abseast&
+
+	century& = year& / 100 + 1
+
+	REM  Age of moon for April 5...
+	REM  ...by Nicaean rule
+	shepact& = 14 + (11 * mod&:(year&, INT(19)))
+	REM  ...corrected for the Gregorian century rule
+	shepact& = shepact& - 3*century&/4
+	REM  ...corrected for Metonic cycle inaccuracy.
+	shepact& = shepact& + (5 + 8*century&)/25
+	REM  Keeps value positive.
+	shepact& = shepact& + 30*century&
+	shepact& = mod&:(shepact&, INT(30))
+
+	REM  Adjust for 29.5 day month.
+	IF (shepact&=0) OR ((shepact&=1) AND (mod&:(year&,INT(19)) < 10))
+		adepact& = shepact& + 1
+	ELSE
+		adepact& = shepact&
+	ENDIF
+
+	REM  Day after the full moon on or after March 21.
+	pasmoon& = absgreg&:(INT(19), INT(4), year&) - adepact&
+
+	abseast& = doob&:(INT(0), INT(pasmoon&+7))
+
+	RETURN abseast&
+
+ENDP
+
+REM =======================================================================================
+REM
+REM End of functions derived from holidays.el
+REM
+REM =======================================================================================
+

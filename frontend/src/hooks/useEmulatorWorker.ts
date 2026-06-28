@@ -15,11 +15,11 @@
 // Deferred: save-state export/import bundles only.
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import type { DeviceInfo, DeviceProfile } from '../types/emulator';
-import { browserKeyToEpocChord, charToEpocChord } from '../lib/keymap';
+import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice } from '../lib/keymap';
 import { EmulatorWorkerClient, type WorkerStatus } from '../lib/emulatorWorkerClient';
 import { createAudioEngine, type AudioEngine } from '../lib/audioEngine';
 import { createWorkerAudioShim, type WorkerAudioShim } from '../lib/workerAudioShim';
-import { setSerialPumpForward } from '../lib/wasmBridge';
+import { setSerialPumpForward, setSimKeepAliveForward } from '../lib/wasmBridge';
 import { quiesceActiveSessions } from '../lib/plp/client-spec';
 import { osCardSpec, buildOsCardImage, collectStatesBundle, applyStatesBundle, listSavedDevices, triggerDownload } from './useEmulator';
 import type { EmulatorControls, EmulatorState, UseEmulatorOptions } from './useEmulator';
@@ -94,6 +94,10 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const lastLoadRef = useRef<{ deviceId: string; romUrl: string } | null>(null);
   const epocShiftRef = useRef(false);
   const keydownHandledRef = useRef(false);
+  // Mirror of currentDeviceId for the input callbacks (which are memoised with
+  // an empty dep list, so they can't read the state value without going
+  // stale).  Kept in sync wherever setCurrentDeviceId runs.
+  const deviceIdRef = useRef<string | null>(null);
   const lastDeviceModeSent = useRef<boolean | null>(null);
 
   // deviceModeRef is written directly by EmulatorView each render; intercept the
@@ -117,6 +121,10 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     // (the main-thread flag is never consulted there). Without this the
     // transfer-mode pump is silently lost in worker mode.
     setSerialPumpForward(on => clientRef.current?.setSerialPump(on));
+    // Worker-mode sim-time keepalive: forward PlpClient's keepalive frame to
+    // the worker, which replays it once per sim-frame so the device's
+    // RemoteLinkServer stays rescheduled regardless of sim speed.
+    setSimKeepAliveForward(bytes => clientRef.current?.setSimKeepAlive(bytes));
     client.onStatus = (s) => {
       statusRef.current = s;
       setPaused(s.paused);
@@ -160,7 +168,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
       }
     }).catch(err => { setError(String(err)); setState('error'); });
     return () => {
-      cancelled = true; setSerialPumpForward(null);
+      cancelled = true; setSerialPumpForward(null); setSimKeepAliveForward(null);
       clientRef.current = null;
       // Save the running device before tearing the worker down. Navigating
       // to a non-emulator route (the app library, usage page) unmounts this
@@ -215,6 +223,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
       serialAttachedRef.current = { ...(serialState ?? {}) };
       setDeviceInfo(info);
       setCurrentDeviceId(deviceId);
+      deviceIdRef.current = deviceId;
       // The worker re-attaches persisted SSD packs / Datapaks during load;
       // mirror its per-slot state so the dialogs (and the app-library
       // free-slot picker) see them.
@@ -242,7 +251,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     keydownHandledRef.current = false;
     const fromMobile = Boolean((e.target as HTMLElement)?.dataset?.psionInput);
     if (fromMobile && e.key.length === 1) return;
-    const chord = browserKeyToEpocChord(e);
+    const chord = browserKeyToEpocChord(e, keyboardLayoutForDevice(deviceIdRef.current));
     if (chord === null) return;
     e.preventDefault();
     keydownHandledRef.current = true;
@@ -253,7 +262,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   }, []);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    const chord = browserKeyToEpocChord(e);
+    const chord = browserKeyToEpocChord(e, keyboardLayoutForDevice(deviceIdRef.current));
     if (chord === null) return;
     e.preventDefault();
     if (chord.key === 18 || chord.key === 19) epocShiftRef.current = false;
@@ -262,8 +271,9 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   }, []);
 
   const injectText = (text: string) => {
+    const layout = keyboardLayoutForDevice(deviceIdRef.current);
     const evs: Ev[] = [];
-    for (const ch of text) { const c = charToEpocChord(ch); if (c) evs.push(...expandChord(c.modifiers, c.key)); }
+    for (const ch of text) { const c = charToEpocChord(ch, layout); if (c) evs.push(...expandChord(c.modifiers, c.key)); }
     if (evs.length) clientRef.current?.enqueue(evs);
   };
 
@@ -355,8 +365,8 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   // main thread (download + image build need no `mod`) and attach it via the
   // existing CF RPC — the worker's attachCFImage runs the same bootloader→OS
   // handoff (netBookLoadOsFromCard) the main-thread path does.
-  const attachOsCard = useCallback(async (): Promise<boolean> => {
-    const spec = osCardSpec(currentDeviceId);
+  const attachOsCard = useCallback(async (variant?: string): Promise<boolean> => {
+    const spec = osCardSpec(currentDeviceId, variant);
     if (!spec || !clientRef.current) return false;
     setOsDownloading(true);
     try {

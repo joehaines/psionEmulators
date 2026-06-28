@@ -53,4 +53,11 @@ struct DeviceProfile {
     // Which protocol the device speaks over IR: 0 = none, 1 = IrDA +
     // Eikon-IR beam (EPOC32), 2 = PLP-over-IR remote link (SIBO).
     uint8_t irProtocol = 0;
+    // Hide this profile from the frontend device picker. Used for
+    // alternate-ROM variants of a device that already appears under its
+    // main id (e.g. the older MC400 v1.26F ROM): the runtime can still
+    // create and name it — and the frontend reaches it via a discreet
+    // header link — but it doesn't clutter the device list with a near-
+    // duplicate entry.
+    bool hiddenFromPicker = false;
 };

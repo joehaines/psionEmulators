@@ -9,7 +9,7 @@ import {
   serialReadBytes as serialReadBytesWasm,
   serialWriteBytes as serialWriteBytesWasm,
 } from '../lib/wasmBridge';
-import { browserKeyToEpocChord, charToEpocChord } from '../lib/keymap';
+import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice } from '../lib/keymap';
 import { isFat16, createBlankImage, addFile, FAT_ATTR_HIDDEN, FAT_ATTR_SYSTEM } from '../lib/fat16';
 import { createAudioEngine, primeAudioContext, primeMobileAudioSession, type AudioEngine } from '../lib/audioEngine';
 import { trackDeviceLoad, trackFeature, startSession, endSession } from '../lib/analytics';
@@ -68,6 +68,25 @@ function ssdTypeCode(bytes: Uint8Array, kind: 'ram' | 'flash' | undefined): numb
   const k = kind ??
     (bytes.length >= 2 && bytes[0] === 0xA5 && bytes[1] === 0xF1 ? 'flash' : 'ram');
   return k === 'flash' ? 3 : 1;
+}
+// Factory default SSDs: devices that physically shipped with a pack inserted.
+// The MC400 came with its ROM:: System Disk in Pack D (slot 3) — the window
+// server, shell, OPL and fonts that populate the lower app bar. Returns the
+// bundled image URL + pack kind, or null when the slot has no factory default.
+function defaultSsdFor(deviceId: string, slot: number): { url: string; kind: 'flash' } | null {
+  if (deviceId === 'mc400' && slot === 3) {
+    return { url: `${import.meta.env.BASE_URL}roms/MC400_V2.60F_system.ssd`, kind: 'flash' };
+  }
+  return null;
+}
+async function fetchDefaultSsd(url: string): Promise<Uint8Array | null> {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    return new Uint8Array(await resp.arrayBuffer());
+  } catch {
+    return null;
+  }
 }
 const idbDatapakKey = (id: string, slot: number) => `datapak-${id}-${slot}`;
 const IDB_NAME  = 'psion-emu';
@@ -422,8 +441,22 @@ interface OsCardSpec {
 
 // Map a bootloader-flash device to its OS-card spec, or null for devices that
 // don't boot their OS off a CF card.
-export function osCardSpec(deviceId: string | null): OsCardSpec | null {
+// `variant` selects an alternate OS payload for the same device. The default
+// (undefined) is the device's normal OS image; '5mxpro' also offers the
+// 'eshell' variant, which boots the experimental ESHELL ROM
+// (roms/ESHELL/SYS$ROM.BIN) instead of the stock 5mx Pro OS. The synthesised
+// card is otherwise identical — same size, same on-card file name — so the
+// bootloader loads it exactly as it would the stock image.
+export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpec | null {
   if (deviceId === '5mxpro') {
+    if (variant === 'eshell') {
+      return {
+        url: `${import.meta.env.BASE_URL}roms/ESHELL/SYS$ROM.BIN`,
+        imageSize: 16 * 1024 * 1024,
+        fileName: 'SYS$ROM.BIN',
+        osVisible: true,
+      };
+    }
     return {
       url: `${import.meta.env.BASE_URL}roms/5mxPRO_v1.05(319)_patch_eng.bin`,
       imageSize: 16 * 1024 * 1024,
@@ -554,7 +587,10 @@ export interface EmulatorControls {
   // OS.IMG for netBook) and attaches it. The card stays attached
   // through boot, matching real hardware. Returns true when the attach
   // succeeded.
-  attachOsCard(): Promise<boolean>;
+  //
+  // `variant` selects an alternate OS payload (see osCardSpec). Omit it for the
+  // device's stock OS; pass 'eshell' on the 5mx Pro to boot the ESHELL ROM.
+  attachOsCard(variant?: string): Promise<boolean>;
   // Returns the current in-device image bytes (including any on-device writes).
   // Null if no card is attached. Sync on the main thread; a Promise in worker
   // mode (the image lives in the worker) — callers must Promise.resolve() it.
@@ -1195,11 +1231,19 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // download or piggyback on one still in flight. Non-bootloader devices
   // resolve to null. The promise is removed from the cache on failure so the
   // next call retries rather than caching the error forever.
-  function prefetchOsPayload(deviceId: string): Promise<Uint8Array | null> {
-    const spec = osCardSpec(deviceId);
+  // Cache key for an OS payload: the device id, suffixed with the variant when
+  // one is given. Keeps the stock and 'eshell' 5mx Pro downloads (and their
+  // "ready" flags) separate so attaching one never short-circuits the other.
+  function osCacheKey(deviceId: string, variant?: string): string {
+    return variant ? `${deviceId}:${variant}` : deviceId;
+  }
+
+  function prefetchOsPayload(deviceId: string, variant?: string): Promise<Uint8Array | null> {
+    const spec = osCardSpec(deviceId, variant);
     if (!spec) return Promise.resolve(null);
+    const key = osCacheKey(deviceId, variant);
     const cache = osPayloadRef.current;
-    const existing = cache.get(deviceId);
+    const existing = cache.get(key);
     if (existing) return existing;
 
     // Fresh download for this device — reset the shared progress position.
@@ -1254,25 +1298,25 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       .catch(() => null)
       .then(bytes => {
         if (bytes) {
-          osReadyRef.current.add(deviceId);
+          osReadyRef.current.add(key);
         } else {
           // Don't cache a failure — let the next call retry from scratch.
-          cache.delete(deviceId);
+          cache.delete(key);
         }
         return bytes;
       });
 
-    cache.set(deviceId, p);
+    cache.set(key, p);
     return p;
   }
 
   // Build the bootloader OS card for a device, awaiting the prefetched payload
   // (or the in-flight fetch) so the heavy download is never on the click path
   // when the prefetch has already completed.
-  async function buildOsCard(deviceId: string): Promise<Uint8Array | null> {
-    const spec = osCardSpec(deviceId);
+  async function buildOsCard(deviceId: string, variant?: string): Promise<Uint8Array | null> {
+    const spec = osCardSpec(deviceId, variant);
     if (!spec) return null;
-    const payload = await prefetchOsPayload(deviceId);
+    const payload = await prefetchOsPayload(deviceId, variant);
     if (!payload) return null;
     return buildOsCardImage(spec, payload);
   }
@@ -1570,9 +1614,21 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       // a permanently-failing slot.
       const ssdState: boolean[] = [false, false, false, false];
       for (let slot = 0; slot < 4; slot++) {
-        const saved = await idbGet<Uint8Array>(idbSsdKey(deviceId, slot));
-        const savedKind = (await idbGet<'ram' | 'flash'>(idbSsdTypeKey(deviceId, slot))) ?? undefined;
+        let saved = await idbGet<Uint8Array>(idbSsdKey(deviceId, slot));
+        let savedKind = (await idbGet<'ram' | 'flash'>(idbSsdTypeKey(deviceId, slot))) ?? undefined;
         if (superseded()) return;
+        // Devices that shipped with a System Disk SSD inserted (the MC400's
+        // ROM:: disk in Pack D) get it pre-loaded on cold boot when the slot
+        // is otherwise empty. A user-inserted pack persists to IndexedDB and
+        // takes precedence; ejecting clears the slot as usual.
+        if (!saved || saved.byteLength === 0) {
+          const def = defaultSsdFor(deviceId, slot);
+          if (def) {
+            saved = (await fetchDefaultSsd(def.url)) ?? null;
+            savedKind = def.kind;
+            if (superseded()) return;
+          }
+        }
         if (!saved || saved.byteLength === 0) continue;
         const ptr = mod.prepareSSDImageUpload(saved.byteLength);
         mod.HEAPU8.set(saved, ptr);
@@ -1656,8 +1712,9 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // Enqueues the key sequence for each character.  The render loop drains the
   // queue at frame boundaries — see the keyQueueRef comment for why.
   function injectText(text: string) {
+    const layout = keyboardLayoutForDevice(currentDeviceIdRef.current);
     for (const char of text) {
-      const chord = charToEpocChord(char);
+      const chord = charToEpocChord(char, layout);
       if (!chord) continue;
       enqueueChord(chord.modifiers, chord.key);
     }
@@ -1808,7 +1865,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     const fromMobileTextarea = Boolean((e.target as HTMLElement)?.dataset?.psionInput);
     if (fromMobileTextarea && e.key.length === 1) return;
 
-    const chord = browserKeyToEpocChord(e);
+    const chord = browserKeyToEpocChord(e, keyboardLayoutForDevice(currentDeviceIdRef.current));
 
     // Key not in any mapping — don't preventDefault so the browser input event
     // fires on the hidden textarea (critical for mobile keyboards that emit
@@ -1844,7 +1901,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    const chord = browserKeyToEpocChord(e);
+    const chord = browserKeyToEpocChord(e, keyboardLayoutForDevice(currentDeviceIdRef.current));
     if (chord === null) return;
     e.preventDefault();
     if (chord.key === 18 || chord.key === 19) epocShiftRef.current = false;
@@ -2115,18 +2172,19 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // and draining its FAT one sector every 2 s — that's resolved by the
   // bootloader-OS DRAM rescan in core/windermere.cpp, which re-enables
   // the CF accel hook on the OS image now living in RAM.
-  const attachOsCard = useCallback(async (): Promise<boolean> => {
+  const attachOsCard = useCallback(async (variant?: string): Promise<boolean> => {
     const mod = moduleRef.current;
     if (!mod) return false;
     const deviceId = currentDeviceIdRef.current;
     if (!deviceId) return false;
+    const cacheKey = variant ? `${deviceId}:${variant}` : deviceId;
 
     // If the OS image hasn't finished downloading yet (slow connection, or a
     // click that beats the background prefetch), surface progress feedback so
     // the button doesn't look inert: it flips to "Downloading…" and a bar
     // appears below the toolbar. When the payload is already cached this whole
     // block is skipped and the attach is instant.
-    const needsDownload = !osReadyRef.current.has(deviceId);
+    const needsDownload = !osReadyRef.current.has(cacheKey);
     if (needsDownload) {
       watchingOsProgressRef.current = true;
       setOsDownloading(true);
@@ -2138,7 +2196,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     // normal connection this resolves immediately with no network wait.
     let card: Uint8Array | null = null;
     try {
-      card = await buildOsCard(deviceId);
+      card = await buildOsCard(deviceId, variant);
     } finally {
       if (needsDownload) {
         watchingOsProgressRef.current = false;

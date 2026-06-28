@@ -240,15 +240,52 @@ export class RfsvClient {
   // tears the in-flight request down on timeout or a link reset.
   private pendingResolve?: (r: RfsvReply) => void;
   private pendingReject?: (e: Error) => void;
+  // Re-arms the in-flight request's inactivity timer. noteActivity() calls
+  // this whenever the device sends anything, so a slow-but-alive peer never
+  // trips the timeout (see noteActivity / the inactivity rationale below).
+  private pendingRearm?: () => void;
   private pendingOpId = 0;
   private aborted = false;
   private rxBuf: Uint8Array = new Uint8Array(0);
+
+  // The request timeout is an INACTIVITY window, not a fixed deadline: it
+  // fires only after this many ms with NO inbound bytes from the device at
+  // all. A fixed per-request deadline (the old hard 10 s) breaks large
+  // transfers the moment the user interacts with the device — tapping icons
+  // keeps WServ + the digitiser busy, starving the RemoteLinkServer serial
+  // thread so a single READ/WRITE round-trip can take well over 10 s even
+  // though the link is perfectly healthy (verified on the live 5mx ROM: a
+  // 2 MB upload under continuous taps timed a WRITE out at exactly 10 s with
+  // no link bounce). Resetting on any device activity lets such a transfer
+  // crawl to completion instead of failing, while a genuinely dead link
+  // still trips the window. Configurable via PlpClient's requestTimeoutMs.
+  private inactivityMs = 30_000;
+  // Absolute per-request ceiling, regardless of activity. The inactivity
+  // window alone can livelock: when the device's RemoteLinkServer thread
+  // wedges under sustained interaction it still dribbles link-level Acks,
+  // which keep re-arming the inactivity timer forever while the actual
+  // reply never comes (observed on the 5mx near the end of a large upload
+  // under continuous taps — the transfer hung indefinitely). The ceiling
+  // guarantees the request eventually fails so the whole-transfer restart
+  // can re-drive it; once interaction pauses and the device un-wedges, the
+  // restart completes.
+  private maxRequestMs = 120_000;
+  setRequestTimeout(ms: number): void {
+    this.inactivityMs = Math.max(1_000, ms);
+    this.maxRequestMs = Math.max(this.inactivityMs * 3, 90_000);
+  }
 
   constructor(ncp: Ncp, clientChan: number) {
     this.ncp = ncp;
     this.clientChan = clientChan;
     this.ncp.setHandler(clientChan, data => this.onData(data));
   }
+
+  // Called by PlpClient whenever inbound bytes arrive from the device, so
+  // the in-flight request's inactivity timer is pushed back: any sign of
+  // life (a reply fragment, a link-level Ack of our keepalive, anything)
+  // proves the peer is still talking to us and the request isn't lost.
+  noteActivity(): void { this.pendingRearm?.(); }
 
   // Send a pre-encoded request and resolve with the reply once it
   // arrives (matched by opId). Caller picks an op id via nextOpId().
@@ -261,37 +298,61 @@ export class RfsvClient {
         return;
       }
       let settled = false;
-      const clear = () => {
-        settled = true;
-        clearTimeout(timer);
-        this.pendingResolve = undefined;
-        this.pendingReject = undefined;
-      };
-      const timer = setTimeout(() => {
+      let timer: ReturnType<typeof setTimeout>;
+      const ceiling = setTimeout(() => {
         if (!settled) {
           clear();
           this.pendingOpId = -1;
-          reject(new Error(`RFSV request opId=${opId} timed out after 10s`));
+          reject(new Error(`RFSV request opId=${opId} timed out after ${Math.round(this.maxRequestMs / 1000)}s`));
         }
-      }, 10_000);
+      }, this.maxRequestMs);
+      const clear = () => {
+        settled = true;
+        clearTimeout(timer);
+        clearTimeout(ceiling);
+        this.pendingResolve = undefined;
+        this.pendingReject = undefined;
+        this.pendingRearm = undefined;
+      };
+      const onTimeout = () => {
+        if (!settled) {
+          clear();
+          this.pendingOpId = -1;
+          reject(new Error(`RFSV request opId=${opId} timed out after ${Math.round(this.inactivityMs / 1000)}s of silence`));
+        }
+      };
+      const rearm = () => { if (!settled) { clearTimeout(timer); timer = setTimeout(onTimeout, this.inactivityMs); } };
       this.pendingResolve = (reply: RfsvReply) => {
         if (!settled) { clear(); resolve(reply); }
       };
       this.pendingReject = (err: Error) => {
         if (!settled) { clear(); this.pendingOpId = -1; reject(err); }
       };
+      this.pendingRearm = rearm;
       this.pendingOpId = opId;
+      rearm();
       this.ncp.sendOn(this.clientChan, request);
     });
   }
 
-  async send(request: Uint8Array): Promise<RfsvReply> {
+  // Send a request and await its reply. `idempotent` (default true)
+  // controls whether a timed-out request may be blindly resent on the
+  // SAME handle: safe for stateless ops (DRIVE_LIST, OPEN, REPLACE,
+  // CLOSE, DELETE, READ_DIR) but NOT for the file data ops READ_FILE /
+  // WRITE_FILE, whose result depends on the device's current file
+  // pointer. A resend of one of those after a reply was merely lost
+  // would re-read past already-delivered bytes (truncating a download)
+  // or re-append a chunk (corrupting an upload), so those callers pass
+  // idempotent:false and restart the whole transfer from a known offset
+  // instead (see doDownload / doUpload).
+  async send(request: Uint8Array, idempotent = true): Promise<RfsvReply> {
     // Retry: each resend triggers a fresh IRQ→DFC→scheduler cycle on
     // the device, giving the kernel another chance to wake the RFSV
     // thread.  Without retries the first request can sit in the NCP
     // buffer forever if the scheduler doesn't pick the RFSV thread
     // on the initial delivery.
-    for (let attempt = 0; attempt < 4; attempt++) {
+    const attempts = idempotent ? 4 : 1;
+    for (let attempt = 0; attempt < attempts; attempt++) {
       try {
         return await this.sendOnce(request);
       } catch (e) {
@@ -299,7 +360,7 @@ export class RfsvClient {
         // just hit a closed channel. Propagate so PlpClient.withRfsv can
         // re-open SYS$RFSV on the fresh link and retry the whole op.
         if (e instanceof LinkResetError) throw e;
-        if (attempt === 3) throw e;
+        if (attempt === attempts - 1) throw e;
         await new Promise(r => setTimeout(r, 1000));
       }
     }

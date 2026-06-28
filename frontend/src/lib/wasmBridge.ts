@@ -69,6 +69,20 @@ export function setSerialPumpEnabled(v: boolean) { serialPumpEnabled = v; serial
 let pumpKeepAlive: (() => void) | null = null;
 export function setPumpKeepAlive(fn: (() => void) | null) { pumpKeepAlive = fn; }
 
+// Worker-mode sim-time keepalive. Main-thread mode services the device's
+// scheduler via the in-pump keepAlive() above, but in worker mode the pump
+// loop lives in the worker and never runs here — the only keepalive is
+// PlpClient's wall-clock setInterval, which at full sim speed fires far too
+// rarely PER SIM-FRAME to keep the EPOC RemoteLinkServer rescheduled (the
+// device stalls mid-transfer; enabling Show Logs slows wall-time per frame
+// and accidentally masks it). PlpClient pushes the current keepalive frame
+// here; useEmulatorWorker forwards it to the worker, which re-injects it once
+// per sim-frame so kicks scale with sim-time. Null in main-thread mode (the
+// forward is never registered there) and cleared on disconnect.
+let simKeepAliveForward: ((bytes: Uint8Array | null) => void) | null = null;
+export function setSimKeepAliveForward(fn: ((bytes: Uint8Array | null) => void) | null) { simKeepAliveForward = fn; }
+export function setSimKeepAliveFrame(bytes: Uint8Array | null) { simKeepAliveForward?.(bytes); }
+
 export function serialReadBytes(mod: PsionModule, uartIndex: number, cap = 4096): Uint8Array {
   if (!mod.serialIsAttached(uartIndex)) return new Uint8Array(0);
   const ptr = mod._malloc(cap);

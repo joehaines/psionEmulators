@@ -162,6 +162,16 @@ export class EmulatorWorkerClient {
   setSerialPump(on: boolean): void {
     this.worker.postMessage({ type: 'setSerialPump', on });
   }
+  /** Latest link keepalive frame for the worker to replay in sim-time (or null
+   *  to stop). See wasmBridge.setSimKeepAliveFrame / emulator-worker.js. */
+  setSimKeepAlive(bytes: Uint8Array | null): void {
+    if (bytes && bytes.length) {
+      const c = bytes.slice();
+      this.worker.postMessage({ type: 'simKeepAlive', bytes: c.buffer }, [c.buffer]);
+    } else {
+      this.worker.postMessage({ type: 'simKeepAlive', bytes: null });
+    }
+  }
 
   // ── Input (fire-and-forget) ──
   sendKey(key: number, down: boolean): void { this.worker.postMessage({ type: 'key', key, down }); }

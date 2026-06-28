@@ -193,16 +193,9 @@ const SKIN_LAYOUTS: Record<string, SkinLayout> = {
     digitiserHeight:       480,
     lcdAnchoredTouchMapping: true,
   },
-  // Psion MC400 placeholder (800 x 600 viewBox, 640x400 LCD centred at
-  // 80, 60 inside the lid bezel). The MC400 has no digitiser — input
-  // is keyboard-only — so no digitiserPad* overrides are needed.
-  'mc400.svg': {
-    aspectRatio:  800 / 600,
-    screenLeft:    80 / 800,
-    screenTop:     60 / 600,
-    screenWidth:  640 / 800,
-    screenHeight: 400 / 600,
-  },
+  // The MC400 has no non-device-mode skin: outside device mode it renders
+  // as a bare 640×400 LCD (no surround), falling through to the "No skin"
+  // default layout. In device mode the photo skin (MC400.png) is used.
   // Psion Organiser II placeholder skin (viewBox 700x420; LCD pane
   // at x=110, y=50, w=480, h=140 in SVG coordinates). The canvas's
   // internal pixel resolution is reported by the WASM module as a
@@ -470,7 +463,6 @@ export function getSkinFilename(deviceName: string, deviceId: string | null): st
   if (deviceId === 'osaris')   return 'OregonScientific_Osaris.jpg';
   if (deviceId === 'series7')  return '7_netbook.jpeg';
   if (deviceId === 'netbook')  return '7_netbook.jpeg';
-  if (deviceId === 'mc400')    return 'mc400.svg';
   if (deviceId === 'organiser2') return 'organiser2.svg';
   // deviceName fallbacks (only reached once WASM has reported the name).
   if (deviceName.includes('5mx') || deviceName.includes('5MX')) return '5mx.png';
@@ -478,7 +470,6 @@ export function getSkinFilename(deviceName: string, deviceId: string | null): st
   if (deviceName.includes('Osaris')) return 'OregonScientific_Osaris.jpg';
   if (deviceName.includes('Series 7') || deviceName.includes('Series7')) return '7_netbook.jpeg';
   if (deviceName.includes('netBook') || deviceName.includes('netbook') || deviceName.includes('NetBook')) return '7_netbook.jpeg';
-  if (deviceName.includes('MC400')) return 'mc400.svg';
   if (deviceName.includes('Organiser')) return 'organiser2.svg';
   // Series 3 / 3a / 3c / 3mx / Siena: plain-LCD render (no device chrome).
   // These devices show a hardware button bar below the LCD instead.
@@ -1253,16 +1244,29 @@ export default function EmulatorView({
           onPointerDown={e => {
             e.preventDefault();
             e.currentTarget.setPointerCapture(e.pointerId);
+            // MC400 mouse: the on-screen pointer already follows the mouse on
+            // hover, so a click must NOT re-send the position — pressing the
+            // button often nudges the mouse a pixel or two, and re-positioning
+            // on the down event makes the pointer visibly jump. Just fire the
+            // dedicated click bit and leave the pointer where it is. (Touch
+            // users get the on-screen "Click" button instead, so they still
+            // need the press to set position.)
+            if (isMc400 && e.pointerType === 'mouse') {
+              sendEpocKey(EPOC_TRACKPAD, true);
+              return;
+            }
             const { x, y } = toDigitiserCoords(e);
             handlePointerDown(x, y);
-            // MC400 trackpad — desktop mouse preserves the click-on-press
-            // ergonomic. Touch users get a dedicated on-screen click button
-            // below so they can position before clicking.
-            if (isMc400 && e.pointerType === 'mouse') sendEpocKey(EPOC_TRACKPAD, true);
           }}
           onPointerMove={e => {
             e.preventDefault();
-            if (e.buttons === 0) return;
+            // Digitiser devices (Series 5 etc.) treat a move as a pen drag,
+            // so they only track while the primary button is held — a
+            // no-button hover must not inject a phantom pen-down. The MC400
+            // trackpad is different: position and click are separate inputs
+            // (updateTouchInput ignores the down flag), so its on-screen
+            // pointer should follow the real mouse even with no button down.
+            if (e.buttons === 0 && !(isMc400 && e.pointerType === 'mouse')) return;
             const { x, y } = toDigitiserCoords(e);
             handlePointerMove(x, y);
           }}
@@ -1653,6 +1657,32 @@ export default function EmulatorView({
               : "Insert the OS card so the bootloader can load SYS$ROM.BIN"}
         >
           {controls.osDownloading ? 'Downloading OS…' : 'Insert CF card containing OS'}
+        </button>}
+
+        {/* Boot the experimental ESHELL ROM on the 5mx Pro. Same bootloader
+            path as the OS-card button above, but it synthesises the card from
+            roms/ESHELL/SYS$ROM.BIN (the 'eshell' osCardSpec variant) instead
+            of the stock OS image. Unlike the OS-card button this one does NOT
+            pulse — ESHELL is an opt-in alternative boot, not the action the
+            user is expected to take, so it stays a quiet static button. */}
+        {currentDeviceId === '5mxpro' &&
+         !controls.cardAttached &&
+         !controls.osCardConsumed && <button
+          onClick={() => { if (!controls.osDownloading) void controls.attachOsCard('eshell'); }}
+          disabled={controls.osDownloading}
+          className={[
+            'px-3 py-1.5 rounded text-xs font-mono whitespace-nowrap',
+            'select-none',
+            'border border-psion-accent/50 text-psion-charcoal',
+            controls.osDownloading
+              ? 'cursor-wait opacity-70'
+              : ['cursor-pointer',
+                 'hover:!bg-psion-accent hover:text-white hover:border-psion-accent',
+                 'active:!bg-psion-charcoal active:text-white'].join(' '),
+          ].join(' ')}
+          title="Boot the experimental ESHELL ROM instead of the stock 5mx Pro OS"
+        >
+          Boot ESHELL
         </button>}
 
         {ssdSlotCount > 0 && <button

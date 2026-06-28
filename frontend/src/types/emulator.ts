@@ -56,6 +56,12 @@ export interface DeviceProfile {
   // Protocol over IR: 0 = none, 1 = IrDA + Eikon-IR beam (EPOC32),
   // 2 = PLP-over-IR remote link (SIBO).
   irProtocol?: number;
+  // Hide this profile from the device picker. Set on alternate-ROM
+  // variants of a device that already appears under its main id (e.g.
+  // the older MC400 v1.26F ROM): still loadable by id and shown in the
+  // header, just kept out of the picker list. Optional so an older
+  // psion.wasm without the field still parses (treated as false).
+  hiddenFromPicker?: boolean;
 }
 
 export interface PsionModule {

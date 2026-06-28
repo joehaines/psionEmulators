@@ -22,12 +22,12 @@ import { DEVICE_RELEASE_YEARS } from './lib/deviceMeta';
 
 // Persisted device-mode preference. When on, photo-realistic device skins
 // from the `device-skins/` public folder are shown instead of the minimal
-// SVG/plain-LCD rendering. Default off — the plain LCD view is lighter and
-// works for all devices.
+// SVG/plain-LCD rendering. Default on — only an explicit '0' (user turned it
+// off) disables it.
 const DEVICE_MODE_KEY = 'psion-device-mode';
 function loadDeviceMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(DEVICE_MODE_KEY) === '1';
+  if (typeof window === 'undefined') return true;
+  return window.localStorage.getItem(DEVICE_MODE_KEY) !== '0';
 }
 
 // Persisted sizing-mode preference. Only 'device' / 'fill' round-trip
@@ -142,6 +142,16 @@ function sortProfiles(
 // appears on cold boot). The MAME bundle stays compiled in and reachable
 // from a low-prominence button in the header for side-by-side comparison.
 const MAME_CAPABLE_DEVICE_IDS = new Set(['series3a', 'pocketbk2']);
+
+// The MC400 ships in two ROM revisions. The picker lists only the default
+// (v2.60F, id 'mc400'); a discreet header link — mirroring the MAME escape
+// hatch above — swaps to the older v1.26F ('mc400v126', hidden from the
+// picker) and back. Each entry names the device to load and the label/title
+// for the link shown while the *other* ROM is running.
+const MC400_ROM_SWITCH: Record<string, { to: string; label: string; title: string }> = {
+  mc400:     { to: 'mc400v126', label: 'v1.26F', title: 'Load the older MC400 v1.26F boot ROM' },
+  mc400v126: { to: 'mc400',     label: 'v2.60F', title: 'Load the default MC400 v2.60F boot ROM' },
+};
 
 const USAGE_HASH = '#/usage';
 // Standalone embed route: `#/embed/<deviceId>` renders the named device
@@ -404,8 +414,11 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   // The original registry order is preserved as the stable tiebreaker so
   // devices with the same year (or the same zero load count when the
   // leaderboard hasn't loaded yet) don't shuffle between renders.
+  // Hidden profiles (alternate-ROM variants like the older MC400 v1.26F)
+  // are dropped from the picker — they're still in mergedProfiles for
+  // label/ROM lookups and reachable via the header ROM-switch link.
   const sortedProfiles = useMemo(
-    () => sortProfiles(mergedProfiles, sortMode, leaderboard),
+    () => sortProfiles(mergedProfiles.filter(p => !p.hiddenFromPicker), sortMode, leaderboard),
     [mergedProfiles, sortMode, leaderboard],
   );
 
@@ -467,6 +480,18 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
     // Only clear the loading overlay if this load is still the active one;
     // a newer selection that superseded us owns the overlay now.
     setLoadingDeviceId(prev => (prev === deviceId ? null : prev));
+  };
+
+  // Swap the running MC400 between its two boot ROMs (v2.60F default ↔
+  // older v1.26F). Each ROM is a distinct device id, so this is just a
+  // normal device load — save states stay keyed per ROM revision.
+  const handleSwitchMc400Rom = () => {
+    if (!currentDeviceId) return;
+    const target = MC400_ROM_SWITCH[currentDeviceId];
+    if (!target) return;
+    const profile = mergedProfiles.find(p => p.id === target.to);
+    if (!profile) return;
+    void handleSelectDevice(target.to, `${import.meta.env.BASE_URL}roms/${profile.romFilename}`);
   };
 
   const handleSwitchToMame = () => {
@@ -613,6 +638,20 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
             title="Switch this device to the MAME 0.253 reference build"
           >
             mame
+          </button>
+        )}
+
+        {/* MC400 ROM-revision switch. The default device boots v2.60F;
+            this discreet link loads the older v1.26F boot ROM (and back),
+            without adding a second near-duplicate entry to the picker. */}
+        {!showHome && currentDeviceId && !mameDeviceId && MC400_ROM_SWITCH[currentDeviceId] && (
+          <button
+            type="button"
+            onClick={handleSwitchMc400Rom}
+            className="text-[10px] text-gray-500/40 hover:text-gray-400 transition-colors px-1"
+            title={MC400_ROM_SWITCH[currentDeviceId].title}
+          >
+            {MC400_ROM_SWITCH[currentDeviceId].label}
           </button>
         )}
 

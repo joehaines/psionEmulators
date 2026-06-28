@@ -247,6 +247,54 @@ export function deliveryKindFor(profile: DeviceProfileLike, entry: AppEntry):
   return null;
 }
 
+// Deliver a SIS by writing it into the CompactFlash card image (drive D:),
+// host-side — no Remote Link transfer involved, so it has none of the cable's
+// size/timing fragility. Used both as the user's chosen 'cf' delivery and as
+// the automatic fallback when a large-app Remote Link upload stalls (see
+// deliverApp's link path): the EPOC ROM's RemoteLinkServer can wedge partway
+// through a sustained multi-hundred-KB upload, and the card path always works.
+async function deliverViaCard(
+  entry: AppEntry,
+  files: Map<string, Uint8Array>,
+  controls: EmulatorControls,
+  onPhase?: (phase: string) => void,
+): Promise<DeliveryResult> {
+  if (!entry.installFile) throw new Error('No installer in this app bundle.');
+  const sis = files.get(entry.installFile);
+  if (!sis) throw new Error(`Installer ${entry.installFile} missing from bundle.`);
+  const name = to83(entry.installFile);
+
+  onPhase?.('Building CF card…');
+  // Reuse the inserted card when there is one (keeps the user's
+  // files); otherwise create a fresh 16 MB image.
+  let img: Uint8Array | null = null;
+  if (controls.cardAttached) {
+    const existing = await Promise.resolve(controls.getCardBytes());
+    if (existing && existing.length > 0) img = existing.slice();
+  }
+  let reused = true;
+  if (!img) { img = createBlankImage(16 * 1024 * 1024); reused = false; }
+  const added = addFile(img, name, sis);
+  if (!added.ok) {
+    // Name collision or full card — fall back to a fresh image.
+    img = createBlankImage(16 * 1024 * 1024);
+    reused = false;
+    const retry = addFile(img, name, sis);
+    if (!retry.ok) throw new Error(`Could not add ${name} to the CF image: ${retry.reason}`);
+  }
+  onPhase?.('Inserting CF card…');
+  const ok = await controls.attachCard(img);
+  if (!ok) throw new Error('Could not attach the CF card.');
+  return {
+    summary: `${name} is on the CF card${reused ? '' : ' (a fresh card was inserted)'}.`,
+    steps: [
+      'On the device, open the System screen and switch to the D: drive (the CF card).',
+      `Open ${name} — the installer runs on the device.`,
+      'Confirm the install prompts; the app then appears in Extras.',
+    ],
+  };
+}
+
 export async function deliverApp(
   entry: AppEntry,
   zipBytes: Uint8Array,
@@ -271,42 +319,7 @@ export async function deliverApp(
   onPhase?.('Unpacking app…');
   const files = await unzipAll(zipBytes);
 
-  if (kind === 'cf') {
-    if (!entry.installFile) throw new Error('No installer in this app bundle.');
-    const sis = files.get(entry.installFile);
-    if (!sis) throw new Error(`Installer ${entry.installFile} missing from bundle.`);
-    const name = to83(entry.installFile);
-
-    onPhase?.('Building CF card…');
-    // Reuse the inserted card when there is one (keeps the user's
-    // files); otherwise create a fresh 16 MB image.
-    let img: Uint8Array | null = null;
-    if (controls.cardAttached) {
-      const existing = await Promise.resolve(controls.getCardBytes());
-      if (existing && existing.length > 0) img = existing.slice();
-    }
-    let reused = true;
-    if (!img) { img = createBlankImage(16 * 1024 * 1024); reused = false; }
-    const added = addFile(img, name, sis);
-    if (!added.ok) {
-      // Name collision or full card — fall back to a fresh image.
-      img = createBlankImage(16 * 1024 * 1024);
-      reused = false;
-      const retry = addFile(img, name, sis);
-      if (!retry.ok) throw new Error(`Could not add ${name} to the CF image: ${retry.reason}`);
-    }
-    onPhase?.('Inserting CF card…');
-    const ok = await controls.attachCard(img);
-    if (!ok) throw new Error('Could not attach the CF card.');
-    return {
-      summary: `${name} is on the CF card${reused ? '' : ' (a fresh card was inserted)'}.`,
-      steps: [
-        'On the device, open the System screen and switch to the D: drive (the CF card).',
-        `Open ${name} — the installer runs on the device.`,
-        'Confirm the install prompts; the app then appears in Extras.',
-      ],
-    };
-  }
+  if (kind === 'cf') return deliverViaCard(entry, files, controls, onPhase);
 
   if (kind === 'ssd') {
     onPhase?.('Building SSD pack…');
@@ -425,13 +438,38 @@ export async function deliverApp(
     p.catch(() => { /* settles after an abort won the race */ });
     return Promise.race([p, aborted]);
   };
+  // No-progress watchdog. A large-app upload can stall mid-stream when the
+  // device's RemoteLinkServer wedges (a ROM-side fragility on sustained
+  // transfers — not disk space, the seq wrap, or dropped frames, all ruled
+  // out). Rather than wait out the full RFSV timeout chain, abort the cable
+  // attempt ~20 s after progress stops so we can fall back to the CF card.
+  let linkErr: unknown = null;
+  let lastAdvance = Date.now();
+  let stallTimer: ReturnType<typeof setInterval> | null = null;
+  const stallCtl = new AbortController();
+  const STALL_MS = 20_000;
+  const stalled = new Promise<never>((_, reject) => {
+    stallCtl.signal.addEventListener('abort',
+      () => reject(new Error('Remote Link upload stalled')), { once: true });
+  });
+  const raceStall = <T,>(p: Promise<T>): Promise<T> => {
+    p.catch(() => { /* settles after the stall/abort won the race */ });
+    return Promise.race([race(p), stalled]);
+  };
   try {
     await race(client.connect(60_000));
     onPhase?.(`Uploading ${name}…`);
     onProgress?.(0, sis.length);
-    await race(client.uploadFile(`C:\\Documents\\${name}`, sis,
-      bytes => { checkAborted(); onProgress?.(bytes, sis.length); }));
+    lastAdvance = Date.now();
+    stallTimer = setInterval(() => {
+      if (Date.now() - lastAdvance > STALL_MS) stallCtl.abort();
+    }, 2_000);
+    await raceStall(client.uploadFile(`C:\\Documents\\${name}`, sis,
+      bytes => { checkAborted(); lastAdvance = Date.now(); onProgress?.(bytes, sis.length); }));
+  } catch (e) {
+    linkErr = e;
   } finally {
+    if (stallTimer) clearInterval(stallTimer);
     if (parkable) {
       // Park the session: stop the host side WITHOUT Disc or detach,
       // after letting the device's last in-flight reply get acked.
@@ -443,11 +481,22 @@ export async function deliverApp(
       if (controls.serialIsAttached(uart)) controls.serialDetachHost(uart);
     }
   }
-  return {
-    summary: `${name} is in the Documents folder.`,
-    steps: [
-      `On the device, open ${name} from the Documents folder on the System screen — the installer runs.`,
-      'Confirm the install prompts; the app then appears in Extras.',
-    ],
-  };
+  if (!linkErr) {
+    return {
+      summary: `${name} is in the Documents folder.`,
+      steps: [
+        `On the device, open ${name} from the Documents folder on the System screen — the installer runs.`,
+        'Confirm the install prompts; the app then appears in Extras.',
+      ],
+    };
+  }
+  // A user cancel surfaces as-is — don't fall back.
+  if (signal?.aborted) throw linkErr;
+  // The cable upload stalled/failed. If the device has a CF slot, deliver via
+  // the card instead — that path never touches the wedge-prone link server.
+  if (profile.hasCFSlot) {
+    onPhase?.('Remote Link stalled — delivering via the CF card instead…');
+    return await deliverViaCard(entry, files, controls, onPhase);
+  }
+  throw linkErr;
 }

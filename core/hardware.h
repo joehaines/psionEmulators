@@ -135,13 +135,18 @@ struct UART {
 	std::deque<uint8_t> rxFifo;
 	std::vector<uint8_t> txQueue;
 	// Soft cap on outstanding bytes the CPU has written but the host hasn't
-	// drained. PLP at 115200 with a 50 Hz host poll only needs ~290 B/frame,
-	// so 4 KiB gives plenty of headroom without unbounded growth.
-	static constexpr size_t kTxQueueCap = 4096;
+	// drained. Steady-state PLP only needs ~290 B/frame, but during a file
+	// DOWNLOAD the device streams a whole RFSV READ reply (1-2 KiB) plus link
+	// Acks plus go-back-N retransmits within a single stepFrameFull burst. At
+	// 4 KiB that overflowed before the host's per-frame drain ran, and
+	// pushTxByte SILENTLY DROPS on overflow -> a corrupted READ reply -> the
+	// transfer wedges. 64 KiB gives ~20+ frames of headroom so a download's
+	// reply burst is never truncated.
+	static constexpr size_t kTxQueueCap = 64 * 1024;
 	// Soft cap on bytes the host has pushed but the CPU hasn't consumed.
-	// EPOC's serial driver typically drains the FIFO inside the ISR, so
-	// 4 KiB is similarly comfortable.
-	static constexpr size_t kRxFifoCap = 4096;
+	// Matched to kTxQueueCap so a large host->device burst (uploads) has the
+	// same headroom against the CPU's drain cadence.
+	static constexpr size_t kRxFifoCap = 64 * 1024;
 
 	// UART0DATA = 0x600, byte write, long read
 	// UART0FCR = 0x604, long

@@ -29,9 +29,9 @@ import { Rfsv16Client } from './rfsv16-spec.ts';
 import { WprtClient, WprtJobAssembler, type WprtJob } from './wprt-spec.ts';
 import {
   NCP_SERVICE_RFSV, NCP_SERVICE_WPRT, NCP_REGISTER_WPRT,
-  NCP_VERSION, FILE_MODE, ATTR,
+  NCP_VERSION, FILE_MODE, ATTR, EpocErr,
 } from './types.ts';
-import { setSerialPumpEnabled, setPumpKeepAlive } from '../wasmBridge.ts';
+import { setSerialPumpEnabled, setPumpKeepAlive, setSimKeepAliveFrame } from '../wasmBridge.ts';
 import {
   buildOpenFile, buildReplaceFile, buildReadFile, buildWriteFile, buildCloseHandle,
   buildDelete,
@@ -43,11 +43,22 @@ export type { WprtJob } from './wprt-spec.ts';
 const u32leFromBytes = (b: Uint8Array, off: number) =>
   (((b[off] | (b[off+1] << 8) | (b[off+2] << 16) | (b[off+3] << 24)) >>> 0));
 
-// How often (wall-clock ms) to send a link keepalive while connected. Must
-// stay comfortably under the device's link-inactivity timeout so a slow
-// RFSV reply can't fall silent long enough to trip a re-handshake. ~500ms
-// keeps the device's serial thread rescheduled with wide margin.
-const KEEPALIVE_INTERVAL_MS = 500;
+// How often (wall-clock ms) to send a link keepalive while connected. Each
+// keepalive Ack lands as a serial-RX IRQ on the device, which reschedules its
+// RemoteLinkServer thread — that reschedule pressure is what keeps a transfer
+// flowing between our request frames.
+//
+// In WORKER mode (the default in the browser) this is the ONLY source of that
+// pressure: the main-thread pump's in-pump keepalive (wasmBridge.serialReadBytes
+// → pumpKeepAlive, fired on every pump step) does not run when the emulator
+// lives in the worker. At 500 ms the gaps between Acks were wide enough that the
+// device's RemoteLinkServer fell behind and wedged partway through a large
+// upload — the "trying an app fails around the 90 KB mark" report: verified in
+// the browser against the 5mx ROM, a Jumpy!p5 (.SIS) upload stalled mid-stream
+// at 500 ms and ran clean to completion at 150 ms. Keep it short so the device
+// thread is serviced often enough to drain a sustained transfer; it's a cheap
+// duplicate Ack on the wire, harmless on every device.
+const KEEPALIVE_INTERVAL_MS = 150;
 
 export type ClientState =
   | 'idle'           // start() not yet called
@@ -85,6 +96,12 @@ export interface ClientConfig {
   // ceiling: the device fills reads up to ~2 KB per reply, so a larger
   // chunk short-reads and the download loop mistakes it for EOF.
   chunkSize?: number;          // default 1024
+  // Per-request RFSV inactivity timeout (ms). A request fails only after
+  // this long with NO inbound bytes from the device — see
+  // RfsvClient.setRequestTimeout. Default 30 s, generous enough that a
+  // device kept busy by user interaction (tapping icons mid-transfer)
+  // doesn't time a healthy round-trip out.
+  requestTimeoutMs?: number;   // default 30000
   onState?(state: ClientState): void;
   onPduIn?(pdu: Pdu): void;
   onPduOut?(pdu: Pdu): void;
@@ -290,6 +307,7 @@ export class PlpClient {
     try { this.link.disconnect(); } catch { /* link may already be torn down */ }
     this.stop();
     setSerialPumpEnabled(false);
+    setSimKeepAliveFrame(null);   // stop the worker's sim-time keepalive replay
     this.rfsv = null;
     this.rfsv16 = null;
     this.transition('idle');
@@ -461,8 +479,13 @@ export class PlpClient {
       this.lastError = 'no open client channel after connect';
       throw new Error(this.lastError);
     }
-    if (this.sibo) this.rfsv16 = new Rfsv16Client(this.ncp, openChan);
-    else           this.rfsv = new RfsvClient(this.ncp, openChan);
+    if (this.sibo) {
+      this.rfsv16 = new Rfsv16Client(this.ncp, openChan);
+      if (this.cfg.requestTimeoutMs) this.rfsv16.setRequestTimeout(this.cfg.requestTimeoutMs);
+    } else {
+      this.rfsv = new RfsvClient(this.ncp, openChan);
+      this.rfsv.setRequestTimeout(this.cfg.requestTimeoutMs ?? 30_000);
+    }
     setSerialPumpEnabled(true);
     this.transition('connected');
   }
@@ -547,6 +570,23 @@ export class PlpClient {
   private chunkSize = 1024;
   setChunkSize(n: number) { this.chunkSize = Math.max(64, Math.min(n, 8192)); }
 
+  // Download (FREAD) reply chunk cap — deliberately smaller than the upload
+  // chunk. On a READ the DEVICE is the transmitter: it answers with up to
+  // `chunkSize` bytes as one back-to-back link-frame burst. While it streams
+  // that burst its serial thread is busy TX-ing and is slow to service the
+  // inbound Acks we send for each frame, so its link layer keeps deciding the
+  // window is unacknowledged and retransmits the WHOLE burst (go-back-N) on
+  // every reply. At 1024 (four ~300-byte frames per reply) the retransmit
+  // backlog outruns our Ack cadence under the web-worker serial bridge and the
+  // device eventually exhausts its retransmit budget and goes dormant mid-file
+  // (the "large download fails halfway" report). Halving the read burst to two
+  // frames gives the device an RX-servicing gap between bursts, so our Acks
+  // retire its window before it retransmits — validated end-to-end in
+  // _plp_worker_repro (1024 wedges ~halfway; 512 completes a full round-trip).
+  // Uploads are unaffected: there the host paces the burst and the device Acks
+  // promptly, so they keep the larger chunk.
+  private get readChunkSize(): number { return Math.min(this.chunkSize, 512); }
+
   // Download a file in chunks. Wrapped in withRfsv so a mid-transfer
   // link bounce re-opens the channel and restarts the download (reads
   // are idempotent).
@@ -555,7 +595,29 @@ export class PlpClient {
     return this.withRfsv(client => this.doDownload(client, path, onProgress));
   }
 
+  // Bounded whole-transfer restarts for the chunked file loops. A READ /
+  // WRITE that times out (a lost link frame) can't be safely resent on
+  // the same handle — the device's file pointer may have already moved —
+  // so instead we restart the whole transfer from a freshly opened handle
+  // (offset 0 / truncated). Distinct from withRfsv's link-reset retry.
+  private static readonly MAX_TRANSFER_RESTARTS = 3;
+
   private async doDownload(client: RfsvClient, path: string, onProgress?: (bytes: number) => void): Promise<Uint8Array> {
+    for (let restart = 0; ; restart++) {
+      try {
+        return await this.downloadOnce(client, path, onProgress);
+      } catch (e) {
+        // A link bounce is handled one level up (withRfsv re-opens the
+        // channel on the fresh link). Any other failure here means a
+        // non-idempotent READ timed out; restarting from a fresh OPEN
+        // (offset 0) is the only way to guarantee we don't skip bytes.
+        if (e instanceof LinkResetError) throw e;
+        if (restart >= PlpClient.MAX_TRANSFER_RESTARTS) throw e;
+      }
+    }
+  }
+
+  private async downloadOnce(client: RfsvClient, path: string, onProgress?: (bytes: number) => void): Promise<Uint8Array> {
     const mode = FILE_MODE.SHARE_READ;
     const reply = await client.send(buildOpenFile(client.nextOpId(), mode, path));
     if (reply.status !== 0) throw new Error(`OPEN_FILE(${path}) failed: ${reply.status}`);
@@ -568,16 +630,31 @@ export class PlpClient {
       // Requests/replies larger than the 297-byte NCP-payload ceiling
       // fragment across multiple link frames (Ncp.sendOn outbound, the
       // device's link layer / our queuePartial inbound) — see the
-      // chunkSize comment for the sizing rationale.
-      const CHUNK = this.chunkSize;
+      // Downloads use the smaller readChunkSize — see its comment for why
+      // the device's reply burst must stay short.
+      const CHUNK = this.readChunkSize;
       for (let i = 0; i < 64 * 1024; i++) {  // cap at 64 MiB
-        const r = await client.send(buildReadFile(client.nextOpId(), handle, CHUNK));
-        if (r.status !== 0) throw new Error(`READ_FILE failed: ${r.status}`);
-        if (r.data.length === 0) break;
-        chunks.push(r.data);
-        total += r.data.length;
-        onProgress?.(total);
-        if (r.data.length < CHUNK) break;
+        // idempotent:false — a timed-out READ must NOT be blindly resent
+        // on this handle (the device may have advanced its file pointer);
+        // doDownload restarts the whole transfer instead.
+        const r = await client.send(buildReadFile(client.nextOpId(), handle, CHUNK), false);
+        // EpocErr.Eof (-25) is a legitimate end-of-file terminator, not a
+        // failure; any other negative status is a real error.
+        if (r.status !== 0 && r.status !== EpocErr.Eof) {
+          throw new Error(`READ_FILE failed: ${r.status}`);
+        }
+        if (r.data.length > 0) {
+          chunks.push(r.data);
+          total += r.data.length;
+          onProgress?.(total);
+        }
+        // EOF is signalled ONLY by a zero-length read (or an explicit Eof
+        // status). A short read — fewer bytes than CHUNK with more to come
+        // — is normal: a real EPOC32 RFSV server fills each FREAD only up
+        // to its own buffer boundary, which can be well under CHUNK.
+        // Treating a short read as EOF silently truncates the download
+        // mid-file (the "large transfer fails halfway" field report).
+        if (r.data.length === 0 || r.status === EpocErr.Eof) break;
       }
     } finally {
       try { await client.send(buildCloseHandle(client.nextOpId(), handle)); }
@@ -599,6 +676,21 @@ export class PlpClient {
   }
 
   private async doUpload(client: RfsvClient, path: string, data: Uint8Array, onProgress?: (bytes: number) => void): Promise<void> {
+    for (let restart = 0; ; restart++) {
+      try {
+        return await this.uploadOnce(client, path, data, onProgress);
+      } catch (e) {
+        // As in doDownload: a link bounce is handled by withRfsv; any
+        // other failure means a non-idempotent WRITE timed out, so we
+        // restart from a fresh REPLACE_FILE (which truncates), guaranteeing
+        // we never double-append a chunk whose reply was merely lost.
+        if (e instanceof LinkResetError) throw e;
+        if (restart >= PlpClient.MAX_TRANSFER_RESTARTS) throw e;
+      }
+    }
+  }
+
+  private async uploadOnce(client: RfsvClient, path: string, data: Uint8Array, onProgress?: (bytes: number) => void): Promise<void> {
     // REPLACE_FILE (opcode 0x2A): create-or-overwrite. Mode 0x0200 is
     // the read/write flag — without it WRITE_FILE refuses the handle.
     // Verified against the real Revo via harness: REPLACE_FILE +
@@ -617,7 +709,10 @@ export class PlpClient {
       const CHUNK = this.chunkSize;
       for (let off = 0; off < data.length; off += CHUNK) {
         const chunk = data.subarray(off, Math.min(off + CHUNK, data.length));
-        const r = await client.send(buildWriteFile(client.nextOpId(), handle, chunk));
+        // idempotent:false — a timed-out WRITE must NOT be blindly resent
+        // (it may have already been appended); doUpload restarts the whole
+        // transfer from a truncating REPLACE_FILE instead.
+        const r = await client.send(buildWriteFile(client.nextOpId(), handle, chunk), false);
         if (r.status !== 0) throw new Error(`WRITE_FILE @${off} failed: ${r.status}`);
         onProgress?.(off + chunk.length);
       }
@@ -771,14 +866,44 @@ export class PlpClient {
       if (now - this.lastKeepAliveAt >= KEEPALIVE_INTERVAL_MS) {
         this.lastKeepAliveAt = now;
         this.link.keepAlive();
+        // Hand the worker the latest keepalive frame so it can replay it in
+        // sim-time (no-op in main-thread mode). Keeps it fresh as seqRx moves.
+        setSimKeepAliveFrame(this.link.keepAliveFrame());
       }
+      // Resend any host→device Data_Pdu the device hasn't acked. This is what
+      // recovers an upload after the worker serial bridge drops bytes (the
+      // device retransmits its own data, but our outbound frames had no such
+      // safety net). See LinkLayer.pumpRetransmit().
+      this.link.pumpRetransmit();
     }
     const chunk = this.readBytes();
     if (chunk.length === 0) return;
     this.lastRxAt = Date.now();
+    // Any inbound bytes — a reply fragment OR just a link-level Ack of one
+    // of our frames — prove the device is alive, so push back the in-flight
+    // RFSV request's inactivity timeout. This is what lets a transfer
+    // survive the device being kept busy (e.g. the user tapping icons): the
+    // RemoteLinkServer thread is slow to produce the RFSV reply, but the
+    // link layer keeps Acking our frames, and those Acks hold the timer off.
+    this.rfsv?.noteActivity();
+    this.rfsv16?.noteActivity();
     this.cfg.onRawRx?.(chunk);
     const frames = this.decoder.feed(chunk);
     for (const f of frames) this.link.handleFrame(f.payload);
+    // One cumulative Ack for the whole batch (R5 download path) — see
+    // LinkLayer.flushAck() / the PDU_CONT_DATA handler.
+    this.link.flushAck();
+    // Refresh the worker's sim-time keepalive frame after every inbound batch.
+    // During a download seqRx advances several frames per reply, far faster
+    // than the 150 ms keepalive timer above — and the worker REPLAYS the last
+    // frame it was handed 64×/s. A stale snapshot means the device is flooded
+    // with an Ack for an old Seq while it streams new frames; its link layer
+    // reads the regressed Ack as "everything after that Seq is unacknowledged"
+    // and retransmits the whole window over and over, eventually exhausting its
+    // retransmit budget and wedging the download. Re-handing the worker an Ack
+    // for the CURRENT seqRx on each inbound batch keeps the replayed keepalive
+    // honest (no-op on the main thread, where there is no worker replay).
+    if (this.linkState_ === 'connected') setSimKeepAliveFrame(this.link.keepAliveFrame());
   }
 
   private transition(next: ClientState): void {

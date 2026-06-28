@@ -38,6 +38,16 @@ const SERIAL_CAP = 4096;
 // mode). When on, a host serial write pumps emulated cycles until the guest
 // responds (bounded), instead of waiting for the next tick.
 let serialPumpOn = false;
+// Sim-time keepalive (see wasmBridge.setSimKeepAliveFrame). The main thread's
+// wall-clock keepalive fires far too rarely PER SIM-FRAME at full sim speed to
+// keep the EPOC RemoteLinkServer rescheduled, so a transfer stalls waiting for
+// the device's reply. While the transfer pump is on we replay the latest
+// keepalive Ack frame once per sim-frame (a benign duplicate Ack the device
+// ignores) so reschedule kicks scale with SIM-time. lastWriteUart pins which
+// UART the cable is on (the last one the host wrote to).
+let simKeepAliveBytes = null;
+let lastWriteUart = -1;
+let simKeepAliveLogged = false;   // one-time "fix is active" marker (see tick())
 // Sparse serial tracing (capped per UART). Surfaces the device→host byte path
 // in the log panel to localise remote-link / IrDA stalls. Follows the "Show
 // Logs" toggle (setLoggingEnabled) — nothing is posted while logging is off.
@@ -170,6 +180,23 @@ async function idbDelete(key) {
     tx.onerror = () => reject(tx.error);
   });
 }
+// Factory default SSDs: devices that physically shipped with a pack inserted.
+// The MC400 came with its ROM:: System Disk in Pack D (slot 3) — the window
+// server, shell, OPL and fonts that populate the lower app bar. Returns the
+// bundled image URL + pack kind, or null when the slot has no factory default.
+function defaultSsdFor(deviceId, slot) {
+  if (deviceId === 'mc400' && slot === 3) {
+    return { url: 'roms/MC400_V2.60F_system.ssd', kind: 'flash' };
+  }
+  return null;
+}
+async function fetchDefaultSsd(relUrl) {
+  try {
+    const resp = await fetch(new URL(relUrl, self.location.href).href);
+    if (!resp.ok) return null;
+    return new Uint8Array(await resp.arrayBuffer());
+  } catch (_) { return null; }
+}
 async function streamThrough(stream, bytes) {
   const w = stream.writable.getWriter();
   w.write(bytes); w.close();
@@ -253,11 +280,41 @@ function tick() {
       while (t0 >= nextFrameDue && (performance.now() - t0) < TICK_WALL_CAP) {
         drainOneKey();
         feedMic(1);                     // one sim-frame of mic, matched to consumption
+        // Sim-time keepalive: re-inject the latest link Ack before this frame so
+        // the device's RemoteLinkServer gets a reschedule kick proportional to
+        // sim-time (the wall-clock keepalive alone is too sparse per frame at
+        // full speed and stalls the transfer). Benign duplicate Ack; injected as
+        // a complete frame between host writes, so it never splits a data frame.
+        if (serialPumpOn && simKeepAliveBytes && lastWriteUart >= 0 &&
+            serialAttached[lastWriteUart] && mod.serialWriteFromHost) {
+          if (!serialScratch) serialScratch = mod._malloc(SERIAL_CAP);
+          const kn = Math.min(simKeepAliveBytes.length, SERIAL_CAP);
+          mod.HEAPU8.set(simKeepAliveBytes.subarray(0, kn), serialScratch);
+          mod.serialWriteFromHost(lastWriteUart, serialScratch, kn);
+          // Build/active marker (once): if this line is ABSENT from a Show-Logs
+          // capture during a transfer, the service worker is serving a stale
+          // emulator-worker.js and this fix is not actually running. (BUILD-TAG
+          // worker-keepalive-arq)
+          if (!simKeepAliveLogged) {
+            simKeepAliveLogged = true;
+            postMessage({ type: 'log', text: '[serial] BUILD worker-keepalive-arq: sim-keepalive ACTIVE uart=' + lastWriteUart });
+          }
+        }
         mod.stepFrameFull();
         if (mod.isCFPollGapActive && mod.isCFPollGapActive()) {
           const b0 = performance.now();
           while (performance.now() - b0 < 60 && mod.isCFPollGapActive()) mod.stepFrameFull();
         }
+        // Drain the device→host serial queue after EACH sim-frame during a
+        // transfer, not only once at the end of the tick. A catch-up tick runs
+        // several stepFrameFull calls; during an upload the device emits a
+        // link Ack per inbound host frame plus its RFSV replies, which
+        // overflowed the device's 4 KB TX queue before the end-of-tick drain
+        // and got SILENTLY DROPPED (hardware.h pushTxByte) — the lost reply
+        // then stalled the transfer ("large app fails partway", reproduced in
+        // _plp_worker_repro: 900 KB wedged once-per-tick, completed per-frame).
+        // Keeping the queue drained every frame prevents the overflow.
+        if (serialPumpOn) drainSerial();
         nextFrameDue += SIM_FRAME_MS;
         rendered = true;
       }
@@ -511,11 +568,19 @@ const rpc = {
     const datapakAttachedState = [false, false];
     try {
       for (let slot = 0; slot < 4; slot++) {
-        const img = await idbGet('ssd-' + deviceId + '-' + slot);
+        let img = await idbGet('ssd-' + deviceId + '-' + slot);
+        let kind = await idbGet('ssd-type-' + deviceId + '-' + slot);
+        // Devices that shipped with a System Disk SSD inserted (the MC400's
+        // ROM:: disk in Pack D) get it pre-loaded on cold boot when the slot
+        // is otherwise empty. A user-inserted pack persists to IndexedDB and
+        // takes precedence; ejecting clears the slot as usual.
+        if (!img || !img.byteLength) {
+          const def = defaultSsdFor(deviceId, slot);
+          if (def) { img = await fetchDefaultSsd(def.url); kind = def.kind; }
+        }
         if (!img || !img.byteLength) continue;
         const u8 = img instanceof Uint8Array ? img : new Uint8Array(img);
         if (!growHeapToFit(u8.length + (1 << 20))) continue;
-        const kind = await idbGet('ssd-type-' + deviceId + '-' + slot);
         const t = kind === 'flash' ? 3 : kind === 'ram' ? 1
                 : ((u8.length >= 2 && u8[0] === 0xA5 && u8[1] === 0xF1) ? 3 : 1);
         const p = mod.prepareSSDImageUpload(u8.length);
@@ -681,9 +746,13 @@ const rpc = {
   serialAttach({ uart }) {
     const ok = !!(mod.serialAttachHost && mod.serialAttachHost(uart));
     serialAttached[uart] = ok;
+    simKeepAliveLogged = false;   // re-arm the active marker for this session
+    // Build marker (always, low-volume): proves which emulator-worker.js the
+    // service worker actually served. If this line is missing from a Show-Logs
+    // capture, the browser is running a stale cached worker without the fix.
+    postMessage({ type: 'log', text: '[serial] BUILD worker-keepalive-arq attach uart=' + uart + ' ok=' + ok });
     if (serialDebug) {
       serialDiagLogged = {};   // reset drain-log caps for the new session
-      postMessage({ type: 'log', text: '[serial] attach uart=' + uart + ' ok=' + ok });
     }
     return ok;
   },
@@ -861,16 +930,33 @@ onmessage = async (e) => {
       return;
     }
     if (m.type === 'serialWrite') {
+      lastWriteUart = m.uart;   // pin the cable's UART for the sim-time keepalive
       if (mod && mod.serialWriteFromHost && serialAttached[m.uart]) {
         const data = new Uint8Array(m.bytes);
         if (!serialScratch) serialScratch = mod._malloc(SERIAL_CAP);
-        let accepted = 0;
-        for (let off = 0; off < data.length; ) {
+        // serialWriteFromHost only queues what fits in the device's RX FIFO
+        // and returns that count. Advance by the ACCEPTED count, not the
+        // attempted count: skipping the unaccepted tail silently drops frame
+        // bytes, which corrupts the PLP/IrDA stream and stalls the transfer.
+        // When the FIFO is full, run the guest so its serial ISR drains the
+        // FIFO, then retry the remainder. Bounded by a short wall-clock budget
+        // so a genuinely wedged guest can't hang the worker — if we hit it the
+        // tail is dropped (as before) and the host's link layer times out and
+        // recovers, but that's now a last resort rather than the common case.
+        let off = 0;
+        const writeDeadline = performance.now() + 200;
+        while (off < data.length) {
           const n = Math.min(SERIAL_CAP, data.length - off);
           mod.HEAPU8.set(data.subarray(off, off + n), serialScratch);
-          accepted += mod.serialWriteFromHost(m.uart, serialScratch, n);
-          off += n;
+          const acc = mod.serialWriteFromHost(m.uart, serialScratch, n);
+          off += acc;
+          if (acc < n) {                               // RX FIFO full
+            if (!mod.serialPumpCycles || performance.now() > writeDeadline) break;
+            mod.serialPumpCycles();                    // let the guest drain RX
+            drainSerial();                             // and relieve its TX side
+          }
         }
+        const accepted = off;
         // Diagnostic: the core returns the byte count it actually queued; 0
         // with bytes pending means the device-side UART rejected the write
         // (e.g. core hostAttached=false — a stale attach). Capped per UART.
@@ -915,6 +1001,7 @@ onmessage = async (e) => {
       return;
     }
     if (m.type === 'setSerialPump') { serialPumpOn = !!m.on; return; }
+    if (m.type === 'simKeepAlive') { simKeepAliveBytes = m.bytes ? new Uint8Array(m.bytes) : null; return; }
     if (m.type === 'setLoggingEnabled') {
       serialDebug = !!m.on;   // serial tracing follows the Show Logs toggle
       mod && mod.setLoggingEnabled && mod.setLoggingEnabled(!!m.on);

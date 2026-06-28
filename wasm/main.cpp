@@ -768,6 +768,9 @@ std::string getAllDeviceProfilesJSON() {
         out += ",";
         out += "\"irProtocol\":";
         out += std::to_string(int(p->irProtocol));
+        out += ",";
+        out += "\"hiddenFromPicker\":";
+        out += (p->hiddenFromPicker ? "true" : "false");
         out += "}";
     }
     out += "]";

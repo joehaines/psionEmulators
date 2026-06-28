@@ -205,13 +205,25 @@ export class Rfsv16Client {
     resolve: (r: Rfsv16Reply) => void;
     reject: (e: Error) => void;
     timer: ReturnType<typeof setTimeout>;
+    rearm: () => void;
   } | null = null;
+
+  // Inactivity timeout window (ms): a request fails only after this long
+  // with no inbound device bytes. Same rationale as RfsvClient — keeps a
+  // transfer alive while the user keeps the device busy. Overridable per
+  // send() call; configurable default via setRequestTimeout.
+  private inactivityMs = 30_000;
+  setRequestTimeout(ms: number): void { this.inactivityMs = Math.max(1_000, ms); }
 
   constructor(ncp: Ncp, clientChan: number) {
     this.ncp = ncp;
     this.chan = clientChan;
     this.ncp.setHandler(clientChan, data => this.onReply(data));
   }
+
+  // Push back the in-flight request's inactivity timer on any sign of life
+  // from the device (called by PlpClient when inbound bytes arrive).
+  noteActivity(): void { this.pending?.rearm(); }
 
   // Abort the in-flight request after a data-link reset, so the caller
   // can re-open the channel without waiting out the timeout.
@@ -224,16 +236,21 @@ export class Rfsv16Client {
     }
   }
 
-  send(frame: Uint8Array, timeoutMs = 10_000, op = 'request'): Promise<Rfsv16Reply> {
+  send(frame: Uint8Array, timeoutMs?: number, op = 'request'): Promise<Rfsv16Reply> {
     if (this.pending) return Promise.reject(new Error(`RFSV16 ${op}: another request is already in flight`));
+    const windowMs = timeoutMs ?? this.inactivityMs;
     return new Promise<Rfsv16Reply>((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const onTimeout = () => {
         if (this.pending) {
           this.pending = null;
           reject(new Error(`RFSV16 ${op} timed out — the device did not answer`));
         }
-      }, timeoutMs);
-      this.pending = { resolve, reject, timer };
+      };
+      const rearm = () => {
+        if (this.pending) { clearTimeout(this.pending.timer); this.pending.timer = setTimeout(onTimeout, windowMs); }
+      };
+      const timer = setTimeout(onTimeout, windowMs);
+      this.pending = { resolve, reject, timer, rearm };
       try {
         this.ncp.sendOn(this.chan, frame);
       } catch (e) {
@@ -322,7 +339,10 @@ export class Rfsv16Client {
         chunks.push(new Uint8Array(r.data));
         total += r.data.length;
         onProgress?.(total);
-        if (r.data.length < CHUNK) break;
+        // Do NOT stop on a short read: a SIBO FREAD may return fewer than
+        // CHUNK bytes without being at end-of-file (it fills only to its
+        // own buffer boundary). EOF is the zero-length read handled above;
+        // treating a short read as EOF truncated large downloads mid-file.
       }
     } finally {
       try { await this.send(buildFClose(handle)); } catch { /* ignore */ }

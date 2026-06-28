@@ -12,6 +12,7 @@
 export const DEVICE_LOGO_MAP: Record<string, string> = {
   organiser2:  'organiser2.png',
   mc400:       'mc600.png',
+  mc400v126:   'mc600.png',
   mc600:       'mc600.png',
   series3:     '3_3a_pb1.png',
   series3a:    '3_3a_pb1.png',
@@ -35,6 +36,7 @@ export const DEVICE_LOGO_MAP: Record<string, string> = {
 export const DEVICE_RELEASE_YEARS: Record<string, number> = {
   organiser2:  1986,
   mc400:       1989,
+  mc400v126:   1989,
   series3:     1991,
   pocketbk:    1992,
   series3a:    1993,

@@ -127,10 +127,14 @@ function makeLoopback() {
       if (aToB.length > 0) {
         const chunk = new Uint8Array(aToB.splice(0));
         for (const f of decB.feed(chunk)) linkB.handleFrame(f.payload);
+        // R5 Data_Pdu Acks are coalesced and emitted per batch by the poll
+        // loop; mirror that here so the loopback delivers them.
+        linkB.flushAck();
       }
       if (bToA.length > 0) {
         const chunk = new Uint8Array(bToA.splice(0));
         for (const f of decA.feed(chunk)) linkA.handleFrame(f.payload);
+        linkA.flushAck();
       }
     }
   }
@@ -181,6 +185,41 @@ function makeLoopback() {
   // A's view: Req_Con from B, then Ack(0) from B, then Ack(1) for Data.
   const aks = lo.pdusInA().filter(p => p.cont === PDU_CONT_ACK);
   check(aks.some(a => a.seq === 1), `A saw an Ack(seq=1) for its Data_Pdu (got seqs: ${aks.map(a => a.seq).join(',')})`);
+}
+
+// Regression: the R5 (mod-2048) Tx sequence must wrap 2047 → 0, not skip 0.
+// In the 2-byte Seq encoding 2048 ≡ 0, so the device's masked Rx counter
+// expects 0 after 2047; an old "skip Seq=0" rule sent 1 instead, and the
+// device then ignored every post-wrap frame and duplicate-acked 2047 forever
+// — stalling any transfer long enough to reach the wrap (the field "upload
+// fails partway" report; reproduced against the real ROM in _plp_worker_repro
+// at maxTxSeq=2047). 0 is only special as the first frame after a handshake,
+// which is naturally 1 anyway (handshake leaves seqTx=0 → first send → 1).
+{
+  const out: Pdu[] = [];
+  const dec = new FrameDecoder();
+  const link = new LinkLayer({
+    sendBytes: () => { /* discard */ }, onData: () => { /* unused */ },
+    onPduOut: p => out.push(p), maxRetxRounds: 0,
+  });
+  link.initiate();   // → connecting (sends Req_Req)
+  // Peer confirms with its magic → confirming → connected.
+  for (const f of dec.feed(encodePdu(reqConPdu(new Uint8Array([9, 8, 7, 6]), 4))))
+    link.handleFrame(f.payload);
+  check(link.state === 'connected', `wrap-test: link connected (got ${link.state})`);
+  const seqs: number[] = [];
+  for (let i = 0; i < 2049; i++) seqs.push(link.sendData(new Uint8Array([0])));
+  check(seqs[0] === 1, `wrap-test: first data Seq ${seqs[0]} (want 1)`);
+  check(seqs[2046] === 2047, `wrap-test: Seq[2046] ${seqs[2046]} (want 2047)`);
+  check(seqs[2047] === 0, `wrap-test: wrap Seq[2047] ${seqs[2047]} (want 0, NOT 1)`);
+  check(seqs[2048] === 1, `wrap-test: post-wrap Seq[2048] ${seqs[2048]} (want 1)`);
+  // The wrapped Seq=0 Data_Pdu must still round-trip through the codec.
+  const f0 = encodePdu(dataPdu(0, new Uint8Array([0xAB])));
+  const dec0 = new FrameDecoder();
+  for (const fr of dec0.feed(f0)) {
+    const p = decodePdu(fr.payload);
+    check(p?.cont === PDU_CONT_DATA && p?.seq === 0, `wrap-test: Data Seq=0 round-trips (got cont=${p?.cont} seq=${p?.seq})`);
+  }
 }
 
 if (failures > 0) {

@@ -57,6 +57,9 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
   / raw `.prn`). Run `npm run test:wprt` / `test:printer`.
 - **Audio** — SIBO1 (Series 3 / MC400 / Pocket Book) is a piezo buzzer; SIBO2
   (3a onward) adds an 8-bit PCM codec with mic input.
+- **MC400 ROMs** — the MC400 defaults to the v2.60F boot ROM; a discreet
+  header link swaps to the older v1.26F ROM (and back) without leaving a
+  second entry in the device picker.
 
 Every device has a committed golden screenshot in `tests/golden/`; run
 `bash tests/boot/test-boot.sh --all` to re-verify locally.

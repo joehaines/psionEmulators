@@ -108,7 +108,9 @@ static EmuBase *makeMC400() {
     c.lcdId       = 0;       // 640x400 in laptop mode
     c.keyMatrix   = &Series3::mc400KeyMatrix;
     c.ssdSlots    = 4;       // Pack 1..4 wired on ASIC2 ch1..4 (MAME mc400.cpp).
-                             // Pack 3 (slot index 2) holds the system disk.
+                             // Pack D (slot index 3) holds the ROM:: System
+                             // Disk, pre-inserted by the frontend on cold boot
+                             // (defaultSsdFor) from roms/MC400_V2.60F_system.ssd.
     // Cold-boot RAM as 0xFF — the V1.26F boot ROM's RAM-POST is gated
     // on a non-zero "post-done" marker at [0x416]+[0x418]; zeroed RAM
     // makes the kernel skip POST and leave [0x414] (top-of-RAM segment)
@@ -519,10 +521,14 @@ static const DeviceProfile kProfiles[] = {
         // in laptopMode (VRAM at 0xB8000), 256 KiB ROM at 0xC0000 (reset
         // vector EA 00 00 00 C0 → C000:0000), and a full QWERTY laptop
         // keyboard. Auto-detect by ROM size (0x40000) — no other profile
-        // ships a 256 KiB image in the SIBO family.
+        // ships a 256 KiB image in the SIBO family.  Defaults to the v2.60F
+        // ROM; the older v1.26F ships as a hidden mc400v126 variant below,
+        // reachable from a header link in the frontend.  This entry is
+        // registered first so the size-based auto-detect (any 256 KiB SIBO
+        // image with no variant ID) resolves to the default device.
         "mc400",
         "Psion MC400",
-        "MC400_V1.26F.bin",
+        "MC400_v2.60F.bin",
         0x40000,
         0,
         "mc400.svg",
@@ -531,6 +537,31 @@ static const DeviceProfile kProfiles[] = {
         false,  // No CompactFlash slot
         4,      // Four SSD pack slots on ASIC2 ch1..4 (MAME mc400.cpp).
                 // Pack 3 holds the system disk loaded by the boot ROM.
+    },
+    {
+        // Older MC400 boot ROM (v1.26F).  Same hardware/factory as the
+        // default mc400 above — only the ROM image differs — so it shares
+        // makeMC400, the skin and the slot layout.  Hidden from the picker
+        // (hiddenFromPicker = true): the frontend offers it via a discreet
+        // header link rather than a second near-duplicate list entry, but
+        // it keeps its own id so save states and the device label stay
+        // distinct from the v2.60F default.
+        "mc400v126",
+        "Psion MC400 (v1.26F)",
+        "MC400_V1.26F.bin",
+        0x40000,
+        0,
+        "mc400.svg",
+        DeviceStatus::Supported,
+        makeMC400,
+        false,  // No CompactFlash slot
+        4,      // Four SSD pack slots on ASIC2 ch1..4 (MAME mc400.cpp).
+        0,      // datapakSlotCount
+        -1,     // remoteLinkUart
+        -1,     // infraredUart
+        0,      // linkProtocol
+        0,      // irProtocol
+        true,   // hiddenFromPicker — alternate-ROM variant of mc400
     },
     {
         "series3a",

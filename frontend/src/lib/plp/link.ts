@@ -139,6 +139,15 @@ export interface LinkConfig {
   // Established empirically via the harness reply matrix (see
   // scripts/test-remote-link.sh).
   conSeq?: number;
+  // Host→device Data_Pdu retransmission (reliable delivery / ARQ).
+  // retxIntervalMs: how long to wait for the device's echoing Ack before
+  // resending the unacked frames; maxRetxRounds: how many resend rounds
+  // before giving up (the upper RFSV layer then times out and restarts the
+  // transfer). See sendData()/pumpRetransmit() for the rationale — defaults
+  // suit the web-worker serial bridge, which can drop bytes under upload
+  // load. Set maxRetxRounds to 0 to disable (e.g. a lossless mock bridge).
+  retxIntervalMs?: number;   // default 600
+  maxRetxRounds?: number;    // default 10
 }
 
 export class LinkLayer {
@@ -159,12 +168,33 @@ export class LinkLayer {
   // the same instance keeps a stable value across reconnect attempts.
   private magic: Uint8Array;
 
+  // Reliable-delivery (ARQ) state for host→device Data_PDUs. The browser
+  // worker's serial bridge can DROP bytes when the device RX FIFO overflows
+  // faster than the guest drains it; a dropped frame fails CRC on the device,
+  // which then sends no Ack. Downloads survive this because the device
+  // retransmits its own data until our Ack lands — but an upload's
+  // host→device frames had NO retransmission, so a single dropped frame
+  // stalled the whole transfer permanently (the field "upload fails partway,
+  // every time" report). We now track unacked Data_PDUs and resend them when
+  // the device's echoing Ack doesn't arrive in time. Scoped to the EPOC (R5)
+  // link; the SIBO mod-8 dialect keeps its existing tested behaviour.
+  private unacked: { seq: number; bytes: Uint8Array; sentAt: number }[] = [];
+  private retxRounds = 0;
+  // Set when an inbound R5 Data_Pdu needs acknowledging; flushAck() (called by
+  // the poll loop after a whole inbound batch) sends one cumulative Ack of
+  // seqRx instead of one Ack per frame. See the PDU_CONT_DATA handler.
+  private ackPending = false;
+  private readonly retxIntervalMs: number;
+  private readonly maxRetxRounds: number;
+
   constructor(cfg: LinkConfig) {
     this.cfg = cfg;
     this.magic = new Uint8Array(4);
     // Math.random is fine — the magic only needs to differ from the
     // remote's value to prevent self-connection detection.
     for (let i = 0; i < 4; i++) this.magic[i] = Math.floor(Math.random() * 256);
+    this.retxIntervalMs = Math.max(50, cfg.retxIntervalMs ?? 600);
+    this.maxRetxRounds = Math.max(0, cfg.maxRetxRounds ?? 10);
   }
 
   get state(): LinkState { return this.state_; }
@@ -196,6 +226,7 @@ export class LinkLayer {
     this.seqRx = 0;
     this.gotData = false;
     this.probeSent = false;
+    this.clearUnacked();
   }
 
   // Probe for a session a dead host left behind. The EPOC R5 link
@@ -236,31 +267,94 @@ export class LinkLayer {
     this.send(ackPdu(this.seqRx));
   }
 
+  // The exact bytes keepAlive() would put on the wire right now (a duplicate
+  // Ack of the last received Data_Pdu Seq), or null if the link isn't up.
+  // Worker mode replays this inside its sim-frame loop so the device gets
+  // reschedule kicks proportional to SIM-time, not the host's wall clock —
+  // the worker equivalent of wasmBridge's in-pump keepAlive(). See
+  // PlpClient.tick() / emulator-worker.js.
+  keepAliveFrame(): Uint8Array | null {
+    if (this.state_ !== 'connected') return null;
+    return encodePdu(ackPdu(this.seqRx));
+  }
+
   // Send a Data_Pdu carrying `payload`. Returns the assigned sequence
   // number — useful for matching against the next Ack_Pdu.
   sendData(payload: Uint8Array): number {
     if (this.state_ !== 'connected') {
       throw new Error(`sendData while link is ${this.state_}`);
     }
-    // Tx sequence space: mod 2048 on the modern (R5) link, mod 8 —
-    // INCLUDING seq 0 — on both 3-bit dialects: the SIBO EPOC16 link
-    // (variant 'sibo': Series 3c / 3mx / Siena / Workabout MX) and the
-    // ER3/ER4 CL-PS711x link (conSeq 2: Series 5, Osaris). The 3-bit
-    // ROMs ignore any Data_Pdu outside their window and duplicate-ack
-    // the last good seq forever; after seq 7 they expect seq 0, not 1
-    // (live-traced on both families: literal seq=8 ignored; wrap-to-1
-    // ignored; the full 0..7 cycle is the only progression they
-    // accept — on the CL-PS711x this surfaced as READDIR stalling
-    // ~43 s into RFSV retries after exactly 7 PDUs). The skip-0 rule
-    // (Seq=0 reserved for the handshake) applies only to the R5 link.
+    // Tx sequence space: mod 2048 on the modern (R5) link, mod 8 on both
+    // 3-bit dialects: the SIBO EPOC16 link (variant 'sibo': Series 3c / 3mx /
+    // Siena / Workabout MX) and the ER3/ER4 CL-PS711x link (conSeq 2: Series 5,
+    // Osaris). Every dialect's Rx counter is a plain wrapping increment that
+    // INCLUDES 0 in the cycle: after the top value it expects 0, NOT 1. The
+    // 3-bit ROMs were live-traced doing exactly this (seq=8 ignored, wrap-to-1
+    // ignored; the full 0..7 cycle is the only progression they accept —
+    // READDIR stalled ~43 s after 7 PDUs on the CL-PS711x). The R5 link is the
+    // same: in the 2-byte Seq encoding 2048 ≡ 0, so the device's masked Rx
+    // counter expects 2047 → 0. We previously SKIPPED 0 here ("reserved for the
+    // handshake"), sending 2047 → 1; the device then ignored every post-wrap
+    // frame and duplicate-acked 2047 forever, stalling any transfer long enough
+    // to reach the wrap (~600 KB / accumulated session — the field "upload
+    // fails partway" report, reproduced in _plp_worker_repro at maxTxSeq=2047).
+    // Seq 0 is only special as the FIRST frame after a handshake, and that
+    // case is naturally 1 anyway (handshake leaves seqTx=0 → first send → 1);
+    // 0 is a normal data Seq at the wrap.
     if (this.cfg.variant === 'sibo' || this.cfg.conSeq === 2) {
       this.seqTx = (this.seqTx + 1) & 0x7;
     } else {
-      this.seqTx = (this.seqTx + 1) & 0x7FF;  // mod 2048 (R5 link)
-      if (this.seqTx === 0) this.seqTx = 1;   // skip Seq=0 (reserved for handshake)
+      this.seqTx = (this.seqTx + 1) & 0x7FF;  // mod 2048 (R5 link), 2047 → 0
     }
-    this.send(dataPdu(this.seqTx, payload));
+    const pdu = dataPdu(this.seqTx, payload);
+    this.send(pdu);
+    // Queue for retransmission (EPOC/R5 only — see `unacked`). The device
+    // echoes our Seq in its Ack; pumpRetransmit resends until it does.
+    if (this.cfg.variant !== 'sibo' && this.maxRetxRounds > 0) {
+      this.unacked.push({ seq: this.seqTx, bytes: encodePdu(pdu), sentAt: Date.now() });
+    }
     return this.seqTx;
+  }
+
+  // Drive host→device retransmission; call periodically (PlpClient.tick()).
+  // When the oldest unacked Data_Pdu has gone unacknowledged for longer than
+  // retxIntervalMs, resend every still-unacked frame in order (go-back-N) so
+  // a multi-frame loss recovers in one round. Resending a frame the device
+  // already accepted is harmless: the R5 link dedups by Seq and just re-acks
+  // it (the same mechanism adoption relies on). After maxRetxRounds with no
+  // progress we drop the queue and let the RFSV inactivity timeout restart
+  // the transfer, so a genuinely wedged device can't loop us forever.
+  pumpRetransmit(): void {
+    if (this.state_ !== 'connected' || this.unacked.length === 0) return;
+    const now = Date.now();
+    if (now - this.unacked[0].sentAt < this.retxIntervalMs) return;
+    if (this.retxRounds >= this.maxRetxRounds) {
+      this.unacked = [];
+      this.retxRounds = 0;
+      return;
+    }
+    this.retxRounds++;
+    for (const u of this.unacked) {
+      u.sentAt = now;
+      this.cfg.sendBytes(u.bytes);
+    }
+  }
+
+  private clearUnacked(): void {
+    this.unacked = [];
+    this.retxRounds = 0;
+    this.ackPending = false;
+  }
+
+  // Send the single cumulative Ack deferred by the R5 Data_Pdu handler, if any.
+  // The poll loop calls this once after feeding a whole inbound batch through
+  // handleFrame(), so a multi-frame reply (and its retransmits) costs one Ack
+  // rather than one per frame. No-op when nothing is pending or the link is
+  // down. SIBO and handshake Acks are sent inline and don't use this path.
+  flushAck(): void {
+    if (!this.ackPending || this.state_ !== 'connected') return;
+    this.ackPending = false;
+    this.send(ackPdu(this.seqRx));
   }
 
   // Feed a complete frame payload (output of FrameDecoder.feed) into
@@ -286,6 +380,7 @@ export class LinkLayer {
         this.seqTx = 0;
         this.seqRx = 0;
         this.gotData = false;
+        this.clearUnacked();
         this.send(ackPdu(0));
         this.transition('connected');
         if (wasEstablished) this.cfg.onReset?.();
@@ -309,6 +404,7 @@ export class LinkLayer {
           this.state_ === 'connected' || this.state_ === 'confirming';
         this.seqTx = 0;
         this.seqRx = 0;
+        this.clearUnacked();
         this.transition('confirming');
         this.send(reqConPdu(this.magic, this.cfg.conSeq ?? 4));
         if (wasEstablished) this.cfg.onReset?.();
@@ -349,8 +445,18 @@ export class LinkLayer {
         this.seqTx = pdu.seq;
         this.seqRx = 0;
         this.gotData = false;
+        this.clearUnacked();
         this.cfg.onAdopt?.();
         this.transition('connected');
+        return;
+      }
+      // The device echoes the Seq of each host Data_Pdu it accepted (the
+      // reliable-delivery Ack). Clear that frame and every frame sent before
+      // it from the retransmit queue (acks are effectively cumulative — a
+      // later frame's Ack implies the earlier ones landed too).
+      if (this.state_ === 'connected' && this.unacked.length) {
+        const idx = this.unacked.findIndex(u => u.seq === pdu.seq);
+        if (idx >= 0) { this.unacked.splice(0, idx + 1); this.retxRounds = 0; }
       }
       return;
     }
@@ -366,18 +472,51 @@ export class LinkLayer {
         this.send(ackPdu(pdu.seq));
         return;
       }
-      // Per spec, ACK every Data_Pdu — including out-of-order ones —
-      // with the last valid Seq we've seen. On the SIBO variant the
-      // device retransmits a Data_Pdu until our Ack lands; a duplicate
-      // (same Seq as the last delivered frame) must be re-acked but
-      // NOT delivered again, or a stale reply gets matched against the
-      // next in-flight request (observed live: a retransmitted FCLOSE
-      // status was consumed as the following FOPEN's reply).
-      const dup = this.cfg.variant === 'sibo' && this.gotData && pdu.seq === this.seqRx;
-      this.seqRx = pdu.seq;
-      this.gotData = true;
-      this.send(ackPdu(this.seqRx));
-      if (!dup) this.cfg.onData(pdu.data);
+      // The SIBO mod-8 dialect retransmits a Data_Pdu until our Ack lands;
+      // a duplicate (same Seq as the last delivered frame) must be re-acked
+      // but NOT delivered again, or a stale reply gets matched against the
+      // next in-flight request (observed live: a retransmitted FCLOSE status
+      // was consumed as the following FOPEN's reply). Its Seq space is tiny
+      // and only the immediately-previous frame ever repeats, so a one-deep
+      // compare suffices.
+      if (this.cfg.variant === 'sibo') {
+        const dup = this.gotData && pdu.seq === this.seqRx;
+        this.seqRx = pdu.seq;
+        this.gotData = true;
+        this.send(ackPdu(this.seqRx));
+        if (!dup) this.cfg.onData(pdu.data);
+        return;
+      }
+      // EPOC/R5: a proper in-order receive window. Under the web-worker
+      // serial bridge our Acks are batched a tick behind the device's send,
+      // so on a DOWNLOAD the device's link layer keeps deciding its window is
+      // unacknowledged and retransmits the WHOLE window (go-back-N) on every
+      // reply — we see each data frame arrive two or three times. Re-delivering
+      // those duplicate / out-of-order frames to NCP corrupts the in-flight
+      // reply reassembly (extra bytes spliced mid-fragment), so the RFSV opId
+      // never completes and the transfer times out and wedges. Accept ONLY the
+      // next in-sequence frame; for anything else re-Ack the highest in-order
+      // Seq we hold so the device learns what actually landed and advances its
+      // window instead of looping. Acking the cumulative high-water (not the
+      // received frame's Seq) is what lets the device retire the window.
+      const expected = (this.seqRx + 1) & 0x7FF;  // 2047 → 0, mirrors sendData
+      if (!this.gotData || pdu.seq === expected) {
+        this.seqRx = pdu.seq;
+        this.gotData = true;
+        this.cfg.onData(pdu.data);
+      }
+      // Coalesce the Ack instead of sending one per frame. The device's reply
+      // burst (up to four frames) and its go-back-N retransmits arrive in one
+      // poll batch; Acking each individually floods host→device with redundant
+      // duplicate-Acks that compete with the device draining its RX FIFO and
+      // amplify the very retransmit storm we're trying to quell — on a large
+      // download that backlog snowballs until the device exhausts its retransmit
+      // budget and goes dormant mid-file. A single cumulative Ack of the highest
+      // in-order Seq, sent once per batch (flushAck(), called by the poll loop),
+      // tells the device exactly what landed with the least wire traffic. The
+      // Ack value is the same whether the frame was in-order, a duplicate, or a
+      // forward gap, so all three just mark the Ack pending.
+      this.ackPending = true;
       return;
     }
     if (pdu.cont === PDU_CONT_DISC) {
@@ -386,6 +525,7 @@ export class LinkLayer {
       this.transition('idle');
       this.seqTx = 0;
       this.seqRx = 0;
+      this.clearUnacked();
       return;
     }
   }
@@ -409,5 +549,7 @@ export function makeBytePump(decoder: FrameDecoder, link: LinkLayer) {
     if (chunk.length === 0) return;
     const frames = decoder.feed(chunk);
     for (const f of frames) link.handleFrame(f.payload);
+    // Emit the single coalesced Data_Pdu Ack for the batch (R5 path).
+    link.flushAck();
   };
 }

@@ -100,7 +100,11 @@ class MockRevo {
     this.bridge.deviceTx(encodePdu(pdu));
   }
   private sendDataPdu(data: Uint8Array): number {
-    this.seqTx = (this.seqTx + 1) & 0x7;
+    // Mod-2048, matching the real EPOC R5 device (the host now enforces a
+    // strict in-order receive window on this Seq space — see LinkLayer's
+    // PDU_CONT_DATA handler — so the mock must use the same modulus or its
+    // wrap looks like an out-of-order frame and gets dropped).
+    this.seqTx = (this.seqTx + 1) & 0x7FF;
     if (this.seqTx === 0) this.seqTx = 1;
     this.sendPdu(dataPdu(this.seqTx, data));
     return this.seqTx;

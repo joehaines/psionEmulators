@@ -13,10 +13,10 @@
 //     via control 0x82 + DATA byte. SSD uses counter mode for
 //     auto-incrementing sequential reads and latch mode for setting
 //     the address LSB by hand.
-//   * In counter mode, every Port A read or write increments
-//     port_b_counter and the result is "sent" out Port B — for an SSD
-//     that means the address LSB auto-advances after every byte
-//     transferred.
+//   * In counter mode, a Port A read or write whose control byte has
+//     bit 4 set increments port_b_counter and the result is "sent" out
+//     Port B — for an SSD that means the address LSB auto-advances
+//     after every byte of a multi-byte transfer.
 //   * Port D / Port C accept the address mid-byte and high-byte; the
 //     first DATA_FRAME after CONTROL 0x93 hits D, subsequent frames
 //     hit C. A Port D write in counter mode resets port_b_counter
@@ -24,6 +24,7 @@
 
 #include "psion_ssd.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
@@ -64,6 +65,11 @@ bool PsionSSD::attach(const uint8_t *bytes, size_t size, Type type) {
 
     computeInfo(size, effective);
 
+    m_isFlash        = (effective == Type::Flash || effective == Type::Protected);
+    m_writeProtected = (effective == Type::Protected);
+    m_flashState     = FlashState::ReadArray;
+    m_eraseArmed     = false;
+
     // Reset the per-frame latches so the next CPU access starts from a
     // known state (matches MAME's device_reset on call_load).
     m_siboControl  = 0;
@@ -94,6 +100,10 @@ void PsionSSD::detach() {
     m_portBLatch = 0;
     m_portBMode = 0;
     m_portBCounter = 0;
+    m_isFlash = false;
+    m_writeProtected = false;
+    m_flashState = FlashState::ReadArray;
+    m_eraseArmed = false;
     if (m_doorCb && m_guestAccessed) m_doorCb(true);
 }
 
@@ -110,15 +120,13 @@ void PsionSSD::computeInfo(size_t size, Type type) {
     // FEFS read happens, the pack is invisible. Using 0x20 (Type 1
     // Flash) gives info bytes 0x23/0x2B/0x2C/0x3C/0x3D/0x3E/0x3F for
     // 128K..8M, which match the "Psion Solid State Disk N Flash" rows
-    // in the same table and which EPOC16 mounts as regular user packs.
-    // The write-protect check in writeFrame stays `(m_infoByte & 0xE0)
-    // != 0` (still true for 0x20-prefixed flash packs), so Flash stays
-    // read-only as it should be.
+    // in the same table and which EPOC16 mounts as regular user packs —
+    // read/write, through the flash command interface in writeFrame.
     if (isFlash) m_infoByte |= 0x20;
     // Hardware write-protected type (D7-D5 = 111), as used by MAME for
     // every Flash image and by real MC200/400 system disks. EPOC16
-    // mounts these read-only and skips its mount-time writability
-    // probe entirely.
+    // mounts these read-only — the Directory browser labels the drive
+    // "Protected" rather than "Flash".
     if (type == Type::Protected) m_infoByte |= 0xE0;
 
     switch (size) {
@@ -132,6 +140,71 @@ void PsionSSD::computeInfo(size_t size, Type type) {
     case 0x800000: m_infoByte |= 0x1F; m_memWidth = 21; break; // 8M  (4 x 2M)
     default:       m_infoByte = 0;     m_memWidth = 0;  break;
     }
+}
+
+// ── Intel 28F0xx-class command interface (see psion_ssd.h) ───────────
+//
+// Command bytes arrive as Port A writes; the data byte of a program
+// arrives the same way, which is why the chip needs a state machine to
+// tell the two apart.
+void PsionSSD::flashCommand(uint8_t cmd) {
+    // Erase Setup (0x20) arms the device; the very next command must be
+    // the Erase Confirm (0x20) or the sequence aborts, exactly as on the
+    // real part — a two-cycle interlock so a stray write can't wipe a
+    // device.
+    if (m_eraseArmed) {
+        m_eraseArmed = false;
+        if (cmd == 0x20) {
+            flashEraseDevice(latchedAddr());
+            m_flashState = FlashState::ReadArray;
+            return;
+        }
+        // Fall through: treat the byte as a fresh command.
+    }
+
+    switch (cmd) {
+    case 0x40:
+    case 0x10:  // Program Setup — next Port A write carries the data.
+        m_flashState = FlashState::ProgramSetup;
+        break;
+    case 0x20:  // Erase Setup — needs the confirm cycle to take effect.
+        m_eraseArmed = true;
+        m_flashState = FlashState::ReadArray;
+        break;
+    case 0x90:  // Read Intelligent Identifier
+        m_flashState = FlashState::ReadId;
+        break;
+    case 0xC0:  // Program Verify  — both simply return to array reads,
+    case 0xA0:  // Erase Verify      which is what the verify read wants.
+    case 0x00:  // Read Memory
+    case 0xFF:  // Read Memory / Reset
+    default:
+        m_flashState = FlashState::ReadArray;
+        break;
+    }
+}
+
+void PsionSSD::flashProgram(uint32_t addr, uint8_t data) {
+    // Vpp is strapped off on a hardware write-protected pack, so the
+    // program cycle completes with the array unchanged and the driver's
+    // verify read fails — the same outcome as the real device.
+    if (m_writeProtected || addr >= m_data.size()) return;
+    // Programming only clears bits; returning a cell to 1 takes an
+    // erase. FEFS relies on this (deleting a file clears the entry's
+    // valid bit in place), so model it rather than storing outright.
+    m_data[addr] &= data;
+}
+
+void PsionSSD::flashEraseDevice(uint32_t addr) {
+    if (m_writeProtected || m_memWidth <= 0 || m_data.empty()) return;
+    // 28F0xx-class parts are bulk-erase: one command clears the whole
+    // device. A pack is 1-4 devices of 2^memWidth bytes, selected by the
+    // top bits of the latched address.
+    const uint32_t deviceSize = uint32_t(1) << m_memWidth;
+    uint32_t base = (addr / deviceSize) * deviceSize;
+    if (base >= m_data.size()) return;
+    const uint32_t len = uint32_t(std::min<size_t>(deviceSize, m_data.size() - base));
+    std::fill_n(m_data.begin() + base, len, uint8_t(0xFF));
 }
 
 uint32_t PsionSSD::latchedAddr() const {
@@ -153,9 +226,28 @@ void PsionSSD::tickPortBCounter() {
     }
 }
 
+// Port A accesses only step the counter when the control byte asks for
+// it (bit 4 = auto-increment / "multi" access). EPOC16 leans on the
+// distinction: it bursts a file through Port A with control 0x90 / 0xD0
+// so the address walks itself, but issues one-off accesses — flash
+// commands (0x80), the byte a verify reads back (0xC0) — with bit 4
+// clear so they land on the address already set up and leave it alone.
+//
+// Ignoring bit 4 and always stepping is what made a writable Flash pack
+// mount as "Unformatted!": the driver's read-array command at offset 0
+// consumed the address, so the header read that followed started at
+// byte 1 and the 0xF1A5 magic came back as 0x11F1. (MAME's ASIC5 also
+// steps unconditionally, but its SSD device reports every Flash pack as
+// hardware write-protected, and that path never issues the command.)
+void PsionSSD::tickPortAAccess() {
+    if (m_siboControl & SIBO_AUTOINC) tickPortBCounter();
+}
+
 void PsionSSD::writeFrame(uint16_t frame) {
     m_guestAccessed = true;
-    if (ssdTrace()) std::fprintf(stderr, "[ssd] writeFrame 0x%03X (ctrl=0x%02X)\n", frame, m_siboControl);
+    if (ssdTrace()) std::fprintf(stderr, "[ssd] writeFrame 0x%03X (ctrl=0x%02X addr=0x%06X%s)\n",
+        frame, m_siboControl, latchedAddr(),
+        m_flashState == FlashState::ProgramSetup ? " prog-data" : "");
     switch (frame & 0x300) {
     case NULL_FRAME:
         // MAME's ASIC5 NULL_FRAME calls device_reset() — clear the
@@ -181,25 +273,27 @@ void PsionSSD::writeFrame(uint16_t frame) {
     case DATA_FRAME: {
         const uint8_t data = uint8_t(frame & 0xFF);
         switch (m_siboControl & 0x0F) {
-        case 0x00: // Port A write data -> SSD memory write
-            if (m_infoByte && !m_data.empty() &&
-                (m_infoByte & 0xE0) != 0xE0) {
-                // Store the byte for RAM and writable-Flash packs. MAME's
-                // psion_ssd_device stores unconditionally, but a pack
-                // whose info byte declares hardware write-protection
-                // (D7-D5 = 111) has its write-enable pin strapped off, so
-                // dropping the byte models the real part — and matters in
-                // practice: the EPOC16 slot-scan prologue always fires one
-                // Port A write of 0x00 at address 0 before re-reading the
-                // header (see docs/ssd-format-investigation.md), which
-                // would otherwise zap the 0xA5 magic byte in every
-                // factory image the user attaches and then saves back out.
-                // EPOC16 itself never reads offset 0 during the scan, so
-                // the OS can't tell the difference either way.
-                m_data[latchedAddr()] = data;
+        case 0x00: // Port A write -> SSD memory write / flash command
+            if (m_infoByte && !m_data.empty()) {
+                if (!m_isFlash) {
+                    // RAM pack: Port A is plain SRAM, store the byte.
+                    m_data[latchedAddr()] = data;
+                } else if (m_flashState == FlashState::ProgramSetup) {
+                    // Second cycle of a program command: this is data.
+                    flashProgram(latchedAddr(), data);
+                    m_flashState = FlashState::ReadArray;
+                } else {
+                    // Flash pack: everything else on this bus is a
+                    // command, not data. EPOC16 opens its slot scan with
+                    // a read-array (0x00) at offset 0 — treating that as
+                    // data is what used to zap the 0xA5 FEFS magic of an
+                    // attached image.
+                    flashCommand(data);
+                }
             }
-            // Counter mode: address LSB auto-advances after each write.
-            tickPortBCounter();
+            // Address LSB auto-advances after the write when the
+            // control byte asked for it.
+            tickPortAAccess();
             break;
 
         case 0x01: // Port B write data — SSD address LSB in latch mode
@@ -270,10 +364,18 @@ uint8_t PsionSSD::readFrameInner() {
         case 0x00: { // Port A read data -> SSD memory read
             uint8_t v = 0;
             if (m_infoByte && !m_data.empty()) {
-                v = m_data[latchedAddr()];
+                if (m_isFlash && m_flashState == FlashState::ReadId) {
+                    // Intelligent identifier: even address = maker,
+                    // odd = device. Intel 28F0xx-class part, which is
+                    // what a "Type 1 Flash" pack carries.
+                    v = (latchedAddr() & 1) ? FLASH_DEVICE_ID : FLASH_MAKER_ID;
+                } else {
+                    v = m_data[latchedAddr()];
+                }
             }
-            // Counter mode: address LSB auto-advances after each read.
-            tickPortBCounter();
+            // Address LSB auto-advances after the read when the
+            // control byte asked for it.
+            tickPortAAccess();
             return v;
         }
         case 0x01: // Port B latch read

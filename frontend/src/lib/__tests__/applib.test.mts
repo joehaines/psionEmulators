@@ -14,7 +14,10 @@
 import { deflateRawSync } from 'node:zlib';
 import { listZipEntries, readZipEntry, unzipAll } from '../zip.ts';
 import {
-  to83, deliveryKindFor, tryTargetsFor, deliverApp, type AppEntry,
+  to83, deliveryKindFor, cardNameFor, tryTargetsFor, deliverApp,
+  isDriveRooted, epocAppFolder, epocDirPathFor,
+  isAppsRoute, parseAppsRoute, appsRouteHash,
+  type AppEntry, type DeviceProfileLike,
 } from '../appLibrary.ts';
 import { listDirectory } from '../fat16.ts';
 import { listFiles } from '../fefs.ts';
@@ -117,6 +120,37 @@ eq(to83('sub/dir/My App v1.2!.sis'), 'MYAPPV12.SIS', 'path stripped, squeezed to
 eq(to83('verylongprogramname.opa'), 'VERYLONG.OPA', 'stem truncated to 8');
 eq(to83('.hidden'), 'HIDDEN', 'dotfile becomes bare name');
 
+// ── the library route ───────────────────────────────────────────────
+// App.tsx parses it, AppLibrary writes it back as the user opens and
+// closes app details, and the result is what people paste to each other.
+
+eq(isAppsRoute('#/apps'), true, 'bare library route');
+eq(isAppsRoute('#/apps?app=epocgames/monopoly'), true, 'library route with parameters');
+eq(isAppsRoute('#/appsomething'), false, 'a longer hash is a different route');
+eq(isAppsRoute('#/5mx'), false, 'a device route is not the library');
+
+eq(appsRouteHash({ device: null, app: null }), '#/apps', 'no parameters → bare route');
+eq(appsRouteHash({ device: 'netpad', app: null }), '#/apps?device=netpad', 'device only');
+eq(appsRouteHash({ device: null, app: 'epocgames/monopoly' }),
+   '#/apps?app=epocgames/monopoly', "the app id's slash stays readable");
+eq(appsRouteHash({ device: 'netpad', app: 'netpad/word' }),
+   '#/apps?device=netpad&app=netpad/word', 'both, device first');
+
+{
+  const empty = parseAppsRoute('#/apps');
+  eq(empty.device, null, 'bare route names no device');
+  eq(empty.app, null, 'bare route names no app');
+  const both = parseAppsRoute('#/apps?device=netpad&app=netpad/word');
+  eq(both.device, 'netpad', 'device parsed');
+  eq(both.app, 'netpad/word', 'app parsed with its slash intact');
+  // Both spellings of the slash have to parse — an older link, or one a
+  // chat client has helpfully percent-encoded on the way through.
+  eq(parseAppsRoute('#/apps?app=netpad%2Fword').app, 'netpad/word',
+     'percent-encoded slash decodes');
+  const round = '#/apps?device=netpad&app=netpad/word';
+  eq(appsRouteHash(parseAppsRoute(round)), round, 'parse ∘ format is a round trip');
+}
+
 // ── delivery routing ────────────────────────────────────────────────
 
 const sisApp: AppEntry = {
@@ -164,6 +198,97 @@ eq(deliveryKindFor({ id: 'series3c', ssdSlotCount: 2 }, { ...siboApp, installKin
 check(tryTargetsFor(sisApp).includes('5mx') && tryTargetsFor(sisApp).includes('revo'),
       'try targets include cf and link devices');
 eq(tryTargetsFor({ ...sisApp, installKind: 'none' }).length, 0, 'no installer → no targets');
+
+// ── netpad: MMC slot, card first ────────────────────────────────────
+// The netpad's slot takes an MMC rather than a PC-Card (same raw FAT16
+// image), and its EPOC R5 build only opens the Remote Link port once
+// Remote link is switched on from the Tools menu — so the card wins
+// even though the machine can link and the preference says otherwise.
+const netpadApp: AppEntry = {
+  ...sisApp, id: 'netpad/word', category: 'netpad',
+  devices: ['netpad'], tryDevice: 'netpad', installFile: 'word.sis',
+};
+const netpadProfile: DeviceProfileLike = {
+  id: 'netpad', hasCFSlot: false, hasMmcSlot: true,
+  remoteLinkUart: 3, linkProtocol: 1,
+};
+eq(deliveryKindFor(netpadProfile, netpadApp), 'cf', 'netpad SIS takes the MMC card');
+eq(cardNameFor(netpadProfile), 'MMC card', 'netpad names its slot an MMC');
+eq(cardNameFor({ id: '5mx', hasCFSlot: true }), 'CF card', 'everyone else says CF');
+{
+  const store = new Map<string, string>([['psion-app-delivery', 'link']]);
+  (globalThis as Record<string, unknown>).localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => { store.set(k, v); },
+  };
+  eq(deliveryKindFor(netpadProfile, netpadApp), 'cf',
+     'pref=link does not divert the netpad onto its cable');
+  delete (globalThis as Record<string, unknown>).localStorage;
+}
+check(tryTargetsFor(netpadApp).includes('netpad'), 'netpad is a try target for its own apps');
+
+await (async () => {
+  const sis = text('fake netpad sis');
+  const zip = makeZip([{ name: 'word.sis', data: sis }]);
+  let attached: Uint8Array | null = null;
+  const phases: string[] = [];
+  const controls = {
+    cardAttached: false,
+    getCardBytes: () => null,
+    attachCard: async (img: Uint8Array) => { attached = img; return true; },
+    ssdAttached: [] as boolean[],
+  } as never;
+  const result = await deliverApp(netpadApp, zip, controls, netpadProfile,
+                                  p => phases.push(p));
+  check(attached !== null, 'netpad MMC image attached');
+  check(listDirectory(attached!, 0).some(e => e.name === 'WORD.SIS'),
+        'WORD.SIS present in the MMC root directory');
+  check(result.summary.includes('MMC card') && result.steps[0].includes('MMC card'),
+        `netpad instructions say MMC (got "${result.summary}")`);
+  check(phases.some(p => p.includes('MMC card')), 'progress phases say MMC too');
+})();
+
+// ── installed-folder ('epocdir') bundles ────────────────────────────
+// Two shapes: a bare app folder, and a drive-rooted tree for apps that
+// also need files outside \System\Apps (a shared library, say).
+const folderApp: AppEntry = {
+  ...sisApp, id: 'epocgames/demofolder',
+  installKind: 'epocdir', installFile: 'DEMO.APP',
+};
+const rootedApp: AppEntry = {
+  ...folderApp, id: 'epocgames/demorooted',
+  installFile: 'System/Apps/Demo/DEMO.APP',
+};
+
+eq(isDriveRooted(folderApp.installFile!), false, 'flat bundle is not drive-rooted');
+eq(isDriveRooted(rootedApp.installFile!), true, 'System/… bundle is drive-rooted');
+eq(epocAppFolder(folderApp.installFile!), 'DEMO', 'flat bundle: folder named after the binary');
+eq(epocAppFolder(rootedApp.installFile!), 'Demo', 'drive-rooted: folder taken from the path');
+eq(epocDirPathFor(folderApp.installFile!, 'DEMO.APP'), '\\System\\Apps\\DEMO\\DEMO.APP',
+   'flat bundle lands under \\System\\Apps\\<App>\\');
+eq(epocDirPathFor(folderApp.installFile!, 'data/LEVELS.DAT'),
+   '\\System\\Apps\\DEMO\\data\\LEVELS.DAT', 'flat bundle keeps its sub-directories');
+eq(epocDirPathFor(rootedApp.installFile!, 'System/Libs/helper.dll'),
+   '\\System\\Libs\\helper.dll', 'drive-rooted paths are used as given');
+
+// The card path can only write 8.3 short names, which would rename a
+// library the EPOC loader looks up by name — so a folder bundle is
+// cable-only, and a device that can't link has no automated install.
+eq(deliveryKindFor({ id: '5mx', hasCFSlot: true, remoteLinkUart: 2, linkProtocol: 1 }, folderApp),
+   'link', 'installed folder goes over the link');
+eq(deliveryKindFor({ id: '5mx', hasCFSlot: true }, folderApp), null,
+   'installed folder never takes the card');
+{
+  const store = new Map<string, string>([['psion-app-delivery', 'cf']]);
+  (globalThis as Record<string, unknown>).localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => { store.set(k, v); },
+  };
+  eq(deliveryKindFor({ id: '5mx', hasCFSlot: true, remoteLinkUart: 2, linkProtocol: 1 }, folderApp),
+     'link', 'pref=cf does not divert an installed folder onto the card');
+  delete (globalThis as Record<string, unknown>).localStorage;
+}
+check(tryTargetsFor(folderApp).includes('5mx'), 'installed folder still has try targets');
 
 // ── deliverApp: CF path ─────────────────────────────────────────────
 

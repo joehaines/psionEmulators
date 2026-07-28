@@ -9,8 +9,9 @@ import {
   serialReadBytes as serialReadBytesWasm,
   serialWriteBytes as serialWriteBytesWasm,
 } from '../lib/wasmBridge';
-import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice } from '../lib/keymap';
+import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice, isHostTextEntry } from '../lib/keymap';
 import { isFat16, createBlankImage, addFile, FAT_ATTR_HIDDEN, FAT_ATTR_SYSTEM } from '../lib/fat16';
+import type { PackKind } from '../lib/fefs';
 import { createAudioEngine, primeAudioContext, primeMobileAudioSession, type AudioEngine } from '../lib/audioEngine';
 import { trackDeviceLoad, trackFeature, startSession, endSession } from '../lib/analytics';
 import {
@@ -45,37 +46,103 @@ function applyDeviceModePixels(buf: Uint8ClampedArray) {
 }
 
 const LAST_DEVICE_KEY = 'psion-last-device';
+
+// ── EPOC Unique id (debug feature) ─────────────────────────────────────
+// An id the user programmed via the debug panel is remembered per device
+// and re-applied on every load and reset, because both paths rebuild the
+// emulator from ROM (loadBufferedROM) and would otherwise hand back the
+// stock value. Stored as the full 64-bit id — the low 32 bits are the
+// identity chip's word, the high 32 the model UID patched into the ROM.
+// localStorage rather than IndexedDB: it's eight bytes, and the worker
+// hook needs to read it synchronously on the main thread to pass into the
+// worker's load. Exported so useEmulatorWorker shares the same keys and
+// parsing.
+const machineIdKey = (id: string) => `psion-machine-id-${id}`;
+// The stored override, as a bigint so all 64 bits survive the round trip
+// (a JS number can't hold the full id exactly). Null when unset.
+export function loadStoredMachineId(deviceId: string): bigint | null {
+  try {
+    const raw = localStorage.getItem(machineIdKey(deviceId));
+    if (raw == null) return null;
+    const v = BigInt('0x' + raw.replace(/[^0-9a-fA-F]/g, ''));
+    return v >= 0n ? v & 0xFFFFFFFFFFFFFFFFn : null;
+  } catch { return null; }
+}
+export function storeMachineId(deviceId: string, id: bigint | null): void {
+  try {
+    if (id == null) localStorage.removeItem(machineIdKey(deviceId));
+    else localStorage.setItem(machineIdKey(deviceId), id.toString(16).padStart(16, '0'));
+  } catch { /* private-mode / quota — the id still applies to this session */ }
+}
+// What the UI needs to know: whether this device has a readable identity
+// chip, the low half it currently holds, the model UID EPOC prints in
+// front of it (null when unknown for this machine), and whether that high
+// half can be patched. Same shape as the worker's machineId RPC reply.
+export interface MachineIdState {
+  supported: boolean;
+  id: number | null;
+  prefix: number | null;
+  prefixSettable: boolean;
+}
+// Writes `override` (a full 64-bit id) into the machine and reports what
+// stuck. The bindings landed together, so requiring the full set doubles as
+// the "is this psion.wasm new enough?" check — an older build reports
+// unsupported and the UI hides the control.
+export function applyMachineId(mod: PsionModule, override: bigint | null): MachineIdState {
+  if (typeof mod.hasMachineId !== 'function'
+      || typeof mod.getMachineId !== 'function'
+      || typeof mod.setMachineId !== 'function'
+      || typeof mod.getMachineIdPrefix !== 'function'
+      || typeof mod.canSetMachineIdPrefix !== 'function'
+      || typeof mod.setMachineIdPrefix !== 'function'
+      || !mod.hasMachineId()) {
+    return { supported: false, id: null, prefix: null, prefixSettable: false };
+  }
+  if (override != null) {
+    mod.setMachineId(Number(override & 0xFFFFFFFFn) >>> 0);
+    // The high half is a ROM constant, so it can only be written where the
+    // emulator managed to locate it; elsewhere it stays as the ROM has it
+    // and the read-back below shows the user what they actually got.
+    const wantPrefix = Number((override >> 32n) & 0xFFFFFFFFn) >>> 0;
+    if (wantPrefix !== 0 && mod.canSetMachineIdPrefix()) mod.setMachineIdPrefix(wantPrefix);
+  }
+  const prefix = mod.getMachineIdPrefix() >>> 0;
+  return {
+    supported: true,
+    id: mod.getMachineId() >>> 0,
+    prefix: prefix !== 0 ? prefix : null,
+    prefixSettable: mod.canSetMachineIdPrefix(),
+  };
+}
+
 const idbStateKey = (id: string) => `state-${id}`;
 const idbCardKey  = (id: string) => `cf-${id}`;
 // Per-(device, slot) SSD image key. Mirrors the CF card persistence
 // pattern but slot-indexed; SIBO devices have up to 2 slots.
 const idbSsdKey   = (id: string, slot: number) => `ssd-${id}-${slot}`;
-// Pack type the slot was attached with ('ram' | 'flash'). Stored apart
+// Pack type the slot was attached with (see PackKind). Stored apart
 // from the image bytes because the type models a hardware strap on the
-// pack PCB, not a property of the contents: a FEFS image must re-attach
-// as write-protected Flash (or EPOC16 reports it unformatted), a RAM
-// dump as RAM.
+// pack PCB, not a property of the contents: the same FEFS image reads
+// as a read/write Flash drive or a read-only "Protected" one depending
+// on how it is strapped.
 const idbSsdTypeKey = (id: string, slot: number) => `ssd-type-${id}-${slot}`;
 // Maps a UI pack kind to the wasm attachSSDImage type code (mirrors
-// PsionSSD::Type). 'flash' attaches as 3 = hardware write-protected:
-// factory-style FEFS images carry an erased flash-count field, and
-// EPOC16 cross-checks that against the info byte — it only mounts such
-// packs when the type bits say "write protected" (D7-D5 = 111).
-// Writable Flash (code 2) is reserved for harness experiments; EPOC16
-// reports our FEFS images "Unformatted!" in that mode. 'ram' = 1.
+// PsionSSD::Type): 'ram' = 1, 'flash' = 2 (Type 1 Flash, read/write),
+// 'protected' = 3 (hardware write-protected, a factory system disk).
 // With no stored/explicit kind, sniff the FEFS magic.
-function ssdTypeCode(bytes: Uint8Array, kind: 'ram' | 'flash' | undefined): number {
+function ssdTypeCode(bytes: Uint8Array, kind: PackKind | undefined): number {
   const k = kind ??
     (bytes.length >= 2 && bytes[0] === 0xA5 && bytes[1] === 0xF1 ? 'flash' : 'ram');
-  return k === 'flash' ? 3 : 1;
+  return k === 'protected' ? 3 : k === 'flash' ? 2 : 1;
 }
 // Factory default SSDs: devices that physically shipped with a pack inserted.
 // The MC400 came with its ROM:: System Disk in Pack D (slot 3) — the window
 // server, shell, OPL and fonts that populate the lower app bar. Returns the
 // bundled image URL + pack kind, or null when the slot has no factory default.
-function defaultSsdFor(deviceId: string, slot: number): { url: string; kind: 'flash' } | null {
+function defaultSsdFor(deviceId: string, slot: number): { url: string; kind: PackKind } | null {
   if (deviceId === 'mc400' && slot === 3) {
-    return { url: `${import.meta.env.BASE_URL}roms/MC400_V2.60F_system.ssd`, kind: 'flash' };
+    // Strapped write-protected, like the real ROM:: System Disk.
+    return { url: `${import.meta.env.BASE_URL}roms/MC400_V2.60F_system.ssd`, kind: 'protected' };
   }
   return null;
 }
@@ -532,6 +599,9 @@ export interface EmulatorControls {
   loadDevice(deviceId: string, romUrl: string): Promise<void>;
   handleKeyDown(e: KeyboardEvent): void;
   handleKeyUp(e: KeyboardEvent): void;
+  // Releases every key we still believe is held. Bound to window blur /
+  // page-hide, where the browser stops delivering keyup.
+  releaseHeldKeys(): void;
   handleInput(e: Event): void;
   handlePasteText(text: string): void;
   pasteFromClipboard(): Promise<void>;
@@ -560,6 +630,11 @@ export interface EmulatorControls {
   // on devices whose backlight pin isn't modelled (Series 3 family
   // including 3mx — MAME hasn't wired it either).
   getBacklight(): boolean;
+  // Quarter-turns anticlockwise the emulated panel currently has to be
+  // shown at. The netpad's "Switch orientation" (Tools menu) rotates the
+  // whole EPOC desktop inside the unchanged 640×240 framebuffer, and the
+  // device frame turns with it; every other machine reports 0 forever.
+  getScreenOrientation(): number;
   saveState(): Promise<void>;
   clearLogs(): void;
   // Enables or disables WASM-side log emission. The log panel toggle wires
@@ -599,6 +674,27 @@ export interface EmulatorControls {
   // Callers should `await` the result, which is a no-op for the sync value.
   getRamSnapshot(): Uint8Array | null | Promise<Uint8Array | null>;
 
+  // ── EPOC Unique id (behind the "Show debugging" setting) ──────────────
+  // The id EPOC shows under System → Information → Machine.
+  // machineIdSupported is false on devices whose identity chip the guest
+  // can't read (Series 5, Osaris, the Revo, every SIBO machine) and on an
+  // older psion.wasm without the bindings — the UI hides the control then.
+  // machineId is the identity chip's half; machineIdPrefix is the model
+  // UID EPOC prints in front of it (null when unknown for this machine),
+  // and machineIdPrefixSettable says whether that half can be patched.
+  machineIdSupported: boolean;
+  machineId: number | null;
+  machineIdPrefix: number | null;
+  machineIdPrefixSettable: boolean;
+  // Programs the full 64-bit id and remembers it for this device (it is
+  // re-applied on every subsequent load and reset). Resolves to the id the
+  // device actually holds afterwards — the high half stays put where it
+  // can't be patched, and some machines reserve bits of the chip word — so
+  // callers should show what came back rather than what they asked for.
+  // The running OS cached the old id at boot, so a resetDevice() is needed
+  // for EPOC itself to report the new one.
+  setMachineId(id: bigint): Promise<bigint | null>;
+
   // Psion SSD pack management. Slot index matches the user-facing
   // "Pack A" / "Pack B" labels (slot 0 = A, slot 1 = B). ssdAttached
   // is sized to the device profile's ssdSlotCount; entries are true
@@ -607,11 +703,12 @@ export interface EmulatorControls {
   // (deviceId, slot), re-attached on the next emulator init.
   ssdAttached: boolean[];
   // `kind` is the pack type presented to the Psion (hardware strap, not
-  // content): 'flash' attaches as a write-protected Flash SSD (the only
-  // type EPOC16 mounts for factory-style FEFS images — see fefs.ts),
-  // 'ram' as a writable RAM SSD (for dumps of real RAM packs). When
-  // omitted, sniffed from the 0xF1A5 magic.
-  attachSSD(slot: number, bytes: Uint8Array, kind?: 'ram' | 'flash'): Promise<boolean>;
+  // content): 'flash' attaches as a Type 1 Flash SSD carrying a FEFS
+  // volume (see fefs.ts), 'ram' as a RAM SSD (for dumps of real RAM
+  // packs) — both read/write on the device — and 'protected' as a
+  // hardware write-protected factory system disk. When omitted, sniffed
+  // from the 0xF1A5 magic.
+  attachSSD(slot: number, bytes: Uint8Array, kind?: PackKind): Promise<boolean>;
   detachSSD(slot: number): Promise<void>;
   // Sync on the main thread, a Promise in worker mode (like getCardBytes);
   // callers go through Promise.resolve().
@@ -675,6 +772,11 @@ export interface UseEmulatorOptions {
   initialDeviceId?: string;
 }
 
+// One-shot guard for the "this psion.wasm has no orientation binding"
+// warning below — module scope so it fires once per page, not once per
+// poll (EmulatorView reads the orientation at 10 Hz).
+let staleOrientationWarned = false;
+
 export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls {
   const { embedMode = false, initialDeviceId } = options;
   const [state, setState]               = useState<EmulatorState>('idle');
@@ -706,6 +808,11 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // index into it. Surfaced via the device profile's
   // datapakSlotCount; the Datapak dialog only renders that many rows.
   const [datapakAttached, setDatapakAttached] = useState<boolean[]>([false, false]);
+  // Machine ID (debug panel). Re-read from the emulator on every load and
+  // reset; machineIdState.defaultId holds the device's factory value so
+  // the panel can offer to go back to it.
+  const [machineIdState, setMachineIdState] =
+    useState<MachineIdState>({ supported: false, id: null, prefix: null, prefixSettable: false });
   // Speaker preference defaults to ON so the device's boot tune (5mx Pro
   // bootloader chime, OS desk-app start sound, key clicks) plays without
   // the user having to discover the speaker button first. The actual
@@ -801,10 +908,20 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // appear to succeed while actually writing nothing.) The chain
   // catches errors so a failed save doesn't poison subsequent ones.
   const saveChainRef         = useRef<Promise<void> | null>(null);
+  // Pack kind each SSD slot is currently strapped as, so a state save
+  // can persist it alongside the (guest-modified) image bytes. Without
+  // it the reload path would fall back to sniffing the FEFS magic and
+  // re-strap a factory system disk as a writable Flash pack.
+  const ssdKindsRef          = useRef<(PackKind | undefined)[]>([]);
   const keydownHandledRef    = useRef(false);
   // Tracks whether a physical Shift key is currently held in EPOC's key state.
   // Used to decide whether to synthesise Shift for mobile symbol input.
   const epocShiftRef         = useRef(false);
+  // EPOC key codes we have sent a key-down for and not yet a key-up.  The
+  // browser only guarantees a keyup while the page has focus, so a key
+  // held across an alt-tab (or a Cmd-shortcut that swallows the keyup)
+  // would otherwise stay down forever — see releaseHeldKeys.
+  const heldKeysRef          = useRef<Set<number>>(new Set());
 
   // Queue of synthetic key events produced by paste / mobile input / Shift
   // synthesis.  Each entry is sent to WASM at a frame boundary by the render
@@ -1198,6 +1315,18 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
         const snap = readCardFromWasm(mod);
         if (snap) await idbPut(idbCardKey(deviceId), snap);
       }
+      // Same for the SSD slots: RAM and Flash packs are both writable
+      // from the Psion, so the `ssd-${deviceId}-${slot}` key has to
+      // follow whatever the guest has written. The kind goes with it —
+      // it is a hardware strap, not something re-derivable from bytes.
+      for (let slot = 0; slot < 4; slot++) {
+        if (!mod.isSSDImageAttached(slot)) continue;
+        const snap = readSSDFromWasm(mod, slot);
+        if (!snap) continue;
+        await idbPut(idbSsdKey(deviceId, slot), snap);
+        const kind = ssdKindsRef.current[slot];
+        if (kind) await idbPut(idbSsdTypeKey(deviceId, slot), kind);
+      }
       // .slice() copies the entire WASM linear memory (currently 128 MB
       // initial + any growth from CF/SSD attachment). Gzip handles the
       // long zero runs efficiently — a typical post-boot snapshot
@@ -1536,6 +1665,13 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       if (!restoredFromIDB && lcdPtrRef.current) mod._free(lcdPtrRef.current);
       lcdPtrRef.current = mod._malloc(info!.lcdWidth * info!.lcdHeight * 4);
 
+      // Re-apply the machine ID the user programmed for this device, before
+      // the render loop starts stepping it, so EPOC's boot-time read of the
+      // identity chip already sees the new value. Runs on the restore path
+      // too: a restored heap carries whatever ID was live when it was saved,
+      // and the stored override is the more recent expression of intent.
+      setMachineIdState(applyMachineId(mod, loadStoredMachineId(deviceId)));
+
       setLoadProgress(0.95);
       await yieldToUI();
       if (superseded()) return;
@@ -1615,7 +1751,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       const ssdState: boolean[] = [false, false, false, false];
       for (let slot = 0; slot < 4; slot++) {
         let saved = await idbGet<Uint8Array>(idbSsdKey(deviceId, slot));
-        let savedKind = (await idbGet<'ram' | 'flash'>(idbSsdTypeKey(deviceId, slot))) ?? undefined;
+        let savedKind = (await idbGet<PackKind>(idbSsdTypeKey(deviceId, slot))) ?? undefined;
         if (superseded()) return;
         // Devices that shipped with a System Disk SSD inserted (the MC400's
         // ROM:: disk in Pack D) get it pre-loaded on cold boot when the slot
@@ -1636,6 +1772,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
                                       ssdTypeCode(saved, savedKind));
         if (ok) {
           ssdState[slot] = true;
+          ssdKindsRef.current[slot] = savedKind;
         } else {
           await idbDelete(idbSsdKey(deviceId, slot));
           await idbDelete(idbSsdTypeKey(deviceId, slot));
@@ -1752,6 +1889,26 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     return mod && typeof mod.getBacklight === 'function' ? mod.getBacklight() : false;
   }, []);
 
+  // Orientation the guest is drawing at, in quarter-turns anticlockwise.
+  // Falls back to 0 (never rotated) on WASM bundles that pre-date the
+  // binding, which is also what every non-netpad device reports — but say
+  // so once, because on the netpad that fallback is indistinguishable from
+  // "Switch orientation is broken" and the fix is a rebuild.
+  const getScreenOrientation = useCallback((): number => {
+    const mod = moduleRef.current;
+    if (!mod) return 0;
+    if (typeof mod.getScreenOrientation !== 'function') {
+      if (!staleOrientationWarned) {
+        staleOrientationWarned = true;
+        console.warn('psion.wasm pre-dates the screen-orientation binding — the '
+          + 'netpad will draw rotated without the device turning. Rebuild it: '
+          + 'bash scripts/build-wasm.sh');
+      }
+      return 0;
+    }
+    return mod.getScreenOrientation();
+  }, []);
+
   // ── Public callbacks ──────────────────────────────────────────────────────
 
   const loadDevice = useCallback(async (deviceId: string, romUrl: string) => {
@@ -1834,6 +1991,13 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       setOsCardConsumed(false);
     }
 
+    // loadBufferedROM above built a fresh emulator, so the identity chip is
+    // back to its factory ID — re-apply the user's, before any stepping, so
+    // the reboot the user is watching comes up on the ID they programmed.
+    // (Resetting is exactly how a new ID is meant to take effect: a running
+    // EPOC has already cached the old one.)
+    setMachineIdState(applyMachineId(mod, loadStoredMachineId(deviceId)));
+
     const info = mod.getDeviceInfo();
     const prerollFrames = embedMode ? (COLD_BOOT_PREROLL[deviceId] ?? 0) : 0;
     // Unbounded preroll — see the doLoadDevice call site for why this uses
@@ -1850,6 +2014,15 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keydownHandledRef.current = false;
+
+    // The listener is on `window`, so it also sees keystrokes aimed at the
+    // host UI's own text fields (the Machine ID hex box, the Modem dialog's
+    // compose fields, …). Those must be left to the browser: this handler
+    // preventDefaults anything the device keymap covers, which would cancel
+    // the character insertion and leave the field looking frozen while the
+    // letters went to EPOC instead. See isHostTextEntry — the emulator's own
+    // hidden textarea is excluded and keeps forwarding as before.
+    if (isHostTextEntry(e.target)) return;
 
     // Mobile soft keyboards can't be trusted on keydown for character keys:
     // some fire key='Unidentified' (Gboard/iOS IME path — falls through to
@@ -1875,6 +2048,15 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     e.preventDefault();
     keydownHandledRef.current = true;
 
+    // The host OS repeats a held key as a stream of keydowns with
+    // e.repeat set.  The Psion is already holding the key — on the matrix
+    // machines the extra downs are idempotent, but the netpad has no
+    // matrix and turns every down into a discrete TRawEvent, so forwarding
+    // them stacks the host's auto-repeat on top of EPOC's own and a single
+    // press of an arrow key runs away through a menu.  EPOC does its own
+    // repeat from the key-down we already sent, so drop these.
+    if (e.repeat) return;
+
     // Track physical Shift state sent to EPOC so we know whether to synthesise
     // it for symbols.  Keys 18/19 are EStdKeyLeftShift / EStdKeyRightShift.
     if (chord.key === 18 || chord.key === 19) epocShiftRef.current = true;
@@ -1889,6 +2071,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     if (chord.modifiers.length === 0 && !fromMobileTextarea) {
       // Plain physical key from a desktop keyboard — send directly; the user
       // holds it long enough for the OS scanner to observe.  handleKeyUp releases it.
+      heldKeysRef.current.add(chord.key);
       moduleRef.current?.sendKey(chord.key, true);
       return;
     }
@@ -1901,6 +2084,10 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    // Same host-UI exclusion as handleKeyDown: no key-down was sent for these,
+    // so there is nothing to release, and preventDefault here would interfere
+    // with the field's own handling.
+    if (isHostTextEntry(e.target)) return;
     const chord = browserKeyToEpocChord(e, keyboardLayoutForDevice(currentDeviceIdRef.current));
     if (chord === null) return;
     e.preventDefault();
@@ -1911,9 +2098,20 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     // already includes the matching key-up event.
     const fromMobileTextarea = Boolean((e.target as HTMLElement)?.dataset?.psionInput);
     if (chord.modifiers.length === 0 && !fromMobileTextarea) {
+      heldKeysRef.current.delete(chord.key);
       moduleRef.current?.sendKey(chord.key, false);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Release everything we think is still held.  Bound to blur / page-hide:
+  // the browser stops delivering keyup once focus leaves the page, so a key
+  // held across a window switch is never released, and EPOC's auto-repeat
+  // then runs until something else presses a key.
+  const releaseHeldKeys = useCallback(() => {
+    for (const key of heldKeysRef.current) moduleRef.current?.sendKey(key, false);
+    heldKeysRef.current.clear();
+    epocShiftRef.current = false;
+  }, []);
 
   // Sends an EPOC key code directly. Used by on-screen mobile buttons for
   // keys (Esc, Menu, arrows) that mobile soft keyboards don't produce.
@@ -2249,12 +2447,12 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // ── Psion SSD pack management ─────────────────────────────────────────────
 
   const attachSSD = useCallback(async (slot: number, bytes: Uint8Array,
-                                       kind?: 'ram' | 'flash'): Promise<boolean> => {
+                                       kind?: PackKind): Promise<boolean> => {
     const mod = moduleRef.current;
     const deviceId = currentDeviceIdRef.current;
     if (!mod || !deviceId || bytes.byteLength === 0) return false;
     if (slot < 0 || slot > 3) return false;   // MC400 wires 4 pack slots
-    const effectiveKind: 'ram' | 'flash' =
+    const effectiveKind: PackKind =
       kind ?? (bytes.length >= 2 && bytes[0] === 0xA5 && bytes[1] === 0xF1 ? 'flash' : 'ram');
     const ptr = mod.prepareSSDImageUpload(bytes.byteLength);
     mod.HEAPU8.set(bytes, ptr);
@@ -2262,6 +2460,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     if (ok) {
       await idbPut(idbSsdKey(deviceId, slot), bytes);
       await idbPut(idbSsdTypeKey(deviceId, slot), effectiveKind);
+      ssdKindsRef.current[slot] = effectiveKind;
       setSsdAttached(prev => {
         const next = [...prev];
         next[slot] = true;
@@ -2276,13 +2475,14 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     const deviceId = currentDeviceIdRef.current;
     if (!mod || slot < 0 || slot > 3) return;
     // Snapshot any on-device writes before detaching so the persisted
-    // image survives. RAM packs commonly accept writes; snapshot is a
-    // no-op for empty/flash packs.
+    // image survives — RAM and Flash packs are both writable from the
+    // Psion.
     if (deviceId && mod.isSSDImageAttached(slot)) {
       const snap = readSSDFromWasm(mod, slot);
       if (snap) await idbPut(idbSsdKey(deviceId, slot), snap);
     }
     mod.detachSSDImage(slot);
+    ssdKindsRef.current[slot] = undefined;
     setSsdAttached(prev => {
       const next = [...prev];
       next[slot] = false;
@@ -2377,6 +2577,20 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     moduleRef.current?.setLoggingEnabled?.(enabled);
   }, []);
 
+  // Programs the machine's Unique id and remembers it so every later load
+  // / reset of this device comes up on it. Async only to match the
+  // worker-mode signature; the write itself is a synchronous WASM call.
+  const setMachineId = useCallback(async (id: bigint): Promise<bigint | null> => {
+    const mod = moduleRef.current;
+    const deviceId = currentDeviceIdRef.current;
+    if (!mod || !deviceId) return null;
+    storeMachineId(deviceId, id);
+    const next = applyMachineId(mod, id);
+    setMachineIdState(next);
+    if (next.id == null) return null;
+    return (BigInt(next.prefix ?? 0) << 32n) | BigInt(next.id);
+  }, []);
+
   // AudioContext creation and getUserMedia both require a user gesture, so
   // these callbacks must be wired directly to button click handlers — don't
   // call them from effects.
@@ -2454,15 +2668,21 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     ssdAttached,
     speakerEnabled, micEnabled, audioError,
     currentDeviceId, profiles,
-    loadDevice, handleKeyDown, handleKeyUp, handleInput, handlePasteText, pasteFromClipboard,
+    loadDevice, handleKeyDown, handleKeyUp, releaseHeldKeys, handleInput, handlePasteText, pasteFromClipboard,
     sendEpocKey,
     handlePointerDown, handlePointerMove, handlePointerUp,
     pressEpocKey,
     pressEpocChord,
     getBacklight,
+    getScreenOrientation,
     saveState, clearLogs, powerOff, powerOn, resetDevice, clearSession,
     attachCard, updateCardInPlace, detachCard, attachOsCard, getCardBytes,
     getRamSnapshot,
+    machineIdSupported: machineIdState.supported,
+    machineId: machineIdState.id,
+    machineIdPrefix: machineIdState.prefix,
+    machineIdPrefixSettable: machineIdState.prefixSettable,
+    setMachineId,
     attachSSD, detachSSD, getSSDBytes,
     datapakAttached,
     attachDatapak, detachDatapak, getDatapakBytes, getDatapakKind,

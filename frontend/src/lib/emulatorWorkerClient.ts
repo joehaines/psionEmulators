@@ -13,9 +13,24 @@ export interface WorkerStatus {
   backlight: boolean;
   cfGap: boolean;
   cardAttached: boolean;
+  // Quarter-turns anticlockwise the panel image has to be shown at (the
+  // netpad's "Switch orientation"; 0 on every other machine).
+  orientation: number;
 }
 
 type RpcResolver = { resolve: (v: unknown) => void; reject: (e: Error) => void };
+
+/** Unique-id snapshot from the worker: whether the device has a readable
+ *  identity chip, the chip's half, the model UID EPOC prints in front of it
+ *  (null when unknown for this machine), and whether that half is patchable.
+ *  Halves are passed separately because postMessage can't carry a bigint
+ *  through the structured clone the RPC layer uses on every reply. */
+export interface MachineIdReply {
+  supported: boolean;
+  id: number | null;
+  prefix: number | null;
+  prefixSettable: boolean;
+}
 
 export class EmulatorWorkerClient {
   private worker: Worker;
@@ -23,8 +38,9 @@ export class EmulatorWorkerClient {
   private pending = new Map<number, RpcResolver>();
   private readyPromise: Promise<void>;
   private resolveReady!: () => void;
+  private rejectReady!: (e: Error) => void;
 
-  status: WorkerStatus = { paused: false, simCycles: 0, backlight: false, cfGap: false, cardAttached: false };
+  status: WorkerStatus = { paused: false, simCycles: 0, backlight: false, cfGap: false, cardAttached: false, orientation: 0 };
   onStatus: ((s: WorkerStatus) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Device-load progress pushes (value 0..1, or null = indeterminate). */
@@ -35,9 +51,18 @@ export class EmulatorWorkerClient {
 
   constructor(workerUrl: string) {
     this.worker = new Worker(workerUrl);
-    this.readyPromise = new Promise<void>(r => { this.resolveReady = r; });
+    this.readyPromise = new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve;
+      this.rejectReady = reject;
+    });
     this.worker.onmessage = (e: MessageEvent) => this.handle(e.data);
-    this.worker.onerror = (e) => this.onError?.(`worker error: ${e.message}`);
+    this.worker.onerror = (e) => {
+      this.onError?.(`worker error: ${e.message}`);
+      // A script-level worker failure before 'ready' (emulator-worker.js
+      // itself failed to fetch/parse — e.g. a stale service-worker cache)
+      // would otherwise leave init() pending forever. No-op once settled.
+      this.rejectReady(new Error(`worker error: ${e.message || 'failed to start'}`));
+    };
   }
 
   /** Loads the WASM module in the worker and resolves when it's ready. */
@@ -55,6 +80,12 @@ export class EmulatorWorkerClient {
     switch (m.type) {
       case 'ready':
         this.resolveReady();
+        break;
+      case 'initError':
+        // Engine failed to load in the worker (psion.js fetch / WASM
+        // instantiation). Reject init() so the app can show its error screen
+        // instead of waiting on 'ready' forever with an empty device panel.
+        this.rejectReady(new Error(String(m.message)));
         break;
       case 'status':
         this.status = m as unknown as WorkerStatus;
@@ -100,11 +131,13 @@ export class EmulatorWorkerClient {
 
   // ── RPC (cold/rare) ──
   getProfiles(): Promise<unknown[]> { return this.call('getProfiles'); }
-  loadDevice(deviceId: string, romUrl: string, preroll: number, restore = true):
+  loadDevice(deviceId: string, romUrl: string, preroll: number, restore = true,
+             machineId: string | null = null):
       Promise<{ deviceName: string; info: DeviceInfo;
                 ssdAttached?: boolean[]; datapakAttached?: boolean[];
-                serialAttached?: Record<number, boolean> }> {
-    return this.call('loadDevice', { deviceId, romUrl, preroll, restore });
+                serialAttached?: Record<number, boolean>;
+                machineId?: MachineIdReply }> {
+    return this.call('loadDevice', { deviceId, romUrl, preroll, restore, machineId });
   }
   pause(): Promise<boolean> { return this.call('pause'); }
   resume(): Promise<boolean> { return this.call('resume'); }
@@ -130,6 +163,15 @@ export class EmulatorWorkerClient {
     return this.call('updateCard', { bytes: copy.buffer }, [copy.buffer]);
   }
   detachCard(): Promise<boolean> { return this.call('detachCard'); }
+  /** Programs the full Unique id (debug panel), passed as a 16-digit hex
+   *  string so all 64 bits survive the postMessage hop. The current value
+   *  doesn't need its own RPC: loadDevice reports it and this reply
+   *  refreshes it. The reply carries what the machine actually holds — the
+   *  high half stays put where it can't be patched, and some machines
+   *  reserve bits of the chip word. */
+  setMachineId(id: string): Promise<MachineIdReply> {
+    return this.call('setMachineId', { id });
+  }
   async getRamSnapshot(): Promise<Uint8Array | null> {
     const r = await this.call<{ bytes: ArrayBuffer; byteLength: number } | null>('getRamSnapshot');
     return r ? new Uint8Array(r.bytes) : null;
@@ -152,6 +194,12 @@ export class EmulatorWorkerClient {
     return this.call('attachDatapak', { slot, bytes: c.buffer }, [c.buffer]);
   }
   detachDatapak(slot: number): Promise<boolean> { return this.call('detachDatapak', { slot }); }
+  /** Diagnostic CPU + serial-buffer snapshot (see worker rpc.debugState). */
+  debugState(uart: number): Promise<Record<string, number>> { return this.call('debugState', { uart }); }
+  /** Read `count` MMU-translated 32-bit words from `addr` (diagnostic). */
+  debugPeek(addr: number, count: number): Promise<number[]> { return this.call('debugPeek', { addr, count }); }
+  /** Write 32-bit words at an MMU-translated virtual address (diagnostic). */
+  debugPoke(addr: number, words: number[]): Promise<boolean> { return this.call('debugPoke', { addr, words }); }
   serialAttach(uart: number): Promise<boolean> { return this.call('serialAttach', { uart }); }
   serialDetach(uart: number): Promise<boolean> { return this.call('serialDetach', { uart }); }
   serialWrite(uart: number, bytes: Uint8Array): void {

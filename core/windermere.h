@@ -146,6 +146,27 @@ private:
 	// media-change handlers when only card-presence changes.
 	bool doorOpen = false;
 
+	// The model UID EPOC prints as the high half of the Unique id (see the
+	// accessors below), as shipped in every Windermere ROM here.
+	static constexpr uint32_t kMachineIdPrefixDefault = 0x1000118Au;
+	// Every place the model UID sits in the loaded ROM image, recorded once
+	// at load (see locateMachineIdPrefix) and rewritten on each change.
+	// Empty when the ROM doesn't carry the constant at all — the 5mx Pro's
+	// own ROM is a bootloader, its OS and the constant arriving later from
+	// the CF card — and then the card offsets below are the live ones.
+	std::vector<size_t> machineIdPrefixOffsets;
+	uint32_t machineIdPrefix = kMachineIdPrefixDefault;
+	void locateMachineIdPrefix();
+	// The 5mx Pro's OS is not in ROM[] at all — its 128 KB bootloader
+	// flash carries no copy of the constant, and the image that does
+	// (SYS$ROM.BIN) arrives on the CF card and is copied into DRAM by the
+	// bootloader itself. So the copy that decides what EPOC prints lives
+	// in the card image: these are its offsets, recorded when the card is
+	// attached, and rewritten from there on.
+	std::vector<size_t> machineIdPrefixCardOffsets;
+	void locateMachineIdPrefixOnCard();
+	void applyMachineIdPrefixToCard();
+
     Timer tc1, tc2;
     UART uart1, uart2;
 	Etna etna;
@@ -532,6 +553,31 @@ private:
 public:
 	Emulator();
 	void setPromDeviceName(const char *name) { etna.setDeviceName(name); }
+	// Low half of the Unique id — the ETNA identity PROM, which the kernel
+	// reads over the port-B bit-bang wired up in writeReg8's PBDR case, so
+	// a reprogrammed value is visible to the guest.
+	bool hasMachineId() const override { return true; }
+	uint32_t getMachineId() const override { return etna.getMachineId(); }
+	bool setMachineId(uint32_t id) override { etna.setMachineId(id); return true; }
+
+	// High half — the model UID the kernel takes from a constant compiled
+	// into the ROM. Same value on all three Windermere machines: read out
+	// of the Machine information dialog on the 5mx v1.05(260), 5mx Pro
+	// v1.05(319) and MC218 v1.05(259), so it is an EPOC-build constant
+	// rather than a per-model one. loadROM locates every copy of it and
+	// setMachineIdPrefix rewrites them in place, which is what makes the
+	// whole 16-digit id settable.
+	uint32_t getMachineIdPrefix() const override { return machineIdPrefix; }
+	// The 5mx Pro reports settable whether or not a card is in the slot:
+	// its copy of the constant lives on the CF card holding SYS$ROM.BIN,
+	// and the id programmed here is applied to whatever card is attached
+	// next (attachCard re-locates and re-applies). Refusing until the card
+	// is in would be exactly backwards — the frontend detaches the OS card
+	// on reset, so the dialog is normally used with the slot empty.
+	bool canSetMachineIdPrefix() const override {
+		return !machineIdPrefixOffsets.empty() || isMx5Pro();
+	}
+	bool setMachineIdPrefix(uint32_t prefix) override;
 	uint8_t *getROMBuffer() override;
 	size_t getROMSize() override;
 	void loadROM(uint8_t *buffer, size_t size) override;
@@ -787,6 +833,8 @@ public:
 	size_t serialWriteFromHost(int uartIndex, const uint8_t *data, size_t len);
 	size_t serialReadToHost(int uartIndex, uint8_t *dst, size_t cap);
 	size_t serialHostTxAvailable(int uartIndex) const;
+	size_t serialHostRxPending(int uartIndex) const;
+	uint32_t debugSerialIrq(int uartIndex) const;
 	bool serialIsAttached(int uartIndex) const;
 
 protected:

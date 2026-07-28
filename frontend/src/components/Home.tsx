@@ -10,11 +10,12 @@ import psionLogoUrl from '../assets/psion-logo.svg';
 // WASM, so it can paint immediately. The device picker still lives in the
 // side menu; the CTA here just opens it.
 
-// Device-mode screenshots that ship in public/intro/ (see the asset move
-// in frontend/public/intro). The scroll bar is ordered dynamically by
-// real popularity — total loads from the usage leaderboard (see Home's
-// loadsById prop). This array is just the fallback order shown before the
-// leaderboard arrives (or if it fails): a rough most-iconic-first guess.
+// Device photos with the running screen composited in, shipped in
+// public/intro/ (see the asset move in frontend/public/intro). The scroll
+// bar is ordered dynamically by real popularity — total loads from the
+// usage leaderboard (see Home's loadsById prop). This array is just the
+// fallback order shown before the leaderboard arrives (or if it fails):
+// a rough most-iconic-first guess.
 const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'series5',     name: 'Series 5',             year: '1997' },
   { id: 'series3a',    name: 'Series 3a',            year: '1993' },
@@ -35,7 +36,12 @@ const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'workabout',   name: 'Workabout',            year: '1995' },
   { id: 'workaboutmx', name: 'WorkaboutMX',          year: '2000' },
   { id: 'mc400',       name: 'MC400',                year: '1989' },
+  { id: 'netpad',      name: 'netPad',               year: '2001' },
 ];
+
+// Intro shots are JPEGs apart from the netPad's, which ships as a PNG
+// (flat rendered case art — JPEG ringing shows badly on it).
+const INTRO_IMAGE_EXT: Record<string, string> = { netpad: 'png' };
 
 // Succinct capability list (kept broad on purpose — see home-page copy
 // review). Rendered as chips with a small yellow brand tab. Save states,
@@ -43,6 +49,7 @@ const GALLERY: { id: string; name: string; year: string }[] = [
 // below the chips rather than a pill.
 const CAPABILITIES = [
   'CompactFlash',
+  'MMC',
   'SSD & Datapak packs',
   'Infrared',
   'Speaker',
@@ -53,7 +60,7 @@ const CAPABILITIES = [
 
 const FAMILIES: { tag: string; title: string; models: string }[] = [
   { tag: 'EPOC32 · ARM',  title: 'EPOC32 machines',
-    models: 'Series 5 · 5mx · 5mx Pro · MC218 · Revo · Osaris · Series 7 · netBook' },
+    models: 'Series 5 · 5mx · 5mx Pro · MC218 · Revo · Osaris · Series 7 · netBook · netPad' },
   { tag: 'SIBO · 16-bit', title: 'Series 3 family',
     models: 'Series 3 · 3a · 3c · 3mx · Siena · Workabout · WorkaboutMX · Pocket Book I & II · MC400' },
   { tag: '8-bit',         title: 'Organiser',
@@ -63,16 +70,25 @@ const FAMILIES: { tag: string; title: string; models: string }[] = [
 export default function Home({
   baseUrl,
   onChooseDevice,
+  onLaunchDevice,
+  launchableIds,
   loadsById,
 }: {
   baseUrl: string;
   // Opens the side device-picker menu (the CTA + "pick a device" hints).
   onChooseDevice: () => void;
+  // Boots a device straight from its card in the image bar, skipping the
+  // side menu entirely.
+  onLaunchDevice: (deviceId: string) => void;
+  // Device ids the emulator can actually start right now — the profile
+  // registry comes from the WASM module, so it's empty until that lands
+  // and the Launch buttons stay disabled until it does.
+  launchableIds: Set<string>;
   // deviceId -> total loads from the usage leaderboard, used to order the
   // device bar by real popularity. Empty until the leaderboard arrives.
   loadsById: Map<string, number>;
 }) {
-  const img = (id: string) => `${baseUrl}intro/${id}.jpg`;
+  const img = (id: string) => `${baseUrl}intro/${id}.${INTRO_IMAGE_EXT[id] ?? 'jpg'}`;
 
   // Most-loaded device first. Array.prototype.sort is stable, so devices
   // with equal (or zero) loads keep GALLERY's fallback order — which is
@@ -100,7 +116,7 @@ export default function Home({
           </h1>
           <p className="text-sm sm:text-base text-psion-accent max-w-2xl mx-auto">
             Every Psion handheld, from the 1986 Organiser&nbsp;II to the
-            ARM-powered Series&nbsp;7 — running its real ROM, directly in
+            StrongARM netPad of 2001 — running its real ROM, directly in
             WebAssembly. No installs, no plug-ins.
           </p>
           <p className="text-sm sm:text-base text-psion-accent max-w-2xl mx-auto mt-3">
@@ -134,6 +150,19 @@ export default function Home({
                   <span className="font-semibold truncate">{d.name}</span>
                   <span className="text-psion-accent ml-2">{d.year}</span>
                 </figcaption>
+                {/* Boot this exact machine without going via the side
+                    menu. Disabled until the WASM device registry has
+                    loaded — there's no ROM filename to fetch before then. */}
+                <button
+                  type="button"
+                  onClick={() => onLaunchDevice(d.id)}
+                  disabled={!launchableIds.has(d.id)}
+                  className="mt-2 w-full inline-flex items-center justify-center gap-1.5 bg-psion-highlight text-psion-charcoal font-semibold text-[11px] rounded px-2 py-1.5 hover:brightness-95 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100"
+                  aria-label={`Launch the ${d.name} emulator`}
+                  title={`Launch the ${d.name} emulator`}
+                >
+                  <span aria-hidden="true">▶</span> Launch emulator
+                </button>
               </figure>
             ))}
           </div>
@@ -247,13 +276,19 @@ export default function Home({
             Scientific Osaris and the larger Series&nbsp;7 and netBook all built
             on it.
           </p>
-          <p className="text-sm">
+          <p className="text-sm mb-3">
             That OS proved Psion's most lasting legacy: in 1998 it was spun out
             — with Nokia, Ericsson and Motorola — as <strong>Symbian</strong>,
-            which went on to power hundreds of millions of phones. Psion left
-            the consumer market in the early 2000s, but its palmtops remain
-            icons of mobile computing — and every one above is preserved here,
-            running exactly as it did.
+            which went on to power hundreds of millions of phones.
+          </p>
+          <p className="text-sm">
+            Psion left the consumer market in the early 2000s and turned to
+            industry, where EPOC had one last outing: the 2001{' '}
+            <strong>netPad</strong>, a Psion Teklogix slate with no keyboard at
+            all — a StrongARM machine driven entirely by its stylus and the row
+            of silkscreen keys printed beside the screen. Psion's palmtops
+            remain icons of mobile computing, and every machine above is
+            preserved here, running exactly as it did.
           </p>
         </Section>
 

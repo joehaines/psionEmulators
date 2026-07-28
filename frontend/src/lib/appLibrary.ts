@@ -6,11 +6,17 @@
 // scripts/build-app-library.mts from applib/ (the 3-Lib collection).
 //
 // Delivery picks the mechanism the device actually had:
-//   - EPOC32 with a CF slot   → the app's .SIS on a fresh (or the
+//   - EPOC32 with a card slot → the app's .SIS on a fresh (or the
 //     currently-inserted) FAT16 card; the user opens it from drive D:.
+//     CompactFlash everywhere bar the netpad, whose slot takes an MMC —
+//     the same raw image either way, and the netpad's default because
+//     its cable only listens once Remote link is switched on.
 //   - SIBO (Series 3 family)  → a FEFS flash SSD pack with the app's
 //     files under \APP\; EPOC16 sees it as pack A/B.
 //   - EPOC32 without CF (Revo) → Remote Link upload of the .SIS to C:\.
+//   - EPOC32 bundles that are an installed app folder rather than an
+//     installer ('epocdir') → a Remote Link copy straight into
+//     \System\Apps\<App>\ on C:, no on-device installer involved.
 //
 // All builders work against EmulatorControls so they run identically in
 // main-thread and worker mode.
@@ -43,7 +49,11 @@ export interface AppEntry {
   icon: string | null;
   devices: string[];
   tryDevice: string | null;
-  installKind: 'sis' | 'sibo' | 'none';
+  // 'sis'     — an EPOC32 installer to hand to the device.
+  // 'sibo'     — EPOC16 program + data, delivered on an SSD pack.
+  // 'epocdir'  — an already-installed EPOC32 app folder, copied into
+  //              \System\Apps\<App>\ (installFile names the .app).
+  installKind: 'sis' | 'sibo' | 'epocdir' | 'none';
   installFile: string | null;
   readmes: string[];
   vault: boolean;
@@ -82,6 +92,47 @@ export async function fetchAppZip(entry: AppEntry): Promise<Uint8Array> {
   const resp = await fetch(appAssetUrl(entry.zip));
   if (!resp.ok) throw new Error(`download failed (HTTP ${resp.status})`);
   return new Uint8Array(await resp.arrayBuffer());
+}
+
+// ── The library route ───────────────────────────────────────────────
+// `#/apps`, with two optional parameters:
+//   device=<deviceId>       open filtered to that machine's apps (the
+//                           netpad's "Install standard apps" button)
+//   app=<category>/<slug>   open that app's details popup — the whole
+//                           point being that the address bar always
+//                           holds a link to whatever is on screen, so
+//                           sharing one app is a copy and paste.
+// The route lives here rather than in either component because App.tsx
+// reads it and AppLibrary writes it; they have to agree on the shape.
+
+export const APPS_ROUTE = '#/apps';
+
+export interface AppsRoute {
+  device: string | null;
+  app: string | null;
+}
+
+// True for the library route with or without parameters.
+export function isAppsRoute(hash: string): boolean {
+  return hash === APPS_ROUTE || hash.startsWith(`${APPS_ROUTE}?`);
+}
+
+export function parseAppsRoute(hash: string): AppsRoute {
+  const params = new URLSearchParams(
+    hash.startsWith(`${APPS_ROUTE}?`) ? hash.slice(APPS_ROUTE.length + 1) : '');
+  return { device: params.get('device'), app: params.get('app') };
+}
+
+export function appsRouteHash(route: AppsRoute): string {
+  const params = new URLSearchParams();
+  if (route.device) params.set('device', route.device);
+  if (route.app) params.set('app', route.app);
+  // App ids are "<category>/<slug>". A literal slash is legal in a query
+  // string and URLSearchParams parses it back happily, so un-escape the
+  // one URLSearchParams insists on writing — this URL is meant to be
+  // read and pasted by people.
+  const query = params.toString().replace(/%2F/g, '/');
+  return query ? `${APPS_ROUTE}?${query}` : APPS_ROUTE;
 }
 
 // ── Pending "try" handoff ───────────────────────────────────────────
@@ -127,13 +178,25 @@ export function takePendingTry(deviceId: string): AppEntry | null {
 // installer lands in C:\Documents — the folder the System screen
 // already shows. A Settings option ("App delivery") switches the
 // EPOC devices to CF-card delivery instead; see getEpocDeliveryPref.
+// The netpad is the exception, and takes its card by default — see
+// CARD_FIRST_DEVICES.
 export const TRY_CAPABLE: Record<string, 'cf' | 'ssd' | 'link'> = {
   series5:  'link', '5mx': 'link', '5mxpro': 'link', mc218: 'link',
   revo:     'link', osaris: 'link', series7: 'link', netbook: 'link',
+  netpad:   'cf',
   series3:  'ssd', series3a: 'ssd', series3c: 'ssd', series3mx: 'ssd',
   siena:    'ssd', workabout: 'ssd', workaboutmx: 'ssd',
   pocketbk: 'ssd', pocketbk2: 'ssd',
 };
+
+// Devices whose card beats their cable regardless of the delivery
+// preference. Only the netpad: its EPOC R5 build opens the Remote Link
+// port only once Remote link is switched on from the System screen's
+// Tools menu, so a freshly booted machine has nothing listening — while
+// its MMC slot mounts as D: on its own. (The card is an MMC rather than
+// a PC-Card, but it is the same raw FAT16 image either way, so it takes
+// the 'cf' path; only the wording differs.)
+const CARD_FIRST_DEVICES = new Set(['netpad']);
 
 // User preference for SIS delivery on EPOC32 machines (Settings →
 // "App delivery"). Remote Link is the default; 'cf' switches devices
@@ -215,6 +278,46 @@ function siboDirsFor(appDir: string, rel: string): string[] {
   return [['APP', ...subs].join('\\'), subs.join('\\')];
 }
 
+// ── Installed-folder ('epocdir') placement ──────────────────────────
+//
+// These bundles are an app as it sits on a device rather than an
+// installer, and come in two shapes:
+//
+//   drive-rooted — the paths start at the drive root ("System/Apps/Wall/
+//     WALL.APP", "System/Libs/zExeLoader.dll"). Used when the app needs
+//     files outside its own folder, e.g. a shared library in
+//     \System\Libs. Every file lands at C:\<path>, as named.
+//   app-folder   — just the contents of \System\Apps\<App>\, with the
+//     folder itself implied by the .app binary's name.
+//
+// EPOC finds applications by scanning \System\Apps\<folder>\ on every
+// drive, which is why either shape ends up installed simply by copying.
+
+// True when the bundle's paths are drive-rooted (see above).
+export function isDriveRooted(installFile: string): boolean {
+  return /^system\//i.test(installFile);
+}
+
+// The app's folder under \System\Apps\ — the directory the .app sits in
+// for a drive-rooted bundle, otherwise the .app's own name (that is the
+// pairing EPOC's app architecture expects).
+export function epocAppFolder(installFile: string): string {
+  const parts = installFile.split('/');
+  if (isDriveRooted(installFile) && parts.length >= 2) return parts[parts.length - 2];
+  const base = parts[parts.length - 1];
+  const dot = base.lastIndexOf('.');
+  return dot > 0 ? base.slice(0, dot) : base;
+}
+
+// Where one bundle file lands on the device, as an EPOC path without
+// the drive letter.
+export function epocDirPathFor(installFile: string, rel: string): string {
+  const backslashed = rel.split('/').join('\\');
+  return isDriveRooted(installFile)
+    ? `\\${backslashed}`
+    : `\\System\\Apps\\${epocAppFolder(installFile)}\\${backslashed}`;
+}
+
 // ── Delivery ────────────────────────────────────────────────────────
 
 export interface DeliveryResult {
@@ -227,36 +330,59 @@ export interface DeliveryResult {
 export interface DeviceProfileLike {
   id: string;
   hasCFSlot?: boolean;
+  // The netpad's slot takes an MMC instead of a PC-Card. Same raw FAT16
+  // image, same drive D: — so card delivery treats the two alike.
+  hasMmcSlot?: boolean;
   ssdSlotCount?: number;
   remoteLinkUart?: number;
   linkProtocol?: number;
 }
 
+// The card noun for a device, for the delivery instructions.
+export function cardNameFor(profile: DeviceProfileLike): string {
+  return profile.hasMmcSlot ? 'MMC card' : 'CF card';
+}
+
 export function deliveryKindFor(profile: DeviceProfileLike, entry: AppEntry):
     'cf' | 'ssd' | 'link' | null {
   const linkOk = (profile.remoteLinkUart ?? -1) >= 0 && (profile.linkProtocol ?? 0) === 1;
+  const hasCard = (profile.hasCFSlot ?? false) || (profile.hasMmcSlot ?? false);
+  // An installed folder goes over the cable only. The card path would
+  // have to write it through fat16.ts, which only emits 8.3 short names
+  // — fine for the app's own WALL.APP, fatal for a shared library whose
+  // exact name the EPOC loader looks up (zExeLoader.dll). Every EPOC32
+  // machine the library offers as a try target can link, so nothing is
+  // lost by not offering a card route here.
+  if (entry.installKind === 'epocdir') return linkOk ? 'link' : null;
   if (entry.installKind === 'sis') {
-    // The user's delivery preference governs, then capability fallback
-    // (a CF-less Revo still links under 'cf'; a link-less profile
-    // still gets the card under 'link').
+    // A card-first device ignores the preference: its cable needs the
+    // user to switch Remote link on first, the card doesn't.
+    if (hasCard && CARD_FIRST_DEVICES.has(profile.id)) return 'cf';
+    // Otherwise the user's delivery preference governs, then capability
+    // fallback (a CF-less Revo still links under 'cf'; a link-less
+    // profile still gets the card under 'link').
     if (getEpocDeliveryPref() === 'link' && linkOk) return 'link';
-    if (profile.hasCFSlot) return 'cf';
+    if (hasCard) return 'cf';
     if (linkOk) return 'link';
   }
   if (entry.installKind === 'sibo' && (profile.ssdSlotCount ?? 0) > 0) return 'ssd';
   return null;
 }
 
-// Deliver a SIS by writing it into the CompactFlash card image (drive D:),
-// host-side — no Remote Link transfer involved, so it has none of the cable's
-// size/timing fragility. Used both as the user's chosen 'cf' delivery and as
+// Deliver a SIS by writing it into the card image (drive D:) host-side —
+// no Remote Link transfer involved, so it has none of the cable's
+// size/timing fragility. Used as the user's chosen 'cf' delivery, as the
+// netpad's default (its cable needs Remote link switched on first), and as
 // the automatic fallback when a large-app Remote Link upload stalls (see
 // deliverApp's link path): the EPOC ROM's RemoteLinkServer can wedge partway
 // through a sustained multi-hundred-KB upload, and the card path always works.
+// `card` is the machine's noun for its slot — a CompactFlash on every device
+// that has one bar the netpad, whose slot takes an MMC.
 async function deliverViaCard(
   entry: AppEntry,
   files: Map<string, Uint8Array>,
   controls: EmulatorControls,
+  card: string,
   onPhase?: (phase: string) => void,
 ): Promise<DeliveryResult> {
   if (!entry.installFile) throw new Error('No installer in this app bundle.');
@@ -264,7 +390,7 @@ async function deliverViaCard(
   if (!sis) throw new Error(`Installer ${entry.installFile} missing from bundle.`);
   const name = to83(entry.installFile);
 
-  onPhase?.('Building CF card…');
+  onPhase?.(`Building ${card}…`);
   // Reuse the inserted card when there is one (keeps the user's
   // files); otherwise create a fresh 16 MB image.
   let img: Uint8Array | null = null;
@@ -280,15 +406,15 @@ async function deliverViaCard(
     img = createBlankImage(16 * 1024 * 1024);
     reused = false;
     const retry = addFile(img, name, sis);
-    if (!retry.ok) throw new Error(`Could not add ${name} to the CF image: ${retry.reason}`);
+    if (!retry.ok) throw new Error(`Could not add ${name} to the card image: ${retry.reason}`);
   }
-  onPhase?.('Inserting CF card…');
+  onPhase?.(`Inserting ${card}…`);
   const ok = await controls.attachCard(img);
-  if (!ok) throw new Error('Could not attach the CF card.');
+  if (!ok) throw new Error(`Could not attach the ${card}.`);
   return {
-    summary: `${name} is on the CF card${reused ? '' : ' (a fresh card was inserted)'}.`,
+    summary: `${name} is on the ${card}${reused ? '' : ' (a fresh card was inserted)'}.`,
     steps: [
-      'On the device, open the System screen and switch to the D: drive (the CF card).',
+      `On the device, open the System screen and switch to the D: drive (the ${card}).`,
       `Open ${name} — the installer runs on the device.`,
       'Confirm the install prompts; the app then appears in Extras.',
     ],
@@ -319,7 +445,7 @@ export async function deliverApp(
   onPhase?.('Unpacking app…');
   const files = await unzipAll(zipBytes);
 
-  if (kind === 'cf') return deliverViaCard(entry, files, controls, onPhase);
+  if (kind === 'cf') return deliverViaCard(entry, files, controls, cardNameFor(profile), onPhase);
 
   if (kind === 'ssd') {
     onPhase?.('Building SSD pack…');
@@ -374,13 +500,21 @@ export async function deliverApp(
     };
   }
 
-  // kind === 'link' — EPOC32 machines: upload the .SIS over the Remote
-  // Link cable straight into C:\Documents, the folder the System
-  // screen already shows, so the installer is one tap away.
+  // kind === 'link' — EPOC32 machines: upload over the Remote Link
+  // cable. A .SIS goes straight into C:\Documents, the folder the
+  // System screen already shows, so the installer is one tap away; an
+  // installed folder ('epocdir') is copied onto C: where it belongs —
+  // \System\Apps\<App>\, plus anything else the bundle carries.
   if (!entry.installFile) throw new Error('No installer in this app bundle.');
   const sis = files.get(entry.installFile);
   if (!sis) throw new Error(`Installer ${entry.installFile} missing from bundle.`);
+  const asFolder = entry.installKind === 'epocdir';
+  const folder = asFolder ? epocAppFolder(entry.installFile) : '';
   const name = to83(entry.installFile);
+  // Bytes to move: the one installer, or every file in the folder.
+  const totalBytes = asFolder
+    ? [...files.values()].reduce((s, f) => s + f.length, 0)
+    : sis.length;
   const uart = profile.remoteLinkUart ?? -1;
 
   onPhase?.('Connecting Remote Link…');
@@ -458,14 +592,38 @@ export async function deliverApp(
   };
   try {
     await race(client.connect(60_000));
-    onPhase?.(`Uploading ${name}…`);
-    onProgress?.(0, sis.length);
+    onPhase?.(asFolder ? `Copying ${entry.name} to \\System\\Apps\\${folder}…` : `Uploading ${name}…`);
+    onProgress?.(0, totalBytes);
     lastAdvance = Date.now();
     stallTimer = setInterval(() => {
       if (Date.now() - lastAdvance > STALL_MS) stallCtl.abort();
     }, 2_000);
-    await raceStall(client.uploadFile(`C:\\Documents\\${name}`, sis,
-      bytes => { checkAborted(); lastAdvance = Date.now(); onProgress?.(bytes, sis.length); }));
+    const advance = (bytes: number) => {
+      checkAborted(); lastAdvance = Date.now(); onProgress?.(bytes, totalBytes);
+    };
+    if (asFolder) {
+      // One MkDirAll per directory the bundle touches — it creates every
+      // missing parent, and is a no-op where the directory already
+      // exists (a re-delivery just overwrites the files in place).
+      const made = new Set<string>();
+      let done = 0;
+      for (const [rel, data] of files) {
+        const target = epocDirPathFor(entry.installFile, rel);
+        const dir = target.slice(0, target.lastIndexOf('\\') + 1);
+        if (!made.has(dir)) {
+          await raceStall(client.makeDirAll(`C:${dir}`));
+          made.add(dir);
+          advance(done);
+        }
+        const base = done;
+        await raceStall(client.uploadFile(
+          `C:${target}`, data, bytes => advance(base + bytes)));
+        done += data.length;
+        advance(done);
+      }
+    } else {
+      await raceStall(client.uploadFile(`C:\\Documents\\${name}`, sis, advance));
+    }
   } catch (e) {
     linkErr = e;
   } finally {
@@ -482,6 +640,16 @@ export async function deliverApp(
     }
   }
   if (!linkErr) {
+    if (asFolder) {
+      return {
+        summary: `${entry.name} is installed in C:\\System\\Apps\\${folder}.`,
+        steps: [
+          `${entry.name} appears in Extras — tap it to run it.`,
+          'If it is not listed yet, press Reset in the control bar: EPOC rebuilds its app list at boot.',
+          'The files sit on the internal disk, so they survive a reset.',
+        ],
+      };
+    }
     return {
       summary: `${name} is in the Documents folder.`,
       steps: [
@@ -492,11 +660,14 @@ export async function deliverApp(
   }
   // A user cancel surfaces as-is — don't fall back.
   if (signal?.aborted) throw linkErr;
-  // The cable upload stalled/failed. If the device has a CF slot, deliver via
-  // the card instead — that path never touches the wedge-prone link server.
-  if (profile.hasCFSlot) {
-    onPhase?.('Remote Link stalled — delivering via the CF card instead…');
-    return await deliverViaCard(entry, files, controls, onPhase);
+  // The cable upload stalled/failed. If the device has a card slot, deliver
+  // via the card instead — that path never touches the wedge-prone link
+  // server. Not open to installed folders: the card can only carry 8.3 names
+  // (see deliveryKindFor), so a "rescue" there would install a broken copy.
+  if ((profile.hasCFSlot || profile.hasMmcSlot) && !asFolder) {
+    const card = cardNameFor(profile);
+    onPhase?.(`Remote Link stalled — delivering via the ${card} instead…`);
+    return await deliverViaCard(entry, files, controls, card, onPhase);
   }
   throw linkErr;
 }

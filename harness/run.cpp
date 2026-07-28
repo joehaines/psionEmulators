@@ -620,7 +620,7 @@ int main(int argc, char **argv) {
     // EpocKey, hold-frames) tuples. Used by the SIBO post-boot test to
     // dismiss the cold-boot "Media is corrupt" dialog and then poke the
     // app keys to verify nothing reports KErrCorrupt afterwards.
-    struct KeyEvent { double atSec; int epocKey; int holdFrames; };
+    struct KeyEvent { double atSec; int epocKey; int holdFrames; bool repeat = false; };
     std::vector<KeyEvent> keyEvents;
     // Scripted-tap sequence: same idea as keyEvents but for screen taps,
     // so you can do "open Sketch → draw → menu/up/enter" in a single
@@ -670,6 +670,14 @@ int main(int argc, char **argv) {
     int    serialPollUart = 2;
     bool   serialPollUartExplicit = false;
     const char *deviceOverride = nullptr;
+    // --machine-id HEX: set the machine's Unique id before the first cycle
+    // runs, the same way the frontend's debug panel does. Up to 16 hex
+    // digits: the low 8 are the identity PROM / EEPROM word, and the high
+    // 8 (when given) patch the model UID the ROM supplies. Ignored with a
+    // warning on devices whose identity chip isn't modelled.
+    bool     machineIdSet = false;
+    uint64_t machineIdValue = 0;
+    bool     machineIdHasPrefix = false;
     // --swap-card-path FILE: after the initial card attach + post-attach run,
     // detach the first card and attach this second one, then run
     // --swap-post-seconds more. Reproduces the browser "boot with one card,
@@ -681,7 +689,8 @@ int main(int argc, char **argv) {
     // the first executeUntil() tick.
     const char *ssdPath[4] = { nullptr, nullptr, nullptr, nullptr };
     // Per-slot pack type passed to attachSSD (0 = auto-sniff 0xF1A5,
-    // 1 = RAM, 2 = Type 1 Flash). Set via --ssd-type-X ram|flash|auto.
+    // 1 = RAM, 2 = Type 1 Flash, 3 = hardware write-protected). Set via
+    // --ssd-type-X ram|flash|protected|auto.
     int ssdType[4] = { 0, 0, 0, 0 };
     // Per-slot output paths: dump the (possibly guest-modified) pack
     // image back to a file when the run ends. Lets tests verify
@@ -742,13 +751,21 @@ int main(int argc, char **argv) {
         else if (a == "--max-traps" && i + 1 < argc) maxTraps = std::atoi(argv[++i]);
         else if (a == "--max-nonpaper" && i + 1 < argc) maxNonPaper = std::atoi(argv[++i]);
         else if (a == "--device" && i + 1 < argc) deviceOverride = argv[++i];
+        else if (a == "--machine-id" && i + 1 < argc) {
+            std::string hex = argv[++i];
+            // Accept EPOC's grouping (1000-118A-CAFE-BABE) as typed.
+            hex.erase(std::remove(hex.begin(), hex.end(), '-'), hex.end());
+            machineIdValue = std::strtoull(hex.c_str(), nullptr, 16);
+            machineIdHasPrefix = hex.size() > 8;
+            machineIdSet = true;
+        }
         else if (a == "--ssd-a" && i + 1 < argc) ssdPath[0] = argv[++i];
         else if (a == "--ssd-b" && i + 1 < argc) ssdPath[1] = argv[++i];
         else if (a == "--ssd-c" && i + 1 < argc) ssdPath[2] = argv[++i];
         else if (a == "--ssd-d" && i + 1 < argc) ssdPath[3] = argv[++i];
-        // --ssd-type-X auto|ram|flash: pack type presented in the info
-        // byte (hardware straps on a real pack). Default auto = sniff
-        // the 0xF1A5 magic, which misreads FEFS-formatted RAM packs.
+        // --ssd-type-X auto|ram|flash|protected: pack type presented in
+        // the info byte (hardware straps on a real pack). Default auto =
+        // sniff the 0xF1A5 magic, which misreads FEFS-formatted RAM packs.
         else if (a.rfind("--ssd-type-", 0) == 0 && a.size() == 12 && i + 1 < argc &&
                  a[11] >= 'a' && a[11] <= 'd') {
             std::string t = argv[++i];
@@ -771,6 +788,20 @@ int main(int argc, char **argv) {
             ev.atSec = std::atof(argv[++i]);
             ev.epocKey = std::atoi(argv[++i]);
             ev.holdFrames = (i + 1 < argc && argv[i + 1][0] != '-') ? std::atoi(argv[++i]) : 8;
+            keyEvents.push_back(ev);
+        }
+        // --repeat-key AT_SEC EPOC_KEY [HOLD_FRAMES] — same as --press-key
+        // but re-asserts the key-down on every frame of the hold, the way a
+        // host OS repeats a held key into the browser as a stream of
+        // keydown events.  A device whose key delivery is edge-based (the
+        // netpad, which turns each down into its own TRawEvent) must treat
+        // the repeats as one press.
+        else if (a == "--repeat-key" && i + 2 < argc) {
+            KeyEvent ev;
+            ev.atSec = std::atof(argv[++i]);
+            ev.epocKey = std::atoi(argv[++i]);
+            ev.holdFrames = (i + 1 < argc && argv[i + 1][0] != '-') ? std::atoi(argv[++i]) : 8;
+            ev.repeat = true;
             keyEvents.push_back(ev);
         }
         // --tap-seq AT_SEC X Y  (one tap event in a multi-tap sequence)
@@ -1000,6 +1031,37 @@ int main(int argc, char **argv) {
         }
     }
 
+    // Machine ID, before any cycles run so the kernel's boot-time read of
+    // the identity chip already sees the new value.
+    if (machineIdSet) {
+        if (!emu->hasMachineId()) {
+            std::fprintf(stderr,
+                "=== harness: --machine-id ignored, %s has no modelled identity PROM ===\n",
+                emu->getDeviceName());
+        } else {
+            emu->setMachineId((uint32_t)(machineIdValue & 0xFFFFFFFFu));
+            if (machineIdHasPrefix) {
+                const uint32_t wantPrefix = (uint32_t)(machineIdValue >> 32);
+                if (!emu->setMachineIdPrefix(wantPrefix))
+                    std::fprintf(stderr,
+                        "=== harness: high half %08x not applied — %s has no "
+                        "patchable model UID ===\n", wantPrefix, emu->getDeviceName());
+            }
+            // Report it the way EPOC prints it under Information → Machine.
+            const uint32_t prefix = emu->getMachineIdPrefix();
+            const uint32_t id = emu->getMachineId();
+            if (prefix)
+                std::fprintf(stderr,
+                    "=== harness: Unique id = %04x-%04x-%04x-%04x (requested %llx) ===\n",
+                    prefix >> 16, prefix & 0xFFFF, id >> 16, id & 0xFFFF,
+                    (unsigned long long)machineIdValue);
+            else
+                std::fprintf(stderr,
+                    "=== harness: Unique id (low half) = %04x-%04x (requested %llx) ===\n",
+                    id >> 16, id & 0xFFFF, (unsigned long long)machineIdValue);
+        }
+    }
+
     if (cfIrqLine >= 0) {
         std::fprintf(stderr, "=== harness: routing CF IREQ# to pendingInterrupts bit %d ===\n", cfIrqLine);
         emu->setCfIrqLine(cfIrqLine);
@@ -1177,9 +1239,9 @@ int main(int argc, char **argv) {
     // OR --serial-poll-until is set (so the user sees parsed-frame
     // logging alongside the raw bytes).
     bool serialDecodeFrames = (!serialAutoRules.empty()) || (serialPollUntil > 0.0);
-    struct ActiveKey { int epoc; int framesLeft; bool used; };
+    struct ActiveKey { int epoc; int framesLeft; bool used; bool repeat; };
     std::vector<ActiveKey> activeKeys;
-    auto pressKey = [&](int epoc, int holdFrames) {
+    auto pressKey = [&](int epoc, int holdFrames, bool repeat) {
         emu->setKeyboardKey(static_cast<EpocKey>(epoc), true);
         // Reuse an existing slot for the same key if one is still active —
         // re-pressing extends the hold rather than dropping the matrix
@@ -1187,16 +1249,18 @@ int main(int argc, char **argv) {
         for (auto &k : activeKeys) {
             if (k.used && k.epoc == epoc) {
                 k.framesLeft = std::max(k.framesLeft, holdFrames);
+                k.repeat = k.repeat || repeat;
                 return;
             }
         }
         for (auto &k : activeKeys) {
             if (!k.used) {
                 k.epoc = epoc; k.framesLeft = holdFrames; k.used = true;
+                k.repeat = repeat;
                 return;
             }
         }
-        activeKeys.push_back({epoc, holdFrames, true});
+        activeKeys.push_back({epoc, holdFrames, true, repeat});
     };
     auto tickActiveKeys = [&]() {
         for (auto &k : activeKeys) {
@@ -1204,6 +1268,9 @@ int main(int argc, char **argv) {
             if (--k.framesLeft <= 0) {
                 emu->setKeyboardKey(static_cast<EpocKey>(k.epoc), false);
                 k.used = false;
+            } else if (k.repeat) {
+                // Host-OS auto-repeat: another key-down with no key-up.
+                emu->setKeyboardKey(static_cast<EpocKey>(k.epoc), true);
             }
         }
     };
@@ -1235,9 +1302,10 @@ int main(int argc, char **argv) {
             // held BEFORE the letter is observed by the matrix scanner.
             while (nextKeyIdx < keyEvents.size() && now >= keyEvents[nextKeyIdx].atSec) {
                 const KeyEvent &ev = keyEvents[nextKeyIdx++];
-                pressKey(ev.epocKey, std::max(1, ev.holdFrames));
-                std::fprintf(stderr, "=== t=%.2fs key %d DOWN (hold %d frames) ===\n",
-                             now, ev.epocKey, ev.holdFrames);
+                pressKey(ev.epocKey, std::max(1, ev.holdFrames), ev.repeat);
+                std::fprintf(stderr, "=== t=%.2fs key %d DOWN (hold %d frames%s) ===\n",
+                             now, ev.epocKey, ev.holdFrames,
+                             ev.repeat ? ", host auto-repeat" : "");
             }
             while (nextTapIdx < tapEvents.size() && now >= tapEvents[nextTapIdx].atSec) {
                 const TapEvent &ev = tapEvents[nextTapIdx++];
@@ -1661,6 +1729,11 @@ int main(int argc, char **argv) {
                      "=== Boot check: nonpaper %s (%d <= %d) ===\n",
                      passNonPaper ? "PASS" : "FAIL", nonPaperCount, maxNonPaper);
     }
+    // Screen orientation the OS is drawing at (quarter-turns anticlockwise
+    // the panel image needs to be shown at).  Always 0 except on a netpad
+    // whose Tools menu → "Switch orientation" has been used.
+    const int screenOrientation = emu->getScreenOrientation();
+    std::fprintf(stderr, "=== Screen orientation: %d ===\n", screenOrientation);
     std::fprintf(stderr,
                  "=== M: drive: label=%s subdirs=%d dirs=[%s]%s ===\n",
                  mdriveInfo.labelFound ? "yes" : "no",
@@ -1679,7 +1752,7 @@ int main(int argc, char **argv) {
                      "\"unique_pcs\":%zu,\"pc_samples\":%llu,"
                      "\"traps\":%llu,\"cycles\":%llu,\"sim_seconds\":%.2f,"
                      "\"mdrive_label\":%s,\"mdrive_subdirs\":%d,\"mdrive_dirs\":\"%s\","
-                     "\"pass\":%s}\n",
+                     "\"orientation\":%d,\"pass\":%s}\n",
                      prefix, profile->id, romPath, ls.variance, ls.uniqueValues, ls.mean,
                      uniquePcs, (unsigned long long)pcSamples,
                      (unsigned long long)g_trapCount,
@@ -1687,7 +1760,7 @@ int main(int argc, char **argv) {
                      (double)emu->currentCycles() / (double)clock,
                      mdriveInfo.labelFound ? "true" : "false",
                      mdriveInfo.subdirsFound, mdriveInfo.subdirList.c_str(),
-                     allPass ? "true" : "false");
+                     screenOrientation, allPass ? "true" : "false");
     };
     // Dump final SSD pack images (capturing any guest-side writes) so
     // tests can verify in-device file operations from the host.

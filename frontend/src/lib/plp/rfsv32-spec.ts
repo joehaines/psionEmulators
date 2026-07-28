@@ -129,6 +129,16 @@ export function buildWriteFile(opId: number, handle: number, data: Uint8Array): 
 export function buildDelete(opId: number, path: string): Uint8Array {
   return encodeRequest(RFSV32.DELETE, opId, lenStr(path));
 }
+// MK_DIR_ALL is RFs::MkDirAll — it creates every missing component of
+// the path, so one call makes C:\System\Apps\<App>\ whether or not
+// \System\Apps exists yet. EPOC parses the argument as a filename in a
+// directory, so the path MUST end in a backslash or the last component
+// is taken for a file and not created. Returns -11 (KErrAlreadyExists)
+// when the leaf is already there, which callers treat as success.
+export function buildMkDirAll(opId: number, path: string): Uint8Array {
+  return encodeRequest(RFSV32.MK_DIR_ALL, opId,
+                       lenStr(path.endsWith('\\') ? path : path + '\\'));
+}
 
 // ── Reply decoder ───────────────────────────────────────────────────
 export function decodeReply(bytes: Uint8Array): RfsvReply | null {

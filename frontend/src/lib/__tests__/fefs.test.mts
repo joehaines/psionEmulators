@@ -14,6 +14,7 @@ import {
   createFlashPack,
   addFileToPack,
   removeFileFromPack,
+  readFileFromPack,
   listFiles,
   classifyPack,
   readVolumeName,
@@ -43,7 +44,8 @@ eq(pack0[0], 0xA5, 'magic LO');
 eq(pack0[1], 0xF1, 'magic HI');
 eq(pack0[0x0A], 0x00, 'FEFS24 pointer-size byte');
 eq(pack0[0x0B], 0x45, 'root pointer LSB');
-// Flash count left erased = ROM image (mounts only as write-protected).
+// Flash count left erased = factory "ROM image" style; EPOC16 mounts
+// it either way, and as a Flash pack the drive is read/write.
 check([0x19, 0x1A, 0x1B, 0x1C].every(o => pack0[o] === 0xFF), 'flash count erased');
 eq(readVolumeName(pack0), 'TESTPACK', 'volume name round-trip');
 eq(classifyPack(pack0), 'flash', 'classified as flash');
@@ -139,7 +141,73 @@ check(threw, 'pack full detection');
         'nested: remove by full path');
 }
 
-// 11. Reader vs a real factory dump, when available (validates our
+// 11. readFileFromPack: getting files back OFF a pack — how a document
+//     the Psion saved to an SSD reaches the host.
+{
+  const bytesEq = (a: Uint8Array, b: Uint8Array) =>
+    a.length === b.length && a.every((v, i) => v === b[i]);
+
+  // Root file, after the step-5 replacement.
+  eq(new TextDecoder().decode(readFileFromPack(pack, 'HELLO.TXT')), 'replaced',
+     'read back a root file');
+  // Subdirectory file, by the same path listFiles reports.
+  check(bytesEq(readFileFromPack(pack, 'WRD\\REPORT.WRD'), wrdBytes),
+        'read back a subdirectory file byte-exact');
+  // Forward slashes and lower case work too — the paths users paste.
+  check(bytesEq(readFileFromPack(pack, 'wrd/report.wrd'), wrdBytes),
+        'path matching is case- and separator-insensitive');
+  // Chunked file: the data-record chain has to be followed and joined
+  // in order.
+  check(bytesEq(readFileFromPack(bigPack, 'BIG.BIN'), big),
+        'read back a chunked file across continuation records');
+  // Nested two-level path.
+  {
+    let nested = createFlashPack(0x20000, 'NEST');
+    nested = addFileToPack(nested, 'LEVEL1.DAT', new Uint8Array([4, 5]), 'BLADES\\DATA');
+    check(bytesEq(readFileFromPack(nested, 'BLADES\\DATA\\LEVEL1.DAT'), new Uint8Array([4, 5])),
+          'read back a nested file');
+  }
+  // Empty file: a valid entry with a zero-length data record.
+  {
+    let empty = createFlashPack(0x20000, 'EMPTY');
+    empty = addFileToPack(empty, 'EMPTY.BIN', new Uint8Array(0));
+    eq(readFileFromPack(empty, 'EMPTY.BIN').length, 0, 'read back an empty file');
+  }
+
+  // Deleted, unknown and non-FEFS all throw rather than return junk.
+  let threwRead = false;
+  try { readFileFromPack(pack, 'WRD\\NOTES.WRD'); } catch { threwRead = true; }
+  check(threwRead, 'reading a deleted file throws');
+
+  threwRead = false;
+  try { readFileFromPack(pack, 'NOSUCH.TXT'); } catch { threwRead = true; }
+  check(threwRead, 'reading an unknown file throws');
+
+  threwRead = false;
+  try { readFileFromPack(new Uint8Array(0x20000).fill(0xFF), 'HELLO.TXT'); }
+  catch { threwRead = true; }
+  check(threwRead, 'reading from a non-FEFS (RAM) image throws');
+
+  // A directory is not a file.
+  threwRead = false;
+  try { readFileFromPack(pack, 'WRD'); } catch { threwRead = true; }
+  check(threwRead, 'reading a directory throws');
+
+  // A truncated image must not throw or over-read: the reader clamps to
+  // whatever data survives (salvage beats refusing the download). The
+  // entry survives the cut here, its data record doesn't.
+  {
+    const whole = addFileToPack(createFlashPack(0x20000, 'TRUNC'),
+                                'A.BIN', new Uint8Array(64).fill(7));
+    const cut = 0xA0;
+    const salvaged = readFileFromPack(whole.slice(0, cut), 'A.BIN');
+    check(salvaged.length > 0 && salvaged.length < 64,
+          `truncated image salvages a partial file (got ${salvaged.length} of 64)`);
+    check(salvaged.every(v => v === 7), 'salvaged bytes are the file\'s own');
+  }
+}
+
+// 12. Reader vs a real factory dump, when available (validates our
 //     entry-walk against bytes EPOC16 itself ships). Extract
 //     tests/fixtures/games3a.zip to /tmp to enable.
 const realDump = '/tmp/Games_3a.rom';
@@ -149,6 +217,13 @@ if (existsSync(realDump)) {
   const rf = listFiles(real);
   check(rf.some(f => f.name === 'APP\\BOMZ3A.OPA' && f.size === 40776),
         'factory dump file walk (APP\\BOMZ3A.OPA, 40776 bytes)');
+  // Extraction off a pack we didn't write: the file must come out at
+  // its full length, carrying the signature EPOC16 stamps on a compiled
+  // OPL application.
+  const opa = readFileFromPack(real, 'APP\\BOMZ3A.OPA');
+  eq(opa.length, 40776, 'factory dump file extracted at full length');
+  eq(new TextDecoder('latin1').decode(opa.subarray(0, 13)), 'OPLObjectFile',
+     'extracted OPA carries its signature');
 }
 
 if (failures === 0) {

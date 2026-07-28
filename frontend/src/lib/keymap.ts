@@ -282,6 +282,27 @@ export interface KeyChord {
   key: number;
 }
 
+// True when a keystroke belongs to a text field of the HOST UI rather than to
+// the emulated machine.
+//
+// EmulatorView listens for keydown on `window` and calls preventDefault() for
+// every key the device's keymap can produce, so without this check a keystroke
+// typed into a dialog field is cancelled before the browser inserts the
+// character — the field looks frozen and the letter goes to EPOC instead.
+// (Verified in Chromium: typing "CAFE" into an unguarded dialog input leaves
+// the field empty and delivers CAFE to the guest.)
+//
+// The emulator's own hidden textarea — the one mobile soft keyboards type
+// into, marked data-psion-input — is deliberately NOT host UI: its keystrokes
+// must keep reaching EPOC, so it is excluded from the match.
+export function isHostTextEntry(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || typeof el.closest !== 'function') return false;
+  const field = el.closest<HTMLElement>(
+    'input, textarea, select, [contenteditable=""], [contenteditable="true"]');
+  return field != null && field.dataset.psionInput == null;
+}
+
 // Returns the EPOC key chord (modifiers + key) needed to produce `char` on the
 // given device layout, or null if the device's keyboard can't produce it.
 // Used by physical-key fallback, paste, and mobile soft-keyboard input.

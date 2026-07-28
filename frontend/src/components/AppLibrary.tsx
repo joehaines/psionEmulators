@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PsionWebEmulator
 // Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import psionLogoUrl from '../assets/psion-logo.svg';
 import DevicePanel from './DevicePanel';
 import { loadPsionModule } from '../lib/wasmBridge';
@@ -10,7 +10,7 @@ import { DEVICE_RELEASE_YEARS } from '../lib/deviceMeta';
 import type { DeviceProfile } from '../types/emulator';
 import {
   fetchAppManifest, appAssetUrl, tryTargetsFor, setPendingTry,
-  BOOTLOADER_TRY_DEVICES,
+  BOOTLOADER_TRY_DEVICES, appsRouteHash, parseAppsRoute,
   type AppManifest, type AppEntry,
 } from '../lib/appLibrary';
 import { unzipAll } from '../lib/zip';
@@ -18,6 +18,12 @@ import { trackAppEvent, fetchAppLeaderboard } from '../lib/analytics';
 
 interface Props {
   onClose(): void;
+  // Device id from `#/apps?device=<id>`: opens the library filtered to
+  // that machine instead of restoring the user's last filters.
+  initialDeviceFilter?: string | null;
+  // App id from `#/apps?app=<category>/<slug>`: the app whose details
+  // popup is open. The route owns that — see openDetail below.
+  appId?: string | null;
 }
 
 // Standalone app-library route (#/apps): browse, search and sort the
@@ -55,7 +61,12 @@ const DEFAULT_FILTERS: Filters = {
   hideDownloadOnly: true,
 };
 
-function loadFilters(): Filters {
+// A device named in the URL wins over the persisted filters entirely,
+// rather than being ANDed with them: a link that promises "this
+// machine's apps" has to show them, and a stale category or search from
+// the user's last visit could otherwise leave the page empty.
+function loadFilters(deviceFilter?: string | null): Filters {
+  if (deviceFilter) return { ...DEFAULT_FILTERS, deviceFilter };
   try {
     const raw = localStorage.getItem(FILTERS_KEY);
     if (!raw) return DEFAULT_FILTERS;
@@ -79,6 +90,12 @@ function formatSize(bytes: number): string {
 function categoryGenre(label: string): string {
   const i = label.indexOf(' — ');
   return i >= 0 ? label.slice(i + 3) : label;
+}
+
+// The route for opening (or closing) an app's details: whatever else is
+// in the current one — the device filter — with the app swapped over.
+function detailHash(app: string | null): string {
+  return appsRouteHash({ ...parseAppsRoute(window.location.hash), app });
 }
 
 // Typographic placeholder for apps without an extractable icon.
@@ -106,13 +123,13 @@ function AppIcon({ app }: { app: AppEntry }) {
   );
 }
 
-export default function AppLibrary({ onClose }: Props) {
+export default function AppLibrary({ onClose, initialDeviceFilter, appId }: Props) {
   const [manifest, setManifest] = useState<AppManifest | null>(null);
   const [loadError, setLoadError] = useState<'offline' | 'missing' | string | null>(null);
   const [deviceNames, setDeviceNames] = useState<Record<string, string>>({});
   const [popularity, setPopularity] = useState<Map<string, number>>(new Map());
 
-  const [initialFilters] = useState(loadFilters);
+  const [initialFilters] = useState(() => loadFilters(initialDeviceFilter));
   const [search, setSearch] = useState(initialFilters.search);
   const [deviceFilter, setDeviceFilter] = useState(initialFilters.deviceFilter);
   const [categoryFilter, setCategoryFilter] = useState(initialFilters.categoryFilter);
@@ -120,7 +137,33 @@ export default function AppLibrary({ onClose }: Props) {
   const [showVault, setShowVault] = useState(initialFilters.showVault);
   const [hideDownloadOnly, setHideDownloadOnly] = useState(initialFilters.hideDownloadOnly);
   const [visible, setVisible] = useState(PAGE_SIZE);
-  const [selected, setSelected] = useState<AppEntry | null>(null);
+
+  // ── The details popup lives in the URL ──────────────────────────────
+  // Which app is open is read back out of the route rather than held in
+  // state, so the address bar always names what's on screen and that URL
+  // is the shareable link to the app. Opening pushes a history entry;
+  // Back therefore closes the popup, and Close undoes its own push so
+  // the two agree. Someone arriving on a shared link pushed nothing, so
+  // Close navigates to the plain library instead of leaving the site.
+  const selected = useMemo(
+    () => (appId ? manifest?.apps.find(a => a.id === appId) ?? null : null),
+    [manifest, appId]);
+  const pushedDetail = useRef(false);
+  useEffect(() => { if (!selected) pushedDetail.current = false; }, [selected]);
+
+  const openDetail = useCallback((app: AppEntry) => {
+    pushedDetail.current = true;
+    window.location.hash = detailHash(app.id);
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    if (pushedDetail.current) {
+      pushedDetail.current = false;
+      history.back();
+    } else {
+      window.location.hash = detailHash(null);
+    }
+  }, []);
 
   // ── Device side menu, hosted right here so opening it doesn't leave
   // the page. Profiles come from the WASM device registry (cached
@@ -128,12 +171,14 @@ export default function AppLibrary({ onClose }: Props) {
   // session-management affordances stay hidden (no handlers passed).
   const [menuOpen, setMenuOpen] = useState(false);
   const [panelProfiles, setPanelProfiles] = useState<DeviceProfile[]>([]);
+  const [panelError, setPanelError] = useState<string | null>(null);
   const [savedDevices, setSavedDevices] = useState<string[]>([]);
   useEffect(() => { void listSavedDevices().then(setSavedDevices).catch(() => {}); }, []);
   const [nonFavourites, setNonFavourites] = useState<Set<string>>(new Set());
   const openMenu = useCallback(() => {
     setMenuOpen(true);
     if (panelProfiles.length === 0) {
+      setPanelError(null);
       void loadPsionModule().then(mod => {
         const all = JSON.parse(mod.getAllDeviceProfilesJSON()) as DeviceProfile[];
         // Newest-first, the app's default device ordering.
@@ -141,7 +186,14 @@ export default function AppLibrary({ onClose }: Props) {
           (DEVICE_RELEASE_YEARS[b.id] ?? 0) - (DEVICE_RELEASE_YEARS[a.id] ?? 0) ||
           a.displayName.localeCompare(b.displayName));
         setPanelProfiles(all);
-      }).catch(() => { /* registry unavailable — panel shows Loading… */ });
+      }).catch(err => {
+        // Surface the failure in the panel instead of an indefinite
+        // "Loading…" (WASM instantiation can fail under memory pressure —
+        // notably right after leaving the emulator, whose worker instance
+        // is kept alive a few seconds for its exit save). Re-opening the
+        // menu retries because panelProfiles is still empty.
+        setPanelError(String(err));
+      });
       void listSavedDevices().then(setSavedDevices).catch(() => {});
       try {
         const raw = localStorage.getItem('psion-non-favourite-devices');
@@ -421,7 +473,7 @@ export default function AppLibrary({ onClose }: Props) {
                   <div key={app.id}
                        className="border border-psion-accent/30 rounded-lg bg-psion-mid/20 p-3 flex flex-col gap-2 hover:border-psion-accent/60 transition-colors">
                     <button className="flex items-start gap-3 text-left cursor-pointer"
-                            onClick={() => setSelected(app)}>
+                            onClick={() => openDetail(app)}>
                       <AppIcon app={app} />
                       <div className="min-w-0">
                         <div className="text-sm font-mono font-semibold text-psion-charcoal truncate">
@@ -456,7 +508,7 @@ export default function AppLibrary({ onClose }: Props) {
                         Download
                       </button>
                       <button
-                        onClick={() => setSelected(app)}
+                        onClick={() => openDetail(app)}
                         className="text-xs font-mono px-2 py-1 text-gray-400 hover:text-psion-charcoal transition-colors cursor-pointer ml-auto"
                       >
                         Details…
@@ -496,10 +548,15 @@ export default function AppLibrary({ onClose }: Props) {
         onSelect={deviceId => { window.location.hash = `#/${deviceId}`; }}
         baseUrl={import.meta.env.BASE_URL}
         nonFavouriteDevices={nonFavourites}
+        listError={panelError}
       />
 
       {selected && manifest && (
+        // Keyed by app: the popup carries per-app state (unpacked
+        // readmes, the chosen try device), and the route can move
+        // straight from one app to another without closing.
         <AppDetail
+          key={selected.id}
           app={selected}
           categoryLabel={categoryLabel(selected.category)}
           deviceNames={deviceNames}
@@ -507,7 +564,7 @@ export default function AppLibrary({ onClose }: Props) {
           deviceEnabled={deviceEnabled}
           onTry={handleTry}
           onDownload={handleDownload}
-          onClose={() => setSelected(null)}
+          onClose={closeDetail}
         />
       )}
 

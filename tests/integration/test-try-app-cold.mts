@@ -110,10 +110,13 @@ function makeControls(mod: Mod) {
       return mod.attachCFImage(bytes.length);
     },
     get ssdAttached() { return [0, 1, 2, 3].map(s => mod.isSSDImageAttached(s)); },
-    attachSSD: async (slot: number, bytes: Uint8Array, kind?: 'ram' | 'flash') => {
+    attachSSD: async (slot: number, bytes: Uint8Array,
+                      kind?: 'ram' | 'flash' | 'protected') => {
       const p = mod.prepareSSDImageUpload(bytes.length);
       mod.HEAPU8.set(bytes, p);
-      return mod.attachSSDImage(slot, bytes.length, kind === 'flash' ? 3 : 1);
+      // Mirrors PsionSSD::Type (1 RAM / 2 Flash / 3 write-protected).
+      return mod.attachSSDImage(slot, bytes.length,
+        kind === 'protected' ? 3 : kind === 'flash' ? 2 : 1);
     },
     serialIsAttached: () => false,
     serialAttachHost: () => false,

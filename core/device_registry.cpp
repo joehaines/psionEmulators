@@ -19,14 +19,24 @@
 // branch explicitly on device identity rather than inferring it from
 // runtime flags. Adding a new variant: pick a Variant enum, add a
 // factory here, point the device profile at it.
+// The PROM device name each Windermere machine reports: EPOC reads the
+// ETNA identity PROM at boot and shows this string as "Type" in the
+// System screen's Machine information dialog. Etna's own default is
+// WindEmu's "PockEmul" joke name, which would now be user-visible (the
+// PROM only started being accepted once its serial protocol was fixed —
+// see kPromAddressBits in core/etna.h), so every device sets its real
+// one here. The strings match what EPOC displayed from its built-in
+// fallbacks while the PROM was being rejected.
 static EmuBase *makeWindermere5mx() {
     auto *emu = new Windermere::Emulator;
     emu->setVariant(Windermere::Variant::Mx5);
+    emu->setPromDeviceName("SERIES5 MX");
     return emu;
 }
 static EmuBase *makeWindermere5mxPro() {
     auto *emu = new Windermere::Emulator;
     emu->setVariant(Windermere::Variant::Mx5Pro);
+    emu->setPromDeviceName("SERIES5 MX");
     return emu;
 }
 static EmuBase *makeWindermereMC218() {
@@ -51,6 +61,9 @@ static EmuBase *makeSeries5()    { return new Series5::Emulator; }
 static EmuBase *makeRevo() {
     auto *emu = new Revo::Emulator;
     emu->setVariant(Windermere::Variant::Revo);
+    // No setPromDeviceName: the Revo ROM never reads the ETNA PROM (see
+    // Revo::Emulator::hasMachineId). "REVO" in Machine information is the
+    // ROM's own string.
     return emu;
 }
 // Psion Series 3 (V30 + ASIC1 + ASIC2, 1991 handheld).
@@ -208,6 +221,7 @@ static EmuBase *makePocketBook2() {
 // — only the displayed device name changes.
 static EmuBase *makeSeries7() { return new Series7::Emulator("Psion Series 7"); }
 static EmuBase *makeNetBook() { return new Series7::NetBookEmulator; }
+static EmuBase *makeNetpad() { return new Series7::NetpadEmulator; }
 
 // Psion Organiser II (1986) — Hitachi HD6303X + HD44780 character LCD +
 // two Datapak/Rampak slots. Scaffold landing: the HD6303 core in
@@ -490,6 +504,67 @@ static const DeviceProfile kProfiles[] = {
         0, 0,
         3, 2,   // Remote Link on UART3, IrDA on the ICP (UART2)
         1, 1,
+    },
+    {
+        // The Psion netpad — a netBook-class SA-1100 machine with a colour
+        // panel at a Series-5-like resolution.  Unlike the netBook (2 MB
+        // YModem bootloader + CF OS.IMG handoff), Netpad.img is a complete
+        // EPOC R5 ROM that boots straight from PA 0, exactly like the
+        // Series 7 16 MB image — SA1100::Emulator::loadROM copies it into
+        // ROM[] with no EPOCARM-header strip (isNetBookRom_ stays false).
+        // The 12.3 MB image fits the fixed 16 MB ROM[] buffer.
+        //
+        // The board peripherals the netpad boot ROM drives are modelled in
+        // core/sa1100.cpp: the GPIO ready/handshake pull-ups, the nCS4
+        // serial device, the bit-banged I2C board controller, and the
+        // SA-1110 deep-sleep / wake-by-reset path (the OS boots into the
+        // EPOC "off" state and is switched on by a synthetic power-button
+        // press, resuming through the ROM's PSPR context).  It boots to the
+        // netpad EPOC desktop; the 640x240 panel is 8 bpp palettised, and
+        // the palette the ROM programs is a 6x6x6 colour cube, so the panel
+        // renders in colour.  The stylus and the board's ADC channels hang
+        // off the SoC's SSP as an ADS7846-class codec (see the netpad SSP
+        // model in core/sa1100.cpp).
+        //
+        // Remote Link rides UART3, the same port the Series 7 / netBook
+        // use: the netpad's EPOC R5 build starts RemoteLinkServer4 at
+        // boot and its Req_Req_Pdu / Req_Con / NCP-Info handshake
+        // completes over the host bridge (see
+        // tests/integration/test-remote-link.sh).  Note EPOC only opens
+        // the port once Remote link is switched on from the System
+        // screen's Tools menu — reachable via the frontend's Menu key,
+        // which the netpad's synthetic key path now delivers.
+        //
+        // Infrared rides the SoC's Infrared Communications Port on SER2 /
+        // UART2, the same wiring as the Series 7 / netBook — the netpad's
+        // Tools menu carries the usual EPOC R5 Infrared -> Send / Receive
+        // submenu and its ROM ships the same IrDA.prt / IrCOMM.csy stack.
+        //
+        // The removable-media slot takes an MMC card, not a PC-Card: the
+        // card hangs off the board FPGA's SPI port and EPOC reaches it
+        // through the variant's own card-init state machine and
+        // medmmc.pdd, mounting it as drive D:.  See core/netpad_mmc.cpp
+        // and docs/netpad-rom-and-mmc.md.
+        //
+        // The frontend has both a photo skin and a skinless view for the
+        // machine (device-skins/netpad.png and the silkscreen icon column
+        // in skins/netpad_buttons_right.png), including tap zones for the
+        // five silkscreen keys.
+        // Selection is by explicit device id or the (unique) exact ROM size.
+        "netpad",
+        "Psion netpad",
+        "Netpad.img",
+        12296196,               // exact ROM size (unique -> size auto-detect)
+        0,                      // no variant-id autodetect; id/size selects it
+        nullptr,                // skin resolved frontend-side, as for every device
+        DeviceStatus::Supported,
+        makeNetpad,
+        false,  // no CompactFlash / PC-Card socket
+        0, 0,
+        3, 2,   // Remote Link on UART3, IrDA on the ICP (UART2)
+        1, 1,   // EPOC32 PLP + RFSV32 over the cable; IrDA + Eikon-IR beam
+        false,  // shown in the device picker
+        true,   // MMC card slot (drive D:)
     },
     {
         "series3",

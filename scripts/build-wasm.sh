@@ -60,7 +60,7 @@ echo "=== Building WASM: core C++ objects ==="
 # so all of those must be present at link time — leaving any of them out
 # reproduces the wasm-ld "undefined symbol: Series3::Emulator::Emulator()"
 # failure seen in CI.
-SOURCES=(arm710 emubase etna eiger eiger_classifier vcfcard windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
+SOURCES=(arm710 emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
          sa1100 sa1100_cpu \
          audio_codec \
          sibo_audio \

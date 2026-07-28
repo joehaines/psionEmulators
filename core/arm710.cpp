@@ -5173,6 +5173,27 @@ ARM710::MMUFault ARM710::writeVirtual(uint32_t value, uint32_t virtAddr, ValueSi
 				value, virtAddr, (int)valueSize, pc, GPRs[14], CPSR & 0x1F);
 		}
 	}
+	// [serialdesc capture] Bounded register-file dump on every 32-bit write to
+	// the kernel serial buffer descriptor at VA 0x80000b00-0x80000b0c (5mx
+	// v1.05(260)). Snapshot-diffing a healthy transfer against the wedged
+	// state (test/plp-browser) showed this block flip from an armed
+	// descriptor {ptr=800009ec len=400 fn=50074910 flags=20000400} to a
+	// disarmed one {heap-ptr, 0, user-addr, user-addr} at the wedge — the
+	// only stable kernel-data signature of the large-upload freeze. This
+	// capture identifies WHO arms/disarms it (pc/lr per write). printf — not
+	// log() — so it reaches the browser console without the logging gate, and
+	// hard-capped so it can't distort timing beyond the first captures.
+	{
+		static int s_serialDescCaps = 0;
+		if (virtAddr >= 0x80000b00 && virtAddr < 0x80000b10 &&
+		    valueSize == V32 && s_serialDescCaps < 96) {
+			s_serialDescCaps++;
+			printf("[serialdesc #%d] [%08x]<-%08x pc=%08x lr=%08x cpsr=%02x "
+			       "r0=%08x r1=%08x r4=%08x r5=%08x\n",
+			       s_serialDescCaps, virtAddr, value, GPRs[15] - 0xC, GPRs[14],
+			       CPSR & 0x1F, GPRs[0], GPRs[1], GPRs[4], GPRs[5]);
+		}
+	}
 
 	// PSION_SCHEDULE_TRACE: log every write to iCurrentThread (virt
 	// 0x8010061C) — i.e. every reschedule. Logs PC of the writer and

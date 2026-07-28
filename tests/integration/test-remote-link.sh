@@ -42,6 +42,7 @@ DEVICES=(
     "series5:series5_v1.01(144)_eng.bin"
     "netbook:netBook_BL_v011_eng.bin"
     "series7:series7_v1.05(254)_b756_eng.bin"
+    "netpad:Netpad.img"
 )
 
 target="${1:-all}"
@@ -61,6 +62,17 @@ for entry in "${DEVICES[@]}"; do
         # RemoteLinkServer4 sends Req_Req_Pdu at sim time ~0.9 s.
         log=$("$HARNESS" "$rom_path" --device "$dev" --quiet-logs \
             --boot-seconds 15 \
+            --serial-attach 3 0.5 \
+            --serial-auto-rule "21:24 de ad be ef" \
+            --serial-auto-rule "24:00" 2>&1) || true
+    elif [ "$dev" = "netpad" ]; then
+        # netpad boots its own 12.3 MB EPOC R5 ROM straight from flash
+        # (no CF handoff) and routes the cable to UART3 like its SA-1100
+        # siblings.  RemoteLinkServer4 sends its Req_Req_Pdu at ~1.9 s,
+        # so attach before that.  Unlike the Series 7 / netBook this ROM
+        # does drain UTDR, so the handshake gets all the way to NCP Info.
+        log=$("$HARNESS" "$rom_path" --device "$dev" --quiet-logs \
+            --boot-seconds 15 --skip-card \
             --serial-attach 3 0.5 \
             --serial-auto-rule "21:24 de ad be ef" \
             --serial-auto-rule "24:00" 2>&1) || true
@@ -133,6 +145,11 @@ for entry in "${DEVICES[@]}"; do
         # handshake works; only the ack-driven continuation needs the real
         # client (see the CL-PS711x row comment above).
         echo "PASS-WIRING+INFO $dev — 0x22 handshake accepted, NCP Info observed on UART1"
+    elif [ "$dev" = "netpad" ] && [ "$saw_info" -eq 1 ]; then
+        # netpad: link-layer handshake completes and the device sends NCP
+        # Info; LINK.* Connect needs the real PlpClient (same limitation
+        # as the CL-PS711x rows).
+        echo "PASS-WIRING+INFO $dev — link handshake accepted, NCP Info observed on UART3"
     elif ([ "$dev" = "netbook" ] || [ "$dev" = "series7" ] || [ "$dev" = "osaris" ]) && [ "$saw_req" -eq 1 ]; then
         # Bridge wiring proven (the device transmitted Req_Req_Pdu on the
         # attached UART) but the full handshake doesn't complete under the

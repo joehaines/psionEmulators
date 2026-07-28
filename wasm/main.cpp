@@ -226,6 +226,10 @@ unsigned getLcdLccr1() { auto *sa = dynamic_cast<SA1100::Emulator *>(g_emu); ret
 unsigned getLcdLccr2() { auto *sa = dynamic_cast<SA1100::Emulator *>(g_emu); return sa ? sa->debugLcdLccr2() : 0u; }
 unsigned getLcdLccr3() { auto *sa = dynamic_cast<SA1100::Emulator *>(g_emu); return sa ? sa->debugLcdLccr3() : 0u; }
 unsigned peekRam(unsigned addr) { auto *sa = dynamic_cast<SA1100::Emulator *>(g_emu); return sa ? sa->debugPeekRam(addr) : 0u; }
+// MMU-aware virtual 32-bit read (any ARM710-family core, incl. Windermere/5mx).
+// Side-effect-free; used by the browser repro to disassemble the LIVE code a
+// wedged guest is spinning on (the ROM file isn't mapped 1:1 to vaddrs).
+unsigned debugPeek32(unsigned addr) { if (!g_emu) return 0u; auto v = g_emu->readVirtualDebug(addr, ARM710::V32); return v ? *v : 0u; }
 unsigned getCpuPc()  { auto *c = g_emu ? g_emu->getArmCpu() : nullptr; return c ? c->getGPR(15) : 0u; }
 unsigned getIcpr() { auto *sa = dynamic_cast<SA1100::Emulator*>(g_emu); return sa ? sa->debugIcpr() : 0u; }
 unsigned getIcmr() { auto *sa = dynamic_cast<SA1100::Emulator*>(g_emu); return sa ? sa->debugIcmr() : 0u; }
@@ -437,6 +441,15 @@ bool getBacklight() {
     return g_emu && g_emu->getBacklight();
 }
 
+// Quarter-turns anticlockwise the panel image has to be shown at for the
+// UI to read upright — the netpad's "Switch orientation" (Tools menu)
+// makes EPOC draw the whole desktop rotated inside the same 640x240
+// framebuffer, so the frontend turns the device to match. 0 everywhere
+// else; polled alongside the rest of the worker status.
+int getScreenOrientation() {
+    return g_emu ? g_emu->getScreenOrientation() : 0;
+}
+
 // True once the CPU is wedged in an unrecoverable prefetch-abort loop.
 // The worker polls this after each frame to auto-halt a crashed device.
 bool isCpuCrashed() {
@@ -610,6 +623,22 @@ unsigned serialHostTxAvailable(int uartIndex) {
     return 0;
 }
 
+// Host→device RX FIFO depth (diagnostic; Windermere/5mx only for now). Lets the
+// browser repro tell "device not draining its RX" from "host not sending".
+unsigned serialHostRxPending(int uartIndex) {
+    if (auto *w = dynamic_cast<Windermere::Emulator *>(g_emu))
+        return (unsigned)w->serialHostRxPending(uartIndex);
+    return 0;
+}
+
+// Packed serial-interrupt state (diagnostic; Windermere/5mx). See
+// Windermere::debugSerialIrq for the bit layout.
+unsigned serialIrqState(int uartIndex) {
+    if (auto *w = dynamic_cast<Windermere::Emulator *>(g_emu))
+        return (unsigned)w->debugSerialIrq(uartIndex);
+    return 0;
+}
+
 // ── SSD pack image hooks ──────────────────────────────────────────────
 // Parallel to the CF helpers above but slot-indexed (Series 3 / 3a /
 // 3c / 3mx have two slots; Siena has one). g_ssdBuffer is reused as a
@@ -623,9 +652,9 @@ uintptr_t prepareSSDImageUpload(unsigned size) {
 }
 
 // `ssdType` mirrors PsionSSD::Type: 0 = auto (sniff the 0xF1A5 magic),
-// 1 = RAM, 2 = writable Type 1 Flash, 3 = hardware write-protected.
-// The SSD dialog passes 3 for FEFS packs (factory images only mount
-// when the info byte declares write-protection) and 1 for RAM dumps.
+// 1 = RAM, 2 = Type 1 Flash, 3 = hardware write-protected. The SSD
+// dialog passes 2 for FEFS packs and 1 for RAM dumps — both mount
+// read/write; 3 is for factory system disks.
 bool attachSSDImage(unsigned slot, unsigned size, unsigned ssdType) {
     if (!g_emu || size == 0) return false;
     return g_emu->attachSSD(int(slot), g_ssdBuffer.data(), size, int(ssdType));
@@ -733,6 +762,37 @@ bool isCFPollGapActive() {
     return g_emu && g_emu->cfGapActive();
 }
 
+// ── EPOC machine ID ──────────────────────────────────────────────────
+// The 32-bit factory ID in the device's identity chip (ETNA PROM on the
+// Series 5mx family / Revo; Eiger serial EEPROM on the Series 7 /
+// netBook / netpad). EPOC caches it at boot and software that locks
+// itself to one machine keys off it, so the frontend's "Show debugging"
+// panel can reprogram it — see EmuBase::setMachineId. Devices whose
+// identity chip isn't readable by the guest report false here and the
+// UI hides the control.
+bool hasMachineId() { return g_emu && g_emu->hasMachineId(); }
+unsigned getMachineId() { return g_emu ? g_emu->getMachineId() : 0u; }
+// The ID the device powers up with, so the UI can offer "restore the
+// factory value" — correct even after a saved-state restore, where the
+// snapshot carries the reprogrammed ID and only the emulator still knows
+// what it replaced.
+// High half of the 64-bit "Unique id" EPOC prints — the model UID the
+// kernel takes from the ROM. 0 when it hasn't been read out of that
+// machine's dialog (see EmuBase::getMachineIdPrefix), in which case the
+// panel shows only the identity-chip half.
+unsigned getMachineIdPrefix() { return g_emu ? g_emu->getMachineIdPrefix() : 0u; }
+// True when that constant was located unambiguously in the loaded ROM and
+// can therefore be patched, making the whole 16-digit id settable.
+bool canSetMachineIdPrefix() { return g_emu && g_emu->canSetMachineIdPrefix(); }
+bool setMachineIdPrefix(unsigned prefix) {
+    return g_emu && g_emu->setMachineIdPrefix(prefix);
+}
+// True when the device accepted a new ID. Some devices reserve bits of
+// the word for their own fields, so callers should read the effective
+// value back with getMachineId() rather than assume `id` was stored
+// verbatim.
+bool setMachineId(unsigned id) { return g_emu && g_emu->setMachineId(id); }
+
 // Returns JSON array of all known device profiles for the frontend device picker.
 std::string getAllDeviceProfilesJSON() {
     std::string out = "[";
@@ -750,6 +810,9 @@ std::string getAllDeviceProfilesJSON() {
         out += "\",";
         out += "\"hasCFSlot\":";
         out += (p->hasCFSlot ? "true" : "false");
+        out += ",";
+        out += "\"hasMmcSlot\":";
+        out += (p->hasMmcSlot ? "true" : "false");
         out += ",";
         out += "\"ssdSlotCount\":";
         out += std::to_string(p->ssdSlotCount);
@@ -791,6 +854,7 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("getLcdLccr2",              &getLcdLccr2);
     emscripten::function("getLcdLccr3",              &getLcdLccr3);
     emscripten::function("peekRam",                  &peekRam);
+    emscripten::function("debugPeek32",              &debugPeek32);
     emscripten::function("getCpuPc",                 &getCpuPc);
     emscripten::function("getIcpr",                  &getIcpr);
     emscripten::function("getIcmr",                  &getIcmr);
@@ -814,6 +878,7 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("sendKey",                  &sendKey);
     emscripten::function("sendTouch",                &sendTouch);
     emscripten::function("getBacklight",             &getBacklight);
+    emscripten::function("getScreenOrientation",     &getScreenOrientation);
     emscripten::function("isCpuCrashed",             &isCpuCrashed);
     emscripten::function("prepareCFImageUpload",     &prepareCFImageUpload);
     emscripten::function("attachCFImage",            &attachCFImage);
@@ -832,6 +897,8 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("serialWriteFromHost",      &serialWriteFromHost);
     emscripten::function("serialReadToHost",         &serialReadToHost);
     emscripten::function("serialHostTxAvailable",    &serialHostTxAvailable);
+    emscripten::function("serialHostRxPending",      &serialHostRxPending);
+    emscripten::function("serialIrqState",           &serialIrqState);
     emscripten::function("prepareSSDImageUpload",    &prepareSSDImageUpload);
     emscripten::function("attachSSDImage",           &attachSSDImage);
     emscripten::function("detachSSDImage",           &detachSSDImage);
@@ -846,6 +913,12 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("readDatapakImage",         &readDatapakImage);
     emscripten::function("getDatapakKind",           &getDatapakKind);
     emscripten::function("isCFPollGapActive",        &isCFPollGapActive);
+    emscripten::function("hasMachineId",             &hasMachineId);
+    emscripten::function("getMachineId",             &getMachineId);
+    emscripten::function("getMachineIdPrefix",       &getMachineIdPrefix);
+    emscripten::function("canSetMachineIdPrefix",    &canSetMachineIdPrefix);
+    emscripten::function("setMachineIdPrefix",       &setMachineIdPrefix);
+    emscripten::function("setMachineId",             &setMachineId);
     emscripten::function("setLoggingEnabled",        &setLoggingEnabled);
     emscripten::function("setEnvVar",                &setEnvVar);
     emscripten::function("getSimCycles",             &getSimCycles);

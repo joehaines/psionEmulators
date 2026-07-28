@@ -1,0 +1,268 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: LicenseRef-PsionWebEmulator -->
+<!--
+  Real-browser Remote Link transfer repro.
+
+  Unlike the Node repro (src/lib/__tests__/_plp_worker_repro.mts, single-thread),
+  this runs the REAL emulator-worker.js as a Web Worker (its own thread) with a
+  REAL transferred OffscreenCanvas, and the REAL PlpClient on the main thread —
+  the true two-thread environment that the field "Try it" upload uses. Driven by
+  run.mjs (Vite dev server + Playwright). Exposes window.runPlpTest(opts).
+
+  opts: { size, payload('rand'|'dle'|'syn'), realFile(URL), chunkSize,
+          requestTimeoutMs, preroll, uart, deviceId, rom }
+
+  On a mid-transfer stall it samples the guest via EmulatorWorkerClient.debugState
+  (worker rpc) so a wedge can be localised: insn flat ⇒ CPU halted; insn climbing
+  with pc stuck ⇒ spin loop; rxPending pinned full ⇒ device not draining its RX.
+-->
+<html>
+<head><meta charset="utf-8"><title>PLP browser transfer test</title></head>
+<body>
+<canvas id="lcd" width="640" height="240"></canvas>
+<pre id="out">idle</pre>
+<script type="module">
+import { EmulatorWorkerClient } from '/src/lib/emulatorWorkerClient.ts';
+import { PlpClient } from '/src/lib/plp/client-spec.ts';
+import { setSerialPumpForward, setSimKeepAliveForward } from '/src/lib/wasmBridge.ts';
+
+const log = (...a) => { const o = document.getElementById('out'); o.textContent += '\n' + a.join(' '); console.log(...a); };
+const hex = n => '0x' + (n >>> 0).toString(16);
+
+window.runPlpTest = async (opts = {}) => {
+  const { size = 250000, payload = 'rand', realFile = null,
+          rom = '/roms/5mx_v1.05(260)_eng.bin', deviceId = '5mx',
+          preroll = 45 * 64, uart = 2, chunkSize = 0, requestTimeoutMs = 0 } = opts;
+  const t = { payload, phases: [] };
+  try {
+    const client = new EmulatorWorkerClient('/emulator-worker.js');
+    client.onError = (m) => log('[worker error]', m);
+    await client.init('/');
+    log('worker ready');
+    document.getElementById('lcd').width = 640;
+    client.setCanvas(document.getElementById('lcd').transferControlToOffscreen());
+
+    log('loading ' + deviceId + ' (cold boot)…');
+    const tb = performance.now();
+    await client.loadDevice(deviceId, rom, preroll, false);
+    log('booted in ' + Math.round(performance.now() - tb) + 'ms');
+
+    let rx = [];
+    // Flow counters to disambiguate a wedge: is the host still SENDING (and the
+    // device ignoring it) or has the host gone quiet waiting for a reply?
+    const flow = { wN: 0, wB: 0, wAt: 0, rN: 0, rB: 0, rAt: 0 };
+    client.onSerialRx = (u, bytes) => { if (u === uart) { rx.push(bytes); flow.rN++; flow.rB += bytes.length; flow.rAt = performance.now(); } };
+    await client.serialAttach(uart);
+    setSerialPumpForward(on => client.setSerialPump(on));
+    setSimKeepAliveForward(b => client.setSimKeepAlive(b));
+
+    const readBytes = () => {
+      if (!rx.length) return new Uint8Array(0);
+      let n = 0; for (const c of rx) n += c.length;
+      const o = new Uint8Array(n); let off = 0; for (const c of rx) { o.set(c, off); off += c.length; }
+      rx = []; return o;
+    };
+    let lastInbound = null;
+    const plp = new PlpClient(
+      readBytes,
+      (d) => { client.serialWrite(uart, d); flow.wN++; flow.wB += d.length; flow.wAt = performance.now(); return d.length; },
+      { pollHz: 200, protocol: 'rfsv32', conSeq: 4,
+        ...(chunkSize ? { chunkSize } : {}),
+        ...(requestTimeoutMs ? { requestTimeoutMs } : {}),
+        onState: s => log('[state]', s),
+        onPduIn: p => { lastInbound = p; } },
+    );
+    plp.start();
+    log('connecting…');
+    await plp.connect(45000);
+    log('connected');
+
+    let data;
+    if (realFile) {
+      data = new Uint8Array(await (await fetch(realFile)).arrayBuffer());
+      log('real file ' + realFile + ' = ' + data.length + ' bytes');
+    } else {
+      data = new Uint8Array(size);
+      for (let i = 0; i < size; i++)
+        data[i] = payload === 'dle' ? 0x10 : payload === 'syn' ? 0x16 : (i * 31 + 7) & 0xFF;
+    }
+    const sz = data.length; t.size = sz;
+
+    // Dump a burst of guest snapshots so insn delta (halted vs spinning) shows.
+    let dumped = false;
+    const dumpState = async (tag) => {
+      if (dumped) return; dumped = true;   // once per transfer is enough
+      const s = [];
+      for (let i = 0; i < 5; i++) { s.push(await client.debugState(uart)); await new Promise(r => setTimeout(r, 200)); }
+      const d0 = s[0], dN = s[s.length - 1];
+      log(`[WEDGE ${tag}] insnΔ=${dN.insn - d0.insn} wfiΔ=${dN.wfiCount - d0.wfiCount} excΔ=${dN.excCount - d0.excCount}` +
+          ` wfi=${dN.wfi} pc=${hex(dN.pc)} realPc=${hex(dN.realPc)} lr=${hex(dN.lr)}` +
+          ` rxPending=${dN.rxPending} txAvail=${dN.txAvail} pendingTx=${dN.pendingTx}`);
+      log('[WEDGE pcs] ' + s.map(x => hex(x.realPc)).join(' '));
+      // Dump the live code around the spin (the ROM file isn't mapped 1:1).
+      const base = (dN.realPc - 12 * 4) >>> 0;
+      const words = await client.debugPeek(base, 28);
+      log('[WEDGE code] base=' + hex(base) + ' words=' + words.map(w => w.toString(16).padStart(8, '0')).join(','));
+      const nowt = performance.now();
+      log(`[WEDGE flow] hostWrites=${flow.wN}(${flow.wB}B) sinceWrite=${Math.round(nowt - flow.wAt)}ms` +
+          ` devRx=${flow.rN}(${flow.rB}B) sinceRx=${Math.round(nowt - flow.rAt)}ms`);
+      const q = dN.irq >>> 0;
+      log(`[WEDGE irq] raw=${hex(q)} uartInt=${(q & 0xff).toString(2)} uartMask=${((q >> 8) & 0xff).toString(2)}` +
+          ` ctrlPending=${(q >> 16) & 1} ctrlEnabled=${(q >> 17) & 1} wantsIrq=${(q >> 18) & 1}` +
+          ` (IntRx=1,IntTx=2)`);
+      // Scheduler-region heap-pointer chase: dump the EKA1 kernel-data window
+      // that holds the scheduler/DFC bookkeeping, then dereference every word
+      // that looks like a heap pointer (0x803xxxxx) and print its first 8
+      // words. If the serial comms DFC is queued-but-never-dispatched at the
+      // wedge, it shows up here as a TDfc (+0xC = ROM iFunction, +0x10 = heap
+      // iPtr) hanging off a queue head — giving us the exact function+this to
+      // invoke synchronously (the CF-proven wake fix) with no ISR hooking.
+      const sched = await client.debugPeek(0x80000840, 32);
+      for (let i = 0; i < 32; i += 8)
+        log('[WEDGE sched] ' + hex(0x80000840 + i * 4) + ': ' +
+            sched.slice(i, i + 8).map(w => w.toString(16).padStart(8, '0')).join(' '));
+      const seen = new Set();
+      for (const w of sched) {
+        const p = w >>> 0;
+        if ((p >>> 20) !== 0x803 || seen.has(p & ~3)) continue;  // heap ptrs only
+        seen.add(p & ~3);
+        const obj = await client.debugPeek(p & ~3, 8);
+        log('[WEDGE chase] ' + hex(p & ~3) + ': ' +
+            obj.map(x => x.toString(16).padStart(8, '0')).join(' '));
+      }
+      const baseline = healthySnap2 || healthySnap;
+      if (baseline) {
+        const wedgedSnap = await snapshotKernel();
+        diffSnaps(baseline, wedgedSnap, 'snapdiff');
+      } else log('[snapdiff] no healthy snapshot to diff against');
+      // ── Restore experiment ──
+      // The wedge tears down the serial descriptor at 0x80000b00-0x80000b0c
+      // (healthy: ptr=0x800009ec len=0x400 fn=0x50074910 flags=0x20000400 —
+      // all static-safe constants observed live, so they're hardcoded and the
+      // experiment runs even when the wedge hits before the baseline
+      // snapshot). Write them back and watch device→host flow for 15 s: if
+      // bytes resume, this block IS the wedge and the emulator-side fix can
+      // target whatever disarms it.
+      const before = await client.debugPeek(0x80000afc, 5);
+      log('[restore] 0x80000afc pre-poke: ' + before.map(w => w.toString(16).padStart(8, '0')).join(','));
+      const healthyWords = [0x800009ec, 0x00000400, 0x50074910, 0x20000400];
+      const rBefore = flow.rB;
+      log('[restore] poking 0x80000b00 <- ' + healthyWords.map(w => w.toString(16)).join(','));
+      await client.debugPoke(0x80000b00, healthyWords);
+      for (let s = 0; s < 15; s++) {
+        await new Promise(r => setTimeout(r, 1000));
+        if (flow.rB !== rBefore) { log('[restore] DEVICE RESUMED after ' + (s + 1) + 's (devRx +' + (flow.rB - rBefore) + 'B)'); break; }
+      }
+      if (flow.rB === rBefore) log('[restore] no effect after 15s');
+    };
+
+    // Kernel snapshot diff (upload-wedge investigation). The scheduler-region
+    // dumps came back IDENTICAL healthy-vs-wedged, so the stuck state lives
+    // somewhere else in kernel data / the kernel heap. Snapshot both regions
+    // mid-transfer (healthy) and at the wedge, and log only the words that
+    // differ — the complete kernel-state delta between flowing and stuck.
+    const SNAP_RANGES = [
+      [0x80000000, 0x80002000],   // kernel data page(s): scheduler, globals
+      [0x80300000, 0x80312000],   // kernel heap: driver + link-server objects
+    ];
+    const snapshotKernel = async () => {
+      const out = [];
+      for (const [lo, hi] of SNAP_RANGES) {
+        const words = new Uint32Array((hi - lo) / 4);
+        for (let a = lo; a < hi; a += 512) {
+          const chunk = await client.debugPeek(a, 128);
+          words.set(chunk.map(x => x >>> 0), (a - lo) / 4);
+        }
+        out.push(words);
+      }
+      return out;
+    };
+    let healthySnap = null, healthySnap2 = null;
+    const diffSnaps = (A, B, tag, cap = 250) => {
+      let shown = 0;
+      for (let r = 0; r < SNAP_RANGES.length; r++) {
+        const [lo] = SNAP_RANGES[r];
+        for (let i = 0; i < A[r].length && shown < cap; i++) {
+          if (A[r][i] !== B[r][i]) {
+            shown++;
+            log('[' + tag + '] ' + hex(lo + i * 4) + ': a=' +
+                A[r][i].toString(16).padStart(8, '0') + ' b=' +
+                B[r][i].toString(16).padStart(8, '0'));
+          }
+        }
+      }
+      log('[' + tag + '] total shown=' + shown + (shown >= cap ? ' (capped)' : ''));
+    };
+
+    // Kernel DFC-slot probe (upload-wedge investigation): the 5mx null thread
+    // only HALTs while *0x80000bfc == 0 (idle loop at ROM 0x5000f2b0). Nothing
+    // in the CPU write path ever stores to it, yet a wedged device parks with
+    // it 0 while work is pending. Sample it (and neighbours) once a second and
+    // log CHANGES, so a healthy transfer shows whether the kernel uses this
+    // slot at all — that decides whether setting it can ever be a safe wake.
+    let lastSlot = null;
+    const slotProbe = setInterval(async () => {
+      try {
+        const w = await client.debugPeek(0x80000be0, 12);
+        const s = w.map(x => (x >>> 0).toString(16).padStart(8, '0')).join(',');
+        if (s !== lastSlot) { lastSlot = s; log('[dfcslot-probe] 80000be0: ' + s); }
+      } catch {}
+    }, 1000);
+
+    const runPhase = async (name, fn) => {
+      let done = 0, moved = performance.now(), lastLog = 0;
+      const w = setInterval(() => {
+        if (performance.now() - moved > 20000) { log(`[${name} STALL] at ${done}/${sz} lastIn=` +
+          (lastInbound ? `c${lastInbound.cont}s${lastInbound.seq}l${lastInbound.data.length}` : 'none')); dumpState(name); }
+      }, 4000);
+      const t0 = performance.now();
+      let midDumped = false;
+      const r = await fn((b) => { if (b !== done) { done = b; moved = performance.now(); }
+        // Healthy-baseline dump: capture the same scheduler snapshot the WEDGE
+        // dump takes, but mid-transfer while everything is flowing — the diff
+        // against the wedge dump localises the stuck kernel object.
+        if (!midDumped && b >= sz / 50) {
+          midDumped = true;
+          // Two healthy snapshots a few seconds apart: their diff is the
+          // CHURN baseline (allocator noise, counters). A wedge-diff address
+          // that is quiet between the two healthy snapshots is real signal.
+          (async () => {
+            healthySnap = await snapshotKernel();
+            log('[snap] healthy snapshot 1 taken at ' + b);
+            await new Promise(r => setTimeout(r, 5000));
+            healthySnap2 = await snapshotKernel();
+            log('[snap] healthy snapshot 2 taken (+5s)');
+            diffSnaps(healthySnap, healthySnap2, 'churn', 80);
+          })();
+        }
+        if (b - lastLog >= sz / 5) { lastLog = b; log('  ' + name + ' ' + Math.floor(b / sz * 100) + '%'); } });
+      clearInterval(w);
+      const ms = Math.round(performance.now() - t0);
+      t.phases.push({ phase: name, ms });
+      log(name + ' OK in ' + ms + 'ms');
+      return r;
+    };
+
+    await runPhase('upload', (cb) => plp.uploadFile('C:\\Documents\\big.bin', data, cb));
+    dumped = false;
+    const back = await runPhase('download', (cb) => plp.downloadFile('C:\\Documents\\big.bin', cb));
+
+    let ok = back.length === data.length;
+    if (ok) for (let i = 0; i < data.length; i++) if (back[i] !== data[i]) { ok = false; break; }
+    clearInterval(slotProbe);
+    t.roundTrip = ok ? 'OK' : 'CORRUPT'; t.backLen = back.length;
+    log('round-trip ' + t.roundTrip);
+    try { plp.disconnect(); } catch {}
+    t.result = ok ? 'PASS' : 'FAIL-CORRUPT';
+  } catch (e) {
+    t.result = 'FAIL'; t.error = String(e && e.message || e);
+    log('[ERROR]', t.error);
+  }
+  window.__plpResult = t;
+  return t;
+};
+window.__plpReady = true;
+log('page ready');
+</script>
+</body>
+</html>

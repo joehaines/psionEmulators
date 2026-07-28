@@ -30,6 +30,12 @@ export interface DeviceProfile {
   // slot at all). The CF Card control in EmulatorView is hidden on
   // devices where this is false.
   hasCFSlot: boolean;
+  // Whether the device has an MMC (MultiMediaCard) slot. True only on
+  // the netpad, whose card is an MMC in SPI mode on the board FPGA
+  // rather than a PC-Card socket. It feeds the same card dialog as
+  // hasCFSlot — either way the user hands the device a raw FAT16 image
+  // — but the labels say MMC. No device has both.
+  hasMmcSlot: boolean;
   // Number of Psion SSD pack slots. 0 for ARM-based machines that
   // never had SSD hardware; 2 for Series 3/3a/3c/3mx; 1 for Siena
   // (single Honda-connector slot). The frontend renders the SSD
@@ -82,6 +88,12 @@ export interface PsionModule {
   // a freshly-pulled checkout whose psion.wasm pre-dates this binding
   // still loads — JS treats missing as "always off".
   getBacklight?(): boolean;
+  // Quarter-turns anticlockwise the panel image has to be shown at for
+  // the UI to read upright. Non-zero only on the netpad, whose Tools
+  // menu → "Switch orientation" makes EPOC draw the desktop rotated
+  // inside the same 640×240 framebuffer. Optional so a psion.wasm that
+  // pre-dates the binding still loads (missing = never rotated).
+  getScreenOrientation?(): number;
   prepareCFImageUpload(size: number): number;
   attachCFImage(size: number): boolean;
   // In-place CF content update (Series 7): replaces the card bytes without an
@@ -115,9 +127,9 @@ export interface PsionModule {
   // ── Psion SSD pack uploads (slot 0 / 1) ───────────────────────────
   prepareSSDImageUpload(size: number): number;
   // ssdType mirrors PsionSSD::Type — 0 auto (sniff 0xF1A5), 1 RAM,
-  // 2 writable Type 1 Flash, 3 hardware write-protected. FEFS packs
-  // must attach as 3: EPOC16 only mounts factory-style images when the
-  // info byte declares write-protection.
+  // 2 Type 1 Flash, 3 hardware write-protected. RAM and Flash are both
+  // read/write drives on the Psion; 3 is the factory system-disk strap
+  // and mounts read-only.
   attachSSDImage(slot: number, size: number, ssdType: number): boolean;
   detachSSDImage(slot: number): void;
   isSSDImageAttached(slot: number): boolean;
@@ -135,6 +147,28 @@ export interface PsionModule {
   readDatapakImage(slot: number, ptr: number): void;
   getDatapakKind(slot: number): number;
   isCFPollGapActive(): boolean;
+  // ── EPOC machine ID ───────────────────────────────────────────────
+  // The factory-programmed 32-bit ID in the device's identity chip
+  // (ETNA PROM on the Series 5mx family / Revo, Eiger serial EEPROM on
+  // the Series 7 / netBook / netpad). hasMachineId() is false on devices
+  // whose identity chip the guest can't read, and setMachineId may store
+  // fewer than 32 bits (the SA-1100 EEPROM word carries reserved panel
+  // fields) — so always read the effective value back with
+  // getMachineId(). All three are optional so a psion.wasm that
+  // pre-dates the bindings still loads; the UI hides the control then.
+  hasMachineId?(): boolean;
+  getMachineId?(): number;
+  // The ID the device powers up with — asked of the emulator rather than
+  // remembered host-side so it stays right across a saved-state restore,
+  // where the snapshot itself carries a reprogrammed ID.
+  // High half of the 64-bit Unique id EPOC prints — the model UID the
+  // kernel takes from the ROM. 0 when it hasn't been read out of that
+  // machine's dialog. Settable only where the constant could be located
+  // unambiguously in the ROM image (canSetMachineIdPrefix).
+  getMachineIdPrefix?(): number;
+  canSetMachineIdPrefix?(): boolean;
+  setMachineIdPrefix?(prefix: number): boolean;
+  setMachineId?(id: number): boolean;
   // Debug/feature flag: set a PSION_* process env var before a device loads
   // (e.g. PSION_NB_NATIVE_CF for the netBook faithful CF boot).  Optional —
   // older WASM builds may not export it.

@@ -15,13 +15,15 @@
 // Deferred: save-state export/import bundles only.
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import type { DeviceInfo, DeviceProfile } from '../types/emulator';
-import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice } from '../lib/keymap';
-import { EmulatorWorkerClient, type WorkerStatus } from '../lib/emulatorWorkerClient';
+import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice, isHostTextEntry } from '../lib/keymap';
+import { EmulatorWorkerClient, type WorkerStatus, type MachineIdReply } from '../lib/emulatorWorkerClient';
 import { createAudioEngine, type AudioEngine } from '../lib/audioEngine';
 import { createWorkerAudioShim, type WorkerAudioShim } from '../lib/workerAudioShim';
 import { setSerialPumpForward, setSimKeepAliveForward } from '../lib/wasmBridge';
 import { quiesceActiveSessions } from '../lib/plp/client-spec';
-import { osCardSpec, buildOsCardImage, collectStatesBundle, applyStatesBundle, listSavedDevices, triggerDownload } from './useEmulator';
+import { trackDeviceLoad, trackFeature, startSession, endSession } from '../lib/analytics';
+import type { PackKind } from '../lib/fefs';
+import { osCardSpec, buildOsCardImage, collectStatesBundle, applyStatesBundle, listSavedDevices, triggerDownload, loadStoredMachineId, storeMachineId } from './useEmulator';
 import type { EmulatorControls, EmulatorState, UseEmulatorOptions } from './useEmulator';
 
 type Ev = { key: number; down: boolean };
@@ -54,6 +56,10 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const [datapakAttached, setDatapakAttached] = useState<boolean[]>([false, false]);
   const datapakKindRef = useRef<number[]>([0, 0]);
   const [savedDevices, setSavedDevices] = useState<string[]>([]);
+  // Machine ID of the running device, reported by the worker on each load
+  // (see the machine-ID helpers in emulator-worker.js).
+  const [machineIdState, setMachineIdState] =
+    useState<MachineIdReply>({ supported: false, id: null, prefix: null, prefixSettable: false });
   // Serial (PLP/IrDA): the protocol clients stay on the main thread and drive the
   // sync serialReadBytes/serialWriteBytes interface. The worker streams UART
   // output here (onSerialRx → per-uart buffer) and we ship host writes back; the
@@ -69,7 +75,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const audioShimRef = useRef<WorkerAudioShim | null>(null);
 
   const clientRef = useRef<EmulatorWorkerClient | null>(null);
-  const statusRef = useRef<WorkerStatus>({ paused: false, simCycles: 0, backlight: false, cfGap: false, cardAttached: false });
+  const statusRef = useRef<WorkerStatus>({ paused: false, simCycles: 0, backlight: false, cfGap: false, cardAttached: false, orientation: 0 });
   const transferredElRef = useRef<HTMLCanvasElement | null>(null);
   // canvasRef is a CALLBACK ref (not a plain RefObject): the <canvas> is
   // unmounted/remounted when the user opens Settings or while a device loads, and
@@ -94,6 +100,8 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const lastLoadRef = useRef<{ deviceId: string; romUrl: string } | null>(null);
   const epocShiftRef = useRef(false);
   const keydownHandledRef = useRef(false);
+  // EPOC key codes sent down and not yet released — see releaseHeldKeys.
+  const heldKeysRef = useRef<Set<number>>(new Set());
   // Mirror of currentDeviceId for the input callbacks (which are memoised with
   // an empty dep list, so they can't read the state value without going
   // stale).  Kept in sync wherever setCurrentDeviceId runs.
@@ -157,12 +165,22 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     let cancelled = false;
     client.init(base).then(async () => {
       if (cancelled) return;
-      try { setProfiles((await client.getProfiles()) as DeviceProfile[]); } catch { /* keep empty */ }
+      // The device panel renders straight from this list — a silent failure
+      // here IS the "side menu lists no devices" bug. Retry once (a transient
+      // worker hiccup), then surface the error so the user isn't staring at
+      // an empty panel stuck on "Loading…" with no explanation.
+      let profs: DeviceProfile[] = [];
+      try {
+        profs = (await client.getProfiles()) as DeviceProfile[];
+      } catch {
+        try { profs = (await client.getProfiles()) as DeviceProfile[]; }
+        catch (err) { setError(`Device list failed to load: ${String(err)}`); }
+      }
+      setProfiles(profs);
       void listSavedDevices().then(setSavedDevices);   // populate the saved-state list
       setState('ready');
       const lastId = initialDeviceId || (embedMode ? null : localStorage.getItem('psion-last-device'));
       if (lastId) {
-        const profs = (await client.getProfiles().catch(() => [])) as DeviceProfile[];
         const p = profs.find(x => x.id === lastId && x.status === 'supported');
         if (p) void doLoad(lastId, `${base}roms/${p.romFilename}`);
       }
@@ -170,6 +188,10 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     return () => {
       cancelled = true; setSerialPumpForward(null); setSimKeepAliveForward(null);
       clientRef.current = null;
+      // Flush the session's accumulated time before the worker goes away.
+      // Unmount is a route change (app library, usage page) — a tab close is
+      // already covered by the pagehide/beforeunload beacons in analytics.ts.
+      endSession('switch');
       // Save the running device before tearing the worker down. Navigating
       // to a non-emulator route (the app library, usage page) unmounts this
       // hook, and terminating immediately dropped everything since the last
@@ -188,6 +210,11 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   async function doLoad(deviceId: string, romUrl: string, restore = true): Promise<void> {
     const client = clientRef.current;
     if (!client) return;
+    // "Reset device" re-enters here (restore=false) to cold-boot the machine
+    // that's already running. The main-thread hook resets in place and emits
+    // no analytics for it, so don't count it as a fresh load / new session
+    // either — otherwise worker-mode load counts drift above main-thread ones.
+    const isReset = !restore && deviceIdRef.current === deviceId;
     lastLoadRef.current = { deviceId, romUrl };
     // Park any live Remote Link session BEFORE the worker auto-saves the
     // outgoing device (inside loadDevice). The device is still stepping
@@ -207,8 +234,15 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     setLoadProgress(0);
     setLoadStatus(null);
     try {
-      const { info, ssdAttached: ssdSlots, datapakAttached: pakSlots, serialAttached: serialState } =
-        await client.loadDevice(deviceId, romUrl, 0, restore);
+      const { info, ssdAttached: ssdSlots, datapakAttached: pakSlots, serialAttached: serialState,
+              machineId: machineIdReply } =
+        await client.loadDevice(deviceId, romUrl, 0, restore,
+                                loadStoredMachineId(deviceId)?.toString(16) ?? null);
+      // The worker applies the stored machine-ID override during the load
+      // (before the first step) and reports back what the device ended up
+      // holding, plus its factory value for the panel's "Restore default".
+      setMachineIdState(machineIdReply
+        ?? { supported: false, id: null, prefix: null, prefixSettable: false });
       // Seed the host serial-bridge tracking from the restored heap's
       // actual UART hostAttached flags (reported by the worker). A
       // restored device with a parked Remote Link session comes back
@@ -233,6 +267,18 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
       setLoadProgress(null);
       setLoadStatus(null);
       setState('running');
+
+      // Usage analytics — must mirror useEmulator, which does the same two
+      // calls at the equivalent point. This path is the default one on every
+      // browser that supports OffscreenCanvas, so a device that isn't counted
+      // here isn't counted at all and never reaches the leaderboard.
+      // startSession flushes the outgoing device's session itself, so a
+      // device switch needs no endSession here.
+      if (!isReset) {
+        trackDeviceLoad(deviceId);
+        startSession(deviceId);
+      }
+
       // The worker auto-saves the outgoing device inside loadDevice; refresh
       // the saved-devices list so its "saved" state shows immediately.
       refreshSaved();
@@ -249,25 +295,50 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   // ── Input (mirrors useEmulator, routed to the worker) ──
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     keydownHandledRef.current = false;
+    // Keystrokes aimed at a host UI text field are the browser's business —
+    // preventDefault below would freeze the field and send the character to
+    // EPOC instead. See isHostTextEntry / the note in useEmulator.ts.
+    if (isHostTextEntry(e.target)) return;
     const fromMobile = Boolean((e.target as HTMLElement)?.dataset?.psionInput);
     if (fromMobile && e.key.length === 1) return;
     const chord = browserKeyToEpocChord(e, keyboardLayoutForDevice(deviceIdRef.current));
     if (chord === null) return;
     e.preventDefault();
     keydownHandledRef.current = true;
+    // Host-OS auto-repeat: EPOC repeats from the key-down we already sent,
+    // so forwarding these stacks two repeats (and on the netpad, whose
+    // synthetic keys are discrete events, runs a menu away). See the
+    // matching comment in useEmulator.ts.
+    if (e.repeat) return;
     if (chord.key === 18 || chord.key === 19) epocShiftRef.current = true;
-    if (chord.modifiers.length === 0 && !fromMobile) { clientRef.current?.sendKey(chord.key, true); return; }
+    if (chord.modifiers.length === 0 && !fromMobile) {
+      heldKeysRef.current.add(chord.key);
+      clientRef.current?.sendKey(chord.key, true);
+      return;
+    }
     const mods = chord.modifiers.filter(m => !((m === 18 || m === 19) && epocShiftRef.current));
     clientRef.current?.enqueue(expandChord(mods, chord.key));
   }, []);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (isHostTextEntry(e.target)) return;   // no key-down was sent for these
     const chord = browserKeyToEpocChord(e, keyboardLayoutForDevice(deviceIdRef.current));
     if (chord === null) return;
     e.preventDefault();
     if (chord.key === 18 || chord.key === 19) epocShiftRef.current = false;
     const fromMobile = Boolean((e.target as HTMLElement)?.dataset?.psionInput);
-    if (chord.modifiers.length === 0 && !fromMobile) clientRef.current?.sendKey(chord.key, false);
+    if (chord.modifiers.length === 0 && !fromMobile) {
+      heldKeysRef.current.delete(chord.key);
+      clientRef.current?.sendKey(chord.key, false);
+    }
+  }, []);
+
+  // Release everything still held — bound to blur / page-hide, where the
+  // browser stops delivering keyup.
+  const releaseHeldKeys = useCallback(() => {
+    for (const key of heldKeysRef.current) clientRef.current?.sendKey(key, false);
+    heldKeysRef.current.clear();
+    epocShiftRef.current = false;
   }, []);
 
   const injectText = (text: string) => {
@@ -306,6 +377,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const handlePointerUp = useCallback(() => clientRef.current?.sendTouch(0, 0, false), []);
 
   const getBacklight = useCallback(() => statusRef.current.backlight, []);
+  const getScreenOrientation = useCallback(() => statusRef.current.orientation, []);
   const refreshSaved = useCallback(() => { void listSavedDevices().then(setSavedDevices); }, []);
   const saveState = useCallback(async () => {
     // Flush any live Remote Link session (without disconnecting it) so an
@@ -343,15 +415,29 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     const l = lastLoadRef.current; if (l) void doLoad(l.deviceId, l.romUrl, false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Machine ID (debug panel). The override is persisted here on the main
+  // thread — localStorage isn't reachable from the worker — and passed into
+  // every load; these callbacks only drive the live emulator in the worker.
+  const setMachineId = useCallback(async (id: bigint): Promise<bigint | null> => {
+    const client = clientRef.current;
+    const deviceId = deviceIdRef.current;
+    if (!client || !deviceId) return null;
+    storeMachineId(deviceId, id);
+    const next = await client.setMachineId(id.toString(16));
+    setMachineIdState(next);
+    if (next.id == null) return null;
+    return (BigInt(next.prefix ?? 0) << 32n) | BigInt(next.id);
+  }, []);
+
   const attachCard = useCallback(async (bytes: Uint8Array) => {
     const ok = (await clientRef.current?.attachCard(bytes)) ?? false;
-    if (ok) setCardAttached(true);
+    if (ok) { setCardAttached(true); trackFeature(deviceIdRef.current, 'cf_attach'); }
     return ok;
   }, []);
   const updateCardInPlace = useCallback(async (bytes: Uint8Array) => {
     if (!bytes || bytes.byteLength === 0) return false;
     const ok = (await clientRef.current?.updateCard(bytes)) ?? false;
-    if (ok) setCardAttached(true);
+    if (ok) { setCardAttached(true); trackFeature(deviceIdRef.current, 'cf_update_in_place'); }
     return ok;
   }, []);
   const detachCard = useCallback(async () => { await clientRef.current?.detachCard(); setCardAttached(false); }, []);
@@ -375,7 +461,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
       const card = buildOsCardImage(spec, new Uint8Array(await resp.arrayBuffer()));
       if (!card) return false;
       const ok = await clientRef.current.attachCard(card);
-      if (ok) setCardAttached(true);
+      if (ok) { setCardAttached(true); trackFeature(deviceIdRef.current, 'cf_attach'); }
       return ok;
     } catch { return false; }
     finally { setOsDownloading(false); }
@@ -401,6 +487,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const toggleSpeaker = useCallback(async () => {
     const next = !speakerEnabled;
     setSpeakerEnabled(next);
+    if (next) trackFeature(deviceIdRef.current, 'speaker_on');
     const engine = await ensureAudioEngine();
     if (!engine) return;
     try { await engine.setSpeaker(next); }       // → shim.setHostAudioEnabled → worker drains
@@ -410,6 +497,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const toggleMic = useCallback(async () => {
     const next = !micEnabled;
     setMicEnabled(next);
+    if (next) trackFeature(deviceIdRef.current, 'mic_on');
     const engine = await ensureAudioEngine();
     if (!engine) { if (next) setMicEnabled(false); return; }
     try { await engine.setMic(next); }           // getUserMedia + MicProcessor (main thread);
@@ -433,11 +521,12 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     set(prev => { const next = [...prev]; next[slot] = v; return next; });
 
   const attachSSD = useCallback(async (slot: number, bytes: Uint8Array,
-                                       kind?: 'ram' | 'flash'): Promise<boolean> => {
+                                       kind?: PackKind): Promise<boolean> => {
     if (slot < 0 || slot > 3 || bytes.byteLength === 0) return false;
-    // Pack type code mirrors PsionSSD::Type — 'flash' must attach as
-    // 3 (write-protected) or EPOC16 reports the pack unformatted.
-    const ssdType = kind === undefined ? undefined : (kind === 'flash' ? 3 : 1);
+    // Pack type code mirrors PsionSSD::Type: RAM and Flash are both
+    // read/write drives, Protected is the factory system-disk strap.
+    const ssdType = kind === undefined ? undefined
+                  : kind === 'protected' ? 3 : kind === 'flash' ? 2 : 1;
     const ok = (await clientRef.current?.attachSSD(slot, bytes, ssdType)) ?? false;
     if (ok) setSlot(setSsdAttached, slot, true);
     return ok;
@@ -504,9 +593,9 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     osDownloading, osDownloadProgress: null,
     speakerEnabled, micEnabled, audioError,
     currentDeviceId, profiles,
-    loadDevice, handleKeyDown, handleKeyUp, handleInput, handlePasteText, pasteFromClipboard,
+    loadDevice, handleKeyDown, handleKeyUp, releaseHeldKeys, handleInput, handlePasteText, pasteFromClipboard,
     sendEpocKey, handlePointerDown, handlePointerMove, handlePointerUp,
-    pressEpocKey, pressEpocChord, getBacklight, saveState,
+    pressEpocKey, pressEpocChord, getBacklight, getScreenOrientation, saveState,
     clearLogs: () => setLogs([]),
     setLoggingEnabled: (on: boolean) => { loggingOnRef.current = on; clientRef.current?.setLoggingEnabled(on); },
     powerOff, powerOn, resetDevice,
@@ -514,6 +603,11 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     attachCard, updateCardInPlace, detachCard,
     attachOsCard, getCardBytes,
     getRamSnapshot: () => clientRef.current?.getRamSnapshot() ?? Promise.resolve(null),
+    machineIdSupported: machineIdState.supported,
+    machineId: machineIdState.id,
+    machineIdPrefix: machineIdState.prefix,
+    machineIdPrefixSettable: machineIdState.prefixSettable,
+    setMachineId,
     ssdAttached, attachSSD, detachSSD,
     getSSDBytes: (slot: number) => clientRef.current?.getSSDBytes(slot) ?? null,
     datapakAttached, attachDatapak, detachDatapak,

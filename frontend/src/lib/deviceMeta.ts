@@ -31,6 +31,7 @@ export const DEVICE_LOGO_MAP: Record<string, string> = {
   revo:        'revo.png',
   netbook:     '7_netbook.png',
   series7:     '7_netbook.png',
+  netpad:      'netpad_logo.png',
 };
 
 export const DEVICE_RELEASE_YEARS: Record<string, number> = {
@@ -54,4 +55,5 @@ export const DEVICE_RELEASE_YEARS: Record<string, number> = {
   netbook:     1999,
   '5mxpro':    2000,
   series7:     2000,
+  netpad:      2001,
 };

@@ -27,6 +27,17 @@ class Emulator : public Windermere::Emulator {
 public:
     const char *getDeviceName() const override { return "Psion Revo"; }
 
+    // No settable machine ID, unlike the rest of the Windermere family.
+    // The Revo ROM never consumes the ETNA identity PROM in this pairing:
+    // the real machine is CL-PS7111-family and reads its identity chip over
+    // pins we don't route to Etna, so the PROM sits unread. Verified by
+    // filling the whole image with a positional pattern — Machine
+    // information still reports Type "REVO" (the ROM's own fallback string,
+    // not the PROM's name field) and Unique id 0000-0000-0000-0000. Letting
+    // the debug panel write an ID here would change nothing the guest can
+    // see, so the control stays hidden.
+    bool hasMachineId() const override { return false; }
+
     // Revo LCD is 480 x 160, mono 4 bpp.
     int getLCDWidth()  const override { return 480; }
     int getLCDHeight() const override { return 160; }

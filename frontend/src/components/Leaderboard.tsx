@@ -72,7 +72,7 @@ function BarChart({ rows, names, mode }: BarChartProps) {
               dominantBaseline="middle"
               fontSize="11"
               fontFamily="JetBrains Mono, monospace"
-              fill="#2b2b2b"
+              className="fill-psion-charcoal"
             >
               {displayName}
             </text>
@@ -81,14 +81,14 @@ function BarChart({ rows, names, mode }: BarChartProps) {
               y={y + 4}
               width={barAreaWidth}
               height={ROW_HEIGHT - 8}
-              fill="#f4f4f2"
+              className="fill-psion-mid"
             />
             <rect
               x={trackX}
               y={y + 4}
               width={barWidth}
               height={ROW_HEIGHT - 8}
-              fill="#fadf3c"
+              className="fill-psion-highlight"
             />
             <text
               x={trackX + barAreaWidth + 8}
@@ -96,7 +96,7 @@ function BarChart({ rows, names, mode }: BarChartProps) {
               dominantBaseline="middle"
               fontSize="11"
               fontFamily="JetBrains Mono, monospace"
-              fill="#2b2b2b"
+              className="fill-psion-charcoal"
             >
               {valueLabel}
             </text>

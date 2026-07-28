@@ -122,7 +122,7 @@ const sandbox: Record<string, unknown> = {
   fetch: async () => ({ ok: true, headers: { get: () => null }, arrayBuffer: async () => new Uint8Array(16).buffer }),
   performance: { now: () => Date.now() },
   setTimeout: () => 0,
-  console: { log: () => {}, error: () => {} },
+  console: { log: () => {}, error: () => {}, warn: () => {} },
   ImageData: class {
     data: unknown; width: number; height: number;
     constructor(data: unknown, width: number, height: number) { this.data = data; this.width = width; this.height = height; }

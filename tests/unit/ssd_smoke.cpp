@@ -61,7 +61,11 @@ int run() {
     CHECK(ssd.attach(image.data(), image.size()));
     CHECK(ssd.isInserted());
     CHECK_EQ(ssd.imageSize(), image.size());
-    CHECK(doorAsserted);
+    // No door-NMI yet: the pulse is gated on the guest having talked to
+    // the slot at least once (see the m_guestAccessed comment in
+    // psion_ssd.h). A pack present before the OS's first slot scan is
+    // found BY that scan and doesn't need one.
+    CHECK(!doorAsserted);
 
     // 1) Read the info byte via SerialSelect Asic5PackId (control 0x42:
     //    SerialSelect | PackId, with bit 0 CLEAR to match PACK_MODE=0
@@ -81,9 +85,10 @@ int run() {
     ssd.writeFrame(CTRL(0xC0));   // SerialRead Port A
     CHECK_EQ(ssd.readFrame(), uint8_t(0x5A));
 
-    // 4) Counter mode: latch base address, then a sequence of Port A
-    //    writes auto-advances the address LSB. Verify three sequential
-    //    bytes hit consecutive offsets.
+    // 4) Counter mode + auto-increment: latch a base address, then a
+    //    sequence of Port A writes with control 0x90 (bit 4 = "multi",
+    //    auto-increment) advances the address LSB per byte. Verify three
+    //    sequential bytes hit consecutive offsets.
     //    First reset Port B to counter mode (default), then issue a
     //    fresh D-then-C with counter mode active, which zeroes
     //    port_b_counter so writes start from base + 0.
@@ -91,7 +96,7 @@ int run() {
     ssd.writeFrame(CTRL(0x93));
     ssd.writeFrame(DATA(0x00));   // D = 0   (-> port_b_counter reset)
     ssd.writeFrame(DATA(0x01));   // C = 1   -> base = 0x010000
-    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(CTRL(0x90));   // SerialWrite Port A, auto-increment
     ssd.writeFrame(DATA(0xAA));   // writes at 0x010000, then ++counter
     ssd.writeFrame(DATA(0xBB));   // writes at 0x010001, then ++counter
     ssd.writeFrame(DATA(0xCC));   // writes at 0x010002
@@ -99,7 +104,21 @@ int run() {
     CHECK_EQ(ssd.imageData()[0x010001], uint8_t(0xBB));
     CHECK_EQ(ssd.imageData()[0x010002], uint8_t(0xCC));
 
-    // 5) Detach clears the info byte; SerialSelect now returns 0.
+    // 4b) …and control 0x80 (bit 4 clear, "single") leaves the address
+    //     alone, so three writes all land on the same byte. EPOC16 needs
+    //     both: it bursts file data with 0x90 but issues one-off accesses
+    //     with 0x80 so they don't disturb the address it just set up.
+    ssd.writeFrame(CTRL(0x93));
+    ssd.writeFrame(DATA(0x00));   // D = 0   (-> port_b_counter reset)
+    ssd.writeFrame(DATA(0x01));   // C = 1   -> base = 0x010000
+    ssd.writeFrame(CTRL(0x80));   // SerialWrite Port A, single
+    ssd.writeFrame(DATA(0x11));
+    ssd.writeFrame(DATA(0x22));
+    CHECK_EQ(ssd.imageData()[0x010000], uint8_t(0x22));  // both hit base
+    CHECK_EQ(ssd.imageData()[0x010001], uint8_t(0xBB));  // untouched
+
+    // 5) Detach clears the info byte; SerialSelect now returns 0. The
+    //    guest has driven the bus by now, so the door line does pulse.
     doorAsserted = false;
     ssd.detach();
     CHECK(!ssd.isInserted());
@@ -123,22 +142,62 @@ int run() {
     ssd.writeFrame(CTRL(0x42));
     CHECK_EQ(ssd.readFrame(), uint8_t(0x23));       // 0x20 | 0x03
 
-    // 8) Flash packs accept Port A writes into the backing store, the
-    //    same as RAM. MAME's psion_ssd_device::writepa_handler writes
-    //    unconditionally — the write-protect info bits only gate whether
-    //    call_unload() flushes back to the host file, they do NOT block
-    //    the live write. EPOC16 relies on this: when you copy a file
-    //    onto a Flash SSD it streams the bytes through Port A and reads
-    //    them straight back to verify, so a dropped write makes the
-    //    verify fail and crashes the device. Latch a data address (well
-    //    clear of the F1A5 header) and confirm the byte lands.
+    // 8) On a Flash pack, Port A is the flash chip's bus: bytes written
+    //    to it are Intel 28F0xx-class COMMANDS, not data. A bare Port A
+    //    write must therefore NOT land as data — this is the slot-scan
+    //    prologue, where EPOC16 issues read-array (0x00) at offset 0
+    //    before reading the header, and storing it would zap the 0xF1A5
+    //    magic of every image the user attaches.
+    latchAddress(ssd, 0x00000);
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x00));   // Read Memory command, not a data byte
+    CHECK_EQ(ssd.imageData()[0], uint8_t(0xA5));
+
+    // 8b) Erase Setup + Confirm bulk-erases the device to 0xFF. A 128K
+    //     pack is a single device, so the whole image clears.
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x20));   // Erase Setup
+    ssd.writeFrame(DATA(0x20));   // Erase Confirm
+    CHECK_EQ(ssd.imageData()[0], uint8_t(0xFF));
+    CHECK_EQ(ssd.imageData()[0x1FFFF], uint8_t(0xFF));
+
+    // 8c) EPOC16 writes a byte with the two-cycle program command and
+    //     reads it back with program-verify; drive exactly that.
     latchAddress(ssd, 0x01000);
-    ssd.writeFrame(CTRL(0x80));   // SerialWrite Port A
-    ssd.writeFrame(DATA(0x3C));
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x40));   // Program Setup
+    ssd.writeFrame(DATA(0x3C));   // ...data byte
     CHECK_EQ(ssd.imageData()[0x01000], uint8_t(0x3C));
 
-    latchAddress(ssd, 0x01000);
-    ssd.writeFrame(CTRL(0xC0));   // SerialRead Port A — verify read-back
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0xC0));   // Program Verify
+    ssd.writeFrame(CTRL(0xC0));   // SerialRead Port A - verify read-back
+    CHECK_EQ(ssd.readFrame(), uint8_t(0x3C));
+
+    // 8d) Programming only clears bits - returning a cell to 1 takes an
+    //     erase. FEFS depends on it (deleting a file clears a flag bit
+    //     in place).
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x40));
+    ssd.writeFrame(DATA(0xFF));   // program 0xFF over 0x3C -> stays 0x3C
+    CHECK_EQ(ssd.imageData()[0x01000], uint8_t(0x3C));
+
+    // 8e) Erase Setup followed by anything other than the confirm cycle
+    //     aborts, so a stray write can't wipe a device.
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x20));   // Erase Setup...
+    ssd.writeFrame(DATA(0xFF));   // ...but a Read Memory command follows
+    CHECK_EQ(ssd.imageData()[0x01000], uint8_t(0x3C));   // no erase happened
+
+    // 8f) Read Intelligent Identifier answers with the maker/device
+    //     codes; a Read Memory command puts the chip back on the array.
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x90));
+    ssd.writeFrame(CTRL(0xC0));
+    CHECK_EQ(ssd.readFrame(), PsionSSD::FLASH_MAKER_ID);   // even address
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0xFF));
+    ssd.writeFrame(CTRL(0xC0));
     CHECK_EQ(ssd.readFrame(), uint8_t(0x3C));
 
     // 9) Explicit pack-type hints override content sniffing. On real
@@ -149,18 +208,23 @@ int run() {
     ssd.writeFrame(CTRL(0x42));
     CHECK_EQ(ssd.readFrame(), uint8_t(0x03));       // RAM info despite magic
 
-    // 10) Protected type sets the write-protect bits (D7-D5 = 111) and
-    //     drops Port A writes — the hardware write-enable strap is off.
-    //     This keeps factory images pristine: EPOC16's slot-scan always
-    //     fires one Port A write of 0x00 at address 0 before re-reading
-    //     the header, which must NOT zap the 0xF1A5 magic.
+    // 10) Protected type sets the write-protect bits (D7-D5 = 111). The
+    //     flash commands are still accepted — the programming voltage is
+    //     what's strapped off — so a program completes with the array
+    //     unchanged and the driver's verify read fails, exactly as on a
+    //     factory system disk.
     CHECK(ssd.attach(image.data(), image.size(), PsionSSD::Type::Protected));
     ssd.writeFrame(CTRL(0x42));
     CHECK_EQ(ssd.readFrame(), uint8_t(0xE3));       // 0xE0 | 0x03
     latchAddress(ssd, 0x00000);
-    ssd.writeFrame(CTRL(0x80));   // SerialWrite Port A (the scan's dummy write)
-    ssd.writeFrame(DATA(0x00));
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x40));   // Program Setup
+    ssd.writeFrame(DATA(0x00));   // …would clear the magic on a live pack
     CHECK_EQ(ssd.imageData()[0], uint8_t(0xA5));    // magic survives
+    ssd.writeFrame(CTRL(0x80));
+    ssd.writeFrame(DATA(0x20));   // Erase Setup
+    ssd.writeFrame(DATA(0x20));   // Erase Confirm — also a no-op
+    CHECK_EQ(ssd.imageData()[0], uint8_t(0xA5));
 
     std::fprintf(stderr, "PASS ssd_smoke\n");
     return 0;

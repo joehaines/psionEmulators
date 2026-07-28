@@ -60,4 +60,11 @@ struct DeviceProfile {
     // header link — but it doesn't clutter the device list with a near-
     // duplicate entry.
     bool hiddenFromPicker = false;
+    // True if the device has an MMC (MultiMediaCard) slot. Distinct from
+    // hasCFSlot: the netpad's card is an MMC in SPI mode hanging off the
+    // board FPGA (see core/netpad_mmc.{h,cpp}), not a PC-Card socket, so
+    // the frontend labels the slot correctly. Both flags drive the same
+    // card dialog — either way the user is handing the device a raw
+    // FAT16 image — and no device has both.
+    bool hasMmcSlot = false;
 };

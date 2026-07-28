@@ -79,6 +79,22 @@ AudioCodecModel::PopResult AudioCodecModel::popAdcSample(int64_t currentCycle) {
 	return r;
 }
 
+void AudioCodecModel::pushDacSample16(int16_t sample) {
+	size_t next = advance(dacTail_);
+	if (next == dacHead_) dacHead_ = advance(dacHead_);  // drop oldest
+	dacQueue_[dacTail_] = sample;
+	dacTail_ = next;
+	codrWrites++;
+}
+
+bool AudioCodecModel::popMicSample16(int16_t &out) {
+	if (adcHead_ == adcTail_) return false;
+	out = adcQueue_[adcHead_];
+	adcHead_ = advance(adcHead_);
+	codrReads++;
+	return true;
+}
+
 void AudioCodecModel::ackCsint() {
 	// COEOI write. Reset the per-cycle FIFO read counter so the next
 	// CSINT can surface another batch. Don't immediately re-fire

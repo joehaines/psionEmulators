@@ -135,18 +135,17 @@ struct UART {
 	std::deque<uint8_t> rxFifo;
 	std::vector<uint8_t> txQueue;
 	// Soft cap on outstanding bytes the CPU has written but the host hasn't
-	// drained. Steady-state PLP only needs ~290 B/frame, but during a file
-	// DOWNLOAD the device streams a whole RFSV READ reply (1-2 KiB) plus link
-	// Acks plus go-back-N retransmits within a single stepFrameFull burst. At
-	// 4 KiB that overflowed before the host's per-frame drain ran, and
-	// pushTxByte SILENTLY DROPS on overflow -> a corrupted READ reply -> the
-	// transfer wedges. 64 KiB gives ~20+ frames of headroom so a download's
-	// reply burst is never truncated.
-	static constexpr size_t kTxQueueCap = 64 * 1024;
+	// drained. PLP at 115200 with a 50 Hz host poll only needs ~290 B/frame,
+	// so 4 KiB gives plenty of headroom without unbounded growth.
+	static constexpr size_t kTxQueueCap = 4096;
 	// Soft cap on bytes the host has pushed but the CPU hasn't consumed.
-	// Matched to kTxQueueCap so a large host->device burst (uploads) has the
-	// same headroom against the CPU's drain cadence.
-	static constexpr size_t kRxFifoCap = 64 * 1024;
+	// EPOC's serial driver typically drains the FIFO inside the ISR, so
+	// 4 KiB is similarly comfortable. NB: this cap also paces UPLOADS — once
+	// the FIFO is full serialWriteFromHost stops accepting bytes, which backs
+	// the host off so it can't outrun the device's link-layer RX reassembly.
+	// Raising it lets the host dump a burst the real device silently overruns,
+	// corrupting the uploaded file, so leave it at 4 KiB.
+	static constexpr size_t kRxFifoCap = 4096;
 
 	// UART0DATA = 0x600, byte write, long read
 	// UART0FCR = 0x604, long
@@ -255,16 +254,25 @@ struct UART {
 	}
 
 	// Drain bytes the CPU has written but the host hasn't yet read. Returns
-	// the number of bytes actually copied. After a successful drain the TX
-	// FIFO is empty, which on real hardware deasserts IntTx; we mirror that
-	// here so the driver's interrupt-driven pattern works (write byte → IRQ
-	// fires when TX completes → driver writes next byte).
+	// the number of bytes actually copied.
+	//
+	// Deliberately does NOT touch IntTx. It used to clear it once the queue
+	// emptied — but the host drains between sim frames, so a TX interrupt
+	// latched by pushTxByte could be swallowed BEFORE the guest's ISR ran
+	// (guest writes the byte with IRQs masked → host drains → IntTx gone →
+	// no TX-done ever delivered). EPOC's serial driver sends each next byte
+	// from the TX-done interrupt of the previous one, so one swallowed edge
+	// silently blocks its comms thread on the write: the device keeps
+	// draining RX in the ISR but never ACKs again — the "large upload wedges
+	// with the device idle, uartMask=0b111, uartInt=0" freeze. On real
+	// hardware completing a transmission ASSERTS the TX interrupt; only the
+	// driver quiesces it (write-1-to-clear via UART0INTR, mask, or refill).
+	// Latch-on-push + guest-acks matches that contract.
 	size_t drainTxToHost(uint8_t *dst, size_t cap) {
 		size_t n = txQueue.size();
 		if (n > cap) n = cap;
 		for (size_t i = 0; i < n; ++i) dst[i] = txQueue[i];
 		txQueue.erase(txQueue.begin(), txQueue.begin() + (std::ptrdiff_t)n);
-		if (txQueue.empty()) interrupts &= ~IntTx;
 		return n;
 	}
 

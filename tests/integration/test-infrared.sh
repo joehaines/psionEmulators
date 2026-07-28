@@ -8,6 +8,7 @@
 #   series5 CL-PS7110 (EPOC R1, 640x240 touch)              — UART1 SIR, verified
 #   series7 SA-1100 (EPOC R5, 640x480, ICP=SER2)            — UART2 ICP, verified
 #   netbook SA-1100 (EPOC R5 v450, boots OS from CF)        — UART2 ICP, verified
+#   netpad  SA-1110 (EPOC R5, 640x240 colour, pen-only)      — UART2 ICP
 #
 # On the SA-1100 (Series 7 + netBook) the IrDA transceiver is the on-chip
 # Infrared Communications Port wired to SER2/UART2 (UART3 is the cable port).
@@ -184,8 +185,26 @@ case "$DEVICE" in
     DEF_CONNECT=8000; DEF_SEND_DISC=8000; DEF_SEND_REQ=25000; DEF_SEND_RETRY=50000
     NAV_OVERRIDE="${NETBOOK_NAV:-}"
     ;;
+  netpad)
+    DEF_ROM="$REPO_ROOT/roms/Netpad.img"
+    DEF_UART=2   # IrDA = SA-1110 ICP on SER2/UART2, same wiring as the S7
+    # The netpad boots to its desktop by ~sim 14 and is a pen machine, so
+    # the whole walk goes in as synthetic key events (see
+    # netpadInjectKeyEvent).  Its Tools menu is one item shorter than the
+    # Series 7's — Preferences / Control panel / Link to desktop /
+    # Infrared — so Infrared is Down x3, not x4.
+    DEF_NAV="--press-key 20 148 \
+      --press-key 21 15 --press-key 21.5 15 --press-key 22 15 --press-key 22.5 15 --press-key 23 15 \
+      --press-key 23.5 17 --press-key 24 17 --press-key 24.5 17 \
+      --press-key 25 15 \
+      --press-key 25.5 17 \
+      --press-key 26 3"
+    DEF_ATTACH=28; DEF_POLL=250; DEF_DISCOVER=80000
+    DEF_CONNECT=8000; DEF_SEND_DISC=4000; DEF_SEND_REQ=20000; DEF_SEND_RETRY=40000
+    NAV_OVERRIDE="${NETPAD_NAV:-}"
+    ;;
   *)
-    echo "unknown DEVICE=$DEVICE (want 5mx|osaris|series5|series7|netbook)" >&2; exit 2 ;;
+    echo "unknown DEVICE=$DEVICE (want 5mx|osaris|series5|series7|netbook|netpad)" >&2; exit 2 ;;
 esac
 UART="${UART:-$DEF_UART}"
 CARD="${CARD:-$DEF_CARD}"
@@ -213,12 +232,15 @@ boot_flags() {
     echo "--serial-poll-until $end"
   fi
 }
-# Card-boot devices run the sim as fast as they can (the netBook idles ~7x
-# real-time), which races ahead of the wall-clock host bridge and slams the
-# device's IrLAP timers shut before the beam lands. PSION_REALTIME pins the
-# sim to wall time for the live/trace bridge modes. (Capture injects static
-# bytes and doesn't care about pacing, so it stays fast.)
-if [ "$BOOT_MODE" = "card" ] && { [ "$MODE" = "live" ] || [ "$MODE" = "trace" ]; }; then
+# Some devices run the sim as fast as they can (the netBook idles ~7x
+# real-time, the netpad ~3.7x), which races ahead of the wall-clock host
+# bridge and slams the device's IrLAP timers shut before the beam lands.
+# PSION_REALTIME pins the sim to wall time for the live/trace bridge modes.
+# (Capture injects static bytes and doesn't care about pacing, so it stays
+# fast.)  The CL-PS711x machines run slower than real time and must not be
+# pinned, or the beam never fits in the window at all.
+if { [ "$BOOT_MODE" = "card" ] || [ "$DEVICE" = "netpad" ]; } \
+   && { [ "$MODE" = "live" ] || [ "$MODE" = "trace" ]; }; then
   export PSION_REALTIME=1
 fi
 

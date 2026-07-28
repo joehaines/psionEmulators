@@ -62,11 +62,8 @@ Etna::Etna(ARM710 *owner) {
 	prom[0xD] = 30;
 
     // some basic stuff to begin with
-    // set up the Psion's unique ID
-    prom[0x1B] = 0x12 ; //0xDE;
-    prom[0x1A] = 0x34 ; //0xAD;
-    prom[0x19] = 0x56 ; //0xBE;
-    prom[0x18] = 0x78 ; //0xEF;
+    // set up the Psion's unique ID (also folds the checksum)
+    setMachineId(kDefaultMachineId);
 
     // give ourselves a neat custom device name
     setDeviceName("PockEmul");
@@ -80,6 +77,28 @@ void Etna::setDeviceName(const char *name) {
     for (int i = 0; i < prom[0x28]; i++)
         prom[0x29 + i] = name[i] ^ key[i];
     // Recalculate the checksum after changing the name bytes.
+    recalcChecksum();
+}
+
+uint32_t Etna::getMachineId() const {
+    return  (uint32_t)prom[kPromMachineId]
+         | ((uint32_t)prom[kPromMachineId + 1] << 8)
+         | ((uint32_t)prom[kPromMachineId + 2] << 16)
+         | ((uint32_t)prom[kPromMachineId + 3] << 24);
+}
+
+void Etna::setMachineId(uint32_t id) {
+    prom[kPromMachineId]     = (uint8_t)(id & 0xFF);
+    prom[kPromMachineId + 1] = (uint8_t)((id >> 8) & 0xFF);
+    prom[kPromMachineId + 2] = (uint8_t)((id >> 16) & 0xFF);
+    prom[kPromMachineId + 3] = (uint8_t)((id >> 24) & 0xFF);
+    // The ID bytes are covered by the PROM checksum, so a write that
+    // didn't re-fold it would leave the image looking corrupt to the
+    // kernel's validity check.
+    recalcChecksum();
+}
+
+void Etna::recalcChecksum() {
     uint8_t chk = 0;
     for (int i = 0; i < 0x7F; i++)
         chk ^= prom[i];
@@ -280,13 +299,18 @@ void Etna::setPromBit0Low()
 
 void Etna::setPromBit1High()
 {
-    if (promAddressBitsReceived < 10) {
-        // we're still receiving the address
+    if (promAddressBitsReceived < kPromFrameBits) {
+        // Still receiving the command frame. Clocks before the start bit
+        // are idle padding — how many there are differs per ROM, so we
+        // wait for the 1 rather than counting (see kPromFrameBits).
+        const int bit = (wake1 & 4) >> 2;
+        if (promAddressBitsReceived == 0 && bit == 0)
+            return;
         promReadAddress <<= 1;
-        promReadAddress |= ((wake1 & 4) >> 2);
-        if (++promAddressBitsReceived == 10) {
+        promReadAddress |= bit;
+        if (++promAddressBitsReceived == kPromFrameBits) {
             // we can fetch the value now
-            int addressInBytes = promReadAddress * 2;
+            int addressInBytes = (promReadAddress & kPromWordIndexMask) * 2;
             addressInBytes %= sizeof(prom);
             promReadValue = prom[addressInBytes] | (prom[addressInBytes + 1] << 8);
         }

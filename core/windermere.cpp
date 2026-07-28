@@ -1400,8 +1400,51 @@ uint8_t *Emulator::getROMBuffer() {
 size_t Emulator::getROMSize() {
 	return sizeof(ROM);
 }
+// Finds the model UID constant (the high half of EPOC's "Unique id") in the
+// freshly-loaded ROM. Every 5mx-family ROM here carries exactly one copy, in
+// a literal pool in the variant code; a build that doesn't carry it at all
+// (the 5mx Pro bootloader, whose OS comes off the CF card) leaves the list
+// empty, and locateMachineIdPrefixOnCard finds the live copy instead.
+void Emulator::locateMachineIdPrefix() {
+	machineIdPrefix = kMachineIdPrefixDefault;
+	findRomWords(ROM, sizeof(ROM), kMachineIdPrefixDefault, machineIdPrefixOffsets);
+}
+
+// Where the model UID sits in the attached CF image. Only the 5mx Pro needs
+// this: on 5mx / MC218 the OS is the ROM, so the ROM copy is the live one.
+void Emulator::locateMachineIdPrefixOnCard() {
+	machineIdPrefixCardOffsets.clear();
+	if (!isMx5Pro() || !cfCard.inserted()) return;
+	findCardMachineIdWords(cfCard.data(), cfCard.imageSize(),
+	                       kMachineIdPrefixDefault, machineIdPrefix,
+	                       machineIdPrefixCardOffsets);
+}
+
+void Emulator::applyMachineIdPrefixToCard() {
+	if (!cfCard.inserted() || machineIdPrefixCardOffsets.empty()) return;
+	writeRomWords(cfCard.data(), machineIdPrefixCardOffsets, machineIdPrefix);
+	log("Unique id: patched model UID %08x into %zu place(s) on the CF image",
+	    machineIdPrefix, machineIdPrefixCardOffsets.size());
+}
+
+bool Emulator::setMachineIdPrefix(uint32_t prefix) {
+	if (!canSetMachineIdPrefix()) return false;
+	writeRomWords(ROM, machineIdPrefixOffsets, prefix);
+	machineIdPrefix = prefix;
+	// 5mx Pro: the OS that prints the id comes off the CF card, so patch
+	// the copy there too. With no card in the slot this is a no-op and the
+	// value is applied when one is attached — which is the normal order,
+	// the frontend ejecting the OS card on every reset.
+	applyMachineIdPrefixToCard();
+	return true;
+}
+
 void Emulator::loadROM(uint8_t *buffer, size_t size) {
 	memcpy(ROM, buffer, std::min(size, sizeof(ROM)));
+	// The ROM is the only copy of the model UID, so find it before anything
+	// else patches or runs (the host programs the Unique id right after
+	// this returns, before the first instruction).
+	locateMachineIdPrefix();
 	// Auto-detect which Windermere ROM variant we have and resolve the
 	// PCCARD-ATA retry-callback + import-trampoline addresses, so the
 	// CF accel-timer and direct-invoke hooks work across 5mx, 5mx Pro
@@ -3219,6 +3262,12 @@ void Emulator::updateTouchInput(int32_t x, int32_t y, bool down) {
 bool Emulator::attachCard(const uint8_t *bytes, size_t size) {
 	if (!bytes || size == 0) return false;
 	cfCard.attach(bytes, size);
+	// 5mx Pro: this card carries SYS$ROM.BIN, i.e. the OS image the
+	// bootloader is about to copy into DRAM — and with it the only copy of
+	// the model UID that reaches EPOC's Unique id. Find it and stamp the
+	// programmed value on before the guest reads a single sector.
+	locateMachineIdPrefixOnCard();
+	applyMachineIdPrefixToCard();
 	cfProbeLogs = 0;
 	cfIntLogs = 0;
 	mcintTransitionLogs = 0;
@@ -3240,6 +3289,7 @@ bool Emulator::attachCard(const uint8_t *bytes, size_t size) {
 
 void Emulator::detachCard() {
 	cfCard.detach();
+	machineIdPrefixCardOffsets.clear();
 	cfProbeLogs = 0;
 	log("CF detach: cardPresent=false");
 	etna.setCardPresent(false);
@@ -3601,6 +3651,36 @@ size_t Emulator::serialHostTxAvailable(int uartIndex) const {
 	const UART *u = (uartIndex == 1) ? &uart1 : (uartIndex == 2) ? &uart2 : nullptr;
 	if (!u || !u->hostAttached) return 0;
 	return u->txQueuedBytes();
+}
+
+// Host→device RX FIFO depth (bytes the host has pushed that the CPU's serial
+// driver has not yet consumed). Diagnostic counterpart to TxAvailable: a FIFO
+// that stays full while the device emits nothing localises a wedge to the
+// device not draining its RX (vs the host not sending). See the browser repro.
+size_t Emulator::serialHostRxPending(int uartIndex) const {
+	const UART *u = (uartIndex == 1) ? &uart1 : (uartIndex == 2) ? &uart2 : nullptr;
+	if (!u || !u->hostAttached) return 0;
+	return u->rxFifoBytes();
+}
+
+// Packed serial-interrupt state for the wedge diagnosis (see test/plp-browser).
+// A large upload deadlocks with the device idle and not waking on incoming
+// bytes; this tells whether the UART's RX interrupt is even enabled, and
+// whether the controller would deliver it:
+//   bits  0-7  : UART.interrupts      (pending sources; IntRx=1, IntTx=2)
+//   bits  8-15 : UART.interruptMask   (which sources the driver enabled)
+//   bit   16   : controller pendingInterrupts has this UART's bit
+//   bit   17   : controller interruptMask enables this UART's bit
+//   bit   18   : UART.wantsIrq()
+uint32_t Emulator::debugSerialIrq(int uartIndex) const {
+	const UART *u = (uartIndex == 1) ? &uart1 : (uartIndex == 2) ? &uart2 : nullptr;
+	if (!u) return 0;
+	const uint32_t cbit = (uartIndex == 1) ? (1u << UART1) : (1u << UART2);
+	return (uint32_t)(u->interrupts & 0xFF)
+	     | ((uint32_t)(u->interruptMask & 0xFF) << 8)
+	     | ((pendingInterrupts & cbit) ? (1u << 16) : 0)
+	     | ((interruptMask     & cbit) ? (1u << 17) : 0)
+	     | (u->wantsIrq()              ? (1u << 18) : 0);
 }
 
 bool Emulator::serialIsAttached(int uartIndex) const {

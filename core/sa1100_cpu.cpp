@@ -26,8 +26,13 @@ uint8_t* SA1100Bridge::hostPtrForRead(uint32_t physAddr) const {
 		return const_cast<uint8_t*>(sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
 	if (region >= 0xC8 && region <= 0xCF)
 		return const_cast<uint8_t*>(sa->ram2Ptr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
-	if (region >= 0xD0 && region <= 0xDF)
-		return const_cast<uint8_t*>(sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
+	// Banks 2/3 on 4-bank machines (netpad); a bank-0 read alias on 2-bank
+	// ones.  MUST match readPhysical's split or the same physical address
+	// resolves to two different buffers depending on which path took it.
+	if (region >= 0xD0 && region <= 0xD7)
+		return const_cast<uint8_t*>(sa->ramBanks() >= 4 ? sa->ram3Ptr() : sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
+	if (region >= 0xD8 && region <= 0xDF)
+		return const_cast<uint8_t*>(sa->ramBanks() >= 4 ? sa->ram4Ptr() : sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
 	return nullptr;
 }
 
@@ -39,8 +44,14 @@ uint8_t* SA1100Bridge::hostPtrForWrite(uint32_t physAddr) const {
 		return const_cast<uint8_t*>(sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
 	if (region >= 0xC8 && region <= 0xCF)
 		return const_cast<uint8_t*>(sa->ram2Ptr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
-	if (region >= 0xD0 && region <= 0xDF)
-		return const_cast<uint8_t*>(sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
+	// See hostPtrForRead: banks 2/3 on 4-bank machines, bank-0 alias on
+	// 2-bank ones.  Writes especially must not disagree with
+	// writePhysical — that loses data at the boundary (the netpad parks
+	// its sleep-resume context in bank 3).
+	if (region >= 0xD0 && region <= 0xD7)
+		return const_cast<uint8_t*>(sa->ramBanks() >= 4 ? sa->ram3Ptr() : sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
+	if (region >= 0xD8 && region <= 0xDF)
+		return const_cast<uint8_t*>(sa->ramBanks() >= 4 ? sa->ram4Ptr() : sa->ramPtr()) - (physAddr & ~uint32_t(SA1100::Emulator::kBankMask));
 	return nullptr;
 }
 

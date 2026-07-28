@@ -23,10 +23,9 @@
 //   0x0B  3   root directory entry pointer (factory: 0x000045)
 //   0x0E  11  volume name, 8+3, space padded
 //   0x19  4   flash/format count. 0xFFFFFFFF marks a factory "ROM
-//             image" — EPOC16 cross-checks this against the pack's
-//             info byte: a pack with an erased count only mounts when
-//             the info byte says "write-protected" (type 111). That is
-//             why packs we generate must be attached as Protected.
+//             image"; a pack formatted in the field carries a count.
+//             EPOC16 mounts either form on a Flash or write-protected
+//             pack, so the packs this module builds leave it erased.
 //   0x1D  28  id string "Copyright (c) Psion Plc 1991" (ROM position;
 //             field-formatted Flash packs carry it at 0x21 instead,
 //             after a 4-byte size field)
@@ -80,7 +79,16 @@ export interface FefsFile {
   size: number;
 }
 
-export type PackKind = 'ram' | 'flash';
+// The pack type presented to the Psion. It models a hardware strap on
+// the pack PCB, not the contents:
+//   'ram'       SRAM pack — read/write, formatted by EPOC16 as a FAT
+//               volume ("PSION1.0" boot record), not FEFS.
+//   'flash'     Type 1 Flash pack — read/write via the 28F0xx command
+//               interface; the FEFS packs this module builds.
+//   'protected' hardware write-protected flash, the strap on a factory
+//               system disk (MC200/MC400 ROM:: disk). EPOC16 mounts it
+//               read-only and labels the drive "Protected".
+export type PackKind = 'ram' | 'flash' | 'protected';
 
 // Pack sizes Psion shipped as branded Flash SSDs.
 export const FLASH_PACK_SIZES: { label: string; bytes: number }[] = [
@@ -192,8 +200,9 @@ function normaliseDirPath(dir: string | undefined): string[] {
 // ── createFlashPack ──────────────────────────────────────────────────
 // 0xFF-filled image with the factory FEFS24 header + empty root
 // directory, byte-compatible with real Psion Flash SSD dumps. Attach
-// with the "protected" pack type — EPOC16 only mounts ROM-style images
-// (flash count erased) when the info byte declares write-protection.
+// with the "flash" pack type and EPOC16 mounts it as a read/write
+// drive; the rest of the image stays erased (0xFF) so the device can
+// program into it without an erase cycle first.
 export function createFlashPack(sizeBytes: number, volumeName = 'FLASH'): Uint8Array {
   if (!FLASH_PACK_SIZES.some(s => s.bytes === sizeBytes)) {
     throw new Error(`Unsupported pack size ${sizeBytes}`);
@@ -260,26 +269,44 @@ function entryAt(img: Uint8Array, off: number): WalkedEntry {
     extent: off + (isFile ? FILE_ENTRY_SIZE : DIR_ENTRY_SIZE),
   };
   if (isFile) {
-    // Sum the data-record chain: first record lives in the entry,
-    // continuations are 17-byte FILE records.
-    let dataPtr = readU24(img, off + 26);
-    let dataLen = readU16(img, off + 29);
-    let contPtr = e.childPtr;
-    for (let safety = 0; safety < 100000; safety++) {
-      if (dataPtr !== NULL_PTR && dataLen !== 0xFFFF) {
-        e.size += dataLen;
-        e.extent = Math.max(e.extent, dataPtr + dataLen);
-      }
-      if (contPtr === NULL_PTR || contPtr === 0) break;
-      const r = contPtr;
-      if (r + FILE_RECORD_SIZE > img.length) break;
-      e.extent = Math.max(e.extent, r + FILE_RECORD_SIZE);
-      dataPtr = readU24(img, r + 7);
-      dataLen = readU16(img, r + 10);
-      contPtr = (img[r] & FLAG_NO_CHILD) ? NULL_PTR : readU24(img, r + 1);
-    }
+    const chain = dataChain(img, off);
+    for (const c of chain.chunks) e.size += c.len;
+    e.extent = Math.max(e.extent, chain.extent);
   }
   return e;
+}
+
+// Walks a file's data-record chain: the first record lives in the file
+// entry itself, continuations are 17-byte FILE records. Returns the
+// data runs in order plus the highest byte the chain occupies (records
+// and data alike), which is what the allocator needs.
+//
+// A pack the *device* wrote chains records the same way but lays them
+// out however its own allocator saw fit, so nothing here may assume the
+// contiguous layout addFileToPack produces.
+function dataChain(img: Uint8Array, off: number): {
+  chunks: { ptr: number; len: number }[];
+  extent: number;
+} {
+  const chunks: { ptr: number; len: number }[] = [];
+  let extent = off + FILE_ENTRY_SIZE;
+  let dataPtr = readU24(img, off + 26);
+  let dataLen = readU16(img, off + 29);
+  let contPtr = (img[off + 14] & FLAG_NO_CHILD) ? NULL_PTR : readU24(img, off + 15);
+  for (let safety = 0; safety < 100000; safety++) {
+    if (dataPtr !== NULL_PTR && dataLen !== 0xFFFF) {
+      chunks.push({ ptr: dataPtr, len: dataLen });
+      extent = Math.max(extent, dataPtr + dataLen);
+    }
+    if (contPtr === NULL_PTR || contPtr === 0) break;
+    const r = contPtr;
+    if (r + FILE_RECORD_SIZE > img.length) break;
+    extent = Math.max(extent, r + FILE_RECORD_SIZE);
+    dataPtr = readU24(img, r + 7);
+    dataLen = readU16(img, r + 10);
+    contPtr = (img[r] & FLAG_NO_CHILD) ? NULL_PTR : readU24(img, r + 1);
+  }
+  return { chunks, extent };
 }
 
 // Walks a sibling chain starting at `off`. Returns entries in order.
@@ -494,20 +521,55 @@ export function removeFileFromPack(packBytes: Uint8Array, name: string): Uint8Ar
     throw new Error('Not a FEFS pack');
   }
   const out = new Uint8Array(packBytes);
-  const root = rootEntry(out);
-  if (!root || root.childPtr === NULL_PTR) throw new Error(`FEFS file "${name}" not found`);
-
-  const parts = name.toUpperCase().split(/[\\/]/).filter(Boolean);
-  let chain = walkChain(out, root.childPtr);
-  for (const comp of parts.slice(0, -1)) {
-    const d = chain.find(e => e.valid && !e.isFile && e.name === comp);
-    if (!d || d.childPtr === NULL_PTR) throw new Error(`FEFS file "${name}" not found`);
-    chain = walkChain(out, d.childPtr);
-  }
-  const target = chain.find(e => e.valid && e.isFile && e.name === parts[parts.length - 1]);
+  const target = findFile(out, name);
   if (!target) throw new Error(`FEFS file "${name}" not found`);
   out[target.off + 14] &= ~FLAG_VALID;
   return out;
+}
+
+// ── readFileFromPack ──────────────────────────────────────────────────
+// Pulls one file's bytes back out of a pack, by the same path listFiles
+// reports ("HELLO.TXT", "WRD\\REPORT.WRD"). This is how a document the
+// Psion itself saved onto an SSD gets off the device: the pack image is
+// read back out of the emulator and the file extracted here.
+export function readFileFromPack(packBytes: Uint8Array, name: string): Uint8Array {
+  if (classifyPack(packBytes) !== 'flash') {
+    throw new Error('Not a FEFS pack');
+  }
+  const target = findFile(packBytes, name);
+  if (!target) throw new Error(`FEFS file "${name}" not found`);
+
+  // A file can't hold more than the pack it lives on: cap the allocation
+  // so a corrupt length field can't ask for gigabytes.
+  const out = new Uint8Array(Math.min(target.size, packBytes.length));
+  let written = 0;
+  for (const c of dataChain(packBytes, target.off).chunks) {
+    // Clamp against a truncated or corrupt image rather than throwing:
+    // salvaging what is readable beats refusing the download.
+    const end = Math.min(c.ptr + c.len, packBytes.length);
+    if (end <= c.ptr) continue;
+    const take = Math.min(end - c.ptr, out.length - written);
+    if (take <= 0) break;
+    out.set(packBytes.subarray(c.ptr, c.ptr + take), written);
+    written += take;
+  }
+  return written === out.length ? out : out.subarray(0, written);
+}
+
+// Resolves "NAME.EXT" or "DIR\\SUB\\NAME.EXT" to its live file entry,
+// or null if no valid file sits at that path.
+function findFile(img: Uint8Array, name: string): WalkedEntry | null {
+  const root = rootEntry(img);
+  if (!root || root.childPtr === NULL_PTR) return null;
+  const parts = name.toUpperCase().split(/[\\/]/).filter(Boolean);
+  if (parts.length === 0) return null;
+  let chain = walkChain(img, root.childPtr);
+  for (const comp of parts.slice(0, -1)) {
+    const d = chain.find(e => e.valid && !e.isFile && e.name === comp);
+    if (!d || d.childPtr === NULL_PTR) return null;
+    chain = walkChain(img, d.childPtr);
+  }
+  return chain.find(e => e.valid && e.isFile && e.name === parts[parts.length - 1]) ?? null;
 }
 
 // ── classifyPack ──────────────────────────────────────────────────────

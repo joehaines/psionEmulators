@@ -45,6 +45,71 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-sibo-app-launch.sh --all
 
+      # SIBO SSD packs: a pack is writable from the Psion only if the
+      # Flash command interface and the ASIC5 address counter both behave
+      # (see docs/sibo-ssd-packs.md). The boot gate can't see it — a pack
+      # that mounts read-only boots identically — so drive the System
+      # screen and check what the guest wrote back into the image. The
+      # last case also reads a guest-written file back out through the
+      # frontend's FEFS reader, which is what the pack browser's
+      # per-file download depends on.
+      - name: Run SIBO SSD write validation
+        if: ${{ inputs.run_harness_tests }}
+        run: |
+          tests/unit/ssd_smoke
+          bash tests/integration/test-ssd-write.sh
+
+      # netpad MMC: the card comes up through the machine's own driver
+      # stack (FPGA SPI port -> variant card-init state machine ->
+      # medmmc.pdd -> peripheral bus -> F32), so a regression anywhere in
+      # that chain shows up as drive D: going back to "Not present". The
+      # boot gate can't see it — an empty slot boots identically.
+      - name: Run netpad MMC card validation
+        if: ${{ inputs.run_harness_tests }}
+        run: |
+          tests/unit/mmc_card_test
+          bash tests/integration/test-netpad-mmc.sh
+
+      # netpad audio: the machine's AC'97 codec hangs off the same board
+      # FPGA as the card slot, and its ROM ships no recorder to drive it
+      # from the UI, so check the microphone and speaker paths against
+      # the register sequence the ROM's own sound PDD performs.
+      - name: Run netpad audio validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-netpad-audio.sh
+
+      # App-library 'epocdir' install: bundles that are an installed app
+      # folder rather than a SIS are delivered by copying the folder onto
+      # C: over the Remote Link, so nothing on the device confirms the
+      # install for us the way a SIS installer's own prompts would. Drive
+      # the real chain against the 5mx ROM — build the bundle, deliver
+      # it, read every file back, then tap the app open and require it to
+      # be on screen.
+      - name: Run EPOC app-folder install validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-epocdir-install.sh
+
+      # App-library install on the netpad: the machine ships no
+      # applications in ROM, so its "Install standard apps" button is the
+      # only way to get any onto it — and it delivers over the MMC card
+      # rather than the cable (the ROM opens its link port only once
+      # Remote link is switched on by hand). Drive the whole chain
+      # against the real netpad ROM: deliver a .SIS from applib/netpad,
+      # run the device's own installer, and require the app in Extras.
+      - name: Run netpad app-library install validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-netpad-app-install.sh
+
+      # EPOC machine ID: the debug panel reprograms the identity PROM at
+      # runtime, which only means anything if the new ID is visible through
+      # the bit-banged word reader the guest uses AND the image checksum is
+      # re-folded (an unfolded image reads as corrupt and EPOC falls back to
+      # its no-identity-chip defaults). Both are asserted through the
+      # guest-side interface only.
+      - name: Run EPOC machine-ID validation
+        if: ${{ inputs.run_harness_tests }}
+        run: tests/unit/machine_id_test
+
       - name: Upload boot-validation artefacts
         if: ${{ inputs.run_harness_tests && always() }}
         uses: actions/upload-artifact@v4
@@ -60,14 +125,25 @@ jobs:
       - name: Setup Emscripten SDK
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: latest
+          # PINNED — do not use 'latest'. The toolchain resolving to a new
+          # release under an unchanged repo shipped a broken site: deploys
+          # built with Emscripten 6.0.2 (July 1-2) produce a psion.js whose
+          # embind string returns throw 'TypeError: Type error' on
+          # Safari/JSC, killing the device list (its first string call is
+          # getAllDeviceProfilesJSON) and everything after it. 6.0.1 — the
+          # June 29 deploy and all local validation — is known good on both
+          # engines. Bump deliberately, and check the site on Safari/iOS as
+          # well as Chrome when you do.
+          version: 6.0.1
           actions-cache-folder: .emsdk-cache
 
       - name: Cache WASM object files
         uses: actions/cache@v4
         with:
+          # The emsdk version is part of the key: objects compiled by one
+          # compiler release must not be linked by another.
           path: wasm/obj
-          key: wasm-obj-${{ hashFiles('core/**', 'wasm/main.cpp') }}
+          key: wasm-obj-emsdk601-${{ hashFiles('core/**', 'wasm/main.cpp') }}
 
       - name: Build WASM
         run: bash scripts/build-wasm.sh

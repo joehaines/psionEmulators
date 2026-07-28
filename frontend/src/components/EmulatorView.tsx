@@ -11,13 +11,16 @@ import RemoteLinkDialog from './RemoteLinkDialog';
 import ModemDialog from './ModemDialog';
 import InfraredDialog from './InfraredDialog';
 import PrinterDialog from './PrinterDialog';
-
-export type SizingMode = 'device' | 'fill';
-// Integer zoom factor for the 'device' (pixel-perfect) mode — 1 device
-// pixel maps to N physical screen pixels. Selected via the hover flyout
-// on the actual-size header button; persists across reloads and across
-// device switches.
-export type DeviceScale = 1 | 2 | 3 | 4;
+import MachineIdDialog from './MachineIdDialog';
+import {
+  normaliseQuadrant, isQuarterTurn, rotatedFootprint, rotationStyle, localPointerPos,
+} from '../lib/screenRotation';
+import type { Quadrant } from '../lib/screenRotation';
+import { calcContainerSize, largestUsefulScale } from '../lib/deviceSizing';
+// Re-exported so App.tsx (and anything else reaching for the header's
+// sizing vocabulary) keeps importing it from the view it belongs to.
+export type { SizingMode, DeviceScale } from '../lib/deviceSizing';
+import type { SizingMode, DeviceScale } from '../lib/deviceSizing';
 
 interface Props {
   controls: EmulatorControls;
@@ -55,6 +58,13 @@ interface Props {
   // canvas and (for SIBO devices) the button-bar click zones correctly
   // within the photo.
   deviceMode?: boolean;
+  // Reports the largest actual-size scale this window can show for the
+  // device currently on screen (0 when it can't manage even 1×). Only this
+  // component knows the skin layout and the panel size the answer depends
+  // on, and it recomputes on every resize / rotate / device change — so the
+  // header's zoom flyout can grey out the levels that would only come back
+  // as the same fitted picture. See largestUsefulScale.
+  onMaxDeviceScale?: (scale: number) => void;
 }
 
 // Per-skin layout: aspect ratio of the full SVG and where the LCD screen
@@ -99,6 +109,15 @@ interface SkinLayout {
   buttonBarHeight?: number;  // fraction of image height the button row occupies
   buttonBarLeft?:   number;  // fraction of image width, left edge of button row
   buttonBarWidth?:  number;  // fraction of image width the button row spans
+  // netpad silkscreen column: the fractional rect of the printed icon
+  // strip beside the panel. Unlike buttonBar* (SIBO hardware buttons that
+  // send scancodes) these are digitiser zones outside the LCD, so the rect
+  // only positions the tap targets — the coordinates they send come from
+  // NETPAD_SILKSCREEN_X / the band index, not from this geometry.
+  silkscreenLeft?:   number;  // fraction of image width
+  silkscreenTop?:    number;  // fraction of image height
+  silkscreenWidth?:  number;  // fraction of image width
+  silkscreenHeight?: number;  // fraction of image height
 }
 
 // 5mx SVG: viewBox="0 0 2895.83 1270.83"
@@ -410,6 +429,30 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     digitiserPadWidth:  0.688, digitiserPadHeight: 0.321,
     digitiserWidth: 527, digitiserHeight: 208,
   },
+  // Psion netpad: 640×240 colour panel behind a slab-tablet front. The
+  // photo is a straight-on shot (1200×520); the panel aperture measured
+  // x=162..1005, y=85..398, with the printed silkscreen icon column just
+  // to its right at x=1008..1045. The touch pad is pinned to the panel
+  // aperture — the silkscreen keys sit outside the panel in digitiser
+  // space, so they get their own tap zones (see NETPAD_SILKSCREEN_ZONES)
+  // rather than being covered by the pad.
+  'netpad.png': {
+    aspectRatio:  1200 / 520,
+    screenLeft:    162 / 1200,
+    screenTop:      85 / 520,
+    screenWidth:   844 / 1200,
+    screenHeight:  314 / 520,
+    digitiserPadLeft:    162 / 1200,
+    digitiserPadTop:      85 / 520,
+    digitiserPadWidth:   844 / 1200,
+    digitiserPadHeight:  314 / 520,
+    digitiserWidth:  640,
+    digitiserHeight: 240,
+    silkscreenLeft:   1008 / 1200,
+    silkscreenTop:      85 / 520,
+    silkscreenWidth:    38 / 1200,
+    silkscreenHeight:  314 / 520,
+  },
   // Osaris: 320×200 LCD. Digitiser 440×200 with 60px silkscreen each side.
   'osaris.png': {
     aspectRatio:  849 / 793,
@@ -420,6 +463,65 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     digitiserWidth: 440, digitiserHeight: 200,
   },
 };
+
+// ── netpad silkscreen column ───────────────────────────────────────────
+//
+// The netpad's touch plate is wider than its 640×240 panel, and the ROM
+// maps the overhang on the right to the five silkscreen keys printed on
+// the case.  Top to bottom those are Menu, brightness, Zoom, the
+// on-screen keyboard (Psiboard) and Extras, and they occupy five equal
+// bands down the panel height within digitiser x 649..674 — measured by
+// tapping the booted ROM through the native harness (see kNpSilkscreen*
+// in core/sa1100.h).  Because the hit column sits outside the panel, the
+// zones can't be driven by the touch overlay's own geometry; each one
+// sends a pen down/up at the centre of its band instead.
+const NETPAD_SILKSCREEN_X = 661;   // mid-point of the ROM's hit column
+const NETPAD_SILKSCREEN_ZONES = [
+  'Menu',
+  'Brightness',
+  'Zoom',
+  'On-screen keyboard',
+  'Extras',
+] as const;
+// Pen-down duration for a zone tap. The pen driver debounces over several
+// sample intervals, so a fast click needs padding out to register.
+const NETPAD_SILKSCREEN_HOLD_MS = 160;
+
+// The netpad ships no case artwork in `skins/` — outside device mode it
+// renders as the bare panel, so the skinless layout widens the frame by
+// the width of the strip artwork and draws the icon column into it. In
+// device mode the photo skin already carries the printed column and the
+// zones are placed over that instead.
+const NETPAD_SILKSCREEN_IMAGE = 'netpad_buttons_right.png';
+// Strip artwork is 41 × 350. Scaled so its height matches the 240-row
+// panel it sits beside, it comes out ≈28 panel-pixels wide.
+const NETPAD_SILKSCREEN_WIDTH = 240 * (41 / 350);
+const NETPAD_PANEL_WIDTH = 640 + NETPAD_SILKSCREEN_WIDTH;
+const NETPAD_PANEL_LAYOUT: SkinLayout = {
+  aspectRatio:  NETPAD_PANEL_WIDTH / 240,
+  screenLeft:   0,
+  screenTop:    0,
+  screenWidth:  640 / NETPAD_PANEL_WIDTH,
+  screenHeight: 1,
+  digitiserPadLeft:   0,
+  digitiserPadTop:    0,
+  digitiserPadWidth:  640 / NETPAD_PANEL_WIDTH,
+  digitiserPadHeight: 1,
+  digitiserWidth:  640,
+  digitiserHeight: 240,
+  silkscreenLeft:   640 / NETPAD_PANEL_WIDTH,
+  silkscreenTop:    0,
+  silkscreenWidth:  NETPAD_SILKSCREEN_WIDTH / NETPAD_PANEL_WIDTH,
+  silkscreenHeight: 1,
+};
+
+// Devices with a colour panel.  Device mode renders the LCD as a grey,
+// alpha-blended layer so it reads like a real monochrome screen sitting
+// behind the case photo's glass — a treatment that would throw away the
+// picture on a machine that actually paints in colour, so these opt out
+// and keep their RGB pixels.  (The netpad's 640×240 panel is 8 bpp with a
+// 6×6×6 colour cube — see readLCDIntoBuffer in core/sa1100.cpp.)
+const COLOUR_SCREEN_DEVICES = new Set(['series7', 'netbook', 'netpad']);
 
 // Map a device ID to its photo filename in the `device-skins/` folder.
 // Returns null if no photo skin is available for this device.
@@ -434,6 +536,7 @@ export function getDeviceSkinPhotoFilename(deviceId: string | null): string | nu
     case '5mxpro':      return '5mxPro.png';
     case 'series7':
     case 'netbook':     return '7_netbook.png';
+    case 'netpad':      return 'netpad.png';
     case 'mc218':       return 'MC218.png';
     case 'mc400':       return 'MC400.png';
     case 'pocketbk':    return 'acornPB.png';
@@ -515,78 +618,6 @@ const ACORN_PB2_BUTTONS = [
   { label: 'Abacus',   code: 103 }, // EStdKeyF8
 ] as const;
 
-function calcContainerSize(
-  skinLayout: SkinLayout,
-  lcdWidth: number,
-  lcdHeight: number,
-  mode: SizingMode,
-  deviceScale: DeviceScale,
-  forceFS = false,
-  chromeless = false,
-) {
-  const aspectRatio = skinLayout.aspectRatio;
-  const isFS = forceFS || !!document.fullscreenElement;
-  if (isFS) {
-    const w = Math.min(window.innerWidth, window.innerHeight * aspectRatio);
-    return { width: w, height: w / aspectRatio };
-  }
-  // Vertical headroom budget. The default 0.78 leaves room for the page
-  // header AND the in-view control / key-helper rows EmulatorView draws
-  // below the device frame. In chromeless mode (#/embed/<id>) there is
-  // neither a header nor a bottom bar, so we can use almost the whole
-  // viewport.
-  const fillMaxHFrac = chromeless ? 0.98 : 0.78;
-  if (mode === 'fill') {
-    const maxW = window.innerWidth  * 0.98;
-    const maxH = window.innerHeight * fillMaxHFrac;
-    // Width overflow is prevented on the whole device surround (clamp to
-    // maxW), but height overflow is prevented only on the emulated LCD
-    // screen — the maxH budget applies to the screen sub-rectangle
-    // (screenHeight fraction of the surround), not the surround itself.
-    // Dividing by screenHeight lets the surround run past the viewport
-    // vertically so the device can fill the available width; the page
-    // scrolls to reach the rest of the case. For skinless devices
-    // screenHeight === 1, so this is identical to the old behaviour.
-    const w = Math.min(maxW, (maxH * aspectRatio) / skinLayout.screenHeight);
-    return { width: w, height: w / aspectRatio };
-  }
-  // 'device' — pixel-perfect at the physical-pixel level *when it fits*.
-  // We want N physical screen pixels per device pixel (N = deviceScale,
-  // selected by the user from the actual-size hover flyout: 1/2/3/4).
-  // The canvas backing store is already lcdWidth × lcdHeight (device
-  // pixels); the browser renders it at cssDim × devicePixelRatio
-  // physical pixels, so cssDim = lcdDim × N / DPR gives the
-  // 1-device-pixel-to-N-physical-pixels mapping. Then we scale the
-  // container so the canvas sub-rectangle lands on that target.
-  //
-  // The ideal size can exceed the viewport (4× on a small laptop, any
-  // scale on a phone). When it does, we fall back to the same viewport
-  // clamp 'fill' uses — the device shrinks to fit and we sacrifice the
-  // pixel-perfect property rather than overflowing. The user's chosen
-  // scale is preserved in state, so resizing the window larger snaps
-  // back to pixel-perfect rendering at that scale.
-  const dpr = window.devicePixelRatio || 1;
-  const canvasCssW = (lcdWidth  * deviceScale) / dpr;
-  const canvasCssH = (lcdHeight * deviceScale) / dpr;
-  const idealW = canvasCssW / skinLayout.screenWidth;
-  const idealH = canvasCssH / skinLayout.screenHeight;
-  const maxW = window.innerWidth  * 0.98;
-  const maxH = window.innerHeight * fillMaxHFrac;
-  // Width overflow is checked against the whole device surround (idealW),
-  // but height overflow is checked only against the emulated LCD screen
-  // (canvasCssH) rather than the full surround (idealH) — the surround is
-  // allowed to extend past the viewport vertically so the chosen scale
-  // can fill the available width. The page scrolls to reach the rest of
-  // the case.
-  if (idealW <= maxW && canvasCssH <= maxH) {
-    return { width: idealW, height: idealH };
-  }
-  // Fall back to the viewport clamp, again budgeting maxH against the LCD
-  // screen sub-rectangle (screenHeight) instead of the whole surround.
-  const w = Math.min(maxW, (maxH * aspectRatio) / skinLayout.screenHeight);
-  return { width: w, height: w / aspectRatio };
-}
-
 export default function EmulatorView({
   controls,
   sizingMode,
@@ -598,15 +629,17 @@ export default function EmulatorView({
   backlight,
   chromeless = false,
   deviceMode = false,
+  onMaxDeviceScale,
 }: Props) {
   const { color: backlightColor, on: backlightOn, toggle: toggleBacklight } = backlight;
-  const isColourDevice = controls.currentDeviceId === 'series7' || controls.currentDeviceId === 'netbook';
+  const isColourDevice = COLOUR_SCREEN_DEVICES.has(controls.currentDeviceId ?? '');
   controls.deviceModeRef.current = deviceMode && lcdAccuracyMode && !isColourDevice;
   const {
     deviceInfo,
     canvasRef,
     handleKeyDown,
     handleKeyUp,
+    releaseHeldKeys,
     handleInput,
     handlePasteText,
     pasteFromClipboard,
@@ -627,13 +660,35 @@ export default function EmulatorView({
     currentDeviceId,
     savedDevices,
     revertToSaved,
+    getScreenOrientation,
   } = controls;
+
+  // Screen orientation the guest is drawing at, in quarter-turns
+  // anticlockwise. Only the netpad ever reports anything but 0, and only
+  // after its Tools menu → "Switch orientation"; when it does, the whole
+  // device frame turns so the rotated desktop reads upright. Polled at
+  // the same 10 Hz as the backlight pin — in worker mode this reads a
+  // pushed status field, so it costs nothing to check often, and the OS
+  // takes longer than that to repaint the rotated screen anyway.
+  const [orientation, setOrientation] = useState<Quadrant>(0);
+  useEffect(() => {
+    const read = () => setOrientation(normaliseQuadrant(getScreenOrientation?.()));
+    read();
+    const id = window.setInterval(read, 100);
+    return () => window.clearInterval(id);
+  }, [getScreenOrientation, currentDeviceId]);
 
   // Does the currently-loaded device have a CF slot? Drives visibility
   // of the "CF Card" control below — we hide it on SIBO machines
   // (Series 3 family, Siena, Workabout) and on the Revo, which either
   // used Psion SSD packs or had no external-storage slot at all.
   const hasCFSlot = profiles.find(p => p.id === currentDeviceId)?.hasCFSlot ?? false;
+  // The netpad's removable-media slot takes an MMC card instead. Same
+  // dialog and same "hand the device a FAT16 image" flow; only the
+  // labels differ, so the two flags share every call site below.
+  const hasMmcSlot = profiles.find(p => p.id === currentDeviceId)?.hasMmcSlot ?? false;
+  const hasCardSlot = hasCFSlot || hasMmcSlot;
+  const cardSlotLabel = hasMmcSlot ? 'MMC Card' : 'CF Card';
   // SSD pack count (SIBO devices only). 2 for 3/3a/3c/3mx, 1 for Siena,
   // 0 elsewhere — drives visibility of the "SSD Pack" button below.
   const ssdSlotCount = profiles.find(p => p.id === currentDeviceId)?.ssdSlotCount ?? 0;
@@ -670,6 +725,9 @@ export default function EmulatorView({
   const [showIrDlg, setShowIrDlg] = useState(false);
   const [showModemDlg, setShowModemDlg] = useState(false);
   const [showPrinterDlg, setShowPrinterDlg] = useState(false);
+  // Unique id panel — reached from the debug bar, so it is only ever
+  // openable while "Show debugging" is on.
+  const [showMachineIdDlg, setShowMachineIdDlg] = useState(false);
   // Remote Link / Infrared capability comes from the device profile
   // (core/device_registry.cpp), the same way hasCFSlot / ssdSlotCount
   // already do: remoteLinkUart / infraredUart carry the SoC UART each
@@ -699,6 +757,7 @@ export default function EmulatorView({
   const remoteLinkConSeq = isClps711x ? 2 : 4;
   // Which SIBO app-button is currently held (for press highlight on mobile)
   const [pressedSiboBtn, setPressedSiboBtn] = useState<string | null>(null);
+  const [pressedSilkscreen, setPressedSilkscreen] = useState<number | null>(null);
   // Last-clicked position on the device frame, captured when showDebugging is on.
   // Stores image-fraction coords (fx/fy) and the computed digitiser coords (dx/dy)
   // so the user can read exact values to feed back as corrected layout entries.
@@ -757,7 +816,13 @@ export default function EmulatorView({
   // Active skin: device-skin photo takes precedence when device mode is on.
   const activeSkinFile   = deviceSkinPhotoFile ?? skinFile;
   const activeSkinFolder = deviceSkinPhotoFile ? 'device-skins' : 'skins';
-  const skinLayout: SkinLayout = deviceSkinLayout ?? (skinFile ? SKIN_LAYOUTS[skinFile] : undefined) ?? (deviceInfo ? {
+  // The netpad silkscreen column lives in `skins/` on its own — it is not
+  // full-frame case artwork, so it can't go through activeSkinFile (which
+  // stretches its image across the whole frame, and feeds LoadingOverlay).
+  // It is drawn by its own block inside the device frame instead; in device
+  // mode the photo skin already includes the printed column.
+  const netpadSilkscreen = currentDeviceId === 'netpad' && !deviceSkinPhotoFile;
+  const skinLayout: SkinLayout = deviceSkinLayout ?? (skinFile ? SKIN_LAYOUTS[skinFile] : undefined) ?? (netpadSilkscreen ? NETPAD_PANEL_LAYOUT : undefined) ?? (deviceInfo ? {
     // No skin: render the LCD as the entire frame. Digitiser area == LCD area.
     aspectRatio:  deviceInfo.lcdWidth / deviceInfo.lcdHeight,
     screenLeft:   0,
@@ -770,18 +835,25 @@ export default function EmulatorView({
   // Before deviceInfo arrives lcdWidth/Height are 0; the component returns
   // null anyway (see guard below) and the effect re-runs once deviceInfo lands.
   const [containerSize, setContainerSize] = useState(() =>
-    calcContainerSize(skinLayout, deviceInfo?.lcdWidth ?? 0, deviceInfo?.lcdHeight ?? 0, sizingMode, deviceScale, false, chromeless)
+    calcContainerSize(skinLayout, deviceInfo?.lcdWidth ?? 0, deviceInfo?.lcdHeight ?? 0, sizingMode, deviceScale, false, chromeless, orientation)
   );
 
-  // Global keyboard listeners
+  // Global keyboard listeners.  blur / pagehide release whatever is still
+  // held: once focus leaves the page the browser stops delivering keyup,
+  // so a key held across an alt-tab would stay down in the emulated
+  // machine and EPOC's auto-repeat would run on unattended.
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', releaseHeldKeys);
+    window.addEventListener('pagehide', releaseHeldKeys);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', releaseHeldKeys);
+      window.removeEventListener('pagehide', releaseHeldKeys);
     };
-  }, [handleKeyDown, handleKeyUp]);
+  }, [handleKeyDown, handleKeyUp, releaseHeldKeys]);
 
   // Dev-only automation hook: lets the Playwright browser tests inject
   // EpocKey chords deterministically (synthesised KeyboardEvents are
@@ -806,7 +878,15 @@ export default function EmulatorView({
   useEffect(() => {
     const lcdW = deviceInfo?.lcdWidth ?? 0;
     const lcdH = deviceInfo?.lcdHeight ?? 0;
-    const update = () => setContainerSize(calcContainerSize(skinLayout, lcdW, lcdH, sizingMode, deviceScale, cssFS, chromeless));
+    const update = () => {
+      setContainerSize(calcContainerSize(skinLayout, lcdW, lcdH, sizingMode, deviceScale, cssFS, chromeless, orientation));
+      // Same inputs, same moment: how far the zoom flyout can usefully go
+      // for this machine in this window. The header greys out the rest, so
+      // a level that would only come back as the same fitted picture reads
+      // as unavailable rather than as a button that does nothing.
+      onMaxDeviceScale?.(
+        largestUsefulScale(skinLayout, lcdW, lcdH, orientation, cssFS, chromeless));
+    };
     update();
     window.addEventListener('resize', update);
     document.addEventListener('fullscreenchange', update);
@@ -828,7 +908,7 @@ export default function EmulatorView({
       document.removeEventListener('fullscreenchange', update);
       mq.removeEventListener('change', onDprChange);
     };
-  }, [skinLayout.aspectRatio, skinLayout.screenWidth, skinLayout.screenHeight, deviceInfo?.lcdWidth, deviceInfo?.lcdHeight, sizingMode, deviceScale, cssFS, chromeless]);
+  }, [skinLayout.aspectRatio, skinLayout.screenWidth, skinLayout.screenHeight, deviceInfo?.lcdWidth, deviceInfo?.lcdHeight, sizingMode, deviceScale, cssFS, chromeless, orientation, onMaxDeviceScale]);
 
   // Header Fullscreen icon: parent bumps `fullscreenRequest` each click,
   // we trigger the same enter path we used to wire to the in-control-bar
@@ -865,6 +945,12 @@ export default function EmulatorView({
   const { lcdWidth, lcdHeight } = deviceInfo;
   const { width: cw, height: ch } = containerSize;
 
+  // Page footprint of the device once it is turned, and the placement of
+  // the frame inside it. Identity while `orientation` is 0, which is
+  // every device except a netpad drawing portrait.
+  const deviceFootprint = rotatedFootprint(orientation, cw, ch);
+  const frameRotation   = rotationStyle(orientation, cw, ch);
+
   // The digitiser dimensions used for both overlay sizing AND touch
   // coordinate mapping. Prefer the skin's hardcoded values when given:
   // those match the SVG viewBox the artwork was drawn against, so the
@@ -896,6 +982,36 @@ export default function EmulatorView({
   const overlayWidth  = padWidthFrac  * cw;
   const overlayHeight = padHeightFrac * ch;
 
+  // CSS rect of the netpad's silkscreen icon column within the device
+  // frame — where the strip artwork is drawn in the skinless view, and
+  // where the printed column already sits in the device-mode photo. Both
+  // netpad layouts supply it; every other skin leaves it undefined.
+  const silkscreenRect = currentDeviceId === 'netpad' && skinLayout.silkscreenWidth !== undefined
+    ? {
+        left:   (skinLayout.silkscreenLeft   ?? 0) * cw,
+        top:    (skinLayout.silkscreenTop    ?? 0) * ch,
+        width:  skinLayout.silkscreenWidth        * cw,
+        height: (skinLayout.silkscreenHeight ?? 1) * ch,
+      }
+    : null;
+
+  // Tap one of the netpad's silkscreen keys. The zone is outside the
+  // panel, so the coordinate comes from the ROM's hit column rather than
+  // from where the user actually clicked: pen down at the centre of the
+  // band, held long enough for the driver to debounce, then pen up.
+  const tapSilkscreenZone = (zone: number) => {
+    // Ignore a second zone while one is still held — overlapping taps would
+    // leave the pen down on whichever zone released last.
+    if (pressedSilkscreen !== null) return;
+    const y = Math.round(((zone + 0.5) / NETPAD_SILKSCREEN_ZONES.length) * digitiserHeight);
+    setPressedSilkscreen(zone);
+    handlePointerDown(NETPAD_SILKSCREEN_X, y);
+    setTimeout(() => {
+      handlePointerUp();
+      setPressedSilkscreen(null);
+    }, NETPAD_SILKSCREEN_HOLD_MS);
+  };
+
   // Map a pointer event on the overlay to digitiser coordinates.
   //
   // For most devices the digitiser-pad area coincides with the screen
@@ -922,24 +1038,30 @@ export default function EmulatorView({
     ?? skinLayout.digitiserPadHeight ?? padHeightFrac;
   const useLcdAnchoredMapping = skinLayout.lcdAnchoredTouchMapping === true;
   const toDigitiserCoords = (e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const cssX = e.clientX - rect.left;
-    const cssY = e.clientY - rect.top;
+    // Pointer position in the overlay's OWN box. While the device is
+    // turned, that is not `clientX - rect.left`: the bounding rect of a
+    // rotated element is the box around it, so the offset has to be
+    // un-rotated first (see localPointerPos). The digitiser itself never
+    // turns — the guest's pen driver reports panel coordinates whichever
+    // way up EPOC is drawing — so everything below is unchanged.
+    const { x: cssX, y: cssY } = localPointerPos(
+      orientation, e.currentTarget.getBoundingClientRect(),
+      e.clientX, e.clientY, overlayWidth, overlayHeight);
     if (useLcdAnchoredMapping) {
       // LCD-anchored: figure out the LCD's position WITHIN the pad
       // in CSS pixels, then map cssX (which is relative to the pad
       // bounding rect) into LCD-X coords.  Outside the LCD area, the
       // result is negative or > LCD-width — i.e. silkscreen coords.
-      const lcdLeftCss  = ((screenLeftFrac   - padLeftFrac) / padWidthFrac)  * rect.width;
-      const lcdTopCss   = ((screenTopFrac    - padTopFrac)  / padHeightFrac) * rect.height;
-      const lcdWCss     = (screenWidthFrac  / padWidthFrac)  * rect.width;
-      const lcdHCss     = (screenHeightFrac / padHeightFrac) * rect.height;
+      const lcdLeftCss  = ((screenLeftFrac   - padLeftFrac) / padWidthFrac)  * overlayWidth;
+      const lcdTopCss   = ((screenTopFrac    - padTopFrac)  / padHeightFrac) * overlayHeight;
+      const lcdWCss     = (screenWidthFrac  / padWidthFrac)  * overlayWidth;
+      const lcdHCss     = (screenHeightFrac / padHeightFrac) * overlayHeight;
       const dx = Math.round(((cssX - lcdLeftCss) / lcdWCss) * digitiserWidth);
       const dy = Math.round(((cssY - lcdTopCss)  / lcdHCss) * digitiserHeight);
       return { x: dx, y: dy };
     }
-    const dx = Math.round((cssX / rect.width)  * digitiserWidth);
-    const dy = Math.round((cssY / rect.height) * digitiserHeight);
+    const dx = Math.round((cssX / overlayWidth)  * digitiserWidth);
+    const dy = Math.round((cssY / overlayHeight) * digitiserHeight);
     return { x: dx, y: dy };
   };
 
@@ -956,6 +1078,19 @@ export default function EmulatorView({
   const btnActive = [
     'px-3 py-1.5 rounded text-xs font-mono whitespace-nowrap select-none cursor-pointer',
     'bg-psion-highlight border border-psion-accent/50 text-psion-charcoal',
+    'hover:bg-psion-accent hover:text-white hover:border-psion-accent',
+    'active:bg-psion-charcoal active:text-white',
+    'transition-colors',
+  ].join(' ');
+
+  // Solid Psion-yellow variant for a call to action the toolbar's grey
+  // would bury — currently the netpad's "Install standard apps", which
+  // is the first thing to do on a machine whose apps aren't in ROM.
+  // Unlike the 5mx Pro's OS-card button it doesn't pulse: it's a
+  // standing affordance, not a prompt to act on right now.
+  const yellowBtn = [
+    'px-3 py-1.5 rounded text-xs font-mono font-semibold whitespace-nowrap select-none cursor-pointer',
+    'bg-psion-highlight border border-psion-charcoal/40 text-psion-charcoal',
     'hover:bg-psion-accent hover:text-white hover:border-psion-accent',
     'active:bg-psion-charcoal active:text-white',
     'transition-colors',
@@ -1128,14 +1263,28 @@ export default function EmulatorView({
           against the bottom of the LCD frame on every SIBO machine. The
           outer container's gap-4 only kicks in for the next sibling. */}
       <div className="flex flex-col items-center flex-shrink-0">
-      {/* ── Device frame ── */}
+      {/* ── Device frame ──
+          Sits inside a footprint box that carries the rotation: while the
+          guest draws rotated (the netpad's Tools menu → "Switch
+          orientation"), the frame is turned a quarter-turn anticlockwise
+          inside a box with its width and height swapped, so the machine —
+          case photo, silkscreen column and all — stands the way its user
+          would be holding it. `orientation` is 0 for every other device
+          and the wrapper then measures exactly the frame. */}
+      <div className="relative flex-shrink-0" style={deviceFootprint}>
       <div
-        className="relative flex-shrink-0"
-        style={{ width: cw, height: ch }}
+        className="absolute"
+        style={{
+          ...frameRotation,
+          // Turn the device rather than snapping it round, so it reads as
+          // the machine being picked up and rotated.
+          transition: 'transform 300ms ease',
+        }}
         onClick={showDebugging ? e => {
           const r = e.currentTarget.getBoundingClientRect();
-          const fx = (e.clientX - r.left) / r.width;
-          const fy = (e.clientY - r.top) / r.height;
+          const p = localPointerPos(orientation, r, e.clientX, e.clientY, cw, ch);
+          const fx = p.x / cw;
+          const fy = p.y / ch;
           const cpx = fx * cw - overlayLeft;
           const cpy = fy * ch - overlayTop;
           let dx: number, dy: number;
@@ -1164,6 +1313,22 @@ export default function EmulatorView({
             alt="Device skin"
             className="psion-skin absolute inset-0 w-full h-full pointer-events-none select-none"
             draggable={false}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
+
+        {/* netpad silkscreen column — the printed icon strip that sits hard
+            against the right edge of the panel on the real machine. Drawn
+            only in the skinless view; the device-mode photo already has it.
+            Tagged `psion-skin` so lights-out dims it with the rest of the
+            case artwork. */}
+        {netpadSilkscreen && silkscreenRect && (
+          <img
+            src={`${import.meta.env.BASE_URL}skins/${NETPAD_SILKSCREEN_IMAGE}`}
+            alt="netpad silkscreen buttons"
+            className="psion-skin absolute pointer-events-none select-none"
+            draggable={false}
+            style={silkscreenRect}
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         )}
@@ -1328,6 +1493,36 @@ export default function EmulatorView({
           </div>
         )}
 
+        {/* netpad silkscreen tap zones. Five equal bands down the icon
+            column, each sending a pen tap at the coordinate the ROM
+            listens on for that key. Present in both the skinless view
+            (over the strip artwork) and device mode (over the printed
+            column in the photo). */}
+        {silkscreenRect && (
+          <div className="absolute flex flex-col" style={{ ...silkscreenRect, zIndex: 20 }}>
+            {NETPAD_SILKSCREEN_ZONES.map((label, i) => (
+              <button
+                key={label}
+                type="button"
+                title={label}
+                aria-label={`netpad ${label} button`}
+                className={[
+                  'flex-1 w-full select-none transition-opacity',
+                  pressedSilkscreen === i
+                    ? 'opacity-25 bg-psion-highlight'
+                    : 'opacity-0 hover:opacity-20 hover:bg-psion-highlight',
+                ].join(' ')}
+                onPointerDown={e => {
+                  e.preventDefault();
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  tapSilkscreenZone(i);
+                }}
+                onContextMenu={e => e.preventDefault()}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Powered-off overlay sits on top of the touch overlay */}
         {paused && (
           <div
@@ -1346,6 +1541,7 @@ export default function EmulatorView({
           </div>
         )}
 
+      </div>
       </div>
 
       {/* ── SIBO app-button bar ──
@@ -1608,13 +1804,33 @@ export default function EmulatorView({
           Paste
         </button>
 
-        {hasCFSlot && <button
+        {hasCardSlot && <button
           onClick={() => setShowCardDlg(v => !v)}
           className={showCardDlg ? btnActive : (controls.cardAttached ? btnActive : btn)}
-          title="Manage the emulated CompactFlash card"
+          title={`Manage the emulated ${hasMmcSlot ? 'MMC' : 'CompactFlash'} card`}
         >
-          CF Card{controls.cardAttached ? ' ●' : ''}
+          {cardSlotLabel}{controls.cardAttached ? ' ●' : ''}
         </button>}
+
+        {/* netpad: "Install standard apps".
+            Psion Teklogix shipped the netpad as a bare EPOC R5 machine —
+            Word, Sheet, Agenda and the rest were SIS installers on the
+            support CD, not ROM, so a fresh netpad genuinely has no
+            applications until someone installs them. The library holds
+            that whole CD set (applib/netpad), and this button opens it
+            filtered to the machine: from there "Try it" comes straight
+            back here with the installer on the MMC card (drive D:).
+            Psion brand yellow rather than the toolbar's grey, because
+            it's the one thing a new netpad owner has to do first. */}
+        {currentDeviceId === 'netpad' && (
+          <a
+            href="#/apps?device=netpad"
+            className={yellowBtn}
+            title="Browse the netpad's own software in the app library — Word, Sheet, Agenda, Opera and the rest of the CD set, installable onto this device"
+          >
+            ★ Install standard apps
+          </a>
+        )}
 
         {/* Bootloader-style "insert the OS card" button for 5mx Pro.
             On real hardware the bootloader paints its splash before
@@ -1831,6 +2047,18 @@ export default function EmulatorView({
               click device to sample
             </span>
           )}
+          {/* What the emulator says about screen orientation, so "the
+              netpad draws rotated but the device doesn't turn" can be
+              told apart from "the device turned but the tap missed"
+              without reaching for a debugger. A netpad that is visibly
+              drawing portrait while this still reads 0 is a psion.wasm
+              with no orientation binding — see the console warning. */}
+          <span
+            className="font-mono text-[11px] text-gray-500"
+            title="Quarter-turns anticlockwise the emulator says the panel should be shown at"
+          >
+            orient&nbsp;{orientation}
+          </span>
           <button
             onClick={async () => {
               const canvas = canvasRef.current;
@@ -1839,7 +2067,26 @@ export default function EmulatorView({
                 return;
               }
 
-              const downloadPng = (source: HTMLCanvasElement) => {
+              // Turn the capture the same way the device is turned on
+              // screen, so a screenshot of a portrait netpad is portrait
+              // rather than a landscape image full of sideways text.
+              const turned = (source: HTMLCanvasElement): HTMLCanvasElement => {
+                if (orientation === 0) return source;
+                const swap = isQuarterTurn(orientation);
+                const out = document.createElement('canvas');
+                out.width  = swap ? source.height : source.width;
+                out.height = swap ? source.width  : source.height;
+                const c = out.getContext('2d');
+                if (!c) return source;
+                c.imageSmoothingEnabled = false;
+                c.translate(out.width / 2, out.height / 2);
+                c.rotate((-90 * orientation * Math.PI) / 180);
+                c.drawImage(source, -source.width / 2, -source.height / 2);
+                return out;
+              };
+
+              const downloadPng = (raw: HTMLCanvasElement) => {
+                const source = turned(raw);
                 source.toBlob(blob => {
                   if (!blob) {
                     alert('Failed to capture screenshot.');
@@ -1989,6 +2236,17 @@ export default function EmulatorView({
           >
             Download RAM
           </button>
+          {/* Unique id — only on devices whose identity chip the guest can
+              actually read (the Series 5mx family's ETNA PROM and the SA-1100
+              machines' EEPROM); hidden elsewhere rather than offering a
+              control that would change nothing. */}
+          {controls.machineIdSupported && <button
+            onClick={() => setShowMachineIdDlg(v => !v)}
+            className={showMachineIdDlg ? btnActive : btn}
+            title="View or change the machine's Unique id (System → Information → Machine)"
+          >
+            Unique id{showMachineIdDlg ? ' ●' : ''}
+          </button>}
         </div>
       )}
 
@@ -1997,8 +2255,9 @@ export default function EmulatorView({
           card panel used to be a modal dialog; it's now an inline
           collapsible alongside the others so the user can browse the
           card filesystem without losing sight of the device. */}
-      {showCardDlg && hasCFSlot && (
-        <CFCardDialog controls={controls} onClose={() => setShowCardDlg(false)} />
+      {showCardDlg && hasCardSlot && (
+        <CFCardDialog controls={controls} slotKind={hasMmcSlot ? 'mmc' : 'cf'}
+                      onClose={() => setShowCardDlg(false)} />
       )}
 
       {showSsdDlg && ssdSlotCount > 0 && (
@@ -2033,6 +2292,14 @@ export default function EmulatorView({
                        viaPcAvailable={linkProtocol === 1}
                        conSeq={remoteLinkConSeq}
                        onClose={() => setShowPrinterDlg(false)} />
+      )}
+
+      {/* Unique id. Gated on showDebugging as well as its own toggle so
+          turning the setting off closes the panel too, matching the log
+          panel's behaviour. */}
+      {showMachineIdDlg && showDebugging && controls.machineIdSupported && (
+        <MachineIdDialog controls={controls}
+                         onClose={() => setShowMachineIdDlg(false)} />
       )}
 
       {showModemDlg && experimentalFeatures &&

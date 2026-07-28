@@ -18,12 +18,20 @@ import { convertSketchToPng } from './sketch.ts';
 import { convertRecordToWav } from './record.ts';
 import { convertWordToRtf } from './word.ts';
 import { convertSheetToCsv } from './sheet.ts';
+import {
+  isSiboWord, isSiboWordEncrypted, extractSiboWordText,
+} from './psion-word-sibo.ts';
 
 export interface ConversionResult {
   bytes: Uint8Array;
   filename: string;
   mime: string;
   formatLabel: string; // human label for status messages: "Word -> text"
+  // Set for SIBO Word documents that were password-protected: true means
+  // the password was recovered automatically for this download.
+  recoveredPassword?: boolean;
+  // Recovery confidence 0..1 (only meaningful when recoveredPassword).
+  confidence?: number;
 }
 
 interface ConverterDef {
@@ -57,6 +65,11 @@ export function tryConvert(
   bytes: Uint8Array,
   originalName: string,
 ): ConversionResult | null {
+  // SIBO / EPOC16 Word (.WRD) has its own "PSIONWPDATAFILE" magic rather
+  // than a UID header, and may be password-protected — handle it (and
+  // recover the password automatically) before the UID-based dispatch.
+  if (isSiboWord(bytes)) return convertSiboWord(bytes, originalName);
+
   if (bytes.length < EPOC_HEADER_BYTES) return null;
 
   const header = readEpocHeader(bytes);
@@ -81,6 +94,29 @@ export function tryConvert(
     filename: replaceExtension(originalName, def.ext),
     mime: def.mime,
     formatLabel: def.label,
+  };
+}
+
+// SIBO Word -> UTF-8 text, recovering the password automatically for
+// protected documents.  A caller that wants to supply a crib (the known
+// first characters) for a short/low-confidence recovery should call
+// extractSiboWordText directly.
+function convertSiboWord(bytes: Uint8Array, originalName: string): ConversionResult | null {
+  let extracted;
+  try {
+    extracted = extractSiboWordText(bytes);
+  } catch {
+    return null;
+  }
+  if (!extracted) return null;
+  const encrypted = isSiboWordEncrypted(bytes);
+  return {
+    bytes: new TextEncoder().encode(extracted.text),
+    filename: replaceExtension(originalName, 'txt'),
+    mime: 'text/plain;charset=utf-8',
+    formatLabel: encrypted ? 'Word (password recovered) -> text' : 'Word -> text',
+    recoveredPassword: encrypted || undefined,
+    confidence: encrypted ? extracted.confidence : undefined,
   };
 }
 

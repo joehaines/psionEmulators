@@ -9,7 +9,7 @@
  * The main thread talks to it over postMessage:
  *   • cold/rare calls are request/reply RPC (msg.rpc + msg.id ⇄ {rpcResult,id})
  *   • input is fire-and-forget (key / enqueue / pointer / setDeviceMode / pause)
- *   • status (backlight, simCycles, cfGap, paused) is pushed ~4x/s
+ *   • status (backlight, orientation, simCycles, cfGap, paused) is pushed ~4x/s
  *
  * Scope (Phase 1): cold boot, render, keyboard/touch input, CF attach/detach,
  * pause/reset, and save-state (heap slice + gzip + IndexedDB, all off the main
@@ -22,6 +22,15 @@ let mod = null;
 let canvas = null, ctx = null;
 let lcdPtr = 0, W = 0, H = 0;
 let pixelBuf = null, imageData = null;
+// LCD blit throttle during a Remote-Link transfer. readLCD + putImageData run
+// on THIS worker thread, so they steal wall-time from stepFrameFull — and on a
+// weak/mobile GPU (the field reports are iOS Safari) putImageData is expensive,
+// starving the emulated device's serial servicing so it can't keep its RX FIFO
+// drained and large uploads stall. The screen is near-static mid-transfer, so
+// blit at most ~15 fps while the transfer pump is on; the reclaimed cycles go
+// to the guest. Normal interactive use (pump off) is unthrottled.
+let lastBlitAt = 0;
+const TRANSFER_BLIT_INTERVAL_MS = 66;
 let running = false;     // a device is loaded and the loop is armed
 let paused = false;
 let deviceMode = false;
@@ -48,6 +57,52 @@ let serialPumpOn = false;
 let simKeepAliveBytes = null;
 let lastWriteUart = -1;
 let simKeepAliveLogged = false;   // one-time "fix is active" marker (see tick())
+// Wall-clock (performance.now) of the last DEVICE→host serial activity (bytes
+// drained out of the guest). The sim-keepalive gates on DEVICE silence: it
+// kicks only when the device itself has gone quiet. While the device is
+// actively replying it's clearly scheduled, so an extra Ack every sim-frame
+// would just flood its 4 KB RX FIFO and amplify retransmits (the field
+// "keepalive ackPdu storm"). It must NOT also gate on host activity: a large
+// upload deadlocks with the device idle in its HALT loop (consuming our bytes
+// but never rescheduling its RemoteLinkServer to process them) WHILE the host
+// is still retransmitting — gating on host writes there would suppress the very
+// kick that wakes the device. Diagnosed via the browser repro
+// (test/plp-browser): device silent 22 s, host still writing, pc in the kernel
+// idle HALT loop. 0 means "no activity yet".
+let lastSerialActivityAt = 0;
+// Idle gap before the keepalive resumes (ms). Long enough that an active
+// transfer's inter-frame gaps never re-arm it, short enough to still kick the
+// device during a multi-second quiet reply-wait (e.g. the drive-list F32 work).
+const KEEPALIVE_QUIET_MS = 120;
+// Host→device backpressure queue, per UART. serialWriteFromHost only accepts
+// what fits in the device's RX FIFO; under load (a starved guest, or a frame
+// fat with DLE/SYN byte-stuffing) the FIFO fills mid-frame. Dropping the
+// unaccepted tail truncates that frame, the device's link layer never completes
+// it, and the transfer stalls even through ARQ (the retransmit hits the same
+// full FIFO). Instead we KEEP the tail here and flush it on later ticks as the
+// guest drains — lossless host→device delivery. Bounded by single-in-flight
+// RFSV/NCP (the host won't send the next request until this one is answered),
+// so a slow guest just paces us, it can't make this grow without limit.
+const pendingTx = {};   // uart -> Uint8Array still awaiting the device RX FIFO
+
+// Push as much of uart's pending-Tx queue into the device RX FIFO as it will
+// accept right now; keep the remainder for the next flush. Returns bytes
+// accepted this call.
+function flushPendingTx(uart) {
+  const buf = pendingTx[uart];
+  if (!buf || !buf.length || !mod || !mod.serialWriteFromHost || !serialAttached[uart]) return 0;
+  if (!serialScratch) serialScratch = mod._malloc(SERIAL_CAP);
+  let off = 0;
+  while (off < buf.length) {
+    const n = Math.min(SERIAL_CAP, buf.length - off);
+    mod.HEAPU8.set(buf.subarray(off, off + n), serialScratch);
+    const acc = mod.serialWriteFromHost(uart, serialScratch, n);
+    off += acc;
+    if (acc < n) break;   // FIFO full — stop, keep the rest queued
+  }
+  pendingTx[uart] = off < buf.length ? buf.slice(off) : null;
+  return off;
+}
 // Sparse serial tracing (capped per UART). Surfaces the device→host byte path
 // in the log panel to localise remote-link / IrDA stalls. Follows the "Show
 // Logs" toggle (setLoggingEnabled) — nothing is posted while logging is off.
@@ -66,6 +121,7 @@ function drainSerial() {
     for (;;) {
       const n = mod.serialReadToHost(+u, serialScratch, SERIAL_CAP);
       if (n <= 0) break;
+      lastSerialActivityAt = performance.now();   // device→host activity (gates keepalive)
       const bytes = mod.HEAPU8.slice(serialScratch, serialScratch + n);
       // Diagnostic: log the first few non-empty drains per UART (head bytes), so
       // a "device sent nothing" symptom can be localised to the worker drain vs
@@ -186,9 +242,24 @@ async function idbDelete(key) {
 // bundled image URL + pack kind, or null when the slot has no factory default.
 function defaultSsdFor(deviceId, slot) {
   if (deviceId === 'mc400' && slot === 3) {
-    return { url: 'roms/MC400_V2.60F_system.ssd', kind: 'flash' };
+    // Strapped write-protected, like the real ROM:: System Disk.
+    return { url: 'roms/MC400_V2.60F_system.ssd', kind: 'protected' };
   }
   return null;
+}
+// Pack kind <-> PsionSSD::Type code. 'ram' (1) and 'flash' (2) are both
+// read/write drives on the Psion; 'protected' (3) is the hardware
+// write-protect strap of a factory system disk. With no stored kind,
+// sniff the FEFS magic.
+function ssdTypeForKind(kind, bytes) {
+  const k = kind ?? ((bytes.length >= 2 && bytes[0] === 0xA5 && bytes[1] === 0xF1) ? 'flash' : 'ram');
+  return k === 'protected' ? 3 : k === 'flash' ? 2 : 1;
+}
+// Pack kind currently strapped per slot, so saveState can persist it
+// alongside the (guest-modified) bytes rather than re-sniffing.
+const ssdKinds = [null, null, null, null];
+function ssdKindForType(t) {
+  return t === 3 ? 'protected' : t === 2 ? 'flash' : 'ram';
 }
 async function fetchDefaultSsd(relUrl) {
   try {
@@ -285,8 +356,14 @@ function tick() {
         // sim-time (the wall-clock keepalive alone is too sparse per frame at
         // full speed and stalls the transfer). Benign duplicate Ack; injected as
         // a complete frame between host writes, so it never splits a data frame.
+        // ...but ONLY during a quiet reply-wait. While bytes are actively
+        // flowing (either direction) the real frames keep the device scheduled,
+        // and an extra Ack per sim-frame just floods its RX FIFO and amplifies
+        // retransmits (the field "keepalive ackPdu storm" that stalled large
+        // transfers). Resume the kick only once the link has been idle a beat.
         if (serialPumpOn && simKeepAliveBytes && lastWriteUart >= 0 &&
-            serialAttached[lastWriteUart] && mod.serialWriteFromHost) {
+            serialAttached[lastWriteUart] && mod.serialWriteFromHost &&
+            (performance.now() - lastSerialActivityAt) >= KEEPALIVE_QUIET_MS) {
           if (!serialScratch) serialScratch = mod._malloc(SERIAL_CAP);
           const kn = Math.min(simKeepAliveBytes.length, SERIAL_CAP);
           mod.HEAPU8.set(simKeepAliveBytes.subarray(0, kn), serialScratch);
@@ -315,6 +392,10 @@ function tick() {
         // _plp_worker_repro: 900 KB wedged once-per-tick, completed per-frame).
         // Keeping the queue drained every frame prevents the overflow.
         if (serialPumpOn) drainSerial();
+        // Flush any host→device bytes the FIFO couldn't accept earlier now that
+        // this frame has drained it — keeps a backpressured upload moving
+        // without dropping (see pendingTx).
+        if (serialPumpOn && lastWriteUart >= 0 && pendingTx[lastWriteUart]) flushPendingTx(lastWriteUart);
         nextFrameDue += SIM_FRAME_MS;
         rendered = true;
       }
@@ -351,7 +432,12 @@ function tick() {
       // Serial: stream any UART output to the host (main thread), where the PLP/
       // IrDA client reads it via the sync serialReadBytes interface.
       if (rendered) drainSerial();
-      if (rendered) {
+      // Throttle the LCD blit during an active transfer so the guest keeps the
+      // CPU it needs to drain its serial FIFO (see TRANSFER_BLIT_INTERVAL_MS).
+      const blitNow = rendered && (!serialPumpOn ||
+        (performance.now() - lastBlitAt) >= TRANSFER_BLIT_INTERVAL_MS);
+      if (blitNow) {
+        lastBlitAt = performance.now();
         mod.readLCD(lcdPtr);
         pixelBuf.set(mod.HEAPU8.subarray(lcdPtr, lcdPtr + pixelBuf.length));
         if (deviceMode) applyDeviceModePixels(pixelBuf);
@@ -373,6 +459,24 @@ function tick() {
   setTimeout(tick, sleep);
 }
 
+// A psion.wasm built before the screen-orientation binding reports
+// nothing, and on the netpad that is indistinguishable from "Switch
+// orientation is broken" — the desktop draws rotated and the device
+// never turns. Say so once rather than silently reporting upright.
+let staleOrientationWarned = false;
+function readOrientation() {
+  if (!mod) return 0;
+  if (typeof mod.getScreenOrientation !== 'function') {
+    if (!staleOrientationWarned) {
+      staleOrientationWarned = true;
+      console.warn('psion.wasm pre-dates the screen-orientation binding — the netpad '
+        + 'will draw rotated without the device turning. Rebuild it: bash scripts/build-wasm.sh');
+    }
+    return 0;
+  }
+  return mod.getScreenOrientation();
+}
+
 let lastStatus = 0;
 function postStatusMaybe() { if (performance.now() - lastStatus > 200) postStatus(); }
 function postStatus() {
@@ -384,6 +488,9 @@ function postStatus() {
     backlight: (mod && mod.getBacklight) ? mod.getBacklight() : false,
     cfGap: (mod && mod.isCFPollGapActive) ? mod.isCFPollGapActive() : false,
     cardAttached: (mod && mod.isCFImageAttached) ? mod.isCFImageAttached() : false,
+    // Quarter-turns anticlockwise the panel image has to be shown at —
+    // non-zero once the netpad's "Switch orientation" has been used.
+    orientation: readOrientation(),
   });
 }
 
@@ -405,10 +512,55 @@ function postLoadProgress(value, status) {
 }
 function fmtMB(bytes) { return (bytes / 1048576).toFixed(1); }
 
+// ── EPOC Unique id (see the rpc handlers below) ──
+// The id EPOC shows under System → Information → Machine: the identity chip's
+// half plus the model UID the ROM supplies. The bindings landed together, so
+// requiring the full set doubles as the "is this psion.wasm new enough?"
+// check — an older build reports unsupported and the UI hides the control.
+function machineIdReady() {
+  return !!(mod && mod.hasMachineId && mod.getMachineId && mod.setMachineId
+            && mod.getMachineIdPrefix && mod.canSetMachineIdPrefix
+            && mod.setMachineIdPrefix && mod.hasMachineId());
+}
+
+function readMachineId() {
+  if (!machineIdReady()) {
+    return { supported: false, id: null, prefix: null, prefixSettable: false };
+  }
+  const prefix = mod.getMachineIdPrefix() >>> 0;
+  return {
+    supported: true,
+    id: mod.getMachineId() >>> 0,
+    prefix: prefix !== 0 ? prefix : null,
+    prefixSettable: !!mod.canSetMachineIdPrefix(),
+  };
+}
+
+// Writes `override` — the full Unique id as a 16-digit hex string, or null to
+// leave the machine alone. Called from loadDevice once the ROM (or the
+// restored heap) is in place and before the device starts stepping, so EPOC's
+// boot-time read sees the user's value. The high half is a ROM constant and
+// only lands where the emulator located it; the reply says what stuck.
+function applyMachineId(override) {
+  if (!machineIdReady()) {
+    return { supported: false, id: null, prefix: null, prefixSettable: false };
+  }
+  if (override != null) {
+    const v = BigInt('0x' + String(override).replace(/[^0-9a-fA-F]/g, ''));
+    mod.setMachineId(Number(v & 0xFFFFFFFFn) >>> 0);
+    const wantPrefix = Number((v >> 32n) & 0xFFFFFFFFn) >>> 0;
+    if (wantPrefix !== 0 && mod.canSetMachineIdPrefix()) mod.setMachineIdPrefix(wantPrefix);
+  }
+  return readMachineId();
+}
+
 // ── RPC handlers (return a value or throw) ──
 const rpc = {
   getProfiles() { return JSON.parse(mod.getAllDeviceProfilesJSON()); },
-  async loadDevice({ deviceId, romUrl, preroll, restore = true }) {
+  // `machineId` (null when unset) is the user's stored Unique-id override for
+  // this device, as a hex string — see the helpers above. It rides along with
+  // the load because localStorage, where it is persisted, is main-thread-only.
+  async loadDevice({ deviceId, romUrl, preroll, restore = true, machineId = null }) {
     // Auto-save the outgoing device before switching (mirrors the main-thread
     // hook's save-on-switch). Must run BEFORE currentDeviceId is reassigned —
     // saveState() keys IndexedDB on it. Swallow errors so a bad save can't
@@ -581,12 +733,12 @@ const rpc = {
         if (!img || !img.byteLength) continue;
         const u8 = img instanceof Uint8Array ? img : new Uint8Array(img);
         if (!growHeapToFit(u8.length + (1 << 20))) continue;
-        const t = kind === 'flash' ? 3 : kind === 'ram' ? 1
-                : ((u8.length >= 2 && u8[0] === 0xA5 && u8[1] === 0xF1) ? 3 : 1);
+        const t = ssdTypeForKind(kind, u8);
         const p = mod.prepareSSDImageUpload(u8.length);
         mod.HEAPU8.set(u8, p);
         if (mod.attachSSDImage(slot, u8.length, t)) {
           ssdAttachedState[slot] = true;
+          ssdKinds[slot] = ssdKindForType(t);
           postMessage({ type: 'log', text: 'SSD: re-attached slot ' + slot + ' on load (' +
             (u8.length >> 10) + ' KB, type ' + t + ')', err: false });
         } else {
@@ -613,6 +765,12 @@ const rpc = {
       postMessage({ type: 'log', text: 'SSD/Datapak re-attach on load failed: ' + (e && e.message || e), err: true });
     }
     postLoadProgress(0.95, 'Starting device…');
+    // Machine ID before the first step, so the guest's boot-time read of the
+    // identity chip sees it. Also covers the reset path (which re-enters
+    // loadDevice with restore=false) and the restore path, where the stored
+    // override is the more recent expression of intent than whatever ID the
+    // snapshot was taken with.
+    const machineIdState = applyMachineId(machineId);
     micPerFrame = Math.max(1, Math.round((info.audioSampleRate || 8000) / 64));
     clockHz = (mod.getClockHz && mod.getClockHz()) || 0;
     telLastMs = 0; telLastCycles = 0;
@@ -647,7 +805,7 @@ const rpc = {
     if (!tickArmed) { tickArmed = true; tick(); }
     return { deviceName: name, info,
              ssdAttached: ssdAttachedState, datapakAttached: datapakAttachedState,
-             serialAttached: serialAttachedState };
+             serialAttached: serialAttachedState, machineId: machineIdState };
   },
   pause() { paused = true; postStatus(); return true; },
   resume() { paused = false; postStatus(); return true; },
@@ -680,9 +838,10 @@ const rpc = {
     if (!growHeapToFit(u8.length + (1 << 20))) return false;
     const ptr = mod.prepareSSDImageUpload(u8.length);
     mod.HEAPU8.set(u8, ptr);
-    // ssdType: 1 = RAM, 3 = write-protected Flash (see PsionSSD::Type).
-    // Default to sniffing the FEFS magic for callers that don't say.
-    const t = ssdType ?? ((u8.length >= 2 && u8[0] === 0xA5 && u8[1] === 0xF1) ? 3 : 1);
+    // ssdType mirrors PsionSSD::Type: 1 = RAM, 2 = Flash (both
+    // read/write), 3 = hardware write-protected. Default to sniffing the
+    // FEFS magic for callers that don't say.
+    const t = ssdType ?? ((u8.length >= 2 && u8[0] === 0xA5 && u8[1] === 0xF1) ? 2 : 1);
     const ok = !!mod.attachSSDImage(slot, u8.length, t);
     postMessage({ type: 'log', text: 'SSD: hot attach slot ' + slot + ' (' +
       (u8.length >> 10) + ' KB, type ' + t + ') -> ' + ok, err: !ok });
@@ -691,14 +850,16 @@ const rpc = {
     if (ok && currentDeviceId) {
       try {
         await idbPut('ssd-' + currentDeviceId + '-' + slot, u8);
-        await idbPut('ssd-type-' + currentDeviceId + '-' + slot, t === 3 ? 'flash' : 'ram');
+        await idbPut('ssd-type-' + currentDeviceId + '-' + slot, ssdKindForType(t));
+        ssdKinds[slot] = ssdKindForType(t);
       } catch (_) {}
     }
     return ok;
   },
   async detachSSD({ slot }) {
     // Snapshot any on-device writes before detaching so the persisted
-    // image survives (RAM packs are guest-writable) — main-thread parity.
+    // image survives (RAM and Flash packs are both guest-writable) —
+    // main-thread parity.
     if (mod && currentDeviceId && mod.isSSDImageAttached && mod.isSSDImageAttached(slot)) {
       try {
         const size = mod.getSSDImageSize(slot);
@@ -713,6 +874,7 @@ const rpc = {
       } catch (_) {}
     }
     if (mod.detachSSDImage) mod.detachSSDImage(slot);
+    ssdKinds[slot] = null;
     return true;
   },
   async attachDatapak({ slot, bytes }) {
@@ -746,6 +908,7 @@ const rpc = {
   serialAttach({ uart }) {
     const ok = !!(mod.serialAttachHost && mod.serialAttachHost(uart));
     serialAttached[uart] = ok;
+    pendingTx[uart] = null;       // drop any backpressure tail from a prior session
     simKeepAliveLogged = false;   // re-arm the active marker for this session
     // Build marker (always, low-volume): proves which emulator-worker.js the
     // service worker actually served. If this line is missing from a Show-Logs
@@ -759,6 +922,43 @@ const rpc = {
   serialDetach({ uart }) {
     if (mod.serialDetachHost) mod.serialDetachHost(uart);
     serialAttached[uart] = false;
+    pendingTx[uart] = null;       // discard any undelivered backpressure tail
+    return true;
+  },
+  // Diagnostic snapshot of the guest CPU + serial buffers. Used by the browser
+  // transfer repro (frontend/test/plp-browser) to localise a mid-transfer
+  // wedge: sampling insn/wfiCount over time tells a HALTED CPU (counts flat)
+  // from one SPINNING in a loop (insn climbing, pc stuck); rxPending/txAvail
+  // tell whether the device has stopped draining its RX or stopped emitting.
+  debugState({ uart }) {
+    return {
+      pc: (mod.getCpuPc ? mod.getCpuPc() : 0) >>> 0,
+      realPc: (mod.getCpuRealPc ? mod.getCpuRealPc() : 0) >>> 0,
+      lr: (mod.getCpuLr ? mod.getCpuLr() : 0) >>> 0,
+      wfi: mod.getCpuWfi ? mod.getCpuWfi() : 0,
+      insn: mod.getInsnCount ? mod.getInsnCount() : 0,
+      wfiCount: mod.getWfiCount ? mod.getWfiCount() : 0,
+      excCount: mod.getExcCount ? mod.getExcCount() : 0,
+      rxPending: mod.serialHostRxPending ? mod.serialHostRxPending(uart) : -1,
+      txAvail: mod.serialHostTxAvailable ? mod.serialHostTxAvailable(uart) : -1,
+      pendingTx: pendingTx[uart] ? pendingTx[uart].length : 0,
+      irq: mod.serialIrqState ? mod.serialIrqState(uart) : 0,
+    };
+  },
+  // Read `count` MMU-translated 32-bit words from `addr` (diagnostic; see
+  // debugState). Used by the browser repro to disassemble a wedged guest's
+  // live code, which the ROM file isn't mapped 1:1 to.
+  debugPeek({ addr, count }) {
+    const out = [];
+    if (mod.debugPeek32) for (let i = 0; i < count; i++) out.push(mod.debugPeek32((addr + i * 4) >>> 0) >>> 0);
+    return out;
+  },
+  // Write 32-bit words at an MMU-translated virtual address (diagnostic; the
+  // upload-wedge investigation uses it to restore a torn-down kernel serial
+  // descriptor at the wedge and test whether the transfer resumes).
+  debugPoke({ addr, words }) {
+    if (!mod.writeVirt) return false;
+    for (let i = 0; i < words.length; i++) mod.writeVirt((addr + i * 4) >>> 0, words[i] >>> 0);
     return true;
   },
   getRamSnapshot() {
@@ -771,6 +971,14 @@ const rpc = {
     mod._free(ptr);
     return { bytes: out.buffer, byteLength: size };
   },
+  // ── EPOC machine ID ──
+  // Writes the unique ID in the device's identity chip (ETNA PROM / Eiger
+  // EEPROM) and reports what the chip ended up holding — devices may reserve
+  // bits of the word. The persisted override is owned by the main thread
+  // (localStorage isn't reachable from a worker) and arrives as a loadDevice
+  // argument; a null id here means "leave the chip alone", since the main
+  // thread resolves "restore the factory value" to the real default first.
+  setMachineId({ id }) { return applyMachineId(id); },
   getCardBytes() {
     if (!mod.isCFImageAttached || !mod.isCFImageAttached()) return null;
     const size = mod.getCFImageSize();
@@ -800,9 +1008,10 @@ const rpc = {
         const c = rpc.getCardBytes();
         if (c) await idbPut('cf-' + currentDeviceId, new Uint8Array(c.bytes));
       }
-      // Persist live SSD / Datapak images alongside the heap: RAM packs
-      // are guest-writable, and the restored heap expects the pack
-      // contents it last saw (loadDevice re-attaches from these keys).
+      // Persist live SSD / Datapak images alongside the heap: RAM and
+      // Flash packs are both guest-writable, and the restored heap
+      // expects the pack contents it last saw (loadDevice re-attaches
+      // from these keys).
       for (let slot = 0; slot < 4; slot++) {
         if (!(mod.isSSDImageAttached && mod.isSSDImageAttached(slot))) continue;
         const size = mod.getSSDImageSize(slot);
@@ -812,6 +1021,9 @@ const rpc = {
           mod.readSSDImage(slot, ptr);
           await idbPut('ssd-' + currentDeviceId + '-' + slot,
                        new Uint8Array(mod.HEAPU8.subarray(ptr, ptr + size)));
+          if (ssdKinds[slot]) {
+            await idbPut('ssd-type-' + currentDeviceId + '-' + slot, ssdKinds[slot]);
+          }
         } finally { mod._free(ptr); }
       }
       for (let slot = 0; slot < 2; slot++) {
@@ -887,8 +1099,19 @@ onmessage = async (e) => {
       const _clog = console.log.bind(console), _cerr = console.error.bind(console);
       console.log = (...a) => { _clog(...a); postMessage({ type: 'log', text: a.join(' ') }); };
       console.error = (...a) => { _cerr(...a); postMessage({ type: 'log', text: a.join(' '), err: true }); };
-      importScripts(baseUrl + 'psion.js');
-      mod = await createModule();
+      // A failed engine load (psion.js fetch, WASM compile/instantiate — e.g.
+      // memory pressure on mobile, or a half-updated HTTP/SW cache) must
+      // REJECT the client's init promise, not just toast an error: the app
+      // otherwise waits on 'ready' forever with an empty device panel stuck
+      // on "Loading…". initError is handled by EmulatorWorkerClient.init().
+      try {
+        importScripts(baseUrl + 'psion.js');
+        mod = await createModule();
+      } catch (err) {
+        postMessage({ type: 'initError',
+                      message: 'emulator engine failed to load: ' + String(err && err.message || err) });
+        return;
+      }
       postMessage({ type: 'ready' });
       return;
     }
@@ -934,29 +1157,32 @@ onmessage = async (e) => {
       if (mod && mod.serialWriteFromHost && serialAttached[m.uart]) {
         const data = new Uint8Array(m.bytes);
         if (!serialScratch) serialScratch = mod._malloc(SERIAL_CAP);
-        // serialWriteFromHost only queues what fits in the device's RX FIFO
-        // and returns that count. Advance by the ACCEPTED count, not the
-        // attempted count: skipping the unaccepted tail silently drops frame
-        // bytes, which corrupts the PLP/IrDA stream and stalls the transfer.
-        // When the FIFO is full, run the guest so its serial ISR drains the
-        // FIFO, then retry the remainder. Bounded by a short wall-clock budget
-        // so a genuinely wedged guest can't hang the worker — if we hit it the
-        // tail is dropped (as before) and the host's link layer times out and
-        // recovers, but that's now a last resort rather than the common case.
-        let off = 0;
-        const writeDeadline = performance.now() + 200;
-        while (off < data.length) {
-          const n = Math.min(SERIAL_CAP, data.length - off);
-          mod.HEAPU8.set(data.subarray(off, off + n), serialScratch);
-          const acc = mod.serialWriteFromHost(m.uart, serialScratch, n);
-          off += acc;
-          if (acc < n) {                               // RX FIFO full
-            if (!mod.serialPumpCycles || performance.now() > writeDeadline) break;
-            mod.serialPumpCycles();                    // let the guest drain RX
-            drainSerial();                             // and relieve its TX side
-          }
+        // Append to the per-UART backpressure queue (preserving byte order
+        // across writes) and flush as much as the device RX FIFO accepts. When
+        // it fills, run the guest so its serial ISR drains the FIFO, then flush
+        // the rest — bounded by a short wall-clock budget so a starved guest
+        // can't hang the worker. Whatever still doesn't fit STAYS QUEUED for the
+        // tick loop to flush as the guest catches up; it is never dropped, so a
+        // frame can't be truncated mid-stream (the cause of large-upload stalls
+        // that ARQ couldn't recover, since the retransmit hit the same full
+        // FIFO). See pendingTx / flushPendingTx.
+        const prev = pendingTx[m.uart];
+        if (prev && prev.length) {
+          const merged = new Uint8Array(prev.length + data.length);
+          merged.set(prev, 0); merged.set(data, prev.length);
+          pendingTx[m.uart] = merged;
+        } else {
+          pendingTx[m.uart] = data;
         }
-        const accepted = off;
+        const writeDeadline = performance.now() + 200;
+        for (;;) {
+          flushPendingTx(m.uart);
+          if (!pendingTx[m.uart]) break;               // fully accepted
+          if (!mod.serialPumpCycles || performance.now() > writeDeadline) break;  // leave rest for the tick loop
+          mod.serialPumpCycles();                      // let the guest drain RX
+          drainSerial();                               // and relieve its TX side
+        }
+        const accepted = data.length - (pendingTx[m.uart] ? pendingTx[m.uart].length : 0);
         // Diagnostic: the core returns the byte count it actually queued; 0
         // with bytes pending means the device-side UART rejected the write
         // (e.g. core hostAttached=false — a stale attach). Capped per UART.
@@ -1020,7 +1246,13 @@ onmessage = async (e) => {
       return;
     }
   } catch (err) {
-    if (m && m.type === 'rpc') postMessage({ type: 'rpcResult', id: m.id, error: String(err && err.message || err) });
-    else postMessage({ type: 'error', message: String(err && err.message || err) });
+    // Include the error name and the top stack frame: engine-side failures
+    // can be browser-specific (e.g. Safari/JSC's generic "Type error"), and
+    // a bare message gives nothing to localise them with from a field report.
+    const detail = (err && err.name ? err.name + ': ' : '') +
+      String(err && err.message || err) +
+      (err && err.stack ? ' @ ' + String(err.stack).split('\n').slice(0, 2).join(' | ').slice(0, 300) : '');
+    if (m && m.type === 'rpc') postMessage({ type: 'rpcResult', id: m.id, error: detail });
+    else postMessage({ type: 'error', message: detail });
   }
 };

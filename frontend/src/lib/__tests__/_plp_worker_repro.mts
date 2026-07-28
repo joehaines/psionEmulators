@@ -64,10 +64,22 @@ let workerToHost: Uint8Array[] = [];     // device→host chunks consumed by Plp
 // stalls in the browser but not in a batched cooperative model.
 const BATCH = !!process.env.BATCH;
 
+// Wall-clock of the last serial activity in EITHER direction (host→device bytes
+// accepted into the FIFO, or device→host bytes drained). The sim-keepalive is
+// gated on this so it fires only during a genuinely QUIET reply-wait. With
+// lossless host→device delivery (pendingTx) no frame is dropped, so the device
+// keeps progressing and this gate keeps the keepalive quiet across the whole
+// active transfer — see workerTick().
+let lastSerialActivityAt = 0;
+// How long the link must be idle before the keepalive resumes. 0 disables the
+// gate (old always-flood behaviour, for A/B testing).
+const KEEPALIVE_QUIET_MS = Number(process.env.SKAQ ?? 120);
+
 function drainSerial(): void {
   for (;;) {
     const n = mod.serialReadToHost(UART, serialScratch, SERIAL_CAP);
     if (n <= 0) break;
+    lastSerialActivityAt = now();
     const bytes = mod.HEAPU8.slice(serialScratch, serialScratch + n);
     workerToHost.push(bytes);
     busy(MSG_MS);   // postMessage(serialRx) cost
@@ -75,25 +87,41 @@ function drainSerial(): void {
   }
 }
 
-// Faithful port of emulator-worker.js serialWrite handler.
-function processSerialWrite(data: Uint8Array): void {
+// Host→device backpressure queue (lossless), mirroring emulator-worker.js
+// pendingTx/flushPendingTx. Bytes the device RX FIFO can't accept yet are kept
+// here and flushed on later ticks — never dropped (a dropped tail truncates a
+// frame and stalls a large upload that ARQ can't recover).
+let pendingTx: Uint8Array | null = null;
+function flushPendingTx(): number {
+  if (!pendingTx || !pendingTx.length) return 0;
   let off = 0;
-  const writeDeadline = now() + (process.env.NODROP ? 2000 : 200);
-  let stalls = 0;
-  while (off < data.length) {
-    const nn = Math.min(SERIAL_CAP, data.length - off);
-    mod.HEAPU8.set(data.subarray(off, off + nn), serialScratch);
+  while (off < pendingTx.length) {
+    const nn = Math.min(SERIAL_CAP, pendingTx.length - off);
+    mod.HEAPU8.set(pendingTx.subarray(off, off + nn), serialScratch);
     const acc = mod.serialWriteFromHost(UART, serialScratch, nn);
     off += acc;
-    if (acc < nn) {
-      if (!mod.serialPumpCycles) break;
-      if (process.env.NODROP) {
-        stalls = acc === 0 ? stalls + 1 : 0;
-        if (stalls > 2000 || now() > writeDeadline) break;
-      } else if (now() > writeDeadline) break;
-      mod.serialPumpCycles();
-      drainSerial();
-    }
+    if (acc < nn) break;   // FIFO full — keep the rest queued
+  }
+  pendingTx = off < pendingTx.length ? pendingTx.slice(off) : null;
+  if (off) lastSerialActivityAt = now();   // host→device activity (gates keepalive)
+  return off;
+}
+
+// Faithful port of emulator-worker.js serialWrite handler.
+function processSerialWrite(data: Uint8Array): void {
+  if (data.length) lastSerialActivityAt = now();   // host→device activity (gates keepalive)
+  // Enqueue (preserving order) then flush what fits; pump the guest to make
+  // room, bounded; leave the remainder queued for the tick loop. Never drops.
+  pendingTx = pendingTx && pendingTx.length
+    ? (() => { const m = new Uint8Array(pendingTx!.length + data.length); m.set(pendingTx!, 0); m.set(data, pendingTx!.length); return m; })()
+    : data;
+  const writeDeadline = now() + (process.env.NODROP ? 2000 : 200);
+  for (;;) {
+    flushPendingTx();
+    if (!pendingTx) break;
+    if (!mod.serialPumpCycles || now() > writeDeadline) break;
+    mod.serialPumpCycles();
+    drainSerial();
   }
   if (mod.serialPumpCycles) {
     mod.serialPumpCycles();
@@ -116,6 +144,14 @@ function processSerialWrite(data: Uint8Array): void {
 // Faithful port of emulator-worker.js tick() frame loop (real-time paced).
 let nextFrameDue = 0;
 let rendered = false;
+// LCD blit throttle during a transfer, mirroring the worker. NOTE: this harness
+// is single-threaded, so the blit busy() also delays the host poll — unlike the
+// real browser where the worker blit and the main-thread PlpClient are separate
+// threads. The throttle's true benefit (freeing worker CPU for the guest) is
+// therefore understated here; it's modelled for fidelity, validated for real on
+// device. THROTTLE=0 disables it for A/B comparison.
+let lastBlitAt = 0;
+const TRANSFER_BLIT_INTERVAL_MS = process.env.THROTTLE === '0' ? 0 : 66;
 function workerTick(): void {
   const t0 = now();
   rendered = false;
@@ -123,19 +159,29 @@ function workerTick(): void {
   if (BATCH) while (hostToWorker.length) processSerialWrite(hostToWorker.shift()!);
   if (nextFrameDue === 0) nextFrameDue = t0;
   while (t0 >= nextFrameDue && (now() - t0) < TICK_WALL_CAP) {
-    if (serialPumpOn && simKeepAliveBytes && mod.serialWriteFromHost && !process.env.NOSKA) {
+    // Sim-keepalive: only inject during a QUIET reply-wait. While a transfer
+    // is actively moving bytes (either direction) the real frames already keep
+    // the device's serial thread scheduled, and flooding extra Acks every sim
+    // frame just competes with that traffic for the 4 KB RX FIFO and amplifies
+    // retransmits — the "keepalive ackPdu storm" from the field logs.
+    const quiet = KEEPALIVE_QUIET_MS === 0 || (now() - lastSerialActivityAt) >= KEEPALIVE_QUIET_MS;
+    if (serialPumpOn && simKeepAliveBytes && mod.serialWriteFromHost && !process.env.NOSKA && quiet) {
       const kn = Math.min(simKeepAliveBytes.length, SERIAL_CAP);
       mod.HEAPU8.set(simKeepAliveBytes.subarray(0, kn), serialScratch);
       mod.serialWriteFromHost(UART, serialScratch, kn);
     }
     mod.stepFrameFull();
     if (process.env.DPF) drainSerial();   // drain device→host after EACH frame (test txQueue-overflow fix)
+    if (serialPumpOn && pendingTx) flushPendingTx();   // push deferred host→device bytes as the FIFO drains
     nextFrameDue += SIM_FRAME_MS;
     rendered = true;
   }
   if (now() - nextFrameDue > 250) nextFrameDue = now();
   drainSerial();
-  if (rendered) busy(RENDER_MS);   // LCD readLCD + putImageData per rendered tick
+  // LCD blit cost, throttled to ~15 fps during a transfer (mirrors the worker).
+  const blitNow = rendered && (TRANSFER_BLIT_INTERVAL_MS === 0 || !serialPumpOn ||
+    (now() - lastBlitAt) >= TRANSFER_BLIT_INTERVAL_MS);
+  if (blitNow) { lastBlitAt = now(); busy(RENDER_MS); }
 }
 
 const pduStr = (p: Pdu) => `cont=${p.cont} seq=${p.seq} len=${p.data.length}`;
@@ -207,7 +253,12 @@ const pduStr = (p: Pdu) => `cont=${p.cont} seq=${p.seq} len=${p.data.length}`;
     await client.connect(45_000);
     console.error(`[host] connected; uploading ${LOOPS}x ${SIZE}B in one session…`);
     const payload = new Uint8Array(SIZE);
-    for (let i = 0; i < SIZE; i++) payload[i] = (i * 31 + 7) & 0xFF;
+    // PAYLOAD=dle/syn → worst-case byte-stuffing (real app files with long runs
+    // of control bytes inflate framed size and stress the device RX FIFO far
+    // more than a pseudo-random fill). Default: pseudo-random.
+    const pat = process.env.PAYLOAD;
+    for (let i = 0; i < SIZE; i++)
+      payload[i] = pat === 'dle' ? 0x10 : pat === 'syn' ? 0x16 : pat === 'zero' ? 0x00 : (i * 31 + 7) & 0xFF;
     let lastDone = 0, lastMoveAt = now();
     const watchdog = setInterval(() => {
       if (now() - lastMoveAt > 25_000)

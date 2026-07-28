@@ -4,10 +4,13 @@
 import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
 import {
-  createFlashPack, addFileToPack, removeFileFromPack, listFiles,
+  createFlashPack, addFileToPack, removeFileFromPack, readFileFromPack, listFiles,
   classifyPack, readVolumeName, FLASH_PACK_SIZES,
   type FefsFile, type PackKind,
 } from '../lib/fefs';
+import { sameBytes } from '../lib/bytes';
+import { tryConvert } from '../lib/converters';
+import { isSiboWordEncrypted, extractSiboWordText } from '../lib/converters/psion-word-sibo';
 
 interface Props {
   controls: EmulatorControls;
@@ -44,8 +47,8 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function downloadBlob(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes as BlobPart], { type: 'application/octet-stream' });
+function downloadBlob(bytes: Uint8Array, filename: string, mime = 'application/octet-stream') {
+  const blob = new Blob([bytes as BlobPart], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -62,25 +65,67 @@ function downloadBlob(bytes: Uint8Array, filename: string) {
 //
 // `kind` is the pack type presented to the Psion (a hardware strap on
 // real packs, chosen here at create/load time — NOT derived from the
-// bytes): 'flash' mounts read-only with the staged files visible;
-// 'ram' is for dumps of real RAM packs.
+// bytes): 'flash' mounts as a read/write FEFS drive with the staged
+// files visible; 'ram' is for dumps of real RAM packs; 'protected' is
+// a factory system disk, which the Psion mounts read-only.
 interface SlotState {
   image: Uint8Array | null;
   kind: PackKind;
+  // True when the image itself holds a FEFS volume — independent of the
+  // strap above. A factory system disk is strapped 'protected' but its
+  // files are as readable (and downloadable) as any Flash pack's.
+  fefs: boolean;
   volume: string;
   files: FefsFile[];
+  // Names of files on the pack that are password-protected Psion Word
+  // documents — surfaced with a lock badge and a "recover" action.
+  protectedFiles: Set<string>;
 }
 
-const EMPTY_SLOT: SlotState = { image: null, kind: 'flash', volume: '', files: [] };
+const EMPTY_SLOT: SlotState = {
+  image: null, kind: 'flash', fefs: false, volume: '', files: [], protectedFiles: new Set(),
+};
 
 function slotFromImage(image: Uint8Array, kind?: PackKind): SlotState {
-  const k = kind ?? classifyPack(image);
+  const fefs = classifyPack(image) === 'flash';
+  const files = fefs ? listFiles(image) : [];
   return {
     image,
-    kind: k,
+    kind: kind ?? classifyPack(image),
+    fefs,
     volume: readVolumeName(image),
-    files: k === 'flash' ? listFiles(image) : [],
+    files,
+    protectedFiles: findProtectedWordFiles(image, files),
   };
+}
+
+// Scan the pack's Word (.WRD) files for password protection so the UI can
+// flag them. Reading each is cheap (packs are small) and failures are
+// ignored — a file we can't read simply isn't flagged.
+function findProtectedWordFiles(image: Uint8Array, files: FefsFile[]): Set<string> {
+  const out = new Set<string>();
+  for (const f of files) {
+    if (!/\.wrd$/i.test(f.name)) continue;
+    try {
+      if (isSiboWordEncrypted(readFileFromPack(image, f.name))) out.add(f.name);
+    } catch { /* unreadable — leave unflagged */ }
+  }
+  return out;
+}
+
+const PACK_KIND_LABEL: Record<PackKind, string> = {
+  ram: 'RAM', flash: 'Flash', protected: 'Flash (protected)',
+};
+
+// How often to re-pull an inserted pack's bytes so files the Psion has
+// just saved appear in the list (and can be downloaded) without the user
+// ejecting the pack first. Matches the CF dialog's poll interval.
+const DEVICE_POLL_INTERVAL_MS = 1500;
+
+// Host filename for a downloaded pack file: FEFS paths are
+// "WRD\\REPORT.WRD", and a backslash isn't wanted in a download name.
+function hostFilename(packPath: string): string {
+  return packPath.split(/[\\/]/).filter(Boolean).join('-') || packPath;
 }
 
 const btn        = 'px-3 py-1.5 rounded text-xs font-mono whitespace-nowrap cursor-pointer bg-psion-mid border border-psion-accent/50 text-psion-charcoal hover:bg-psion-accent hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
@@ -93,6 +138,11 @@ export default function SSDDialog({ controls, slotCount, onClose }: Props) {
     Array.from({ length: slotCount }, () => ({ ...EMPTY_SLOT })));
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  // "Convert on download": run Psion documents through the converter
+  // registry (Word/Sheet/Record/Sketch -> modern formats) instead of
+  // handing back the raw Psion file. Password-protected Word documents
+  // are recovered automatically. Default on, matching the CF dialog.
+  const [convertOnDownload, setConvertOnDownload] = useState(true);
 
   // On open, pull whatever's currently inserted into the working state.
   // getSSDBytes is sync on the main thread but a Promise in worker mode,
@@ -109,6 +159,39 @@ export default function SSDDialog({ controls, slotCount, onClose }: Props) {
   // Mount-only — re-running would clobber edits in progress.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-refresh for inserted packs. The Psion writes to a pack while it
+  // is in the machine — save a document to A:, format the pack, delete a
+  // file — and none of that reaches this dialog on its own. Re-pull each
+  // inserted slot's bytes on a timer so the file list tracks the device
+  // and downloads hand back what the guest actually wrote. Slots that
+  // aren't inserted hold the user's staged edits and are left untouched.
+  const attachedKey = controls.ssdAttached.slice(0, slotCount).join(',');
+  const { getSSDBytes } = controls;
+  useEffect(() => {
+    const attached = attachedKey.split(',').map(v => v === 'true');
+    if (!attached.some(Boolean)) return;
+    let stopped = false;
+    let inFlight = false;
+    const id = setInterval(() => {
+      if (inFlight) return;
+      inFlight = true;
+      // getSSDBytes is sync on the main thread, a Promise in worker mode.
+      void Promise.all(attached.map(
+        (on, i): Uint8Array | null | Promise<Uint8Array | null> => (on ? getSSDBytes(i) : null)))
+        .then(results => {
+          inFlight = false;
+          if (stopped) return;
+          setSlots(prev => prev.map((s, i) => {
+            const bytes = results[i];
+            if (!bytes || (s.image && sameBytes(bytes, s.image))) return s;
+            return slotFromImage(bytes, s.kind);
+          }));
+        })
+        .catch(() => { inFlight = false; });
+    }, DEVICE_POLL_INTERVAL_MS);
+    return () => { stopped = true; clearInterval(id); };
+  }, [attachedKey, getSSDBytes]);
 
   const updateSlot = useCallback((idx: number, next: SlotState) => {
     setSlots(prev => prev.map((s, i) => (i === idx ? next : s)));
@@ -137,7 +220,7 @@ export default function SSDDialog({ controls, slotCount, onClose }: Props) {
       const kind = classifyPack(bytes);
       updateSlot(idx, slotFromImage(bytes, kind));
       setStatus(kind === 'flash'
-        ? `Loaded "${file.name}" (${formatBytes(bytes.byteLength)}) — Flash pack, will mount read-only.`
+        ? `Loaded "${file.name}" (${formatBytes(bytes.byteLength)}) — Flash pack, mounts read/write.`
         : `Loaded "${file.name}" (${formatBytes(bytes.byteLength)}) — no FEFS header, will attach as a RAM pack.`);
     } catch (err) {
       setStatus(`Error: ${msg(err)}`);
@@ -219,6 +302,82 @@ export default function SSDDialog({ controls, slotCount, onClose }: Props) {
     setStatus(`Discarded staged pack in slot ${slotLabel(idx)}.`);
   }, [updateSlot]);
 
+  // Pull one file off the pack and hand it to the browser. This is the
+  // way a document the Psion saved to an SSD gets onto the host: the
+  // whole-image download is for keeping the pack, this is for keeping
+  // the file.
+  const handleDownloadFile = useCallback(async (idx: number, name: string) => {
+    const slot = slots[idx];
+    // For an inserted pack read the LIVE device bytes rather than the
+    // last polled copy, so a file saved a moment ago comes out complete.
+    const bytes = controls.ssdAttached[idx]
+      ? ((await Promise.resolve(controls.getSSDBytes(idx))) ?? slot.image)
+      : slot.image;
+    if (!bytes) return;
+    try {
+      const data = readFileFromPack(bytes, name);
+      if (convertOnDownload) {
+        const converted = tryConvert(data, hostFilename(name));
+        if (converted) {
+          downloadBlob(converted.bytes, converted.filename, converted.mime);
+          if (converted.recoveredPassword) {
+            const pct = Math.round((converted.confidence ?? 0) * 100);
+            setStatus(pct >= 85
+              ? `Recovered password-protected ${name} (${converted.formatLabel}).`
+              : `Recovered ${name} but the text may be imperfect (${pct}% clean) — use "recover…" to enter the document's first few letters for an exact result.`);
+          } else {
+            setStatus(`Converted ${name} (${converted.formatLabel}).`);
+          }
+          return;
+        }
+        // No converter matched — fall back to the raw file.
+        setStatus(`Downloaded original ${name} — no converter for this type.`);
+      }
+      downloadBlob(data, hostFilename(name));
+      if (!convertOnDownload) {
+        setStatus(`Downloaded ${name} (${formatBytes(data.length)}) from pack ${slotLabel(idx)}.`);
+      }
+    } catch (err) {
+      setStatus(`Error: ${msg(err)}`);
+    }
+  }, [slots, controls, convertOnDownload]);
+
+  // Assisted recovery for a password-protected Word file: the user types
+  // the first few characters of the document (a "crib"), which pins the
+  // keystream exactly — the reliable path for short documents where the
+  // automatic statistical recovery is under-determined.
+  const handleRecoverFile = useCallback(async (idx: number, name: string) => {
+    const slot = slots[idx];
+    const bytes = controls.ssdAttached[idx]
+      ? ((await Promise.resolve(controls.getSSDBytes(idx))) ?? slot.image)
+      : slot.image;
+    if (!bytes) return;
+    const crib = window.prompt(
+      `Recover "${name}".\n\nType the first few characters of the document as you remember them ` +
+      `(up to the first 9 count). Leave blank to let the recovery guess automatically.`, '');
+    if (crib === null) return;   // cancelled
+    try {
+      const data = readFileFromPack(bytes, name);
+      // In the body, paragraph breaks are 0x00 and tabs 0x09; map the
+      // user's crib the same way so newlines they type line up with the
+      // document's own paragraph markers.
+      const cribBytes = crib
+        ? new Uint8Array(Array.from(crib, ch =>
+            ch === '\n' ? 0x00 : ch === '\t' ? 0x09 : ch.charCodeAt(0) & 0xff))
+        : undefined;
+      const extracted = extractSiboWordText(data, cribBytes);
+      if (!extracted) { setStatus(`Could not read ${name} as a Word document.`); return; }
+      const outName = hostFilename(name).replace(/\.wrd$/i, '') + '.txt';
+      downloadBlob(new TextEncoder().encode(extracted.text), outName, 'text/plain;charset=utf-8');
+      const pct = Math.round(extracted.confidence * 100);
+      setStatus(crib
+        ? `Recovered ${name} using your crib.`
+        : `Recovered ${name} automatically (${pct}% clean text).`);
+    } catch (err) {
+      setStatus(`Error: ${msg(err)}`);
+    }
+  }, [slots, controls]);
+
   const handleSaveToFile = useCallback(async (idx: number) => {
     const slot = slots[idx];
     // For an inserted pack, save the LIVE device bytes, not the working
@@ -227,7 +386,7 @@ export default function SSDDialog({ controls, slotCount, onClose }: Props) {
       ? ((await Promise.resolve(controls.getSSDBytes(idx))) ?? slot.image)
       : slot.image;
     if (!bytes) return;
-    const ext = slot.kind === 'flash' ? 'flash.ssd' : 'ram.ssd';
+    const ext = slot.kind === 'ram' ? 'ram.ssd' : 'flash.ssd';
     downloadBlob(bytes, `pack-${String.fromCharCode(97 + idx)}-${slot.volume || 'untitled'}.${ext}`);
     setStatus(`Downloaded slot ${slotLabel(idx)} as a .${ext} file.`);
   }, [slots, controls]);
@@ -254,9 +413,31 @@ export default function SSDDialog({ controls, slotCount, onClose }: Props) {
           then insert it — the files appear on the device immediately.
           You can also load <span className="text-psion-charcoal font-medium">.bin
           / .img / .ssd images</span> dumped from real packs.
-          Packs mount <span className="text-psion-charcoal font-medium">read-only</span> on
-          the Psion: in-device formatting and saving are not supported
-          by the emulator, so make changes here and re-insert.
+          Packs mount <span className="text-psion-charcoal font-medium">read/write</span>:
+          the Psion can save files onto them and format them from
+          Disk → Format disk, and those changes stay with the pack.
+          Files the Psion writes show up in the list below while the pack
+          is still in the device — <span className="text-psion-charcoal font-medium">download</span> takes
+          any of them off the machine, one file at a time.
+        </div>
+
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-psion-accent/30">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="accent-psion-highlight"
+              checked={convertOnDownload}
+              onChange={e => setConvertOnDownload(e.target.checked)}
+            />
+            <span className="text-xs font-mono text-psion-charcoal">
+              Convert on download
+              <span className="block text-[10px] text-gray-500 leading-tight">
+                Turn Psion documents into modern formats (Word → text, Sheet → CSV,
+                Sketch → PNG, Record → WAV). Password-protected Word files are
+                recovered automatically.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="flex-grow overflow-auto p-4 space-y-4">
@@ -271,6 +452,8 @@ export default function SSDDialog({ controls, slotCount, onClose }: Props) {
               onLoadFile={handleLoadFile}
               onAddFiles={handleAddFiles}
               onRemoveFile={handleRemoveFile}
+              onDownloadFile={handleDownloadFile}
+              onRecoverFile={handleRecoverFile}
               onInsert={handleInsert}
               onEject={handleEject}
               onDiscard={handleDiscard}
@@ -300,6 +483,8 @@ interface SlotPanelProps {
   onLoadFile: (idx: number, file: File) => void;
   onAddFiles: (idx: number, files: FileList | File[]) => void;
   onRemoveFile: (idx: number, name: string) => void;
+  onDownloadFile: (idx: number, name: string) => void;
+  onRecoverFile: (idx: number, name: string) => void;
   onInsert: (idx: number) => void;
   onEject: (idx: number) => void;
   onDiscard: (idx: number) => void;
@@ -308,7 +493,7 @@ interface SlotPanelProps {
 
 function SlotPanel({
   idx, slot, attached, busy,
-  onCreate, onLoadFile, onAddFiles, onRemoveFile,
+  onCreate, onLoadFile, onAddFiles, onRemoveFile, onDownloadFile, onRecoverFile,
   onInsert, onEject, onDiscard, onSaveToFile,
 }: SlotPanelProps) {
   // Form state for the inline "Create blank pack" UI.
@@ -340,7 +525,7 @@ function SlotPanel({
         </div>
         <span className="font-mono text-xs text-gray-500">
           {slot.image
-            ? `${slot.kind === 'ram' ? 'RAM' : 'Flash'} ${formatBytes(slot.image.length)} · vol "${slot.volume || '—'}"`
+            ? `${PACK_KIND_LABEL[slot.kind]} ${formatBytes(slot.image.length)} · vol "${slot.volume || '—'}"`
             : 'no pack'}
         </span>
       </header>
@@ -378,7 +563,8 @@ function SlotPanel({
               </div>
               <p className="font-mono text-[10px] text-gray-500 mt-1">
                 A FEFS-formatted Flash pack, identical to a factory Psion SSD.
-                The Psion mounts it read-only with your files visible.
+                The Psion mounts it as a read/write drive with your files
+                visible.
               </p>
             </div>
 
@@ -420,14 +606,16 @@ function SlotPanel({
                 Discard
               </button>
             </div>
-            <FilesPanel slot={slot} idx={idx} busy={busy}
+            <FilesPanel slot={slot} idx={idx} busy={busy} readOnly={slot.kind !== 'flash'}
                         addInputRef={addInputRef}
                         dragOver={dragOver}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                         onAddFiles={onAddFiles}
-                        onRemoveFile={onRemoveFile} />
+                        onRemoveFile={onRemoveFile}
+                        onDownloadFile={onDownloadFile}
+                        onRecoverFile={onRecoverFile} />
           </div>
         )}
 
@@ -443,17 +631,22 @@ function SlotPanel({
               </button>
             </div>
             <p className="font-mono text-xs text-gray-500">
-              The pack is in the device. To add or remove files, eject
-              it first, edit, and re-insert.
+              The pack is in the device — the Psion can write to it
+              directly. The list below follows the device, so anything
+              you save on the Psion appears here and can be downloaded
+              straight away. To add or remove files from here, eject it
+              first, edit, and re-insert.
             </p>
-            <FilesPanel slot={slot} idx={idx} busy={true}
+            <FilesPanel slot={slot} idx={idx} busy={busy} readOnly={true}
                         addInputRef={addInputRef}
                         dragOver={false}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                         onAddFiles={onAddFiles}
-                        onRemoveFile={onRemoveFile} />
+                        onRemoveFile={onRemoveFile}
+                        onDownloadFile={onDownloadFile}
+                        onRecoverFile={onRecoverFile} />
           </div>
         )}
       </div>
@@ -467,6 +660,10 @@ interface FilesPanelProps {
   slot: SlotState;
   idx: number;
   busy: boolean;
+  // The pack can't be edited from here — it is either in the device
+  // (the Psion owns it) or strapped read-only. Files can still be
+  // downloaded; only adding and removing are withheld.
+  readOnly: boolean;
   addInputRef: React.RefObject<HTMLInputElement>;
   dragOver: boolean;
   onDragOver: (e: DragEvent) => void;
@@ -474,16 +671,19 @@ interface FilesPanelProps {
   onDrop: (e: DragEvent) => void;
   onAddFiles: (idx: number, files: FileList | File[]) => void;
   onRemoveFile: (idx: number, name: string) => void;
+  onDownloadFile: (idx: number, name: string) => void;
+  onRecoverFile: (idx: number, name: string) => void;
 }
 
 function FilesPanel({
-  slot, idx, busy, addInputRef, dragOver,
-  onDragOver, onDragLeave, onDrop, onAddFiles, onRemoveFile,
+  slot, idx, busy, readOnly, addInputRef, dragOver,
+  onDragOver, onDragLeave, onDrop, onAddFiles, onRemoveFile, onDownloadFile, onRecoverFile,
 }: FilesPanelProps) {
-  if (slot.kind !== 'flash') {
+  if (!slot.fefs) {
     return (
       <p className="font-mono text-xs text-gray-500">
-        RAM pack image — kept byte-exact; file editing isn't available.
+        RAM pack image — kept byte-exact; no FEFS directory to list, so
+        use "Save image to file" to take a copy.
       </p>
     );
   }
@@ -494,22 +694,24 @@ function FilesPanel({
         <h4 className="font-mono text-xs text-psion-charcoal">
           Files in pack ({slot.files.length})
         </h4>
-        <div>
-          <input ref={addInputRef}
-                 type="file"
-                 multiple
-                 className="hidden"
-                 onChange={e => {
-                   if (e.target.files?.length) onAddFiles(idx, e.target.files);
-                   e.target.value = '';
-                 }} />
-          <button className={btn}
-                  disabled={busy}
-                  title='Pick files from your computer to drop into the pack'
-                  onClick={() => addInputRef.current?.click()}>
-            + Add files…
-          </button>
-        </div>
+        {!readOnly && (
+          <div>
+            <input ref={addInputRef}
+                   type="file"
+                   multiple
+                   className="hidden"
+                   onChange={e => {
+                     if (e.target.files?.length) onAddFiles(idx, e.target.files);
+                     e.target.value = '';
+                   }} />
+            <button className={btn}
+                    disabled={busy}
+                    title='Pick files from your computer to drop into the pack'
+                    onClick={() => addInputRef.current?.click()}>
+              + Add files…
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={`px-3 py-2 ${dragOver ? 'bg-psion-highlight/10' : ''}`}
@@ -518,24 +720,51 @@ function FilesPanel({
            onDrop={onDrop}>
         {slot.files.length === 0 ? (
           <p className="font-mono text-xs text-gray-500 py-2">
-            No files yet — click "Add files…" or drag files into this
-            area. Psion file types (.wrd, .agn, .spr, .dbf, .opl, .opa …)
-            are placed in the matching app folder automatically.
+            {readOnly
+              ? 'No files on this pack yet — anything the Psion saves to it will appear here.'
+              : 'No files yet — click "Add files…" or drag files into this area. Psion file types (.wrd, .agn, .spr, .dbf, .opl, .opa …) are placed in the matching app folder automatically.'}
           </p>
         ) : (
           <ul className="font-mono text-xs divide-y divide-psion-accent/20">
-            {slot.files.map(f => (
+            {slot.files.map(f => {
+              const locked = slot.protectedFiles.has(f.name);
+              return (
               <li key={f.name} className="flex items-center justify-between py-1.5">
-                <span className="truncate text-psion-charcoal flex-grow">{f.name}</span>
+                <span className="truncate text-psion-charcoal flex-grow">
+                  {f.name}
+                  {locked && (
+                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 border border-amber-400 text-amber-700"
+                          title='This Word document is password-protected. "download" (with Convert on) recovers it automatically; "recover…" lets you supply the first letters for an exact result.'>
+                      🔒 protected
+                    </span>
+                  )}
+                </span>
                 <span className="text-gray-500 mx-3">{formatBytes(f.size)}</span>
-                <button className="text-red-600 hover:text-red-800 disabled:opacity-40 text-xs transition-colors"
+                <button className="text-psion-accent hover:underline disabled:opacity-40 disabled:no-underline text-xs transition-colors"
                         disabled={busy}
-                        title='Mark this file as deleted (space is reclaimed when the pack is recreated)'
-                        onClick={() => onRemoveFile(idx, f.name)}>
-                  remove
+                        title='Download this file from the pack to your computer'
+                        onClick={() => onDownloadFile(idx, f.name)}>
+                  download
                 </button>
+                {locked && (
+                  <button className="text-psion-accent hover:underline disabled:opacity-40 disabled:no-underline text-xs transition-colors ml-3"
+                          disabled={busy}
+                          title='Recover this password-protected document, optionally giving its first few characters'
+                          onClick={() => onRecoverFile(idx, f.name)}>
+                    recover…
+                  </button>
+                )}
+                {!readOnly && (
+                  <button className="text-red-600 hover:text-red-800 disabled:opacity-40 text-xs transition-colors ml-3"
+                          disabled={busy}
+                          title='Mark this file as deleted (space is reclaimed when the pack is recreated)'
+                          onClick={() => onRemoveFile(idx, f.name)}>
+                    remove
+                  </button>
+                )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>

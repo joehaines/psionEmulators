@@ -45,6 +45,12 @@ public:
     // `Auto` keeps the legacy behaviour of sniffing the 0xF1A5 magic
     // (magic -> Type 1 Flash, otherwise RAM) for callers that only have
     // an image and no type information (e.g. dumped .bin files).
+    //
+    // Ram and Flash are both read/write drives on the Psion — RAM
+    // directly, Flash through the 28F0xx command interface below.
+    // Protected is the hardware-write-protected strap (D7-D5 = 111) of
+    // a factory system disk: program and erase are accepted and do
+    // nothing, so EPOC16 mounts it read-only.
     enum class Type : uint8_t { Auto = 0, Ram = 1, Flash = 2, Protected = 3 };
 
     // ------------------------------------------------------------------
@@ -75,14 +81,64 @@ public:
     // responsible for clearing it after ~200 ms via its own scheduler.
     void setDoorCb(std::function<void(bool)> cb) { m_doorCb = std::move(cb); }
 
+    // Intel manufacturer code + a 28F010-class device code, answered by
+    // a Flash pack's Read Intelligent Identifier command.
+    static constexpr uint8_t FLASH_MAKER_ID  = 0x89;
+    static constexpr uint8_t FLASH_DEVICE_ID = 0xB4;
+
 private:
+    // ------------------------------------------------------------------
+    // Flash command interface (Type 1 Flash packs)
+    // ------------------------------------------------------------------
+    //
+    // A RAM pack is SRAM: a Port A write stores the byte, full stop.
+    // A Flash pack is a bank of Intel 28F0xx-class devices, and Port A
+    // is that chip's bus — bytes written to it are COMMANDS, and only
+    // the second cycle of a program command carries data. EPOC16's SSD
+    // driver speaks the first-generation ("Quick-Pulse") command set:
+    //
+    //   0x00 / 0xFF   Read Memory (reset to array reads)
+    //   0x90          Read Intelligent Identifier (addr bit 0: 0 =
+    //                 manufacturer, 1 = device)
+    //   0x40 / 0x10   Program Setup; the NEXT Port A write is the data
+    //                 byte, programmed at the then-latched address
+    //   0xC0          Program Verify; the next read returns the array
+    //   0x20 + 0x20   Erase Setup + Erase Confirm (bulk erase of the
+    //                 selected device)
+    //   0xA0          Erase Verify; the next read returns the array
+    //
+    // Modelling this is what makes a Flash SSD writable. Storing the
+    // command bytes as data instead (the pre-flash-machine behaviour)
+    // made every program-verify read back the 0xC0 verify opcode rather
+    // than the byte just programmed, so the driver failed the compare
+    // and the OS reported "Write failed" for any format or file save —
+    // and the driver's read-array command (0x00) at offset 0 zapped the
+    // FEFS magic of any image the user attached.
+    enum class FlashState : uint8_t {
+        ReadArray,     // reads return the memory array
+        ProgramSetup,  // next Port A write is the data byte to program
+        ReadId,        // reads return the manufacturer / device id
+    };
+
+    void flashCommand(uint8_t cmd);
+    void flashProgram(uint32_t addr, uint8_t data);
+    void flashEraseDevice(uint32_t addr);
+
     // Info-byte / mem-width assignment from MAME psion_ssd.cpp:243-266.
     void computeInfo(size_t size, Type type);
     uint32_t latchedAddr() const;
+    // Bit 4 of the SIBO control byte: this access auto-increments the
+    // address ("multi" access, control 0x90 / 0xD0). Clear on the
+    // one-off accesses (0x80 / 0xC0) that must not disturb the address.
+    static constexpr uint8_t SIBO_AUTOINC = 0x10;
+
     // Counter-mode tick: when port B is in counter mode (the default
-    // after reset), each Port A read or write auto-increments the
-    // address LSB. Used by both readFrame Port A and writeFrame Port A.
+    // after reset), an auto-incrementing Port A read or write advances
+    // the address LSB.
     void tickPortBCounter();
+    // Port A access tick, gated on SIBO_AUTOINC. Used by both readFrame
+    // Port A and writeFrame Port A.
+    void tickPortAAccess();
     uint8_t readFrameInner();
 
     std::vector<uint8_t> m_data;
@@ -104,6 +160,16 @@ private:
     uint8_t  m_portBLatch    = 0;   // Port B latch-mode readback
     uint8_t  m_portBMode     = 0;   // ASIC5 port-B mode register
     uint8_t  m_portBCounter  = 0;   // ASIC5 port-B counter
+
+    // Flash-pack state. m_isFlash covers both Flash and Protected packs
+    // (both are flash silicon; Protected just has its programming
+    // voltage strapped off, so program/erase are accepted and quietly
+    // do nothing — exactly what the real part does with Vpp low).
+    bool       m_isFlash        = false;
+    bool       m_writeProtected = false;
+    FlashState m_flashState     = FlashState::ReadArray;
+    // Set by Erase Setup (0x20); the confirm cycle (0x20) erases.
+    bool       m_eraseArmed     = false;
 
     // Pack-mode pin (PC6=0). Per MAME psion_asic5.h:
     //     enum pc6_state { PACK_MODE = 0, PERIPHERAL_MODE = 1 };

@@ -10,6 +10,7 @@
 #include <functional>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 // Forward declaration for the V30 CPU used by NEC-V30-based Psions
 // (Series 3 / 3a / 3c / 3mx / Siena / Workabout). EmuBase exposes a
@@ -303,6 +304,16 @@ public:
 	// (Series 5 / 5mx / 5mx Pro) exposes the real PRT bit.
 	virtual bool getBacklight() const { return false; }
 
+	// Orientation the running OS is drawing the screen at, as the number
+	// of quarter-turns ANTICLOCKWISE a host has to apply to the panel
+	// image to show it the way the machine's user is holding the machine.
+	// 0 on every device whose OS only ever draws one way up; the netpad
+	// (whose Tools menu carries "Switch orientation") reports 1 while it
+	// is drawing portrait — see netpadScreenOrientation in core/sa1100.cpp.
+	// The framebuffer itself is unaffected: readLCDIntoBuffer keeps
+	// returning the panel exactly as the LCD controller scans it.
+	virtual int getScreenOrientation() const { return 0; }
+
 	// True once the CPU is wedged in an unrecoverable prefetch-abort loop
 	// (vector page unmapped after a crash).  The worker auto-halts on this
 	// so a dead device stops flooding the log.  ARM-based cores report it
@@ -311,6 +322,99 @@ public:
 		const ARM710 *c = getArmCpu();
 		return c && c->faultLoopDetected();
 	}
+
+	// ── Unique id (System → Information → Machine) ────────────────────
+	// EPOC prints a 64-bit "Unique id" in four hex groups. It is built
+	// from two places, and this interface exposes both:
+	//
+	//   • the LOW half is the factory word in the machine's identity chip
+	//     (getMachineId / setMachineId) — the Series 5mx family's ETNA
+	//     PROM, the SA-1100 machines' Eiger EEPROM;
+	//   • the HIGH half is a model UID the kernel takes from a constant
+	//     compiled into the ROM (getMachineIdPrefix / setMachineIdPrefix).
+	//     Changing that means patching the ROM image, which is only done
+	//     when the constant can be located unambiguously — see
+	//     canSetMachineIdPrefix.
+	//
+	// EPOC software that licenses itself to one machine keys off the pair,
+	// so the frontend exposes both behind the "Show debugging" setting.
+	//
+	// hasMachineId() is false by default and true only where a programmed
+	// id has been OBSERVED reaching EPOC's dialog:
+	//   • Series 5mx / 5mx Pro / MC218 — ETNA PROM, core/etna.h.
+	//     A 5mx set to CAFEBABE reports 1000-118A-CAFE-BABE.
+	//   • Series 7 / netBook / netpad — Eiger EEPROM, core/sa1100.h.
+	//     A Series 7 asked for 0BADF00D-DEADBEEF reports exactly that.
+	// The Series 5 and Osaris have an ETNA-shaped register block but no
+	// PROM bit-bang wiring, and the Revo ROM never reads the PROM at all,
+	// so nothing the guest reads would change — they stay false and the UI
+	// hides the control.
+	virtual bool hasMachineId() const { return false; }
+	virtual uint32_t getMachineId() const { return 0; }
+	// Programs the identity chip. Returns false when the device has no
+	// writable one; the whole word is stored verbatim where it does. The
+	// guest sees the new value on its next read of the chip; a running
+	// EPOC has already cached the old one, so a reset is needed for the
+	// OS itself to report the change.
+	virtual bool setMachineId(uint32_t id) { (void)id; return false; }
+
+	// The model UID EPOC prints as the high half. Zero means "not known
+	// for this machine" — it is a measured constant per EPOC build, and
+	// machines whose dialog hasn't been read report 0 rather than a guess,
+	// which the UI shows by displaying only the half it does know.
+	virtual uint32_t getMachineIdPrefix() const { return 0; }
+	// True when the constant was found in the loaded ROM and can therefore
+	// be patched. False leaves the high half fixed, and
+	// setMachineIdPrefix() below refuses — the netBook and netpad, whose
+	// model UID has never been read out of their dialog, and a 5mx Pro
+	// still running its bootloader (the OS carrying the constant arrives
+	// later from the CF card).
+	virtual bool canSetMachineIdPrefix() const { return false; }
+	// Patches the model UID in the loaded ROM image, so the whole 64-bit
+	// Unique id becomes settable. Every copy of the constant is rewritten
+	// together: the 5mx family carries one, the Series 7 ten (seven of
+	// them in a repeated module-header field), and patching a subset of
+	// the Series 7's black-screens the machine while patching all ten
+	// boots cleanly. Returns false when the constant could not be located
+	// (canSetMachineIdPrefix() is false), leaving the ROM untouched. The
+	// patch lives in the loaded image only — reloading the ROM restores
+	// it, which is why the host re-applies on every load.
+	// NOTE this is the machine's model UID, not just a display field: code
+	// that identifies the machine sees the new value too.
+	virtual bool setMachineIdPrefix(uint32_t prefix) { (void)prefix; return false; }
+
+	// Helpers for the model-UID patch above. The constant is a plain
+	// 32-bit literal in the ROM image, so a device locates every
+	// occurrence once at load time and rewrites exactly those offsets on
+	// each change. Recording the offsets (rather than re-scanning for the
+	// current value) matters: a user-supplied UID could be a byte pattern
+	// that occurs all over the ROM — 00000000 would match thousands of
+	// words — and a re-scan would then splatter it.
+	//
+	// Public because they are stateless byte-buffer utilities with no
+	// emulator state behind them, and tests/unit/machine_id_test drives
+	// them directly.
+	static void findRomWords(const uint8_t *rom, size_t size, uint32_t value,
+	                         std::vector<size_t> &out);
+	static void writeRomWords(uint8_t *rom, const std::vector<size_t> &offsets,
+	                          uint32_t value);
+	// Same scan, over a storage-card image rather than the ROM buffer, for
+	// the two machines whose OS is not in their own flash at all: the 5mx
+	// Pro (128 KB bootloader; the OS is SYS$ROM.BIN on the card) and the
+	// netBook (2 MB YModem bootloader; the OS is D:\OS.IMG). Patching ROM[]
+	// on those does nothing to the id the booted OS prints, because the OS
+	// carrying the constant arrives later, off the card.
+	//
+	// Unlike the ROM scan this matches TWO values — the factory constant
+	// and whatever is programmed now — because a card patched in an earlier
+	// session already carries the latter, and the frontend hands the same
+	// image back on the next boot. Both are specific 32-bit literals, so
+	// the chance of a stray hit in a card image is negligible; the caller
+	// still records the offsets once and rewrites only those afterwards,
+	// so a subsequent id (0 included) can't splatter.
+	static void findCardMachineIdWords(const uint8_t *card, size_t size,
+	                                   uint32_t factory, uint32_t current,
+	                                   std::vector<size_t> &out);
 
 	// Storage-card (CompactFlash / PC Card) hooks. Default implementations
 	// are no-ops so devices without a card slot can ignore them.
@@ -335,9 +439,10 @@ public:
 	virtual int  getSsdSlotCount() const { return 0; }
 	// `ssdType` selects the pack type presented in the SIBO info byte:
 	// 0 = auto (sniff 0xF1A5 magic -> Flash, else RAM), 1 = RAM,
-	// 2 = Type 1 Flash. Mirrors PsionSSD::Type. On real packs the type
-	// comes from hardware straps, not the contents, so callers that know
-	// the type (the SSD dialog, the harness) should pass it explicitly.
+	// 2 = Type 1 Flash, 3 = hardware write-protected. Mirrors
+	// PsionSSD::Type. On real packs the type comes from hardware straps,
+	// not the contents, so callers that know the type (the SSD dialog,
+	// the harness) should pass it explicitly.
 	virtual bool attachSSD(int slot, const uint8_t *bytes, size_t size,
 	                       int ssdType = 0) {
 		(void)slot; (void)bytes; (void)size; (void)ssdType; return false;

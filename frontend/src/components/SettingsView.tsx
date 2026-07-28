@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: LicenseRef-PsionWebEmulator
 // Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { DeviceProfile } from '../types/emulator';
 import { getEpocDeliveryPref, setEpocDeliveryPref } from '../lib/appLibrary';
 import type { LeaderboardRow } from '../lib/analytics';
 import { DEVICE_RELEASE_YEARS, DEVICE_LOGO_MAP } from '../lib/deviceMeta';
+import {
+  isSiboWord, isSiboWordEncrypted, extractSiboWordText,
+} from '../lib/converters/psion-word-sibo';
 
 export type SortMode = 'age-desc' | 'age-asc' | 'popularity-desc' | 'popularity-asc';
 
@@ -35,6 +38,148 @@ const SORT_OPTIONS: { value: SortMode; label: string; sub: string }[] = [
   { value: 'popularity-desc', label: 'Most popular',     sub: 'By total loads from the usage leaderboard' },
   { value: 'popularity-asc',  label: 'Least popular',    sub: 'Rare-loaded devices first' },
 ];
+
+// Standalone recovery tool for password-protected Psion Word (.WRD)
+// documents from a Series 3/3a/3c/Siena/Workabout. Drop in a .WRD file
+// and the tool reads the text out, recovering the password automatically;
+// if the document is very short the automatic result can be imperfect, so
+// an optional "first characters" crib pins the key exactly.
+function WordRecoveryTool() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string>('');
+  const [bytes, setBytes] = useState<Uint8Array | null>(null);
+  const [encrypted, setEncrypted] = useState(false);
+  const [crib, setCrib] = useState('');
+  const [preview, setPreview] = useState('');
+  const [status, setStatus] = useState('');
+
+  const onPick = async (file: File | undefined) => {
+    setPreview(''); setStatus(''); setCrib('');
+    if (!file) return;
+    const data = new Uint8Array(await file.arrayBuffer());
+    if (!isSiboWord(data)) {
+      setBytes(null); setFileName(file.name);
+      setStatus('That is not a Psion Series 3 Word (.WRD) file.');
+      return;
+    }
+    setBytes(data);
+    setFileName(file.name);
+    setEncrypted(isSiboWordEncrypted(data));
+    setStatus(isSiboWordEncrypted(data)
+      ? 'Password-protected document loaded. Click Recover to read it.'
+      : 'Document loaded (no password). Click Recover to read it.');
+  };
+
+  const recover = () => {
+    if (!bytes) return;
+    const cribBytes = crib
+      ? new Uint8Array(Array.from(crib, ch =>
+          ch === '\n' ? 0x00 : ch === '\t' ? 0x09 : ch.charCodeAt(0) & 0xff))
+      : undefined;
+    let extracted;
+    try {
+      extracted = extractSiboWordText(bytes, cribBytes);
+    } catch {
+      extracted = null;
+    }
+    if (!extracted) { setStatus('Could not read this file as a Word document.'); return; }
+    setPreview(extracted.text);
+    if (!extracted.wasEncrypted) {
+      setStatus('Text extracted.');
+    } else {
+      const pct = Math.round(extracted.confidence * 100);
+      setStatus(crib
+        ? 'Recovered using your first-characters hint.'
+        : pct >= 85
+          ? `Password recovered automatically (${pct}% clean text).`
+          : `Recovered, but the text may be imperfect (${pct}% clean) — enter the document's first few characters below for an exact result.`);
+    }
+  };
+
+  const download = () => {
+    if (!preview) return;
+    const blob = new Blob([preview], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName.replace(/\.wrd$/i, '') + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="p-3 space-y-3">
+      <p className="text-[11px] font-mono text-gray-500 leading-tight">
+        Forgotten the password on an old Psion Series 3 Word file? Load the
+        <span className="text-psion-charcoal"> .WRD</span> file here and its text is
+        read straight out — the password is recovered automatically. For very
+        short documents, type the first few characters you remember to pin the
+        result exactly.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input ref={fileRef} type="file" accept=".wrd,.WRD" className="hidden"
+               onChange={e => { void onPick(e.target.files?.[0]); e.target.value = ''; }} />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="px-3 py-1.5 rounded text-xs font-mono cursor-pointer bg-psion-mid border border-psion-accent/50 text-psion-charcoal hover:bg-psion-accent hover:text-white transition-colors">
+          Choose .WRD file…
+        </button>
+        {fileName && (
+          <span className="text-[11px] font-mono text-psion-charcoal truncate">
+            {fileName}{encrypted && <span className="ml-2 text-amber-600">🔒 protected</span>}
+          </span>
+        )}
+      </div>
+
+      {bytes && (
+        <>
+          {encrypted && (
+            <label className="block">
+              <span className="text-[11px] font-mono text-gray-500">
+                First characters of the document (optional, improves short files)
+              </span>
+              <input
+                type="text"
+                value={crib}
+                onChange={e => setCrib(e.target.value)}
+                placeholder="e.g. the first words you remember"
+                className="mt-1 w-full px-2 py-1 rounded text-xs font-mono bg-white border border-psion-accent/60 text-psion-charcoal focus:border-psion-accent focus:outline-none" />
+            </label>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={recover}
+              className="px-3 py-1.5 rounded text-xs font-mono cursor-pointer bg-psion-highlight border border-psion-accent/50 text-psion-charcoal hover:bg-psion-accent hover:text-white transition-colors">
+              Recover
+            </button>
+            {preview && (
+              <button
+                type="button"
+                onClick={download}
+                className="px-3 py-1.5 rounded text-xs font-mono cursor-pointer bg-psion-mid border border-psion-accent/50 text-psion-charcoal hover:bg-psion-accent hover:text-white transition-colors">
+                Download .txt
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {status && <p className="text-[11px] font-mono text-psion-charcoal">{status}</p>}
+
+      {preview && (
+        <textarea
+          readOnly
+          value={preview}
+          className="w-full h-40 px-2 py-1 rounded text-xs font-mono bg-white border border-psion-accent/40 text-psion-charcoal focus:outline-none whitespace-pre" />
+      )}
+    </div>
+  );
+}
 
 export default function SettingsView({
   profiles,
@@ -100,7 +245,7 @@ export default function SettingsView({
               <span className="text-xs font-mono text-psion-charcoal leading-tight">
                 Show debugging
                 <span className="block text-[10px] text-gray-500 leading-tight">
-                  Enable Screenshot, Logs and Ram download
+                  Enable Screenshot, Logs, Ram download and Unique id
                 </span>
               </span>
             </label>
@@ -159,6 +304,19 @@ export default function SettingsView({
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Word password recovery -------------------------------------- */}
+        <section className="mb-6 border border-psion-accent/30 rounded-lg overflow-hidden">
+          <header className="px-4 py-2 bg-psion-mid border-b border-psion-accent/30">
+            <h2 className="text-xs font-mono font-semibold uppercase tracking-wide text-psion-charcoal">
+              Recover a Word file password
+            </h2>
+            <p className="text-xs font-mono text-gray-500 mt-0.5">
+              Read the text out of a password-protected Psion Series 3 Word document.
+            </p>
+          </header>
+          <WordRecoveryTool />
         </section>
 
         {/* Sort devices ------------------------------------------------- */}

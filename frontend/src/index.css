@@ -2,6 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Semantic palette as RGB channel triplets, consumed by tailwind.config.ts
+   via rgb(var(--psion-*) / <alpha-value>) so opacity modifiers like
+   border-psion-accent/30 keep working. The whole UI theme flips here —
+   and only here — when the OS prefers dark. color-scheme lets native
+   form controls and scrollbars follow along. */
+:root {
+  color-scheme: light dark;
+  --psion-dark:      255 255 255; /* #ffffff — page / dialog backgrounds */
+  --psion-mid:       244 244 242; /* #f4f4f2 — panels, sidebars, cards */
+  --psion-accent:     91  92  94; /* #5b5c5e — borders, secondary text */
+  --psion-highlight: 250 223  60; /* #fadf3c — brand yellow, both modes */
+  --psion-charcoal:   43  43  43; /* #2b2b2b — primary text / dark chrome */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --psion-dark:      17  17  19; /* #111113 */
+    --psion-mid:       30  30  28; /* #1e1e1c */
+    --psion-accent:   133 134 138; /* #85868a — lighter so /15–/60 borders stay visible */
+    --psion-charcoal: 230 230 227; /* #e6e6e3 — primary text flips light */
+  }
+}
+
+/* Dark-scheme companions for the stock Tailwind utilities used in markup
+   (the psion-* palette flips via the variables above; these classes have
+   fixed colors and need explicit counterparts). Keyed on exact utility
+   names — prefer the psion palette in new code. Deliberately unmapped:
+   bg-black/* scrims, text-white on scrims, text-gray-200/300 (already
+   light), bg-white/25 (onDark-gated). No !important, so the lights-out
+   rules below always win while the backlight effect is active. */
+@media (prefers-color-scheme: dark) {
+  .bg-white { background-color: #1a1a1c; }
+  .bg-gray-50 { background-color: #161618; }
+  .bg-gray-100 { background-color: #222224; }
+  .bg-gray-200 { background-color: #2e2e30; }
+  .text-gray-900 { color: #ececea; }
+  .text-gray-600 { color: #b4b4b2; }
+  .text-gray-500 { color: #9c9c9a; }
+  .text-gray-400 { color: #80807e; }
+  .text-gray-500\/40 { color: rgb(156 156 154 / 0.4); }
+  .text-gray-500\/70 { color: rgb(156 156 154 / 0.7); }
+  .border-gray-200 { border-color: #333335; }
+  .border-gray-300 { border-color: #3d3d3f; }
+  /* Charcoal flips light in dark mode, which breaks two pairings:
+     charcoal-toned content on the yellow brand surfaces (the yellow
+     stays yellow in both modes), and white text on (now-light)
+     charcoal chrome. Re-pin those to stay dark-on-yellow. */
+  .bg-psion-highlight, .hover\:bg-psion-highlight:hover { color: #262624; }
+  .bg-psion-highlight .text-psion-charcoal,
+  .bg-psion-highlight .text-gray-500 { color: #262624; }
+  .bg-psion-highlight .text-psion-charcoal\/70 { color: rgb(38 38 36 / 0.7); }
+  .bg-psion-highlight .bg-psion-charcoal { background-color: #262624; }
+  .bg-psion-highlight .border-psion-charcoal { border-color: #262624; }
+  .bg-psion-charcoal.text-white,
+  .active\:bg-psion-charcoal:active,
+  .hover\:bg-psion-charcoal:hover { color: rgb(var(--psion-dark)); }
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

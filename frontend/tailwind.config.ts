@@ -5,12 +5,15 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Semantic palette defined as RGB-channel CSS variables (see
+        // src/index.css) so the whole scheme flips automatically under
+        // prefers-color-scheme: dark. Light-mode values in comments.
         psion: {
-          dark:      '#ffffff',   // white — main page / dialog backgrounds
-          mid:       '#f4f4f2',   // warm light gray — panels, sidebars, cards
-          accent:    '#5b5c5e',   // Psion brand gray (from logo)
-          highlight: '#fadf3c',   // Psion brand yellow (from logo)
-          charcoal:  '#2b2b2b',   // near-black — primary text / dark UI chrome
+          dark:      'rgb(var(--psion-dark) / <alpha-value>)',      // #ffffff — main page / dialog backgrounds
+          mid:       'rgb(var(--psion-mid) / <alpha-value>)',       // #f4f4f2 — panels, sidebars, cards
+          accent:    'rgb(var(--psion-accent) / <alpha-value>)',    // #5b5c5e — Psion brand gray (from logo)
+          highlight: 'rgb(var(--psion-highlight) / <alpha-value>)', // #fadf3c — Psion brand yellow (from logo)
+          charcoal:  'rgb(var(--psion-charcoal) / <alpha-value>)',  // #2b2b2b — primary text / dark UI chrome
         },
       },
       fontFamily: {
@@ -22,8 +25,8 @@ export default {
       // "insert a memory disk" wait state.
       keyframes: {
         'attention-yellow': {
-          '0%, 100%': { backgroundColor: '#fadf3c' /* psion-highlight */ },
-          '50%':       { backgroundColor: '#ffffff' /* psion-dark    */ },
+          '0%, 100%': { backgroundColor: 'rgb(var(--psion-highlight))' },
+          '50%':       { backgroundColor: 'rgb(var(--psion-dark))' },
         },
         // Indeterminate loading bar: a 1/3-width segment sweeps through the
         // track (both endpoints are fully off-screen, so the loop cut is

@@ -28,11 +28,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     exit;
 }
 
+// Must stay in sync with the device IDs in core/device_registry.cpp — a
+// device missing here has every event rejected with a 400, so it silently
+// never appears on the usage leaderboard.
 $ALLOWED_DEVICES = [
     '5mx', '5mxpro', 'mc218', 'osaris', 'series5', 'series7', 'revo',
-    'netbook', 'series3', 'pocketbk', 'mc400', 'series3a', 'pocketbk2',
-    'series3c', 'series3mx', 'siena', 'workabout', 'workaboutmx',
-    'organiser2',
+    'netbook', 'netpad', 'series3', 'pocketbk', 'mc400', 'mc400v126',
+    'series3a', 'pocketbk2', 'series3c', 'series3mx', 'siena', 'workabout',
+    'workaboutmx', 'organiser2',
 ];
 $ALLOWED_EVENTS = [
     'load', 'session', 'cf_attach', 'speaker_on', 'mic_on',

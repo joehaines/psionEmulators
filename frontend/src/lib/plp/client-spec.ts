@@ -34,7 +34,7 @@ import {
 import { setSerialPumpEnabled, setPumpKeepAlive, setSimKeepAliveFrame } from '../wasmBridge.ts';
 import {
   buildOpenFile, buildReplaceFile, buildReadFile, buildWriteFile, buildCloseHandle,
-  buildDelete,
+  buildDelete, buildMkDirAll,
   decodeReply,
 } from './rfsv32-spec.ts';
 export type { DirEntry } from './rfsv32-spec.ts';
@@ -720,6 +720,20 @@ export class PlpClient {
       try { await client.send(buildCloseHandle(client.nextOpId(), handle)); }
       catch { /* ignore */ }
     }
+  }
+
+  // Create a directory and any missing parents (RFs::MkDirAll). An
+  // already-existing leaf is not an error — the caller only cares that
+  // the directory is there afterwards. EPOC32 only; the SIBO RFSV-16
+  // path has its own MKDIR and no caller yet.
+  async makeDirAll(path: string): Promise<void> {
+    if (this.sibo) throw new Error('makeDirAll: EPOC32 only');
+    return this.withRfsv(async client => {
+      const r = await client.send(buildMkDirAll(client.nextOpId(), path));
+      if (r.status !== 0 && r.status !== EpocErr.AlreadyExists) {
+        throw new Error(`MKDIR(${path}) failed: ${r.status}`);
+      }
+    });
   }
 
   async deleteFile(path: string): Promise<void> {

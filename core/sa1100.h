@@ -7,10 +7,13 @@
 #include "eiger.h"
 #include "sa1100_defs.h"
 #include "vcfcard.h"
+#include "netpad_mmc.h"
 #include "audio_codec.h"
+#include <bitset>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <set>
 #include <vector>
 
 // Intel StrongARM SA-1100 SoC emulator — CPU plus on-chip peripherals.
@@ -66,14 +69,54 @@ public:
     // bank 0 in early boot, so it doesn't care about the split.
     static constexpr size_t kBankSize = 0x1000000;            // 16 MB
     static constexpr uint32_t kBankMask = kBankSize - 1;
+    // netpad board GPIO input pins that idle high (pull-ups).  Reported
+    // high in GPLR while the firmware has the pin configured as an input
+    // (GPDR bit clear), and masked back out the moment it drives the pin
+    // as an output — so an open-drain line reads high when released and
+    // low when the firmware pulls it (see readGpio).
+    //   bit 23  — the early bit-banged serial device's "ready" handshake
+    //             (busy-waited high before the byte stream, FUN_50004608).
+    //   bit 24  — the same device's "transmit complete" handshake
+    //             (busy-waited high after the stream, FUN_500046b0).
+    //   bits 15/16 — bit-banged open-drain serial/I2C clock / data.  The
+    //             primitives (FUN_50005774 / _5794 direction-flip a line
+    //             open-drain style; FUN_500057b4 / _57c8 read bits 16 /
+    //             15; FUN_5000596c busy-waits bit 15 high) need a
+    //             released line to float high or every transaction
+    //             wedges the driver.
+    // Every one of these is only ever busy-waited *high*.  Pins the
+    // firmware waits *low* on are deliberately excluded: bit 0, and
+    // bit 17 — a busy/interrupt flag FUN_50005800 spins on WHILE SET
+    // (forcing it high makes that wait burn its full timeout on every
+    // call).  Bit 14 is only branched on, never waited.
+    static constexpr uint32_t kNetpadGpioReadyMask =
+        (1u << 24) | (1u << 23) | (1u << 16) | (1u << 15);
+    // netpad pen-detect line.  Exyin.dll (the digitiser driver) binds the
+    // variant interrupt named "IrqGpioEdge14" and arms GRER bit 14 — and
+    // only the rising edge — so the panel's pen signal reaches the SoC
+    // inverted: the pin idles low and goes high while the stylus is down.
+    static constexpr int kNetpadPenGpio = 14;
     static constexpr size_t kRamSize = 2 * kBankSize;
     static constexpr uint32_t kRamMask = kRamSize - 1;
     uint8_t RAM[kBankSize];        // bank 0 (regions 0xC0-0xC7 alias)
     uint8_t RAM2[kBankSize];       // bank 1 (regions 0xC8-0xCF alias)
+    // Banks 2 and 3 (regions 0xD0-0xD7, 0xD8-0xDF) — populated only on
+    // 4-bank machines (netpad, 64 MB). On 2-bank machines 0xD0-0xDF stays a
+    // read alias of bank 0 (see readPhysical), so these go unused there.
+    uint8_t RAM3[kBankSize];       // bank 2 (regions 0xD0-0xD7) — netpad
+    uint8_t RAM4[kBankSize];       // bank 3 (regions 0xD8-0xDF) — netpad
 
     const uint8_t *romPtr()  const { return ROM; }
     const uint8_t *ramPtr()  const { return RAM; }
     const uint8_t *ram2Ptr() const { return RAM2; }
+    // Banks 2/3 and the live bank count — needed by the CPU's host-pointer
+    // fast path so it resolves regions 0xD0-0xDF to the same host memory as
+    // readPhysical/writePhysical (bank 2/3 on 4-bank machines, a bank-0
+    // alias on 2-bank ones).  Disagreeing there silently splits a physical
+    // address across two buffers.
+    const uint8_t *ram3Ptr() const { return RAM3; }
+    const uint8_t *ram4Ptr() const { return RAM4; }
+    int ramBanks() const { return ramBanks_; }
 
 protected:
     // LCD dimensions reported to the frontend. The netBook has a native
@@ -81,6 +124,67 @@ protected:
     virtual int lcdWidth() const  { return 640; }
     virtual int lcdHeight() const { return 480; }
     virtual const char *deviceName() const { return "Psion Series 7"; }
+
+    // CP15 c0 Main ID register presented to the guest. The netBook /
+    // Series 7 ship a DEC StrongARM SA-1100 (0x4401A11x); variants built
+    // on the Intel SA-1110 (e.g. the netpad, whose boot ROM refuses to
+    // run unless (id & 0xfffffff0) == 0x6901b110) override this.
+    virtual uint32_t processorId() const { return 0x4401A118; }
+
+    // Number of 16 MB SDRAM banks the machine populates. netBook / Series 7
+    // have two (32 MB: bank 0 at 0xC0, bank 1 at 0xC8); the netpad has four
+    // (64 MB: adds bank 2 at 0xD0, bank 3 at 0xD8). Two-bank machines keep
+    // the historical 0xD0-0xDF = bank-0 read alias.
+    virtual int ramBankCount() const { return 2; }
+
+    // Byte offset within the ROM image at which the bootable EPOC ROM
+    // starts. netBook / Series 7 boot from offset 0; the netpad image
+    // carries a 0xC0000 boot-partition prefix (its own reset stub at
+    // offset 0 that redirects to the OS ROM at 0xC0000, which is linked at
+    // 0x50000000). Loading from that offset puts the OS reset vector at
+    // physical 0 so VA 0x50000000 (ROMBASE) maps to real code.
+    virtual size_t romLoadOffset() const { return 0; }
+
+    // Size of the boot-flash address window. netBook / Series 7 decode a
+    // 16 MB flash (0x1000000); the netpad has 32 MB. Only affects address
+    // masking for region-0 and the 0x50 ROM alias — the physical ROM[]
+    // backing store stays 16 MB (the 12.3 MB image fits), and reads above
+    // the image return the erased-flash pattern.
+    virtual size_t romWindowBytes() const { return kRomSize; }
+
+    // Whether the boot flash is also visible in physical regions
+    // 0x50-0x57 (the address EPOC links the ROM at, 0x50000000).  The
+    // netpad's second-stage init re-runs the reset stub from VA
+    // 0x500c0100 and disables the MMU mid-sequence, so execution must
+    // keep fetching ROM at physical 0x50xxxxxx.  netBook / Series 7 reach
+    // the ROM only through the MMU (VA 0x50000000 -> PA 0), so they leave
+    // this false and physical 0x50-0x5F stays the Eiger companion-ASIC
+    // window.  (0x58 is left as Eiger regardless — VA 0x58030000.)
+    virtual bool flashAliasedAt0x50() const { return false; }
+
+    // OSCR rate multiplier: how many 3.6864 MHz OS-timer ticks the guest
+    // sees per real tick.  1 is the spec-correct rate; the Series 7 /
+    // netBook default to 10 because their kernels don't reach WSERV at
+    // 1× (see the kOsTimerScale comment below for that open bug).
+    //
+    // Anything but 1 skews every duration the guest measures off OSCR,
+    // and on the netpad that was user-visible in three places: EPOC's
+    // key auto-repeat fired mid-tap (one on-screen keyboard press
+    // registered as 3-8), the board-codec driver's inter-transfer waits
+    // expired before the SSP had clocked its frames (leaving stale words
+    // in the RX FIFO — a garbage backup-battery reading and, when it
+    // landed during app launch, a half-painted wedged UI), and the clock
+    // ran fast.  The netpad kernel boots happily at 1×, so it takes the
+    // faithful rate.
+    virtual int64_t osTimerScale() const { return 10; }
+
+    // Whether this is the Psion netpad (SA-1110 variant).  The netpad's
+    // boot ROM drives several board-specific peripherals the netBook /
+    // Series 7 lack — an early bit-banged serial device with a GPIO-23
+    // "ready" handshake among them — so a handful of SoC paths need to
+    // know they are running the netpad.  Default false; NetpadEmulator
+    // overrides it.  Cached into isNetpad_ at reset() (see flashAlias50_).
+    virtual bool isNetpad() const { return false; }
 
     // Current LCD framebuffer base address (populated when the guest
     // writes LCCR0.ENA; exposed so readLCDIntoBuffer can reuse it
@@ -146,6 +250,56 @@ public:
         return bank[a];
     }
     void     readLCDIntoBuffer(uint8_t **lines, bool is32BitOutput) const override;
+    // Quarter-turns anticlockwise the panel image needs to be shown at.
+    // Non-zero only on the netpad, and only while its EPOC build is
+    // drawing rotated — see netpadScreenOrientation in sa1100.cpp.
+    int      getScreenOrientation() const override;
+
+    // ── Unique id, low half (Eiger serial EEPROM) ─────────────────────
+    // The 32-bit little-endian word at EEPROM offset 0x18, which the
+    // kernel reads over the ASIC command port (see initEepromImage) and
+    // shows as the last two groups of Machine information's "Unique id".
+    //
+    // initEepromImage's defaults give this word other meanings too — byte
+    // 0x18 doubles as the panel orientation and bits 31-30 as a machine
+    // type selector — so an arbitrary id overwrites those.  That was
+    // measured rather than assumed: a Series 7 and a netpad both cold-boot
+    // cleanly with the word set to DEADBEEF (netpad boot-check variance
+    // 4732.47, byte-identical to its golden run, orientation still 0), so
+    // the whole word is writable and the id the user asks for is the id
+    // the machine reports.
+    bool     hasMachineId() const override { return true; }
+    uint32_t getMachineId() const override;
+    // High half of the Unique id EPOC prints, from the ROM rather than the
+    // EEPROM.  Read out of the Series 7 v1.05(254) Machine information
+    // dialog (which showed 0908-0001-4AFE-BA01).
+    // The model UID for this build is 09080001.  It occurs TEN times in
+    // that image, not once as on the Windermere ROMs — seven of them in
+    // what looks like a repeated module-header field — so every copy is
+    // rewritten together.  Doing all ten boots and changes the id; doing a
+    // subset black-screens the machine, which is why the offsets are
+    // patched as a set and never individually.
+    //
+    // The netBook OS image (netBook_v1.05(450)_eng.img) carries the same
+    // constant the same ten times, at the analogous places in the same
+    // module-header field, so it takes the same patch — only the copies
+    // live on the CF card rather than in flash, because that is where its
+    // OS comes from (see machineIdPrefixCardOffsets_).  The netpad's EPOC
+    // R5 image has ELEVEN copies, one more than the field accounts for, and
+    // its dialog has never been read to say which value is the model UID —
+    // so it alone still reports 0 ("unknown") and the host shows only the
+    // half it can actually change.
+    static constexpr uint32_t kMachineIdPrefixDefault = 0x09080001u;
+    uint32_t getMachineIdPrefix() const override { return machineIdPrefix_; }
+    // The netBook reports settable with an empty slot: its copies are on
+    // the OS card, which the frontend ejects on every reset, so the id is
+    // normally programmed while there is no card to patch and applied to
+    // whichever one is attached next.
+    bool canSetMachineIdPrefix() const override {
+        return !machineIdPrefixOffsets_.empty() || isNetBookBootloader_;
+    }
+    bool setMachineIdPrefix(uint32_t prefix) override;
+    bool     setMachineId(uint32_t id) override;
 
     // Audio bridge (UCB1200 codec via MCP port).  Speaker DAC samples
     // pushed by the OS via MCDR0 writes drain into audio_; host pulls
@@ -176,7 +330,11 @@ public:
     bool     attachCard(const uint8_t *bytes, size_t size) override;
     bool     updateCardImageInPlace(const uint8_t *bytes, size_t size) override;
     void     detachCard() override;
-    bool     isCardInserted() const override { return cfCard.inserted(); }
+    // netpad: the slot holds an MMC card on the FPGA's SPI port; every
+    // other SA-11x0 machine here has a PC-Card socket.
+    bool     isCardInserted() const override {
+        return isNetpad_ ? mmcCard.inserted() : cfCard.inserted();
+    }
     // CF image accessors used by the WASM bridge (readCFImage path) so
     // the frontend's CFCardDialog can pull the current bytes back and
     // list the files on the card.  The bytes come straight from
@@ -185,8 +343,12 @@ public:
     // as EmuBase's default did) is essential on the netBook —
     // otherwise the user clicks "Insert CF card containing OS" and
     // the dialog still shows an empty card.
-    size_t       getCardImageSize() const override { return cfCard.imageSize(); }
-    const uint8_t *getCardImageData() const override { return cfCard.data(); }
+    size_t       getCardImageSize() const override {
+        return isNetpad_ ? mmcCard.imageSize() : cfCard.imageSize();
+    }
+    const uint8_t *getCardImageData() const override {
+        return isNetpad_ ? mmcCard.imageData() : cfCard.data();
+    }
     // Bootloader-handoff helper: scans a FAT16 CF image for the
     // "EPOCARM ROM" magic prefixing D:\OS.IMG, strips the 256-byte
     // header, re-runs loadROM() with the body and resets the CPU.
@@ -349,6 +511,13 @@ public:
     // netBook YModem bootloader's filesystem stack to read D:\OS.IMG.
     VCFCard  cfCard;
 
+    // The netpad's removable-media card.  Hangs off the board FPGA's SPI
+    // port rather than a PCMCIA socket (see the FPGA block above), so it
+    // is a separate model from the CompactFlash one; the netpad has no
+    // PC-Card socket wired up and the machines that do have no MMC slot,
+    // so the two never coexist on one device.
+    NetpadMmcCard mmcCard;
+
     // Report CF/ATA activity so the harness CF_STATS line reflects the real
     // ATA commands the netBook driver issues (ataCommandCount bumps on every
     // command-register write; sectorBoundaryCount on sector-buffer drains).
@@ -436,6 +605,14 @@ public:
 
 private:
     bool configured = false;
+    // Cached flashAliasedAt0x50() (the vtable is live by configure() time),
+    // read on the physical-read slow path to alias ROM into region 0x50-0x57.
+    bool flashAlias50_ = false;
+    // Cached isNetpad() (see the virtual for why the SoC paths need it).
+    bool isNetpad_ = false;
+    // Cached ramBankCount() / romWindowBytes()-1 for the physical-access paths.
+    int ramBanks_ = 2;
+    uint32_t romWinMask_ = kRomSize - 1;
     void configure();
 
     // Register-level helpers for each peripheral block. Each returns
@@ -462,6 +639,425 @@ private:
 
     uint32_t readGpio(uint32_t off, ValueSize vs);
     void     writeGpio(uint32_t off, uint32_t value, ValueSize vs);
+
+    // netpad nCS4 (physical region 0x40) board register file.  The boot
+    // ROM initialises a board-specific serial peripheral here by busy-
+    // waiting on its TX-ready status bit and clocking a byte stream out
+    // (see readGpio and FUN_500044ac).  We don't model the target device,
+    // so reads report the transmitter permanently ready; writes land in
+    // npBoard_ so the registers the OS *does* use for something visible
+    // (the contrast DAC, see below) can be read back by the emulator.
+    uint32_t readNcs4Serial(uint32_t physAddr, ValueSize vs);
+    void     writeNcs4Serial(uint32_t physAddr, uint32_t value, ValueSize vs);
+
+    // ── netpad board FPGA: interrupt controller + MMC SPI port ───────
+    //
+    // Two blocks of the nCS4 register file are modelled (the rest keeps
+    // the permissive defaults in readNcs4Serial):
+    //
+    //   0x10  interrupt status — bit n is the variant interrupt EPOC
+    //         names "IrqExternal<n>".  The ASSP finds the lowest pending
+    //         line here (ROM 0x500a7004) and acknowledges by writing the
+    //         bit back (0x500a6fac).
+    //   0x12  interrupt enable mask (0x500a6f74 / 0x500a6f90).
+    //   0x1a  board status; bit 6 is the MMC card-detect switch, read
+    //         inverted by the variant's socket-0 card-present helper
+    //         (0x500a8014: present == !(reg & 0x40)).
+    //   0x100 MMC SPI control: bit 0 enable, bit 3 selects 8-bit frames
+    //         over 16-bit, bit 5 is the card's chip select.  The variant
+    //         asserts bit 5 around each transaction (0x500a8498 /
+    //         0x500a84a4) and medmmc.pdd flips bit 3 around the 512-byte
+    //         block transfers (ROM 0x50368830 / 0x50368874).
+    //   0x102 status: bit 0 busy, bit 3 port ready.
+    //   0x104 clock divider — the variant programs 400 kHz for the card
+    //         identification phase and steps it up afterwards.
+    //   0x106 16-bit data register; 0x108 the 8-bit one.
+    static constexpr uint32_t kNpFpgaIrqStatus = 0x10;
+    static constexpr uint32_t kNpFpgaIrqEnable = 0x12;
+    static constexpr uint32_t kNpFpgaBoardStat = 0x1a;
+    static constexpr uint32_t kNpFpgaMmcCardDetect  = 0x40;  // 1 = slot empty
+    static constexpr uint32_t kNpFpgaMmcMediaPresent = 0x08; // 1 = card in
+    static constexpr uint32_t kNpMmcCtrl    = 0x100;
+    static constexpr uint32_t kNpMmcStatus  = 0x102;
+    static constexpr uint32_t kNpMmcClkDiv  = 0x104;
+    static constexpr uint32_t kNpMmcData16  = 0x106;
+    static constexpr uint32_t kNpMmcData8   = 0x108;
+    static constexpr uint16_t kNpMmcCtrlEnable     = 0x0001;
+    static constexpr uint16_t kNpMmcCtrlByteWide   = 0x0008;
+    static constexpr uint16_t kNpMmcCtrlChipSelect = 0x0020;
+    static constexpr uint32_t kNpMmcStatusReady    = 0x0008;
+    // The FPGA's interrupt output pin on the SoC.  GPIO 10 is the only
+    // GPIO besides the power button (1), GPIO 0 and the pen-detect line
+    // (14) whose rising edge the netpad's EPOC build ever arms.
+    static constexpr int kNetpadFpgaIrqGpio = 10;
+    // Variant interrupt line for the card slot's media change.  The
+    // variant maps socket 0 (the MMC slot) to "IrqExternal11" and the
+    // PC-Card socket to "IrqExternal12" — ROM 0x500a8088.
+    static constexpr int kNetpadMmcMediaChangeLine = 11;
+
+    // ── netpad AC'97 audio controller ────────────────────────────────
+    //
+    // The netpad's sound hardware is an AC'97 codec on a controller in
+    // the same board FPGA as the MMC port, five halfword registers at
+    // nCS4 0x200 (VA 0x58030200).  Three pieces of the ROM drive it and
+    // they agree on the map, which is where every constant below comes
+    // from:
+    //
+    //   * the ASSP's accessors inside EKern.exe — ROM 0x50005118
+    //     (control read-modify-write), 0x50005140 (status, masked
+    //     0x9f), 0x50005158 (write a codec register), 0x50005180 /
+    //     0x50005194 (start a codec-register read / collect it) and
+    //     0x500051a0 / 0x500051b0 (write / read a PCM sample);
+    //   * \System\Libs\Esdrv.pdd, the "Sound.Ac97" sound PDD, which
+    //     calls those accessors — its record path is at ROM 0x502e7ac8
+    //     and its play path at 0x502e795c;
+    //   * \System\Libs\d_ac97.ldd, the "Codec.Ac97" test driver, which
+    //     carries its own copy of the same accessors (ROM 0x5036cd2c
+    //     onwards) plus straight-line Play / Record loops at 0x5036c8b8
+    //     and 0x5036c938.
+    //
+    //   0x200  PCM data.  Writing pushes a playback sample into the TX
+    //          FIFO; reading pops a recorded one out of the RX FIFO.
+    //          16-bit signed, one sample per access.
+    //   0x202  codec register index.  Bit 0 selects direction: writing
+    //          index|1 starts a read whose result appears at 0x204;
+    //          writing an even index commits the value staged at 0x204.
+    //   0x204  codec register data (staged before a write, read back
+    //          after a read).
+    //   0x206  control.  Bit 0 releases the codec's reset, bit 1
+    //          enables the AC-link, bit 2 is a receive-FIFO flush the
+    //          sound PDD pulses at the start of a recording.
+    //   0x208  status, of which the drivers use bit 0 (RX FIFO empty),
+    //          bit 4 (TX FIFO full) and bit 7 (codec command busy).
+    //
+    // Both FIFOs are 16 deep: the play path pre-fills exactly sixteen
+    // samples before it enables its interrupt (ROM 0x502e79d8) and the
+    // record ISR drains eight per service request (0x502e7a5c).
+    static constexpr uint32_t kNpAc97Data   = 0x200;
+    static constexpr uint32_t kNpAc97Index  = 0x202;
+    static constexpr uint32_t kNpAc97Value  = 0x204;
+    static constexpr uint32_t kNpAc97Ctrl   = 0x206;
+    static constexpr uint32_t kNpAc97Status = 0x208;
+    static constexpr uint16_t kNpAc97IndexRead   = 0x0001;
+    static constexpr uint16_t kNpAc97IndexMask   = 0x007E;
+    static constexpr uint16_t kNpAc97CtrlReset   = 0x0001;
+    static constexpr uint16_t kNpAc97CtrlEnable  = 0x0002;
+    static constexpr uint16_t kNpAc97CtrlRxFlush = 0x0004;
+    static constexpr uint16_t kNpAc97StatRxEmpty = 0x0001;
+    static constexpr uint16_t kNpAc97StatTxFull  = 0x0010;
+    static constexpr uint16_t kNpAc97StatBusy    = 0x0080;
+    static constexpr uint16_t kNpAc97StatMask    = 0x009F;
+    // AC'97 codec registers the ROM's drivers touch by number.
+    static constexpr uint8_t kAc97RegPowerdown = 0x26;  // + ready status
+    static constexpr uint8_t kAc97RegDacRate   = 0x2C;  // PCM front DAC rate
+    static constexpr uint8_t kAc97RegAdcRate   = 0x32;  // PCM L/R ADC rate
+    static constexpr uint16_t kAc97PowerdownReady = 0x000F;  // REF/ANL/DAC/ADC
+    // The two variant interrupt lines the sound drivers bind, named
+    // "IrqExternal3" and "IrqExternal4" in both Esdrv.pdd's and
+    // d_ac97.ldd's string tables.  They are the codec's play and record
+    // FIFO service requests; which name carries which direction is not
+    // decidable from the ROM (both drivers bind both names and neither
+    // driver is ever opened during an ordinary session, so no trace
+    // pins it down).  It doesn't have to be: the sound PDD runs one
+    // direction at a time and arms only the line it needs, so
+    // netpadAc97ServiceIrq falls back to whichever of the two is
+    // actually enabled and the model is correct under either mapping.
+    static constexpr int kNetpadAc97PlayLine   = 3;
+    static constexpr int kNetpadAc97RecordLine = 4;
+
+    struct NetpadAc97 {
+        static constexpr int kFifoDepth    = 16;
+        static constexpr int kRxServiceLvl = 8;   // samples per record IRQ
+        static constexpr int kTxServiceLvl = 8;   // room before a play IRQ
+        uint16_t codecReg[64] = {};
+        uint16_t ctrl        = 0;
+        uint16_t staged      = 0;   // value written to 0x204 before an index
+        uint16_t readback    = 0;   // value 0x204 returns after a read request
+        int16_t  tx[kFifoDepth] = {};
+        int16_t  rx[kFifoDepth] = {};
+        int      txCount = 0;
+        int      rxCount = 0;
+        bool     txArmed = false;   // guest has queued playback samples
+        bool     rxArmed = false;   // guest has started a recording
+        // Cycles banked towards the next sample in each direction, and
+        // when the clock was last advanced.  Counting in cycles rather
+        // than in ticks is what keeps the codec at its programmed rate:
+        // the emulator's audio tick fires a little late whenever the
+        // CPU overshoots its deadline, and a per-tick counter loses
+        // that overshoot (measurably — a quarter of a recording).
+        int64_t  txCycles = 0;
+        int64_t  rxCycles = 0;
+        int64_t  lastTickCycle = 0;
+        int64_t  lastPcmCycle = 0;  // last touch of the PCM data register
+    } npAc97_;
+
+    // True while the codec is streaming.  The FIFO clock only has to
+    // keep up with the codec's sample rate while a transfer is running,
+    // and the machine is idle most of the time, so this is what keeps
+    // netpadAc97Tick out of the SoC's wake set the rest of the time.
+    // "Streaming" is measured from the last access to the PCM data
+    // register (or the receive-FIFO flush that opens a recording)
+    // rather than from a driver state bit, because the sound PDD's stop
+    // path powers the codec's sections down through its own registers
+    // and leaves the controller enabled.
+    bool     netpadAc97Streaming() const {
+        return netpadAc97LinkEnabled() && npAc97_.lastPcmCycle != 0 &&
+               passedCycles - npAc97_.lastPcmCycle < CLOCK_SPEED;
+    }
+
+    void     netpadAc97Reset();
+    bool     netpadAc97Read(uint32_t reg, uint32_t &out);
+    bool     netpadAc97Write(uint32_t reg, uint16_t value);
+    void     netpadAc97Tick();
+    void     netpadAc97ServiceIrq(bool record);
+    uint16_t netpadAc97CodecRead(uint8_t index) const;
+    int      netpadAc97Rate(uint8_t rateReg) const;
+    bool     netpadAc97LinkEnabled() const {
+        return (npAc97_.ctrl & (kNpAc97CtrlReset | kNpAc97CtrlEnable)) ==
+               (kNpAc97CtrlReset | kNpAc97CtrlEnable);
+    }
+    // PSION_NETPAD_AC97_TRACE — log codec register traffic, FIFO
+    // starts/stops and service interrupts.
+    bool     npAc97Trace_ = false;
+
+    struct NetpadFpga {
+        static constexpr int kRxDepth = 8;
+        uint16_t rx[kRxDepth] = {};
+        uint8_t  rxCount   = 0;
+        uint16_t spiCtrl   = 0;
+        uint16_t spiClkDiv = 0;
+        uint16_t irqStatus = 0;
+        uint16_t irqEnable = 0;
+    } npFpga_;
+
+    bool     netpadFpgaRead(uint32_t reg, uint32_t &out);
+    bool     netpadFpgaWrite(uint32_t reg, uint32_t value);
+    void     netpadFpgaRaiseIrq(int line);
+    void     recomputeNetpadFpgaIrq();
+    uint16_t netpadMmcPopRx();
+    void     netpadMmcPushRx(uint16_t v);
+    void     netpadMmcTransfer(uint16_t txWord, int bytes);
+    bool     netpadAttachMmc(const uint8_t *bytes, size_t size);
+    void     netpadDetachMmc();
+    // PSION_NETPAD_MMC_TRACE — log every SPI frame and card-detect edge.
+    bool     npMmcTrace_ = false;
+
+    // ── netpad screen contrast ───────────────────────────────────────
+    // The board's register file is a set of 16-bit locations on nCS4,
+    // reached through VA 0x58030000 (the ASSP's WriteBoardReg helper at
+    // ROM 0x50005510); only the low byte of each carries data.
+    //
+    // Register 0x0a is a 5-bit contrast DAC feeding the
+    // panel's bias generator: the boot stub parks it at full scale (0x1f)
+    // and EPOC then programs the user's setting from Control panel →
+    // Screen.  The dialog's level L (as shown in the "Contrast" spinner)
+    // maps to 4L − 4 clipped to the DAC's 0..31 range, so its factory
+    // default (level 6) is 20 — which is what we treat as "no change" in
+    // the render path.  See applyNetpadContrast in sa1100.cpp.
+    static constexpr uint32_t kNpContrastReg     = 0x0a;
+    static constexpr uint8_t  kNpContrastDefault = 20;
+    static constexpr uint8_t  kNpContrastMax     = 31;
+    // Softening term in the render-side gain (see applyNetpadContrast).
+    static constexpr int      kNpContrastFloor   = 8;
+    uint8_t npContrast_ = kNpContrastDefault;
+    // Apply the current contrast setting to one decoded palette channel.
+    // Identity when the DAC sits at its default, so every device that
+    // isn't the netpad — and a netpad the user hasn't touched — renders
+    // byte-for-byte as before.
+    uint8_t applyNetpadContrast(uint8_t channel) const;
+
+    // ── netpad screen orientation ────────────────────────────────────
+    // "Switch orientation" on the netpad's Tools menu turns the machine
+    // from a landscape slab into a portrait one, and none of it happens
+    // in hardware: LCCR1/LCCR2/DBAR1 are untouched across the switch, so
+    // the LCD controller keeps scanning the same 640x240 panel out of the
+    // same framebuffer and EPOC's screen driver simply starts drawing the
+    // UI rotated inside it.  A host showing the machine the way its user
+    // holds it therefore has to rotate the panel image itself, and to do
+    // that it has to be told — which means reading the state out of the
+    // guest, since nothing on the bus carries it.
+    //
+    // It lives in the screen driver's draw device, an ScDv.dll object in
+    // RAM whose tail is unmistakable:
+    //
+    //   +0x00  vtable, into ScDv.dll (\System\Libs, ROM 0x502d3ce0)
+    //   +0x20  panel width   0x280 = 640
+    //   +0x24  panel height  0x0f0 = 240
+    //   +0x28  framebuffer VA + 0x200 — past the 256-entry palette the
+    //          LCD DMA reads from the head of the buffer
+    //   +0x30  orientation: 0 landscape, 1 rotated (Symbian's
+    //          TOrientation runs 0..3; this ROM's menu toggles 0 <-> 1)
+    //   +0x34  framebuffer VA — the kernel's mapping of the panel, which
+    //          the LCD controller scans from PA 0xC0000000
+    //
+    // so netpadFindDrawDevice locates it by scanning bank 0 for the pixel
+    // pointer at +0x28 and confirming the geometry around each hit —
+    // exactly one match in the full 16 MB bank — and getScreenOrientation
+    // reads the quadrant out of it.  Which way to turn the panel was
+    // settled by driving the menu through the harness and rotating the
+    // screenshot: anticlockwise is the one that comes out upright
+    // (tests/stress/netpad_orientation.sh).
+    //
+    // The located address is cached between polls, in a file-scope static
+    // in sa1100.cpp rather than a member — see the note on the CF
+    // diagnostics above for why this object's layout is left alone.
+    static constexpr uint32_t kNpFramebufferVa   = 0x58040000;
+    static constexpr uint32_t kNpDrawDevWidth    = 0x20;   // object offsets
+    static constexpr uint32_t kNpDrawDevHeight   = 0x24;
+    static constexpr uint32_t kNpDrawDevFbPixels = 0x28;
+    static constexpr uint32_t kNpDrawDevOrient   = 0x30;
+    static constexpr uint32_t kNpDrawDevFbBase   = 0x34;
+    // Sim cycles between re-scans while the object hasn't been found —
+    // it only exists once the screen driver is up, so a machine still in
+    // early boot would otherwise re-scan on every poll.
+    static constexpr int64_t  kNpDrawDevScanGap  = CLOCK_SPEED;   // ~1 s
+    uint32_t netpadFindDrawDevice() const;
+    bool     netpadDrawDeviceAt(uint32_t pa) const;
+    uint32_t netpadRamWord(uint32_t pa) const;
+
+    // netpad bit-banged I2C slave (SCL = GPIO 15, SDA = GPIO 16).  The
+    // boot ROM drives the bus open-drain by flipping GPDR direction bits
+    // (input = released → pull-up high, output = driven low; the output
+    // latch stays 0).  Without a slave every transaction ends in NACK and
+    // the board init retries forever, so we decode the waveform from the
+    // GPDR writes and act as a permissive slave: ACK every address, sink
+    // written bytes, and shift out a configurable byte for reads.  State
+    // is a small FSM stepped on every GPIO register write (see
+    // netpadI2cUpdate in sa1100.cpp).
+    struct NetpadI2c {
+        bool    sclPrev  = true;   // previous SCL bus level (idles high)
+        bool    sdaPrev  = true;   // previous SDA bus level (idles high)
+        bool    slaveSdaLow = false; // slave is pulling SDA low right now
+        uint8_t phase    = 0;      // Phase enum in sa1100.cpp
+        uint8_t bitCount = 0;
+        uint8_t shift    = 0;      // RX shift register (addr / write data)
+        uint8_t addr     = 0;      // last address byte (incl. R/W bit)
+        uint8_t txByte   = 0;      // TX shift register (read data)
+        // ── board-controller command state (see netpadBoardCtlWrite) ──
+        uint8_t  cmd     = 0;      // opcode byte of the transfer in flight
+        uint8_t  pending = 0;      // opcode still waiting for its argument
+        uint16_t ptr     = 0;      // 16-bit read pointer set by 0x91/0x92
+        uint8_t  msg     = 0;      // pack message selected by 0x96
+    } npI2c_;
+    void    netpadI2cUpdate();
+    // One byte written to / read from the board controller at slave 0x5a.
+    void    netpadBoardCtlWrite(uint8_t byte);
+    uint8_t netpadBoardCtlRead();
+    // Backing store for the controller's 16-bit-addressed data window.
+    uint8_t netpadBoardCtlData(uint16_t addr) const;
+    // Smart-battery payload the controller reports (see
+    // netpadBoardCtlData in sa1100.cpp for the derivation of each byte).
+    static constexpr uint8_t kNpPackTempC       = 25;   // room temperature
+    static constexpr uint8_t kNpPackVolts10mV   = 200;  // 2.00 V raw reading
+    static constexpr uint8_t kNpPackGaugeGood   = 1;    // calibrated, ~95%
+    static constexpr uint8_t kNpPackGaugeLow    = 18;   // calibrated, near 0%
+    static constexpr uint8_t kNpPackDepletedLow = 100;  // PSION_NETPAD_BATT_LOW
+    // Pack messages the driver asks for with 0x96 <n> (see
+    // netpadBoardCtlData).  Only the manufacturer needs its own payload:
+    // every other message the ER5 build issues either reads bytes the
+    // status block already defines or fields we leave at zero.
+    static constexpr uint8_t kNpMsgManufacturer = 5;    // 3-char maker code
+    // The maker code, exactly three characters — the driver reads three
+    // bytes into a three-character descriptor and the Shell prints all
+    // three, so there is no room for a longer name; a shorter one pads
+    // with spaces, which the page draws as trailing blanks.
+    static constexpr char    kNpPackMaker[3]    = { 'J', 'H', ' ' };
+
+    // PSION_NETPAD_SSP_TRACE — trace the netpad's SSP traffic (board
+    // codec: touchscreen + ADC channels).  See readSsp().
+    bool netpadSspTrace() const;
+
+    // ── netpad SSP board codec (ADS7846-class touch / ADC controller) ──
+    //
+    // The netpad hangs its touchscreen-and-ADC controller off the REAL
+    // SA-1110 SSP (PA 0x80070000) rather than a Psion ASIC, and drives it
+    // exactly the way the ADS7846/TSC2046 datasheet prescribes: an 8-bit
+    // control byte (S | A2 A1 A0 | MODE | SER-DFR | PD1 PD0) followed by
+    // enough clocks to shift the 12-bit result back, with the chip select
+    // (GPIO 13) held around the whole batch.
+    //
+    // The variant's sampler (ROM 0x5000a0dc / 0x5000a204) queues four
+    // command/dummy word PAIRS into the 8-deep transmit FIFO, waits for
+    // SSSR.BSY to drop, then reads all eight receive words back and
+    // rebuilds the sample from the last two:
+    //     value = ((rx[6] & 7) << 9) | ((rx[7] & 0xff8) >> 3)
+    // which is precisely "busy bit + DB11..DB9" in one 12-bit frame and
+    // "DB8..DB0 + 3 trailing zeros" in the next.  So we model the slave at
+    // BIT level and let SSP framing fall out of it: any DSS / batching the
+    // driver picks produces the right answer.
+    struct NetpadSsp {
+        static constexpr int kFifoDepth = 8;   // SA-1110 SSP FIFOs are 8 deep
+        uint16_t tx[kFifoDepth] = {};
+        uint16_t rx[kFifoDepth] = {};
+        uint8_t  txCount = 0;
+        uint8_t  rxCount = 0;
+        bool     ror     = false;              // receive overrun (sticky)
+        bool     busy    = false;              // a frame is on the wire
+        uint16_t frameWord    = 0;             // word being shifted out
+        int64_t  frameEndCycle = 0;            // when it finishes
+        // ADS7846 serial state.  The slave hunts for a start bit, collects
+        // eight control bits, then clocks out a leading busy bit followed
+        // by the 12 result bits (MSB first); everything after that is zero.
+        uint8_t  cmdShift = 0;
+        uint8_t  cmdBits  = 0;                 // 0 = hunting for the start bit
+        uint16_t outShift = 0;
+        uint8_t  outBits  = 0;
+    } npSsp_;
+
+    uint32_t netpadSspRead(uint32_t off);
+    void     netpadSspWrite(uint32_t off, uint32_t value);
+    void     netpadSspTick();                  // called from the tick loop
+    void     netpadSspStartFrame();
+    void     netpadSspFinishFrame();
+    void     netpadSspFlush();                 // SSE 1->0 clears both FIFOs
+    uint8_t  netpadSspFrameBits() const;       // DSS + 1
+    int64_t  netpadSspFrameCycles() const;     // bits × SCR-derived bit time
+    uint8_t  netpadAdsClockBit(uint8_t txBit); // one SCLK edge on the codec
+    uint16_t netpadAdsConvert(uint8_t control) const;
+    void     recomputeNetpadSspIrq();
+    // Next SSP frame completion, for the deadline batcher / WFI wake.
+    int64_t  netpadSspNextEvent() const {
+        return (isNetpad_ && npSsp_.busy) ? npSsp_.frameEndCycle : INT64_MAX;
+    }
+
+    // netpad sleep/wake.  The netpad OS boots to the EPOC "off" state
+    // (PMCR.SF=1 deep sleep with a resume context parked at PSPR); on
+    // real hardware the power button (PWER GPIO 1) triggers a sleep-mode
+    // RESET, and the ROM stub at PA 0 sees RCSR.SMR, re-inits SDRAM and
+    // jumps through the PSPR context.  npWakeAtCycle_ is the one-shot
+    // synthetic power-button press armed at the first sleep entry;
+    // netpadSleepExitReset() performs the faithful wake-by-reset.
+    int64_t npWakeAtCycle_ = 0;
+    // While non-zero, the synthetic power button is held down (GPLR bit
+    // high); the per-frame hook releases it when this cycle passes.
+    int64_t npWakeReleaseAtCycle_ = 0;
+    // Deep-sleep external wake timer (board controller -> GPIO 27):
+    // armed on sleep entry, fires ~31 ms later.  0 = not armed.
+    int64_t npSleepPulseAtCycle_ = 0;
+    bool    npAutoWakeDone_ = false;
+    void netpadSleepExitReset();
+    // Synthetic power-button press (wake edge + the GPIO 14 level the
+    // resume stub samples).  See the definition in sa1100.cpp.
+    void netpadPressPowerButton(const char *why);
+
+    // netpad key delivery.  The machine has no keyboard hardware, so
+    // host key presses are handed to the kernel's own Kern::AddEvent as
+    // synthetic TRawEvents.  See netpadInjectKeyEvent in sa1100.cpp.
+    void     netpadInjectKeyEvent(uint32_t evType, int32_t scanCode);
+    // Which EPOC scan codes the host currently holds down.  A matrix
+    // machine absorbs a repeated press of a held key; a stream of
+    // synthetic TRawEvents does not, so setKeyboardKey only forwards
+    // genuine edges.  256 covers the EStdKey space (max EStdKeyMenu-class
+    // codes are < 0x100).
+    std::bitset<256> npKeysDown_;
+    // PSION_NETPAD_PC_RANGE=<lo>-<hi> — first-visit PC tracer (see stepCpu).
+    bool     npPcTrace_ = false;
+    // PSION_NETPAD_LR_WATCH=<addr> — indirect-branch callee tracer.
+    uint32_t npLrWatch_ = 0;
+    uint32_t npPcTraceLo_ = 0, npPcTraceHi_ = 0;
+    std::set<uint32_t> npPcSeen_;
+    // Page-table walk for a kernel VA -> physical address (0 = unmapped).
+    uint32_t resolveKernelPA(uint32_t va);
 
     uint32_t readIntc(uint32_t off, ValueSize vs);
     void     writeIntc(uint32_t off, uint32_t value, ValueSize vs);
@@ -735,22 +1331,26 @@ private:
 
 
     // OS timer state. OSCR is a free-running 3.6864 MHz counter on
-    // real silicon, but we run it at 10× by default (kOsTimerScale=10).
+    // real silicon; osTimerScale() says how many OSCR ticks we hand the
+    // guest per real tick (see the virtual for the per-machine rates).
     //
-    // CAVEAT: dropping to the spec-correct 1× rate causes the kernel
-    // boot to stall before reaching WSERV / Shell.  Verified locally
-    // after the SMULL sign-extension fix in arm710.cpp — even at 60
-    // sim-seconds (15 G CPU cycles) the kernel never advances past
-    // K::Init3.  Hypothesis: a kernel time-elapsed check uses signed
-    // 64-bit math that previously got "lucky" with the broken SMULL
-    // + 10× OSCR combination, and is now waiting for an event that
-    // only fires at perceived real-time intervals.  Further
-    // investigation needed.
+    // CAVEAT (Series 7 / netBook only): dropping those two to the
+    // spec-correct 1× rate causes the kernel boot to stall before
+    // reaching WSERV / Shell.  Verified locally after the SMULL
+    // sign-extension fix in arm710.cpp — even at 60 sim-seconds (15 G
+    // CPU cycles) the kernel never advances past K::Init3.  Hypothesis:
+    // a kernel time-elapsed check uses signed 64-bit math that
+    // previously got "lucky" with the broken SMULL + 10× OSCR
+    // combination, and is now waiting for an event that only fires at
+    // perceived real-time intervals.  Further investigation needed.
     //
-    // PSION_S7_REAL_OSCR=1 selects the spec-correct 1× rate for
-    // diagnosis once we understand the interaction.
+    // PSION_S7_REAL_OSCR=1 selects the spec-correct 1× rate everywhere
+    // for diagnosis once we understand the interaction.
     static constexpr int64_t kOsTimerHz = 3'686'400;
     int64_t kOsTimerScale = 10;
+    // Set when PSION_S7_REAL_OSCR / PSION_S7_FAST_OSCR pinned the rate
+    // from the environment, so configure() leaves kOsTimerScale alone.
+    bool     osTimerScalePinned_ = false;
     uint32_t osmr[4] = {0, 0, 0, 0};
     uint32_t ossr = 0;               // match-event status
     uint32_t oier = 0;               // match-IRQ enable
@@ -1361,6 +1961,55 @@ private:
     // where the device is conceptually always plugged in.
     static constexpr uint16_t kBatteryFullAdc = 4000;
 
+    // ── netpad board-codec ADC levels ────────────────────────────────
+    // The netpad's touch panel is read differentially, so the X/Y counts
+    // are a straight linear function of where the pen is: the plate is
+    // driven rail-to-rail and the wiper voltage is ratiometric.  Both
+    // axes count DOWN across the panel (the plate's driven end is at the
+    // left / top edge), and the panel is a little larger than the visible
+    // 640x240, so the counts at the LCD's own corners sit inside the
+    // 12-bit rails.
+    //
+    // The values below are fitted against the digitiser calibration the
+    // netpad ROM boots with: Exyin.dll's own screen coordinates were read
+    // back (TRawEvent EButton1Down) for taps across the panel, giving a
+    // straight line per axis, which these constants invert.  A tap now
+    // lands within a pixel of the pen everywhere on the panel; if the ROM
+    // calibration is ever re-run on-device, EPOC re-fits its own end and
+    // these stay the raw-hardware end of the chain.
+    static constexpr double kNpTouchXAtLeft   = 3860.0;   // ADC at x = 0
+    static constexpr double kNpTouchXAtRight  =  319.0;   // ADC at x = width
+    static constexpr double kNpTouchYAtTop    = 3564.0;   // ADC at y = 0
+    static constexpr double kNpTouchYAtBottom =  634.0;   // ADC at y = height
+    // The plate is wider than the visible 640 columns, and the overhang
+    // on the right carries the five silkscreen keys printed on the case
+    // (top to bottom: Menu, brightness, Zoom, on-screen keyboard,
+    // Extras).  Extrapolating the X fit above past x = 640, the band the
+    // booted ROM answers on is x = 649..674, split into five equal bands
+    // down the panel height — measured by tapping the netpad desktop
+    // through the native harness and watching which taps the OS acted
+    // on.  netpadAdsConvert therefore must NOT clamp touchX to the
+    // panel; the frontend's silkscreen tap zones aim at the centre of
+    // each band.
+    // Pressure channels.  Rtouch = Rx·(X/4096)·(Z2/Z1 − 1), so a firm
+    // contact is "Z1 large, Z2 barely above it" and a lifted pen is
+    // Z1 = 0 (open circuit = infinite resistance).
+    static constexpr uint16_t kNpTouchZ1Down = 900;
+    static constexpr uint16_t kNpTouchZ2Down = 1150;
+    // Supply monitor channels (single-ended, 12-bit).  The variant's own
+    // channel table (ROM 0x500ab5c0 names / 0x500ab628 control bytes)
+    // says which codec input carries which cell, and the board wires
+    // them the opposite way round to the chip's pin names: the MAIN
+    // battery is on AUX (control 0xe4) and the BACKUP cell is on VBAT
+    // (0xa7 warm-up / 0xa4 final, polled every ~30 s).  Both report a
+    // healthy charge — without a reading at all the power driver sees
+    // zero volts and EPOC puts up its "backup battery critical" warning.
+    // Overridable with PSION_NETPAD_ADC_MAIN / _BACKUP for bring-up.
+    static constexpr uint16_t kNpAdcMain   = 3300;
+    static constexpr uint16_t kNpAdcBackup = 3300;
+    // Temperature channels (TEMP0/TEMP1) — room temperature.
+    static constexpr uint16_t kNpAdcTemp = 2048;
+
     // UCB1200 cmd → response.  Stateful (uses ucbGpio*_ for the GPIO
     // block) so it's a member function, not a free function.
     uint16_t ucb1200Response(uint16_t cmd);
@@ -1771,6 +2420,33 @@ private:
     static constexpr size_t kEepromSize = 128;
     static constexpr uint16_t kEepromBaseAddr = 0x180;
     uint8_t  eepromImage_[kEepromSize] = {};
+
+    // Unique-id word (see the public accessors above).
+    static constexpr size_t   kEepromMachineId = 0x18;
+    // A runtime-programmed ID has to survive initEepromImage(), which
+    // rebuilds the whole image from scratch on the internal reset path
+    // (netpad wake-by-reset).  Remembered here and re-applied there.
+    bool     machineIdOverridden_ = false;
+    uint32_t machineIdOverride_ = 0;
+    // Writes `word` into the ID bytes and re-folds the image checksum.
+    void     applyMachineIdWord(uint32_t word);
+    // Model-UID copies in the loaded ROM (see the accessors above): located
+    // once in loadROM, rewritten as a set.  Zero when unknown for this
+    // build, which is also how the netpad reports "not settable".
+    std::vector<size_t> machineIdPrefixOffsets_;
+    uint32_t machineIdPrefix_ = 0;
+    void     locateMachineIdPrefix();
+    // netBook: the flash this machine boots is the 2 MB YModem bootloader,
+    // and its OS — the image that actually prints the Unique id — is
+    // D:\OS.IMG on the CF card.  Patching ROM[] therefore changes nothing
+    // the user ever sees (worse, the bootloader's own copies of the
+    // constant sit at offsets the OS overwrites wholesale at the handoff),
+    // so the netBook's copies are tracked on the CARD instead: located when
+    // a card is attached, rewritten from there, and read by the guest's own
+    // medata driver on the faithful boot path.
+    std::vector<size_t> machineIdPrefixCardOffsets_;
+    void     locateMachineIdPrefixOnCard();
+    void     applyMachineIdPrefixToCard();
 
     uint32_t readAsic(uint32_t offset, ValueSize vs);
     uint32_t readAsicImpl(uint32_t offset, ValueSize vs);

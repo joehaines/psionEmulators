@@ -12,13 +12,17 @@ interface Props {
 
 export default function DeviceSelector({ onSelect }: Props) {
   const [profiles, setProfiles] = useState<DeviceProfile[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Pull the device list from the WASM module (single source of truth)
+    // Pull the device list from the WASM module (single source of truth).
+    // Surface a load failure rather than leaving "Loading device list…" up
+    // forever — WASM instantiation can fail (memory pressure, a stale cached
+    // psion.js) and the previous unhandled rejection showed nothing.
     loadPsionModule().then(mod => {
       const json = mod.getAllDeviceProfilesJSON();
       setProfiles(JSON.parse(json) as DeviceProfile[]);
-    });
+    }).catch(err => setLoadError(String(err)));
   }, []);
 
   const handleSelect = (profile: DeviceProfile) => {
@@ -33,7 +37,20 @@ export default function DeviceSelector({ onSelect }: Props) {
       </p>
 
       {profiles.length === 0 ? (
-        <p className="text-gray-600 font-mono text-sm">Loading device list…</p>
+        loadError ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-red-600 font-mono text-sm">Device list failed to load.</p>
+            <p className="text-gray-500 font-mono text-xs break-words">{loadError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="self-start px-4 py-1.5 rounded bg-psion-highlight text-psion-charcoal font-mono text-xs hover:brightness-95 transition"
+            >
+              Reload
+            </button>
+          </div>
+        ) : (
+          <p className="text-gray-600 font-mono text-sm">Loading device list…</p>
+        )
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {profiles.map(p => (

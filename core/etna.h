@@ -52,6 +52,10 @@ class Etna {
     // to the CIS-parsing phase.
     int rdyPollsUntilReady = 0;
 
+    // Re-folds the PROM's trailing XOR checksum byte. Every write into
+    // the image has to end with this or the guest reads it as corrupt.
+    void recalcChecksum();
+
 	ARM710 *owner;
 
 public:
@@ -62,11 +66,53 @@ public:
     void writeReg8(uint32_t reg, uint8_t value);
     void writeReg32(uint32_t reg, uint32_t value);
 
-    // PROM
+    // PROM serial protocol (93Cxx-style, bit-banged over Windermere's
+    // port B by ECust). Per word the guest clocks in a command frame —
+    // start bit 1, the 2-bit READ opcode (10), then a 6-bit word index —
+    // and clocks out 16 data bits, MSB first.
+    //
+    // Like the real chip, we ignore clocks until the start bit arrives
+    // rather than counting a fixed-width address, because the ROMs
+    // disagree on the leading padding: the 5mx v1.05(260) clocks the
+    // frame in 9 pulses (25 per word) while the MC218 v1.05(259) sends a
+    // leading zero first, 10 pulses (26 per word). Traced by logging
+    // port-B edges against the ETNA register writes that carry each bit.
+    //
+    // Getting this wrong is silent and total: a decoder fixed at 10 bits
+    // eats the 5mx's first DATA clock, so every word it hands back is
+    // shifted, the kernel's XOR-to-0x42 check over the image fails, and
+    // EPOC discards the whole PROM. That is what made Machine
+    // information report "Unique id 0000-0000-0000-0000" and ignore the
+    // PROM's device-name field. One fixed at 9 breaks the MC218 the same
+    // way. Start-bit detection serves both, and leaves the Revo — whose
+    // ROM drives none of these lines — reading nothing at all, as it
+    // should.
+    static constexpr int kPromFrameBits = 9;   // start + opcode + index
+    static constexpr uint16_t kPromWordIndexMask = 0x3F;   // 64 words
     void setPromBit0High(); // port B, bit 0
     void setPromBit0Low(); // port B, bit 0
     void setPromBit1High(); // port B, bit 1
     void setDeviceName(const char *name);
+
+    // ── Unique machine ID ─────────────────────────────────────────────
+    // Real Psions carry a factory-programmed 32-bit ID in the ETNA
+    // identity PROM, stored little-endian at offset 0x18 (the guest
+    // reads the PROM as 16-bit words through the bit-banged interface
+    // above). The kernel copies it into the Superpage, and it surfaces
+    // in the System screen's Machine information dialog as the LOW half
+    // of "Unique id" — the high half is the model's machine UID, which
+    // comes from the ROM, not from here (a 5mx with this word set to
+    // 89ABCDEF displays "1000-118A-89AB-CDEF").
+    //
+    // EPOC software that locks itself to one machine keys off it, which
+    // is why the frontend's debug UI can reprogram it live (see
+    // EmuBase::setMachineId). The value the guest sees changes
+    // immediately; a running EPOC cached it at boot, so the machine has
+    // to be reset for the OS to report the new one.
+    static constexpr uint8_t kPromMachineId = 0x18;
+    static constexpr uint32_t kDefaultMachineId = 0x12345678;
+    uint32_t getMachineId() const;
+    void setMachineId(uint32_t id);
 
     // Card slot presence — flipped by the emulator when a virtual CF card
     // is attached or detached. Does not latch an insert event; card

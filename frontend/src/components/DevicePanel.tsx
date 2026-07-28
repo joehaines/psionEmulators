@@ -40,6 +40,10 @@ interface Props {
   // Opens the main-area Settings view, which now owns the favourites
   // picker plus the show-debugging / experimental / sort toggles.
   onOpenSettings?(): void;
+  // Why the device list is empty, when it is (engine/worker failure). Shown
+  // in place of the indefinite "Loading…" so the panel never sits silently
+  // blank — the symptom this replaces was an empty menu with no explanation.
+  listError?: string | null;
 }
 
 export default function DevicePanel({
@@ -55,6 +59,7 @@ export default function DevicePanel({
   baseUrl,
   nonFavouriteDevices,
   onOpenSettings,
+  listError,
 }: Props) {
   const [confirmClearId, setConfirmClearId] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -150,7 +155,20 @@ export default function DevicePanel({
           </div>
 
           {profiles.length === 0 && (
-            <p className="text-gray-400 font-mono text-xs px-4 py-3">Loading…</p>
+            listError ? (
+              <div className="px-4 py-3 flex flex-col gap-2">
+                <p className="text-red-600 font-mono text-xs">Device list failed to load.</p>
+                <p className="text-gray-500 font-mono text-[11px] break-words">{listError}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="self-start px-3 py-1 rounded bg-psion-highlight text-psion-charcoal font-mono text-xs hover:brightness-95 transition"
+                >
+                  Reload
+                </button>
+              </div>
+            ) : (
+              <p className="text-gray-400 font-mono text-xs px-4 py-3">Loading…</p>
+            )
           )}
 
           {favouriteProfiles.map(profile => renderDeviceRow({

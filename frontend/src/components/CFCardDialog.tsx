@@ -10,9 +10,15 @@ import {
   ROOT_DIR_CLUSTER, type Fat16Entry,
 } from '../lib/fat16';
 import { tryConvert } from '../lib/converters';
+import { sameBytes } from '../lib/bytes';
 
 interface Props {
   controls: EmulatorControls;
+  // Which kind of removable card the device takes. Both are a raw FAT16
+  // image the user hands to the machine, and the whole dialog is shared;
+  // only the nouns differ. 'mmc' is the netpad's board-FPGA MMC slot,
+  // 'cf' the PC-Card / CompactFlash socket on every other machine here.
+  slotKind?: 'cf' | 'mmc';
   onClose: () => void;
 }
 
@@ -52,27 +58,9 @@ interface PathSegment { name: string; cluster: number }
 // burning CPU on the per-poll memcpy for larger images.
 const DEVICE_POLL_INTERVAL_MS = 1500;
 
-// Equality check on two same-length byte buffers. We compare via Uint32Array
-// when both views are 4-byte aligned (the typical case — the buffers come
-// from `new Uint8Array(...)` which gives a fresh, 0-offset ArrayBuffer);
-// otherwise we fall back to a byte loop. Used by the auto-refresh poller to
-// skip a re-render when the device hasn't actually written anything.
-function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.byteLength !== b.byteLength) return false;
-  if ((a.byteOffset & 3) === 0 && (b.byteOffset & 3) === 0) {
-    const words = a.byteLength >>> 2;
-    const a32 = new Uint32Array(a.buffer, a.byteOffset, words);
-    const b32 = new Uint32Array(b.buffer, b.byteOffset, words);
-    for (let i = 0; i < words; i++) if (a32[i] !== b32[i]) return false;
-    const tailStart = words << 2;
-    for (let i = tailStart; i < a.byteLength; i++) if (a[i] !== b[i]) return false;
-    return true;
-  }
-  for (let i = 0; i < a.byteLength; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
-export default function CFCardDialog({ controls, onClose }: Props) {
+export default function CFCardDialog({ controls, slotKind = 'cf', onClose }: Props) {
+  // Noun for the card in headings and tooltips (see Props.slotKind).
+  const cardName = slotKind === 'mmc' ? 'MMC' : 'CompactFlash';
   // Working-copy of the image bytes as the user edits. `null` until we've
   // pulled whatever's currently attached (or the user creates/loads an image).
   const [image, setImage] = useState<Uint8Array | null>(null);
@@ -410,7 +398,7 @@ export default function CFCardDialog({ controls, onClose }: Props) {
     <div className="w-full max-w-3xl bg-psion-dark border border-psion-accent/40 rounded-lg overflow-hidden flex-shrink-0 mx-4 shadow-sm flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-psion-accent/40 bg-psion-mid">
-          <h2 className="text-sm font-mono font-semibold text-psion-charcoal">CompactFlash Card</h2>
+          <h2 className="text-sm font-mono font-semibold text-psion-charcoal">{cardName} Card</h2>
           <button onClick={onClose} className={btn}>Close</button>
         </div>
 
@@ -493,7 +481,7 @@ export default function CFCardDialog({ controls, onClose }: Props) {
                     <button
                       onClick={handleRenameLabel}
                       disabled={busy}
-                      title="Rename the CF card volume label (before attaching)"
+                      title={`Rename the ${cardName} card volume label (before attaching)`}
                       className="text-psion-accent hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >Rename…</button>
                   )}
@@ -501,7 +489,8 @@ export default function CFCardDialog({ controls, onClose }: Props) {
                 {/* Which drive letter the device's OS mounts this card on.
                     The netBook exposes two PC-Card sockets and puts the
                     CompactFlash on the second one (drive E:); every other
-                    SA-1100/Windermere machine here mounts it as D:. */}
+                    SA-1100/Windermere machine here — the netpad's MMC slot
+                    included — mounts it as D:. */}
                 <span>Drive: <span className="text-psion-charcoal font-medium">
                   {controls.currentDeviceId === 'netbook' ? 'E:' : 'D:'}</span></span>
                 <span>Cluster: {info.clusterBytes} B</span>

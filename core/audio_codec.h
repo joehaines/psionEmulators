@@ -119,6 +119,23 @@ public:
 	// next CSINT can surface another batch.
 	void ackCsint();
 
+	// ── 16-bit PCM path ──────────────────────────────────────────────
+	//
+	// The netpad's AC'97 link carries whole 16-bit samples rather than
+	// the 8-bit codec words the SIBO2 / CL-PS711x / Windermere parts
+	// use, and its FIFO is paced by the emulator's own sample clock
+	// instead of the CSINT batch machinery above. These two move
+	// samples in and out of the same rings without the <<8 widening
+	// (pushDacSample) or the per-CSINT read cap (popAdcSample).
+
+	// Enqueue one 16-bit DAC sample for the host speaker.
+	void pushDacSample16(int16_t sample);
+
+	// Pop one 16-bit mic sample. Returns false when the ring is empty,
+	// which the caller substitutes silence for — a real ADC keeps
+	// clocking whether or not anyone is talking into it.
+	bool popMicSample16(int16_t &out);
+
 	// ── Tick-loop hooks (call once per TINT tick) ────────────────────
 
 	// Decrement the virtual TX FIFO at the codec sample rate. Returns

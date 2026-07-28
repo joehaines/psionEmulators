@@ -134,7 +134,7 @@ const sandbox: Record<string, unknown> = {
   }),
   performance: { now: () => Date.now() },
   setTimeout: () => 0,                   // drop the tick reschedule; test drives rpc directly
-  console: { log: () => {}, error: () => {} },
+  console: { log: () => {}, error: () => {}, warn: () => {} },
   ImageData: class {
     data: unknown; width: number; height: number;
     constructor(data: unknown, width: number, height: number) { this.data = data; this.width = width; this.height = height; }

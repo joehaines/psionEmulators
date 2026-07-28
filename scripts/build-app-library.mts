@@ -1,7 +1,7 @@
 // Builds the web app-library from the 3-Lib software collection in
-// applib/ (the catalogue categories + HTML index pages preserved from
-// Steve Litchfield's 3-Lib CD-ROM — see applib/README.md). For every
-// catalogued app this emits:
+// applib/ (the catalogue categories preserved from Steve Litchfield's
+// 3-Lib CD-ROM — see applib/README.md). For every catalogued app this
+// emits:
 //
 //   <out>/manifest.json                  one entry per app (see AppEntry)
 //   <out>/files/<category>/<slug>.zip    the app's files, zipped (download
@@ -10,11 +10,15 @@
 //   <out>/icons/<category>/<slug>.png    real app icon where one could be
 //                                        extracted from an EPOC .AIF
 //
-// The catalogue source of truth is the <PRE> block in each category's
-// .htm page (lines of "NAME  DD/MM/YY  description"), cross-referenced
-// against the category's subdirectories. Categories without a <PRE>
-// index (PC tools, PsiWin, the DOS emulator) are skipped — see
-// CATEGORIES below for the include list and per-category device map.
+// The catalogue source of truth is applib/catalogue.json — the CD's own
+// index, extracted once from the <PRE> block of each category page —
+// cross-referenced against the category's subdirectories. Categories
+// the CD never indexed (PC tools, PsiWin, the DOS emulator) are absent
+// from it; see CATEGORIES below for the include list and per-category
+// device map. Apps added to the library since the CD are catalogued in
+// applib/extra-apps.json instead and merged into their category here; a
+// category the CD never carried (the netpad set) comes entirely from
+// that file.
 //
 // Run (node 22+):
 //   node --experimental-strip-types scripts/build-app-library.mts            # → frontend/public/apps
@@ -40,7 +44,6 @@ const LIB = path.join(REPO, 'applib');
 // or Remote Link).
 interface CategoryMeta {
   id: string;
-  htm: string;
   label: string;
   platform: 'sibo' | 'epoc32' | 'other';
   devices: string[];
@@ -56,31 +59,37 @@ const SIBO_DEVICES = ['series3a', 'series3c', 'series3mx', 'pocketbk2', 'workabo
 const EPOC_DEVICES = ['series5', '5mx', '5mxpro', 'mc218', 'revo'];
 
 const CATEGORIES: CategoryMeta[] = [
-  { id: 's3games',    htm: 's3games.htm',    label: 'Series 3 — Games',          platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3util',     htm: 's3util.htm',     label: 'Series 3 — Utilities',      platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3units',    htm: 's3units.htm',    label: 'Series 3 — Conversions & time', platform: 'sibo', devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3money',    htm: 's3money.htm',    label: 'Series 3 — Money & finance', platform: 'sibo',  devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3misc',     htm: 's3misc.htm',     label: 'Series 3 — Miscellaneous',  platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3graphics', htm: 's3graphics.htm', label: 'Series 3 — Graphics & data', platform: 'sibo',  devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3prog',     htm: 's3prog.htm',     label: 'Series 3 — Programming',    platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3comms',    htm: 's3comms.htm',    label: 'Series 3 — Comms',          platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3mapping',  htm: 's3mapping.htm',  label: 'Series 3 — Mapping',        platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
-  { id: 's3vault',    htm: 's3vault.htm',    label: 'Series 3 — Vault',          platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: true  },
-  { id: 'siena',      htm: 'siena.htm',      label: 'Siena',                     platform: 'sibo',   devices: ['siena'],    tryDevice: 'siena',    vault: false },
-  { id: 'epocgames',  htm: 'epocgames.htm',  label: 'EPOC — Games',              platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'epocutil',   htm: 'epocutil.htm',   label: 'EPOC — Utilities',          platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'epocmisc',   htm: 'epocmisc.htm',   label: 'EPOC — Miscellaneous',      platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'epocmoney',  htm: 'epocmoney.htm',  label: 'EPOC — Money & finance',    platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'epocgraphics', htm: 'epocgraphics.htm', label: 'EPOC — Graphics',       platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'epocprog',   htm: 'epocprog.htm',   label: 'EPOC — Programming',        platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'epocmap',    htm: 'epocmap.htm',    label: 'EPOC — Mapping',            platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'epocvault',  htm: 'epocvault.htm',  label: 'EPOC — Vault',              platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: true  },
-  { id: 'msgsuite',   htm: 'msgsuite.htm',   label: 'EPOC — Message Suite',      platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
-  { id: 'revogames',  htm: 'revogames.htm',  label: 'Revo — Games',              platform: 'epoc32', devices: ['revo'],     tryDevice: 'revo', vault: false },
-  { id: 's7games',    htm: 's7games.htm',    label: 'Series 7 — Games',          platform: 'epoc32', devices: ['series7', 'netbook'], tryDevice: 'series7', vault: false },
+  { id: 's3games',    label: 'Series 3 — Games',              platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3util',     label: 'Series 3 — Utilities',          platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3units',    label: 'Series 3 — Conversions & time', platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3money',    label: 'Series 3 — Money & finance',    platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3misc',     label: 'Series 3 — Miscellaneous',      platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3graphics', label: 'Series 3 — Graphics & data',    platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3prog',     label: 'Series 3 — Programming',        platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3comms',    label: 'Series 3 — Comms',              platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3mapping',  label: 'Series 3 — Mapping',            platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },
+  { id: 's3vault',    label: 'Series 3 — Vault',              platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: true  },
+  { id: 'siena',      label: 'Siena',                         platform: 'sibo',   devices: ['siena'],    tryDevice: 'siena',    vault: false },
+  { id: 'epocgames',  label: 'EPOC — Games',                  platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'epocutil',   label: 'EPOC — Utilities',              platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'epocmisc',   label: 'EPOC — Miscellaneous',          platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'epocmoney',  label: 'EPOC — Money & finance',        platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'epocgraphics', label: 'EPOC — Graphics',             platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'epocprog',   label: 'EPOC — Programming',            platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'epocmap',    label: 'EPOC — Mapping',                platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'epocvault',  label: 'EPOC — Vault',                  platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: true  },
+  { id: 'msgsuite',   label: 'EPOC — Message Suite',          platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
+  { id: 'revogames',  label: 'Revo — Games',                  platform: 'epoc32', devices: ['revo'],     tryDevice: 'revo', vault: false },
+  { id: 's7games',    label: 'Series 7 — Games',              platform: 'epoc32', devices: ['series7', 'netbook'], tryDevice: 'series7', vault: false },
   // GeoFox One isn't an emulated device — keep the apps browsable and
   // downloadable, but with no "Try it" target.
-  { id: 'geofox',     htm: 'geofox.htm',     label: 'GeoFox One',                platform: 'epoc32', devices: [],          tryDevice: null, vault: false },
+  { id: 'geofox',     label: 'GeoFox One',                    platform: 'epoc32', devices: [],          tryDevice: null, vault: false },
+  // The netpad shipped as a bare EPOC R5 machine: Psion Teklogix put the
+  // applications (and their manuals) on the support CD as SIS installers
+  // rather than in the ROM, so "install the standard apps" is a real step
+  // an owner had to take. Never on the 3-Lib CD, so it has no entry in
+  // catalogue.json — the whole category comes from extra-apps.json.
+  { id: 'netpad',     label: 'netpad — Standard apps',        platform: 'epoc32', devices: ['netpad'], tryDevice: 'netpad', vault: false },
 ];
 
 // SSD flash packs top out at 8 MB and FEFS adds per-record overhead;
@@ -101,19 +110,13 @@ interface AppEntry {
   icon: string | null;          // path under <out>
   devices: string[];
   tryDevice: string | null;
-  installKind: 'sis' | 'sibo' | 'none';
+  installKind: 'sis' | 'sibo' | 'epocdir' | 'none';
   installFile: string | null;   // path within the zip
   readmes: string[];            // readme-like docs, paths within the zip
   vault: boolean;
 }
 
 // ── Small helpers ───────────────────────────────────────────────────
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
-}
 
 function slugify(name: string): string {
   const s = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -129,49 +132,72 @@ function isoDate(ddmmyy: string): string | null {
   return `${year}-${m[2]}-${m[1]}`;
 }
 
-// ── Catalogue parsing ───────────────────────────────────────────────
+// ── The CD's catalogue (applib/catalogue.json) ──────────────────────
 
-interface CatalogueEntry { name: string; date: string | null; description: string; section: string | null }
+interface CatalogueEntry {
+  name: string;
+  date: string | null;
+  description: string;
+  section: string | null;
+  // Only set by extra-apps.json entries: the app's folder name when it
+  // differs from the catalogue name, and per-app overrides of the
+  // category's device list / try target.
+  dir?: string;
+  devices?: string[];
+  tryDevice?: string | null;
+  // Library-relative paths of SIS installers whose payloads are merged
+  // into this app's bundle (shared libraries the app needs at runtime).
+  sisPayloads?: string[];
+}
 
-// The category pages use three line dialects:
-//   most categories: "NAME  DD/MM/YY  description"   (date-anchored)
-//   s3prog / epocvault: "NAME - description"
-//   s3vault: "NAME  description"                      (two-space, no date)
-// The undated forms are ambiguous against prose/headers, so those only
-// count as entries when NAME matches an actual app directory.
-function parseCatalogue(htmPath: string, dirNames: Set<string>): CatalogueEntry[] {
-  const html = fs.readFileSync(htmPath, 'latin1');
-  const m = /<PRE>([\s\S]*?)<\/PRE>/i.exec(html);
-  if (!m) return [];
-  const out: CatalogueEntry[] = [];
-  let section: string | null = null;
-  // The name column can contain single spaces (e.g. "P-Plus Bridge"),
-  // so the dated form anchors on the date.
-  const datedRe = /^(\S.*?)\s\s+(\d{2}\/\d{2}\/\d{2})\s+(.*)$/;
-  const dashRe  = /^(\S+)\s+-\s+(.*)$/;
-  const plainRe = /^(\S(?:.*?\S)?)\s\s+(.*)$/;
-  for (const rawLine of m[1].split('\n')) {
-    const line = decodeEntities(rawLine.replace(/<[^>]+>/g, '')).trimEnd();
-    if (line.trim() === '') { continue; }
-    const dm = datedRe.exec(line);
-    if (dm) {
-      out.push({ name: dm[1].trim(), date: dm[2], description: dm[3].trim(), section });
-      continue;
-    }
-    const um = dashRe.exec(line) ?? plainRe.exec(line);
-    if (um && dirNames.has(um[1].trim().toLowerCase())) {
-      out.push({ name: um[1].trim(), date: null, description: um[2].trim(), section });
-      continue;
-    }
-    if (/^\s/.test(rawLine) && out.length > 0) {
-      // Indented continuation of the previous description.
-      out[out.length - 1].description += ' ' + line.trim();
-    } else {
-      // Unindented line that isn't an entry: a section header.
-      section = line.trim() || section;
-    }
+// The CD's own index, one array per category in the CD's order. It is
+// the source of truth for every app that shipped on the CD, so a
+// missing or malformed file is fatal rather than an empty library.
+function loadCatalogue(): Map<string, CatalogueEntry[]> {
+  const file = path.join(LIB, 'catalogue.json');
+  let parsed: { categories?: Record<string, CatalogueEntry[]> };
+  try {
+    parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as typeof parsed;
+  } catch (e) {
+    console.error(`cannot read applib/catalogue.json: ${(e as Error).message}`);
+    process.exit(2);
   }
-  return out;
+  return new Map(Object.entries(parsed.categories ?? {}));
+}
+
+// ── Locally added apps (applib/extra-apps.json) ─────────────────────
+// Everything that wasn't on the 3-Lib CD. Keyed by category so the
+// entries merge into that category's catalogue; a missing or malformed
+// file just means "no extras".
+interface ExtraApp extends CatalogueEntry { category: string }
+
+function loadExtraApps(): Map<string, CatalogueEntry[]> {
+  const byCategory = new Map<string, CatalogueEntry[]>();
+  const file = path.join(LIB, 'extra-apps.json');
+  if (!fs.existsSync(file)) return byCategory;
+  let parsed: { apps?: ExtraApp[] };
+  try {
+    parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as { apps?: ExtraApp[] };
+  } catch (e) {
+    console.error(`extra-apps.json is not valid JSON (${(e as Error).message}) — ignoring`);
+    return byCategory;
+  }
+  for (const app of parsed.apps ?? []) {
+    if (!app.category || !app.name) continue;
+    const list = byCategory.get(app.category) ?? [];
+    list.push({
+      name: app.name,
+      dir: app.dir ?? app.name,
+      date: app.date ?? null,
+      description: app.description ?? '',
+      section: app.section ?? null,
+      devices: app.devices,
+      tryDevice: app.tryDevice,
+      sisPayloads: app.sisPayloads,
+    });
+    byCategory.set(app.category, list);
+  }
+  return byCategory;
 }
 
 // ── ZIP writer (stored/deflate, no zip64) ───────────────────────────
@@ -256,6 +282,64 @@ function buildZip(entries: ZipEntryIn[]): Buffer {
   return Buffer.concat([...chunks, ...central, eocd]);
 }
 
+// ── SIS payload extraction ──────────────────────────────────────────
+// An app that is delivered as an installed folder can still depend on a
+// shared library the library only ships as a SIS installer (Wall is
+// zExe-compressed, so its stub needs \System\Libs\zExeLoader.dll). An
+// extra-apps.json entry lists those SIS files; their payloads are
+// unpacked here and merged into the bundle at the destination path the
+// SIS itself declares, so nothing about the layout is hardcoded.
+//
+// ER5 SIS layout (the EPOC-era format the whole library uses): a fixed
+// header, then `nfiles` file records at filesPtr. Payloads are stored
+// verbatim — no compression — so the record's pointer/length pair is
+// the file. Only "simple file" records (type 0) are read; the other
+// record types (multiple-language option groups, embedded SIS,
+// run-at-install) have different layouts and none of the library's
+// dependency installers use them.
+interface SisPayload { dest: string; data: Buffer }
+
+function extractSisPayloads(sisPath: string): SisPayload[] {
+  const f = fs.readFileSync(sisPath);
+  const u16 = (o: number) => f.readUInt16LE(o);
+  const u32 = (o: number) => f.readUInt32LE(o);
+  if (f.length < 72 || u32(4) !== 0x1000006d) {
+    throw new Error(`${sisPath} is not an ER5 SIS file`);
+  }
+  const nlangs = u16(18), nfiles = u16(20);
+  const out: SisPayload[] = [];
+  let off = u32(52);                       // filesPtr
+  for (let i = 0; i < nfiles; i++) {
+    if (off + 28 + nlangs * 8 > f.length) break;
+    // Only the simple-file record has this layout, so an installer that
+    // opens with anything else stops the walk rather than being read at
+    // the wrong offsets. The caller gets what was decoded up to there
+    // and the missing file surfaces as an app that won't start.
+    if (u32(off) !== 0) break;
+    const dstLen = u32(off + 20), dstPtr = u32(off + 24);
+    let p = off + 28;
+    const lengths: number[] = [], pointers: number[] = [];
+    for (let l = 0; l < nlangs; l++) { lengths.push(u32(p)); p += 4; }
+    for (let l = 0; l < nlangs; l++) { pointers.push(u32(p)); p += 4; }
+    // Take the first language's copy: these are binaries, identical
+    // across languages when a SIS bothers to list more than one.
+    if (lengths[0] > 0 && pointers[0] + lengths[0] <= f.length) {
+      out.push({
+        dest: f.subarray(dstPtr, dstPtr + dstLen).toString('latin1'),
+        data: f.subarray(pointers[0], pointers[0] + lengths[0]),
+      });
+    }
+    off = p;
+  }
+  return out;
+}
+
+// "C:\System\Libs\zExeLoader.dll" (or "!:\...") → "System/Libs/zExeLoader.dll",
+// the drive-rooted form the bundle and the delivery code both use.
+function sisDestToBundlePath(dest: string): string {
+  return dest.replace(/^.:\\/, '').replace(/\\/g, '/');
+}
+
 // ── App-dir scanning ────────────────────────────────────────────────
 
 interface AppFile { rel: string; abs: string; size: number }
@@ -312,13 +396,53 @@ function findReadmes(files: AppFile[]): string[] {
     .map(f => f.rel);
 }
 
+// An EPOC32 application binary: E32 image (UID1 = DLL 0x10000079 or EXE
+// 0x1000007a) whose UID2 marks it as an application (KUidApp 0x1000006c).
+// Distinguishes an ER5 .APP from the EPOC16 .APP files of the same
+// extension that the SIBO categories are full of.
+function isEpoc32App(abs: string): boolean {
+  let fd: number | null = null;
+  try {
+    fd = fs.openSync(abs, 'r');
+    const head = Buffer.alloc(8);
+    if (fs.readSync(fd, head, 0, 8, 0) < 8) return false;
+    const uid1 = head.readUInt32LE(0);
+    const uid2 = head.readUInt32LE(4);
+    return (uid1 === 0x10000079 || uid1 === 0x1000007a) && uid2 === 0x1000006c;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== null) try { fs.closeSync(fd); } catch { /* ignore */ }
+  }
+}
+
 function pickInstaller(
   files: AppFile[], platform: CategoryMeta['platform'], dirName: string,
-): { kind: 'sis' | 'sibo' | 'none'; file: string | null } {
+): { kind: 'sis' | 'sibo' | 'epocdir' | 'none'; file: string | null } {
   const lcDir = dirName.toLowerCase().replace(/[^a-z0-9]/g, '');
   if (platform === 'epoc32') {
     const sis = files.filter(f => f.rel.toLowerCase().endsWith('.sis'));
-    if (sis.length === 0) return { kind: 'none', file: null };
+    if (sis.length === 0) {
+      // No installer, but the bundle may be the installed app folder
+      // itself (WALL.APP + .AIF + .RSC + data, as it sits in
+      // \System\Apps\Wall on the device) — that can be delivered by
+      // copying the folder back into place.
+      //
+      // Only two layouts qualify, because EPOC only runs an app whose
+      // binary sits directly in its \System\Apps\<App>\ folder: the
+      // bundle IS that folder (the .app at the top level), or it is a
+      // drive-rooted tree with the .app in System/Apps/<App>/. A bundle
+      // that merely contains an EPOC32 .app somewhere down a source
+      // tree is left alone — copying it would install something that
+      // can't start.
+      const apps = files
+        .filter(f => /\.app$/i.test(f.rel) && isEpoc32App(f.abs))
+        .filter(f => !f.rel.includes('/') || /^system\/apps\/[^/]+\/[^/]+$/i.test(f.rel))
+        .sort((a, b) =>
+          (a.rel.split('/').length - b.rel.split('/').length) || (b.size - a.size));
+      if (apps.length > 0) return { kind: 'epocdir', file: apps[0].rel };
+      return { kind: 'none', file: null };
+    }
     // Prefer shallow paths, then a name resembling the app dir, then size
     // (the biggest SIS is usually the app; smaller ones are add-ons).
     sis.sort((a, b) =>
@@ -493,13 +617,14 @@ function main(): void {
 
   const apps: AppEntry[] = [];
   let skippedNoDir = 0, skippedTooBig = 0, icons = 0;
+  const catalogue = loadCatalogue();
+  const extraApps = loadExtraApps();
 
   for (const cat of CATEGORIES) {
     if (onlyCategory && cat.id !== onlyCategory) continue;
     const catDir = path.join(LIB, cat.id);
-    const htmPath = path.join(LIB, cat.htm);
-    if (!fs.existsSync(catDir) || !fs.existsSync(htmPath)) {
-      console.error(`skip category ${cat.id}: missing dir or catalogue page`);
+    if (!fs.existsSync(catDir)) {
+      console.error(`skip category ${cat.id}: missing directory`);
       continue;
     }
     // Case-insensitive directory lookup.
@@ -507,19 +632,36 @@ function main(): void {
     for (const d of fs.readdirSync(catDir)) {
       if (fs.statSync(path.join(catDir, d)).isDirectory()) dirs.set(d.toLowerCase(), d);
     }
-    const entries = parseCatalogue(htmPath, new Set(dirs.keys()));
+    // A category the CD never carried (netpad) has no catalogue.json
+    // entry: everything it holds comes from extra-apps.json.
+    const entries = [...(catalogue.get(cat.id) ?? [])];
+    entries.push(...(extraApps.get(cat.id) ?? []));
 
     let count = 0;
     const seenSlugs = new Set<string>();
     for (const entry of entries) {
       if (count >= limit) break;
-      const dirName = dirs.get(entry.name.toLowerCase());
+      const dirName = dirs.get((entry.dir ?? entry.name).toLowerCase());
       if (!dirName) { skippedNoDir++; continue; }
 
       const appDir = path.join(catDir, dirName);
       const files = walkDir(appDir);
       if (files.length === 0) { skippedNoDir++; continue; }
-      const sizeBytes = files.reduce((s, f) => s + f.size, 0);
+
+      // The bundle is the app's own files plus any shared-library
+      // payloads unpacked out of the SIS installers the entry depends
+      // on — one flat list from here on, so size, count and the zip all
+      // describe what actually gets delivered.
+      const bundle: ZipEntryIn[] = files.map(f => ({ name: f.rel, data: fs.readFileSync(f.abs) }));
+      for (const sisRel of entry.sisPayloads ?? []) {
+        const sisAbs = path.join(LIB, sisRel);
+        for (const payload of extractSisPayloads(sisAbs)) {
+          const name = sisDestToBundlePath(payload.dest);
+          if (bundle.some(b => b.name.toLowerCase() === name.toLowerCase())) continue;
+          bundle.push({ name, data: payload.data });
+        }
+      }
+      const sizeBytes = bundle.reduce((s, b) => s + b.data.length, 0);
 
       let slug = slugify(dirName);
       while (seenSlugs.has(slug)) slug += '-2';
@@ -527,7 +669,8 @@ function main(): void {
       const id = `${cat.id}/${slug}`;
 
       const installer = pickInstaller(files, cat.platform, dirName);
-      let tryDevice = cat.tryDevice;
+      const devices = entry.devices ?? cat.devices;
+      let tryDevice = entry.tryDevice !== undefined ? entry.tryDevice : cat.tryDevice;
       let installKind = installer.kind;
       if (installKind === 'none') tryDevice = null;
       if (cat.platform === 'sibo' && sizeBytes > SIBO_TRY_LIMIT) {
@@ -538,8 +681,7 @@ function main(): void {
       const zipRel = `files/${cat.id}/${slug}.zip`;
       const zipAbs = path.join(outDir, zipRel);
       fs.mkdirSync(path.dirname(zipAbs), { recursive: true });
-      fs.writeFileSync(zipAbs, buildZip(
-        files.map(f => ({ name: f.rel, data: fs.readFileSync(f.abs) }))));
+      fs.writeFileSync(zipAbs, buildZip(bundle));
 
       // Icon: SIBO apps embed theirs as a PIC resource in the .OPA/.APP
       // binary; EPOC apps in a loose .AIF or inside the SIS installer.
@@ -561,17 +703,18 @@ function main(): void {
 
       apps.push({
         id,
-        name: dirName.length <= 2 ? dirName.toUpperCase()
+        name: entry.dir ? entry.name
+          : dirName.length <= 2 ? dirName.toUpperCase()
           : dirName[0].toUpperCase() + dirName.slice(1),
         category: cat.id,
         section: entry.section,
         date: entry.date ? isoDate(entry.date) : null,
         description: entry.description,
         sizeBytes,
-        fileCount: files.length,
+        fileCount: bundle.length,
         zip: zipRel,
         icon: iconRel,
-        devices: cat.devices,
+        devices,
         tryDevice,
         installKind,
         installFile: installer.file,

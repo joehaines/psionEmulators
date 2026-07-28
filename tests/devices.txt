@@ -70,6 +70,16 @@ workaboutmx  | workaboutMX_v7.20f_eng.bin     | 10 | 200 | --min-mdrive-subdirs 
 # ~5125 with 16 unique pixel values within 3 sim seconds.
 netbook   | netBook_BL_v011_eng.bin         |  3 | 1000
 
+# netpad: SA-1110 sibling of the netBook.  Netpad.img is a complete EPOC R5
+# ROM that boots from PA 0 (the OS ROM sits at image offset 0xC0000).  The
+# boot runs the board init (bit-banged I2C controller, nCS4 serial device,
+# GPIO handshakes), then EPOC enters its "off" state — a real SA-1110 deep
+# sleep — and the emulated power button switches it on, resuming through the
+# ROM's PSPR context.  ~7 sim-seconds later the 640x240 8 bpp panel shows the
+# netpad desktop (netpad logo, Documents sidebar, System toolbar, clock);
+# variance settles at ~4644 with 13 unique pixel values.
+netpad    | Netpad.img                      | 25 | 1000
+
 # netbook_full: the v0.11 YModem bootloader + the actual netBook EPOC R5
 # OS image attached as a CF card.  netBookLoadOsFromCard (in
 # core/sa1100.cpp) does the bootloader -> OS handoff on attach: scans

@@ -21,6 +21,10 @@ import { convertRecordToWav } from '../converters/record.ts';
 import { convertSketchToPng } from '../converters/sketch.ts';
 import { convertWordToRtf } from '../converters/word.ts';
 import { convertSheetToCsv } from '../converters/sheet.ts';
+import {
+  isSiboWord, isSiboWordEncrypted, extractSiboWordText, decryptSiboWordFile,
+  recoverBodyKey, scanSiboWord,
+} from '../converters/psion-word-sibo.ts';
 
 let failures = 0;
 function check(cond: unknown, msg: string) {
@@ -650,8 +654,75 @@ function carveEpocFile(rom: Uint8Array, offset: number): Uint8Array | null {
   }
 }
 
+// ---------- SIBO / EPOC16 Word (.WRD), incl. password recovery ----------
+//
+// The plain document (applib DOCPAD.WRD) and an encrypted copy of it
+// (tests/fixtures/WRD-ENCRYPTED-DOCPAD.WRD, made by password-protecting
+// the same file on the emulated Series 3a) let us assert exact recovery:
+// the body decrypted without the password must equal the plaintext body.
+{
+  const plainPath = new URL('../../../../applib/s3util/1k-pad/DOCPAD.WRD', import.meta.url).pathname;
+  const encPath   = new URL('../../../../tests/fixtures/WRD-ENCRYPTED-DOCPAD.WRD', import.meta.url).pathname;
+  if (existsSync(plainPath) && existsSync(encPath)) {
+    const plain = new Uint8Array(readFileSync(plainPath));
+    const enc   = new Uint8Array(readFileSync(encPath));
+
+    check(isSiboWord(plain),  'SIBO Word: plain file detected by magic');
+    check(isSiboWord(enc),    'SIBO Word: encrypted file detected by magic');
+    eq(isSiboWordEncrypted(plain), false, 'SIBO Word: plain file not flagged encrypted');
+    eq(isSiboWordEncrypted(enc),   true,  'SIBO Word: encrypted file flagged encrypted');
+
+    // Same record layout in both — encryption only rewrites the body.
+    const sp = scanSiboWord(plain)!, se = scanSiboWord(enc)!;
+    eq(se.records.length, sp.records.length, 'SIBO Word: record count unchanged by encryption');
+    check(sp.body !== null && se.body !== null, 'SIBO Word: body record located in both');
+
+    const plainText = extractSiboWordText(plain)!;
+    const autoText  = extractSiboWordText(enc)!;
+    check(plainText.text.startsWith('1k-pad\nVersion 1.0'), 'SIBO Word: plain body text extracted');
+    // Automatic (no-password, no-crib) recovery must reproduce the body exactly.
+    eq(autoText.text, plainText.text, 'SIBO Word: password recovered automatically (exact)');
+    check(autoText.wasEncrypted, 'SIBO Word: recovery reports the file was encrypted');
+    check(autoText.confidence > 0.95, 'SIBO Word: high recovery confidence');
+
+    // Direct key recovery API: recovered key decrypts the raw body.
+    const rawBody = enc.subarray(se.body!.start, se.body!.end);
+    const rec = recoverBodyKey(rawBody);
+    eq(rec.key.length, 9, 'SIBO Word: 9-byte keystream recovered');
+    check(rec.plainBody.every((b, i) => b === plain[sp.body!.start + i]),
+          'SIBO Word: recovered body equals plaintext body byte-for-byte');
+
+    // A correct crib pins the key exactly even with no statistics. The
+    // crib is literal body plaintext (paragraph breaks are 0x00), so use
+    // the true first nine body bytes — one per key position.
+    const crib = plain.subarray(sp.body!.start, sp.body!.start + 9);
+    const cribbed = recoverBodyKey(rawBody, crib);
+    check(cribbed.plainBody.every((b, i) => b === plain[sp.body!.start + i]),
+          'SIBO Word: crib recovery equals plaintext body');
+
+    // "Remove password" produces a plain, self-consistent file.
+    const decFile = decryptSiboWordFile(enc)!;
+    check(decFile !== null, 'SIBO Word: decryptSiboWordFile produced output');
+    eq(isSiboWordEncrypted(decFile), false, 'SIBO Word: decrypted file no longer flagged encrypted');
+    eq(extractSiboWordText(decFile)!.text, plainText.text,
+       'SIBO Word: decrypted file extracts identical text');
+
+    // Dispatch through the public tryConvert path.
+    const conv = tryConvert(enc, 'JOESDOC.WRD');
+    check(conv !== null, 'SIBO Word: tryConvert handles encrypted .WRD');
+    if (conv) {
+      eq(conv.filename, 'JOESDOC.txt', 'SIBO Word: converted to .txt');
+      eq(conv.recoveredPassword, true, 'SIBO Word: tryConvert flags password recovery');
+      eq(new TextDecoder().decode(conv.bytes), plainText.text,
+         'SIBO Word: tryConvert output equals plaintext');
+    }
+  } else {
+    console.log('SKIP SIBO Word: DOCPAD/encrypted fixture not present');
+  }
+}
+
 if (failures === 0) {
-  console.log('PASS converters (UID + Sketch + Record + Word + Sheet)');
+  console.log('PASS converters (UID + Sketch + Record + Word + Sheet + SIBO Word)');
   process.exit(0);
 } else {
   console.error(`FAIL: ${failures} assertion(s)`);

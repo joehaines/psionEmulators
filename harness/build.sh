@@ -25,7 +25,7 @@ CXXFLAGS=(-O3 -flto -std=c++17 -Wno-deprecated-declarations -Wno-multichar -DPSI
 CFLAGS=(-O3 -flto)
 
 echo "=== Compiling core C++ sources ==="
-SOURCES=(arm710 emubase etna eiger eiger_classifier vcfcard windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
+SOURCES=(arm710 emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
          sa1100 sa1100_cpu \
          audio_codec \
          sibo_audio \
@@ -56,7 +56,7 @@ echo "=== Linking audio-harness ==="
 "$CXX" "${CXXFLAGS[@]}" "$HARNESS/audio-harness.cpp" "$OBJ_DIR"/*.o \
     -o "$HARNESS/audio-harness"
 
-for tgt in series5-audio-test clps7111-record-test windermere-audio-test netbook-audio-harness series7-audio-harness sibo-audio-harness pacman-profile; do
+for tgt in series5-audio-test clps7111-record-test windermere-audio-test netbook-audio-harness series7-audio-harness netpad-audio-harness sibo-audio-harness pacman-profile; do
     if [ -f "$HARNESS/$tgt.cpp" ]; then
         echo "=== Linking $tgt ==="
         "$CXX" "${CXXFLAGS[@]}" "$HARNESS/$tgt.cpp" "$OBJ_DIR"/*.o \
@@ -76,6 +76,25 @@ fi
 # VCFCard write-path test — guards the "Disk corrupt on copy/format" fix
 # (no spurious post-WRITE-command IREQ; correct per-sector completion IRQ;
 # written bytes land at the right LBA) for both faithfulMode states.
+# netpad MMC-over-SPI card test — drives the card model the way the ROM's
+# variant card-init state machine and medmmc.pdd do (CMD0/1/9/17/18/24/58,
+# data tokens, CRC16) and checks the answers they depend on.
+if [ -f "$TESTS_DIR/unit/mmc_card_test.cpp" ]; then
+    echo "=== Linking mmc_card_test ==="
+    "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/mmc_card_test.cpp" \
+        "$OBJ_DIR/netpad_mmc.o" -o "$TESTS_DIR/unit/mmc_card_test"
+fi
+
+# EPOC machine-ID test — drives the ETNA identity PROM through the same
+# bit-banged word reader the guest uses, so a reprogrammed machine ID is
+# proven visible to EPOC (and the image checksum proven re-folded).
+if [ -f "$TESTS_DIR/unit/machine_id_test.cpp" ]; then
+    echo "=== Linking machine_id_test ==="
+    "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/machine_id_test.cpp" \
+        "$OBJ_DIR/etna.o" "$OBJ_DIR/arm710.o" "$OBJ_DIR/emubase.o" \
+        -o "$TESTS_DIR/unit/machine_id_test"
+fi
+
 if [ -f "$TESTS_DIR/unit/cf_write_test.cpp" ]; then
     echo "=== Linking cf_write_test ==="
     "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/cf_write_test.cpp" \

@@ -14,7 +14,10 @@ import Leaderboard from './components/Leaderboard';
 import AppLibrary from './components/AppLibrary';
 import Home from './components/Home';
 import SettingsView, { type SortMode } from './components/SettingsView';
-import { takePendingTry, deliverApp, fetchAppZip, type AppEntry, type DeliveryResult } from './lib/appLibrary';
+import {
+  takePendingTry, deliverApp, fetchAppZip, isAppsRoute, parseAppsRoute,
+  type AppEntry, type DeliveryResult,
+} from './lib/appLibrary';
 import type { DeviceProfile } from './types/emulator';
 import psionLogoUrl from './assets/psion-logo.svg';
 import { trackDeviceLoad, startSession, endSession, fetchLeaderboard, type LeaderboardRow } from './lib/analytics';
@@ -163,8 +166,10 @@ const USAGE_HASH = '#/usage';
 const EMBED_HASH_PREFIX = '#/embed/';
 // Standalone app-library route — like the leaderboard, it renders
 // without the WASM bootstrap; "Try it" hands back into the emulator
-// via a sessionStorage note + `#/<deviceId>` navigation.
-const APPS_HASH = '#/apps';
+// via a sessionStorage note + `#/<deviceId>` navigation. Its two
+// optional parameters (`?device=`, `?app=`) are parsed by
+// lib/appLibrary.ts, which the library itself writes back through —
+// see APPS_ROUTE there.
 
 export default function App() {
   const [route, setRoute] = useState(() =>
@@ -183,8 +188,15 @@ export default function App() {
   if (route === USAGE_HASH) {
     return <Leaderboard onClose={() => { window.location.hash = ''; }} />;
   }
-  if (route === APPS_HASH) {
-    return <AppLibrary onClose={() => { window.location.hash = ''; }} />;
+  if (isAppsRoute(route)) {
+    const { device, app } = parseAppsRoute(route);
+    return (
+      <AppLibrary
+        initialDeviceFilter={device}
+        appId={app}
+        onClose={() => { window.location.hash = ''; }}
+      />
+    );
   }
   if (route.startsWith(EMBED_HASH_PREFIX) || route === '#/embed') {
     const deviceId = route.startsWith(EMBED_HASH_PREFIX)
@@ -244,6 +256,13 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   const [deviceMode, setDeviceMode] = useState<boolean>(loadDeviceMode);
   const [sizingMode, setSizingMode] = useState<SizingMode>(loadSizingMode);
   const [deviceScale, setDeviceScale] = useState<DeviceScale>(loadDeviceScale);
+  // Largest actual-size scale the window can show for the device currently
+  // on screen — reported by EmulatorView, which owns the skin layout and
+  // panel size it depends on, and recomputed on resize / rotate / device
+  // change. The zoom flyout greys out anything above it: a 640-wide panel
+  // at 4× is 2560 px of device, and rather than quietly drawing something
+  // else the control now says it can't. 4 until a device reports.
+  const [maxDeviceScale, setMaxDeviceScale] = useState(4);
   // Bump count — EmulatorView watches this and re-enters fullscreen each
   // time it changes, even if the user has already exited via Escape (the
   // value would otherwise stay the same and the effect wouldn't re-fire).
@@ -422,6 +441,14 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
     [mergedProfiles, sortMode, leaderboard],
   );
 
+  // Ids the Home view's per-device Launch buttons can boot. Empty until
+  // the WASM registry lands, which is what keeps those buttons disabled
+  // while there's no ROM filename to build a URL from.
+  const launchableIds = useMemo(
+    () => new Set(mergedProfiles.map(p => p.id)),
+    [mergedProfiles],
+  );
+
   // Once the user closes the auto-opened picker we must not pop it back
   // open at them — without this latch any later re-run of the effect
   // below (a "Try it" load that drops back to 'ready', an ended session)
@@ -480,6 +507,15 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
     // Only clear the loading overlay if this load is still the active one;
     // a newer selection that superseded us owns the overlay now.
     setLoadingDeviceId(prev => (prev === deviceId ? null : prev));
+  };
+
+  // Boot a device straight from its card on the Home page. Same path as
+  // picking it in the side menu — resolve the profile for its ROM
+  // filename and hand off to handleSelectDevice, which closes Home.
+  const handleLaunchFromHome = (deviceId: string) => {
+    const profile = mergedProfiles.find(p => p.id === deviceId);
+    if (!profile) return;
+    void handleSelectDevice(deviceId, `${import.meta.env.BASE_URL}roms/${profile.romFilename}`);
   };
 
   // Swap the running MC400 between its two boot ROMs (v2.60F default ↔
@@ -661,6 +697,7 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
           <SizingControls
             mode={sizingMode}
             scale={deviceScale}
+            maxScale={maxDeviceScale}
             deviceMode={deviceMode}
             onToggleDeviceMode={() => setDeviceMode(v => !v)}
             onPickMode={handlePickSizingMode}
@@ -684,6 +721,7 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
         baseUrl={import.meta.env.BASE_URL}
         nonFavouriteDevices={nonFavouriteDevices}
         onOpenSettings={() => { setSettingsViewOpen(true); setPanelOpen(false); }}
+        listError={error}
       />
 
       {/* Main content */}
@@ -692,6 +730,8 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
           <Home
             baseUrl={import.meta.env.BASE_URL}
             onChooseDevice={() => setPanelOpenIntent(true)}
+            onLaunchDevice={handleLaunchFromHome}
+            launchableIds={launchableIds}
             loadsById={deviceLoads}
           />
         ) : settingsViewOpen ? (
@@ -781,6 +821,7 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
                 lcdAccuracyMode={lcdAccuracyMode}
                 backlight={backlight}
                 deviceMode={deviceMode}
+                onMaxDeviceScale={setMaxDeviceScale}
               />
             )}
           </>
@@ -1277,6 +1318,7 @@ function ScaleIcon({ n }: { n: DeviceScale }) {
 function SizingControls({
   mode,
   scale,
+  maxScale,
   deviceMode,
   onToggleDeviceMode,
   onPickMode,
@@ -1285,6 +1327,9 @@ function SizingControls({
 }: {
   mode: SizingMode;
   scale: DeviceScale;
+  // Largest scale this window can actually draw (see maxDeviceScale above).
+  // Anything past it is offered greyed out rather than silently substituted.
+  maxScale: number;
   deviceMode: boolean;
   onToggleDeviceMode: () => void;
   onPickMode: (mode: SizingMode) => void;
@@ -1297,6 +1342,15 @@ function SizingControls({
   const baseBtn = 'inline-flex items-center justify-center w-7 h-7 rounded transition-colors';
   const activeBtn  = `${baseBtn} bg-psion-highlight text-psion-charcoal ring-1 ring-psion-accent`;
   const idleBtn    = `${baseBtn} text-psion-charcoal/60 hover:text-psion-charcoal hover:bg-psion-mid`;
+  // A scale too big for this window. Shown rather than hidden so the row
+  // doesn't reshuffle as the window resizes, and so it's visible that 3×
+  // and 4× exist and are simply out of reach here.
+  const outOfReachBtn = `${baseBtn} text-psion-charcoal/25 cursor-not-allowed`;
+  // Past this the picture stops changing: the device is already as wide as
+  // the window and a higher scale has nothing left to give. maxScale 0 means
+  // even 1× overflows (a handheld on a phone), so the device is fitted to
+  // the window and 1× is the honest label for what you get.
+  const topScale = Math.min(4, Math.max(1, maxScale)) as DeviceScale;
 
   // The flyout opens on hover *or* keyboard focus inside the wrapper, and
   // closes when the pointer leaves the wrapper entirely (so moving between
@@ -1349,12 +1403,19 @@ function SizingControls({
           type="button"
           onClick={() => onPickScale(scale)}
           className={mode === 'device' ? activeBtn : idleBtn}
-          title={`Actual size (${scale}×) — hover for other zoom levels`}
+          // The icon shows the level being drawn, not the one stored: a 4×
+          // preference carried over from a bigger window fills this one, and
+          // a button reading 4× over a window-width picture is the thing
+          // that made this control feel broken. The preference is kept, and
+          // the icon goes back up when the window does.
+          title={scale > topScale
+            ? `Actual size (${topScale}× fills this window — ${scale}× needs a bigger one)`
+            : `Actual size (${scale}×) — hover for other zoom levels`}
           aria-pressed={mode === 'device'}
           aria-haspopup="menu"
           aria-expanded={flyoutOpen}
         >
-          <ScaleIcon n={scale} />
+          <ScaleIcon n={scale > topScale ? topScale : scale} />
         </button>
         {flyoutOpen && (
           // Sits flush with the trigger (top-full, no margin) so hovering
@@ -1369,13 +1430,22 @@ function SizingControls({
           >
             {([1, 2, 3, 4] as DeviceScale[]).map(n => {
               const isActive = mode === 'device' && scale === n;
+              // Out of reach in this window: the device already fills it at
+              // topScale, so picking a higher one draws the identical
+              // picture and the chip looks inert. Say so instead — the level
+              // comes back the moment the window is big enough (or the
+              // machine is turned).
+              const outOfReach = n > topScale;
               return (
                 <button
                   key={n}
                   type="button"
+                  disabled={outOfReach}
                   onClick={() => { onPickScale(n); setFlyoutOpen(false); }}
-                  className={isActive ? activeBtn : idleBtn}
-                  title={`${n}× actual size`}
+                  className={outOfReach ? outOfReachBtn : isActive ? activeBtn : idleBtn}
+                  title={outOfReach
+                    ? `${n}× actual size — this window is already full at ${topScale}×`
+                    : `${n}× actual size`}
                   role="menuitemradio"
                   aria-checked={isActive}
                 >

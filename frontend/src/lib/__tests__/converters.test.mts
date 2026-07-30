@@ -11,7 +11,16 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 
-import { tryConvert } from '../converters/index.ts';
+import {
+  tryConvert, isPasswordProtected, canRecoverPassword, recoveryAcceptsCrib,
+} from '../converters/index.ts';
+import { readSectionTable, findSection } from '../converters/epoc-store.ts';
+import {
+  isEpocPasswordProtected, isProtectedEpocWord, recoverEpocWord,
+} from '../converters/epoc-password.ts';
+import {
+  isProtectedEpocSheet, recoverEpocSheet,
+} from '../converters/epoc-password-sheet.ts';
 import {
   computeUidChecksum, isValidEpocHeader, readEpocHeader, readUint32LE,
   UID3_WORD, UID3_SHEET, UID3_RECORD, UID3_MBM,
@@ -63,6 +72,81 @@ function u32le(v: number): Uint8Array {
   const a = new Uint8Array(4);
   new DataView(a.buffer).setUint32(0, v >>> 0, true);
   return a;
+}
+
+// Length of an EPOC Word text stream's plaintext: its leading cardinal
+// character count, plus that many characters.  (Anything past that in
+// the same section is embedded-object data, which protection leaves in
+// clear text.)
+function lengthOfBody(textSection: Uint8Array): number {
+  const b0 = textSection[0];
+  if ((b0 & 1) === 0)      return 1 + (b0 >> 1);
+  if ((b0 & 3) === 1)      return 2 + (((b0 | (textSection[1] << 8)) >> 2));
+  return 4 + (readUint32LE(textSection, 0) >>> 3);
+}
+
+// Where the characters start: after the 1, 2 or 4-byte cardinal count.
+function bodyTextOffset(textSection: Uint8Array): number {
+  const b0 = textSection[0];
+  if ((b0 & 1) === 0) return 1;
+  if ((b0 & 3) === 1) return 2;
+  return 4;
+}
+
+// Do to a plain EPOC Word document what setting a password on the
+// machine does: splice in the 41-byte password section at 0x14,
+// encipher the text stream with an additive 32-byte key and pad the run
+// out to a 32-byte boundary with 0x30, then rewrite the section table
+// with everything shifted along.  Used to build protected documents
+// whose plaintext we already have.
+//
+// One thing the app does that this doesn't: rewrite the absolute
+// offsets *inside* sections (the page layout section carries a few),
+// which shift by the same amount.  Recovery never reads those, so the
+// files this builds exercise it faithfully — but they are not
+// byte-identical to what a Psion would have written.
+function protectEpocWord(
+  plain: Uint8Array, key: Uint8Array, passwordSection: Uint8Array,
+): Uint8Array {
+  const tableOffset = readUint32LE(plain, 16);
+  const count = plain[tableOffset] >> 1;
+  // Read the table in file order (not sorted) so the rebuilt one keeps
+  // the order the app writes.
+  const entries: { uid: number; offset: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    entries.push({
+      uid:    readUint32LE(plain, tableOffset + 1 + i * 8),
+      offset: readUint32LE(plain, tableOffset + 1 + i * 8 + 4),
+    });
+  }
+  const textStart = entries.find(e => e.uid === 0x10000106)!.offset;
+  const bodyLen   = lengthOfBody(plain.subarray(textStart));
+  const padded    = Math.ceil(bodyLen / 32) * 32;
+  const grow      = passwordSection.length;               // 41
+  const pad       = padded - bodyLen;
+
+  const cipher = new Uint8Array(padded);
+  for (let i = 0; i < padded; i++) {
+    const p = i < bodyLen ? plain[textStart + i] : 0x30;
+    cipher[i] = (p + key[i % 32]) & 0xff;
+  }
+
+  const shift = (offset: number) => offset + grow + (offset > textStart ? pad : 0);
+  const table = concat(
+    [((count + 1) << 1)],
+    u32le(0x100000CD), u32le(0x14),
+    ...entries.flatMap(e => [u32le(e.uid), u32le(shift(e.offset))]),
+  );
+
+  return concat(
+    plain.subarray(0, 16),
+    u32le(shift(tableOffset)),
+    passwordSection,
+    plain.subarray(0x14, textStart),
+    cipher,
+    plain.subarray(textStart + bodyLen, tableOffset),
+    table,
+  );
 }
 
 // ---------- UID checksum ----------
@@ -721,8 +805,225 @@ function carveEpocFile(rom: Uint8Array, offset: number): Uint8Array | null {
   }
 }
 
+// ---------- EPOC32 Word password protection ----------
+//
+// tests/fixtures/EPOC-WORD-PLAIN and EPOC-WORD-PROTECTED are the same
+// document saved twice on an emulated Series 5mx — once as it is, once
+// after setting a password on it (File > Password..., Shift+Ctrl+Q).
+// They pin down both halves of the feature: that we read the text back
+// out of the protected one exactly, and that doing so produces the same
+// download as the unprotected one.
+{
+  const plainPath = new URL('../../../../tests/fixtures/EPOC-WORD-PLAIN', import.meta.url).pathname;
+  const encPath   = new URL('../../../../tests/fixtures/EPOC-WORD-PROTECTED', import.meta.url).pathname;
+  if (existsSync(plainPath) && existsSync(encPath)) {
+    const plain = new Uint8Array(readFileSync(plainPath));
+    const enc   = new Uint8Array(readFileSync(encPath));
+
+    eq(isEpocPasswordProtected(plain), false, 'EPOC Word: plain file not flagged protected');
+    eq(isEpocPasswordProtected(enc),   true,  'EPOC Word: protected file flagged');
+    eq(isProtectedEpocWord(enc),       true,  'EPOC Word: protected file is a Word document');
+    eq(isPasswordProtected(enc),       true,  'EPOC Word: public detector agrees');
+    eq(canRecoverPassword(enc),        true,  'EPOC Word: recovery available for this file');
+
+    // Only the password section and the enciphered text stream differ:
+    // the section table gains 0x100000CD, and every other section is
+    // byte-for-byte what it was.
+    const plainSections = readSectionTable(plain)!;
+    const encSections   = readSectionTable(enc)!;
+    eq(encSections.length, plainSections.length + 1, 'EPOC Word: one extra section when protected');
+    check(findSection(encSections, 0x100000CD) !== null, 'EPOC Word: password section present');
+
+    const plainText = findSection(plainSections, 0x10000106)!;
+    const expected  = plain.subarray(plainText.start, plainText.end);
+
+    const rec = recoverEpocWord(enc);
+    check(rec !== null, 'EPOC Word: recovery ran');
+    if (rec) {
+      eq(rec.key.length, 32, 'EPOC Word: 32-byte keystream recovered');
+      eq(rec.body.length, expected.length, 'EPOC Word: recovered body is the right length');
+      check(rec.body.every((b, i) => b === expected[i]),
+            'EPOC Word: password recovered automatically, body byte-for-byte');
+      check(rec.confidence > 0.95, 'EPOC Word: high recovery confidence');
+
+      // The keystream really is the one the machine used: re-encipher
+      // the plaintext with it and the file comes back.
+      const encText = findSection(readSectionTable(enc)!, 0x10000106)!;
+      check(expected.every((b, i) =>
+              ((b + rec.key[i % 32]) & 0xff) === enc[encText.start + i]),
+            'EPOC Word: recovered key re-enciphers to the original ciphertext');
+
+      // Everything past the text is filler, and the rest of the file is
+      // untouched by the decryption.
+      const padded = Math.ceil(expected.length / 32) * 32;
+      check(rec.file.subarray(encText.start + expected.length, encText.start + padded)
+               .every(b => b === 0x30),
+            'EPOC Word: run is padded to a 32-byte boundary with 0x30');
+    }
+
+    // The whole point: a protected document downloads as the same RTF
+    // an unprotected one would.
+    const convPlain = tryConvert(plain, 'Report');
+    const convEnc   = tryConvert(enc,   'Report');
+    check(convPlain !== null && convEnc !== null, 'EPOC Word: both files convert');
+    if (convPlain && convEnc) {
+      eq(convEnc.filename, 'Report.rtf', 'EPOC Word: protected file converts to RTF');
+      eq(convEnc.recoveredPassword, true, 'EPOC Word: tryConvert flags password recovery');
+      eq(convPlain.recoveredPassword, undefined, 'EPOC Word: plain file not flagged recovered');
+      eq(convEnc.needsCrib, undefined, 'EPOC Word: this document needs no crib');
+      eq(new TextDecoder().decode(convEnc.bytes), new TextDecoder().decode(convPlain.bytes),
+         'EPOC Word: recovered download is identical to the unprotected one');
+    }
+
+    // The rest of the cases are built rather than captured, by putting
+    // documents we already have the plaintext of through the same
+    // protection — with the very key and password section the machine
+    // used above.
+    const key = new Uint8Array(32);
+    const encText = findSection(encSections, 0x10000106)!;
+    for (let i = 0; i < 32; i++) key[i] = (enc[encText.start + i] - expected[i]) & 0xff;
+    const cd = findSection(encSections, 0x100000CD)!;
+    const passwordSection = enc.subarray(cd.start, cd.end);
+
+    // This document carries no Text Layout Section, so its length came
+    // out of the filler search.  Word2 has one, which is the other route
+    // — the paragraph list, in clear text.
+    check(findSection(plainSections, 0x10000143) === null,
+          'EPOC Word: fixture has no layout section (filler search exercised)');
+    const word2Path = new URL('../../../../tests/fixtures/Word2', import.meta.url).pathname;
+    if (existsSync(word2Path)) {
+      const sample = new Uint8Array(readFileSync(word2Path));
+      check(findSection(readSectionTable(sample)!, 0x10000143) !== null,
+            'EPOC Word: Word2 has a layout section');
+      const protectedSample = protectEpocWord(sample, key, passwordSection);
+      eq(isProtectedEpocWord(protectedSample), true, 'EPOC Word: Word2 reads as protected');
+      const sampleText = findSection(readSectionTable(sample)!, 0x10000106)!;
+      const want = sample.subarray(sampleText.start, sampleText.end);
+      const got = recoverEpocWord(protectedSample);
+      check(got !== null && got.body.length === lengthOfBody(want) &&
+            got.body.every((b, i) => b === want[i]),
+            'EPOC Word: Word2 recovered exactly through the layout section');
+      eq(new TextDecoder().decode(tryConvert(protectedSample, 'Word2')!.bytes),
+         new TextDecoder().decode(tryConvert(sample, 'Word2')!.bytes),
+         'EPOC Word: Word2 converts identically once recovered');
+    } else {
+      console.log('SKIP EPOC Word: Word2 fixture not present');
+    }
+
+    // A document with only a line or two — or, as here, one whose "text"
+    // is a page of formatting names rather than prose — doesn't give the
+    // language model enough to be sure of every key byte. `needsCrib`
+    // says so, and the crib then pins the key exactly.
+    const shortPath = new URL('../../../../tests/fixtures/WordFormatting', import.meta.url).pathname;
+    if (existsSync(shortPath)) {
+      const short = new Uint8Array(readFileSync(shortPath));
+      const shortText = findSection(readSectionTable(short)!, 0x10000106)!;
+      const bodyLen = lengthOfBody(short.subarray(shortText.start, shortText.end));
+      const wantShort = short.subarray(shortText.start, shortText.start + bodyLen);
+      const protectedShort = protectEpocWord(short, key, passwordSection);
+      const conv = tryConvert(protectedShort, 'WordFormatting');
+      check(conv !== null && conv.needsCrib === true,
+            'EPOC Word: an under-determined document asks for a crib');
+      // Its first 32 characters cover every key position, after which
+      // the recovery is exact.  A crib is the document's own text, so it
+      // starts after the stream's cardinal character count.
+      const textAt = bodyTextOffset(wantShort);
+      const cribbed = recoverEpocWord(protectedShort, wantShort.subarray(textAt, textAt + 32));
+      check(cribbed !== null && cribbed.body.length === wantShort.length &&
+            cribbed.body.every((b, i) => b === wantShort[i]),
+            'EPOC Word: crib recovers an under-determined document exactly');
+      eq(cribbed!.pinnedKeyBytes, 32, 'EPOC Word: a 32-character crib pins the whole key');
+    } else {
+      console.log('SKIP EPOC Word: WordFormatting fixture not present');
+    }
+  } else {
+    console.log('SKIP EPOC Word: protected fixture pair not present');
+  }
+}
+
+// ---------- EPOC32 Sheet password protection ----------
+//
+// tests/fixtures/EPOC-SHEET-PLAIN and EPOC-SHEET-PROTECTED are one
+// worksheet of ten cells (text and numbers) saved twice on an emulated
+// Series 5mx, once as it is and once with a password on it. Sheet
+// protects every stream that holds data, each with its own keystream
+// phase, so the assertion that matters is the end-to-end one: the
+// protected workbook has to download as the same CSV as the plain one.
+{
+  const plainPath = new URL('../../../../tests/fixtures/EPOC-SHEET-PLAIN', import.meta.url).pathname;
+  const encPath   = new URL('../../../../tests/fixtures/EPOC-SHEET-PROTECTED', import.meta.url).pathname;
+  if (existsSync(plainPath) && existsSync(encPath)) {
+    const plain = new Uint8Array(readFileSync(plainPath));
+    const enc   = new Uint8Array(readFileSync(encPath));
+
+    eq(isEpocPasswordProtected(plain), false, 'EPOC Sheet: plain file not flagged protected');
+    eq(isProtectedEpocSheet(enc),      true,  'EPOC Sheet: protected file recognised');
+    eq(isProtectedEpocWord(enc),       false, 'EPOC Sheet: not mistaken for a Word document');
+    eq(canRecoverPassword(enc),        true,  'EPOC Sheet: recovery available');
+    // Sheet's key comes out of its own structures exactly, so unlike the
+    // word processors there is no crib to offer.
+    eq(recoveryAcceptsCrib(enc),       false, 'EPOC Sheet: no crib needed');
+
+    // Protection enciphers whole streams, padding each out to a multiple
+    // of 32 bytes — the workbook and graph-list sections are 21 and 3
+    // bytes in the clear, 32 each once protected.
+    const plainSections = readSectionTable(plain)!;
+    const encSections   = readSectionTable(enc)!;
+    const extent = (table: typeof plainSections, uid: number) => {
+      const s = findSection(table, uid)!;
+      return s.end - s.start;
+    };
+    eq(extent(plainSections, 0x1000011D), 21, 'EPOC Sheet: plain workbook section is 21 bytes');
+    eq(extent(encSections,   0x1000011D), 32, 'EPOC Sheet: protected workbook padded to 32');
+    eq(extent(plainSections, 0x10000121), 3,  'EPOC Sheet: plain graph list is 3 bytes');
+    eq(extent(encSections,   0x10000121), 32, 'EPOC Sheet: protected graph list padded to 32');
+
+    const rec = recoverEpocSheet(enc);
+    check(rec !== null, 'EPOC Sheet: recovery ran');
+    if (rec) {
+      eq(rec.key.length, 32, 'EPOC Sheet: 32-byte keystream recovered');
+      check(rec.streams.length >= 4, 'EPOC Sheet: several enciphered runs placed');
+      // Runs really do sit at different phases — that's why each one is
+      // measured rather than derived from a file-wide rule.
+      check(new Set(rec.streams.map(s => s.phase)).size > 1,
+            'EPOC Sheet: runs use more than one keystream phase');
+      const got  = convertSheetToCsv(rec.file);
+      const want = convertSheetToCsv(plain);
+      check(got !== null && want !== null, 'EPOC Sheet: both files convert to CSV');
+      eq(new TextDecoder().decode(got!), new TextDecoder().decode(want!),
+         'EPOC Sheet: recovered CSV is identical to the unprotected file\'s');
+      eq(new TextDecoder().decode(want!), 'alpha\nbeta\ngamma\n12\n345\n6789\ndelta\n42\nomega\n7\n',
+         'EPOC Sheet: the cells are the ones that were typed in');
+    }
+
+    // Through the public path.
+    const conv = tryConvert(enc, 'Accounts');
+    check(conv !== null, 'EPOC Sheet: tryConvert handles a protected workbook');
+    if (conv) {
+      eq(conv.filename, 'Accounts.csv', 'EPOC Sheet: converts to CSV');
+      eq(conv.recoveredPassword, true, 'EPOC Sheet: tryConvert flags password recovery');
+      eq(conv.needsCrib, undefined, 'EPOC Sheet: recovery is exact, no crib asked for');
+      eq(new TextDecoder().decode(conv.bytes),
+         new TextDecoder().decode(tryConvert(plain, 'Accounts')!.bytes),
+         'EPOC Sheet: protected download matches the unprotected one');
+    }
+
+    // The recovery leans on the graph-list section as its known
+    // plaintext. Break it and the whole thing must fail rather than
+    // invent cells: the caller then downloads the original file.
+    const damaged = new Uint8Array(enc);
+    const graphList = findSection(encSections, 0x10000121)!;
+    for (let i = graphList.start; i < graphList.end; i++) damaged[i] ^= 0x5a;
+    eq(recoverEpocSheet(damaged), null, 'EPOC Sheet: a broken anchor fails cleanly');
+    eq(tryConvert(damaged, 'Accounts'), null,
+       'EPOC Sheet: an unrecoverable workbook converts to nothing (raw download)');
+  } else {
+    console.log('SKIP EPOC Sheet: protected fixture pair not present');
+  }
+}
+
 if (failures === 0) {
-  console.log('PASS converters (UID + Sketch + Record + Word + Sheet + SIBO Word)');
+  console.log('PASS converters (UID + Sketch + Record + Word + Sheet + SIBO Word + EPOC password)');
   process.exit(0);
 } else {
   console.error(`FAIL: ${failures} assertion(s)`);

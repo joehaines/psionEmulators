@@ -30,6 +30,45 @@ export function readDirectStoreTrailerOffset(bytes: Uint8Array): number | null {
   return offset;
 }
 
+// A Direct File Store's trailer is, for every document format we handle,
+// a Section Table: a single-byte-cardinal count followed by that many
+// (u32 UID, u32 offset) pairs pointing at the file's sections.  Sections
+// are not length-tagged — a section runs to whichever section (or the
+// table itself) starts next — so we sort by offset and pair each start
+// with the following one.
+export interface SectionEntry { uid: number; start: number; end: number; }
+
+export function readSectionTable(bytes: Uint8Array): SectionEntry[] | null {
+  const tableOffset = readDirectStoreTrailerOffset(bytes);
+  if (tableOffset === null) return null;
+
+  const countByte = bytes[tableOffset];
+  if ((countByte & 1) !== 0) return null;          // not a single-byte cardinal
+  const count = countByte >> 1;
+  if (count === 0 || count > 32) return null;
+  const entriesStart = tableOffset + 1;
+  if (entriesStart + count * 8 > bytes.length) return null;
+
+  const raw: { uid: number; start: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const uid   = readUint32LE(bytes, entriesStart + i * 8);
+    const start = readUint32LE(bytes, entriesStart + i * 8 + 4);
+    if (start < EPOC_HEADER_BYTES + 4 || start >= tableOffset) return null;
+    raw.push({ uid, start });
+  }
+  raw.sort((a, b) => a.start - b.start);
+
+  return raw.map((entry, i) => ({
+    uid: entry.uid,
+    start: entry.start,
+    end: i + 1 < raw.length ? raw[i + 1].start : tableOffset,
+  }));
+}
+
+export function findSection(table: SectionEntry[], uid: number): SectionEntry | null {
+  return table.find(s => s.uid === uid) ?? null;
+}
+
 // EPOC stores variable-length integers (used inside Permanent File Store
 // records for paragraph lengths, cell positions, etc.) using a simple
 // LSB-first scheme:

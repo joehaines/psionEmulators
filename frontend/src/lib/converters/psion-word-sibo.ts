@@ -45,6 +45,8 @@
 // pin the key exactly (the first nine characters cover all nine key
 // positions, giving a mathematically exact result).
 
+import { englishModel } from './english-model.ts';
+
 export const SIBO_WORD_MAGIC = 'PSIONWPDATAFILE\0';
 
 const HEADER_BYTES   = 0x28;   // records start here
@@ -147,7 +149,7 @@ export interface RecoveryResult {
 // Positions not pinned by the crib are recovered statistically.
 export function recoverBodyKey(cipher: Uint8Array, crib?: Uint8Array): RecoveryResult {
   const N = cipher.length;
-  const model = englishModel();
+  const model = englishModel(PARA_END);
   const key: (number | null)[] = new Array(KEY_LEN).fill(null);
 
   // Pin key bytes from any crib the caller supplied.
@@ -225,70 +227,6 @@ function textConfidence(body: Uint8Array): number {
   }
   return ok / body.length;
 }
-
-// =============================================================================
-// English character model (self-contained, built once from an embedded
-// sample so the browser needs no external data).
-// =============================================================================
-
-interface Model { uni: Float64Array; bi: Float64Array[]; }
-let MODEL: Model | null = null;
-
-function englishModel(): Model {
-  if (MODEL) return MODEL;
-  const V = 256;
-  const uniC = new Float64Array(V).fill(0.02);
-  const biC: Float64Array[] = Array.from({ length: V }, () => new Float64Array(V).fill(0.02));
-  // Paragraph breaks in the body are 0x00, so map sentence/line breaks in
-  // the sample to 0x00 to teach the model that letters precede/follow it.
-  const sample = ENGLISH_SAMPLE.replace(/[.\n]/g, '\0');
-  let prev = -1;
-  for (let i = 0; i < sample.length; i++) {
-    const c = sample.charCodeAt(i) & 0xff;
-    uniC[c]++;
-    if (prev >= 0) biC[prev][c]++;
-    prev = c;
-  }
-  const uni = new Float64Array(V);
-  const uniSum = uniC.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < V; i++) uni[i] = Math.log(uniC[i] / uniSum);
-  const bi: Float64Array[] = [];
-  for (let a = 0; a < V; a++) {
-    const rowSum = biC[a].reduce((s, x) => s + x, 0);
-    const row = new Float64Array(V);
-    for (let b = 0; b < V; b++) row[b] = Math.log(biC[a][b] / rowSum);
-    bi.push(row);
-  }
-  MODEL = { uni, bi };
-  return MODEL;
-}
-
-// A few KB of ordinary English prose.  Content is irrelevant beyond being
-// representative of everyday letter/word statistics; it is only used to
-// score candidate decryptions.
-const ENGLISH_SAMPLE = `
-The morning light came slowly across the fields and the town began to wake.
-People walked to work along the quiet streets, talking about the weather and
-the news of the day. In the small office by the river a woman opened her diary
-and started to write a letter to an old friend. She wrote about her family, her
-garden and the long summer that had passed, and she asked after his children and
-his health. The words came easily because there was so much to say and so little
-time to say it. When the letter was finished she read it through once more, made a
-few small changes, and folded it carefully into an envelope. Outside the window a
-boy was selling papers on the corner and a bus went past with its lights still on.
-It is a simple thing to write down what you think and feel, but it is one of the
-oldest and most useful things that people do. A note left on the kitchen table, a
-list of jobs for the week, a report for the office, a story for a child at night:
-all of these begin with a single word and grow from there. Good writing is clear
-and honest. It says what it means and it does not waste the reader's time. The
-best advice is to write the way you speak, to keep your sentences short, and to
-read your work aloud so that you can hear where it stumbles. Every document, long
-or short, is really just a conversation between the writer and the reader, carried
-across time and distance by a handful of letters on a page. When you save your work
-you keep that conversation safe, and years later you can open the file again and
-find the same words waiting for you, exactly as you left them, ready to be read.
-This is the writing of some words and the making of a plain and ordinary record.
-`;
 
 // =============================================================================
 // Body text -> UTF-8 plain text

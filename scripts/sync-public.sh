@@ -127,10 +127,30 @@ git -C "$MIRROR" -c user.name="$author_name" -c user.email="$author_email" \
 
 echo "==> pushing to $BRANCH"
 for attempt in 1 2 3 4 5; do
-  if git -C "$MIRROR" push origin "$BRANCH"; then
+  if out="$(git -C "$MIRROR" push origin "$BRANCH" 2>&1)"; then
+    printf '%s\n' "$out"
     echo "==> published $src_sha: $added added, $modified modified, $deleted deleted"
     exit 0
   fi
+  printf '%s\n' "$out" >&2
+
+  # Only a flaky connection is worth another go. A refusal is a decision
+  # the far end already made — retrying just repeats it more slowly.
+  if printf '%s' "$out" | grep -qE '\[remote rejected\]|\[rejected\]|403|denied|protected branch'; then
+    if printf '%s' "$out" | grep -q 'workflow'; then
+      echo >&2
+      echo "The token may not write .github/workflows/. On a fine-grained PAT that" >&2
+      echo "is the 'Workflows' permission (Read and write), separate from Contents;" >&2
+      echo "on a classic one it is the 'workflow' scope. Either grant it, or add" >&2
+      echo ".github/workflows/ to EXCLUDE in this script to keep workflows out of" >&2
+      echo "the mirror — note that removing ones already published is itself a" >&2
+      echo "workflow-file change, so the first such sync still needs the permission." >&2
+    fi
+    echo >&2
+    echo "push was rejected, not retrying; the commit is waiting in $MIRROR" >&2
+    exit 1
+  fi
+
   if [ "$attempt" = 5 ]; then break; fi
   delay=$((2 ** attempt))
   echo "push failed, retrying in ${delay}s" >&2

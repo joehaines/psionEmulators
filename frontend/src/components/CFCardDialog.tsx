@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PsionWebEmulator
 // Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
 
-import { useState, useEffect, useRef, useCallback, type DragEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type DragEvent } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
 import {
   createBlankImage, isFat16, listDirectory, readInfo, freeSpace,
@@ -9,7 +9,9 @@ import {
   readFileBytes, setVolumeLabel, MAX_VOLUME_LABEL_LEN,
   ROOT_DIR_CLUSTER, type Fat16Entry,
 } from '../lib/fat16';
-import { tryConvert } from '../lib/converters';
+import {
+  tryConvert, isPasswordProtected, canRecoverPassword, recoveryAcceptsCrib,
+} from '../lib/converters';
 import { sameBytes } from '../lib/bytes';
 
 interface Props {
@@ -57,6 +59,11 @@ interface PathSegment { name: string; cluster: number }
 // the user hasn't staged any local edits. 1.5s feels responsive without
 // burning CPU on the per-poll memcpy for larger images.
 const DEVICE_POLL_INTERVAL_MS = 1500;
+
+// Upper size for the "is this file password-protected?" scan the listing
+// runs (see `protectedFiles`). A Psion document with a password on it is
+// kilobytes; anything this big is a disk image or an archive.
+const MAX_PROTECTION_SCAN_BYTES = 2 * 1024 * 1024;
 
 export default function CFCardDialog({ controls, slotKind = 'cf', onClose }: Props) {
   // Noun for the card in headings and tooltips (see Props.slotKind).
@@ -266,7 +273,33 @@ export default function CFCardDialog({ controls, slotKind = 'cf', onClose }: Pro
     setStatus('Refreshed files list from device');
   }, [cardAttached, localDirty, getCardBytes]);
 
-  const handleDownloadEntry = useCallback((entry: Fat16Entry) => {
+  // Which files in this directory are password-protected Psion
+  // documents, and which of those we can actually read back. The list
+  // badges them, and offers the crib-assisted "recover…" action for the
+  // ones a plain download might only half-recover. Telling needs the
+  // file's section table, which sits at its end, so this reads each
+  // candidate whole — hence the size cap: no Psion document comes near
+  // it, and a card full of large files shouldn't pay for the check on
+  // every poll. Recomputed only when the listing or the bytes change.
+  const protectedFiles = useMemo(() => {
+    const flagged = new Set<string>();
+    const recoverable = new Set<string>();
+    const cribbable = new Set<string>();
+    if (!image) return { flagged, recoverable, cribbable };
+    for (const e of entries) {
+      if (e.isDirectory || e.size > MAX_PROTECTION_SCAN_BYTES) continue;
+      try {
+        const bytes = readFileBytes(image, e);
+        if (!isPasswordProtected(bytes)) continue;
+        flagged.add(e.name);
+        if (canRecoverPassword(bytes)) recoverable.add(e.name);
+        if (recoveryAcceptsCrib(bytes)) cribbable.add(e.name);
+      } catch { /* unreadable — leave unflagged */ }
+    }
+    return { flagged, recoverable, cribbable };
+  }, [image, entries]);
+
+  const handleDownloadEntry = useCallback((entry: Fat16Entry, crib?: Uint8Array) => {
     if (!image) return;
     if (entry.isDirectory) {
       setStatus('Folder download not supported yet — download the whole image instead');
@@ -274,19 +307,46 @@ export default function CFCardDialog({ controls, slotKind = 'cf', onClose }: Pro
     }
     const bytes = readFileBytes(image, entry);
     if (convertOnDownload) {
-      const converted = tryConvert(bytes, entry.name);
+      const converted = tryConvert(bytes, entry.name, crib);
       if (converted) {
         downloadBlob(converted.bytes, converted.filename, converted.mime);
-        setStatus(`Converted ${entry.name} (${converted.formatLabel})`);
+        if (converted.recoveredPassword) {
+          setStatus(converted.needsCrib
+            ? `Recovered ${entry.name}, but there is too little text in it to be sure of every character — "recover…" takes its first words for an exact result.`
+            : `Recovered password-protected ${entry.name} (${converted.formatLabel}).`);
+        } else {
+          setStatus(`Converted ${entry.name} (${converted.formatLabel})`);
+        }
         return;
       }
       // No converter matched — silently fall back to raw download but
       // tell the user why, so unchecked-vs-checked behaviour isn't
       // mysteriously different for these files.
-      setStatus(`Downloaded original — no converter for ${entry.name}`);
+      setStatus(isPasswordProtected(bytes)
+        ? `Downloaded original — ${entry.name} is password-protected and this file type can't be read back.`
+        : `Downloaded original — no converter for ${entry.name}`);
     }
     downloadBlob(bytes, entry.name);
   }, [image, convertOnDownload]);
+
+  // Assisted recovery for a password-protected document: the user types
+  // the document's first characters, which pin the keystream exactly.
+  // This is the reliable route for short documents, where there isn't
+  // enough text for the automatic search to settle on its own.
+  const handleRecoverEntry = useCallback((entry: Fat16Entry) => {
+    const crib = window.prompt(
+      `Recover "${entry.name}".\n\nType the first few characters of the document as you remember ` +
+      `them (the first 32 pin it exactly). Leave blank to let the recovery guess on its own.`, '');
+    if (crib === null) return;                      // cancelled
+    // In a document body a paragraph break is 0x06 and a tab 0x09; map
+    // what the user typed the same way so their newlines line up with
+    // the document's own paragraph marks.
+    const cribBytes = crib
+      ? new Uint8Array(Array.from(crib, ch =>
+          ch === '\n' ? 0x06 : ch === '\t' ? 0x09 : ch.charCodeAt(0) & 0xff))
+      : undefined;
+    handleDownloadEntry(entry, cribBytes);
+  }, [handleDownloadEntry]);
 
   const handleNavigateInto = useCallback((entry: Fat16Entry) => {
     if (!entry.isDirectory) return;
@@ -558,6 +618,12 @@ export default function CFCardDialog({ controls, slotKind = 'cf', onClose }: Pro
                           ) : (
                             e.name
                           )}
+                          {protectedFiles.flagged.has(e.name) && (
+                            <span className="ml-2 text-amber-600"
+                                  title={protectedFiles.recoverable.has(e.name)
+                                    ? 'This document is password-protected. "Download" (with Convert on) reads it back anyway; "recover…" lets you supply its first words for an exact result.'
+                                    : 'This document is password-protected, and this file type can only be downloaded as-is.'}>🔒</span>
+                          )}
                         </td>
                         <td className="py-1 text-right text-gray-500">
                           {e.isDirectory ? '' : formatBytes(e.size)}
@@ -568,6 +634,13 @@ export default function CFCardDialog({ controls, slotKind = 'cf', onClose }: Pro
                               className={`${btn} mr-1`}
                               onClick={() => handleDownloadEntry(e)}
                             >Download</button>
+                          )}
+                          {protectedFiles.cribbable.has(e.name) && (
+                            <button
+                              className={`${btn} mr-1`}
+                              title="Recover this password-protected document, optionally giving its first few characters"
+                              onClick={() => handleRecoverEntry(e)}
+                            >recover…</button>
                           )}
                           <button
                             className={btn}
@@ -623,7 +696,8 @@ export default function CFCardDialog({ controls, slotKind = 'cf', onClose }: Pro
           >
             Download image
           </button>
-          <label className="flex items-center gap-1.5 text-xs font-mono text-psion-charcoal select-none cursor-pointer ml-2">
+          <label className="flex items-center gap-1.5 text-xs font-mono text-psion-charcoal select-none cursor-pointer ml-2"
+                 title="Turn Psion documents into modern formats as they download (Word → RTF, Sheet → CSV, Sketch → PNG, Record → WAV). Password-protected Word files are recovered automatically.">
             <input
               type="checkbox"
               checked={convertOnDownload}

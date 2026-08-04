@@ -10,7 +10,7 @@
 //     currently-inserted) FAT16 card; the user opens it from drive D:.
 //     CompactFlash everywhere bar the netpad, whose slot takes an MMC —
 //     the same raw image either way, and the netpad's default because
-//     its cable only listens once Remote link is switched on.
+//     the slot mounts with nothing switched on first.
 //   - SIBO (Series 3 family)  → a FEFS flash SSD pack with the app's
 //     files under \APP\; EPOC16 sees it as pack A/B.
 //   - EPOC32 without CF (Revo) → Remote Link upload of the .SIS to C:\.
@@ -95,9 +95,16 @@ export async function fetchAppZip(entry: AppEntry): Promise<Uint8Array> {
 }
 
 // ── The library route ───────────────────────────────────────────────
-// `#/apps`, with two optional parameters:
-//   device=<deviceId>       open filtered to that machine's apps (the
-//                           netpad's "Install standard apps" button)
+// `#/apps`, with three optional parameters:
+//   device=<deviceId>       open filtered to that machine's apps
+//   category=<genre>        open filtered to one category, named by the
+//                           genre half of its label ("Standard apps",
+//                           "Games") — the dropdown's own values. With
+//                           device= it narrows a machine's list to one
+//                           set, which is what the netpad's "Install
+//                           standard apps" button links to: every EPOC
+//                           app now runs on the netpad, and that button
+//                           means the machine's own CD set specifically.
 //   app=<category>/<slug>   open that app's details popup — the whole
 //                           point being that the address bar always
 //                           holds a link to whatever is on screen, so
@@ -109,6 +116,7 @@ export const APPS_ROUTE = '#/apps';
 
 export interface AppsRoute {
   device: string | null;
+  category: string | null;
   app: string | null;
 }
 
@@ -120,12 +128,17 @@ export function isAppsRoute(hash: string): boolean {
 export function parseAppsRoute(hash: string): AppsRoute {
   const params = new URLSearchParams(
     hash.startsWith(`${APPS_ROUTE}?`) ? hash.slice(APPS_ROUTE.length + 1) : '');
-  return { device: params.get('device'), app: params.get('app') };
+  return {
+    device: params.get('device'),
+    category: params.get('category'),
+    app: params.get('app'),
+  };
 }
 
 export function appsRouteHash(route: AppsRoute): string {
   const params = new URLSearchParams();
   if (route.device) params.set('device', route.device);
+  if (route.category) params.set('category', route.category);
   if (route.app) params.set('app', route.app);
   // App ids are "<category>/<slug>". A literal slash is legal in a query
   // string and URLSearchParams parses it back happily, so un-escape the
@@ -190,12 +203,16 @@ export const TRY_CAPABLE: Record<string, 'cf' | 'ssd' | 'link'> = {
 };
 
 // Devices whose card beats their cable regardless of the delivery
-// preference. Only the netpad: its EPOC R5 build opens the Remote Link
-// port only once Remote link is switched on from the System screen's
-// Tools menu, so a freshly booted machine has nothing listening — while
-// its MMC slot mounts as D: on its own. (The card is an MMC rather than
-// a PC-Card, but it is the same raw FAT16 image either way, so it takes
-// the 'cf' path; only the wording differs.)
+// preference. Only the netpad: its MMC slot mounts as D: on its own,
+// with nothing to switch on first, where its EPOC R5 build wants Remote
+// link enabled from the System screen's Tools menu before the port is
+// open on real hardware. (The card is an MMC rather than a PC-Card, but
+// it is the same raw FAT16 image either way, so it takes the 'cf' path;
+// only the wording differs.) Installed-folder bundles have no card route
+// at all and still go over the cable — which the emulated machine does
+// answer from a cold boot, because sa1100.cpp parks the boot-time
+// Req_Req_Pdu for the host bridge; see tests/integration/
+// test-epocdir-install.sh --device netpad.
 const CARD_FIRST_DEVICES = new Set(['netpad']);
 
 // User preference for SIS delivery on EPOC32 machines (Settings →

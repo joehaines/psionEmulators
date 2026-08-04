@@ -27,8 +27,10 @@ bash tests/boot/test-boot.sh revo             # one device
 bash tests/boot/test-boot.sh --all --update-golden   # refresh golden PGMs
 bash tests/integration/test-remote-link.sh    # PLP remote-link end-to-end
 bash tests/integration/test-epocdir-install.sh  # app-folder install → 5mx, then launch it
+bash tests/integration/test-epocdir-install.sh --device netpad  # same, over the netpad's cable
 bash tests/integration/test-netpad-mmc.sh     # netpad MMC card, read + write
 bash tests/integration/test-netpad-app-install.sh  # app library → netpad: install a .SIS, see it in Extras
+bash tests/integration/test-netpad-app-install.sh epocgames/fred  # …and a 3-Lib EPOC app on it
 bash tests/integration/test-ssd-write.sh      # SIBO SSD pack format + write + read back
 bash tests/stress/netpad_orientation.sh       # netpad "Switch orientation"
 tests/unit/mmc_card_test                      # MMC-over-SPI card protocol

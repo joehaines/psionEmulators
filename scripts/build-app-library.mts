@@ -56,7 +56,15 @@ const SIBO_DEVICES = ['series3a', 'series3c', 'series3mx', 'pocketbk2', 'workabo
 // has booted it before (it needs its OS card flow on first load); see
 // BOOTLOADER_TRY_DEVICES in frontend/src/lib/appLibrary.ts. Same deal
 // for the netBook in the s7games row.
-const EPOC_DEVICES = ['series5', '5mx', '5mxpro', 'mc218', 'revo'];
+//
+// The netpad belongs in this row for the same reason the 5mx does: it
+// is an EPOC R5 ARM machine with the 5mx's own 640x240 panel, so the
+// ER5 catalogue is its catalogue — the same .SIS installs and runs
+// unchanged. It just arrives by a different road (its MMC slot rather
+// than the cable; see CARD_FIRST_DEVICES in lib/appLibrary.ts), and the
+// netpad/ category below stays the machine's *own* CD set rather than
+// the whole of what it can run.
+const EPOC_DEVICES = ['series5', '5mx', '5mxpro', 'mc218', 'revo', 'netpad'];
 
 const CATEGORIES: CategoryMeta[] = [
   { id: 's3games',    label: 'Series 3 — Games',              platform: 'sibo',   devices: SIBO_DEVICES, tryDevice: 'series3c', vault: false },

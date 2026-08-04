@@ -189,10 +189,11 @@ export default function App() {
     return <Leaderboard onClose={() => { window.location.hash = ''; }} />;
   }
   if (isAppsRoute(route)) {
-    const { device, app } = parseAppsRoute(route);
+    const { device, category, app } = parseAppsRoute(route);
     return (
       <AppLibrary
         initialDeviceFilter={device}
+        initialCategoryFilter={category}
         appId={app}
         onClose={() => { window.location.hash = ''; }}
       />

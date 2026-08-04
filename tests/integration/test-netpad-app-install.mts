@@ -8,6 +8,11 @@
 // leads to that set. This drives one of them onto the device and
 // requires it to end up in Extras.
 //
+// --app takes any app in the library catalogued for the netpad, which
+// since the machine joined EPOC_DEVICES means the whole ER5 catalogue
+// and not just its own CD set: --app epocgames/fred installs a 3-Lib
+// game by the same route.
+//
 // The whole production chain runs for real:
 //   scripts/build-app-library.mts  → manifest entry + app zip
 //   lib/appLibrary.ts deliverApp() → 'cf' delivery: the .SIS written
@@ -50,9 +55,10 @@ const KEEP = process.argv.includes('--keep');
 
 // The netpad's delivery-relevant DeviceProfile fields
 // (core/device_registry.cpp): no PC-Card socket, an MMC slot, and a
-// Remote Link on UART3 that deliveryKindFor must NOT choose — the ROM
-// only opens that port once Remote link is switched on from the Tools
-// menu, which is why the card is the netpad's route.
+// Remote Link on UART3 that deliveryKindFor must NOT choose for a .SIS
+// — the slot mounts as D: with nothing switched on first, where the
+// link wants Remote link enabled from the Tools menu on real hardware,
+// which is why the card is the netpad's route.
 const PROFILE: DeviceProfileLike = {
   id: 'netpad', hasCFSlot: false, hasMmcSlot: true, ssdSlotCount: 0,
   remoteLinkUart: 3, linkProtocol: 1,

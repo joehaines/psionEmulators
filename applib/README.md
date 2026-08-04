@@ -26,7 +26,15 @@ applications Psion Teklogix shipped on the netpad's support CD (the
 machine's EPOC R5 ROM carries none of them), so every entry lives in
 `extra-apps.json` instead. The emulator links to it from the netpad's
 **Install standard apps** button, which opens the library at
-`#/apps?device=netpad`.
+`#/apps?device=netpad&category=Standard+apps`.
+
+That category is the netpad's *own* set, not the limit of what it runs:
+the machine is an EPOC R5 ARM device with the 5mx's own 640×240 panel,
+so every `epoc*` category is catalogued for it as well and installs on
+it by the same MMC route (see `EPOC_DEVICES` in
+`scripts/build-app-library.mts`). The button names the category so those
+twenty apps aren't buried among the thousand the machine can also run;
+clearing the category filter in the library shows the rest.
 
 `scripts/build-app-library.mts` turns all of this into the deployable
 library (`dist/apps`: `manifest.json` + one zip per app + icons

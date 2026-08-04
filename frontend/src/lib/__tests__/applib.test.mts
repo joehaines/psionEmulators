@@ -129,16 +129,23 @@ eq(isAppsRoute('#/apps?app=epocgames/monopoly'), true, 'library route with param
 eq(isAppsRoute('#/appsomething'), false, 'a longer hash is a different route');
 eq(isAppsRoute('#/5mx'), false, 'a device route is not the library');
 
-eq(appsRouteHash({ device: null, app: null }), '#/apps', 'no parameters → bare route');
-eq(appsRouteHash({ device: 'netpad', app: null }), '#/apps?device=netpad', 'device only');
-eq(appsRouteHash({ device: null, app: 'epocgames/monopoly' }),
+eq(appsRouteHash({ device: null, category: null, app: null }), '#/apps',
+   'no parameters → bare route');
+eq(appsRouteHash({ device: 'netpad', category: null, app: null }), '#/apps?device=netpad',
+   'device only');
+eq(appsRouteHash({ device: null, category: null, app: 'epocgames/monopoly' }),
    '#/apps?app=epocgames/monopoly', "the app id's slash stays readable");
-eq(appsRouteHash({ device: 'netpad', app: 'netpad/word' }),
+eq(appsRouteHash({ device: 'netpad', category: null, app: 'netpad/word' }),
    '#/apps?device=netpad&app=netpad/word', 'both, device first');
+// The netpad's "Install standard apps" button: every EPOC app runs on
+// the machine now, so the button names the category as well.
+eq(appsRouteHash({ device: 'netpad', category: 'Standard apps', app: null }),
+   '#/apps?device=netpad&category=Standard+apps', 'device + category');
 
 {
   const empty = parseAppsRoute('#/apps');
   eq(empty.device, null, 'bare route names no device');
+  eq(empty.category, null, 'bare route names no category');
   eq(empty.app, null, 'bare route names no app');
   const both = parseAppsRoute('#/apps?device=netpad&app=netpad/word');
   eq(both.device, 'netpad', 'device parsed');
@@ -147,8 +154,15 @@ eq(appsRouteHash({ device: 'netpad', app: 'netpad/word' }),
   // chat client has helpfully percent-encoded on the way through.
   eq(parseAppsRoute('#/apps?app=netpad%2Fword').app, 'netpad/word',
      'percent-encoded slash decodes');
+  // A category genre carries a space; both encodings of it parse back.
+  eq(parseAppsRoute('#/apps?device=netpad&category=Standard+apps').category, 'Standard apps',
+     'category parsed with its space');
+  eq(parseAppsRoute('#/apps?category=Standard%20apps').category, 'Standard apps',
+     'percent-encoded space decodes');
   const round = '#/apps?device=netpad&app=netpad/word';
   eq(appsRouteHash(parseAppsRoute(round)), round, 'parse ∘ format is a round trip');
+  const roundCat = '#/apps?device=netpad&category=Standard+apps';
+  eq(appsRouteHash(parseAppsRoute(roundCat)), roundCat, 'round trip with a category');
 }
 
 // ── delivery routing ────────────────────────────────────────────────
@@ -201,9 +215,10 @@ eq(tryTargetsFor({ ...sisApp, installKind: 'none' }).length, 0, 'no installer �
 
 // ── netpad: MMC slot, card first ────────────────────────────────────
 // The netpad's slot takes an MMC rather than a PC-Card (same raw FAT16
-// image), and its EPOC R5 build only opens the Remote Link port once
-// Remote link is switched on from the Tools menu — so the card wins
-// even though the machine can link and the preference says otherwise.
+// image) and mounts as D: with nothing switched on first, where the
+// machine's Remote Link wants enabling from the Tools menu on real
+// hardware — so the card wins even though it can link and the
+// preference says otherwise.
 const netpadApp: AppEntry = {
   ...sisApp, id: 'netpad/word', category: 'netpad',
   devices: ['netpad'], tryDevice: 'netpad', installFile: 'word.sis',
@@ -226,6 +241,26 @@ eq(cardNameFor({ id: '5mx', hasCFSlot: true }), 'CF card', 'everyone else says C
   delete (globalThis as Record<string, unknown>).localStorage;
 }
 check(tryTargetsFor(netpadApp).includes('netpad'), 'netpad is a try target for its own apps');
+
+// The netpad is an EPOC R5 ARM machine with the 5mx's own 640x240
+// panel, so the whole ER5 catalogue is catalogued for it too (see
+// EPOC_DEVICES in scripts/build-app-library.mts) — and any of it can be
+// installed, by the same MMC route as the machine's own CD set.
+{
+  const epocApp: AppEntry = {
+    ...sisApp, devices: ['series5', '5mx', '5mxpro', 'mc218', 'revo', 'netpad'],
+  };
+  check(tryTargetsFor(epocApp).includes('netpad'),
+        'a 5mx app can be tried on the netpad');
+  eq(deliveryKindFor(netpadProfile, epocApp), 'cf',
+     "a 5mx app's installer reaches the netpad on its MMC card");
+  // An installed-folder bundle has no card route anywhere (the card
+  // carries 8.3 names only), so on the netpad it takes the cable — its
+  // link server does answer a cold boot in the emulator; see
+  // tests/integration/test-epocdir-install.sh --device netpad.
+  eq(deliveryKindFor(netpadProfile, { ...epocApp, installKind: 'epocdir' }), 'link',
+     'an installed-folder bundle reaches the netpad over the cable');
+}
 
 await (async () => {
   const sis = text('fake netpad sis');

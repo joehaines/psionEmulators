@@ -21,6 +21,10 @@ interface Props {
   // Device id from `#/apps?device=<id>`: opens the library filtered to
   // that machine instead of restoring the user's last filters.
   initialDeviceFilter?: string | null;
+  // Category genre from `#/apps?category=<genre>`, the same values the
+  // category dropdown holds. Narrows the opening view further — the
+  // netpad's "Install standard apps" button pairs it with the device.
+  initialCategoryFilter?: string | null;
   // App id from `#/apps?app=<category>/<slug>`: the app whose details
   // popup is open. The route owns that — see openDetail below.
   appId?: string | null;
@@ -61,12 +65,18 @@ const DEFAULT_FILTERS: Filters = {
   hideDownloadOnly: true,
 };
 
-// A device named in the URL wins over the persisted filters entirely,
-// rather than being ANDed with them: a link that promises "this
-// machine's apps" has to show them, and a stale category or search from
-// the user's last visit could otherwise leave the page empty.
-function loadFilters(deviceFilter?: string | null): Filters {
-  if (deviceFilter) return { ...DEFAULT_FILTERS, deviceFilter };
+// Filters named in the URL win over the persisted ones entirely, rather
+// than being ANDed with them: a link that promises "this machine's apps"
+// has to show them, and a stale category or search from the user's last
+// visit could otherwise leave the page empty.
+function loadFilters(deviceFilter?: string | null, categoryFilter?: string | null): Filters {
+  if (deviceFilter || categoryFilter) {
+    return {
+      ...DEFAULT_FILTERS,
+      ...(deviceFilter ? { deviceFilter } : {}),
+      ...(categoryFilter ? { categoryFilter } : {}),
+    };
+  }
   try {
     const raw = localStorage.getItem(FILTERS_KEY);
     if (!raw) return DEFAULT_FILTERS;
@@ -123,13 +133,15 @@ function AppIcon({ app }: { app: AppEntry }) {
   );
 }
 
-export default function AppLibrary({ onClose, initialDeviceFilter, appId }: Props) {
+export default function AppLibrary({
+  onClose, initialDeviceFilter, initialCategoryFilter, appId,
+}: Props) {
   const [manifest, setManifest] = useState<AppManifest | null>(null);
   const [loadError, setLoadError] = useState<'offline' | 'missing' | string | null>(null);
   const [deviceNames, setDeviceNames] = useState<Record<string, string>>({});
   const [popularity, setPopularity] = useState<Map<string, number>>(new Map());
 
-  const [initialFilters] = useState(() => loadFilters(initialDeviceFilter));
+  const [initialFilters] = useState(() => loadFilters(initialDeviceFilter, initialCategoryFilter));
   const [search, setSearch] = useState(initialFilters.search);
   const [deviceFilter, setDeviceFilter] = useState(initialFilters.deviceFilter);
   const [categoryFilter, setCategoryFilter] = useState(initialFilters.categoryFilter);

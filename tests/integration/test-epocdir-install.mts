@@ -11,16 +11,23 @@
 //   lib/appLibrary.ts deliverApp() → MkDirAll + per-file RFSV upload
 //   lib/plp/*                      → PLP/NCP/RFSV-32 over the harness's
 //                                    unix-socket serial bridge
-//   harness/run                    → the actual 5mx ROM
+//   harness/run                    → the actual ROM of --device
 //
 // It then reads every file back off the device and compares it with the
 // bundle, and (with --snapshot PATH) saves the device's RAM so the
 // companion script can boot the machine again and check the app really
 // shows up in Extras — see tests/integration/test-epocdir-install.sh.
 //
+// --device picks the machine (see DEVICES below). The 5mx is the
+// default; the netpad matters because it is the one machine the library
+// delivers to by card, so the cable is the only road an installed-folder
+// bundle can take to it — a card can carry 8.3 names only, which a
+// bundle's zExeLoader.dll would not survive (see deliveryKindFor).
+//
 // Run (needs harness/run built):
 //   node --experimental-strip-types tests/integration/test-epocdir-install.mts \
-//        [--app epocgames/wallinstalled] [--snapshot ram.bin] [--seconds 300]
+//        [--device 5mx] [--app epocgames/wallinstalled] [--snapshot ram.bin] \
+//        [--seconds 300]
 
 import * as net from 'node:net';
 import * as fs from 'node:fs';
@@ -34,13 +41,13 @@ import { unzipAll } from '../../frontend/src/lib/zip.ts';
 
 const REPO = path.resolve(new URL('../..', import.meta.url).pathname);
 const HARNESS = path.join(REPO, 'harness', 'run');
-const ROM = path.join(REPO, 'roms', '5mx_v1.05(260)_eng.bin');
 
 const arg = (flag: string, fallback: string): string => {
   const i = process.argv.indexOf(flag);
   return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : fallback;
 };
 const APP_ID = arg('--app', 'epocgames/wallinstalled');
+const DEVICE = arg('--device', '5mx');
 const SNAPSHOT = arg('--snapshot', '');
 // Sim seconds the harness runs for. It only writes the RAM snapshot and
 // the screenshot when the poll loop ends, so this has to outlast the
@@ -48,13 +55,54 @@ const SNAPSHOT = arg('--snapshot', '');
 // budget it actually used.
 const SECONDS = Number(arg('--seconds', '300'));
 
-// The 5mx's link-relevant DeviceProfile fields (core/device_registry.cpp).
-// hasCFSlot is deliberately false: the real profile has one, but here a
-// stalled cable must fail the test rather than silently fall back to
-// card delivery, which is a different code path with its own test.
-const PROFILE: DeviceProfileLike = {
-  id: '5mx', hasCFSlot: false, ssdSlotCount: 0, remoteLinkUart: 2, linkProtocol: 1,
+// Per-device: the ROM, the link-relevant DeviceProfile fields
+// (core/device_registry.cpp), the boot golden --assert-launched compares
+// against, and when to plug the cable in — before EPOC's
+// RemoteLinkServer is up, so the client's connect() drives the handshake
+// exactly as the browser does.
+//
+// The card slots are deliberately absent from the profiles: the real
+// machines have one, but here a stalled cable must fail the test rather
+// than silently fall back to card delivery, which is a different code
+// path with its own test. (deliveryKindFor sends an installed folder
+// over the cable regardless — this only removes the rescue.)
+interface DeviceMeta {
+  rom: string;
+  profile: DeviceProfileLike;
+  golden: string;
+  attachAt: number;   // sim seconds
+}
+
+const DEVICES: Record<string, DeviceMeta> = {
+  '5mx': {
+    rom: '5mx_v1.05(260)_eng.bin',
+    profile: { id: '5mx', hasCFSlot: false, ssdSlotCount: 0, remoteLinkUart: 2, linkProtocol: 1 },
+    golden: '5mx.pgm',
+    attachAt: 8,
+  },
+  // The netpad's EPOC R5 build runs RemoteLinkServer4 on UART3 like the
+  // Series 7 / netBook, and sa1100.cpp parks its single boot-time
+  // Req_Req_Pdu for the host bridge — so the cable answers a cold boot
+  // here without the Tools-menu toggle real hardware wants. It reaches
+  // its desktop at ~14 s, hence the later plug-in.
+  netpad: {
+    rom: 'Netpad.img',
+    profile: { id: 'netpad', hasCFSlot: false, hasMmcSlot: false, ssdSlotCount: 0,
+               remoteLinkUart: 3, linkProtocol: 1 },
+    golden: 'netpad.pgm',
+    attachAt: 18,
+  },
 };
+
+const meta = DEVICES[DEVICE];
+if (!meta) {
+  console.log(`\nRESULT: FAIL — unknown --device ${DEVICE} ` +
+              `(have ${Object.keys(DEVICES).join(', ')})`);
+  process.exit(1);
+}
+const ROM = path.join(REPO, 'roms', meta.rom);
+const PROFILE = meta.profile;
+const UART = String(PROFILE.remoteLinkUart);
 
 function fail(msg: string): never {
   console.log(`\nRESULT: FAIL — ${msg}`);
@@ -111,16 +159,14 @@ const controls = {
   serialDetachHost: () => true,
   serialReadBytes: () => read(),
   serialWriteBytes: (_uart: number, data: Uint8Array) => write(data),
-  currentDeviceId: '5mx',
+  currentDeviceId: DEVICE,
 } as never;
 
 const harnessArgs = [
-  ROM, '--device', '5mx', '--quiet-logs',
+  ROM, '--device', DEVICE, '--quiet-logs',
   '--serial-bridge-socket', SOCK,
-  // Attach the cable at t=8 s — before EPOC's RemoteLinkServer is up, so
-  // the client's connect() drives the handshake as the browser does.
-  '--serial-attach', '2', '8',
-  '--serial-poll-until', String(SECONDS), '2',
+  '--serial-attach', UART, String(meta.attachAt),
+  '--serial-poll-until', String(SECONDS), UART,
 ];
 if (SNAPSHOT) harnessArgs.push('--save-ram-snapshot', SNAPSHOT);
 // --screenshot PATH and repeated --tap AT_SEC X Y are passed through to
@@ -270,7 +316,7 @@ if (process.argv.includes('--assert-launched')) {
     return new Uint8Array(buf.subarray(at, at + w * h));
   };
   const shot = readPgm(SHOT);
-  const golden = readPgm(path.join(REPO, 'tests', 'golden', '5mx.pgm'));
+  const golden = readPgm(path.join(REPO, 'tests', 'golden', meta.golden));
   if (shot.length !== golden.length) fail('screenshot and golden differ in size');
   let differing = 0;
   for (let i = 0; i < shot.length; i += 8) if (shot[i] !== golden[i]) differing++;

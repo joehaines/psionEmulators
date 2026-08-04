@@ -17,6 +17,7 @@ import {
 } from '../lib/screenRotation';
 import type { Quadrant } from '../lib/screenRotation';
 import { calcContainerSize, largestUsefulScale } from '../lib/deviceSizing';
+import { appsRouteHash } from '../lib/appLibrary';
 // Re-exported so App.tsx (and anything else reaching for the header's
 // sizing vocabulary) keeps importing it from the view it belongs to.
 export type { SizingMode, DeviceScale } from '../lib/deviceSizing';
@@ -1818,13 +1819,17 @@ export default function EmulatorView({
             support CD, not ROM, so a fresh netpad genuinely has no
             applications until someone installs them. The library holds
             that whole CD set (applib/netpad), and this button opens it
-            filtered to the machine: from there "Try it" comes straight
-            back here with the installer on the MMC card (drive D:).
-            Psion brand yellow rather than the toolbar's grey, because
-            it's the one thing a new netpad owner has to do first. */}
+            filtered to the machine AND to that set: the netpad runs the
+            whole ER5 catalogue, so device= alone would now bury the
+            twenty apps this button is about among a thousand others.
+            Clearing the category in the library shows the rest.
+            From there "Try it" comes straight back here with the
+            installer on the MMC card (drive D:). Psion brand yellow
+            rather than the toolbar's grey, because it's the one thing a
+            new netpad owner has to do first. */}
         {currentDeviceId === 'netpad' && (
           <a
-            href="#/apps?device=netpad"
+            href={appsRouteHash({ device: 'netpad', category: 'Standard apps', app: null })}
             className={yellowBtn}
             title="Browse the netpad's own software in the app library — Word, Sheet, Agenda, Opera and the rest of the CD set, installable onto this device"
           >

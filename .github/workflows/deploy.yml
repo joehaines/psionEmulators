@@ -84,21 +84,30 @@ jobs:
       # install for us the way a SIS installer's own prompts would. Drive
       # the real chain against the 5mx ROM — build the bundle, deliver
       # it, read every file back, then tap the app open and require it to
-      # be on screen.
+      # be on screen. The netpad runs the same EPOC catalogue but takes
+      # its SIS installers by card, so the cable is the only road an
+      # app-folder bundle has to it: the second run proves that road is
+      # open (read-back only, no launch tap).
       - name: Run EPOC app-folder install validation
         if: ${{ inputs.run_harness_tests }}
-        run: bash tests/integration/test-epocdir-install.sh
+        run: |
+          bash tests/integration/test-epocdir-install.sh
+          bash tests/integration/test-epocdir-install.sh --device netpad
 
       # App-library install on the netpad: the machine ships no
       # applications in ROM, so its "Install standard apps" button is the
       # only way to get any onto it — and it delivers over the MMC card
-      # rather than the cable (the ROM opens its link port only once
-      # Remote link is switched on by hand). Drive the whole chain
-      # against the real netpad ROM: deliver a .SIS from applib/netpad,
-      # run the device's own installer, and require the app in Extras.
+      # rather than the cable (the slot mounts as D: on its own, where
+      # the link wants Remote link switched on by hand). Drive the whole
+      # chain against the real netpad ROM: deliver a .SIS, run the
+      # device's own installer, and require the app in Extras. Twice —
+      # once from applib/netpad (the machine's own CD set) and once from
+      # the 3-Lib EPOC games, which the netpad now takes as well.
       - name: Run netpad app-library install validation
         if: ${{ inputs.run_harness_tests }}
-        run: bash tests/integration/test-netpad-app-install.sh
+        run: |
+          bash tests/integration/test-netpad-app-install.sh
+          bash tests/integration/test-netpad-app-install.sh epocgames/fred
 
       # EPOC machine ID: the debug panel reprograms the identity PROM at
       # runtime, which only means anything if the new ID is visible through

@@ -174,7 +174,8 @@ installed EPOC32 app folder rather than an installer is copied straight into
 `C:\System\Apps\<App>\` over the link instead, along with anything else it
 carries for the drive (a shared library in `\System\Libs`, say). Run
 `npm run test:applib`, and `bash tests/integration/test-epocdir-install.sh` for
-the folder path end-to-end on the 5mx ROM.
+the folder path end-to-end on the 5mx ROM (`--device netpad` for the same
+delivery to the netpad).
 
 The library route carries what's on screen, so any view of it can be linked to.
 `#/apps?app=<category>/<slug>` opens an app's details popup — the URL the page
@@ -183,16 +184,27 @@ to send someone. Opening an app pushes a history entry, so Back closes the popup
 and Close undoes its own push; arriving on a shared link, Close falls back to the
 plain library.
 
-`#/apps?device=<deviceId>` opens the library filtered to one machine. The netpad
-uses it: Psion Teklogix shipped that tablet with a bare EPOC R5 ROM and its
-applications on a support CD, so the emulator's netpad carries a yellow **Install
-standard apps** button that lands on `applib/netpad` — Word, Sheet, Agenda,
-Opera, the OPL editor and the rest, each installable from there in one click.
-The netpad takes delivery on its MMC card (drive D:) rather than the cable,
-because its Remote Link port only opens once Remote link is switched on from the
-device's own Tools menu. `bash tests/integration/test-netpad-app-install.sh`
-drives that end to end on the real ROM — deliver, run the device's own installer,
-and require the app to show up in Extras.
+`#/apps?device=<deviceId>` opens the library filtered to one machine, and
+`#/apps?category=<genre>` to one category (the values in the library's own
+dropdown, e.g. `Games`); the two combine.
+
+The netpad uses both. Psion Teklogix shipped that tablet with a bare EPOC R5 ROM
+and its applications on a support CD, so the emulator's netpad carries a yellow
+**Install standard apps** button that lands on `applib/netpad` — Word, Sheet,
+Agenda, Opera, the OPL editor and the rest, each installable from there in one
+click. That CD set is not the limit of what the machine runs, though: the netpad
+is an EPOC R5 ARM machine with the 5mx's own 640×240 panel, so the library's
+whole EPOC catalogue is listed for it and installs on it, and clearing the
+category filter from that button's view shows all of it.
+
+The netpad takes delivery on its MMC card (drive D:) rather than the cable: the
+slot mounts as D: with nothing switched on first, where its Remote Link wants
+enabling from the device's own Tools menu on real hardware.
+`bash tests/integration/test-netpad-app-install.sh` drives that end to end on the
+real ROM — deliver, run the device's own installer, and require the app to show
+up in Extras. It takes an app id, so any EPOC app works:
+`bash tests/integration/test-netpad-app-install.sh epocgames/fred` installs a
+3-Lib game onto the netpad the same way.
 
 The build also emits a PWA service worker (`vite-plugin-pwa`): the app shell is
 precached, ROMs and skins are runtime-cached, and updates activate on the next

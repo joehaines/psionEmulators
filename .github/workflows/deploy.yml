@@ -119,6 +119,16 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: tests/unit/machine_id_test
 
+      # netBook keyboard: the boot gate can't see input, and the netBook OS
+      # takes its keys through a synthetic kernel-event path that hides
+      # whether the hardware works at all. Boot the ESHELL image — the same
+      # machine running an EPOC build that path can't touch — and type at its
+      # prompt, so the Eiger keyboard registers and the ROM's own ekeyb scan
+      # are what get exercised.
+      - name: Run netBook ESHELL keyboard validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-netbook-eshell-keyboard.sh
+
       - name: Upload boot-validation artefacts
         if: ${{ inputs.run_harness_tests && always() }}
         uses: actions/upload-artifact@v4

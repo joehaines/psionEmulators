@@ -1880,13 +1880,15 @@ export default function EmulatorView({
           {controls.osDownloading ? 'Downloading OS…' : 'Insert CF card containing OS'}
         </button>}
 
-        {/* Boot the experimental ESHELL ROM on the 5mx Pro. Same bootloader
+        {/* Boot the ESHELL ROM on the 5mx Pro or the netBook. Same bootloader
             path as the OS-card button above, but it synthesises the card from
-            roms/ESHELL/SYS$ROM.BIN (the 'eshell' osCardSpec variant) instead
-            of the stock OS image. Unlike the OS-card button this one does NOT
-            pulse — ESHELL is an opt-in alternative boot, not the action the
-            user is expected to take, so it stays a quiet static button. */}
-        {currentDeviceId === '5mxpro' &&
+            the machine's ESHELL image (roms/ESHELL/SYS$ROM.BIN on the 5mx Pro,
+            roms/ESHELL/OS.IMG on the netBook — the 'eshell' osCardSpec
+            variant) instead of the stock OS image. Unlike the OS-card button
+            this one does NOT pulse — ESHELL is an opt-in alternative boot, not
+            the action the user is expected to take, so it stays a quiet static
+            button. */}
+        {(currentDeviceId === '5mxpro' || currentDeviceId === 'netbook') &&
          !controls.cardAttached &&
          !controls.osCardConsumed && <button
           onClick={() => { if (!controls.osDownloading) void controls.attachOsCard('eshell'); }}
@@ -1901,7 +1903,9 @@ export default function EmulatorView({
                  'hover:!bg-psion-accent hover:text-white hover:border-psion-accent',
                  'active:!bg-psion-charcoal active:text-white'].join(' '),
           ].join(' ')}
-          title="Boot the experimental ESHELL ROM instead of the stock 5mx Pro OS"
+          title={currentDeviceId === 'netbook'
+            ? "Boot the ESHELL ROM instead of the stock netBook OS"
+            : "Boot the ESHELL ROM instead of the stock 5mx Pro OS"}
         >
           Boot ESHELL
         </button>}

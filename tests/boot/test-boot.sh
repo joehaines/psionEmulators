@@ -106,6 +106,31 @@ writeFileSync(out, img);
 EOF
     fi
 
+    # The netBook's ESHELL boot card: the same FAT16 container the frontend
+    # synthesises for the 'eshell' osCardSpec variant, carrying
+    # roms/ESHELL/OS.IMG as D:\OS.IMG. Exercises the faithful CF read (the
+    # browser's default path) against an OS image far smaller than the stock
+    # one, which is what the size-scaled faithful-boot gate exists for.
+    if [[ "$extra" == *tests/cards/eshell-netbook.img* ]] \
+       && [ ! -f "$REPO_ROOT/tests/cards/eshell-netbook.img" ]; then
+        local esh_rom="$ROMS/ESHELL/OS.IMG"
+        if [ ! -f "$esh_rom" ] || ! command -v node >/dev/null 2>&1; then
+            echo "SKIP $id: cannot synthesise ESHELL card (need node + $esh_rom)" >&2
+            return 77
+        fi
+        mkdir -p "$REPO_ROOT/tests/cards"
+        node --experimental-strip-types - "$esh_rom" \
+            "$REPO_ROOT/tests/cards/eshell-netbook.img" <<EOF
+import { createBlankImage, addFile } from '$REPO_ROOT/frontend/src/lib/fat16.ts';
+import { readFileSync, writeFileSync } from 'node:fs';
+const [rom, out] = process.argv.slice(2);
+const img = createBlankImage(16 * 1024 * 1024);
+const r = addFile(img, 'OS.IMG', new Uint8Array(readFileSync(rom)), 0);
+if (!r.ok) { console.error('addFile failed', r); process.exit(1); }
+writeFileSync(out, img);
+EOF
+    fi
+
     echo "=== Testing $id (ROM: $rom, boot: ${boot_s}s${extra:+, extra=$extra}) ===" >&2
     local exit_code=0
     # If the extra args include --card-path, the test wants a CF card

@@ -93,6 +93,18 @@ netpad    | Netpad.img                      | 25 | 1000
 # hashes over the post-attach window.
 netbook_full | netBook_BL_v011_eng.bin       |  3 | 5000 | --card-path roms/netbook_os.img --post-attach-seconds 90 | netbook
 
+# netbook_eshell: the same bootloader booting the ESHELL test ROM
+# (roms/ESHELL/OS.IMG) instead of the stock OS, off a synthesised FAT16
+# card — the faithful medata/ATA read the browser uses by default.  Two
+# things make this a regression gate rather than a curiosity: the image
+# is 876 KB where the stock OS.IMG is 14 MB, so the faithful-boot
+# completion gate has to scale to the image on the card; and ESHELL
+# builds its own exception-vector page table, so the emulator's
+# MMU-enable gap fillers must not overwrite the guest's own L1 entries.
+# The console lands at "ESHELL 0.01(213) … C:\>" — two grey levels, so
+# variance settles ~700 rather than the desktop's ~5000.
+netbook_eshell | netBook_BL_v011_eng.bin     |  3 | 400 | --card-path tests/cards/eshell-netbook.img --post-attach-seconds 25 | netbook
+
 # Organiser II — boots to the LZ cold-boot splash within 3 sim-seconds.
 # Variance 535 (text on row 1 = "SIZING PACK D:", row 2 = "PLEASE WAIT")
 # from a cold start. The OS is waiting on the datapak read protocol

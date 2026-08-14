@@ -504,6 +504,15 @@ public:
     // cyclic/corrupt FAT chains.  Used to find the sectors the F32 server caches.
     static void cfCollectDirSectors(const uint8_t *img, size_t len,
                                     std::vector<uint32_t> &lbas);
+    // Byte size of a root-directory file (11-byte 8.3 name, e.g. "OS      IMG")
+    // on a FAT16 card image, or 0 if absent / not FAT16.
+    static uint32_t cfRootFileSize(const uint8_t *img, size_t len,
+                                   const char *name83);
+    // Sectors D:\OS.IMG occupies on the currently-attached card, latched at
+    // attach.  0 when the card carries no such file (raw image, data card).
+    // Scales the netBook bootloader's faithful-boot completion gate to the
+    // image actually in the slot instead of to one hard-coded OS build.
+    uint32_t nbOsImageSectors_ = 0;
     // Virtual CompactFlash card.  Lives behind the SA-1100 PCMCIA socket 0
     // windows (physical 0x20000000-0x2FFFFFFF).  attribute memory, common
     // memory and the ATA task-file I/O window all route through this one
@@ -592,6 +601,10 @@ public:
     // the touch-driver state machine that doesn't deliver events end-to-end.
     // No-op on non-Series-7 ROMs.  See sa1100.cpp for details.
     void     s7InjectRawEvent(uint32_t evType, int32_t paramA, int32_t paramB);
+    // True when the synthetic Kern::AddEvent path can be used against the
+    // running ROM (its kernel event ring is where those literals expect it).
+    // False routes input through the hardware keyboard matrix instead.
+    bool     s7SynthEventsUsable();
     // PSION_S7_FORCE_WSERV_DISPATCH=1 — F-FORCE-WSERV-DISPATCH experiment.
     // After s7InjectRawEvent() has called Kern::AddEvent and signalled
     // WServ's iReqSem, this routine bypasses the (broken) kernel
@@ -2037,6 +2050,39 @@ private:
     // to kbdScanColumn_ when only one column is selected.  0 = no
     // column driven (scanner idle).
     uint8_t  kbdScanColumnMask_ = 0;
+    // Low nibble last written to Eiger[0x30] — the keyboard scanner's
+    // column-drive field.  This is the real hardware register, as used
+    // by every image built for this machine:
+    //
+    //   netBook v1.05(450)  EKeyb.dll imports "drive column" at ROM
+    //                       0x50004ed8 (modify Eiger[0x30], low nibble
+    //                       := arg) and "read rows" at 0x500048e0
+    //                       (read Eiger[0x04], masked to 8 bits).
+    //   Series 7 v1.05(254) carries the same column-drive routine.
+    //   netBook BL v0.11    carries it too.
+    //   ESHELL 0.01(213)    inlines both in its own ekeyb.dll against
+    //                       VA 0x58030030 / 0x58030004 (= these offsets).
+    //
+    // Encoding, from the scan loops: 8+n drives column n, 0 drives all
+    // columns (the any-key probe the tick poll issues), 1..7 drive none
+    // (written between columns so the lines settle).
+    uint8_t  kbdColumnDrive_ = 0;
+    // True on the machines that carry an Eiger with a keyboard hanging
+    // off it — the Series 7 and the netBook, in bootloader or OS form.
+    // The netpad is a pen machine with no matrix at all.
+    bool hasEigerKeyboard() const {
+        return !isNetpad_ &&
+               (isSeries7Rom_ || isNetBookRom_ || isNetBookBootloader_);
+    }
+    // Row lines the matrix presents for the currently-driven column(s).
+    uint8_t kbdRowsForDrive() const {
+        uint8_t drive = kbdColumnDrive_ & 0x0F;
+        if (drive >= 8) return kbdMatrix_[drive - 8];
+        if (drive != 0) return 0;              // no column driven
+        uint8_t any = 0;                       // 0 = all columns driven
+        for (int c = 0; c < 8; c++) any |= kbdMatrix_[c];
+        return any;
+    }
     uint32_t readOscr() const;
     void     writeOscr(uint32_t value);
     void     armMatch(int idx, uint32_t target);
@@ -2100,6 +2146,13 @@ private:
     bool     s7VectorsProbed_  = false;  // one-shot guard for PSION_S7_PROBE_VECTORS
 
     void s7ProbeVectorsOnce();
+
+    // L1 page-table helpers shared by the MMU-enable "gap filler" hooks.
+    // writeL1IfUnmapped only fills slots the guest left as translation
+    // faults, so a ROM that builds its own mapping for that VA keeps it;
+    // dumpL1Table lists the guest's live L1 under PSION_MMU_DUMP_L1.
+    bool writeL1IfUnmapped(uint32_t ttb, uint32_t va, uint32_t entry);
+    void dumpL1Table(const char *tag);
 
     // Series 7: clear the OSMR1 "work pending" flag at virt 0x80000154.
     // Replaces the K4 periodic-clear hack with a surgical trigger fired

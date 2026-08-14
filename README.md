@@ -47,7 +47,13 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 - **Series 7 / netBook** boot to a real EPOC desktop. The netBook loads its OS
   the faithful way — the bootloader reads `D:\OS.IMG` off the FAT16 CompactFlash
   card through its own driver. CompactFlash, microphone capture/playback and
-  Remote Link all run through the machines' own kernel driver stacks.
+  Remote Link all run through the machines' own kernel driver stacks. The
+  netBook boots an OS image that *isn't* its stock one too: **Boot ESHELL**
+  puts Symbian's EPOC text console on the card instead, the bootloader reads
+  and starts it by the same faithful path, and you can type at its `C:\>`
+  prompt — the keys go through the Eiger/ASIC14 keyboard matrix into the
+  image's own `ekeyb.dll`, with no help from the emulator. See
+  [docs/netbook-eshell.md](docs/netbook-eshell.md).
 - **netpad** — the SA-1110 sibling of the netBook, booting its own EPOC R5 ROM
   to the netpad desktop on a 640×240 8 bpp colour panel (a 6×6×6 palette cube).
   Its board peripherals are emulated (bit-banged I2C board controller, nCS4

@@ -28,8 +28,13 @@
 //                              →:{00,01,10,11,31,0d,1d,3d}  BSP builds state
 //                                                            bit-by-bit at boot
 //   0x01 byte  R/W       § R+W  {00,01}                     control reg B
-//   0x04 byte  WR-once   † W    {00}                        zero on init
-//   0x05 byte  WR-once   † W    {00}                        zero on init
+//   0x04 byte  KBD         R+W  {00}                        keyboard ROW data:
+//                                                            the eight row lines
+//                                                            of whichever column
+//                                                            0x30 is driving (see
+//                                                            kbdRowsForDrive)
+//   0x05 byte  KBD         R+W  {00}                        keyboard rows, high
+//                                                            half (always 0)
 //   0x06 byte  POLLED *  § P    ←:{18}; →:{00,18}            status A (S7 polls
 //                                                            1300+x reading 18)
 //   0x07 byte  POLLED *  § P    ←:{00,01,02,03} (synth)      counter / status B
@@ -63,7 +68,10 @@
 //                                                            channel flags
 //   0x2e byte  R/W         R+W  ←:{01,03}; →:{01,03}          UCB channel state
 //   0x2f byte  R/W         R+W  ←:{01,03}; →:{01,03}          UCB channel state
-//   0x30 byte  R/W         R+W  {03}                          UCB channel state
+//   0x30 byte  KBD         R+W  {03}                          keyboard SCAN ctrl:
+//                                                            low nibble drives a
+//                                                            column (8+n = col n,
+//                                                            0 = all, else none)
 //   0x31 byte  R/W         R+W  ←:{03,ff}; →:{03,ff,80}       UCB channel state
 //   0x32 byte  R/W         R+W  ←:{00,02,60,62}; →:{60,62}    UCB channel state
 //   0x33 byte  R/W         R+W  ←:{00,02,60,62,e2}; →:{00,60,62,02,e2}
@@ -96,8 +104,8 @@ const char *Eiger::nameRegister(uint32_t offset) {
     switch (offset) {
     case 0x00: return "CTRL_A";
     case 0x01: return "CTRL_B";
-    case 0x04: return "INIT_04";
-    case 0x05: return "INIT_05";
+    case 0x04: return "KBD_ROWS";
+    case 0x05: return "KBD_ROWS_HI";
     case 0x06: return "STATUS_A";
     case 0x07: return "STATUS_B_CTR";
     case 0x08: return "KBD_COL_DRIVE";
@@ -120,7 +128,7 @@ const char *Eiger::nameRegister(uint32_t offset) {
     case 0x2d: return "TOUCH_Y_HI";
     case 0x2e: return "UCB_CH_2E";
     case 0x2f: return "UCB_CH_2F";
-    case 0x30: return "UCB_CH_30";
+    case 0x30: return "KBD_SCAN";
     case 0x31: return "UCB_CH_31";
     case 0x32: return "UCB_CH_32";
     case 0x33: return "UCB_CH_33";
@@ -159,19 +167,22 @@ const char *Eiger::classifyOffset(uint32_t offset) {
     offset &= kRegMask;
     switch (offset) {
     case 0x00: case 0x01:                      return "CTRL";
-    case 0x04: case 0x05:
     case 0x0e: case 0x0f:
     case 0x16: case 0x17: case 0x18: case 0x19:
     case 0x44: case 0x45:                      return "WR-ONCE";
     case 0x06: case 0x0a:                      return "STATUS";
     case 0x07: case 0x0b:
     case 0x3e: case 0x3f:                      return "CTR";
+    // 0x30 drives a column, 0x04/0x05 read the rows back.  0x08/0x09 is
+    // the emulator's earlier guess at the same thing, kept as a label
+    // only — no ROM reads rows there.
+    case 0x04: case 0x05: case 0x30:
     case 0x08: case 0x09:                      return "KBD";
     case 0x12: case 0x13:                      return "IRQ-W1C";
     case 0x26: case 0x27:                      return "UCB";
     case 0x2a: case 0x2b: case 0x2c: case 0x2d:return "TOUCH";
     case 0x2e: case 0x2f:
-    case 0x30: case 0x31: case 0x32: case 0x33:return "UCB";
+    case 0x31: case 0x32: case 0x33:           return "UCB";
     case 0x40: case 0x41:
     case 0x48: case 0x49:
     case 0x4c: case 0x4d:                      return "EEPROM";

@@ -1448,11 +1448,45 @@ uint32_t Emulator::readAsicImpl(uint32_t offset, ValueSize vs) {
             return b;
         }
         result = storedByte;
-        // Series 7 keyboard scan matrix data port. The BSP polls a
-        // halfword at ASIC[0x08]: low byte = column-drive (whatever it
-        // last wrote; bits 0-3 = 8+column), high byte = row-state read
-        // back from the matrix. We synthesise the high byte here so
-        // each column drive returns the keys held down in that column.
+        // ── Keyboard matrix row port: Eiger[0x04] ───────────────────
+        //
+        // The real register pair, read off the ROMs that drive it (see
+        // kbdRowsForDrive() in sa1100.h for the full derivation):
+        // Eiger[0x30]'s low nibble selects which column line is driven
+        // and Eiger[0x04]'s low byte reads the eight row lines back.
+        // Every image for this machine agrees — the netBook OS and the
+        // Series 7 ROM both reach it through the same kernel helper
+        // (netBook VA 0x50004ed8 "drive column" / 0x500048e0 "read
+        // rows"), the v0.11 bootloader carries the same routine, and
+        // the ESHELL build inlines it in its own ekeyb.dll.
+        //
+        // Both drivers poll this from a tick callback rather than
+        // waiting on an interrupt, so a ROM that scans the matrix picks
+        // a keypress up on its own without any help from us.
+        if (hasEigerKeyboard() && (offset == 0x04 || offset == 0x05)) {
+            // 16-bit register, but only the low byte carries rows.
+            uint8_t b = (offset == 0x04) ? kbdRowsForDrive() : 0u;
+            if (PSION_ENV_CSTR("PSION_S7_KBD_TRACE")) {
+                static int kbdRowTraceN = 0;
+                if (b && kbdRowTraceN < 50) {
+                    kbdRowTraceN++;
+                    cpu.log("[kbd-trace] asic[0x%02x] rows -> 0x%02x  drive=%x  "
+                            "matrix=%02x %02x %02x %02x %02x %02x %02x %02x  pc=%08x",
+                            offset, b, kbdColumnDrive_ & 0x0F,
+                            kbdMatrix_[0], kbdMatrix_[1], kbdMatrix_[2], kbdMatrix_[3],
+                            kbdMatrix_[4], kbdMatrix_[5], kbdMatrix_[6], kbdMatrix_[7],
+                            cpu.getGPR(15) - 8);
+                }
+            }
+            return b;
+        }
+        // Legacy Series 7 keyboard-matrix guess at ASIC[0x08]/[0x09]:
+        // a halfword whose low byte was taken to be the column drive
+        // and whose high byte returned the rows.  Kept because the
+        // 0x08 low byte is also the Esdrv codec "in use" line handled
+        // above and some BSP path writes column-shaped values here,
+        // but the actual keyboard lives at 0x30/0x04 (see above) — no
+        // ROM has been observed reading rows from 0x09.
         // See setKeyboardKey() for the EpocKey → (col, row) table.
         if (isSeries7Rom_ && offset == 0x09) {
             // Column-mask path: each bit in kbdScanColumnMask_ drives a
@@ -3143,6 +3177,15 @@ void Emulator::writeAsic(uint32_t offset, uint32_t value, ValueSize vs) {
         // so the OR of all driven columns' rows is returned for
         // multi-column scans, while single-column drives remain
         // bit-exact compatible with the old behaviour.
+        // Keyboard scan control: Eiger[0x30], low nibble = column drive.
+        // 8+n drives column n, 0 drives every column at once (the
+        // "is any key down" probe both drivers poll), and anything else
+        // drives none — the scan writes 1 between columns to let the
+        // lines settle.  The upper byte carries unrelated control bits
+        // the BSP sets once at init; storeByte has already kept them.
+        if (hasEigerKeyboard() && off == 0x30) {
+            kbdColumnDrive_ = b & 0x0fu;
+        }
         if (isSeries7Rom_ && off == 0x08) {
             uint8_t low = b & 0x0fu;
             if (low >= 8 && low <= 15) {
@@ -3423,6 +3466,76 @@ void Emulator::s7ProbeVectorsOnce() {
         cpu.log("  VA[0x%08x] = 0x%08x", va,
                 word.has_value() ? word.value() : 0xdeadbeefu);
     }
+}
+
+// Fill an L1 slot ONLY if the guest left it unmapped.
+//
+// The SA-1100 machines carry a handful of L1 "gap fillers" that stand in
+// for mappings a real first-stage bootloader would have made before the
+// EPOC bootstrap ran (PCMCIA windows, the relocated-kernel alias at
+// 0x88000000, …).  Those fillers used to be written unconditionally,
+// which meant they also *overwrote* mappings the guest kernel had built
+// for itself.  For the netBook v1.05 OS that happened to be harmless —
+// its own descriptors for those slots agree with ours — but it is not a
+// property of the hardware, and any other EPOC image built for the same
+// machine (the EShell test ROM, for instance) gets its own page tables
+// silently rewritten underneath it.  EShell maps VA 0 with a coarse
+// page table holding the exception vectors; stomping that L1 slot with
+// an identity section pointed the SWI vector at raw SDRAM, so its first
+// executive call re-entered the vector forever.
+//
+// Only writing into slots the guest left as translation faults keeps the
+// fillers doing their intended job (supplying what the pre-OS loader
+// would have supplied) without ever contradicting the running kernel.
+// Returns true if the descriptor was actually written.
+bool Emulator::writeL1IfUnmapped(uint32_t ttb, uint32_t va, uint32_t entry) {
+    uint32_t pa = ttb | ((va >> 20) << 2);
+    auto cur = readPhysical(pa, V32);
+    // Descriptor type 0 == translation fault, i.e. nothing mapped here.
+    if (cur.has_value() && (cur.value() & 3) != 0) {
+        if (PSION_ENV_CSTR("PSION_MMU_FILL_TRACE"))
+            cpu.log("[l1-fill] VA %08x already mapped by guest (desc=%08x) "
+                    "— leaving it alone", va, cur.value());
+        return false;
+    }
+    writePhysical(entry, pa, V32);
+    if (PSION_ENV_CSTR("PSION_MMU_FILL_TRACE"))
+        cpu.log("[l1-fill] VA %08x <- desc %08x (L1@%08x)", va, entry, pa);
+    return true;
+}
+
+// PSION_MMU_DUMP_L1=1: list every mapped L1 slot of the guest's current
+// translation table, coalescing runs of consecutive identically-offset
+// sections.  Printed at each MMU-enable so the page tables a ROM builds
+// for itself can be compared against another ROM's for the same machine.
+void Emulator::dumpL1Table(const char *tag) {
+    if (!PSION_ENV_CSTR("PSION_MMU_DUMP_L1")) return;
+    uint32_t ttb = cpu.getCp15Ttb() & 0xFFFFC000u;
+    cpu.log("[l1-dump:%s] TTB=%08x pc=%08x cyc=%lld", tag, ttb,
+            cpu.getGPR(15) - 8, (long long)passedCycles);
+    uint32_t runStart = 0, runDesc = 0;
+    bool inRun = false;
+    auto flush = [&](uint64_t endVa) {          // endVa exclusive
+        if (!inRun) return;
+        cpu.log("  VA %08x-%08x  desc %08x (%s)", runStart,
+                (uint32_t)(endVa - 1), runDesc,
+                (runDesc & 3) == 1 ? "coarse" : (runDesc & 3) == 2 ? "section"
+                                                                   : "fine");
+        inRun = false;
+    };
+    for (uint32_t i = 0; i < 4096; i++) {
+        uint32_t va = i << 20;
+        auto d = readPhysical(ttb + i * 4, V32);
+        uint32_t desc = d.value_or(0);
+        // A run continues while consecutive sections keep the same
+        // VA→PA offset and attributes; anything else starts a new line.
+        bool contiguous = inRun && (desc & 3) == 2 && (runDesc & 3) == 2 &&
+                          (desc - runDesc) == (va - runStart);
+        if (contiguous) continue;
+        flush(va);
+        if ((desc & 3) != 0) { runStart = va; runDesc = desc; inRun = true; }
+    }
+    flush(0x100000000ull);   // close a run that reaches the top of the map
 }
 
 // ─── Memory map ──────────────────────────────────────────────────────
@@ -9031,11 +9144,11 @@ void Emulator::executeUntil(int64_t cycles) {
         // patches stomp the kernel's working PTEs, hard-stalling boot
         // in the BSP delay loop at 0x50004994.
         bool mmuNow = (cpu.getCp15Control() & 1) != 0;
+        if (!prevMmuEnabled_ && mmuNow) dumpL1Table("mmu-enable");
         if (isNetBookBootloader_ && !prevMmuEnabled_ && mmuNow) {
             uint32_t ttb = cpu.getCp15Ttb();
             auto writePte = [&](uint32_t va, uint32_t entry){
-                uint32_t pa = ttb | ((va >> 20) << 2);
-                writePhysical(entry, pa, V32);
+                writeL1IfUnmapped(ttb, va, entry);
             };
             const uint32_t kSection = 0xC1E;
             for (uint32_t pcmVa = 0x20000000u; pcmVa < 0x30000000u; pcmVa += 0x100000u)
@@ -9051,8 +9164,7 @@ void Emulator::executeUntil(int64_t cycles) {
         if (isNetBookRom_ && !prevMmuEnabled_ && mmuNow) {
             uint32_t ttb = cpu.getCp15Ttb();
             auto writePte = [&](uint32_t va, uint32_t entry){
-                uint32_t pa = ttb | ((va >> 20) << 2);
-                writePhysical(entry, pa, V32);
+                writeL1IfUnmapped(ttb, va, entry);
             };
             // Section descriptor: domain 0 / AP=11 (RW everyone) /
             // C=B=1 / required-1 bit set / type bits = 10 (section).
@@ -11758,7 +11870,20 @@ void Emulator::executeUntil(int64_t cycles) {
                     nbFaithfulLastAtaCount_ = cmds;
                     nbFaithfulLastAtaCycle_ = passedCycles;
                 }
-                uint32_t kSectors = 28000u;
+                // Both gates below are a fraction of the OS image actually on
+                // the card — its length comes from the card's own FAT16
+                // directory entry, latched at attach.  The historical value
+                // (28000 for both) was ~98% of the stock netBook v1.05(450)
+                // OS.IMG's own 28616 sectors and nothing more general than
+                // that: a card carrying a smaller image — the 876 KB EShell
+                // OS.IMG is ~1700 sectors — could never reach it, so the
+                // handoff never fired and the bootloader ran on past the
+                // point the emulator can follow.  As a percentage the gate
+                // tracks whatever OS.IMG is in the slot.  The fallback keeps
+                // the old absolute for a card whose directory we can't read.
+                uint32_t kSectors = nbOsImageSectors_
+                    ? (uint32_t)((uint64_t)nbOsImageSectors_ * 94 / 100)
+                    : 28000u;
                 if (const char *ov =
                         PSION_ENV_CSTR("PSION_NB_FAITHFUL_BOOT_SECTORS"))
                     kSectors = (uint32_t)strtoul(ov, nullptr, 0);
@@ -11793,7 +11918,9 @@ void Emulator::executeUntil(int64_t cycles) {
                 // fixed read margin and bounded read time vs the idle gate.
                 // Override with PSION_NB_FAITHFUL_BOOT_HARD_SECTORS (0 = off →
                 // idle/park gate = whole-image read); lower = faster boot.
-                uint32_t kHardSectors = 28000;
+                uint32_t kHardSectors = nbOsImageSectors_
+                    ? (uint32_t)((uint64_t)nbOsImageSectors_ * 94 / 100)
+                    : 28000u;
                 if (const char *ov =
                         PSION_ENV_CSTR("PSION_NB_FAITHFUL_BOOT_HARD_SECTORS"))
                     kHardSectors = (uint32_t)strtoul(ov, nullptr, 0);
@@ -28587,6 +28714,16 @@ bool Emulator::attachCard(const uint8_t *bytes, size_t size) {
                 bytes[0x1FE] == 0x55 && bytes[0x1FF] == 0xAA;
         const bool useFaithful = PSION_ENV_CSTR("PSION_NB_NATIVE_CF") != nullptr
                                  && cardIsFat16;
+        // Latch how big D:\OS.IMG is on this card, so the faithful read's
+        // completion gate can be expressed as a fraction of the image rather
+        // than an absolute sector count tuned to one OS build.
+        uint32_t osBytes = cardIsFat16
+            ? cfRootFileSize(cfCard.data(), cfCard.imageSize(), "OS      IMG")
+            : 0u;
+        nbOsImageSectors_ = osBytes ? (osBytes + 511u) / 512u : 0u;
+        if (useFaithful)
+            cpu.log("SA1100 attachCard: faithful boot — D:\\OS.IMG is %u bytes "
+                    "(%u sectors)", osBytes, nbOsImageSectors_);
         if (!useFaithful &&
             netBookLoadOsFromCard(cfCard.data(), cfCard.imageSize())) return true;
         // Fall through if the synthetic handoff declined (card has no OS
@@ -28902,6 +29039,39 @@ uint32_t Emulator::cfRootDirLba(const uint8_t *img, size_t len,
     if (fat1Lba)     *fat1Lba = fat1;
     if (rootDirSecs) *rootDirSecs = rootSecs;
     return rootSec;
+}
+
+// Size (in bytes) of a root-directory file on a FAT16 card image, or 0 if the
+// image isn't FAT16 or has no such entry.  `name83` is the raw 11-byte 8.3
+// directory form, e.g. "OS      IMG".
+//
+// The netBook bootloader's faithful boot needs to know how big D:\OS.IMG is:
+// it decides "the loader has finished reading the image" from how many sectors
+// the emulated card has served, and that only means anything relative to the
+// image's own length.  Asking the card's own directory keeps that judgement
+// tied to the card in the slot instead of to one particular OS build.
+uint32_t Emulator::cfRootFileSize(const uint8_t *img, size_t len,
+                                  const char *name83) {
+    uint32_t rootSecs = 0;
+    uint32_t rootSec = cfRootDirLba(img, len, nullptr, &rootSecs);
+    if (!rootSec) return 0;
+    for (uint32_t s = 0; s < rootSecs; s++) {
+        size_t base = (size_t)(rootSec + s) * 512;
+        if (base + 512 > len) return 0;
+        for (uint32_t e = 0; e < 512; e += 32) {
+            uint8_t c0 = img[base + e];
+            if (c0 == 0x00) return 0;              // end of directory
+            if (c0 == 0xE5) continue;              // deleted
+            uint8_t attr = img[base + e + 11];
+            if (attr == 0x0F || (attr & 0x10)) continue;   // LFN / sub-dir
+            if (std::memcmp(img + base + e, name83, 11) != 0) continue;
+            return (uint32_t)img[base + e + 28]
+                 | ((uint32_t)img[base + e + 29] << 8)
+                 | ((uint32_t)img[base + e + 30] << 16)
+                 | ((uint32_t)img[base + e + 31] << 24);
+        }
+    }
+    return 0;
 }
 
 void Emulator::cfCollectDirSectors(const uint8_t *img, size_t len,
@@ -29300,86 +29470,85 @@ void Emulator::setKeyboardKey(EpocKey key, bool down) {
     if (!isSeries7Rom_ && !isNetBookRom_) return;
 
     // EpocKey → (column, row_bit) for the netBook / Series 7 keyboard.
-    // Derived from netBSD's epockbdmap.h: KC(n) = (col << 3) + row + 1,
-    // so col = (n - 1) >> 3, row_bit = 1 << ((n - 1) & 7). We keep an
-    // EpocKey-indexed table because the frontend speaks EpocKey, not
-    // hardware scan positions.
     //
-    // Layout (US, 8 columns × 7 rows):
-    //   col 0: 6 5 4 3 2 1 REC
-    //   col 1: : Bksp 0 9 8 7 Play
-    //   col 2: y t r e w q Esc
-    //   col 3: Enter l p o i u Menu
-    //   col 4: g f d s a Tab Ctrl
-    //   col 5: Down . m k j h Fn
-    //   col 6: n b v c x z RShift
-    //   col 7: Right Left , Up Space Stop LShift
-    int col = -1, rowBit = 0;
-    auto KC = [&](int kc) { col = (kc - 1) >> 3; rowBit = 1 << ((kc - 1) & 7); };
+    // This is the machine's own wiring, lifted from the 64-entry scan
+    // table every image for this hardware carries: 8 columns × 8 rows of
+    // {EPOC scan code, flags}, indexed by column*8 + row, with bit 7 of
+    // the flags byte marking a modifier key.  The table is byte-for-byte
+    // identical in all four ROMs we ship — ESHELL 0.01(213) (its ekeyb
+    // inlines it at 0x5003e6c0), the netBook v1.05(450) OS, the Series 7
+    // v1.05(254) ROM and the v0.11 bootloader — which is what you would
+    // expect of a property of the keyboard membrane rather than of any
+    // one build.
+    //
+    // The previous table here was reconstructed from netBSD's
+    // epockbdmap.h and had both the columns and the assignments wrong
+    // (it put '4' where the hardware has 'D', 'J' where it has 'I', and
+    // nothing at all on Enter).  Nothing caught it because no ROM was
+    // reading the matrix at the time — the emulator delivered keys by
+    // injecting events into the netBook OS kernel directly.
+    //          row0      row1   row2   row3    row4  row5  row6  row7
+    //   col 0   Enter     Right  Tab    Y       Left  Down  N     LShift
+    //   col 1   Bksp      –      -      =       0     P     ;     RShift
+    //   col 2   Off       K      I      8       9     O     L     Ctrl
+    //   col 3   –         ,      '      M       J     U     7     Fn
+    //   col 4   Space     R      4      5       T     G     B     backslash
+    //   col 5   Menu      F      V      C       D     E     3     slash
+    //   col 6   DictStop  Q      A      Z       S     W     X     –
+    //   col 7   Escape    1      2      6       .     Up    H     –
+    //
+    // The two odd ones out — EStdKeyOff at (2,0) and EStdKeyDictaphoneStop
+    // at (6,0), both flagged as modifiers — are the codes the ROM's table
+    // itself assigns to those positions; we pass them through as given
+    // rather than second-guessing which case key they are.
+    static const uint8_t kKeyMatrix[8][8] = {
+        // row:  0                     1                 2
+        //       3                     4                 5
+        //       6                     7
+        /*col0*/ {EStdKeyEnter,         EStdKeyRightArrow, EStdKeyTab,
+                  'Y',                  EStdKeyLeftArrow,  EStdKeyDownArrow,
+                  'N',                  EStdKeyLeftShift},
+        /*col1*/ {EStdKeyBackspace,     0,                 EStdKeyMinus,
+                  EStdKeyEquals,        '0',               'P',
+                  EStdKeySemiColon,     EStdKeyRightShift},
+        /*col2*/ {EStdKeyOff,           'K',               'I',
+                  '8',                  '9',               'O',
+                  'L',                  EStdKeyLeftCtrl},
+        /*col3*/ {0,                    EStdKeyComma,      EStdKeySingleQuote,
+                  'M',                  'J',               'U',
+                  '7',                  EStdKeyLeftFunc},
+        /*col4*/ {EStdKeySpace,         'R',               '4',
+                  '5',                  'T',               'G',
+                  'B',                  EStdKeyBackSlash},
+        /*col5*/ {EStdKeyMenu,          'F',               'V',
+                  'C',                  'D',               'E',
+                  '3',                  EStdKeyForwardSlash},
+        /*col6*/ {EStdKeyDictaphoneStop,'Q',               'A',
+                  'Z',                  'S',               'W',
+                  'X',                  0},
+        /*col7*/ {EStdKeyEscape,        '1',               '2',
+                  '6',                  EStdKeyFullStop,   EStdKeyUpArrow,
+                  'H',                  0},
+    };
+    // Host keys that have no key of their own on this keyboard, mapped
+    // to the physical key that does the same job.  (Delete shares the
+    // Backspace key; the host's Alt is how a PC keyboard reaches EPOC's
+    // Menu; the right-hand modifiers land on their left-hand twins where
+    // the case has only one.)
+    int scan = idx;
     switch (idx) {
-    case '6': KC(1);  break;
-    case '5': KC(2);  break;
-    case '4': KC(3);  break;
-    case '3': KC(4);  break;
-    case '2': KC(5);  break;
-    case '1': KC(6);  break;
-    case EStdKeyDictaphoneRecord: KC(7); break;
-    case EStdKeySemiColon:        KC(9); break;
-    case EStdKeyBackspace:        KC(10); break;
-    case EStdKeyDelete:           KC(10); break;
-    case '0': KC(11); break;
-    case '9': KC(12); break;
-    case '8': KC(13); break;
-    case '7': KC(14); break;
-    case EStdKeyDictaphonePlay:   KC(15); break;
-    case 'Y': KC(17); break;
-    case 'T': KC(18); break;
-    case 'R': KC(19); break;
-    case 'E': KC(20); break;
-    case 'W': KC(21); break;
-    case 'Q': KC(22); break;
-    case EStdKeyEscape:           KC(23); break;
-    case EStdKeyEnter:            KC(25); break;
-    case 'L': KC(26); break;
-    case 'P': KC(27); break;
-    case 'O': KC(28); break;
-    case 'I': KC(29); break;
-    case 'U': KC(30); break;
-    case EStdKeyMenu:             KC(31); break;
-    // The host typically maps Alt → Menu on EPOC.
-    case EStdKeyLeftAlt:          KC(31); break;
-    case EStdKeyRightAlt:         KC(31); break;
-    case 'G': KC(33); break;
-    case 'F': KC(34); break;
-    case 'D': KC(35); break;
-    case 'S': KC(36); break;
-    case 'A': KC(37); break;
-    case EStdKeyTab:              KC(38); break;
-    case EStdKeyLeftCtrl:         KC(39); break;
-    case EStdKeyRightCtrl:        KC(39); break;
-    case EStdKeyDownArrow:        KC(41); break;
-    case EStdKeyFullStop:         KC(42); break;
-    case 'M': KC(43); break;
-    case 'K': KC(44); break;
-    case 'J': KC(45); break;
-    case 'H': KC(46); break;
-    case EStdKeyLeftFunc:         KC(47); break;
-    case EStdKeyRightFunc:        KC(47); break;
-    case 'N': KC(49); break;
-    case 'B': KC(50); break;
-    case 'V': KC(51); break;
-    case 'C': KC(52); break;
-    case 'X': KC(53); break;
-    case 'Z': KC(54); break;
-    case EStdKeyRightShift:       KC(55); break;
-    case EStdKeyRightArrow:       KC(57); break;
-    case EStdKeyLeftArrow:        KC(58); break;
-    case EStdKeyComma:            KC(59); break;
-    case EStdKeyUpArrow:          KC(60); break;
-    case EStdKeySpace:            KC(61); break;
-    case EStdKeyDictaphoneStop:   KC(62); break;
-    case EStdKeyLeftShift:        KC(63); break;
+    case EStdKeyDelete:     scan = EStdKeyBackspace; break;
+    case EStdKeyLeftAlt:
+    case EStdKeyRightAlt:   scan = EStdKeyMenu;      break;
+    case EStdKeyRightFunc:  scan = EStdKeyLeftFunc;  break;
+    case EStdKeyRightCtrl:  scan = EStdKeyLeftCtrl;  break;
     default: break;
+    }
+    int col = -1, rowBit = 0;
+    if (scan != 0x00) {
+        for (int c = 0; c < 8 && col < 0; c++)
+            for (int r = 0; r < 8; r++)
+                if (kKeyMatrix[c][r] == scan) { col = c; rowBit = 1 << r; break; }
     }
     // 2026-05-23 (evening): on the netBook OS, the synthetic
     // TRawEvent path (s7InjectRawEvent below) is the sole event
@@ -29391,9 +29560,14 @@ void Emulator::setKeyboardKey(EpocKey key, bool down) {
     // (e.g. 'J' opens Jotter) is idempotent.  Applies to BOTH raw
     // Series 7 ROM and netBook OS — same EKA1 single-shot event
     // contract.
-    const bool kSynthInjectionActive =
-        isSeries7Rom_
-        && PSION_ENV_CSTR("PSION_S7_NO_SYNTH_TRAWEVENT") == nullptr;
+    //
+    // The two delivery paths are mutually exclusive: whichever ROM is
+    // running gets exactly one of them, or a press arrives twice.  The
+    // synthetic path only works against the kernels its addresses came
+    // from, so s7SynthEventsUsable() is the arbiter — a ROM it can't
+    // recognise (ESHELL) drives the matrix instead, which is what the
+    // hardware presents and what any ROM's own ekeyb scan will read.
+    const bool kSynthInjectionActive = s7SynthEventsUsable();
     if (col >= 0 && !kSynthInjectionActive) {
         if (down) kbdMatrix_[col] |=  (uint8_t)rowBit;
         else      kbdMatrix_[col] &= ~(uint8_t)rowBit;
@@ -29527,6 +29701,51 @@ void Emulator::setKeyboardKey(EpocKey key, bool down) {
 // wake), and post-cyc-272M (sim 1.23 s) WServ is wedged anyway.  Kept as
 // future-investigation infrastructure: enable with PSION_S7_SYNTH_TRAWEVENT=1
 // to add events to the kernel queue (visible via PSION_S7_TRACE_ADDEVENT_SOURCE).
+// Can the synthetic Kern::AddEvent path actually be used against the ROM
+// that is running?
+//
+// Every address that path touches — Kern::AddEvent's entry, the event-ring
+// globals, WServ's thread block, kernCSLock — is a literal from the netBook
+// v1.05(450) / Series 7 v1.05(254) kernel builds.  Another EPOC image for the
+// same machine (the ESHELL test ROM) has its own layout, so calling into
+// 0x500195d4 and writing kernCSLock there means calling a random function and
+// scribbling on unrelated kernel data.  Sanity-check the event ring first: on
+// a foreign ROM those globals read back as EPOC's uninitialised-heap fill
+// (0xcccccccc) or as nonsense, and we leave its memory alone — input then
+// goes through the hardware keyboard matrix, which is what the machine
+// presents anyway and what that ROM's own ekeyb scans.
+//
+// This is also what keeps the two input paths from doubling up: exactly one
+// of them is live for any given ROM.
+bool Emulator::s7SynthEventsUsable() {
+    if (!isSeries7Rom_) return false;
+    if (PSION_ENV_CSTR("PSION_S7_NO_SYNTH_TRAWEVENT") != nullptr) return false;
+    auto plausible = [&](uint32_t va) {
+        auto v = cpu.readVirtualDebug(va, ARM710::V32);
+        if (!v.has_value()) return false;
+        uint32_t p = v.value();
+        // Kernel-data pointers live in the 0x80000000 window and are
+        // word-aligned; 0xcccccccc fails both tests.
+        return (p & 3) == 0 && p >= 0x80000000u && p < 0xA0000000u;
+    };
+    bool ok = plausible(0x80000b54u) && plausible(0x80000b58u) &&
+              plausible(0x80000b5cu);
+    if (!ok) {
+        static bool warned = false;
+        if (!warned) {
+            warned = true;
+            cpu.log("[synth-trawevent] kernel event ring not recognised "
+                    "(qH=%08x qT=%08x base=%08x) — this ROM isn't the "
+                    "netBook/Series 7 build these addresses come from; "
+                    "input goes through the keyboard matrix instead",
+                    cpu.readVirtualDebug(0x80000b54u, ARM710::V32).value_or(0),
+                    cpu.readVirtualDebug(0x80000b58u, ARM710::V32).value_or(0),
+                    cpu.readVirtualDebug(0x80000b5cu, ARM710::V32).value_or(0));
+        }
+    }
+    return ok;
+}
+
 void Emulator::s7InjectRawEvent(uint32_t evType, int32_t paramA, int32_t paramB) {
     if (!isSeries7Rom_) return;
     // 2026-05-23 (evening): two different Kern::AddEvent addresses,
@@ -29569,6 +29788,7 @@ void Emulator::s7InjectRawEvent(uint32_t evType, int32_t paramA, int32_t paramB)
     // kernel structure (likely heap or thread stack) that gets corrupted
     // by the 16-byte scratch writes.
     constexpr uint32_t kScratch = 0x80000f00u;
+    if (!s7SynthEventsUsable()) return;
     // TRawEvent.iTicks: use passedCycles-derived 64 Hz tick.  Testing
     // confirmed the crash is NOT tick-dependent (ticks=1 still crashes),
     // so the exact value doesn't matter for correctness here.

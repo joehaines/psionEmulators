@@ -509,11 +509,11 @@ interface OsCardSpec {
 // Map a bootloader-flash device to its OS-card spec, or null for devices that
 // don't boot their OS off a CF card.
 // `variant` selects an alternate OS payload for the same device. The default
-// (undefined) is the device's normal OS image; '5mxpro' also offers the
-// 'eshell' variant, which boots the experimental ESHELL ROM
-// (roms/ESHELL/SYS$ROM.BIN) instead of the stock 5mx Pro OS. The synthesised
-// card is otherwise identical — same size, same on-card file name — so the
-// bootloader loads it exactly as it would the stock image.
+// (undefined) is the device's normal OS image; the 5mx Pro and the netBook
+// both also offer the 'eshell' variant, which boots the ESHELL test ROM
+// (roms/ESHELL/SYS$ROM.BIN / roms/ESHELL/OS.IMG) instead of the stock OS.
+// The synthesised card is otherwise identical — same size, same on-card file
+// name — so the bootloader loads it exactly as it would the stock image.
 export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpec | null {
   if (deviceId === '5mxpro') {
     if (variant === 'eshell') {
@@ -541,6 +541,19 @@ export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpe
     };
   }
   if (deviceId === 'netbook') {
+    if (variant === 'eshell') {
+      // The netBook's own ESHELL build: a 876 KB EPOCARM image that boots to
+      // the ESHELL text console instead of the EPOC desktop.  The bootloader
+      // reads it off the card exactly as it reads the stock OS.IMG — same
+      // file name, same faithful medata/ATA path — so a 16 MiB card is
+      // plenty for an image this size.
+      return {
+        url: `${import.meta.env.BASE_URL}roms/ESHELL/OS.IMG`,
+        imageSize: 16 * 1024 * 1024,
+        fileName: 'OS.IMG',
+        osVisible: true,
+      };
+    }
     return {
       url: `${import.meta.env.BASE_URL}roms/netBook_v1.05(450)_eng.img`,
       imageSize: 32 * 1024 * 1024,
@@ -664,7 +677,8 @@ export interface EmulatorControls {
   // succeeded.
   //
   // `variant` selects an alternate OS payload (see osCardSpec). Omit it for the
-  // device's stock OS; pass 'eshell' on the 5mx Pro to boot the ESHELL ROM.
+  // device's stock OS; pass 'eshell' on the 5mx Pro or netBook to boot the
+  // machine's ESHELL ROM.
   attachOsCard(variant?: string): Promise<boolean>;
   // Returns the current in-device image bytes (including any on-device writes).
   // Null if no card is attached. Sync on the main thread; a Promise in worker
@@ -1361,7 +1375,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // resolve to null. The promise is removed from the cache on failure so the
   // next call retries rather than caching the error forever.
   // Cache key for an OS payload: the device id, suffixed with the variant when
-  // one is given. Keeps the stock and 'eshell' 5mx Pro downloads (and their
+  // one is given. Keeps a device's stock and 'eshell' downloads (and their
   // "ready" flags) separate so attaching one never short-circuits the other.
   function osCacheKey(deviceId: string, variant?: string): string {
     return variant ? `${deviceId}:${variant}` : deviceId;

@@ -23,7 +23,8 @@ interface Props {
   initialDeviceFilter?: string | null;
   // Category genre from `#/apps?category=<genre>`, the same values the
   // category dropdown holds. Narrows the opening view further — the
-  // netpad's "Install standard apps" button pairs it with the device.
+  // netpad's install panel pairs it with the device to show the
+  // machine's own CD set on its own.
   initialCategoryFilter?: string | null;
   // App id from `#/apps?app=<category>/<slug>`: the app whose details
   // popup is open. The route owns that — see openDetail below.

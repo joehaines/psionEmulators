@@ -17,7 +17,11 @@ import {
 } from '../lib/screenRotation';
 import type { Quadrant } from '../lib/screenRotation';
 import { calcContainerSize, largestUsefulScale } from '../lib/deviceSizing';
-import { appsRouteHash } from '../lib/appLibrary';
+import {
+  appsRouteHash, fetchAppManifest, standardAppsIn, installAppsOnCard, cardNameFor,
+  type BulkProgress, type BulkInstallResult,
+} from '../lib/appLibrary';
+import { trackAppEvent } from '../lib/analytics';
 // Re-exported so App.tsx (and anything else reaching for the header's
 // sizing vocabulary) keeps importing it from the view it belongs to.
 export type { SizingMode, DeviceScale } from '../lib/deviceSizing';
@@ -690,6 +694,65 @@ export default function EmulatorView({
   const hasMmcSlot = profiles.find(p => p.id === currentDeviceId)?.hasMmcSlot ?? false;
   const hasCardSlot = hasCFSlot || hasMmcSlot;
   const cardSlotLabel = hasMmcSlot ? 'MMC Card' : 'CF Card';
+
+  // "Install standard apps" (netpad) — the whole support-CD set being
+  // fetched and written onto one MMC card. Null until the button is
+  // pressed; `busy` while it runs, then either `result` or `error`.
+  const [stdApps, setStdApps] = useState<
+    (BulkProgress & { busy: boolean; result?: BulkInstallResult; error?: string }) | null>(null);
+  const stdAppsAbort = useRef<AbortController | null>(null);
+  // Abandon an in-flight install if the view goes away (device switch,
+  // navigation) rather than leaving it writing to a card nobody is
+  // watching.
+  useEffect(() => () => stdAppsAbort.current?.abort(), []);
+
+  // The button's handler: fetches the library's whole support-CD set
+  // and writes every installer onto ONE card image, then inserts it — the machine's applications were a CD, and handing them
+  // over one app at a time through the library was twenty round trips
+  // for something every fresh netpad needs in full. What the user still
+  // does themselves is run the installers from D:, which is exactly what
+  // they'd have done with the CD.
+  const installStandardApps = useCallback(async () => {
+    if (stdApps?.busy) return;
+    stdAppsAbort.current?.abort();
+    const abort = new AbortController();
+    stdAppsAbort.current = abort;
+    const profile = profiles.find(p => p.id === currentDeviceId);
+    const card = profile ? cardNameFor(profile) : 'MMC card';
+    setStdApps({ busy: true, fraction: 0, label: 'Fetching the app catalogue…', index: 0, count: 0, bytes: 0 });
+    try {
+      const manifest = await fetchAppManifest();
+      const set = standardAppsIn(manifest);
+      const result = await installAppsOnCard(set, controls, card, {
+        signal: abort.signal,
+        onProgress: p => setStdApps(s => (s?.busy ? { ...s, ...p } : s)),
+      });
+      // Each delivered app counts as a try, the same as the library's
+      // per-app button — these would otherwise never reach the
+      // popularity leaderboard.
+      for (const app of result.installed) trackAppEvent(app.id, 'app_try');
+      if (!abort.signal.aborted) {
+        setStdApps(s => ({
+          ...(s ?? { fraction: 1, label: '', index: 0, count: 0, bytes: 0 }),
+          busy: false, fraction: 1, label: 'Done', result,
+        }));
+      }
+    } catch (e) {
+      if (abort.signal.aborted) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      setStdApps(s => ({
+        ...(s ?? { fraction: 0, label: '', index: 0, count: 0, bytes: 0 }),
+        busy: false,
+        error: msg === 'offline'
+          ? 'The app library needs a network connection — the installers are fetched on demand.'
+          : msg === 'missing'
+            ? 'The app library isn’t available in this build.'
+            : msg,
+      }));
+    } finally {
+      if (stdAppsAbort.current === abort) stdAppsAbort.current = null;
+    }
+  }, [controls, profiles, currentDeviceId, stdApps?.busy]);
   // SSD pack count (SIBO devices only). 2 for 3/3a/3c/3mx, 1 for Siena,
   // 0 elsewhere — drives visibility of the "SSD Pack" button below.
   const ssdSlotCount = profiles.find(p => p.id === currentDeviceId)?.ssdSlotCount ?? 0;
@@ -1818,23 +1881,27 @@ export default function EmulatorView({
             Word, Sheet, Agenda and the rest were SIS installers on the
             support CD, not ROM, so a fresh netpad genuinely has no
             applications until someone installs them. The library holds
-            that whole CD set (applib/netpad), and this button opens it
-            filtered to the machine AND to that set: the netpad runs the
-            whole ER5 catalogue, so device= alone would now bury the
-            twenty apps this button is about among a thousand others.
-            Clearing the category in the library shows the rest.
-            From there "Try it" comes straight back here with the
-            installer on the MMC card (drive D:). Psion brand yellow
-            rather than the toolbar's grey, because it's the one thing a
-            new netpad owner has to do first. */}
+            that whole CD set (applib/netpad) and this button delivers it
+            in one go: every installer downloaded and written onto a
+            single MMC card, which is then inserted as drive D:. It used
+            to open the library filtered to the set and leave the user to
+            pick apps off it one at a time — twenty trips out of the
+            emulator for the software the machine shipped with. The
+            library is still a click away in the panel below for
+            everything else the netpad runs. Psion brand yellow rather
+            than the toolbar's grey, because it's the one thing a new
+            netpad owner has to do first. */}
         {currentDeviceId === 'netpad' && (
-          <a
-            href={appsRouteHash({ device: 'netpad', category: 'Standard apps', app: null })}
-            className={yellowBtn}
-            title="Browse the netpad's own software in the app library — Word, Sheet, Agenda, Opera and the rest of the CD set, installable onto this device"
+          <button
+            onClick={() => void installStandardApps()}
+            disabled={stdApps?.busy}
+            className={`${yellowBtn} disabled:cursor-wait`}
+            title="Download the netpad's own software — Word, Sheet, Agenda, Opera and the rest of the support-CD set — onto one MMC card, ready to install from drive D:"
           >
-            ★ Install standard apps
-          </a>
+            {stdApps?.busy
+              ? `★ Installing… ${Math.round(stdApps.fraction * 100)}%`
+              : '★ Install standard apps'}
+          </button>
         )}
 
         {/* Bootloader-style "insert the OS card" button for 5mx Pro.
@@ -2260,10 +2327,20 @@ export default function EmulatorView({
       )}
 
       {/* ── Inline expandable panels ──
-          Ordered top→bottom: CF Card, Remote Link, Modem, Logs. The CF
+          Ordered top→bottom: standard apps (netpad), CF Card, Remote
+          Link, Modem, Logs. The CF
           card panel used to be a modal dialog; it's now an inline
           collapsible alongside the others so the user can browse the
           card filesystem without losing sight of the device. */}
+      {stdApps && (
+        <StandardAppsPanel
+          state={stdApps}
+          cardLabel={cardSlotLabel}
+          onCancel={() => { stdAppsAbort.current?.abort(); setStdApps(null); }}
+          onRetry={() => void installStandardApps()}
+        />
+      )}
+
       {showCardDlg && hasCardSlot && (
         <CFCardDialog controls={controls} slotKind={hasMmcSlot ? 'mmc' : 'cf'}
                       onClose={() => setShowCardDlg(false)} />
@@ -2393,6 +2470,111 @@ export default function EmulatorView({
         </div>
       )}
       </>}{/* /chromeless gate */}
+    </div>
+  );
+}
+
+// ── "Install standard apps" panel (netpad) ──────────────────────────
+//
+// Narrates the bulk install kicked off by the control bar's yellow
+// button: a determinate download bar across the whole support-CD set,
+// then the card's contents and what to do with them on the device. Same
+// inline-panel shape as the CF card / Remote Link panels, so the device
+// stays on screen throughout.
+
+function formatDownloaded(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function StandardAppsPanel({ state, cardLabel, onCancel, onRetry }: {
+  state: BulkProgress & { busy: boolean; result?: BulkInstallResult; error?: string };
+  cardLabel: string;
+  onCancel(): void;
+  onRetry(): void;
+}) {
+  const { busy, fraction, label, index, count, bytes, result, error } = state;
+  const pct = Math.round(fraction * 100);
+  return (
+    <div className="w-full max-w-3xl bg-psion-dark border border-psion-accent/40 rounded-lg overflow-hidden flex-shrink-0 mx-4 shadow-sm">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-psion-accent/40 bg-psion-mid">
+        <span className="text-xs font-mono text-gray-600">
+          Standard apps → {cardLabel}
+        </span>
+        <button
+          onClick={onCancel}
+          className="text-xs font-mono text-gray-400 hover:text-amber-700 transition-colors cursor-pointer"
+        >
+          {busy ? 'Cancel' : 'Close'}
+        </button>
+      </div>
+
+      <div className="px-3 py-2.5 space-y-2">
+        {busy && (
+          <>
+            <p className="text-[11px] font-mono text-amber-700">⏳ {label}</p>
+            <div
+              role="progressbar"
+              aria-label="Downloading the standard apps"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={pct}
+              className="h-2 bg-psion-charcoal/10 rounded-full overflow-hidden"
+            >
+              <div className="h-full rounded-full bg-psion-highlight transition-all"
+                   style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-[11px] font-mono text-psion-charcoal/70 tabular-nums">
+              {pct}%{count > 0 ? ` · ${index} of ${count} apps` : ''} · {formatDownloaded(bytes)} downloaded
+            </p>
+          </>
+        )}
+
+        {error && (
+          <>
+            <p className="text-[11px] font-mono text-red-700">Couldn't install the standard apps: {error}</p>
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={onRetry}
+                className="text-[11px] font-mono px-2.5 py-1 rounded bg-psion-highlight border border-psion-accent/50 text-psion-charcoal hover:bg-psion-accent hover:text-white transition-colors cursor-pointer"
+              >
+                Try again
+              </button>
+              <a
+                href={appsRouteHash({ device: 'netpad', category: 'Standard apps', app: null })}
+                className="text-[11px] font-mono text-gray-500 underline hover:text-psion-charcoal transition-colors"
+              >
+                Open the app library instead
+              </a>
+            </div>
+          </>
+        )}
+
+        {result && (
+          <>
+            <p className="text-[11px] font-mono text-green-700">✓ {result.summary}</p>
+            <ol className="list-decimal pl-4 space-y-0.5 text-[11px] font-mono text-psion-charcoal">
+              {result.steps.map((s, i) => <li key={i}>{s}</li>)}
+            </ol>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-mono text-gray-500">
+              {result.installed.map(a => (
+                <span key={a.id}>{a.name} <span className="text-gray-400">→ {a.file}</span></span>
+              ))}
+            </div>
+            {result.skipped.length > 0 && (
+              <p className="text-[11px] font-mono text-gray-500">
+                Not on the card: {result.skipped.map(s => `${s.name} (${s.reason})`).join(', ')}.
+              </p>
+            )}
+            <a
+              href={appsRouteHash({ device: 'netpad', category: null, app: null })}
+              className="inline-block text-[11px] font-mono text-gray-500 underline hover:text-psion-charcoal transition-colors"
+            >
+              Browse the rest of the library — the netpad runs the whole EPOC catalogue
+            </a>
+          </>
+        )}
+      </div>
     </div>
   );
 }

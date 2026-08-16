@@ -17,9 +17,11 @@ import {
   to83, deliveryKindFor, cardNameFor, tryTargetsFor, deliverApp,
   isDriveRooted, epocAppFolder, epocDirPathFor,
   isAppsRoute, parseAppsRoute, appsRouteHash,
-  type AppEntry, type DeviceProfileLike,
+  standardAppsIn, planCardFiles, cardSizeFor, installAppsOnCard,
+  NETPAD_STANDARD_CATEGORY,
+  type AppEntry, type AppManifest, type BulkProgress, type DeviceProfileLike,
 } from '../appLibrary.ts';
-import { listDirectory } from '../fat16.ts';
+import { listDirectory, createBlankImage, addFile } from '../fat16.ts';
 import { listFiles } from '../fefs.ts';
 
 let failures = 0;
@@ -137,8 +139,8 @@ eq(appsRouteHash({ device: null, category: null, app: 'epocgames/monopoly' }),
    '#/apps?app=epocgames/monopoly', "the app id's slash stays readable");
 eq(appsRouteHash({ device: 'netpad', category: null, app: 'netpad/word' }),
    '#/apps?device=netpad&app=netpad/word', 'both, device first');
-// The netpad's "Install standard apps" button: every EPOC app runs on
-// the machine now, so the button names the category as well.
+// The netpad's own CD set on its own: every EPOC app runs on the
+// machine now, so the link names the category as well as the device.
 eq(appsRouteHash({ device: 'netpad', category: 'Standard apps', app: null }),
    '#/apps?device=netpad&category=Standard+apps', 'device + category');
 
@@ -383,6 +385,167 @@ await (async () => {
         'subfolder data mirrored at the drive root');
   check(result.summary.includes('B:') && result.summary.includes('\\APP\\'),
         'instructions name the right pack and folder');
+})();
+
+// ── Bulk install: the whole standard-app set on one card ────────────
+// The netpad's "Install standard apps" button. Psion Teklogix's support
+// CD is twenty-odd installers and the ROM carries none of them, so the
+// button fetches the set and writes every SIS onto ONE MMC card.
+
+const netpadEntry = (slug: string, name: string, extra: Partial<AppEntry> = {}): AppEntry => ({
+  ...sisApp, id: `netpad/${slug}`, name, category: NETPAD_STANDARD_CATEGORY,
+  devices: ['netpad'], tryDevice: 'netpad', zip: `files/netpad/${slug}.zip`,
+  installFile: `${slug}.sis`, sizeBytes: 1000, ...extra,
+});
+
+{
+  const manifest: AppManifest = {
+    version: 1, generatedAt: '', categories: [],
+    apps: [
+      netpadEntry('word', 'Word'),
+      netpadEntry('agenda', 'Agenda'),
+      // A manual with no installer, and an installed-folder bundle: the
+      // card can only carry 8.3-named installers, so neither belongs on it.
+      netpadEntry('data', 'Data (manual)', { installKind: 'none', installFile: null }),
+      netpadEntry('wall', 'Wall', { installKind: 'epocdir', installFile: 'WALL.APP' }),
+      // Everything else the netpad runs lives in the epoc* categories and
+      // is not part of the machine's own set.
+      { ...sisApp, id: 'epocgames/monopoly', name: 'Monopoly' },
+    ],
+  };
+  const set = standardAppsIn(manifest);
+  eq(set.length, 2, 'only the category\'s SIS installers are in the set');
+  eq(set[0].name, 'Agenda', 'set is in name order');
+  eq(set[1].name, 'Word', 'set is in name order');
+}
+
+// Name planning: identical installers shipped under two apps collapse to
+// one file; different installers that squeeze onto the same 8.3 name get
+// numbered rather than colliding.
+{
+  const shared = text('one and the same installer');
+  const plan = planCardFiles([
+    { id: 'netpad/word',  app: 'Word',           file: 'word.sis',   data: text('word') },
+    { id: 'netpad/opl',   app: 'Program editor', file: 'texted.sis', data: shared },
+    { id: 'netpad/opl2',  app: 'Program editor (March 2002)', file: 'texted.sis', data: shared },
+    { id: 'netpad/other', app: 'Other',          file: 'sub/texted.sis', data: text('different') },
+  ]);
+  eq(plan.files.length, 3, 'the duplicate installer is written once');
+  eq(plan.duplicates.length, 1, 'the duplicate is reported');
+  eq(plan.duplicates[0].sameAs, 'Program editor', 'reported against the app that kept the file');
+  eq(plan.files.map(f => f.name).join(','), 'WORD.SIS,TEXTED.SIS,TEXTED2.SIS',
+     'colliding 8.3 names are numbered');
+}
+
+eq(cardSizeFor(7 * 1024 * 1024), 16 * 1024 * 1024, 'the CD set fits the standard 16 MB card');
+eq(cardSizeFor(20 * 1024 * 1024), 32 * 1024 * 1024, 'a bigger set steps the card up');
+
+await (async () => {
+  const entries = [
+    netpadEntry('agenda', 'Agenda', { sizeBytes: 4000 }),
+    netpadEntry('broken', 'Broken', { sizeBytes: 1000 }),
+    netpadEntry('word', 'Word', { sizeBytes: 2000 }),
+  ];
+  const zips = new Map<string, Uint8Array>([
+    ['netpad/agenda', makeZip([{ name: 'agenda.sis', data: text('agenda installer') }])],
+    // A bundle whose installer isn't where the manifest says: this app
+    // has to drop out without taking the rest of the set with it.
+    ['netpad/broken', makeZip([{ name: 'readme.txt', data: text('no installer here') }])],
+    ['netpad/word',   makeZip([{ name: 'word.sis', data: text('word installer') }])],
+  ]);
+  let attached: Uint8Array | null = null;
+  const controls = {
+    cardAttached: false,
+    getCardBytes: () => null,
+    attachCard: async (img: Uint8Array) => { attached = img; return true; },
+    ssdAttached: [] as boolean[],
+  } as never;
+
+  const seen: BulkProgress[] = [];
+  const result = await installAppsOnCard(entries, controls, 'MMC card', {
+    onProgress: p => seen.push({ ...p }),
+    fetchZip: async (entry, onBytes) => {
+      const zip = zips.get(entry.id)!;
+      onBytes(zip.length >> 1, zip.length);   // a mid-download tick
+      onBytes(zip.length, zip.length);
+      return zip;
+    },
+  });
+
+  check(attached !== null, 'one card image was attached');
+  const names = listDirectory(attached!, 0).filter(e => !e.isDirectory).map(e => e.name);
+  eq(names.length, 2, 'both good installers on the one card');
+  check(names.includes('AGENDA.SIS') && names.includes('WORD.SIS'),
+        `card holds the set (got ${names.join(', ')})`);
+  eq(result.installed.length, 2, 'two apps reported installed');
+  eq(result.skipped.length, 1, 'the broken bundle is reported, not thrown');
+  eq(result.skipped[0].name, 'Broken', 'the broken bundle is named');
+  eq(result.freshCard, true, 'no card in the slot → a fresh one');
+  check(result.summary.includes('2 standard apps') && result.summary.includes('MMC card'),
+        `summary counts the set (got "${result.summary}")`);
+  check(result.steps.some(s => s.includes('D:')), 'steps point at drive D:');
+
+  // The bar: monotonic, weighted by bundle size, finishing full.
+  check(seen.length > entries.length, 'progress reported more often than once per app');
+  let last = -1;
+  for (const p of seen) {
+    check(p.fraction >= last - 1e-9, `fraction never goes backwards (${p.fraction} after ${last})`);
+    check(p.fraction <= 1 + 1e-9, 'fraction never exceeds 1');
+    last = p.fraction;
+  }
+  eq(seen[seen.length - 1].fraction, 1, 'finishes at 100%');
+  eq(seen[seen.length - 1].index, 3, 'every app accounted for at the end');
+  eq(seen[seen.length - 1].count, 3, 'count is the size of the set');
+  check(seen.some(p => p.label.includes('Downloading Agenda')), 'labels name the app being fetched');
+  check(seen[seen.length - 1].bytes > 0, 'downloaded bytes are reported');
+  // Agenda is 4/7ths of the set by weight, so the bar has to be past
+  // half by the time Word (the last, smallest app) starts.
+  const beforeWord = seen.findIndex(p => p.label.includes('Downloading Word'));
+  check(beforeWord >= 0 && seen[beforeWord].fraction > 0.5,
+        'the bar is weighted by bundle size, not by app count');
+})();
+
+// A card already in the slot is added to rather than replaced — and a
+// second run refreshes its own installers instead of failing on them.
+await (async () => {
+  const existing = createBlankImage(16 * 1024 * 1024);
+  addFile(existing, 'MYNOTES.TXT', text('the user\'s own file'));
+  const entries = [netpadEntry('word', 'Word')];
+  const zip = makeZip([{ name: 'word.sis', data: text('word installer') }]);
+  let attached: Uint8Array = existing;
+  const controls = {
+    get cardAttached() { return true; },
+    getCardBytes: () => attached,
+    attachCard: async (img: Uint8Array) => { attached = img; return true; },
+    ssdAttached: [] as boolean[],
+  } as never;
+
+  const first = await installAppsOnCard(entries, controls, 'MMC card',
+                                        { fetchZip: async () => zip });
+  eq(first.freshCard, false, 'the inserted card was reused');
+  let names = listDirectory(attached, 0).filter(e => !e.isDirectory).map(e => e.name);
+  check(names.includes('MYNOTES.TXT'), 'the user\'s own file survived');
+  check(names.includes('WORD.SIS'), 'the installer was added alongside it');
+
+  const again = await installAppsOnCard(entries, controls, 'MMC card',
+                                        { fetchZip: async () => zip });
+  eq(again.freshCard, false, 'a second run still reuses the card');
+  names = listDirectory(attached, 0).filter(e => !e.isDirectory).map(e => e.name);
+  eq(names.filter(n => n === 'WORD.SIS').length, 1, 'the installer is replaced, not duplicated');
+  check(names.includes('MYNOTES.TXT'), 'and the user\'s file is still there');
+})();
+
+// Nothing to install is an error the caller can show, not a blank card.
+await (async () => {
+  const controls = { cardAttached: false, getCardBytes: () => null,
+                     attachCard: async () => true, ssdAttached: [] } as never;
+  let threw = '';
+  try {
+    await installAppsOnCard([], controls, 'MMC card', { fetchZip: async () => new Uint8Array() });
+  } catch (e) {
+    threw = e instanceof Error ? e.message : String(e);
+  }
+  check(threw.includes('no standard apps'), `empty set explains itself (got "${threw}")`);
 })();
 
 if (failures > 0) {

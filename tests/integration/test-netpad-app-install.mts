@@ -13,10 +13,16 @@
 // and not just its own CD set: --app epocgames/fred installs a 3-Lib
 // game by the same route.
 //
+// --standard-apps is the button itself: the whole support-CD category
+// onto ONE card (installAppsOnCard), then the same install driven off
+// it. That is the case a single-app card can't cover — nineteen
+// installers, a root directory with the whole set in it, and EPOC
+// having to mount and list it before anything can be opened.
+//
 // The whole production chain runs for real:
 //   scripts/build-app-library.mts  → manifest entry + app zip
 //   lib/appLibrary.ts deliverApp() → 'cf' delivery: the .SIS written
-//                                    into a FAT16 image, host-side
+//     / installAppsOnCard()          into a FAT16 image, host-side
 //   harness/run                    → the actual netpad ROM, which
 //                                    mounts the image over its MMC SPI
 //                                    port as drive D:
@@ -31,14 +37,16 @@
 //
 // Run (needs harness/run built):
 //   node --experimental-strip-types tests/integration/test-netpad-app-install.mts \
-//        [--app netpad/word] [--keep]
+//        [--app netpad/word | --standard-apps] [--keep]
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { deliverApp, type AppEntry, type DeviceProfileLike }
-  from '../../frontend/src/lib/appLibrary.ts';
+import {
+  deliverApp, installAppsOnCard, standardAppsIn,
+  type AppManifest, type DeviceProfileLike,
+} from '../../frontend/src/lib/appLibrary.ts';
 import { listDirectory } from '../../frontend/src/lib/fat16.ts';
 import { createBlankImage } from '../../frontend/src/lib/fat16.ts';
 
@@ -52,6 +60,12 @@ const arg = (flag: string, fallback: string): string => {
 };
 const APP_ID = arg('--app', 'netpad/word');
 const KEEP = process.argv.includes('--keep');
+// --standard-apps exercises the netpad's yellow button instead of one
+// app: the whole support-CD category fetched and written onto ONE card
+// by installAppsOnCard, which is what that button now does. The device
+// side is identical — a card holding nineteen installers still has to
+// mount as D: and install off it.
+const BULK = process.argv.includes('--standard-apps');
 
 // The netpad's delivery-relevant DeviceProfile fields
 // (core/device_registry.cpp): no PC-Card socket, an MMC slot, and a
@@ -77,7 +91,7 @@ if (!fs.existsSync(ROM)) {
 
 // ── The app bundle and the card, built by the real pipeline ─────────
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'psion-netpad-install-'));
-const category = APP_ID.split('/')[0];
+const category = BULK ? 'netpad' : APP_ID.split('/')[0];
 console.log(`Building the app library (${category}) …`);
 const build = spawnSync(process.execPath,
   ['--experimental-strip-types', path.join(REPO, 'scripts', 'build-app-library.mts'),
@@ -86,13 +100,7 @@ const build = spawnSync(process.execPath,
 if (build.status !== 0) fail(`build-app-library failed: ${build.stderr}`);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(work, 'manifest.json'), 'utf8')) as
-  { apps: AppEntry[] };
-const entry = manifest.apps.find(a => a.id === APP_ID);
-if (!entry) fail(`${APP_ID} is not in the built manifest`);
-if (entry.installKind !== 'sis') {
-  fail(`${APP_ID} has installKind '${entry.installKind}', expected 'sis'`);
-}
-if (!entry.devices.includes('netpad')) fail(`${APP_ID} is not catalogued for the netpad`);
+  AppManifest;
 
 let cardImage: Uint8Array | null = null;
 const controls = {
@@ -101,15 +109,50 @@ const controls = {
   attachCard: async (bytes: Uint8Array) => { cardImage = bytes; return true; },
   ssdAttached: [] as boolean[],
 } as never;
-const zipBytes = new Uint8Array(fs.readFileSync(path.join(work, entry.zip)));
-const result = await deliverApp(entry, zipBytes, controls, PROFILE);
-if (!cardImage) fail('deliverApp did not attach a card — the netpad took another route');
-if (!result.summary.includes('MMC card')) {
-  fail(`delivery summary does not name the MMC card: ${result.summary}`);
+// What the device is expected to open once the file list is on screen:
+// the first name in it. One-app mode has only one candidate; the
+// standard-app card has the whole CD set on it and EPOC lists it
+// alphabetically.
+let subject: string;
+
+if (BULK) {
+  // The button's own path: every app in the category, all their
+  // installers, one card. installAppsOnCard does the fetching, so the
+  // built library stands in for the deployed one.
+  const set = standardAppsIn(manifest);
+  if (set.length < 15) fail(`only ${set.length} standard apps in the built manifest`);
+  const result = await installAppsOnCard(set, controls, 'MMC card', {
+    fetchZip: async entry => new Uint8Array(fs.readFileSync(path.join(work, entry.zip))),
+  });
+  if (!cardImage) fail('installAppsOnCard did not attach a card');
+  if (result.skipped.length > 0) {
+    fail(`apps left off the card: ${result.skipped.map(s => `${s.name} (${s.reason})`).join(', ')}`);
+  }
+  const onCard = listDirectory(cardImage, 0).filter(e => !e.isDirectory).map(e => e.name);
+  if (onCard.length !== set.length) {
+    fail(`${set.length} apps in the set but ${onCard.length} files on the card`);
+  }
+  console.log(`${result.summary} — ${onCard.join(', ')}`);
+  subject = onCard.slice().sort()[0];
+  console.log(`The file list opens on ${subject}; that is the one being installed.`);
+} else {
+  const entry = manifest.apps.find(a => a.id === APP_ID);
+  if (!entry) fail(`${APP_ID} is not in the built manifest`);
+  if (entry.installKind !== 'sis') {
+    fail(`${APP_ID} has installKind '${entry.installKind}', expected 'sis'`);
+  }
+  if (!entry.devices.includes('netpad')) fail(`${APP_ID} is not catalogued for the netpad`);
+  const zipBytes = new Uint8Array(fs.readFileSync(path.join(work, entry.zip)));
+  const result = await deliverApp(entry, zipBytes, controls, PROFILE);
+  if (!cardImage) fail('deliverApp did not attach a card — the netpad took another route');
+  if (!result.summary.includes('MMC card')) {
+    fail(`delivery summary does not name the MMC card: ${result.summary}`);
+  }
+  const onCard = listDirectory(cardImage, 0).map(e => e.name);
+  console.log(`${entry.name}: delivered as ${onCard.join(', ')} — ${result.summary}`);
+  if (onCard.length !== 1) fail(`expected one file on the card, got ${onCard.join(', ') || 'none'}`);
+  subject = onCard[0];
 }
-const onCard = listDirectory(cardImage, 0).map(e => e.name);
-console.log(`${entry.name}: delivered as ${onCard.join(', ')} — ${result.summary}`);
-if (onCard.length !== 1) fail(`expected one file on the card, got ${onCard.join(', ') || 'none'}`);
 
 const cardPath = path.join(work, 'card.img');
 const emptyPath = path.join(work, 'empty.img');
@@ -181,6 +224,6 @@ for (let y = SLOT_Y0; y < SLOT_Y1; y++) {
 if (slotDiff === 0) fail("the Extras bar's top slot is unchanged — the app is not listed");
 
 console.log(`Extras differs in ${slotDiff} pixels of its top slot.`);
-console.log(`RESULT: PASS — ${entry.name} installed onto the netpad from the app library`);
+console.log(`RESULT: PASS — ${subject} installed onto the netpad from ${BULK ? 'the standard-app card' : 'the app library'}`);
 if (KEEP) console.log(`artefacts kept in ${work}`);
 else fs.rmSync(work, { recursive: true, force: true });

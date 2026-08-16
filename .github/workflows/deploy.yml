@@ -100,14 +100,17 @@ jobs:
       # rather than the cable (the slot mounts as D: on its own, where
       # the link wants Remote link switched on by hand). Drive the whole
       # chain against the real netpad ROM: deliver a .SIS, run the
-      # device's own installer, and require the app in Extras. Twice —
-      # once from applib/netpad (the machine's own CD set) and once from
-      # the 3-Lib EPOC games, which the netpad now takes as well.
+      # device's own installer, and require the app in Extras. Three
+      # times — the machine's own CD set delivered app by app, a 3-Lib
+      # EPOC game (which the netpad now takes as well), and the button's
+      # own path: the whole CD set written onto ONE card and installed
+      # off it, which is the case with nineteen installers in the root.
       - name: Run netpad app-library install validation
         if: ${{ inputs.run_harness_tests }}
         run: |
           bash tests/integration/test-netpad-app-install.sh
           bash tests/integration/test-netpad-app-install.sh epocgames/fred
+          bash tests/integration/test-netpad-app-install.sh --standard-apps
 
       # EPOC machine ID: the debug panel reprograms the identity PROM at
       # runtime, which only means anything if the new ID is visible through

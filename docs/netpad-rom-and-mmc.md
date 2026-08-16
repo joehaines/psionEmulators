@@ -40,12 +40,18 @@ So Apparc's list is right and the Shell is showing what the ROM has.
 the machine means installing them, the same way the app library already
 delivers SIS packages over Remote Link.
 
-What can be installed is not limited to the machine's own support CD
-(`applib/netpad`, behind the **Install standard apps** button). The
-netpad is an EPOC R5 ARM machine with the 5mx's own 640×240 panel, so
-every ER5 app in the library is catalogued for it and installs by the
-same route — `bash tests/integration/test-netpad-app-install.sh
-epocgames/fred` puts a 3-Lib game in its Extras bar on the real ROM.
+The machine's own support CD (`applib/netpad`) is what the **Install
+standard apps** button delivers, and it delivers all of it at once:
+every app in that category downloaded and written onto a single MMC
+image, which is then inserted as D:. `bash
+tests/integration/test-netpad-app-install.sh --standard-apps` builds
+that card with the production code and installs off it on the real ROM.
+
+What can be installed is not limited to that set. The netpad is an EPOC
+R5 ARM machine with the 5mx's own 640×240 panel, so every ER5 app in the
+library is catalogued for it and installs by the same route —
+`bash tests/integration/test-netpad-app-install.sh epocgames/fred` puts
+a 3-Lib game in its Extras bar on the real ROM.
 Bundles that are an installed app folder rather than an installer take
 the cable instead of the card (a card carries 8.3 names only); the
 netpad answers that from a cold boot here, because `sa1100.cpp` parks

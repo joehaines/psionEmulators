@@ -18,12 +18,18 @@
 //     installer ('epocdir') → a Remote Link copy straight into
 //     \System\Apps\<App>\ on C:, no on-device installer involved.
 //
+// One route is not per-app at all: installAppsOnCard (at the end of this
+// file) puts a whole category's installers on a single card, which is
+// what the netpad's "Install standard apps" button does with the
+// machine's support CD.
+//
 // All builders work against EmulatorControls so they run identically in
 // main-thread and worker mode.
 
 import type { EmulatorControls } from '../hooks/useEmulator.ts';
-import { createBlankImage, addFile } from './fat16.ts';
+import { createBlankImage, addFile, listRoot, deleteEntry } from './fat16.ts';
 import { createFlashPack, addFileToPack, FLASH_PACK_SIZES } from './fefs.ts';
+import { sameBytes } from './bytes.ts';
 import { unzipAll } from './zip.ts';
 import { PlpClient } from './plp/client-spec.ts';
 
@@ -94,6 +100,42 @@ export async function fetchAppZip(entry: AppEntry): Promise<Uint8Array> {
   return new Uint8Array(await resp.arrayBuffer());
 }
 
+// The same download, narrated. `onBytes(received, total)` fires as the
+// body streams in — `total` is the Content-Length, or 0 where the server
+// didn't send one (a chunked response). Falls back to a plain buffered
+// read wherever streaming bodies aren't available, which then reports a
+// single 100% tick rather than nothing.
+export async function fetchAppZipProgressive(
+  entry: AppEntry,
+  onBytes?: (received: number, total: number) => void,
+  signal?: AbortSignal,
+): Promise<Uint8Array> {
+  const resp = await fetch(appAssetUrl(entry.zip), signal ? { signal } : undefined);
+  if (!resp.ok) throw new Error(`download failed (HTTP ${resp.status})`);
+  const total = Number(resp.headers.get('Content-Length') ?? 0) || 0;
+  const body = resp.body;
+  if (!body || typeof body.getReader !== 'function') {
+    const buf = new Uint8Array(await resp.arrayBuffer());
+    onBytes?.(buf.length, total || buf.length);
+    return buf;
+  }
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    chunks.push(value);
+    received += value.length;
+    onBytes?.(received, total);
+  }
+  const out = new Uint8Array(received);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
+}
+
 // ── The library route ───────────────────────────────────────────────
 // `#/apps`, with three optional parameters:
 //   device=<deviceId>       open filtered to that machine's apps
@@ -101,10 +143,12 @@ export async function fetchAppZip(entry: AppEntry): Promise<Uint8Array> {
 //                           genre half of its label ("Standard apps",
 //                           "Games") — the dropdown's own values. With
 //                           device= it narrows a machine's list to one
-//                           set, which is what the netpad's "Install
-//                           standard apps" button links to: every EPOC
-//                           app now runs on the netpad, and that button
-//                           means the machine's own CD set specifically.
+//                           set, e.g. the netpad's own CD set among the
+//                           thousand other apps the machine can run
+//                           (#/apps?device=netpad&category=Standard+apps,
+//                           which is where the install panel's "open the
+//                           library instead" link goes when the bulk
+//                           install can't reach the network).
 //   app=<category>/<slug>   open that app's details popup — the whole
 //                           point being that the address bar always
 //                           holds a link to whatever is on screen, so
@@ -687,4 +731,259 @@ export async function deliverApp(
     return await deliverViaCard(entry, files, controls, card, onPhase);
   }
   throw linkErr;
+}
+
+// ── Bulk delivery: a whole set of apps onto one card ─────────────────
+//
+// The netpad's "Install standard apps" button. Psion Teklogix's support
+// CD is twenty-odd SIS installers and the machine's ROM carries none of
+// them, so the useful thing to hand a fresh netpad is the whole set at
+// once: every installer written into a single MMC card image, inserted
+// in one go. The per-app "Try it" route still exists for everything
+// else in the library — this is the "give me the machine as it shipped"
+// path, and it never asks the user to pick.
+
+// The library category holding the netpad's own support-CD set. It is
+// the one category absent from the CD catalogue (see applib/README.md);
+// everything else the netpad runs comes from the epoc* categories.
+export const NETPAD_STANDARD_CATEGORY = 'netpad';
+
+// Every app in a category that can be written to a card as an installer,
+// in name order. Anything without a SIS (an installed-folder bundle, or
+// a documentation-only entry) is left out: the card path can only carry
+// 8.3 names, so those still belong on the per-app Remote Link route.
+export function standardAppsIn(
+  manifest: AppManifest,
+  category: string = NETPAD_STANDARD_CATEGORY,
+): AppEntry[] {
+  return manifest.apps
+    .filter(a => a.category === category && a.installKind === 'sis' && a.installFile)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export interface BulkProgress {
+  // 0..1 across the whole set, weighted by each app's bundle size so the
+  // bar moves in proportion to the work left rather than per app.
+  fraction: number;
+  // What is happening right now, ready to show as-is.
+  label: string;
+  // Apps finished / apps in the set.
+  index: number;
+  count: number;
+  // Bytes actually downloaded so far, across every app.
+  bytes: number;
+}
+
+export interface BulkInstallResult extends DeliveryResult {
+  // Apps whose installer made it onto the card, and the 8.3 name each
+  // one landed under.
+  installed: { id: string; name: string; file: string }[];
+  // Apps that didn't, with the reason — one bad bundle doesn't sink the
+  // rest of the set.
+  skipped: { name: string; reason: string }[];
+  // False when the installers were added to the card already in the slot.
+  freshCard: boolean;
+}
+
+interface PlannedFile {
+  id: string;
+  app: string;
+  name: string;
+  data: Uint8Array;
+}
+
+// A free 8.3 name based on `wanted`: WORD.SIS, then WORD2.SIS, WORD3.SIS
+// … as collisions demand (the stem is trimmed to make room for the
+// digits). Only reached when two apps have differently-named installers
+// that squeeze onto the same short name — identical ones are dropped as
+// duplicates before we get here.
+function uniqueName(wanted: string, taken: Set<string>): string {
+  if (!taken.has(wanted)) return wanted;
+  const dot = wanted.lastIndexOf('.');
+  const stem = dot > 0 ? wanted.slice(0, dot) : wanted;
+  const ext  = dot > 0 ? wanted.slice(dot) : '';
+  for (let n = 2; n < 1000; n++) {
+    const suffix = String(n);
+    const candidate = `${stem.slice(0, 8 - suffix.length)}${suffix}${ext}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  throw new Error(`Could not find a free name for ${wanted}`);
+}
+
+export interface CardPlan {
+  files: PlannedFile[];
+  // Apps left out because their installer is the same file as one
+  // already on the card.
+  duplicates: { name: string; sameAs: string }[];
+}
+
+// Decide what the card ends up holding: one entry per distinct
+// installer, under a unique 8.3 name.
+export function planCardFiles(
+  items: { id: string; app: string; file: string; data: Uint8Array }[],
+): CardPlan {
+  const files: PlannedFile[] = [];
+  const duplicates: { name: string; sameAs: string }[] = [];
+  const taken = new Set<string>();
+  for (const item of items) {
+    const twin = files.find(f => sameBytes(f.data, item.data));
+    if (twin) {
+      duplicates.push({ name: item.app, sameAs: twin.app });
+      continue;
+    }
+    const name = uniqueName(to83(item.file), taken);
+    taken.add(name);
+    files.push({ id: item.id, app: item.app, name, data: item.data });
+  }
+  return { files, duplicates };
+}
+
+// Card image big enough for the payload with room to install from: 16 MB
+// (the single-app path's size) unless the set is bigger than that, then
+// the next 16 MB step up.
+export function cardSizeFor(payloadBytes: number): number {
+  const step = 16 * 1024 * 1024;
+  return Math.max(step, Math.ceil((payloadBytes * 1.25) / step) * step);
+}
+
+// Write every planned file into `img`, replacing any same-named file
+// already there — re-running the install refreshes the card rather than
+// failing on its own previous output. Returns what didn't fit.
+function writePlanToImage(img: Uint8Array, files: PlannedFile[]): { name: string; reason: string }[] {
+  const failed: { name: string; reason: string }[] = [];
+  for (const f of files) {
+    const clash = listRoot(img).find(
+      e => !e.isDirectory && e.name.toUpperCase() === f.name.toUpperCase());
+    if (clash) deleteEntry(img, clash);
+    const added = addFile(img, f.name, f.data);
+    if (!added.ok) failed.push({ name: f.app, reason: added.reason ?? 'could not be written to the card' });
+  }
+  return failed;
+}
+
+// Fetch every app in `entries` and put all their installers on one card,
+// which is then inserted into the running machine. Downloads run one at
+// a time so the progress bar means something and the browser isn't
+// holding twenty bundles at once; a single app that fails to download or
+// unpack is reported in `skipped` and the rest of the set still lands.
+export async function installAppsOnCard(
+  entries: AppEntry[],
+  controls: EmulatorControls,
+  card: string,
+  opts: {
+    onProgress?: (p: BulkProgress) => void;
+    signal?: AbortSignal;
+    // Injectable for tests; the default streams from the deployed
+    // library and reports bytes as they arrive.
+    fetchZip?: (
+      entry: AppEntry,
+      onBytes: (received: number, total: number) => void,
+    ) => Promise<Uint8Array>;
+  } = {},
+): Promise<BulkInstallResult> {
+  const { onProgress, signal } = opts;
+  const fetchZip = opts.fetchZip
+    ?? ((entry, onBytes) => fetchAppZipProgressive(entry, onBytes, signal));
+  if (entries.length === 0) throw new Error('The library lists no standard apps for this device.');
+  const checkAborted = () => { if (signal?.aborted) throw new Error('cancelled'); };
+
+  // Weight the bar by bundle size: the set runs from an 11 KB signature
+  // applet to a 3 MB JVM, and one tick per app would sit still through
+  // the big ones. The weights are uncompressed sizes and the downloads
+  // are zips, so each app contributes its own fraction of its own
+  // weight rather than raw byte counts being compared across the two.
+  const weights = entries.map(e => Math.max(1, e.sizeBytes));
+  const totalWeight = weights.reduce((s, w) => s + w, 0);
+  let doneWeight = 0;
+  let bytes = 0;
+  let index = 0;
+  const report = (label: string, within = 0) => onProgress?.({
+    fraction: Math.min(1, (doneWeight + within) / totalWeight),
+    label, index, count: entries.length, bytes,
+  });
+
+  const items: { id: string; app: string; file: string; data: Uint8Array }[] = [];
+  const skipped: { name: string; reason: string }[] = [];
+  report('Starting…');
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    checkAborted();
+    report(`Downloading ${entry.name}…`);
+    const startBytes = bytes;
+    let ok = true;
+    try {
+      const zip = await fetchZip(entry, (received, total) => {
+        bytes = startBytes + received;
+        // Without a Content-Length there's nothing to be a fraction of,
+        // so the app's weight only lands when its download finishes.
+        report(`Downloading ${entry.name}…`,
+          total > 0 ? (Math.min(1, received / total) * weights[i]) : 0);
+      });
+      checkAborted();
+      report(`Unpacking ${entry.name}…`, weights[i]);
+      const files = await unzipAll(zip);
+      const sis = entry.installFile ? files.get(entry.installFile) : undefined;
+      if (!sis) throw new Error(`installer ${entry.installFile ?? '?'} missing from the bundle`);
+      items.push({ id: entry.id, app: entry.name, file: entry.installFile!, data: sis });
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      ok = false;
+      skipped.push({ name: entry.name, reason: e instanceof Error ? e.message : String(e) });
+    }
+    doneWeight += weights[i];
+    index = i + 1;
+    report(ok ? `Downloaded ${entry.name}` : `Skipped ${entry.name}`);
+  }
+  if (items.length === 0) throw new Error('None of the standard apps could be downloaded.');
+
+  checkAborted();
+  const plan = planCardFiles(items);
+  for (const d of plan.duplicates) {
+    skipped.push({ name: d.name, reason: `same installer as ${d.sameAs}` });
+  }
+  const payload = plan.files.reduce((s, f) => s + f.data.length, 0);
+
+  report(`Building the ${card}…`);
+  // Reuse the card in the slot when the whole set fits on it — the user's
+  // own files stay put. Otherwise (no card, a full one, or one too small)
+  // build a fresh image sized to the set.
+  let img: Uint8Array | null = null;
+  let freshCard = true;
+  if (controls.cardAttached) {
+    const existing = await Promise.resolve(controls.getCardBytes());
+    if (existing && existing.length >= cardSizeFor(payload)) {
+      const copy = existing.slice();
+      // Only keep the reused card if the whole set actually went on
+      // it — a part-written one would leave the user with half a CD.
+      if (writePlanToImage(copy, plan.files).length === 0) { img = copy; freshCard = false; }
+    }
+  }
+  if (!img) {
+    img = createBlankImage(cardSizeFor(payload));
+    const failed = writePlanToImage(img, plan.files);
+    if (failed.length > 0) {
+      throw new Error(`Could not fit the standard apps onto a ${card}: ${failed[0].reason}`);
+    }
+  }
+
+  report(`Inserting the ${card}…`);
+  const ok = await controls.attachCard(img);
+  if (!ok) throw new Error(`Could not attach the ${card}.`);
+
+  const installed = plan.files.map(f => ({ id: f.id, name: f.app, file: f.name }));
+  const first = installed[0]?.file ?? 'the installer';
+  onProgress?.({ fraction: 1, label: 'Done', index: entries.length, count: entries.length, bytes });
+  return {
+    installed,
+    skipped,
+    freshCard,
+    summary: `${installed.length} standard app${installed.length === 1 ? '' : 's'} `
+      + `${installed.length === 1 ? 'is' : 'are'} on the ${card}`
+      + `${freshCard ? ' (a fresh card was inserted)' : ''}.`,
+    steps: [
+      `On the device, open the System screen and switch to the D: drive (the ${card}).`,
+      `Open an installer — ${first} and the rest — and confirm its prompts; the app then appears in Extras.`,
+      'Every installer stays on the card, so the ones you skip are there whenever you want them.',
+    ],
+  };
 }

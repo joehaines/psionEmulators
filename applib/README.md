@@ -24,17 +24,20 @@ from `epocutil/zexe` that its stub needs at runtime.
 `netpad/` is the one category absent from `catalogue.json`: it holds the
 applications Psion Teklogix shipped on the netpad's support CD (the
 machine's EPOC R5 ROM carries none of them), so every entry lives in
-`extra-apps.json` instead. The emulator links to it from the netpad's
-**Install standard apps** button, which opens the library at
-`#/apps?device=netpad&category=Standard+apps`.
+`extra-apps.json` instead. The emulator delivers this category as a set
+rather than app by app: the netpad's **Install standard apps** button
+fetches every entry in it and writes all of their `.SIS` installers onto
+one MMC card image (`installAppsOnCard` in
+`frontend/src/lib/appLibrary.ts`), which is the CD the machine shipped
+with, in the slot. Entries without an installer — the `Data` manual —
+are left off the card.
 
 That category is the netpad's *own* set, not the limit of what it runs:
 the machine is an EPOC R5 ARM device with the 5mx's own 640×240 panel,
 so every `epoc*` category is catalogued for it as well and installs on
 it by the same MMC route (see `EPOC_DEVICES` in
-`scripts/build-app-library.mts`). The button names the category so those
-twenty apps aren't buried among the thousand the machine can also run;
-clearing the category filter in the library shows the rest.
+`scripts/build-app-library.mts`), one app at a time from the library at
+`#/apps?device=netpad`.
 
 `scripts/build-app-library.mts` turns all of this into the deployable
 library (`dist/apps`: `manifest.json` + one zip per app + icons

@@ -194,14 +194,18 @@ plain library.
 `#/apps?category=<genre>` to one category (the values in the library's own
 dropdown, e.g. `Games`); the two combine.
 
-The netpad uses both. Psion Teklogix shipped that tablet with a bare EPOC R5 ROM
-and its applications on a support CD, so the emulator's netpad carries a yellow
-**Install standard apps** button that lands on `applib/netpad` — Word, Sheet,
-Agenda, Opera, the OPL editor and the rest, each installable from there in one
-click. That CD set is not the limit of what the machine runs, though: the netpad
-is an EPOC R5 ARM machine with the 5mx's own 640×240 panel, so the library's
-whole EPOC catalogue is listed for it and installs on it, and clearing the
-category filter from that button's view shows all of it.
+The netpad uses both, though its own software no longer goes through the library
+at all. Psion Teklogix shipped that tablet with a bare EPOC R5 ROM and its
+applications on a support CD, so the emulator's netpad carries a yellow
+**Install standard apps** button that reproduces the CD: one click downloads
+every app in `applib/netpad` — Word, Sheet, Agenda, Opera, the OPL editor and the
+rest — writes all of their installers onto a single MMC card image and inserts
+it, narrating the download in a progress bar as it goes. What's left to do is
+what a real netpad owner did with the CD in hand: open the installers from drive
+D:. That set is not the limit of what the machine runs, though: the netpad is an
+EPOC R5 ARM machine with the 5mx's own 640×240 panel, so the library's whole EPOC
+catalogue is listed for it and installs on it one app at a time, at
+`#/apps?device=netpad`.
 
 The netpad takes delivery on its MMC card (drive D:) rather than the cable: the
 slot mounts as D: with nothing switched on first, where its Remote Link wants

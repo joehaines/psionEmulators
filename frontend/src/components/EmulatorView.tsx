@@ -861,7 +861,11 @@ export default function EmulatorView({
   // Printer capture rides the same cable UART as Remote Link, so it's
   // available wherever the serial bridge is validated. The two contend
   // for the port at attach time (refused with a readable error), same
-  // as the Modem path.
+  // as the Modem path. Only the dialog's "Via PC" tab needs the PLP
+  // stack, and that already gates on linkProtocol === 1 below — raw
+  // serial capture is just the device's own printer driver writing to
+  // the cable, so it stays offered on a machine whose link protocol we
+  // don't speak (the Conan).
   const showPrinter    = remoteLinkUart >= 0;
   // Link-handshake Req_Con flavour: the ER3/ER4 CL-PS711x ROMs silently drop
   // the Revo-style 0x24 Req_Con (and stop retrying their Req_Req, wedging the

@@ -11,6 +11,14 @@
 #     — version=6 corresponds to EPOC ER3 (Windermere) or ER5 (netBook)
 #   - a 0x32 frame whose payload contains the ASCII "LINK.*" connect string
 #
+# The Conan is the exception and gets the opposite assertion: its ROM speaks
+# the ER5u escaped transport (ESC 0x19; ENQ `19 23` / ACK `19 24`) instead of
+# our PLP data link, so the row proves it answers a host ENQ with an ACK and
+# emits NO PLP frame. That is what the frontend's linkProtocol=0 for this
+# device encodes; if a ROM or emulator change ever made it talk PLP after
+# all, this row fails and the profile should be revisited. See
+# docs/conan-remote-link.md.
+#
 # Windermere (Revo / 5mx / 5mxpro / mc218) routes the cable serial port
 # to UART2 and the kernel comes up quickly, so those rows use
 # `--serial-attach 2 8 --serial-poll-until 14`.  The SA-1100 netBook
@@ -43,6 +51,7 @@ DEVICES=(
     "netbook:netBook_BL_v011_eng.bin"
     "series7:series7_v1.05(254)_b756_eng.bin"
     "netpad:Netpad.img"
+    "conan:conan_s2_2201.engbuild.IMG"
 )
 
 target="${1:-all}"
@@ -57,7 +66,18 @@ for entry in "${DEVICES[@]}"; do
         continue
     fi
 
-    if [ "$dev" = "series7" ]; then
+    if [ "$dev" = "conan" ]; then
+        # Conan (EPOC ER5u): no PLP. Send an ESC ENQ (19 23) at t=10 and a
+        # framed Req_Req_Pdu at t=14; the ROM answers the ENQ with an ESC ACK
+        # (19 24) and ignores the PLP frame, probing with its own ENQ ~2 s
+        # after any inbound byte. Cable is on UART2 like the rest of the
+        # Windermere family.
+        log=$("$HARNESS" "$rom_path" --device "$dev" --quiet-logs \
+            --serial-attach 2 8 \
+            --serial-tx 2 10 "19,23" \
+            --serial-tx-framed 2 14 "21" \
+            --serial-poll-until 24 2>&1) || true
+    elif [ "$dev" = "series7" ]; then
         # Series 7 boots from its 16 MB ROM directly (no CF card).
         # RemoteLinkServer4 sends Req_Req_Pdu at sim time ~0.9 s.
         log=$("$HARNESS" "$rom_path" --device "$dev" --quiet-logs \
@@ -119,6 +139,23 @@ for entry in "${DEVICES[@]}"; do
             --serial-auto-rule "21:24 de ad be ef" \
             --serial-auto-rule "24:00" \
             --serial-poll-until 14 2>&1) || true
+    fi
+
+    if [ "$dev" = "conan" ]; then
+        saw_ack=0; saw_enq=0; saw_plp=0
+        if echo "$log" | grep -q "serial-rx UART2 (2 bytes): 19 24"; then saw_ack=1; fi
+        if echo "$log" | grep -q "serial-rx UART2 (2 bytes): 19 23"; then saw_enq=1; fi
+        # Any PLP frame at all from the device would mean the premise of
+        # linkProtocol=0 is wrong.
+        if echo "$log" | grep -q "serial-frame type="; then saw_plp=1; fi
+        if [ "$saw_ack" -eq 1 ] && [ "$saw_enq" -eq 1 ] && [ "$saw_plp" -eq 0 ]; then
+            echo "PASS-ER5U $dev — ESC ENQ/ACK observed, no PLP frames (linkProtocol=0 is right)"
+        else
+            echo "FAIL $dev — saw_ack=$saw_ack saw_enq=$saw_enq saw_plp=$saw_plp" >&2
+            echo "$log" | grep -E "serial-rx|serial-frame" | head -20 >&2
+            overall=1
+        fi
+        continue
     fi
 
     saw_info=0

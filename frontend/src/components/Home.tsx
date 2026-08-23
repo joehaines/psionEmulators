@@ -17,11 +17,10 @@ import psionLogoUrl from '../assets/psion-logo.svg';
 // fallback order shown before the leaderboard arrives (or if it fails):
 // a rough most-iconic-first guess.
 //
-// Not every emulated device is here: an entry needs an intro shot in
-// public/intro/<id>.<ext> — the case photographed with a screen running in
-// it, which is a different asset from the device-mode skin. `conan` has the
-// skin but not the intro shot, so it is reachable from the device picker
-// and absent from this bar until one exists.
+// An entry needs an intro shot in public/intro/<id>.<ext> — the case with a
+// screen running in it, which is a different asset from the device-mode
+// skin. A device without one stays out of this bar (it is still reachable
+// from the side device picker) rather than rendering a broken image.
 const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'series5',     name: 'Series 5',             year: '1997' },
   { id: 'series3a',    name: 'Series 3a',            year: '1993' },
@@ -43,11 +42,19 @@ const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'workaboutmx', name: 'WorkaboutMX',          year: '2000' },
   { id: 'mc400',       name: 'MC400',                year: '1989' },
   { id: 'netpad',      name: 'netPad',               year: '2001' },
+  // The one year here that isn't a launch year: there is no consumer launch
+  // to date the Conan by, so it takes the year its ROM image was built
+  // (2001-05-12), the same way its DEVICE_RELEASE_YEARS entry does. It sits
+  // last because this fallback order is a most-iconic-first guess and a late
+  // prototype is not that — the leaderboard reorders by real load counts as
+  // soon as it arrives, and a new device starts on none.
+  { id: 'conan',       name: 'Revo (Conan)',         year: '2001' },
 ];
 
-// Intro shots are JPEGs apart from the netPad's, which ships as a PNG
-// (flat rendered case art — JPEG ringing shows badly on it).
-const INTRO_IMAGE_EXT: Record<string, string> = { netpad: 'png' };
+// Intro shots are JPEGs apart from the netPad's and the Conan's, which ship
+// as PNGs (flat rendered case art — JPEG ringing shows badly on it, and the
+// Conan's is cut out against transparency rather than a background).
+const INTRO_IMAGE_EXT: Record<string, string> = { netpad: 'png', conan: 'png' };
 
 // Succinct capability list (kept broad on purpose — see home-page copy
 // review). Rendered as chips with a small yellow brand tab. Save states,

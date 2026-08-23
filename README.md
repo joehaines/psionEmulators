@@ -36,12 +36,14 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | Series 7 | 1999 | StrongARM SA-1100 | ✅ B| ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | netBook | 1999 | StrongARM SA-1100 | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Series 5mx Pro | 2000 | ARM710 (Windermere) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Revo (Conan) | 2001 | ARM710 (Windermere) | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Revo (Conan) | 2001 | ARM710 (Windermere) | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ❌ |
 | netpad | 2001 | StrongARM SA-1110 | ✅ | ✅ MMC | — | ⚠️ | ✅ | ✅ | ✅ | ✅ |
 
 ✅ Supported · ⚠️ Partial / not fully booted · ❌ Not yet emulated · — Hardware not present.
 **CF** = removable storage card (CompactFlash, or MMC on the netpad).
-**Link** = Remote Link / PsiWin file access over the serial cable.
+**Link** = Remote Link / PsiWin file access over the serial cable — ❌ on the
+Conan means the port is there but its ROM speaks a later link protocol this
+emulator's PsiWin client can't.
 
 ### Feature notes
 
@@ -114,7 +116,11 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
   app is Data.
 - **Remote Link** (serial cable) is emulated via a host serial bridge + PLP /
   PsiWin client (link → NCP → RFSV drive/dir/file), verified end-to-end on the
-  Windermere machines and the SA-1100 Series 7 / netBook / netpad.
+  Windermere machines and the SA-1100 Series 7 / netBook / netpad. The one
+  EPOC32 machine it does *not* work on is the Conan, whose ROM carries the
+  later ER5u connectivity stack — the generation that needed a new PsiWin on
+  real hardware — so the emulator does not offer Remote Link there. See
+  [`docs/conan-remote-link.md`](docs/conan-remote-link.md).
 - **Infrared send** beams a host file into the device's inbox over an emulated
   IrDA stack (SIR → IrLAP → IrLMP/IAS → Tiny TP → EPOC Eikon-IR), verified on all
   EPOC32 machines. The EPOC16 "Psion IRLink" SIBO machines are not yet supported.
@@ -152,6 +158,16 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
   Revo ROM has neither of — and the case agrees, its lid badged **revo
   Bluetooth**. Neither stack is reachable here: there is no modelled
   Bluetooth radio, and the WAP stack has no bearer.
+  Its connectivity is new too, and that one is user-visible: the image has no
+  `PlpDL.prt`, the module carrying the PLP data link every other supported
+  EPOC ROM speaks, and registers the Unicode link services (`SYS$RFSVU.*`,
+  `SYS$RPCSU.*`) rather than `SYS$RFSV.*` / `SYS$RPCS.*`. On the cable it
+  talks an escaped, XON/XOFF-safe stream (`ESC` = `0x19`, ENQ `19 23` / ACK
+  `19 24`) and answers no PLP frame at all, so Remote Link, the printer
+  dialog's *via PC* tab and cable app installs are switched off for this
+  machine — exactly the wall PsiWin hit before its 2.3 release.
+  [`docs/conan-remote-link.md`](docs/conan-remote-link.md) has the wire
+  evidence and what supporting it would take.
   Being an engineering build it puts EShell and `D_EXC` on the desktop, and
   its own Agenda panics with `CONE 14` on every cold boot, leaving the
   "Program closed" dialog you see in `tests/golden/conan.pgm`. That is the

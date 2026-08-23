@@ -485,7 +485,10 @@ static const DeviceProfile kProfiles[] = {
         // no card slot, Remote Link on UART2 and IrDA on UART1. See
         // core/conan.h for what the image itself establishes about the
         // hardware, and for the WAP + Bluetooth stacks that make it a
-        // different machine from the shipping Revo.
+        // different machine from the shipping Revo. The one thing it does
+        // NOT inherit is Remote Link: its ROM carries a later connectivity
+        // stack that our PLP client can't talk to, so linkProtocol is 0 —
+        // see the field comment below.
         //
         // It boots to an interactive EPOC R5 desktop, fully painted and
         // byte-stable from ~40 sim-seconds on (tests/golden/conan.pgm;
@@ -514,7 +517,43 @@ static const DeviceProfile kProfiles[] = {
         false,  // No memory-card slot, same as the Revo.
         0, 0,
         2, 1,   // Remote Link on UART2, IrDA on UART1
-        1, 1,
+        // linkProtocol 0 — the cable is wired and the bridge works, but this
+        // ROM does not speak the PLP dialect our host client implements, so
+        // the frontend hides Remote Link on it, drops the PLP "Printer via
+        // PC" tab (raw serial printer capture still works — it doesn't go
+        // through PLP), and stops offering cable app installs. This is the
+        // ER5u connectivity generation, the one that needed a new PsiWin on
+        // real hardware, and the image says so three ways:
+        //
+        //   - Every other supported EPOC ROM ships PlpDL.prt, the module
+        //     that carries the "PLP Link" data link (SYN 16 / DLE-STX
+        //     framing, CRC-CCITT trailer) our frontend/src/lib/plp talks.
+        //     Conan has no PlpDL.prt at all: Plp.prt (0x502740b0) provides
+        //     "PLP Link" itself, over a new escaped serial transport.
+        //   - That transport is an XON/XOFF-safe byte stream: ESC = 0x19,
+        //     with 0x11 -> 19 20, 0x13 -> 19 21, 0x19 -> 19 19, plus two
+        //     in-band control codes, ENQ = 19 23 and ACK = 19 24 (encoder at
+        //     0x50275308, decoder jump table at 0x50275648). Attach the
+        //     bridge and the machine answers a host ENQ with an ACK within
+        //     one poll, and probes with its own ENQ ~2 s after any inbound
+        //     byte — the `19 23 19 23 19 23` a user sees in the Remote Link
+        //     dialog's raw-byte panel. No other supported ROM contains that
+        //     code.
+        //   - It exports the Unicode link services (SYS$RFSVU.* /
+        //     SYS$RPCSU.*) where the Revo and 5mx export SYS$RFSV.* /
+        //     SYS$RPCS.*, so even a completed handshake would have our
+        //     RFSV32 client connecting to a server name this ROM never
+        //     registers.
+        //
+        // And it behaves accordingly: it answers no PLP frame we can send.
+        // Harness sweeps (tests/integration/test-remote-link.sh conan, plus
+        // the wider matrix recorded in docs/conan-remote-link.md) covered
+        // every PDU type, framed with and without the SYN prefix, and all
+        // 65536 possible CRC trailers on Req_Req_Pdu — the device stayed
+        // silent apart from its own ENQ probes. Supporting it needs the
+        // newer client written and validated against this transport, not a
+        // tweak to the existing one.
+        0, 1,
     },
     {
         // The Psion netBook.  Real hardware ships a 2 MB YModem

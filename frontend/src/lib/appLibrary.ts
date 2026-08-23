@@ -240,7 +240,13 @@ export function takePendingTry(deviceId: string): AppEntry | null {
 export const TRY_CAPABLE: Record<string, 'cf' | 'ssd' | 'link'> = {
   series5:  'link', '5mx': 'link', '5mxpro': 'link', mc218: 'link',
   revo:     'link', osaris: 'link', series7: 'link', netbook: 'link',
-  conan:    'link',
+  // No `conan` row on purpose. It has the Revo's cable and none of the
+  // Revo's card, but its ROM speaks the ER5u link protocol our PLP client
+  // can't (device_registry.cpp gives it linkProtocol 0; see
+  // docs/conan-remote-link.md), so there is no automated route onto the
+  // machine — deliveryKindFor would return null and the delivery would
+  // fail after the user picked it. Leaving it out keeps it off the
+  // "try it on" list instead.
   netpad:   'cf',
   series3:  'ssd', series3a: 'ssd', series3c: 'ssd', series3mx: 'ssd',
   siena:    'ssd', workabout: 'ssd', workaboutmx: 'ssd',

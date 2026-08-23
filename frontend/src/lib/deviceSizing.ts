@@ -39,6 +39,30 @@ export interface ScreenLayout {
   screenHeight: number;  // fraction of frame height
 }
 
+// The frame for a clamshell drawn with its lid shut. There is no emulated
+// screen in that picture — that is the point of it — but every path here
+// budgets the frame from the screen's fraction of it, so a zero rect would
+// divide the sizing by nothing. The rect is carried over from whichever
+// OPEN layout was on screen instead: keeping `screenWidth` means the shut
+// machine is drawn exactly as wide as the open one was, so closing the lid
+// doesn't resize the device under the user's cursor. `screenHeight` then
+// follows from the emulated screen's own aspect, which is what keeps
+// pixelPerfectSize's width and height agreeing with the closed photo's
+// aspect ratio.
+export function lidClosedLayout(
+  open: ScreenLayout,
+  closedImage: { width: number; height: number },
+  lcdWidth: number,
+  lcdHeight: number,
+): ScreenLayout {
+  const aspectRatio = closedImage.width / closedImage.height;
+  return {
+    aspectRatio,
+    screenWidth:  open.screenWidth,
+    screenHeight: open.screenWidth * (lcdHeight / lcdWidth) * aspectRatio,
+  };
+}
+
 // Viewport budget the device is fitted into. Fullscreen gets all of it;
 // otherwise 0.98 of the width, and a vertical share that leaves room for
 // the page header and the control / key-helper rows EmulatorView draws

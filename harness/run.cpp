@@ -616,6 +616,12 @@ int main(int argc, char **argv) {
     // dense overlay) is still up, which is what the user-reported "media
     // is corrupt" symptom looks like in screenshot form.
     int maxNonPaper = -1;        // -1 disables the check
+    // --max-variance: upper bound on the settled LCD variance.  Pairs with
+    // --min-variance to pin a boot to ONE screen when the wrong screen is
+    // also busy — e.g. the netBook Quartz build ends on its app screen
+    // (variance ~450) but a regression parks it on the boot splash
+    // (~11200), which a min-variance floor alone waves through.
+    double maxVariance = -1.0;   // < 0 disables the check
     // Scripted-keyboard sequence: a list of (delay-after-previous-action,
     // EpocKey, hold-frames) tuples. Used by the SIBO post-boot test to
     // dismiss the cold-boot "Media is corrupt" dialog and then poke the
@@ -747,6 +753,7 @@ int main(int argc, char **argv) {
         else if (a == "--feed-mic-silence") feedMicSilence = true;
         else if (a == "--summary-json" && i + 1 < argc) summaryJsonPath = argv[++i];
         else if (a == "--min-variance" && i + 1 < argc) minVariance = std::atof(argv[++i]);
+        else if (a == "--max-variance" && i + 1 < argc) maxVariance = std::atof(argv[++i]);
         else if (a == "--min-unique-pcs" && i + 1 < argc) minUniquePcs = std::atoi(argv[++i]);
         else if (a == "--max-traps" && i + 1 < argc) maxTraps = std::atoi(argv[++i]);
         else if (a == "--max-nonpaper" && i + 1 < argc) maxNonPaper = std::atoi(argv[++i]);
@@ -1689,8 +1696,12 @@ int main(int argc, char **argv) {
     auto finalGray = readGrayscale(emu, w, h);
     LcdStats ls = computeLcdStats(finalGray);
     size_t uniquePcs = pcHist.size();
+    char maxVarLabel[48] = {0};
+    if (maxVariance >= 0.0)
+        std::snprintf(maxVarLabel, sizeof(maxVarLabel), " and <= %.2f", maxVariance);
 
-    bool passVariance = ls.variance >= minVariance;
+    bool passVariance = ls.variance >= minVariance &&
+                        (maxVariance < 0.0 || ls.variance <= maxVariance);
     bool passPcs = (int)uniquePcs >= minUniquePcs || pcSampleHz <= 0;
     bool passTraps = (int64_t)g_trapCount <= maxTraps;
     // Count non-paper pixels for the "no SIBO2 dialog stuck on screen" check.
@@ -1719,8 +1730,9 @@ int main(int argc, char **argv) {
                  "=== LCD stats: mean=%.2f variance=%.2f unique=%zu min=%u max=%u ===\n",
                  ls.mean, ls.variance, ls.uniqueValues, ls.minV, ls.maxV);
     std::fprintf(stderr,
-                 "=== Boot check: variance %s (%.2f >= %.2f) pcs %s (%zu >= %d) traps %s (%llu <= %d) ===\n",
+                 "=== Boot check: variance %s (%.2f >= %.2f%s) pcs %s (%zu >= %d) traps %s (%llu <= %d) ===\n",
                  passVariance ? "PASS" : "FAIL", ls.variance, minVariance,
+                 maxVariance >= 0.0 ? maxVarLabel : "",
                  passPcs ? "PASS" : "FAIL", uniquePcs, minUniquePcs,
                  passTraps ? "PASS" : "FAIL",
                  (unsigned long long)g_trapCount, maxTraps);

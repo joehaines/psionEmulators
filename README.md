@@ -36,6 +36,7 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | Series 7 | 1999 | StrongARM SA-1100 | ✅ B| ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | netBook | 1999 | StrongARM SA-1100 | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Series 5mx Pro | 2000 | ARM710 (Windermere) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Revo (Conan) | 2001 | ARM710 (Windermere) | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | netpad | 2001 | StrongARM SA-1110 | ✅ | ✅ MMC | — | ⚠️ | ✅ | ✅ | ✅ | ✅ |
 
 ✅ Supported · ⚠️ Partial / not fully booted · ❌ Not yet emulated · — Hardware not present.
@@ -53,7 +54,13 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
   and starts it by the same faithful path, and you can type at its `C:\>`
   prompt — the keys go through the Eiger/ASIC14 keyboard matrix into the
   image's own `ekeyb.dll`, with no help from the emulator. See
-  [docs/netbook-eshell.md](docs/netbook-eshell.md).
+  [docs/netbook-eshell.md](docs/netbook-eshell.md). A third image boots by the
+  same path: `roms/OS.IMG` is a netBook build of EPOC's pen-oriented **Quartz**
+  UI, and it runs through the Quartz v6.0 splash to the Quartz app screen. See
+  [docs/netbook-quartz.md](docs/netbook-quartz.md), which is also the record of
+  the two emulator-side bugs it found — both places where a workaround had
+  bound itself to one particular OS build (its kernel-data layout, and its
+  literal code addresses) rather than to the machine.
 - **netpad** — the SA-1110 sibling of the netBook, booting its own EPOC R5 ROM
   to the netpad desktop on a 640×240 8 bpp colour panel (a 6×6×6 palette cube).
   Its board peripherals are emulated (bit-banged I2C board controller, nCS4
@@ -131,6 +138,30 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 - **MC400 ROMs** — the MC400 defaults to the v2.60F boot ROM; a discreet
   header link swaps to the older v1.26F ROM (and back) without leaving a
   second entry in the device picker.
+- **Revo (Conan)** — "Conan" is the Revo's successor, emulated from the
+  engineering image `roms/conan_s2_2201.engbuild.IMG` (EPOC R5, TRomHeader
+  version 0.01(22), built 2001-05-12, 12 MB where the shipping Revo's is 8).
+  It is the Revo's board: the two images' HAL tables name the same parts —
+  the `LAP 53` panel, `MLM 650` digitiser, `ARM 710T`, and the `REVO` /
+  `REVO-PRO` device types — and it paints the Revo's own splash and desktop
+  at 480×160, so it runs the whole Revo profile and needs no new hardware
+  modelling. `core/conan.h` is `Revo::Emulator` under another name, and
+  records what was read out of the image to establish that.
+  What is new is the software in the extra 4 MB: WAP (`WAPSTKSRV.EXE`) and
+  Bluetooth (`btmanserver.exe`, `sdp.exe`, `thci.exe`) stacks the shipping
+  Revo ROM has neither of — and the case agrees, its lid badged **revo
+  Bluetooth**. Neither stack is reachable here: there is no modelled
+  Bluetooth radio, and the WAP stack has no bearer.
+  Being an engineering build it puts EShell and `D_EXC` on the desktop, and
+  its own Agenda panics with `CONE 14` on every cold boot, leaving the
+  "Program closed" dialog you see in `tests/golden/conan.pgm`. That is the
+  image, not the emulation — rerun with the host clock back in mid-2000 and
+  the same frame comes out byte-identical to that golden apart from the clock
+  cell — and the machine behind the dialog is a working EPOC R5 desktop.
+  **Close Lid** in the control bar shuts the case: the machine carries on
+  running behind it (as a real one does — EPOC's own "off" is a standby that
+  keeps the clock), it just takes the screen, touchscreen and keyboard away
+  until you open it again.
 
 Every device has a committed golden screenshot in `tests/golden/`; run
 `bash tests/boot/test-boot.sh --all` to re-verify locally.
@@ -251,6 +282,13 @@ The cleanest template is the Revo (`core/revo.{h,cpp}`):
    `frontend/src/components/EmulatorView.tsx` if the aspect ratio differs).
 5. Add a line to `tests/devices.txt` and run
    `bash tests/boot/test-boot.sh <id> --update-golden`; commit the golden PGM.
+6. Add the id to the two device lists that live outside the registry:
+   `$ALLOWED_DEVICES` in `frontend/public/api/track.php` and the id → name map
+   in `frontend/public/device-names.json`. Both fail *silently* when a machine
+   is missing — analytics events come back 400 and the client swallows them, so
+   the device just never appears on the usage leaderboard — which is why
+   `node --experimental-strip-types tests/unit/device-lists-sync.mts` asserts
+   both against the registry on every CI run.
 
 A fundamentally different CPU (SA-1100, V30/V30H, HD6303X) needs a new core
 first. The existing cores — `core/arm710.*`, `core/sa1100.*`, `core/v30.*`

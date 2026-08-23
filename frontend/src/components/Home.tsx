@@ -16,6 +16,12 @@ import psionLogoUrl from '../assets/psion-logo.svg';
 // usage leaderboard (see Home's loadsById prop). This array is just the
 // fallback order shown before the leaderboard arrives (or if it fails):
 // a rough most-iconic-first guess.
+//
+// Not every emulated device is here: an entry needs an intro shot in
+// public/intro/<id>.<ext> — the case photographed with a screen running in
+// it, which is a different asset from the device-mode skin. `conan` has the
+// skin but not the intro shot, so it is reachable from the device picker
+// and absent from this bar until one exists.
 const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'series5',     name: 'Series 5',             year: '1997' },
   { id: 'series3a',    name: 'Series 3a',            year: '1993' },
@@ -60,7 +66,7 @@ const CAPABILITIES = [
 
 const FAMILIES: { tag: string; title: string; models: string }[] = [
   { tag: 'EPOC32 · ARM',  title: 'EPOC32 machines',
-    models: 'Series 5 · 5mx · 5mx Pro · MC218 · Revo · Osaris · Series 7 · netBook · netPad' },
+    models: 'Series 5 · 5mx · 5mx Pro · MC218 · Revo · Revo (Conan) · Osaris · Series 7 · netBook · netPad' },
   { tag: 'SIBO · 16-bit', title: 'Series 3 family',
     models: 'Series 3 · 3a · 3c · 3mx · Siena · Workabout · WorkaboutMX · Pocket Book I & II · MC400' },
   { tag: '8-bit',         title: 'Organiser',

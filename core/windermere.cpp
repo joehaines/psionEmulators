@@ -274,8 +274,8 @@ uint32_t Emulator::readReg32(uint32_t reg) {
 		//   then assumes the device is running on AC via the dock and
 		//   suppresses the rechargeable-pack warnings. The 5mx HAL
 		//   doesn't share this code path, so its CR2032 stays on 3100.
-		case 0xA4A4: ssiValue = isRevo() ? 4000 : 3100; break; // MainBattery
-		case 0xE4E4: ssiValue = isRevo() ? 2000 : 3100; break; // BackupBattery
+		case 0xA4A4: ssiValue = isRevoFamily() ? 4000 : 3100; break; // MainBattery
+		case 0xE4E4: ssiValue = isRevoFamily() ? 2000 : 3100; break; // BackupBattery
 		}
 
 		uint32_t ret = 0;
@@ -1092,13 +1092,13 @@ bool Emulator::writePhysical(uint32_t value, uint32_t physAddr, ValueSize valueS
 	// The kernel caches each ADC sample at virt 0x8000001c (= phys
 	// 0xd07e501c) via the STR at 0x5000c228, then folds it into the
 	// running sum at +0x24 and an averaged percentage further down.
-	// On Revo only, intercept that store and replace the clamped
+	// On the Revo family only, intercept that store and replace the clamped
 	// 0xfa0 (4000) with a value past the 12-bit ceiling that the
 	// curve maps to ~100%. Bumping to 5000 (= 1.25x the ADC max)
 	// lights all five bars stably across all sampling iterations
 	// without touching the ADC bit-packing protocol that 5mx / MC218
 	// / 5mx Pro depend on.
-	if (isRevo() && physAddr == 0xd07e501c && valueSize == V32 && value == 0xfa0) {
+	if (isRevoFamily() && physAddr == 0xd07e501c && valueSize == V32 && value == 0xfa0) {
 		value = 5000;
 	}
 

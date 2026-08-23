@@ -200,6 +200,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      # Device lists outside the C++ registry: track.php's analytics
+      # allowlist and the id → display-name map. Both fail silently when a
+      # new machine is missing from them (rejected events that the client
+      # swallows; a leaderboard row labelled with a raw id), so they are
+      # checked rather than trusted. Cheap, and not gated on the harness
+      # input — it is the frontend's own consistency.
+      - name: Check device lists match the registry
+        run: node --experimental-strip-types tests/unit/device-lists-sync.mts
+
       - name: Build frontend
         run: bash scripts/build-frontend.sh
 

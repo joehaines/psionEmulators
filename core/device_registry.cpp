@@ -6,6 +6,7 @@
 #include "windermere.h"
 #include "series5.h"
 #include "revo.h"
+#include "conan.h"
 #include "clps7111.h"
 #include "osaris.h"
 #include "series3.h"
@@ -64,6 +65,16 @@ static EmuBase *makeRevo() {
     // No setPromDeviceName: the Revo ROM never reads the ETNA PROM (see
     // Revo::Emulator::hasMachineId). "REVO" in Machine information is the
     // ROM's own string.
+    return emu;
+}
+// Psion "Conan" — the Revo's successor, running a 2001 EPOC R5 engineering
+// image on the Revo's own board. Conan::Emulator is Revo::Emulator with a
+// different reported device name; the Conan variant keeps the two builds
+// separable for any future ROM-specific quirk without disturbing the Revo.
+// Like the Revo it never reads the ETNA PROM, so no setPromDeviceName.
+static EmuBase *makeConan() {
+    auto *emu = new Conan::Emulator;
+    emu->setVariant(Windermere::Variant::Conan);
     return emu;
 }
 // Psion Series 3 (V30 + ASIC1 + ASIC2, 1991 handheld).
@@ -462,6 +473,45 @@ static const DeviceProfile kProfiles[] = {
         DeviceStatus::Supported,
         makeRevo,
         false,  // Revo has no memory-card slot — internal 8 MB flash only.
+        0, 0,
+        2, 1,   // Remote Link on UART2, IrDA on UART1
+        1, 1,
+    },
+    {
+        // Psion "Conan" — the Revo's successor, from the 2001 EPOC R5
+        // engineering image conan_s2_2201.engbuild.IMG (TRomHeader version
+        // 0.01(22), built 2001-05-12). Same board as the Revo, so it takes
+        // the whole Revo profile: 480x160 LCD inside a 527x208 digitiser,
+        // no card slot, Remote Link on UART2 and IrDA on UART1. See
+        // core/conan.h for what the image itself establishes about the
+        // hardware, and for the WAP + Bluetooth stacks that make it a
+        // different machine from the shipping Revo.
+        //
+        // It boots to an interactive EPOC R5 desktop, fully painted and
+        // byte-stable from ~40 sim-seconds on (tests/golden/conan.pgm;
+        // identical PGMs at 40 / 45 / 50 s). The image's own Agenda
+        // panics with CONE 14 about 16 sim-seconds in and leaves a
+        // "Program closed" dialog over the desktop — an engineering-build
+        // fault, not an emulation one (with the host RTC moved back to
+        // mid-2000 the frame is byte-identical to the golden apart from
+        // the clock cell, and dismissing the dialog leaves a working
+        // machine), so the golden screenshot carries it.
+        "conan",
+        "Psion Revo (Conan)",
+        "conan_s2_2201.engbuild.IMG",
+        // 0xBB2000 — the image's real length. Its TRomHeader declares a
+        // 12 MB ROM, but the image stops short of that; Windermere's
+        // 16 MB ROM[] is zero-filled before loadROM's copy, so the
+        // undelivered tail reads as 0 rather than as stale bytes.
+        0xBB2000,
+        // Same 0x7060001 variant ID as the 5mx and Revo — see the Revo
+        // profile above. Left 0 for the same reason: auto-detect stays on
+        // the 5mx profile and Conan is only selected explicitly.
+        0,
+        "revo.svg",
+        DeviceStatus::Supported,
+        makeConan,
+        false,  // No memory-card slot, same as the Revo.
         0, 0,
         2, 1,   // Remote Link on UART2, IrDA on UART1
         1, 1,

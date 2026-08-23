@@ -10,7 +10,7 @@ All emulator validation lives here. Build the native harness first
 | `boot/test-boot.sh` | Per-device boot validation against committed golden screenshots — the primary regression gate (run in CI). |
 | `integration/` | Feature/end-to-end tests: FAT16, FEFS, SSD pack writes, infrared, remote-link (PLP), SIBO app launch, Series 3c apps, netBook CF bootloader, netpad MMC card, app-library cold delivery, EPOC app-folder install, netpad app-library SIS install. |
 | `stress/` | Touch / event-binding reliability stress runs for the Series 7 and netBook, plus the netpad's end-to-end stylus (`netpad_touch.sh`), key-delivery / OS-timer-rate (`netpad_keys.sh`) and screen-orientation (`netpad_orientation.sh`) tests. |
-| `unit/` | Standalone C++ unit tests (`ssd_smoke`, `cf_write_test`, `mmc_card_test`, `machine_id_test`, `v30_smoke`); all but `v30_smoke` are built by `harness/build.sh`. |
+| `unit/` | Standalone C++ unit tests (`ssd_smoke`, `cf_write_test`, `mmc_card_test`, `machine_id_test`, `v30_smoke`); all but `v30_smoke` are built by `harness/build.sh`. Plus `device-lists-sync.mts` (node, no harness needed): the two device lists outside the C++ registry — track.php's analytics allowlist and the id → display-name map — checked against it, because both fail silently. |
 | `golden/` | Committed reference LCD screenshots (one PGM per device); the boot gate diffs against these. |
 | `fixtures/` | Test inputs (SSD images, CF image, EPOC document samples for the converter tests). |
 | `devices.txt`, `devices-ssd.txt` | Device boot manifests consumed by `test-boot.sh`. |
@@ -35,6 +35,7 @@ bash tests/integration/test-ssd-write.sh      # SIBO SSD pack format + write + r
 bash tests/stress/netpad_orientation.sh       # netpad "Switch orientation"
 tests/unit/mmc_card_test                      # MMC-over-SPI card protocol
 tests/unit/machine_id_test                    # EPOC Unique id through the ETNA identity PROM
+node --experimental-strip-types tests/unit/device-lists-sync.mts   # device lists vs. the registry
 ```
 
 ## Frontend unit tests

@@ -24,8 +24,8 @@
 // landscape window.
 
 import {
-  calcContainerSize, largestFittingScale, largestUsefulScale, DEVICE_SCALES,
-  type ScreenLayout,
+  calcContainerSize, largestFittingScale, largestUsefulScale, lidClosedLayout,
+  DEVICE_SCALES, type ScreenLayout,
 } from '../deviceSizing.ts';
 
 let failures = 0;
@@ -63,7 +63,18 @@ const LAYOUTS: { name: string; layout: ScreenLayout; lcd: [number, number]; turn
     layout: { aspectRatio: 815 / 678, screenWidth: 0.777, screenHeight: 0.351 } },
   { name: 'Series 7',     turns: false, lcd: [640, 480],
     layout: { aspectRatio: 846 / 814, screenWidth: 0.582, screenHeight: 0.450 } },
+  // The Conan is the widest screen-only frame in the lineup (2.35:1 bare,
+  // and a 480×160 panel is the shortest), so it is the one that finds the
+  // vertical-budget edges the netpad's width doesn't.
+  { name: 'Conan surround', turns: false, lcd: [480, 160],
+    layout: { aspectRatio: 984 / 418, screenWidth: 934 / 984, screenHeight: 330 / 418 } },
+  { name: 'Conan photo',    turns: false, lcd: [480, 160],
+    layout: { aspectRatio: 1317 / 1181, screenWidth: 931 / 1317, screenHeight: 319 / 1181 } },
 ];
+
+// The closed-lid photo, paired with each open Conan layout above. Same
+// machine, same width — see lidClosedLayout.
+const CONAN_LID = { width: 1323, height: 730 };
 
 // Phone, phone at DPR 1, tablet, small laptop, laptop, desktop.
 const VIEWPORTS: [number, number, number][] = [
@@ -215,6 +226,43 @@ for (const { name, layout, lcd } of LAYOUTS) {
   const r = calcContainerSize(layout, lcd[0], lcd[1], 'device', 2, false, false, 0);
   const f = calcContainerSize(layout, lcd[0], lcd[1], 'fill', 1, false, false, 0);
   near(r.width, f.width, `${name} falls back to the fitted size on a phone`);
+}
+
+// ── 6. Closing the lid doesn't resize the machine ────────────────────
+//
+// The closed-case photo is a different picture with a different aspect
+// ratio and no screen in it at all, and the frame is budgeted from the
+// screen rect — so the naive layout for it (a zero rect, or the photo's own
+// proportions) either divides the sizing by nothing or snaps the device to
+// a different width the moment the button is pressed. lidClosedLayout
+// carries the open frame's width across; these check that it actually
+// lands, at every zoom level and on every viewport, and that the closed
+// frame stays inside the window like any other.
+for (const [vw, vh, dpr] of VIEWPORTS) {
+  viewport(vw, vh, dpr);
+  for (const open of LAYOUTS.filter(l => l.name.startsWith('Conan'))) {
+    const shut = lidClosedLayout(open.layout, CONAN_LID, open.lcd[0], open.lcd[1]);
+    near(shut.aspectRatio, CONAN_LID.width / CONAN_LID.height,
+         `${open.name}: the shut frame is the closed photo's shape`);
+    for (const mode of ['device', 'fill'] as const) {
+      for (const scale of DEVICE_SCALES) {
+        const o = calcContainerSize(open.layout, open.lcd[0], open.lcd[1], mode, scale, false, false, 0);
+        const c = calcContainerSize(shut,        open.lcd[0], open.lcd[1], mode, scale, false, false, 0);
+        const where = `${open.name} ${mode} ${scale}x on ${vw}x${vh}@${dpr}`;
+        check(c.width <= vw + 1e-6, `${where}: shut, it still fits the window`);
+        // Pixel-perfect on both sides means identical width. Where either
+        // side has fallen back to filling the window, the open frame is the
+        // one clamped by the budget, so the shut one can only be narrower —
+        // never wider, which is the jump this guards against.
+        const exactOpen = largestFittingScale(open.layout, open.lcd[0], open.lcd[1], scale, 0) === scale;
+        const exactShut = largestFittingScale(shut,        open.lcd[0], open.lcd[1], scale, 0) === scale;
+        if (mode === 'device' && exactOpen && exactShut)
+          near(c.width, o.width, `${where}: shut is exactly as wide as open`);
+        else
+          check(c.width <= o.width + 1e-6, `${where}: shut is never wider than open`);
+      }
+    }
+  }
 }
 
 viewport(1512, 860);

@@ -240,6 +240,7 @@ export function takePendingTry(deviceId: string): AppEntry | null {
 export const TRY_CAPABLE: Record<string, 'cf' | 'ssd' | 'link'> = {
   series5:  'link', '5mx': 'link', '5mxpro': 'link', mc218: 'link',
   revo:     'link', osaris: 'link', series7: 'link', netbook: 'link',
+  conan:    'link',
   netpad:   'cf',
   series3:  'ssd', series3a: 'ssd', series3c: 'ssd', series3mx: 'ssd',
   siena:    'ssd', workabout: 'ssd', workaboutmx: 'ssd',

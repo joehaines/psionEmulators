@@ -29,6 +29,7 @@ export const DEVICE_LOGO_MAP: Record<string, string> = {
   osaris:      'osaris.png',
   workaboutmx: 'workabout_workaboutmx.png',
   revo:        'revo.png',
+  conan:       'conan_icon.png',
   netbook:     '7_netbook.png',
   series7:     '7_netbook.png',
   netpad:      'netpad_logo.png',
@@ -55,5 +56,7 @@ export const DEVICE_RELEASE_YEARS: Record<string, number> = {
   netbook:     1999,
   '5mxpro':    2000,
   series7:     2000,
+  conan:       2001,   // no consumer launch to date it by — the year its
+                       // ROM image was built (TRomHeader: 2001-05-12)
   netpad:      2001,
 };

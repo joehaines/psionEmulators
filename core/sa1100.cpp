@@ -347,10 +347,20 @@ void Emulator::loadROM(uint8_t *buffer, size_t size) {
     // The open function at ROM VA 0x50297F60 checks SBI ID, SACR0,
     // and SACR1: if any fail, it returns KErrInUse without initializing
     // the NTimer.  NOP the three BNE instructions.
+    //
+    // Those three offsets are the netBook v1.05(450) OS's, so check that a
+    // BNE is actually what is there before rewriting it: another netBook
+    // EPOC image loaded straight as the device ROM (the Quartz build's body
+    // reaches well past 0x297FD0) has unrelated code at the same addresses,
+    // and blind-patching it corrupts the image.
     if (isNetBookRom_ && !PSION_ENV_CSTR("PSION_NB_NO_OPEN_PATCH")) {
         constexpr uint32_t kNOP = 0xE1A00000u;
         for (uint32_t off : {0x297FB0u, 0x297FC0u, 0x297FD0u}) {
             if (off + 3 < sizeof(ROM)) {
+                // cond=NE, branch (0x1A......) — the gate's `bne` and nothing
+                // else.  Anything different belongs to a ROM this patch was
+                // not written for.
+                if (ROM[off+3] != 0x1A) continue;
                 ROM[off+0] = (uint8_t)(kNOP);
                 ROM[off+1] = (uint8_t)(kNOP >> 8);
                 ROM[off+2] = (uint8_t)(kNOP >> 16);
@@ -1226,6 +1236,85 @@ uint32_t Emulator::readAsic(uint32_t offset, ValueSize vs) {
     return result;
 }
 
+// Clear the UCB1200 SPI command mutex at kernel VA 0x8000001C.
+//
+// Real silicon clears this flag from the UCB1200's SPI-complete IRQ, which
+// we don't run: without the release the recording heartbeat's mutex claim
+// always fails and recording never starts.
+//
+// 0x8000001C is a fact about the Series 7 v1.05(254) and netBook v1.05(450)
+// kernels' data layout, not about the machine — so only clear the word while
+// it still holds what that flag holds (0 or 1).  Another EPOC image built for
+// the same hardware keeps its own data there, and zeroing it corrupts the
+// running kernel: the netBook Quartz build stores entry 5 (`IrqGpioEdge5`) of
+// the kernel's NULL-terminated interrupt-name table at that address, so this
+// write truncated Interrupt::IdFromName()'s scan after four entries.  Its
+// PC-Card driver's Bind("IrqExtCfCardIreq") then returned KErrNotFound and the
+// driver faulted the kernel (PCCARD-ARM 4) straight into the debug monitor,
+// leaving the panel blank.
+void Emulator::releaseUcb1200CommandMutex() {
+    auto pa = cpu.virtToPhys(0x8000001Cu);
+    if (!pa.has_value()) return;
+    uint32_t cur = readPhysical(pa.value(), ARM710::V32).value_or(0xFFFFFFFFu);
+    // Not the mutex — some other build's kernel data.  Leave it alone.
+    if (cur > 1u) {
+        static int skipLog = 0;
+        if (skipLog < 3) {
+            skipLog++;
+            cpu.log("AUDIO mutex release: PA=%08x holds %08x — not the "
+                    "UCB1200 mutex, leaving this ROM's kernel data alone",
+                    pa.value(), cur);
+        }
+        return;
+    }
+    writePhysical(0, pa.value(), ARM710::V32);
+}
+
+// Is the OS image in ROM[] the netBook v1.05(450) build?
+//
+// A group of hooks below reach into the running netBook OS at LITERAL PCs
+// disassembled out of that one build — the PC-Card caps handler, the socket
+// power-state predicates, F32's CheckMount.  Those addresses are a fact about
+// v1.05(450), not about the machine, and firing them against a different EPOC
+// image for the same hardware corrupts it: in the netBook Quartz build
+// 0x5001cc54 is not the caps handler but the middle of a locale string
+// collation loop, and the hook's `r3 = 0` destroyed the pointer the very next
+// instruction dereferences — an unhandled data abort a fifth of a second after
+// the Quartz splash, straight into the kernel's debug monitor.
+//
+// So check the code is actually there.  Six of the hooked sites, verified
+// against the image we mirror into ROM[] at the OS handoff: four function
+// prologues, an `add r1,r0,r1,lsl #2` and an `ldr r3,[sp]`.  All six matching
+// is conclusive; any mismatch means this is another build and every hook in
+// the group stands down.  Latched once, and re-armed at each handoff.
+bool Emulator::netBookOsPcHooksValid() {
+    if (nbOsPcHooksChecked_) return nbOsPcHooksOk_;
+    if (!isNetBookRom_) return false;      // no OS mirrored yet — ask again later
+    struct Site { uint32_t va, insn; };
+    static const Site kSites[] = {
+        { 0x5001cc54u, 0xe92d47f0u },   // caps handler entry     push {r4-r8,r10,lr}
+        { 0x5005b028u, 0xe92d4010u },   // socket predicate       push {r4,lr}
+        { 0x5005b100u, 0xe92d4070u },   // socket predicate       push {r4,r5,r6,lr}
+        { 0x5005b17cu, 0xe0801101u },   // socket fetch           add r1,r0,r1,lsl #2
+        { 0x50065c14u, 0xe92d4030u },   // F32 CheckMount entry   push {r4,r5,lr}
+        { 0x50065cc4u, 0xe59d3000u },   // F32 CheckMount body    ldr r3,[sp]
+    };
+    nbOsPcHooksChecked_ = true;
+    nbOsPcHooksOk_ = true;
+    for (const Site &st : kSites) {
+        size_t off = st.va - 0x50000000u;
+        if (off + 4 > sizeof(ROM)) { nbOsPcHooksOk_ = false; break; }
+        uint32_t got = (uint32_t)ROM[off] | ((uint32_t)ROM[off+1] << 8)
+                     | ((uint32_t)ROM[off+2] << 16) | ((uint32_t)ROM[off+3] << 24);
+        if (got != st.insn) { nbOsPcHooksOk_ = false; break; }
+    }
+    if (!nbOsPcHooksOk_)
+        cpu.log("netBook: OS is not the v1.05(450) build these CF hooks were "
+                "written against — standing them down rather than poking this "
+                "ROM's own code paths");
+    return nbOsPcHooksOk_;
+}
+
 bool Emulator::asic40SpiBusy() {
     bool busy = (asic40BusyUntilCycle_ >= 0 &&
                  passedCycles < asic40BusyUntilCycle_);
@@ -1239,9 +1328,7 @@ bool Emulator::asic40SpiBusy() {
     // heartbeat's mutex claim always fails and recording never starts.
     if (asic40MutexReleasePending_) {
         asic40MutexReleasePending_ = false;
-        auto pa = cpu.virtToPhys(0x8000001Cu);
-        if (pa.has_value())
-            writePhysical(0, pa.value(), ARM710::V32);
+        releaseUcb1200CommandMutex();
     }
     return busy;
 }
@@ -1881,9 +1968,7 @@ uint32_t Emulator::readAsicImpl(uint32_t offset, ValueSize vs) {
                 // Legacy path still needs the one-shot mutex release.
                 if (asic40MutexReleasePending_) {
                     asic40MutexReleasePending_ = false;
-                    auto pa = cpu.virtToPhys(0x8000001Cu);
-                    if (pa.has_value())
-                        writePhysical(0, pa.value(), ARM710::V32);
+                    releaseUcb1200CommandMutex();
                 }
             } else {
                 busy = asic40SpiBusy();
@@ -3125,19 +3210,7 @@ void Emulator::writeAsic(uint32_t offset, uint32_t value, ValueSize vs) {
                 // Release the UCB1200 command mutex at kernel VA
                 // 0x8000001C.  On real hardware the UCB1200's ISR
                 // clears this flag when the SPI transaction completes.
-                // Use virtToPhys to find the correct physical address.
-                {
-                    auto pa = cpu.virtToPhys(0x8000001Cu);
-                    static int mutLog = 0;
-                    if (mutLog < 5) {
-                        mutLog++;
-                        uint32_t pav = pa.value_or(0xDEADDEADu);
-                        uint32_t before = readPhysical(pav, V32).value_or(0xDEAD);
-                        cpu.log("AUDIO mutex release: PA=%08x before=%08x", pav, before);
-                    }
-                    if (pa.has_value())
-                        writePhysical(0, pa.value(), V32);
-                }
+                releaseUcb1200CommandMutex();
             } else if (isSeries7Rom_ && b == 6) {
                 uint16_t addr = (uint16_t)(asicRegs[0x48] |
                                           ((uint32_t)asicRegs[0x49] << 8));
@@ -19451,6 +19524,10 @@ void Emulator::executeUntil(int64_t cycles) {
         // once a card is inserted; kill switch PSION_NB_NO_NATIVE_CF;
         // PSION_NB_CF_TRACE adds the diagnostic logging.
         auto nbCfMountHook = [&]() {
+            // Everything in here is keyed on literal PCs from the netBook
+            // v1.05(450) OS.  Run it only against that build — see
+            // netBookOsPcHooksValid().
+            if (isNetBookRom_ && !netBookOsPcHooksValid()) return;
             // Only the env reads are cached; isNetBookRom_ is checked live
             // because it flips true at the bootloader->OS handoff, which is
             // AFTER this lambda's first (bootloader-phase) invocation.
@@ -25009,9 +25086,22 @@ void Emulator::writeUart(uint32_t base, uint32_t off, uint32_t value, ValueSize)
         // TX — when the Remote Link host bridge is attached, queue the
         // byte for the host to drain via serialReadToHost().  Otherwise
         // drop it on the floor (the real port would clock it out to a
-        // disconnected cable), with the optional PSION_UART_TX=1 echo
-        // so early-boot kernel banner text on UART3 stays visible
-        // without bringing up the full host console wiring.
+        // disconnected cable).
+        //
+        // PSION_UART_TX=1 echoes the byte to stderr either way, so a ROM
+        // that narrates its boot over the debug port stays readable.  The
+        // echo has to come first: netBookLoadOsFromCard() marks UART3
+        // host-attached at the OS handoff (so the Remote Link dialog can
+        // still collect the frame EPOC sends before the user connects),
+        // which used to make this knob silently do nothing on exactly the
+        // boot path worth watching.
+        {
+            static const bool kEcho = PSION_ENV_CSTR("PSION_UART_TX") != nullptr;
+            if (kEcho) {
+                std::fputc((char)(value & 0xFF), stderr);
+                std::fflush(stderr);
+            }
+        }
         if (u && u->hostAttached) {
             // Cap the buffered TX so the boot-time capture mode (see
             // netBookLoadOsFromCard) can't grow without bound if the
@@ -25027,14 +25117,6 @@ void Emulator::writeUart(uint32_t base, uint32_t off, uint32_t value, ValueSize)
             }
             u->txQueue.push_back((uint8_t)(value & 0xFFu));
             return;
-        }
-        {
-            static const bool kEcho = PSION_ENV_CSTR("PSION_UART_TX") != nullptr;
-            static int emitted = 0;
-            if (kEcho && emitted < (1 << 20)) {
-                std::fputc((char)(value & 0xFF), stderr);
-                emitted++;
-            }
         }
         return;
     case UTSR0:
@@ -28328,6 +28410,10 @@ bool Emulator::netBookLoadOsFromCard(const uint8_t *bytes, size_t size) {
     // sets isSeries7Rom_ for the shared Series-7-style BSP code paths.
     isNetBookBootloader_ = false;
     isNetBookRom_        = true;
+    // A fresh OS image is now mirrored into ROM[] — re-check whether the
+    // literal-PC hooks belong to it.
+    nbOsPcHooksChecked_  = false;
+    nbOsPcHooksOk_       = false;
     cpu.setNetBookBlBankedSpFix(false);
     // The image at 0x50000000 is now the OS, which carries the ten copies
     // of the model UID the bootloader flash never had — re-locate against

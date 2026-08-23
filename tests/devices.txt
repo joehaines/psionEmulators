@@ -28,6 +28,16 @@
 5mxpro_blboot | 5mxPRO_BL_v1.09_ger.bin     |  2 | 200 | --card-path tests/cards/5mxpro-osboot.img --post-attach-seconds 75 | 5mxpro
 mc218     | MC218_v1.05(259)_eng.bin        | 35 | 200
 revo      | Revo_v1.06(390)_eng.bin         | 35 | 200
+# conan: the Revo's successor, from the 2001 EPOC R5 engineering image.
+# Same Revo board (480x160), so it runs the Revo's whole profile — the
+# entry exists to keep the 12 MB image booting as the Revo's does.  The
+# desktop is fully painted and byte-stable from ~40 sim-seconds on
+# (identical PGM at 40 / 45 / 50 s), settling at variance ~2039.  The
+# "Program closed / Agenda / CONE / 14" dialog in the golden is the
+# image's own startup panic, not an emulator fault — with the host RTC
+# moved back to mid-2000 the frame is byte-identical to the golden apart
+# from the clock cell, and the machine behind the dialog is interactive.
+conan     | conan_s2_2201.engbuild.IMG      | 40 | 1000
 series3   | series3_v1.91f_eng.bin          |  3 | 50  | --min-mdrive-subdirs 0
 pocketbk  | acorn_pocketBook_II.bin         |  8 | 200 | --min-mdrive-subdirs 0
 series3c  | series3c_v5.20f_eng.bin         | 40 | 200 | --min-mdrive-subdirs 5
@@ -104,6 +114,26 @@ netbook_full | netBook_BL_v011_eng.bin       |  3 | 5000 | --card-path roms/netb
 # The console lands at "ESHELL 0.01(213) … C:\>" — two grey levels, so
 # variance settles ~700 rather than the desktop's ~5000.
 netbook_eshell | netBook_BL_v011_eng.bin     |  3 | 400 | --card-path tests/cards/eshell-netbook.img --post-attach-seconds 25 | netbook
+
+# netbook_quartz: the same bootloader booting the netBook Quartz build
+# (roms/OS.IMG) off a synthesised FAT16 card, the faithful medata/ATA way.
+# It runs the image's own boot to the Quartz app screen — a mostly-white
+# content area under a status bar carrying the clock and the free-memory
+# figure — which settles at variance ~450.
+#
+# The window is a BAND, not a floor, because the two emulator bugs this gates
+# against fail on either side of it.  Both were hard-coded netBook v1.05(450)
+# addresses fired at whatever netBook OS was loaded:
+#   - the UCB1200 mutex release (VA 0x8000001C) landed on entry 5 of this
+#     kernel's interrupt-name table, truncating Interrupt::IdFromName() until
+#     the PC-Card driver faulted into the debug monitor — blank panel,
+#     variance 0, caught by the floor;
+#   - the PC-Card caps-handler hook (PC 0x5001cc54) forced r3=0 in the middle
+#     of this build's locale collation loop, an unhandled data abort a fifth
+#     of a second after the splash — the machine parks on the SPLASH, variance
+#     ~11200, which a floor alone waves through.  The ceiling catches it.
+# See docs/netbook-quartz.md.
+netbook_quartz | netBook_BL_v011_eng.bin     |  3 | 200 | --card-path tests/cards/quartz-netbook.img --post-attach-seconds 60 --max-variance 2000 | netbook
 
 # Organiser II — boots to the LZ cold-boot splash within 3 sim-seconds.
 # Variance 535 (text on row 1 = "SIZING PACK D:", row 2 = "PLEASE WAIT")

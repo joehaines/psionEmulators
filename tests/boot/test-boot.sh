@@ -131,6 +131,31 @@ writeFileSync(out, img);
 EOF
     fi
 
+    # The netBook's Quartz boot card: the same FAT16 container the frontend
+    # synthesises for a netBook OS image, carrying roms/OS.IMG (the Quartz v6.0
+    # netBook build) as D:\OS.IMG.  Exercises the faithful CF read against an
+    # EPOC image whose kernel data layout differs from the stock netBook OS —
+    # which is what the UCB1200-mutex guard in core/sa1100.cpp exists for.
+    if [[ "$extra" == *tests/cards/quartz-netbook.img* ]] \
+       && [ ! -f "$REPO_ROOT/tests/cards/quartz-netbook.img" ]; then
+        local qz_rom="$ROMS/OS.IMG"
+        if [ ! -f "$qz_rom" ] || ! command -v node >/dev/null 2>&1; then
+            echo "SKIP $id: cannot synthesise Quartz card (need node + $qz_rom)" >&2
+            return 77
+        fi
+        mkdir -p "$REPO_ROOT/tests/cards"
+        node --experimental-strip-types - "$qz_rom" \
+            "$REPO_ROOT/tests/cards/quartz-netbook.img" <<EOF
+import { createBlankImage, addFile } from '$REPO_ROOT/frontend/src/lib/fat16.ts';
+import { readFileSync, writeFileSync } from 'node:fs';
+const [rom, out] = process.argv.slice(2);
+const img = createBlankImage(16 * 1024 * 1024);
+const r = addFile(img, 'OS.IMG', new Uint8Array(readFileSync(rom)), 0);
+if (!r.ok) { console.error('addFile failed', r); process.exit(1); }
+writeFileSync(out, img);
+EOF
+    fi
+
     echo "=== Testing $id (ROM: $rom, boot: ${boot_s}s${extra:+, extra=$extra}) ===" >&2
     local exit_code=0
     # If the extra args include --card-path, the test wants a CF card

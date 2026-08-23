@@ -2510,6 +2510,15 @@ private:
     // 0x8000001C).  Shared by every ASIC[0x40]/[0x41] read path so bit 1 is a
     // single consistent signal.  See docs iteration 42.
     bool     asic40SpiBusy();
+    // Clear the UCB1200 SPI command mutex the Series 7 / netBook v1.05(450)
+    // BSPs keep at kernel VA 0x8000001C — but only while that word still
+    // looks like the flag.  See the definition in sa1100.cpp.
+    void     releaseUcb1200CommandMutex();
+    // True only when the OS in ROM[] is the netBook v1.05(450) build the
+    // literal-PC hooks below were written against.  See sa1100.cpp.
+    bool     netBookOsPcHooksValid();
+    bool     nbOsPcHooksChecked_ = false;
+    bool     nbOsPcHooksOk_ = false;
     void     writeAsic(uint32_t offset, uint32_t value, ValueSize vs);
     void     initEepromImage();
     void     setEepromDeviceName(const char *name);

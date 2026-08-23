@@ -16,7 +16,7 @@ import {
   normaliseQuadrant, isQuarterTurn, rotatedFootprint, rotationStyle, localPointerPos,
 } from '../lib/screenRotation';
 import type { Quadrant } from '../lib/screenRotation';
-import { calcContainerSize, largestUsefulScale } from '../lib/deviceSizing';
+import { calcContainerSize, largestUsefulScale, lidClosedLayout } from '../lib/deviceSizing';
 import {
   appsRouteHash, fetchAppManifest, standardAppsIn, installAppsOnCard, cardNameFor,
   type BulkProgress, type BulkInstallResult,
@@ -148,6 +148,32 @@ const SKIN_LAYOUTS: Record<string, SkinLayout> = {
     screenTop:               0 / 208,
     screenWidth:           480 / 527,
     screenHeight:          160 / 208,
+    digitiserPadLeft:        0,
+    digitiserPadTop:         0,
+    digitiserPadWidth:       1,
+    digitiserPadHeight:      1,
+    digitiserWidth:        527,
+    digitiserHeight:       208,
+  },
+  // Psion Revo (Conan) skin: the same kind of artwork as revo.png below —
+  // the machine's screen assembly, and nothing else. Left silkscreen tap
+  // column, the LCD aperture, and the shortcut bar along the bottom, in a
+  // 984 × 418 image. The screen rect is the aperture as measured off the
+  // artwork (its edges sit at x=50, y=0, and it runs to the right and
+  // bottom edges of the picture at x=984, y=330).
+  //
+  // The digitiser coordinate space is the Revo's 527 × 208, since it is the
+  // Revo's board — but note the artwork draws the tap column narrower than
+  // the hardware's 47/527, so a tap lands a few digitiser units left of
+  // where the guest's pen driver would put it. That is the same small
+  // approximation the shipping Revo skins carry; correcting it would need a
+  // pad rect extending off the left of the picture.
+  'conan.png': {
+    aspectRatio:           984 / 418,
+    screenLeft:             50 / 984,
+    screenTop:               0,
+    screenWidth:           934 / 984,
+    screenHeight:          330 / 418,
     digitiserPadLeft:        0,
     digitiserPadTop:         0,
     digitiserPadWidth:       1,
@@ -434,6 +460,20 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     digitiserPadWidth:  0.688, digitiserPadHeight: 0.321,
     digitiserWidth: 527, digitiserHeight: 208,
   },
+  // Psion Revo (Conan), lid open (1317×1181). Same 480×160 LCD in the same
+  // 527×208 digitiser as the Revo above. Measured off the photo rather than
+  // scaled from the Revo's numbers, since it is a different shot: the pad
+  // (screen assembly incl. the left tap column and the shortcut bar) runs
+  // x=185..1171, y=175..595, and the LCD aperture inside it x=240..1171,
+  // y=187..506.
+  'CONAN.png': {
+    aspectRatio:  1317 / 1181,
+    screenLeft:    240 / 1317, screenTop:     187 / 1181,
+    screenWidth:   931 / 1317, screenHeight:  319 / 1181,
+    digitiserPadLeft:   185 / 1317, digitiserPadTop:    175 / 1181,
+    digitiserPadWidth:  986 / 1317, digitiserPadHeight: 420 / 1181,
+    digitiserWidth: 527, digitiserHeight: 208,
+  },
   // Psion netpad: 640×240 colour panel behind a slab-tablet front. The
   // photo is a straight-on shot (1200×520); the panel aperture measured
   // x=162..1005, y=85..398, with the printed silkscreen icon column just
@@ -528,6 +568,15 @@ const NETPAD_PANEL_LAYOUT: SkinLayout = {
 // 6×6×6 colour cube — see readLCDIntoBuffer in core/sa1100.cpp.)
 const COLOUR_SCREEN_DEVICES = new Set(['series7', 'netbook', 'netpad']);
 
+// ── Closed-lid artwork ─────────────────────────────────────────────────
+// A clamshell whose `device-skins/` folder also carries a shot of the
+// machine shut, which the Close Lid button in the control bar swaps in for
+// the open one. Only the Conan has such a shot, so only the Conan gets the
+// button; add a device here the moment its closed case is photographed.
+const LID_CLOSED_SKINS: Record<string, { file: string; width: number; height: number }> = {
+  conan: { file: 'conan_lidClosed.png', width: 1323, height: 730 },
+};
+
 // Map a device ID to its photo filename in the `device-skins/` folder.
 // Returns null if no photo skin is available for this device.
 export function getDeviceSkinPhotoFilename(deviceId: string | null): string | null {
@@ -549,6 +598,7 @@ export function getDeviceSkinPhotoFilename(deviceId: string | null): string | nu
     case 'organiser2':  return 'organiser2.png';
     case 'osaris':      return 'osaris.png';
     case 'revo':        return 'revo.png';
+    case 'conan':       return 'CONAN.png';
     case 'siena':       return 'siena.png';
     case 'workabout':   return 'workabout.png';
     case 'workaboutmx': return 'workaboutMX.png';
@@ -566,6 +616,7 @@ export function getSkinFilename(deviceName: string, deviceId: string | null): st
   // deviceId checks first — some IDs are ambiguous from deviceName alone.
   if (deviceId === 'mc218')    return 'mc218.png';
   if (deviceId === 'revo')     return 'revo.png';
+  if (deviceId === 'conan')    return 'conan.png';
   if (deviceId === '5mx' || deviceId === '5mxpro') return '5mx.png';
   if (deviceId === 'series5')  return '5.png';
   if (deviceId === 'osaris')   return 'OregonScientific_Osaris.jpg';
@@ -870,6 +921,23 @@ export default function EmulatorView({
     }
   }, [nativeFS, cssFS]);
 
+  // ── Lid ────────────────────────────────────────────────────────────
+  // Purely the view: the machine keeps running with the lid shut, exactly
+  // as a real Revo-family clamshell does (EPOC's own "off" is a standby
+  // that keeps the RTC ticking and comes back to the same screen). What
+  // closing it does do is take the screen and both input surfaces away —
+  // no canvas, no digitiser, no keyboard — because none of them is
+  // reachable through a closed case. It deliberately does NOT drive the
+  // guest's on/off state: nothing in the emulator models the lid switch,
+  // and pressing EPOC's On/Off key on the machine's behalf could easily
+  // disagree with what the OS actually did.
+  const lidSkin = currentDeviceId ? LID_CLOSED_SKINS[currentDeviceId] : undefined;
+  const [lidClosed, setLidClosed] = useState(false);
+  const lidIsClosed = lidClosed && lidSkin !== undefined;
+  // Switching machines opens the lid again — otherwise the next device
+  // inherits a shut lid it has no artwork (and no button) for.
+  useEffect(() => { setLidClosed(false); }, [currentDeviceId]);
+
   // In device mode, use the photo-realistic skin from `device-skins/`.
   const deviceSkinPhotoFile = deviceMode ? getDeviceSkinPhotoFilename(currentDeviceId) : null;
   const deviceSkinLayout: SkinLayout | undefined = deviceSkinPhotoFile
@@ -877,16 +945,18 @@ export default function EmulatorView({
     : undefined;
 
   const skinFile = deviceInfo ? getSkinFilename(deviceInfo.deviceName, currentDeviceId) : null;
-  // Active skin: device-skin photo takes precedence when device mode is on.
-  const activeSkinFile   = deviceSkinPhotoFile ?? skinFile;
-  const activeSkinFolder = deviceSkinPhotoFile ? 'device-skins' : 'skins';
+  // Active skin: the closed-lid photo wins over everything while the lid is
+  // shut (it is the only thing there is to see); otherwise the device-skin
+  // photo takes precedence when device mode is on.
+  const activeSkinFile   = lidIsClosed ? lidSkin.file : (deviceSkinPhotoFile ?? skinFile);
+  const activeSkinFolder = lidIsClosed || deviceSkinPhotoFile ? 'device-skins' : 'skins';
   // The netpad silkscreen column lives in `skins/` on its own — it is not
   // full-frame case artwork, so it can't go through activeSkinFile (which
   // stretches its image across the whole frame, and feeds LoadingOverlay).
   // It is drawn by its own block inside the device frame instead; in device
   // mode the photo skin already includes the printed column.
   const netpadSilkscreen = currentDeviceId === 'netpad' && !deviceSkinPhotoFile;
-  const skinLayout: SkinLayout = deviceSkinLayout ?? (skinFile ? SKIN_LAYOUTS[skinFile] : undefined) ?? (netpadSilkscreen ? NETPAD_PANEL_LAYOUT : undefined) ?? (deviceInfo ? {
+  const openSkinLayout: SkinLayout = deviceSkinLayout ?? (skinFile ? SKIN_LAYOUTS[skinFile] : undefined) ?? (netpadSilkscreen ? NETPAD_PANEL_LAYOUT : undefined) ?? (deviceInfo ? {
     // No skin: render the LCD as the entire frame. Digitiser area == LCD area.
     aspectRatio:  deviceInfo.lcdWidth / deviceInfo.lcdHeight,
     screenLeft:   0,
@@ -894,6 +964,13 @@ export default function EmulatorView({
     screenWidth:  1,
     screenHeight: 1,
   } : { aspectRatio: 2.28, screenLeft: 0, screenTop: 0, screenWidth: 1, screenHeight: 1 });
+
+  // With the lid shut the frame is the closed-case photo instead, sized off
+  // the open layout so the machine keeps the width it had a moment ago.
+  const skinLayout: SkinLayout = lidIsClosed && deviceInfo
+    ? { screenLeft: 0, screenTop: 0,
+        ...lidClosedLayout(openSkinLayout, lidSkin, deviceInfo.lcdWidth, deviceInfo.lcdHeight) }
+    : openSkinLayout;
 
   // Initialise from window dimensions immediately so first render is correct.
   // Before deviceInfo arrives lcdWidth/Height are 0; the component returns
@@ -907,6 +984,10 @@ export default function EmulatorView({
   // so a key held across an alt-tab would stay down in the emulated
   // machine and EPOC's auto-repeat would run on unattended.
   useEffect(() => {
+    // Lid shut: the keyboard is inside the case, so nothing reaches it —
+    // and anything held when it closed is released, for the same reason a
+    // blur releases it (no keyup is coming while the listeners are off).
+    if (lidIsClosed) { releaseHeldKeys(); return; }
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', releaseHeldKeys);
@@ -917,7 +998,7 @@ export default function EmulatorView({
       window.removeEventListener('blur', releaseHeldKeys);
       window.removeEventListener('pagehide', releaseHeldKeys);
     };
-  }, [handleKeyDown, handleKeyUp, releaseHeldKeys]);
+  }, [handleKeyDown, handleKeyUp, releaseHeldKeys, lidIsClosed]);
 
   // Dev-only automation hook: lets the Playwright browser tests inject
   // EpocKey chords deterministically (synthesised KeyboardEvents are
@@ -1232,7 +1313,8 @@ export default function EmulatorView({
   // and no Fn modifier.
   const hasFnKey = currentDeviceId === '5mx'    || currentDeviceId === '5mxpro' ||
                    currentDeviceId === 'series5' || currentDeviceId === 'mc218'  ||
-                   currentDeviceId === 'osaris'  || currentDeviceId === 'revo';
+                   currentDeviceId === 'osaris'  || currentDeviceId === 'revo'   ||
+                   currentDeviceId === 'conan';
 
   // EPOC clamshells with physical voice-recorder buttons on the case
   // (Record / Play / Stop), separate from the keyboard. Excludes Revo and
@@ -1406,7 +1488,7 @@ export default function EmulatorView({
             in lights-out mode — matches what happens in a real dark room
             when the EL panel lights up. Only shown for devices that
             actually had a backlit panel. */}
-        {backlightOn && backlightColor && (
+        {backlightOn && backlightColor && !lidIsClosed && (
           <div
             aria-hidden="true"
             className="absolute pointer-events-none"
@@ -1430,6 +1512,10 @@ export default function EmulatorView({
             renders with alpha < 255 — i.e. the unlit "background". Drive
             levels are conveyed via the RGBA alpha channel; see the per-
             device readLCDIntoBuffer implementations. */}
+        {/* Hidden rather than unmounted while the lid is shut: the render
+            loop in useEmulator skips the whole frame — stepFrame included —
+            when canvasRef goes null, so unmounting would stop the machine
+            dead instead of leaving it running behind a closed case. */}
         <canvas
           ref={canvasRef}
           width={lcdWidth}
@@ -1443,6 +1529,7 @@ export default function EmulatorView({
             imageRendering: 'pixelated',
             pointerEvents: 'none',
             zIndex: 10,
+            display: lidIsClosed ? 'none' : undefined,
           }}
         />
 
@@ -1457,7 +1544,7 @@ export default function EmulatorView({
         {/* Touch overlay — hidden for SIBO devices in device mode (they have
             no touchscreen; button zones below handle the button bar clicks
             instead). */}
-        {!(deviceMode && deviceSkinPhotoFile && isSibo) && (
+        {!lidIsClosed && !(deviceMode && deviceSkinPhotoFile && isSibo) && (
         <div
           ref={overlayRef}
           className="absolute"
@@ -1587,8 +1674,10 @@ export default function EmulatorView({
           </div>
         )}
 
-        {/* Powered-off overlay sits on top of the touch overlay */}
-        {paused && (
+        {/* Powered-off overlay sits on top of the touch overlay. Not while
+            the lid is shut — it is pinned to the LCD rect, which is behind
+            the closed case. */}
+        {paused && !lidIsClosed && (
           <div
             className="absolute flex items-center justify-center bg-black/70 rounded"
             style={{
@@ -1800,6 +1889,21 @@ export default function EmulatorView({
           {paused ? 'Power On' : 'Power Off'}
         </button>
         <button onClick={resetDevice} className={btn}>Reset</button>
+
+        {/* Lid — only for a clamshell we have a closed-case shot of. The
+            machine carries on running behind it; see the lid notes above. */}
+        {lidSkin && (
+          <button
+            onClick={() => setLidClosed(v => !v)}
+            className={lidIsClosed ? btnActive : btn}
+            title={lidIsClosed
+              ? 'Open the lid and go back to the screen'
+              : 'Shut the case. The machine keeps running — the screen, '
+                + 'touchscreen and keyboard just go away until you open it again'}
+          >
+            {lidIsClosed ? 'Open Lid' : 'Close Lid'}
+          </button>
+        )}
 
         {/* The "Enter fullscreen" affordance has moved to the header — see the
             Fullscreen sizing icon next to the device-name label. We keep the
@@ -2238,13 +2342,18 @@ export default function EmulatorView({
               const lcdW = skinLayout.screenWidth  * outW;
               const lcdH = skinLayout.screenHeight * skinH;
 
-              if (backlightOn && backlightColor) {
-                ctx.fillStyle = backlightColor;
-                ctx.fillRect(lcdX, lcdY, lcdW, lcdH);
-              }
+              // Lid shut: the closed case is the whole picture, and the
+              // LCD rect above is a sizing device pointing at nothing. Skip
+              // the paste rather than stamping the screen onto the lid.
+              if (!lidIsClosed) {
+                if (backlightOn && backlightColor) {
+                  ctx.fillStyle = backlightColor;
+                  ctx.fillRect(lcdX, lcdY, lcdW, lcdH);
+                }
 
-              ctx.imageSmoothingEnabled = false;
-              ctx.drawImage(canvas, lcdX, lcdY, lcdW, lcdH);
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(canvas, lcdX, lcdY, lcdW, lcdH);
+              }
 
               if (barImg && barImg.complete && barNaturalW > 0) {
                 ctx.drawImage(barImg, 0, skinH, outW, barH);

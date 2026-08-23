@@ -36,6 +36,13 @@ enum class Variant {
              // separate bootloader Flash; codec channel struct has a
              // different layout so the +0x1c state probe doesn't read
              // the original 5mx 1-3 active phases.
+    Conan,   // Psion "Conan" — the Revo's successor, on the same
+             // CL-PS7111-family board (480x160 LCD, 527x208 digitiser,
+             // no card slot) with a later EPOC R5 build in a 12 MB ROM.
+             // Its HAL still answers REVO / REVO-PRO, so every board-level
+             // gate it shares with the Revo goes through isRevoFamily();
+             // this variant exists so a future Conan-only quirk has a
+             // place to hang that can't regress the shipping Revo.
 };
 
 class Emulator : public EmuBase {
@@ -61,6 +68,12 @@ public:
     bool isMx5Pro() const { return variant_ == Variant::Mx5Pro; }
     bool isMc218() const { return variant_ == Variant::Mc218; }
     bool isRevo()  const { return variant_ == Variant::Revo;  }
+    bool isConan() const { return variant_ == Variant::Conan; }
+    // Revo and Conan are the same board with different ROM builds, so a
+    // gate that models the *hardware* (the battery ADC wiring below, say)
+    // has to cover both. Use isRevo() / isConan() only where the gate is
+    // genuinely about one ROM build.
+    bool isRevoFamily() const { return isRevo() || isConan(); }
 
     // PRT bit 12 (0x1000) is the LCD EL-backlight enable pin (see
     // diffPorts in windermere.cpp). EPOC drives it in response to

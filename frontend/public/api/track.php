@@ -30,12 +30,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 // Must stay in sync with the device IDs in core/device_registry.cpp — a
 // device missing here has every event rejected with a 400, so it silently
-// never appears on the usage leaderboard.
+// never appears on the usage leaderboard. That drift is not visible from
+// the outside (the client swallows the 400 like any other failure), so
+// tests/unit/device-lists-sync.mts asserts this list against the registry
+// and against frontend/public/device-names.json on every CI run.
 $ALLOWED_DEVICES = [
     '5mx', '5mxpro', 'mc218', 'osaris', 'series5', 'series7', 'revo',
-    'netbook', 'netpad', 'series3', 'pocketbk', 'mc400', 'mc400v126',
-    'series3a', 'pocketbk2', 'series3c', 'series3mx', 'siena', 'workabout',
-    'workaboutmx', 'organiser2',
+    'conan', 'netbook', 'netpad', 'series3', 'pocketbk', 'mc400',
+    'mc400v126', 'series3a', 'pocketbk2', 'series3c', 'series3mx', 'siena',
+    'workabout', 'workaboutmx', 'organiser2',
 ];
 $ALLOWED_EVENTS = [
     'load', 'session', 'cf_attach', 'speaker_on', 'mic_on',

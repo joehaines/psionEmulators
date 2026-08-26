@@ -36,15 +36,52 @@ static inline bool extract1(uint32_t value, uint32_t bit);
 
 // Decode (decoded-op) fast path gate.
 //
-// Reverted to OPT-IN (default OFF) while chasing the Pac-Man KERN-EXEC 3
-// regression: an intensive app faults with an access violation that boot never
-// hits, and the decode fast path is the one perf optimisation whose correctness
-// is only inspection-verified (the memory fast path is differentially proven
-// against the ground-truth MMU).  With it off, every instruction runs the
-// original, fully-validated executeInstruction() slow path.  Re-enable with
-// PSION_DECODE_FASTPATH=1 (for A/B and to restore the +4% once the regression
-// is pinned).  As before, any OTHER PSION_* diagnostic var also forces it off so
-// the per-instruction trace gates it skips still run while debugging.
+// decodeFast_ (tick()'s fast dispatch) stays OPT-IN. It was disabled while
+// chasing the Pac-Man KERN-EXEC 3 regression; the wrong-dispatch bug fixed
+// alongside this (a carried decode kind getting out of step with its
+// instruction word) is a strong candidate for that regression's cause, and the
+// fast path is now differentially proven across the boot suite — but there is
+// no Pac-Man fixture in the tree to confirm it against, so the default is left
+// alone. It is also worth little now that the page loop is on: measured
+// together, +0.4 MHz on the Series 7.
+//
+// pageLoop_ IS on by default — see the note at its assignment below.
+
+// The "any other PSION_ var forces the fast paths off" rule exists so that the
+// per-instruction diagnostic traces in tick()'s slow body still run when
+// someone is debugging — an engine that skips that body would silently
+// swallow the trace they just asked for.
+//
+// But a handful of PSION_ vars are not per-instruction diagnostics at all, and
+// applying the rule to them makes the engines untestable: the differential
+// verification harness has to run WITH an engine enabled (or it is not
+// verifying anything), and it needs the RTC pinned (or two runs of the same
+// workload diverge on the first RTC read and nothing is comparable). Those are
+// listed here explicitly rather than pattern-matched, so adding one is a
+// deliberate act.
+//
+// Prefixes are matched without a trailing '=' so a var and its "_SUFFIX"
+// siblings are both covered — and so this cannot repeat the off-by-one that
+// kept PSION_DECODE_PAGELOOP permanently disabled (matching "NAME=" requires
+// the length to include the '='; matching "NAME" does not).
+static bool isEngineNeutralVar(const char *ep) {
+	static const char *const kNeutral[] = {
+		"PSION_STATE_TRACE",   // differential state-hash harness (+ _INTERVAL)
+		"PSION_RTC_SEED",      // pins the RTC so two runs are comparable
+		"PSION_JIT",           // the code generator and all its knobs
+		"PSION_BATCH_TICKS",   // the burst/batch length knobs: both are
+		"PSION_BURST_TICKS",   // properties of the engine under test
+		"PSION_NB_HOOK_MASK",  // which assist hooks run at all
+		"PSION_NO_BLOCK_SPAN", // whether LDM/STM resolves its span once
+		"PSION_NB_CF_PROGRESS",// read-only progress log
+		                       // — the thing under test must not switch off the
+		                       // engine it sits on
+	};
+	for (const char *n : kNeutral)
+		if (std::strncmp(ep, n, std::strlen(n)) == 0) return true;
+	return false;
+}
+
 void ARM710::initFastPathGate() {
 	decodeFast_ = false;
 	decodeCache_ = false;
@@ -60,7 +97,8 @@ void ARM710::initFastPathGate() {
 		if (std::strncmp(*ep, "PSION_DECODE_FASTPATH=", 22) == 0) optIn = *ep + 22;
 		else if (std::strncmp(*ep, "PSION_DECODE_CACHE_CHECK=", 25) == 0) cacheCheckOptIn = *ep + 25;
 		else if (std::strncmp(*ep, "PSION_DECODE_CACHE=", 19) == 0) cacheOptIn = *ep + 19;
-		else if (std::strncmp(*ep, "PSION_DECODE_PAGELOOP=", 21) == 0) pageLoopOptIn = *ep + 21;
+		else if (std::strncmp(*ep, "PSION_DECODE_PAGELOOP=", 22) == 0) pageLoopOptIn = *ep + 22;
+		else if (isEngineNeutralVar(*ep)) { /* see isEngineNeutralVar */ }
 		else if (std::strncmp(*ep, "PSION_", 6) == 0) anyOtherPsionVar = true;
 	}
 	// The CHECK/PAGELOOP vars are themselves PSION_ vars; they must NOT count as
@@ -68,38 +106,43 @@ void ARM710::initFastPathGate() {
 	// before the generic PSION_ branch above.
 	decodeFast_       = (optIn && optIn[0] == '1') && !anyOtherPsionVar;
 	decodeCacheCheck_ = (cacheCheckOptIn && cacheCheckOptIn[0] == '1') && !anyOtherPsionVar;
-	pageLoop_         = (pageLoopOptIn && pageLoopOptIn[0] == '1') && !anyOtherPsionVar;
-	// The page loop reads cached kinds, so it needs the decode cache enabled.
+	// Page-anchored burst execution: DEFAULT ON, PSION_DECODE_PAGELOOP=0 is the
+	// kill switch. Worth +47% on the Series 7 and +54% on the netBook, and
+	// validated bit-exact against the interpreter rather than by inspection:
+	// the state-hash harness (core/state_trace.h) reports identical
+	// architectural state at every sample point over 551 M instructions across
+	// the Series 7, the netBook's stock OS and its Quartz image, and all 25
+	// devices in the boot suite render byte-identical screenshots either way.
+	// Still subject to the any-other-PSION_-var rule below, so a diagnostic run
+	// drops back to the interpreter and its per-instruction trace gates.
+	pageLoop_         = (!pageLoopOptIn || pageLoopOptIn[0] != '0') && !anyOtherPsionVar;
+	// The code generator sits on top of the burst engine — it is entered from
+	// tickPageLoop and hands back to it — so it only exists when that does.
+	if (pageLoop_) armjit::jitEnsure(jit_);
+	// The page loop needs the phys-keyed code-page table enabled: it no longer
+	// reads a cached kind from it (nothing does), but it holds a pointer into a
+	// slot as the "this page has not been written under you" validity token.
 	decodeCache_      = ((cacheOptIn && cacheOptIn[0] == '1') || decodeCacheCheck_ || pageLoop_) && !anyOtherPsionVar;
 }
 
-// Classify a raw ARM word for the decoded-op cache. MUST mirror the dispatch
-// chain at the bottom of executeInstruction() exactly (same patterns, same
-// priority order); anything not in the fast whitelist returns DK_SLOW.
-uint8_t ARM710::decodeKind(uint32_t i) const {
-	// Jump-table on bits 27:26 (the top-level ARM instruction class), then the
-	// minimum within-class checks — equivalent to executeInstruction()'s
-	// if-else chain but without walking it. Within case 0 the order matches the
-	// chain (the specific 00-class encodings before the data-processing
-	// catch-all). SWI/coprocessor (case 3) and BX/BLX (case 0) are not in the
-	// fast whitelist → DK_SLOW.
-	switch ((i >> 26) & 3) {
-	case 0:   // 00: data-processing family + multiply / swap / halfword / BX-BLX
-		if ((i & 0x0FB00FF0) == 0x01000090) return DK_SWAP;
-		if ((i & 0x0F8000F0) == 0x00000090) return DK_MULTIPLY;
-		if ((i & 0x0F8000F0) == 0x00800090 && isTVersion) return DK_MULTIPLY_LONG;
-		if ((i & 0x0E000090) == 0x00000090 && isTVersion && (i & 0x00000060) != 0) return DK_HALFWORD;
-		if ((i & 0x0FFFFFF0) == 0x012FFF10) return DK_SLOW;   // BX
-		if ((i & 0x0FFFFFF0) == 0x012FFF30) return DK_SLOW;   // BLX
-		return DK_DATAPROC;
-	case 1:   // 01: single data transfer (LDR/STR)
-		return DK_LDR_STR;
-	case 2:   // 10: branch (bit 25 = 1) or block data transfer (bit 25 = 0)
-		return (i & 0x02000000) ? DK_BRANCH : DK_LDM_STM;
-	default:  // 11: SWI / coprocessor — always the slow path
-		return DK_SLOW;
-	}
+// Differential state tracing (see state_trace.h). Opt-in via
+// PSION_STATE_TRACE=<path>; PSION_STATE_TRACE_INTERVAL=N sets the sampling
+// interval. Deliberately NOT subject to the initFastPathGate() "any other
+// PSION_ var forces the fast paths off" rule — the whole point of this trace
+// is to run WITH an execution engine enabled and compare it against the
+// reference, so it must not itself disable the thing under test — see
+// isEngineNeutralVar().
+void ARM710::initStateTrace() {
+	const char *path = std::getenv("PSION_STATE_TRACE");
+	if (!path) return;
+	const char *iv = std::getenv("PSION_STATE_TRACE_INTERVAL");
+	stateTrace_.open(path, iv ? std::strtoull(iv, nullptr, 0) : 0);
+	if (const char *f = std::getenv("PSION_STATE_TRACE_FROM"))
+		stateTrace_.dumpFrom = std::strtoull(f, nullptr, 0);
+	if (const char *t = std::getenv("PSION_STATE_TRACE_TO"))
+		stateTrace_.dumpTo = std::strtoull(t, nullptr, 0);
 }
+
 
 // F-MULTIAGENT fix-candidate(2): SWI 0xc00084 entry/return trace state,
 // shared between the SWI-decode site (entry log + pending-return record)
@@ -459,17 +502,25 @@ uint32_t ARM710::tick() {
 	bool haveInsn = false;
 	uint32_t insn;
 	MMUFault insnFault;
-	uint8_t insnKind = DK_SLOW;
 	if (prefetchCount == 2) {
 		haveInsn = true;
 		insn = prefetch[1];
 		insnFault = prefetchFaults[1];
-		insnKind = prefetchKind[1];   // captured before the shuffle below
 	}
+
+	// Differential verification hash (see state_trace.h). Taken here — after
+	// the pop, before the shuffle — because tickPageLoop() hashes at exactly
+	// the same architectural point, so the two engines' traces are directly
+	// comparable. Only executed instructions are hashed; pipeline-refill ticks
+	// are not, since the engines structure their refills differently but must
+	// agree on the cycle count, which is folded into the hash.
+	if (__builtin_expect(stateTrace_.enabled, false) && haveInsn)
+		stateTrace_.step(GPRs, CPSR, insnCycleApprox, devCycles_,
+		                 insn, prefetch[0], prefetchCount,
+		                 decodeKind(insn), decodeKind(prefetch[0]));
 
 	// move the instruction we fetched last tick once along
 	if (prefetchCount >= 1) {
-		prefetchKind[1] = prefetchKind[0];
 		prefetch[1] = prefetch[0];
 		prefetchFaults[1] = prefetchFaults[0];
 	}
@@ -536,7 +587,6 @@ uint32_t ARM710::tick() {
 	GPRs[15] += 4;
 	prefetch[0] = newInsn.first.value_or(0);
 	prefetchFaults[0] = newInsn.second;
-	prefetchKind[0] = lastFetchKind;   // set by fetchVirtual for this word
 	if (prefetchCount < 2)
 		prefetchCount++;
 
@@ -553,14 +603,27 @@ uint32_t ARM710::tick() {
 	// fault handling (faultTriggeredThisCycle) after it still runs. Anything else
 	// — SWI, coprocessor, BX/BLX, undefined, a faulted fetch, or a non-SA-1100
 	// device (base fetchVirtual leaves DK_SLOW) — runs the full path.
-	if (haveInsn && insnKind >= DK_DATAPROC && decodeFast_) {
+	// insnKind, as carried through the prefetch pipeline from fetchVirtual, can
+	// get out of step with the word it describes — proven on the netBook Quartz
+	// image, where an IRQ left prefetchKind[] shifted one slot against
+	// prefetch[] and a BEQ was dispatched as data-processing. A dispatch
+	// selector that disagrees with its instruction silently runs the wrong
+	// handler, so derive it from `insn` here instead, exactly as
+	// tickPageLoop() does. The fault check is now explicit: fetchVirtual used
+	// to fold "this fetch aborted" into DK_SLOW, and decoding the word cannot
+	// know that (a faulted fetch reads as 0, which classifies as
+	// data-processing and would take the fast path into a handler instead of
+	// raising the abort).
+	const uint8_t insnKindFast =
+		(haveInsn && decodeFast_ && insnFault == NoFault) ? decodeKind(insn) : DK_SLOW;
+	if (haveInsn && insnKindFast >= DK_DATAPROC && decodeFast_) {
 		pcHistory[pcHistoryIndex] = {GPRs[15] - 0xC, insn};
 		pcHistoryIndex = (pcHistoryIndex + 1) % PcHistoryCount;
 		clocks += 1;   // mirror executeInstruction()'s base `cycles = 1` (counted
 		               // even on a failed condition) so cycle accounting matches
 		               // the slow path exactly.
 		if (checkCondition(extract(insn, 31, 28))) {
-			switch (insnKind) {
+			switch (insnKindFast) {
 			case DK_DATAPROC:      clocks += execDataProcessing(extract1(insn,25), extract(insn,24,21), extract1(insn,20), extract(insn,19,16), extract(insn,15,12), extract(insn,11,0)); break;
 			case DK_LDR_STR:       clocks += execSingleDataTransfer(extract(insn,25,20), extract(insn,19,16), extract(insn,15,12), extract(insn,11,0)); break;
 			case DK_LDM_STM:       clocks += execBlockDataTransfer(extract(insn,24,20), extract(insn,19,16), extract(insn,15,0)); break;
@@ -2617,20 +2680,75 @@ uint32_t ARM710::tick() {
 	return clocks;
 }
 
+// One instruction, from a word the caller already has. See the header.
+//
+// Every line here mirrors ARM710::tickPageLoop's per-instruction body, and it
+// has to keep mirroring it: the cycle charge (1 for the tick, 1 more because
+// this tick executes rather than refills), the pcHistory write, the condition
+// test, the dispatch, the fault check, and the two counters the loop advances.
+uint32_t ARM710::jitExecOne(uint32_t insn) {
+	uint32_t clocks = 2;
+	pcHistory[pcHistoryIndex] = {GPRs[15] - 0xC, insn};
+	pcHistoryIndex = (pcHistoryIndex + 1) % PcHistoryCount;
+	if (checkCondition(extract(insn, 31, 28))) {
+		switch (decodeKind(insn)) {
+		case DK_DATAPROC:      clocks += execDataProcessing(extract1(insn,25), extract(insn,24,21), extract1(insn,20), extract(insn,19,16), extract(insn,15,12), extract(insn,11,0)); break;
+		case DK_LDR_STR:       clocks += execSingleDataTransfer(extract(insn,25,20), extract(insn,19,16), extract(insn,15,12), extract(insn,11,0)); break;
+		case DK_LDM_STM:       clocks += execBlockDataTransfer(extract(insn,24,20), extract(insn,19,16), extract(insn,15,0)); break;
+		case DK_BRANCH:        clocks += execBranch(extract1(insn,24), extract(insn,23,0)); break;
+		case DK_MULTIPLY:      clocks += execMultiply(extract(insn,21,20), extract(insn,19,16), extract(insn,15,12), extract(insn,11,8), extract(insn,3,0)); break;
+		case DK_MULTIPLY_LONG: clocks += execMultiplyLong(extract(insn,22,20), extract(insn,19,16), extract(insn,15,12), extract(insn,11,8), extract(insn,3,0)); break;
+		case DK_SWAP:          clocks += execSingleDataSwap(extract1(insn,22), extract(insn,19,16), extract(insn,15,12), extract(insn,3,0)); break;
+		case DK_HALFWORD:      clocks += execHalfwordDataTransfer(insn); break;
+		default: break;        // DK_SLOW never reaches here — see the header
+		}
+	}
+	if (faultTriggeredThisCycle) {
+		faultTriggeredThisCycle = false;
+		raiseException(Abort32, GPRs[15] - 4, 0x10);
+	}
+	insnCycleApprox += clocks;
+	if (cycleSink_) *cycleSink_ += clocks;
+	return clocks;
+}
+
 // Page-anchored fast loop — see arm710.h. Replicates tick()'s prefetch / PC /
 // IRQ / fault model EXACTLY, with the fetch inlined from a resolved code page so
 // a run of straight-line fast instructions pays neither the fetchVirtual call +
 // re-translate nor the per-instruction tick() framework. Runs only when no
 // diagnostic env is active (same gate as decodeCache_), so the ~40 per-insn
 // trace blocks in tick()'s slow body are inactive and need not be mirrored.
-uint32_t ARM710::tickPageLoop(int maxInsns) {
-	FetchPage fp;
-	if (!resolveFetchPage(GPRs[15], fp))
-		return tick();   // page not fast-resolvable → let tick() handle it
+uint32_t ARM710::tickPageLoop(int maxInsns, uint32_t maxCycles, int *ticksUsed) {
+	*ticksUsed = 1;      // every exit below consumes at least one tick-equivalent
+	// Contract: this function advances the device cycle sink for EVERY cycle it
+	// reports, including the ones a fallback tick() runs — the caller adds
+	// nothing. Miss one of these paths and simulated time silently runs slow.
+	auto fallbackTick = [&]() -> uint32_t {
+		const uint32_t c = tick();
+		if (cycleSink_) *cycleSink_ += c;
+		return c;
+	};
+	// Reuse the page the last burst ended in when execution resumed inside it —
+	// see fetchPage_. The conditions are the loop's own, so a reused resolution
+	// is indistinguishable from a fresh one.
+	FetchPage &fp = fetchPage_;
+	if (!fetchPageValid_ || GPRs[15] < fp.startVa || GPRs[15] >= fp.endVa ||
+	    fp.priv != isPrivileged() || *fp.validPtr != fp.physBase) {
+		if (!resolveFetchPage(GPRs[15], fp)) {
+			fetchPageValid_ = false;
+			return fallbackTick();   // not fast-resolvable → let tick() handle it
+		}
+		fetchPageValid_ = true;
+	}
 
 	uint32_t total = 0;
-	for (int n = 0; n < maxInsns; n++) {
-		sampleAndDispatchPendingExceptions();
+	int n = 0;
+	// Whether the generated-region dispatcher has had its look at this burst.
+	// It gets exactly one, at the first instruction boundary with a full
+	// pipeline — see the note where it is taken.
+	bool jitOffered = false;
+	for (; n < maxInsns && total < maxCycles; n++) {
+		samplePendingExceptionsFast();
 
 		// (Re)resolve when the fetch address has left the current 1 KB subpage —
 		// after a branch into another (sub)page, or crossing a boundary in
@@ -2638,8 +2756,9 @@ uint32_t ARM710::tickPageLoop(int maxInsns) {
 		// keeps fp, so resolveFetchPage is paid ~once per loop, not per burst — the
 		// whole point of staying in the loop across branches.
 		const uint32_t fetchAddr = GPRs[15];
-		if (fetchAddr < fp.endVa - 0x400u || fetchAddr >= fp.endVa) {
-			if (!resolveFetchPage(fetchAddr, fp)) break;
+		if (fetchAddr < fp.startVa || fetchAddr >= fp.endVa ||
+		    fp.priv != isPrivileged()) {
+			if (!resolveFetchPage(fetchAddr, fp)) { fetchPageValid_ = false; break; }
 		}
 		if (*fp.validPtr != fp.physBase) break;            // page invalidated (self-modify)
 
@@ -2648,26 +2767,94 @@ uint32_t ARM710::tickPageLoop(int maxInsns) {
 		// exception flushed the pipeline — the loop refills it itself instead of
 		// returning to tick()).
 		const bool haveInsn = (prefetchCount == 2);
+
+		// ── Generated region (Stage 3, docs/jit-engine-scope.md) ───────────
+		// A region's contract is the state at an instruction boundary with a
+		// full pipeline: r15 is the executing instruction's address plus 8, and
+		// the two prefetch slots hold that instruction and the next. It keeps
+		// the same contract on the way out and advances the device cycle sink
+		// itself, so from here it is indistinguishable from a run of this loop.
+		//
+		// Offered INSIDE the loop rather than before it, because half of all
+		// bursts resume with the pipeline mid-refill — a branch flushed it, and
+		// the burst that ran the branch ended there. Offering only before the
+		// loop meant the dispatcher never saw those at all: measured on the
+		// netBook, 944,764 bursts against 897,800 it did see. The two refill
+		// ticks this loop runs first cost the same either way; all that changes
+		// is that the region gets its turn afterwards instead of being skipped.
+		//
+		// Once per burst, at the first boundary where an instruction would
+		// actually execute. After that `jitOffered` makes it a single predicted
+		// test per instruction.
+		if (__builtin_expect(jit_ != nullptr, false) && !jitOffered && haveInsn) {
+			jitOffered = true;
+			if (prefetchFaults[0] == NoFault && prefetchFaults[1] == NoFault) {
+				int jitTicks = 0;
+				const uint32_t jitCycles =
+					armjit::jitRun(jit_, *this, fp.hostBase, fp.startVa, fp.endVa,
+					               fp.validPtr, fp.physBase, GPRs[15] - 8,
+					               maxCycles - total, maxInsns - n, &jitTicks);
+				if (jitCycles) { *ticksUsed = n + jitTicks; return total + jitCycles; }
+			} else {
+				armjit::jitNoteDirtyEntry(jit_);
+			}
+		}
+		// Classify the word about to execute FROM that word, here, rather than
+		// reading the kind carried alongside it through the prefetch pipeline.
+		//
+		// The carried kind can get out of step with the word it describes: on the
+		// netBook Quartz image, an IRQ taken between two instructions left
+		// prefetchKind[] shifted one slot against prefetch[], so `0a000001` (BEQ,
+		// with Z set) was dispatched as data-processing — it executed as
+		// AND r0,r0,#1, wrote 0 to r0 instead of branching, and the guest hit a
+		// prefetch abort four instructions later. Deriving the kind from the word
+		// at the point of use makes that disagreement impossible by construction,
+		// which matters far more here than the shifts it costs: this is a
+		// dispatch selector, and a wrong one silently runs the wrong handler.
+		const uint32_t insn   = prefetch[1];
+		const uint8_t  exKind = decodeKind(insn);
 		// Defer DK_SLOW / faulted instructions to tick() — peek BEFORE mutating, so
 		// the pipeline is left intact for tick() to handle this exact instruction.
-		if (haveInsn && (prefetchKind[1] < DK_DATAPROC || prefetchFaults[1] != NoFault))
+		if (haveInsn && (exKind < DK_DATAPROC || prefetchFaults[1] != NoFault))
 			break;
-		const uint32_t insn   = prefetch[1];
-		const uint8_t  exKind = prefetchKind[1];
+
+		// Same hash point as tick() — see the note there. Placed after the
+		// DK_SLOW / faulted break above, so an instruction deferred to tick()
+		// is hashed once, by tick(), and never twice.
+		if (__builtin_expect(stateTrace_.enabled, false) && haveInsn)
+			stateTrace_.step(GPRs, CPSR, insnCycleApprox, devCycles_,
+			                 insn, prefetch[0], prefetchCount,
+			                 exKind, decodeKind(prefetch[0]));
 
 		// ── shuffle + inlined fetch (mirrors tick() ~388-466) ──
 		if (prefetchCount >= 1) {
 			prefetch[1]       = prefetch[0];
-			prefetchKind[1]   = prefetchKind[0];
 			prefetchFaults[1] = prefetchFaults[0];
 		}
 		const uint32_t newInsn = *reinterpret_cast<const uint32_t*>(fp.hostBase + fetchAddr);
 		GPRs[15] += 4;
 		prefetch[0]       = newInsn;
 		prefetchFaults[0] = NoFault;
-		uint8_t &kslot = fp.kinds[(fetchAddr & 0xFFFu) >> 2];
-		if (kslot == DK_UNCACHED) kslot = decodeKind(newInsn);
-		prefetchKind[0]   = kslot;
+		// No decode classification is carried through the pipeline at all.
+		// The dispatch selector is derived from the instruction word at the
+		// point of use (`exKind` above) — never from a per-page kind[] cache,
+		// and never from a shadow array shuffled alongside prefetch[].
+		//
+		// A cached kind is only valid while the page's contents are unchanged,
+		// and the invalidation is not airtight: a code page written by anything
+		// that does not go through writeVirtual (the netBook's OS-image load
+		// straight into the RAM buffer, for one) leaves stale entries behind,
+		// and a page whose host write pointer is null is marked `immutable` and
+		// never dropped at all. A stale entry is not a slow path, it is a
+		// WRONG DISPATCH: measured on the netBook Quartz image, `0a000001`
+		// (BEQ, with Z set) was dispatched as data-processing 39,438,709
+		// instructions in — it wrote r0 instead of branching, and the guest
+		// walked into a prefetch abort four instructions later.
+		//
+		// decodeKind() is a switch on two bits plus a handful of masks, so the
+		// cache was never buying much; correctness is worth far more than the
+		// load it saves — and classifying at the point of use costs one decode
+		// per instruction rather than the two the shadow array needed.
 		if (prefetchCount < 2) prefetchCount++;
 
 		uint32_t clocks = 1;   // tick()'s base (counted even on an empty refill tick)
@@ -2694,11 +2881,16 @@ uint32_t ARM710::tickPageLoop(int maxInsns) {
 		}
 		insnCycleApprox += clocks;
 		total += clocks;
+		// Advance the device clock now, not at the end of the burst: the next
+		// instruction may read a peripheral whose answer depends on it. See
+		// cycleSink_.
+		if (cycleSink_) *cycleSink_ += clocks;
 		// Deliberately NO break on prefetchCount<2: a branch / exception that
 		// flushed the pipeline is handled by the re-resolve + refill at the top of
 		// the next iteration. That is the across-branches amortization.
 	}
-	if (total == 0) return tick();   // guarantee forward progress
+	if (total == 0) return fallbackTick();   // forward progress (ticksUsed = 1)
+	*ticksUsed = n;
 	return total;
 }
 
@@ -4128,6 +4320,13 @@ uint32_t ARM710::execBlockDataTransfer(uint32_t PUSWL, uint32_t Rn, uint32_t reg
 	// writeback overwrites it; subsequent iterations see the new value.
 	// LDM resolves the same way by doing writeback up-front (above),
 	// then loading registers in order (including possibly Rn).
+	// One host pointer for the whole block instead of one readVirtual() /
+	// writeVirtual() per register — see ARM710::fastSpanPtr. Null whenever the
+	// device has no such path, or the span leaves a 1 KB region, or any of the
+	// fast-path checks miss; then every access below takes the per-word path
+	// exactly as it always did.
+	uint8_t *const span = registerList ? fastSpanPtr(lowAddr, blockSize, store)
+	                                   : nullptr;
 	uint32_t addr = lowAddr;
 	for (int i = 0; i < 16; i++) {
 		if (registerList & (1 << i)) {
@@ -4135,19 +4334,29 @@ uint32_t ARM710::execBlockDataTransfer(uint32_t PUSWL, uint32_t Rn, uint32_t reg
 			if (load) {
 				// handling for LDM faults may be kinda iffy...
 				// wording on datasheet is a bit unclear
-				auto readResult = readVirtual(addr, V32);
-				if (readResult.first.has_value())
-					GPRs[i] = readResult.first.value();
-				if (readResult.second != NoFault) {
-					fault = readResult.second;
-					break;
+				uint32_t loaded     = 0;
+				bool     haveLoaded = false;
+				if (span) {
+					loaded = *reinterpret_cast<const uint32_t *>(span + addr);
+					haveLoaded = true;
+					GPRs[i] = loaded;
+				} else {
+					auto readResult = readVirtual(addr, V32);
+					if (readResult.first.has_value()) {
+						loaded = readResult.first.value();
+						haveLoaded = true;
+						GPRs[i] = loaded;
+					}
+					if (readResult.second != NoFault) {
+						fault = readResult.second;
+						break;
+					}
 				}
 				// LDM-watch: log when LDM pops the kernel panic stub
 				// address 0x50019280 from memory. Helps locate boot
 				// divergence into the kernel's `B .` panic loop.
-				if (PSION_ENV_BOOL("PSION_LDM_PANIC_WATCH") &&
-				    readResult.first.has_value() &&
-				    readResult.first.value() == 0x50019280u) {
+				if (haveLoaded && loaded == 0x50019280u &&
+				    PSION_ENV_BOOL("PSION_LDM_PANIC_WATCH")) {
 					uint32_t pc = GPRs[15] - 0xC;
 					log("LDM-PANIC pop: addr=%08x val=0x50019280 -> R%d  pc=%08x lr=%08x cpsr=%x",
 						addr, i, pc, GPRs[14], CPSR & 0x1F);
@@ -4161,16 +4370,17 @@ uint32_t ARM710::execBlockDataTransfer(uint32_t PUSWL, uint32_t Rn, uint32_t reg
 				// BL caller's correct return address. Gated on
 				// PSION_S5_LDMFD_RESCUE=1; only active when popping
 				// PC (i==15) with the corrupt sentinel value.
-				if (PSION_ENV_BOOL("PSION_S5_LDMFD_RESCUE") && i == 15 &&
-				    readResult.first.has_value() &&
-				    readResult.first.value() == 0x50019280u &&
-				    GPRs[14] != 0x50019280u) {
+				if (i == 15 && haveLoaded && loaded == 0x50019280u &&
+				    GPRs[14] != 0x50019280u &&
+				    PSION_ENV_BOOL("PSION_S5_LDMFD_RESCUE")) {
 					uint32_t oldPc = GPRs[15] - 0xC;
 					log("LDMFD-RESCUE: corrupt PC pop 0x50019280 at "
 					    "addr=%08x ldm-pc=%08x; redirecting to LR=%08x",
 					    addr, oldPc, GPRs[14]);
 					GPRs[i] = GPRs[14];
 				}
+			} else if (span) {
+				*reinterpret_cast<uint32_t *>(span + addr) = GPRs[i];
 			} else {
 				auto newFault = writeVirtual(GPRs[i], addr, V32);
 				if (newFault != NoFault)

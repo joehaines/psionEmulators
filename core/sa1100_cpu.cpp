@@ -75,7 +75,6 @@ SA1100Bridge::DecodedPage *SA1100Bridge::decodePageFor(uint32_t physAddr) {
 	if (p.physBase != base) {
 		p.physBase  = base;
 		p.immutable = (hostPtrForWrite(base) == nullptr);   // no write pointer ⇒ ROM
-		std::memset(p.kind, DK_UNCACHED, sizeof(p.kind));
 	}
 	return &p;
 }
@@ -92,20 +91,6 @@ void SA1100Bridge::invalidateDecodePage(uint32_t physAddr) {
 	uint32_t base = physAddr & ~uint32_t(0xFFF);
 	DecodedPage &p = decodePages_[(base >> 12) & (DecodePageSlots - 1)];
 	if (p.physBase == base) p.physBase = 0xFFFFFFFFu;
-}
-
-// Differential coherency check (PSION_DECODE_CACHE_CHECK): the cached kind MUST
-// equal a fresh decodeKind(insn); a mismatch is a stale decoded op = an
-// invalidation gap. Logs (capped) at the exact faulting fetch so the bug is
-// located, not inspection-only.
-void SA1100Bridge::checkDecodeDivergence(uint32_t physAddr, uint32_t insn, uint8_t cachedKind) {
-	uint8_t fresh = decodeKind(insn);
-	if (fresh == cachedKind) return;
-	static int n = 0;
-	if (n++ < 64)
-		std::fprintf(stderr, "[decode-cache] DIVERGENCE #%d phys=%08x insn=%08x "
-		    "cached=%u fresh=%u pc=%08x (stale decoded op — invalidation gap)\n",
-		    n, physAddr, insn, cachedKind, fresh, getRealPC());
 }
 
 // ── TLB flush overrides ──────────────────────────────────────────────
@@ -138,6 +123,8 @@ void SA1100Bridge::flushFastTlb() {
 			fastTlb[s][w] = FastTlbEntry{};
 	lastFastTlbEntry = nullptr;
 	lastFetchEntry = nullptr;
+	invalidateFetchPage();   // mapping may have moved under the resolved page
+	for (int w = 0; w < DataMruWays; w++) dataMru_[w] = nullptr;
 	for (int s = 0; s < FastTlbSets; s++) fastTlbNextWay[s] = 0;
 }
 
@@ -152,6 +139,8 @@ void SA1100Bridge::flushFastTlb(uint32_t virtAddr) {
 	}
 	lastFastTlbEntry = nullptr;
 	lastFetchEntry = nullptr;
+	invalidateFetchPage();   // mapping may have moved under the resolved page
+	for (int w = 0; w < DataMruWays; w++) dataMru_[w] = nullptr;
 }
 
 void SA1100Bridge::invalidatePermCache() {
@@ -455,7 +444,7 @@ SA1100Bridge::readVirtual(uint32_t virtAddr, ValueSize valueSize) {
 	static const bool kNoMemFast    = (PSION_ENV_CSTR("PSION_NO_MEM_FASTPATH")    != nullptr);
 	static const bool kMemFastCheck = (PSION_ENV_CSTR("PSION_MEM_FASTPATH_CHECK") != nullptr);
 	if (!kNoMemFast)
-	if (FastTlbEntry *e = lastFastTlbEntry;
+	if (FastTlbEntry *e = dataMru_[dataMruIdx(virtAddr)];
 	    e && e->addrMask && (virtAddr & e->addrMask) == e->addr && e->hostReadPtr) {
 		const bool isPage = e->lv2Entry != 0;
 		const int sub = isPage
@@ -502,6 +491,7 @@ SA1100Bridge::readVirtualAuthoritative(uint32_t virtAddr, ValueSize valueSize) {
 	if (auto *fault = std::get_if<MMUFault>(&result))
 		return std::make_pair(MaybeU32(), *fault);
 	auto *fe = std::get<FastTlbEntry *>(result);
+	dataMru_[dataMruIdx(virtAddr)] = fe;   // hint for the next access to this page
 
 	if (auto f = checkPermsfast(fe, virtAddr, false); f != NoFault)
 		return std::make_pair(MaybeU32(), f);
@@ -563,7 +553,6 @@ void SA1100Bridge::checkFastDivergence(const char *tag, uint32_t virtAddr,
 // the page into lastFastTlbEntry) and adopts that entry as the fetch MRU.
 std::pair<MaybeU32, ARM710::MMUFault>
 SA1100Bridge::fetchVirtual(uint32_t virtAddr) {
-	lastFetchKind = DK_SLOW;               // default: full path unless a clean fetch says otherwise
 	static const bool kNoMemFast    = (PSION_ENV_CSTR("PSION_NO_MEM_FASTPATH")    != nullptr);
 	static const bool kMemFastCheck = (PSION_ENV_CSTR("PSION_MEM_FASTPATH_CHECK") != nullptr);
 	if ((cp15_control & 1) && !kNoMemFast) {
@@ -579,26 +568,16 @@ SA1100Bridge::fetchVirtual(uint32_t virtAddr) {
 				std::pair<MaybeU32, MMUFault> fast;
 				if (pc & (uint8_t)(1u << shift)) {
 					uint32_t insn = *reinterpret_cast<const uint32_t*>(e->hostReadPtr + virtAddr);
-					// Decode classification for tick()'s fast-dispatch. Three modes:
-					//   decodeCache_ → phys-keyed cached kind, lazily filled on first
-					//     touch (a small per-page cache, not a multi-MB flat table —
-					//     the hot working set stays in host L2 where a flat table did
-					//     not, see the scope-doc post-mortem). CHECK proves coherency.
-					//   decodeFast_  → recompute fresh every fetch (the prior +4% path).
-					//   neither      → DK_SLOW (default; full executeInstruction path).
-					if (decodeCache_) {
-						uint32_t physAddr = physAddrFromTlbEntry(reinterpret_cast<TlbEntry*>(e), virtAddr);
-						if (DecodedPage *dp = decodePageFor(physAddr)) {
-							uint8_t &slot = dp->kind[(physAddr & 0xFFFu) >> 2];
-							if (slot == DK_UNCACHED) slot = decodeKind(insn);   // lazy fill
-							lastFetchKind = slot;
-							if (decodeCacheCheck_) checkDecodeDivergence(physAddr, insn, slot);
-						} else {
-							lastFetchKind = decodeKind(insn);                   // alloc failed
-						}
-					} else if (decodeFast_) {
-						lastFetchKind = decodeKind(insn);
-					}
+					// The fetch returns the word and nothing else. Callers that
+					// need a decode kind classify the word themselves at the
+					// point of dispatch — never from dp->kind[], and never
+					// carried through the prefetch pipeline. A cached kind
+					// survives a code page being rewritten by anything that
+					// bypasses writeVirtual, and an `immutable` page is never
+					// dropped at all; a stale entry then dispatches the wrong
+					// handler for the word actually fetched. See the matching
+					// note in ARM710::tickPageLoop for the netBook Quartz case
+					// that proved it. decodeKind() is cheap.
 					fast = std::make_pair(insn, NoFault);
 				} else {
 					fast = std::make_pair(MaybeU32(),
@@ -615,10 +594,6 @@ SA1100Bridge::fetchVirtual(uint32_t virtAddr) {
 	}
 	auto r = readVirtual(virtAddr, V32);   // resolves + sets lastFastTlbEntry
 	lastFetchEntry = lastFastTlbEntry;     // remember the code page for next fetch
-	// Slow path (TLB miss) is rare; classify fresh without caching (the next
-	// fast-path hit on this page populates the cache).
-	if ((decodeFast_ || decodeCache_) && r.first.has_value())
-		lastFetchKind = decodeKind(r.first.value());
 	return r;
 }
 
@@ -644,16 +619,62 @@ bool SA1100Bridge::resolveFetchPage(uint32_t va, FetchPage &out) {
 		: 0;
 	const uint8_t pc = isPage ? e->permCachePg[sub] : e->permCache;
 	const int shift = isPrivileged() ? 0 : 2;                 // fetch == read
-	if (!((pc & (uint8_t)(1u << (shift + 4))) && (pc & (uint8_t)(1u << shift))))
-		return false;                                        // perm not cached-and-permitted
+	if (!((pc & (uint8_t)(1u << (shift + 4))) && (pc & (uint8_t)(1u << shift)))) {
+		// The permission byte does not yet answer this combo — so ANSWER IT,
+		// rather than giving up on the page.
+		//
+		// This used to `return false`, and it was the single most expensive
+		// thing the fetch path did. Measured over a Series 7 boot: 16.0 M of
+		// 42.3 M resolveFetchPage calls bailed out here, and essentially none
+		// for any other reason (translation faults: 1; missing host pointer:
+		// 0). The page was mapped, readable and present — the only thing
+		// missing was a cache byte nobody on the fetch path ever filled in.
+		// checkPermsfast() backfills it, but only the DATA paths call it, so a
+		// code page that is executed and never read as data stayed permanently
+		// unresolvable: the burst engine bailed to tick(), tick() fetched
+		// through the slow path, and the next burst bailed again.
+		//
+		// Doing the authoritative walk here costs one checkAccessPermissions()
+		// on first touch of a sub-page and makes every later fetch of it
+		// resolvable. It cannot loosen anything: we proceed only if the walk
+		// returns NoFault *and* the byte it wrote agrees. A combo that is
+		// already computed and says "denied" is a real fetch abort — bail
+		// straight out and let tick() raise it, without re-walking.
+		if (pc & (uint8_t)(1u << (shift + 4)))
+			return false;                                    // cached, and denied
+		if (checkPermsfast(e, va, /*isWrite=*/false) != NoFault)
+			return false;
+		const uint8_t pc2 = isPage ? e->permCachePg[sub] : e->permCache;
+		if (!((pc2 & (uint8_t)(1u << (shift + 4))) && (pc2 & (uint8_t)(1u << shift))))
+			return false;                                    // byte not storable (see buildPermCacheByte)
+	}
 	uint32_t physAddr = physAddrFromTlbEntry(reinterpret_cast<TlbEntry *>(e), va);
 	DecodedPage *dp = decodePageFor(physAddr);
 	if (!dp) return false;
 	out.hostBase = e->hostReadPtr;
-	out.kinds    = dp->kind;
 	out.physBase = dp->physBase;
 	out.validPtr = &dp->physBase;
-	out.endVa    = (va & ~uint32_t(0x3FF)) + 0x400u;         // 1 KB subpage boundary
+	// Span this resolution stays valid over — see FetchPage in arm710.h.
+	// A section (uniform across 1 MB) and a large page (AP selected by va>>14,
+	// so uniform across 16 KB) are both capped instead by the decoded-page
+	// validity token, which covers one 4 KB physical page.
+	//
+	// A small page selects its AP field with va>>10, so only the 1 KB subpage
+	// is uniform.
+	//
+	// Widening this to the whole 4 KB page when all four AP fields agree was
+	// tried and measured: 9.34 s -> 9.32 s on a Series 7 boot, i.e. nothing.
+	// resolveFetchPage is ~6.4% of the WASM profile, but the re-resolves are
+	// driven by BRANCHES leaving the page, not by straight-line code crossing a
+	// subpage boundary — ARM code branches every few instructions, and a branch
+	// to another page re-resolves however wide the span is. Widening only helps
+	// the sequential case, which is the rare one. Left at 1 KB rather than
+	// carrying a wider trust window for no gain.
+	const bool smallPage = isPage && ((e->lv2Entry & 3) != 1);
+	const uint32_t span  = smallPage ? 0x400u : 0x1000u;
+	out.startVa  = va & ~(span - 1);
+	out.endVa    = out.startVa + span;
+	out.priv     = isPrivileged();
 	return true;
 }
 
@@ -921,7 +942,7 @@ SA1100Bridge::writeVirtual(uint32_t value, uint32_t virtAddr, ValueSize valueSiz
 	static const bool kNoMemFast    = (PSION_ENV_CSTR("PSION_NO_MEM_FASTPATH")    != nullptr);
 	static const bool kMemFastCheck = (PSION_ENV_CSTR("PSION_MEM_FASTPATH_CHECK") != nullptr);
 	if (!kNoMemFast)
-	if (FastTlbEntry *e = lastFastTlbEntry;
+	if (FastTlbEntry *e = dataMru_[dataMruIdx(virtAddr)];
 	    e && e->addrMask && (virtAddr & e->addrMask) == e->addr && e->hostWritePtr) {
 		const bool isPage = e->lv2Entry != 0;
 		const int sub = isPage
@@ -964,6 +985,50 @@ SA1100Bridge::writeVirtual(uint32_t value, uint32_t virtAddr, ValueSize valueSiz
 	return writeVirtualAuthoritative(value, virtAddr, valueSize);
 }
 
+// ── Block-transfer span resolution ──────────────────────────────────
+// See ARM710::fastSpanPtr. Every test below is one of readVirtual()'s or
+// writeVirtual()'s inlined fast-path tests, in the same order and reading the
+// same fields, so a span this accepts is one those would have served word by
+// word with the same host pointer. Anything else returns nullptr and the caller
+// keeps its per-word path — including a span whose permission byte says NOT
+// permitted, because raising the fault is the per-word path's job and it has to
+// raise it on the right word.
+uint8_t *SA1100Bridge::fastSpanPtr(uint32_t va, uint32_t bytes, bool write) {
+	static const bool kNoMemFast    = (PSION_ENV_CSTR("PSION_NO_MEM_FASTPATH")    != nullptr);
+	static const bool kMemFastCheck = (PSION_ENV_CSTR("PSION_MEM_FASTPATH_CHECK") != nullptr);
+	// PSION_NO_BLOCK_SPAN stands this down on its own, leaving the per-word
+	// fast path in place, so a behaviour change can be attributed to the span
+	// resolution rather than to the whole memory fast path.
+	static const bool kNoSpan = (PSION_ENV_CSTR("PSION_NO_BLOCK_SPAN") != nullptr);
+	// The cross-check mode compares the per-word fast path against the base
+	// ARM710 MMU; a span would skip both, so stand it down while it runs.
+	if (kNoSpan || kNoMemFast || kMemFastCheck) return nullptr;
+	if (!(cp15_control & 1)) return nullptr;          // MMU off: base ARM710 path
+	if (bytes == 0) return nullptr;
+	// Whole span inside one 1 KB region — the bound the perm cache and the
+	// decoded-page drop are both uniform over.
+	if (((va ^ (va + bytes - 1)) >> 10) != 0) return nullptr;
+
+	FastTlbEntry *e = dataMru_[dataMruIdx(va)];
+	if (!(e && e->addrMask && (va & e->addrMask) == e->addr)) return nullptr;
+	uint8_t *host = write ? e->hostWritePtr : e->hostReadPtr;
+	if (!host) return nullptr;
+	const bool isPage = e->lv2Entry != 0;
+	const int sub = isPage
+		? (((e->lv2Entry & 3) == 1) ? ((va >> 14) & 3) : ((va >> 10) & 3))
+		: 0;
+	const uint8_t pc = isPage ? e->permCachePg[sub] : e->permCache;
+	const int shift = (isPrivileged() ? 0 : 2) + (write ? 1 : 0);
+	if (!(pc & (uint8_t)(1u << (shift + 4)))) return nullptr;   // combo not computed
+	if (!(pc & (uint8_t)(1u << shift)))       return nullptr;   // …or not permitted
+	// Code-coherency, exactly as the per-word write path does it: the span is
+	// inside one 4 KB decoded page, so one drop covers every word in it, and
+	// nothing re-decodes the page between here and the caller's stores.
+	if (write && decodeCache_)
+		invalidateDecodePage(physAddrFromTlbEntry(reinterpret_cast<TlbEntry *>(e), va));
+	return host;
+}
+
 // Authoritative write — translateFast() + checkPermsfast() +
 // host-pointer/writePhysical.  Split out of writeVirtual for the same reason as
 // readVirtualAuthoritative (kill-switch target + cross-check reference).
@@ -973,6 +1038,7 @@ SA1100Bridge::writeVirtualAuthoritative(uint32_t value, uint32_t virtAddr, Value
 	if (auto *fault = std::get_if<MMUFault>(&result))
 		return *fault;
 	auto *fe = std::get<FastTlbEntry *>(result);
+	dataMru_[dataMruIdx(virtAddr)] = fe;   // hint for the next access to this page
 
 	if (auto f = checkPermsfast(fe, virtAddr, true); f != NoFault)
 		return f;

@@ -21,6 +21,14 @@
 set -eu
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# The code generator ends a trace at every address the SoC's per-batch hooks
+# watch for (kJitTraceStopPcs). If that list falls behind the hooks, the failure
+# is silent and only happens under the generator — so it is checked here, where
+# nobody can miss it.
+python3 "$(dirname "$0")/../unit/check-jit-trace-stops.py" \
+    "$(dirname "$0")/../../core/sa1100.cpp" || exit 1
+
 HARNESS="$REPO_ROOT/harness/run"
 ROMS="$REPO_ROOT/roms"
 GOLDEN_DIR="$REPO_ROOT/tests/golden"

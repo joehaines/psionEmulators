@@ -2,6 +2,11 @@
 # Compiles the Psion emulator C++ core to WebAssembly via Emscripten.
 # Outputs psion.js + psion.wasm into frontend/public/.
 #
+# The C++ translation units and the link step use em++, not emcc: from
+# Emscripten 4 onward the C driver no longer pulls in libc++ when the inputs
+# are object files, and the link fails with operator new / __cxa_throw /
+# std::to_string undefined. The two .c decoder files stay on emcc.
+#
 # Prerequisites:
 #   - Emscripten SDK activated: source <emsdk>/emsdk_env.sh
 #   - Run from the repo root or from the scripts/ directory
@@ -22,6 +27,13 @@ OUT_DIR="$REPO_ROOT/frontend/public"
 #   refills, framebuffer reads).  Supported on all current browsers.
 # -msimd128: enables 128-bit SIMD instructions where the compiler
 #   can vectorise (e.g. LCD framebuffer reads, audio sample drain).
+# NOT -flto. It is worth +13% on the native build (see harness/build.sh) and
+# the obvious guess is that it should be worth more here, because the hot path
+# is built out of cross-translation-unit virtual calls that emcc would
+# otherwise leave as call_indirect. Measured on a Series 7 boot: 10.06 s
+# without, 10.08 s with — no difference, on a workload whose wall time is ~73%
+# interpreter. wasm-ld/Binaryen already do the whole-program work at link time.
+# Left off so the build stays fast; do not re-add it without a measurement.
 COMPILE_FLAGS=(
     "-O3"
     "-mbulk-memory"
@@ -35,11 +47,17 @@ COMPILE_FLAGS=(
 # only pass them at link time. (--bind / -lembind, the -s SETTINGS, and
 # SINGLE_FILE are all consumed by wasm-ld, not clang.)
 LINK_FLAGS=(
+    ${PSION_WASM_EXTRA_LINK:-}
     "${COMPILE_FLAGS[@]}"
     "--bind"
     "-s" "MODULARIZE=1"
     "-s" "EXPORT_NAME=createPsionModule"
     "-s" "ALLOW_MEMORY_GROWTH=1"
+    # The code generator (docs/jit-engine-scope.md) puts each compiled region's
+    # exported function into the module's own table and calls it by index —
+    # which in Emscripten is what a C function pointer is. Growing the table is
+    # how a new region gets a slot.
+    "-s" "ALLOW_TABLE_GROWTH=1"
     "-s" "INITIAL_MEMORY=134217728"
     "-s" "EXPORTED_FUNCTIONS=[\"_malloc\",\"_free\"]"
     "-s" "EXPORTED_RUNTIME_METHODS=[\"HEAPU8\"]"
@@ -60,7 +78,7 @@ echo "=== Building WASM: core C++ objects ==="
 # so all of those must be present at link time — leaving any of them out
 # reproduces the wasm-ld "undefined symbol: Series3::Emulator::Emulator()"
 # failure seen in CI.
-SOURCES=(arm710 emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
+SOURCES=(arm710 wasm_emit arm_jit arm_jit_runtime rtc_seed emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
          sa1100 sa1100_cpu \
          audio_codec \
          sibo_audio \
@@ -74,7 +92,7 @@ if [ -f "$CORE/psion_asic9.cpp" ]; then
 fi
 for src in "${SOURCES[@]}"; do
     echo "  Compiling $src.cpp"
-    emcc "${COMPILE_FLAGS[@]}" -c -o "$OBJ_DIR/$src.o" "$CORE/$src.cpp"
+    em++ "${COMPILE_FLAGS[@]}" -c -o "$OBJ_DIR/$src.o" "$CORE/$src.cpp"
 done
 
 echo "=== Building WASM: C decoder objects ==="
@@ -82,7 +100,7 @@ emcc -O3 -mbulk-memory -msimd128 -c -o "$OBJ_DIR/decoder.o"     "$CORE/decoder.c
 emcc -O3 -mbulk-memory -msimd128 -c -o "$OBJ_DIR/decoder-arm.o" "$CORE/decoder-arm.c"
 
 echo "=== Linking ==="
-emcc "${LINK_FLAGS[@]}" "$OBJ_DIR"/*.o "$WASM_SRC/main.cpp" -o "$OUT_DIR/psion.js"
+em++ "${LINK_FLAGS[@]}" "$OBJ_DIR"/*.o "$WASM_SRC/main.cpp" -o "$OUT_DIR/psion.js"
 
 echo ""
 echo "=== WASM build complete ==="

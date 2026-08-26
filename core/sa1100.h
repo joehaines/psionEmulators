@@ -209,7 +209,11 @@ public:
     // and whenever the JIT kill-switch is off — stepCpu() *is* cpu.tick(), so
     // the boot suite validates this path as byte-identical to the interpreter.
     // See docs/jit-engine-scope.md (W2 wiring).
-    uint32_t stepCpu();
+    // maxTicks / maxCycles bound the burst so a multi-instruction engine stops
+    // exactly where the one-instruction-per-call interpreter's batch loop would
+    // have stopped; *ticksUsed reports what it actually consumed. See the
+    // ARM710::tickPageLoop declaration for why the cycle bound is load-bearing.
+    uint32_t stepCpu(int maxTicks, uint32_t maxCycles, int *ticksUsed);
     // Cycle of the soonest scheduled SoC event strictly after `fromCycle`
     // (RTC 1 Hz, armed OSMR matches, the Series-7 synthetic 64 Hz tick, and —
     // while audio/touch are active — the audio-tick and Eiger AtoD completion),

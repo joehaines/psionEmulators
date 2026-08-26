@@ -22,6 +22,7 @@ let mod = null;
 let canvas = null, ctx = null;
 let lcdPtr = 0, W = 0, H = 0;
 let pixelBuf = null, imageData = null;
+let lcdViewBuffer = null;   // ArrayBuffer the current view was built on
 // LCD blit throttle during a Remote-Link transfer. readLCD + putImageData run
 // on THIS worker thread, so they steal wall-time from stepFrameFull — and on a
 // weak/mobile GPU (the field reports are iOS Safari) putImageData is expensive,
@@ -340,6 +341,16 @@ function drainOneKey() {
   }
 }
 
+// Zero-delay yield that the timer-nesting clamp does not apply to — see the
+// scheduling note at the end of tick(). Declared here because `tick` is a
+// hoisted function declaration, so the handler can reference it.
+//
+// Guarded: this file is also loaded into a bare vm sandbox by the worker
+// restore tests, which provide no MessageChannel. Anywhere it is missing we
+// simply keep the old setTimeout path.
+const tickChannel = (typeof MessageChannel !== 'undefined') ? new MessageChannel() : null;
+if (tickChannel) tickChannel.port1.onmessage = () => tick();
+
 function tick() {
   const t0 = performance.now();
   if (running && !paused && mod && ctx) {
@@ -438,8 +449,8 @@ function tick() {
         (performance.now() - lastBlitAt) >= TRANSFER_BLIT_INTERVAL_MS);
       if (blitNow) {
         lastBlitAt = performance.now();
+        refreshLcdView();
         mod.readLCD(lcdPtr);
-        pixelBuf.set(mod.HEAPU8.subarray(lcdPtr, lcdPtr + pixelBuf.length));
         if (deviceMode) applyDeviceModePixels(pixelBuf);
         ctx.putImageData(imageData, 0, 0);
       }
@@ -456,7 +467,18 @@ function tick() {
   // good (it's only armed once). Idle when not running; pace to the frame when running.
   const sleep = running ? Math.max(0, Math.min(SIM_FRAME_MS, nextFrameDue - performance.now()))
                         : SIM_FRAME_MS;
-  setTimeout(tick, sleep);
+  // A chained setTimeout(0) is clamped to 4 ms by the HTML timer-nesting rule
+  // (level > 5 forces timeout to 4). Measured in Chromium inside a Worker:
+  // 249 iterations/sec, 4.02 ms each — against 90,228/sec, 0.011 ms each, for a
+  // MessageChannel port. sleep is 0 exactly when the core is behind real time
+  // and wants to run again immediately, i.e. on the CPU-bound guests that can
+  // least afford to hand 4 ms of every ~16 ms back to the scheduler. Yield
+  // through the port in that case; keep setTimeout for genuine waits.
+  //
+  // Both are ordinary tasks, so incoming messages (input, RPC, device switch)
+  // still interleave exactly as they did before.
+  if (sleep <= 0 && tickChannel) tickChannel.port2.postMessage(0);
+  else                           setTimeout(tick, sleep);
 }
 
 // A psion.wasm built before the screen-orientation binding reports
@@ -499,7 +521,26 @@ function ensureLcdBuffers(info) {
   if (canvas) { canvas.width = W; canvas.height = H; ctx = canvas.getContext('2d'); }
   if (lcdPtr) mod._free(lcdPtr);
   lcdPtr = mod._malloc(W * H * 4);
-  pixelBuf = new Uint8ClampedArray(W * H * 4);
+  lcdViewBuffer = null;            // force the view below to be rebuilt
+  refreshLcdView();
+}
+
+// The frame used to be copied out of the wasm heap into a JS-owned array before
+// being uploaded — 1.2 MB memcpy per painted frame at 640x480. An ImageData can
+// view the heap directly instead. Measured in Chromium with an OffscreenCanvas:
+// copy + putImageData 0.236 ms/frame, putImageData straight off the heap
+// 0.096 ms — 0.140 ms a frame saved.
+//
+// The catch is ALLOW_MEMORY_GROWTH: growing the heap replaces the underlying
+// ArrayBuffer and detaches every view onto the old one, so the ImageData would
+// start throwing. Cheap to defend — compare buffer identity and rebuild — and
+// it must be checked every frame, because growth can happen at any allocation
+// (attaching a CF image, loading a device).
+function refreshLcdView() {
+  const buf = mod.HEAPU8.buffer;
+  if (buf === lcdViewBuffer && pixelBuf) return;
+  lcdViewBuffer = buf;
+  pixelBuf  = new Uint8ClampedArray(buf, lcdPtr, W * H * 4);
   imageData = new ImageData(pixelBuf, W, H);
 }
 
@@ -1127,8 +1168,8 @@ onmessage = async (e) => {
         // the next tick — re-render from the live LCD if we can, else the buffer.
         if (mod && lcdPtr && pixelBuf && imageData) {
           try {
+            refreshLcdView();
             mod.readLCD(lcdPtr);
-            pixelBuf.set(mod.HEAPU8.subarray(lcdPtr, lcdPtr + pixelBuf.length));
             if (deviceMode) applyDeviceModePixels(pixelBuf);
           } catch (_) { /* fall back to the last buffer */ }
           ctx.putImageData(imageData, 0, 0);

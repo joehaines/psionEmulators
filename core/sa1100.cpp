@@ -2,6 +2,7 @@
 // Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
 
 #include "sa1100.h"
+#include "rtc_seed.h"
 #include "common.h"
 #include "eiger.h"
 #include "eiger_classifier.h"
@@ -50,6 +51,46 @@ uint64_t g_sa1100ExecutedCycles = 0;
 // readLCDIntoBuffer can sample the framebuffer.
 
 namespace SA1100 {
+
+// ── Addresses the per-batch hooks watch for ────────────────────────────────
+//
+// Every hook below that acts on an exact program counter — the CF mount fixups,
+// the timer veneers, the recording state machine, the netBook ISR traces —
+// works by sampling cpu.getRealPC() and comparing it against a literal address
+// from a specific OS build. That is fine for an interpreter: it returns to this
+// loop every handful of instructions, so any address the guest lingers on is
+// observable.
+//
+// A generated region is not an interpreter. It runs hundreds of
+// tick-equivalents without returning, and an address in the middle of one is
+// never observable at a sampling point at all — so a hook keyed on it stops
+// firing. The code generator is given this list and ends a trace at any address
+// in it, which puts the guest back here with getRealPC() equal to that address,
+// where the hook expects to find it.
+//
+// WHAT THIS IS *NOT*. It is not a licence to run longer, and it is not the fix
+// for the netBook failing to mount its card at a raised tick cap. That was the
+// theory; it was tested and it is wrong. The hooks are sensitive to the
+// sampling RATE in BOTH directions — sampling them more finely than the batch
+// loop's cadence breaks the same boot, under the reference interpreter as much
+// as under any burst engine — so a bigger table is not a safer one. See
+// docs/netbook-s7-performance.md §8. Keep this list to addresses the hooks
+// genuinely key on.
+//
+// KEEPING IT IN STEP MATTERS. A hook that gains an address not listed here
+// would silently stop working under the code generator, and only under it.
+// tests/unit/check-jit-trace-stops.py re-extracts the addresses from the hook
+// bodies and fails if the two disagree; it runs in the boot suite.
+static const uint32_t kJitTraceStopPcs[] = {
+	0x50012810u, 0x50015954u, 0x50015958u, 0x5001aa10u, 0x5001cc54u, 0x5001e1bcu,
+	0x5002265cu, 0x500282d4u, 0x50058d08u, 0x50058de0u, 0x50058e5cu, 0x500590a8u,
+	0x500595c0u, 0x50059764u, 0x5005978cu, 0x50059db0u, 0x5005ad08u, 0x5005b028u,
+	0x5005b058u, 0x5005b100u, 0x5005b17cu, 0x5005cc90u, 0x5005cdd4u, 0x5005cde8u,
+	0x5005ea54u, 0x5005ea84u, 0x5005ecbcu, 0x50065c14u, 0x50065cc4u, 0x50089fccu,
+	0x5008a01cu, 0x50293cc0u, 0x502941a4u, 0x50294eacu, 0x50295234u, 0x50295774u,
+	0x50295830u, 0x502958acu, 0x502958c0u, 0x50296080u, 0x502977f0u, 0x5029797cu,
+	0x505824b0u,
+};
 
 // PSION_NB_WATCH_RLS4 cross-function marker — set by injectUartRx, read
 // by writePhysical to focus the post-inject window of the watch logs.
@@ -947,6 +988,10 @@ void Emulator::loadROM(uint8_t *buffer, size_t size) {
     // the host programs the Unique id right after it returns, and before
     // the first instruction runs.
     locateMachineIdPrefix();
+    // The ROM buffer has just been written host-side, and the patches above
+    // rewrote it again. Nothing in the emulator watches for that — see
+    // ARM710::onGuestCodeReplaced.
+    cpu.onGuestCodeReplaced();
 }
 
 void Emulator::configure() {
@@ -992,9 +1037,16 @@ void Emulator::configure() {
     ramBanks_ = ramBankCount();
     romWinMask_ = (uint32_t)(romWindowBytes() - 1);
     cfCard.setOwner(&cpu);
+    cpu.setDeviceCycleView(&passedCycles);   // state-trace diagnostics only
+    // Multi-instruction engines advance passedCycles themselves, per
+    // instruction, so peripherals never see a frozen clock — see cycleSink_.
+    cpu.setCycleSink(&passedCycles);
+    // Addresses a generated region must not swallow — see kJitTraceStopPcs.
+    cpu.setJitTraceStops(kJitTraceStopPcs,
+                         sizeof(kJitTraceStopPcs) / sizeof(kJitTraceStopPcs[0]));
     osCrBase = 0;
     osCrBaseCycles = 0;
-    rcnr = (uint32_t)(std::time(nullptr) - 946684800);
+    rcnr = psionInitialRtcSeconds();
     rtcNextTickCycles = CLOCK_SPEED;
     cpu.reset();
     // One-time init of the per-byte Eiger ASIC access classifier
@@ -4843,7 +4895,8 @@ bool Emulator::s7SetDfcPendingFlags(const char *src) {
 // otherwise we fall through to the interpreter and the PC becomes a compile
 // candidate.  Kept as one function so the SoC-servicing outer loop in
 // executeUntil is untouched and the native boot suite gates the fallback path.
-uint32_t Emulator::stepCpu() {
+uint32_t Emulator::stepCpu(int maxTicks, uint32_t maxCycles, int *ticksUsed) {
+    *ticksUsed = 1;
     // Two netpad ROM-tracing hooks.  Both live here, on the
     // per-instruction seam, because the outer servicing loop batches
     // instructions and would otherwise sample only every Nth.
@@ -4879,13 +4932,31 @@ uint32_t Emulator::stepCpu() {
                     cpu.getGPR(14), cpu.getGPR(0), cpu.getGPR(1),
                     (long long)passedCycles);
     }
-    // Page-anchored fast loop (Tier 2): run a short burst of straight-line fast
+    // Page-anchored fast loop (Tier 2): run a burst of straight-line fast
     // instructions from one resolved code page without the per-instruction
-    // tick()/fetchVirtual framework. Capped at 16 insns so the per-batch hook
-    // cadence (mode-2 / Series-7-with-CF) is preserved; it also exits early on a
-    // branch / DK_SLOW / fault / (sub)page boundary. Opt-in (PSION_DECODE_PAGELOOP).
-    if (cpu.pageLoop_) return cpu.tickPageLoop(16);
-    return cpu.tick();
+    // tick()/fetchVirtual framework. It exits early on a branch / DK_SLOW /
+    // fault / (sub)page boundary, at the caller's remaining cycle budget so the
+    // burst cannot run past the next scheduled SoC event, and at kBurstTicks.
+    //
+    // kBurstTicks used to be 16, to hold the per-batch hook cadence. It does not
+    // have to: the caller passes the ticks left in ITS batch, and that batch is
+    // what the cadence is made of — this cap only ever bit deeper than the
+    // caller's. Sixteen made every batch cost at least one extra call, and on
+    // the deadline-batched path (batchInsnCap 4096) it capped the burst at a
+    // 256th of what the batch allowed. Measured in WASM, framebuffer-identical
+    // either way: Series 7 boot 7.0 s -> 6.4 s, and on the netBook it is what
+    // lets the raised batch below actually be taken (see kBatchTicks).
+    static const int kBurstTicks = []() {
+        const char *e = PSION_ENV_CSTR("PSION_BURST_TICKS");
+        int n = e ? std::atoi(e) : 128;
+        return n < 1 ? 1 : n;
+    }();
+    if (cpu.pageLoop_)   // advances passedCycles itself, per instruction
+        return cpu.tickPageLoop(maxTicks < kBurstTicks ? maxTicks : kBurstTicks,
+                                maxCycles, ticksUsed);
+    const uint32_t c = cpu.tick();
+    passedCycles += c;   // one instruction: apply here, as executeUntil used to
+    return c;
 }
 
 // Soonest scheduled SoC event strictly after `fromCycle` — see sa1100.h.
@@ -4926,6 +4997,30 @@ int64_t Emulator::nextSocEventCycle(int64_t fromCycle) const {
         && audioTickNextAt_ > fromCycle
         && audioTickNextAt_ < nextEvent)
         nextEvent = audioTickNextAt_;
+    // The CF card's IREQ# is not an OSMR event either, and it is the one the
+    // netBook bootloader's faithful OS.IMG read blocks on: medata arms the
+    // async multi-sector read, then the guest sleeps until the card says a
+    // chunk is ready. Without a wake here the idle skip sails past the
+    // assertion and lands on the next 64 Hz tick instead — 3.46 M cycles,
+    // where the card actually takes about ten thousand.
+    //
+    // That is not a small slip. It only shows up once a batch runs long enough
+    // for the guest to reach its WFI before the batch loop next samples the
+    // card (the injection below is sampled once per outer iteration), and then
+    // every sector costs a whole tick: measured, the faithful read went from
+    // 0.63 to 31 simulated seconds and the boot ran out of window. Scheduling
+    // the assertion makes the read's speed a property of the card model rather
+    // than of how long the CPU happens to run between housekeeping passes.
+    //
+    // Requested only while an edge is actually owed — the injection sets
+    // cfIrqPrev_ once it has fired — so a delivered interrupt cannot ask to be
+    // woken for again and spin the idle loop.
+    if (isNetBookBootloader_ && cfCard.faithfulMode() && !cfIrqPrev_
+        && cfCard.irqPendingRaw() && cfCard.multiSectorReadActive()) {
+        int64_t due = fromCycle + cfCard.irqDelayRemaining();
+        if (due <= fromCycle) due = fromCycle + 1;
+        if (due < nextEvent) nextEvent = due;
+    }
     // Faithful touch: the scheduled Eiger ADC-complete IRQ is not an OSMR event
     // either, so treat it as a wake so each digitiser conversion completes
     // promptly instead of being delayed a full 64 Hz tick.
@@ -11997,6 +12092,24 @@ void Emulator::executeUntil(int64_t cycles) {
                 if (const char *ov =
                         PSION_ENV_CSTR("PSION_NB_FAITHFUL_BOOT_HARD_SECTORS"))
                     kHardSectors = (uint32_t)strtoul(ov, nullptr, 0);
+                // PSION_NB_CF_PROGRESS: once a second, how far the faithful
+                // read has actually got. The handoff below needs ~94% of the
+                // image; when it never fires, this says whether the read is
+                // slow or stopped.
+                if (PSION_ENV_BOOL("PSION_NB_CF_PROGRESS")) {
+                    static int64_t lastProg = 0;
+                    if (passedCycles - lastProg > (int64_t)CLOCK_SPEED) {
+                        lastProg = passedCycles;
+                        cpu.log("[cf-progress] sectors=%u cmds=%u target=%u cyc=%lld exec=%llu",
+                                cfCard.sectorBoundaryCount, cfCard.ataCommandCount,
+                                kHardSectors, (long long)passedCycles,
+#ifdef PSION_PROFILE_CYCLES
+                                (unsigned long long)g_sa1100ExecutedCycles);
+#else
+                                0ull);
+#endif
+                    }
+                }
                 bool idleFire = (cfCard.sectorBoundaryCount >= kSectors &&
                                  nbFaithfulLastAtaCycle_ != 0 &&
                                  passedCycles - nbFaithfulLastAtaCycle_ >= kReadIdle);
@@ -18699,13 +18812,14 @@ void Emulator::executeUntil(int64_t cycles) {
         //   (15.6 ms = 64 Hz NTimerQ) or the OS's IRQ-latency
         //   tolerance.
         //
-        //   Default 8 picked for 3× wall-time speedup with zero boot-
-        //   CI failures across all 20 devices and zero remote-link
-        //   handshake regressions.  Bench (netbook full OS, 25 sim
-        //   sec post-attach): 141 s (N=1) → 65 s (N=4) → 47 s (N=8)
-        //   → 42 s (N=16).  Diminishing returns above 8, so default
-        //   sits at the knee of the curve.  Set PSION_BATCH_TICKS=1
-        //   to disable for debugging.
+        //   N=8 was picked originally for a 3× wall-time speedup with
+        //   zero boot-CI failures across all 20 devices and zero
+        //   remote-link handshake regressions, then raised to 16.
+        //   Bench (netbook full OS, 25 sim sec post-attach): 141 s
+        //   (N=1) → 65 s (N=4) → 47 s (N=8) → 42 s (N=16).  The knee
+        //   there is not the end of it — see the default below, which
+        //   is now 128.  Set PSION_BATCH_TICKS=1 to disable for
+        //   debugging.
         //
         //   Sleep-halt and SDLC-style cycle skips above already break
         //   the loop with `continue`, so they bypass the batch — only
@@ -18719,12 +18833,31 @@ void Emulator::executeUntil(int64_t cycles) {
         //   pre-tick housekeeping (timer fires, RTC ticks, LCD frame)
         //   are delayed — and those run cycle-paced so an extra N
         //   cycles is irrelevant.
+        // Tick-equivalents per outer iteration when a per-instruction hook is
+        // watching (hooksActive) — the netBook, and the Series 7 with a card in.
+        // Those machines get no deadline batching, so this cap alone decides how
+        // often the SoC is serviced, and it used to be 16.
+        //
+        // 128 instead. The hooks tolerate it: the netBook running its Quartz
+        // image off a CF card renders a byte-identical framebuffer at 64, 128,
+        // 256 and 384, and takes 7.7 s of wall time to run 30 simulated seconds
+        // at 16 against 3.9 s at 128 — the machine that motivated this whole
+        // exercise, twice as fast, from raising a constant. It is NOT unbounded:
+        // at 512 the framebuffer changes, so the cadence does eventually matter
+        // and 128 keeps a factor of four in hand. (Below 16 it also breaks —
+        // sampling the hooks MORE often is not safe either; see
+        // docs/netbook-s7-performance.md.)
+        //
+        // The cost is servicing slip: an IRQ raised by the pre-tick housekeeping
+        // (timer fire, RTC tick, LCD frame) can now be delivered up to 128
+        // instructions late instead of 16 — about a microsecond of simulated
+        // time, which is the order of a real SA-1100's interrupt latency anyway.
         static const int kBatchTicks = []() {
             const char *e = PSION_ENV_CSTR("PSION_BATCH_TICKS");
-            if (!e) return 16;    // default sweet spot — CI clean to N=16
+            if (!e) return 128;
             int n = std::atoi(e);
             if (n < 1)  n = 1;
-            if (n > 64) n = 64;
+            if (n > 65536) n = 65536;
             return n;
         }();
         // PSION_NB_RANGE_TRACE=1: log EVERY tick whose pre-execute PC
@@ -20902,6 +21035,11 @@ void Emulator::executeUntil(int64_t cycles) {
         // orphaned.  The walk then terminates normally and the OS stays live.
         // Kill switch: PSION_NB_NO_DQ_FIX.  Diagnostics: PSION_NB_DQ.
         static const bool kDqFix = !PSION_ENV_CSTR("PSION_NB_NO_DQ_FIX");
+        // PSION_NB_DQ_CAP: capture mode — check EVERY batch rather than one in
+        // 64, so a self-link is caught the instant it forms.  Read here rather
+        // than inside the hook because the throttle it selects is applied at
+        // the call site (see the hook gate below).
+        static const bool kDqCap = PSION_ENV_CSTR("PSION_NB_DQ_CAP") != nullptr;
         static uint32_t dqThrottle = 0;
         auto dqGuardHook = [&]() {
             if (!isNetBookRom_ || !kDqFix) return;
@@ -20912,12 +21050,10 @@ void Emulator::executeUntil(int64_t cycles) {
             // recStoppedOnce_ gate: that flag is cleared by a record re-arm
             // during play, which would disable the guard exactly when needed;
             // a self-linked head is ALWAYS corruption regardless of rec state.)
-            // PSION_NB_DQ_CAP: capture mode — check EVERY tick (not throttled)
-            // so the self-link is caught the instant it forms, before the kernel
-            // walk overwrites the PC-history ring; dumps the call path of the
-            // SPURIOUS second arm so the upstream double-arm can be fixed.
-            static const bool kCap = PSION_ENV_CSTR("PSION_NB_DQ_CAP") != nullptr;
-            if (!kCap && (++dqThrottle & 0x3Fu) != 0) return;
+            // The one-in-64 throttle (and the PSION_NB_DQ_CAP override that
+            // turns it off) is applied by the hook gate, so the 63 batches that
+            // would have returned here never make the call at all.
+            const bool kCap = kDqCap;
             uint32_t head = cpu.readVirtualDebug(0x800007b8u, ARM710::V32).value_or(0);
             // Only when the queue head is a valid kernel pointer (skip the
             // user-mode contexts where 0x800007b8 isn't mapped -> reads 0).
@@ -21078,13 +21214,41 @@ void Emulator::executeUntil(int64_t cycles) {
             recEdge_ || recDmaEng_ || recRateFix_
             || isNetBookRom_ || isNetBookBootloader_
             || (isSeries7Rom_ && cfCard.inserted());
+        // PSION_NB_HOOK_MASK=<bits> disables individual assist hooks so a
+        // behaviour change can be attributed to one of them. Default all-on.
+        //   0x01 recFix  0x02 dqGuard  0x04 tmr  0x08 tmrStartFix
+        //   0x10 s7CfMount  0x20 nbCfMount  0x40 cascadeTrace  0x80 pwrUpTrace
+        static const int kHookMask = []() {
+            const char *e = PSION_ENV_CSTR("PSION_NB_HOOK_MASK");
+            return e ? (int)std::strtol(e, nullptr, 0) : 0xff;
+        }();
+        // MEASURED AND REJECTED, recorded so nobody repeats it: fronting these
+        // hooks with a copy of each one's own leading guard, so a hook that
+        // cannot fire costs a test rather than a walk through its (inlined)
+        // body, is worth NOTHING.  Four interleaved pairs of the netBook Sheet
+        // benchmark, gated 5.57/5.66/5.72/5.50 against ungated
+        // 5.54/5.57/5.76/5.68 — a 2-2 split.  The 7.5% that separates "all
+        // hooks on" from PSION_NB_HOOK_MASK=0 is not the hook bodies at all;
+        // it is dqGuardHook's one-in-64 pair of readVirtualDebug page-table
+        // walks, which a gate copied from its guards would still make.  Fifty
+        // lines of duplicated conditions that have to stay in step with eight
+        // hooks, for no gain, is a drift hazard and nothing else.  See
+        // docs/netbook-s7-performance.md section 17.
         if (hooksActive) {
-            recFixHook();
-            dqGuardHook();
-            tmrHook();
-            tmrStartFix();
-            s7CfMountHook();
-            nbCfMountHook();
+            if (kHookMask & 0x01) recFixHook();
+            // The delta-queue guard's first two lines, moved out verbatim
+            // rather than copied: it acts one batch in 64 and returns on the
+            // other 63, and the counter is the only state it touches on those,
+            // so advancing it here is the same program.  Worth doing on its own
+            // — those 63 calls are gone — but it is the walks on the 64th that
+            // cost, not the calls.
+            if ((kHookMask & 0x02) && isNetBookRom_ && kDqFix
+                    && (kDqCap || (++dqThrottle & 0x3Fu) == 0))
+                dqGuardHook();
+            if (kHookMask & 0x04) tmrHook();
+            if (kHookMask & 0x08) tmrStartFix();
+            if (kHookMask & 0x10) s7CfMountHook();
+            if (kHookMask & 0x20) nbCfMountHook();
         }
         // (ROM FUN_50088a50) runs.  The native-CF card-detect delivery uses
         // this to confirm a freshly-armed pulse actually drove the media-change
@@ -21125,8 +21289,8 @@ void Emulator::executeUntil(int64_t cycles) {
             }
         }
         if (hooksActive) {
-            cascadeTrace();
-            pwrUpTrace();
+            if (kHookMask & 0x40) cascadeTrace();
+            if (kHookMask & 0x80) pwrUpTrace();
         }
         // GATED (PSION_NB_ADCSVC): capture the netBook ADC-service `this`
         // pointer at the digitiser driver entry points (ROM 0x50004560 trigger,
@@ -21178,7 +21342,23 @@ void Emulator::executeUntil(int64_t cycles) {
                 && lcdFrameNextCycle_ < batchCycleCeil)
                 batchCycleCeil = lcdFrameNextCycle_;
         }
-        uint32_t insnCycles = stepCpu();
+        // Cycles the CPU may retire before it must return to the servicing
+        // loop: the soonest of this executeUntil target and the batch ceiling.
+        // Floored at 1 so the pre-loop step always makes forward progress,
+        // exactly as the unconditional first tick() did.
+        // Only a burst engine can overshoot, so only a burst engine pays for
+        // computing the bound — the interpreter path stays exactly as cheap as
+        // it was before this seam grew a budget.
+        const bool burstEngine = cpu.pageLoop_;
+        auto stepBudget = [&]() -> uint32_t {
+            if (!burstEngine) return 0;   // unused by the single-instruction path
+            int64_t ceil = (batchCycleCeil < cycles) ? batchCycleCeil : cycles;
+            int64_t room = ceil - passedCycles;
+            if (room < 1) room = 1;
+            return (uint32_t)(room > 0x3FFFFFFF ? 0x3FFFFFFF : room);
+        };
+        int ticksUsed = 1;
+        uint32_t insnCycles = stepCpu(batchInsnCap, stepBudget(), &ticksUsed);
         if (diagBL) {
             static int blDiagN = 0;
             if (blDiagN < 6) {
@@ -21188,11 +21368,13 @@ void Emulator::executeUntil(int64_t cycles) {
                         cpu.getRealPC(), cpu.getGPR(14), cpu.getCPSR());
             }
         }
-        passedCycles += insnCycles;
-        PSION_COUNT_EXEC(insnCycles);
-        for (int batch_i = 1; batch_i < batchInsnCap &&
+        PSION_COUNT_EXEC(insnCycles);   // stepCpu() already advanced passedCycles
+        // batch_i counts tick-equivalents, not calls: a multi-instruction engine
+        // retires `ticksUsed` of them per call, so the batch covers the same
+        // number of emulated instructions whichever engine is driving.
+        for (int batch_i = ticksUsed; batch_i < batchInsnCap &&
                               passedCycles < cycles &&
-                              passedCycles < batchCycleCeil; batch_i++) {
+                              passedCycles < batchCycleCeil; batch_i += ticksUsed) {
             if ((isNetBookRom_ || isSeries7Rom_) &&
                 PSION_ENV_CSTR("PSION_NB_RANGE_TRACE")) {
                 uint32_t prePc = cpu.getRealPC();
@@ -21233,7 +21415,12 @@ void Emulator::executeUntil(int64_t cycles) {
                 // honour PSION_NB_HOOKS_PERBATCH.
                 if (recEdge_ || recDmaEng_ || recRateFix_) recFixHook();
                 if (!kHooksPerBatch) {
-                    dqGuardHook();
+                    // dqGuardHook's one-in-64 throttle now lives at its call
+                    // sites (see the outer one), so apply it here too — this
+                    // path used to reach it through the hook's own first lines.
+                    if (isNetBookRom_ && kDqFix
+                            && (kDqCap || (++dqThrottle & 0x3Fu) == 0))
+                        dqGuardHook();
                     tmrHook();
                     tmrStartFix();
                     s7CfMountHook();
@@ -21242,9 +21429,8 @@ void Emulator::executeUntil(int64_t cycles) {
                     pwrUpTrace();
                 }
             }
-            insnCycles = stepCpu();
-            passedCycles += insnCycles;
-            PSION_COUNT_EXEC(insnCycles);
+            insnCycles = stepCpu(batchInsnCap - batch_i, stepBudget(), &ticksUsed);
+            PSION_COUNT_EXEC(insnCycles);   // passedCycles advanced inside stepCpu()
         }
 
         // One-shot trace: log the first time the kernel executes inside
@@ -27999,6 +28185,63 @@ void Emulator::readLCDIntoBuffer(uint8_t **lines, bool is32BitOutput) const {
         return { contrastLut[c.r], contrastLut[c.g], contrastLut[c.b] };
     };
 
+    // ── 8 bpp / RGBA fast path ──────────────────────────────────────────
+    //
+    // The Series 7, netBook and netpad panels are all 8 bpp into a 32-bit
+    // buffer, and this runs once per displayed frame — up to 60 times a second
+    // whatever the emulated CPU is doing. The generic path below costs 1.57 ms
+    // a frame in the WASM build (9.4% of a 16.7 ms frame) because it resolves
+    // every pixel through resolvePixelIndex -> pxByteAt -> byteAt, which
+    // re-derives the SDRAM bank from the framebuffer base, range-checks the
+    // region and bounds-checks the offset PER PIXEL, then runs the palette and
+    // a three-entry contrast LUT on the result.
+    //
+    // None of that varies within a row. Resolve the bank and the row's byte
+    // offset once per row, fold palette and contrast into a single 256-entry
+    // RGBA lookup once per frame, and the per-pixel work becomes a byte load, a
+    // table load and a store. The blank pre-fill is skipped too: this path
+    // writes every pixel it is responsible for, and fills only the rows it
+    // cannot resolve.
+    if (bpp == 8 && is32BitOutput) {
+        uint32_t lut[256];
+        for (int i = 0; i < 256; i++) {
+            Rgb c = paletteAllZero ? Rgb{(uint8_t)i, (uint8_t)i, (uint8_t)i} : palette[i];
+            c = applyContrast(c);
+            lut[i] = (uint32_t)c.r | ((uint32_t)c.g << 8) | ((uint32_t)c.b << 16) | 0xFF000000u;
+        }
+        for (int y = 0; y < H; y++) {
+            uint32_t base; bool hasPalette; size_t lineIdx;
+            if (dualScan && y >= halfLines) {
+                base = dbar2; hasPalette = false; lineIdx = (size_t)(y - halfLines);
+            } else {
+                base = dbar1; hasPalette = true;  lineIdx = (size_t)y;
+            }
+            auto row = reinterpret_cast<uint32_t *>(lines[y]);
+            // Same bank/region selection byteAt() does, hoisted out of the loop.
+            const uint8_t *bank = nullptr;
+            const uint8_t region = (uint8_t)(base >> 24);
+            if (base != 0 && region >= 0xC0 && region <= 0xDF) {
+                if      (region >= 0xC8 && region <= 0xCF)                    bank = RAM2;
+                else if (ramBanks_ >= 4 && region >= 0xD0 && region <= 0xD7)  bank = RAM3;
+                else if (ramBanks_ >= 4 && region >= 0xD8 && region <= 0xDF)  bank = RAM4;
+                else                                                          bank = RAM;
+            }
+            const size_t rowOff = (size_t)(base & kBankMask)
+                                + (hasPalette ? paletteBytes : 0)
+                                + lineIdx * (size_t)bytesPerLine;
+            // Out-of-range bytes must match byteAt(), which returns 0 — so they
+            // render as palette entry 0, NOT as black. Partial rows matter: the
+            // generic path resolves per byte, so the in-range prefix still shows
+            // real pixels.
+            const size_t avail = (bank && rowOff < kBankSize) ? (kBankSize - rowOff) : 0;
+            const int    n     = (int)((avail < (size_t)W) ? avail : (size_t)W);
+            const uint8_t *src = bank ? bank + rowOff : nullptr;
+            for (int x = 0; x < n; x++) row[x] = lut[src[x]];
+            for (int x = n; x < W; x++) row[x] = lut[0];
+        }
+        return;
+    }
+
     for (int y = 0; y < H; y++) {
         uint32_t base;
         bool hasPalette;
@@ -28584,7 +28827,7 @@ bool Emulator::netBookLoadOsFromCard(const uint8_t *bytes, size_t size) {
     // preserved (SDRAM survives reset on real silicon too).
     osCrBase        = 0;
     osCrBaseCycles  = passedCycles;
-    rcnr            = (uint32_t)(std::time(nullptr) - 946684800);
+    rcnr            = psionInitialRtcSeconds();
     rtcNextTickCycles = passedCycles + CLOCK_SPEED;
     for (int i = 0; i < 4; i++) {
         osmr[i]         = 0;
@@ -28727,6 +28970,10 @@ bool Emulator::netBookLoadOsFromCard(const uint8_t *bytes, size_t size) {
     cpu.setCPSR(0x000000D3u);
 
     // Step 6: jump to the OS entry.  EPOC OS.IMGs entry at the load
+    // The OS image was copied straight into the RAM and ROM buffers above and
+    // then patched, none of which anything in the emulator watches for — see
+    // ARM710::onGuestCodeReplaced.
+    cpu.onGuestCodeReplaced();
     // base (the reset-vector branch at body+0 sends control onward
     // into the kernel reset handler).  When the MMU is disabled,
     // VA 0xC8000000 reads through to PA 0xC8000000 = RAM bank 1.

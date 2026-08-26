@@ -109,6 +109,13 @@ public:
 		if (irqDelayCycles > cycles) irqDelayCycles -= cycles;
 		else irqDelayCycles = 0;
 	}
+	// IREQ# state before the assert delay is applied, and how much of that
+	// delay is left. The host needs both to schedule a wake for the assertion:
+	// a guest sleeping on this interrupt has to be woken AT it, not at whatever
+	// unrelated event happens to be scheduled next. See
+	// SA1100::Emulator::nextSocEventCycle().
+	bool irqPendingRaw() const { return irqPending && _inserted; }
+	int  irqDelayRemaining() const { return irqDelayCycles; }
 
 	// Diagnostic counters consumed by the host's CF-IRQ re-enable strategy
 	// sweep. Every ATA command written to reg 0x7 bumps ataCommandCount;

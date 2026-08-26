@@ -5,6 +5,7 @@
 
 
 #include "windermere.h"
+#include "rtc_seed.h"
 #include "wind_defs.h"
 #include "hardware.h"
 #include <algorithm>
@@ -69,7 +70,7 @@ Emulator::Emulator() : etna(&cpu) {
 
 
 uint32_t Emulator::getRTC() {
-    uint32_t val = time(nullptr) - 946684800;
+    uint32_t val = psionInitialRtcSeconds();   // PSION_RTC_SEED pins this
     //log("getRTC: %04x", val);
     return  val;
 }

@@ -249,6 +249,14 @@ unsigned getCpuRealPc() { auto *c = g_emu ? g_emu->getArmCpu() : nullptr; return
 // dispatcher calls for instructions the codegen doesn't support, and the oracle
 // the JIT block is validated against. CPU-only by design — no timer/LCD/IRQ
 // servicing — so it must not drive a real session on its own.
+// Prints the code generator's counters to stderr (PSION_JIT runs only) — how
+// many regions were compiled, how many entries they served, and how much of the
+// guest they covered. See docs/jit-engine-scope.md.
+void dumpJitStats() {
+    auto *c = g_emu ? g_emu->getArmCpu() : nullptr;
+    if (c) c->jitDumpStats();
+}
+
 unsigned tickCpu() { auto *c = g_emu ? g_emu->getArmCpu() : nullptr; return c ? c->tick() : 0u; }
 // Desktop-idle diagnostics: exception/WFI/instruction counters (see arm710.cpp).
 extern uint64_t g_armExc[16];
@@ -921,6 +929,7 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("setMachineId",             &setMachineId);
     emscripten::function("setLoggingEnabled",        &setLoggingEnabled);
     emscripten::function("setEnvVar",                &setEnvVar);
+    emscripten::function("dumpJitStats",             &dumpJitStats);
     emscripten::function("getSimCycles",             &getSimCycles);
     emscripten::function("getClockHz",               &getClockHz);
     emscripten::function("getAllDeviceProfilesJSON", &getAllDeviceProfilesJSON);

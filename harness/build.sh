@@ -25,7 +25,10 @@ CXXFLAGS=(-O3 -flto -std=c++17 -Wno-deprecated-declarations -Wno-multichar -DPSI
 CFLAGS=(-O3 -flto)
 
 echo "=== Compiling core C++ sources ==="
-SOURCES=(arm710 emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
+# Objects every target that links arm710.o also needs: ARM710's destructor and
+# initFastPathGate reach the code generator's dispatcher seam.
+ARM_JIT_OBJS=("$OBJ_DIR/wasm_emit.o" "$OBJ_DIR/arm_jit.o" "$OBJ_DIR/arm_jit_runtime.o")
+SOURCES=(arm710 wasm_emit arm_jit arm_jit_runtime rtc_seed emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
          sa1100 sa1100_cpu \
          audio_codec \
          sibo_audio \
@@ -67,6 +70,20 @@ done
 # SSD frame-protocol smoke test. Tiny binary; always built so CI can
 # exercise it via `tests/ssd_smoke` after the harness link succeeds.
 TESTS_DIR="$REPO_ROOT/tests"
+# ARM -> WASM code generator differential test (Stage 3). The C++ half writes a
+# case file: for each case, the instruction word, the register file it started
+# from, the state the REAL interpreter produced from it, and the generated WASM
+# module. tests/unit/arm_jit_test.mjs replays the modules under node and
+# compares. Run both halves with:
+#   tests/unit/arm_jit_test /tmp/arm-jit-cases.bin &&
+#   node tests/unit/arm_jit_test.mjs /tmp/arm-jit-cases.bin
+if [ -f "$TESTS_DIR/unit/arm_jit_test.cpp" ]; then
+    echo "=== Linking arm_jit_test ==="
+    "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/arm_jit_test.cpp" \
+        "${ARM_JIT_OBJS[@]}" "$OBJ_DIR/arm710.o" \
+        -o "$TESTS_DIR/unit/arm_jit_test"
+fi
+
 if [ -f "$TESTS_DIR/unit/ssd_smoke.cpp" ]; then
     echo "=== Linking ssd_smoke ==="
     "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/ssd_smoke.cpp" \
@@ -91,14 +108,14 @@ fi
 if [ -f "$TESTS_DIR/unit/machine_id_test.cpp" ]; then
     echo "=== Linking machine_id_test ==="
     "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/machine_id_test.cpp" \
-        "$OBJ_DIR/etna.o" "$OBJ_DIR/arm710.o" "$OBJ_DIR/emubase.o" \
+        "$OBJ_DIR/etna.o" "$OBJ_DIR/arm710.o" "${ARM_JIT_OBJS[@]}" "$OBJ_DIR/emubase.o" \
         -o "$TESTS_DIR/unit/machine_id_test"
 fi
 
 if [ -f "$TESTS_DIR/unit/cf_write_test.cpp" ]; then
     echo "=== Linking cf_write_test ==="
     "$CXX" "${CXXFLAGS[@]}" "$TESTS_DIR/unit/cf_write_test.cpp" \
-        "$OBJ_DIR/vcfcard.o" "$OBJ_DIR/arm710.o" "$OBJ_DIR/emubase.o" \
+        "$OBJ_DIR/vcfcard.o" "$OBJ_DIR/arm710.o" "${ARM_JIT_OBJS[@]}" "$OBJ_DIR/emubase.o" \
         -o "$TESTS_DIR/unit/cf_write_test"
 fi
 

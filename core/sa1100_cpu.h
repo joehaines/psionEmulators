@@ -3,6 +3,7 @@
 
 #pragma once
 #include "emubase.h"
+#include <cstddef>
 #include <vector>
 
 // SA-1100-specific ARM710 bridge with TLB performance extensions.
@@ -41,6 +42,14 @@ public:
 	void flushTlb(uint32_t virtAddr) override;
 	void onMmuPermConfigChanged() override { invalidatePermCache(); }
 	void onICacheFlush() override { invalidateDecodeCache(/*includeImmutable=*/false); }
+	// Guest code replaced host-side: drop the decoded pages too, immutable ones
+	// included — "immutable" means the guest cannot write them, not that a ROM
+	// image cannot be swapped underneath.
+	void onGuestCodeReplaced() override {
+		invalidateDecodeCache(/*includeImmutable=*/true);
+		invalidateFetchPage();
+		ARM710::onGuestCodeReplaced();
+	}
 
 	std::pair<MaybeU32, MMUFault> readVirtual(uint32_t virtAddr, ValueSize valueSize) override;
 	std::pair<MaybeU32, MMUFault> fetchVirtual(uint32_t virtAddr) override;
@@ -48,6 +57,30 @@ public:
 	// Resolve a code page for tickPageLoop: host pointer + decoded-kind array for
 	// the 1 KB subpage containing va (subpage so the fetch perm stays uniform).
 	bool resolveFetchPage(uint32_t va, FetchPage &out) override;
+	uint8_t *fastSpanPtr(uint32_t va, uint32_t bytes, bool write) override;
+
+	// The data-side micro-TLB, described for the code generator — see
+	// ARM710::JitMemSeam. Offsets come from offsetof rather than being written
+	// out, so a field added to FastTlbEntry cannot silently move the ones the
+	// generated code reads.
+	bool jitMemSeam(JitMemSeam &out) const override {
+		out.mruBase = reinterpret_cast<uintptr_t>(&dataMru_[0]);
+		out.mruWayMask = DataMruWays - 1;
+		out.mruShift = 12;                       // matches dataMruIdx()
+		out.offAddrMask   = (uint32_t)offsetof(FastTlbEntry, addrMask);
+		out.offAddr       = (uint32_t)offsetof(FastTlbEntry, addr);
+		out.offLv1        = (uint32_t)offsetof(FastTlbEntry, lv1Entry);
+		out.offLv2        = (uint32_t)offsetof(FastTlbEntry, lv2Entry);
+		out.offPermCache  = (uint32_t)offsetof(FastTlbEntry, permCache);
+		out.offPermCachePg= (uint32_t)offsetof(FastTlbEntry, permCachePg);
+		out.offHostRead   = (uint32_t)offsetof(FastTlbEntry, hostReadPtr);
+		out.offHostWrite  = (uint32_t)offsetof(FastTlbEntry, hostWritePtr);
+		out.decodePagesPtr = reinterpret_cast<uintptr_t>(&decodePages_);
+		out.decodePageSlotMask = DecodePageSlots - 1;
+		out.decodePageStride = (uint32_t)sizeof(DecodedPage);
+		out.offDecodePhysBase = (uint32_t)offsetof(DecodedPage, physBase);
+		return true;
+	}
 
 	// Authoritative (no-inlined-fast-path) read/write — the translateFast() +
 	// checkPermsfast() + host-pointer/physical sequence.  Split out so the
@@ -69,6 +102,27 @@ private:
 	FastTlbEntry fastTlb[FastTlbSets][FastTlbWays] = {};
 	int fastTlbNextWay[FastTlbSets] = {};
 	FastTlbEntry *lastFastTlbEntry = nullptr;
+	// Data-side micro-TLB.
+	//
+	// lastFastTlbEntry is a SINGLE most-recently-used entry shared by every
+	// data access, and a typical instruction stream touches stack, globals and
+	// heap in turn — so it ping-pongs. Measured on a Series 7 desktop boot:
+	// 51,886,944 readVirtual calls, 33,083,397 of them falling through to the
+	// full translateFast() + checkPermsfast() walk. That is a 63.8% MISS rate,
+	// against the "80-95% hit rate" this header used to claim. The instruction
+	// side already got its own MRU (lastFetchEntry) and hits 93.3%; this is the
+	// same fix for the data side, widened to a small direct-mapped set so
+	// stack/globals/heap can be resident at once instead of evicting each other.
+	//
+	// Indexed on VA bits 12+ so 4 KB pages spread across the ways; a 1 MB
+	// section entry simply ends up cached in several slots, which costs nothing
+	// but a little redundancy. Entries live in the fixed fastTlb[][] array and
+	// are never freed, so a stale pointer here stays valid memory — and every
+	// use re-checks addrMask/addr, which is authoritative. A slot is therefore
+	// only ever a HINT: it can miss, it can never mis-serve.
+	enum { DataMruWays = 8 };
+	FastTlbEntry *dataMru_[DataMruWays] = {};
+	static int dataMruIdx(uint32_t va) { return (int)((va >> 12) & (DataMruWays - 1)); }
 	// Separate MRU for instruction fetches (see fetchVirtual). Keeps the code
 	// page cached across interleaved data accesses so the fetch path doesn't
 	// thrash lastFastTlbEntry.
@@ -83,34 +137,39 @@ private:
 	std::variant<FastTlbEntry *, MMUFault> translateFast(uint32_t virtAddr);
 	MMUFault checkPermsfast(FastTlbEntry *entry, uint32_t virtAddr, bool isWrite);
 
-	// ── Phys-keyed decoded-instruction cache (docs/execution-engine-scope.md) ──
-	// One ArmDK kind-byte per 32-bit word of a touched 4 KB *physical* code page,
-	// so a hot loop reads the cached classification instead of re-deriving it
-	// every fetch. Keyed by PHYSICAL address so it survives VA→PA remaps / process
-	// switches (TTBR changes) with no flush — the whole point vs. a VA key.
-	// Direct-mapped over a small slot set: the hot code working set is a handful
-	// of pages that stay in host cache, whereas a flat ROM-sized table lost to
-	// cache misses (see the scope doc's post-mortem). Lazily allocated; excluded
-	// from heap snapshots and cleared on restore (it's a derived accelerator).
-	// `immutable` (no host write pointer ⇒ ROM) is never invalidated by a TLB
-	// flush, so process switches don't blow away the ROM code classification.
+	// ── Phys-keyed code-page validity tokens ──────────────────────────────
+	// One slot per touched 4 KB *physical* code page. Keyed by PHYSICAL address
+	// so a slot survives VA→PA remaps / process switches (TTBR changes) with no
+	// flush — the whole point vs. a VA key. Direct-mapped over a small slot set.
+	// Lazily allocated; excluded from heap snapshots and cleared on restore
+	// (it's a derived accelerator). `immutable` (no host write pointer ⇒ ROM) is
+	// never invalidated by a TLB flush, so process switches don't drop ROM pages.
+	//
+	// These slots used to carry a 1 KB `kind[]` array — one ArmDK byte per word,
+	// so a hot loop could read a cached classification instead of re-deriving
+	// it. Nothing reads a cached kind any more: both engines classify from the
+	// instruction word at the point of dispatch, because a cached or carried
+	// kind can go stale or out of step and then silently dispatch the wrong
+	// handler (see ARM710::tickPageLoop). What is left is the part the fetch
+	// path still needs — a token that says "this physical page has not been
+	// written since you resolved it", which is what `physBase` is: the page loop
+	// holds &physBase and compares. Dropping kind[] took a slot from 1032 bytes
+	// to 8, so the whole table is 2 KB and stays in L1 instead of costing a
+	// cache miss per resolve, and a slot eviction no longer memsets 1 KB.
 	struct DecodedPage {
 		uint32_t physBase = 0xFFFFFFFFu;   // 4 KB-aligned phys; sentinel = empty slot
 		bool     immutable = false;        // ROM page (no write pointer) → never dropped
-		uint8_t  kind[1024];               // ArmDK per word; DK_UNCACHED (0) = decode me
 	};
-	enum { DecodePageSlots = 256 };        // 256 × 4 KB pages addressable (~256 KB)
+	enum { DecodePageSlots = 256 };        // 256 × 4 KB pages addressable
 	DecodedPage *decodePages_ = nullptr;   // lazily allocated array[DecodePageSlots]
 	// Returns the slot for physAddr's 4 KB page, (re)initialising it on a miss
-	// (collision evicts). nullptr only on allocation failure. Caller indexes
-	// kind[(physAddr & 0xFFF) >> 2].
+	// (collision evicts). nullptr only on allocation failure.
 	DecodedPage *decodePageFor(uint32_t physAddr);
 	// Invalidation: drop everything non-immutable (TLB flush / I-cache flush /
 	// MMU enable edge), one page (per-page code write / per-VA flush), or all
 	// (snapshot restore).
 	void invalidateDecodeCache(bool includeImmutable);
 	void invalidateDecodePage(uint32_t physAddr);
-	void checkDecodeDivergence(uint32_t physAddr, uint32_t insn, uint8_t cachedKind);
 	// Builds the packed four-combo permission byte (see FastTlbEntry) for an
 	// entry whose effective 2-bit AP field is `accessPerms` and whose domain is
 	// `domain`. Returns 0 for a No-Access / Reserved domain (left uncached so

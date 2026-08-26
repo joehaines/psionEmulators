@@ -3,6 +3,7 @@
 // Subject to the Mozilla Public License v2.0 (http://mozilla.org/MPL/2.0/).
 
 #include "clps7111.h"
+#include "rtc_seed.h"
 #include "clps7111_defs.h"
 #include "hardware.h"
 #include <algorithm>
@@ -38,7 +39,7 @@ uint32_t Emulator::getRTC() {
 	if (const char *e = std::getenv("PSION_S5_RTC_OVERRIDE")) {
 		return (uint32_t)std::strtoul(e, nullptr, 0);
 	}
-	return time(nullptr) - 946684800;
+	return psionInitialRtcSeconds();   // PSION_RTC_SEED pins this
 }
 
 

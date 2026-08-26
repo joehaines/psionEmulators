@@ -7,6 +7,7 @@
 #include <optional>
 #include <variant>
 #include <functional>
+#include "state_trace.h"
 
 
 //using namespace std;
@@ -27,6 +28,31 @@
 #define ARM710T_TLB
 
 typedef std::optional<uint32_t> MaybeU32;
+
+// The code generator's dispatcher, reached through free functions: arm710.h is
+// included BY the generator, so it cannot include the generator's header back.
+// The page is passed as its parts rather than as ARM710::FetchPage for the same
+// reason — a nested type cannot be forward-declared.
+class ARM710;
+namespace armjit {
+class Runtime;
+// Creates the dispatcher only when the JIT is enabled, so a normal build never
+// allocates one and the hot path is a single null test.
+void jitEnsure(Runtime *&slot);
+void jitDestroy(Runtime *&slot);
+// Prints what the dispatcher did. Nothing when the JIT never ran.
+void jitDumpStats(Runtime *slot);
+// Drops every compiled region. See ARM710::onGuestCodeReplaced.
+void jitFlushAll(Runtime *slot);
+// Counts a burst that reached the dispatcher's doorstep with a pipeline it
+// cannot enter from. Coverage instrumentation only — see Stats::dirtyEntry.
+void jitNoteDirtyEntry(Runtime *slot);
+// Returns cycles retired, or 0 having done nothing.
+uint32_t jitRun(Runtime *rt, ARM710 &cpu,
+                const uint8_t *hostBase, uint32_t startVa, uint32_t endVa,
+                const uint32_t *validPtr, uint32_t physBase,
+                uint32_t entryPc, uint32_t maxCycles, int maxTicks, int *ticksUsed);
+}
 
 // Decoded-instruction kinds for the ROM decoded-op cache (Phase 1 of
 // docs/execution-engine-scope.md). decodeKind() classifies a raw ARM word into
@@ -88,8 +114,9 @@ public:
 		cp15_id = _isTVersion ? 0x41807100 : 0x41047100;
 		clearAllValues();
 		initFastPathGate();
+		initStateTrace();
 	}
-	virtual ~ARM710() { }
+	virtual ~ARM710() { stateTrace_.close(); armjit::jitDestroy(jit_); }
 
 	void clearAllValues() {
 		bank = MainBank;
@@ -171,6 +198,15 @@ public:
 	bool pendingFIQ = false;
 	// Sampled at instruction boundary from tick().
 	void sampleAndDispatchPendingExceptions();
+	// Hot-path wrapper. sampleAndDispatchPendingExceptions() does nothing at all
+	// unless an IRQ or FIQ is pending, which is the overwhelmingly common case —
+	// and in the burst loop it is reached once per instruction, where an
+	// out-of-line call to find nothing to do cost 4.2% of the WASM build's
+	// runtime. Two loads and a predicted-not-taken branch instead.
+	void samplePendingExceptionsFast() {
+		if (__builtin_expect(pendingIRQ || pendingFIQ, false))
+			sampleAndDispatchPendingExceptions();
+	}
 
 	// SA-1100 Wait-For-Interrupt state. Set by execCP15RegisterTransfer
 	// when the guest issues `MCR p15,0,_,c15,c8,2` — the owning device
@@ -190,18 +226,273 @@ public:
 	// single tick() when it can't engage (pipeline not full, page not resolvable,
 	// the next instruction is DK_SLOW/faulted, a branch flushed the pipeline, a
 	// page/subpage boundary, or self-modifying code invalidated the page). pageLoop_
-	// gates it; resolveFetchPage() provides the device's host pointer + decoded-kind
-	// array (base returns false ⇒ no-op on non-SA1100 devices).
+	// gates it; resolveFetchPage() provides the device's host pointer and the
+	// page's validity token (base returns false ⇒ no-op on non-SA1100 devices).
 	struct FetchPage {
 		const uint8_t *hostBase;     // *(hostBase+va) == the instruction word
-		uint8_t *kinds;              // decoded-kind array for the 4 KB phys page
-		uint32_t endVa;              // exclusive: loop must re-resolve at/after this VA
+		// [startVa, endVa) is the span over which everything else in here stays
+		// valid. It used to be hard-coded to the 1 KB subpage containing the
+		// fetch, which is only actually required for a SMALL page (its access
+		// permissions are selected by va>>10). A section's permissions are
+		// uniform across its whole megabyte and a large page's across 16 KB, so
+		// those can run to the 4 KB decoded-page boundary instead — four times
+		// fewer re-resolves through the hot loop, and resolveFetchPage was 6.5%
+		// of the WASM build's runtime.
+		uint32_t startVa;            // inclusive
+		uint32_t endVa;              // exclusive
+		// Privilege level the permissions were resolved for. Fetch permission
+		// depends on it, so a resolution made in a privileged mode must not be
+		// trusted after a drop to User — the loop re-resolves instead. The span
+		// used to be 1 KB, which made this unlikely to bite (a mode change
+		// almost always leaves the subpage); widening it to a page makes
+		// checking it necessary rather than merely correct.
+		bool priv;
 		uint32_t physBase;           // expected page phys base (re-validation token)
 		const uint32_t *validPtr;    // &DecodedPage::physBase; != physBase ⇒ invalidated
 	};
 	virtual bool resolveFetchPage(uint32_t va, FetchPage &out) { (void)va; (void)out; return false; }
-	uint32_t tickPageLoop(int maxInsns);
+
+	// Resolve a data span that lies wholly inside one 1 KB region to a host
+	// pointer, applying exactly the checks the device's readVirtual() /
+	// writeVirtual() fast path applies for the current privilege level and
+	// direction. Returns nullptr the moment any of them misses, so a caller
+	// falls back to its per-word readVirtual() / writeVirtual() and this can
+	// only ever short-circuit accesses that path would have served identically.
+	//
+	// LDM / STM is why it exists. A block transfer of N registers costs N
+	// indirect calls through readVirtual(), each handing back a
+	// pair<optional, MMUFault> through memory — and a stack frame push or pop,
+	// which is nearly every one of them, resolves to the same page every time.
+	// One resolution serves the whole block.
+	//
+	// The 1 KB bound is what makes a single resolution sound: a small page
+	// carries four access-permission fields selected by va[11:10], so
+	// permission is only uniform within 1 KB; staying inside 1 KB also keeps
+	// the span inside one 4 KB decoded code page, so a write's code-coherency
+	// drop is one page, done once. A 16-register transfer is 64 bytes, so the
+	// bound costs almost nothing in coverage.
+	//
+	// The pointer is biased the same way FastTlbEntry::hostReadPtr is: the word
+	// for virtual address `va` is at `p + va`.
+	virtual uint8_t *fastSpanPtr(uint32_t va, uint32_t bytes, bool write) {
+		(void)va; (void)bytes; (void)write; return nullptr;
+	}
+
+	// Where the data-side micro-TLB lives, and how its entries are laid out.
+	//
+	// A generated region cannot call the interpreter's readVirtual without
+	// paying an indirect call for every load, which is most of why regions are
+	// slower than the burst loop. Given this it can do the SAME lookup inline —
+	// the MRU probe, the address-tag compare, the cached permission byte, the
+	// host read pointer — and bridge only when any of them misses, so the miss
+	// path stays the interpreter's and correctness does not depend on the fast
+	// path being complete, only on it matching.
+	//
+	// Returning false (the default) leaves loads bridged, which is what a CPU
+	// without such a TLB wants.
+	struct JitMemSeam {
+		uintptr_t mruBase = 0;       // &dataMru_[0]: an array of entry pointers
+		uint32_t  mruWayMask = 0;    // ways - 1; ways is a power of two
+		uint32_t  mruShift = 12;     // VA bits the way index is taken from
+		// Byte offsets within one entry.
+		uint32_t  offAddrMask = 0, offAddr = 0, offLv1 = 0, offLv2 = 0;
+		uint32_t  offPermCache = 0, offPermCachePg = 0;
+		uint32_t  offHostRead = 0, offHostWrite = 0;
+		// The decoded-page table, so an inlined STORE can do the code-coherency
+		// drop the interpreter's write path does — a guest store into a cached
+		// code page makes its decoded ops stale, and the host-pointer path
+		// bypasses writePhysical, so the invalidation has to be emitted here
+		// too. Zero decodePagesPtr leaves stores bridged.
+		uintptr_t decodePagesPtr = 0;   // &decodePages_ — the POINTER, loaded at run time
+		uint32_t  decodePageSlotMask = 0;
+		uint32_t  decodePageStride = 0;
+		uint32_t  offDecodePhysBase = 0;
+	};
+	virtual bool jitMemSeam(JitMemSeam &out) const { (void)out; return false; }
+	// maxCycles bounds the burst the same way the owning device's batch loop
+	// bounds the interpreter: it stops before the tick that would take the
+	// device past its next scheduled event. Without it a burst overshoots that
+	// event by up to its whole length, interrupt delivery slides, and — because
+	// the device fast-forwards idle time to the next event — a few instructions
+	// of slip amplify into milliseconds of simulated time. That was measured:
+	// 12 ms of drift by instruction 1,041,345 of a Series 7 boot, found with
+	// the state-hash harness. *ticksUsed reports how many tick-equivalents were
+	// consumed so the caller's instruction budget stays accurate.
+	uint32_t tickPageLoop(int maxInsns, uint32_t maxCycles, int *ticksUsed);
+	// The generated-region dispatcher, owned by this CPU because a compiled
+	// region bakes in the absolute linear-memory addresses of THIS register
+	// file — a region outliving its CPU would write to whatever took its place.
+	// Held as an opaque pointer so arm710.h does not have to know about the
+	// code generator. Created on the first burst, destroyed with the CPU.
+	armjit::Runtime *jit_ = nullptr;
+	const uint32_t *jitTraceStops_ = nullptr;
+	size_t jitTraceStopCount_ = 0;
+	// One interpreted instruction, for a generated region to hand back an
+	// instruction it cannot compile (core/arm_jit.cpp). Mirrors tickPageLoop's
+	// fallbackTick() exactly — including advancing the device cycle sink, which
+	// tick() does not do for itself — so a bridged instruction costs the guest
+	// precisely what it costs when the burst engine bails out to the
+	// interpreter for it.
+	// Prints the code generator's counters (PSION_JIT runs only).
+	void jitDumpStats() const { armjit::jitDumpStats(jit_); }
+	// The host has replaced guest code behind the emulator's back — a card or
+	// ROM image copied straight into the RAM/ROM buffer, or a state restore.
+	//
+	// Nothing else notices. The decoded-page validity token is only touched by
+	// writeVirtual and by a TLB flush, and a ROM page is marked immutable and
+	// never dropped at all, so a compiled region built from those bytes would go
+	// on executing the code that used to be there. Call this at any such site;
+	// it is cheap and it happens a handful of times in a whole session.
+	virtual void onGuestCodeReplaced() { armjit::jitFlushAll(jit_); }
+	// True when generated regions are running. The SoC's batch loop needs to
+	// know: a region can retire far more ticks per stepCpu() call than the burst
+	// engine's cap, so per-batch housekeeping has to move to the inner loop to
+	// keep the cadence it was tuned for.
+	bool jitEnabled() const { return jit_ != nullptr; }
+	// Guest addresses a generated region must not contain, because the SoC's
+	// per-batch hooks find them by sampling getRealPC(). Set by the device; read
+	// by the code generator at compile time only, so a linear scan is fine.
+	void setJitTraceStops(const uint32_t *pcs, size_t n) {
+		jitTraceStops_ = pcs; jitTraceStopCount_ = n;
+	}
+	const uint32_t *jitTraceStops() const { return jitTraceStops_; }
+	size_t jitTraceStopCount() const { return jitTraceStopCount_; }
+	// Asserts that the pipeline a generated region handed over really describes
+	// the instruction at `pc`. A unit test with a stubbed bridge cannot check
+	// this — the stub is told what to expect — so it is checked here, against
+	// the CPU's own view of guest memory.
+	void jitCheckBridgeHandoff(uint32_t pc);
+	// The device cycle sink's current value, or 0 when there is none.
+	int64_t jitDeviceCycles() const { return cycleSink_ ? *cycleSink_ : 0; }
+	// Executes ONE already-known instruction word, for a generated region that
+	// cannot compile it inline.
+	//
+	// This is the burst loop's per-instruction body and nothing else: no fetch,
+	// no prefetch shuffle, no r15 advance. The region has already put r15 where
+	// the loop would have (the instruction's address plus 12) and it maintains
+	// the pipeline only at its exits, so re-deriving the word the region already
+	// has as a compile-time constant is pure waste — and it is what made a
+	// bridged instruction cost MORE than the interpreter's own handling of it.
+	//
+	// Not for DK_SLOW: SWI, coprocessor, BX and undefined go through
+	// executeInstruction()'s full path, which jitStepOne() below reaches.
+	uint32_t jitExecOne(uint32_t insn);
+
+	uint32_t jitStepOne() {
+		const uint32_t c = tick();
+		if (cycleSink_) *cycleSink_ += c;
+		return c;
+	}
+public:
+	// Tick-equivalents the last generated region retired. The region writes it
+	// on the way out; the dispatcher reads it to keep executeUntil's batch
+	// counter accurate. See Layout::exitTicksAddr.
+	uint32_t jitExitTicks_ = 0;
+	// Set by a generated region (check builds only) to the address it was
+	// compiled for. See armjit::Layout::stampEntry.
+	uint32_t jitDebugEntry_ = 0;
+	uintptr_t jitDebugEntryAddr() const { return reinterpret_cast<uintptr_t>(&jitDebugEntry_); }
+
+	// ── JIT self-check support (PSION_JIT_CHECK) ───────────────────────────
+	// Enough architectural state to run a stretch of execution twice — once
+	// through a generated region, once through the interpreter — and compare.
+	//
+	// Only regions with NO bridged instructions may be checked this way. A
+	// bridge runs the interpreter, which can store to guest memory and advance
+	// device state, and neither of those can be rolled back by restoring
+	// registers; re-running one would apply its side effects twice. The inline
+	// subset touches nothing but registers and the cycle counters, all of which
+	// are captured here, so re-running it is exact.
+	struct JitCheckpoint {
+		uint32_t gprs[16];
+		uint32_t cpsr;
+		uint32_t prefetch[2];
+		int      prefetchCount;
+		uint64_t insnCycle;
+		int64_t  sink;
+		bool     hasSink;
+	};
+	void jitSnapshot(JitCheckpoint &c) const {
+		for (int i = 0; i < 16; i++) c.gprs[i] = GPRs[i];
+		c.cpsr = CPSR;
+		c.prefetch[0] = prefetch[0];
+		c.prefetch[1] = prefetch[1];
+		c.prefetchCount = prefetchCount;
+		c.insnCycle = insnCycleApprox;
+		c.hasSink = (cycleSink_ != nullptr);
+		c.sink = c.hasSink ? *cycleSink_ : 0;
+	}
+	void jitRestore(const JitCheckpoint &c) {
+		for (int i = 0; i < 16; i++) GPRs[i] = c.gprs[i];
+		CPSR = c.cpsr;
+		prefetch[0] = c.prefetch[0];
+		prefetch[1] = c.prefetch[1];
+		prefetchCount = c.prefetchCount;
+		insnCycleApprox = c.insnCycle;
+		if (c.hasSink && cycleSink_) *cycleSink_ = c.sink;
+	}
+	static bool jitCheckpointEqual(const JitCheckpoint &a, const JitCheckpoint &b) {
+		for (int i = 0; i < 16; i++) if (a.gprs[i] != b.gprs[i]) return false;
+		if (a.cpsr != b.cpsr || a.prefetchCount != b.prefetchCount ||
+		    a.insnCycle != b.insnCycle || a.sink != b.sink) return false;
+		// A prefetch slot is only live while the count says so. At count 0 the
+		// refill rewrites both slots (and both fault slots) before reading
+		// either, so their contents are dead and the two engines are free to
+		// disagree about them — a generated region leaves whatever the last
+		// thing to run left there rather than spending stores on words nobody
+		// will read.
+		if (a.prefetchCount == 0) return true;
+		return a.prefetch[0] == b.prefetch[0] && a.prefetch[1] == b.prefetch[1];
+	}
+	static void jitReportDivergence(uint32_t entryPc, int ticks,
+	                                uint32_t jitCycles, uint32_t refCycles,
+	                                const JitCheckpoint &jit, const JitCheckpoint &ref);
+	// The resolved code page, kept ACROSS bursts.
+	//
+	// It used to be a local, so every burst re-resolved from scratch — and a
+	// burst was at most 16 instructions then, so roughly one instruction in
+	// sixteen paid a full resolveFetchPage: translateFast, a permission decode,
+	// physAddrFromTlbEntry and decodePageFor. That is most of the 7.9% the WASM
+	// profile attributes to it, and it is nearly all avoidable, because the next
+	// burst almost always resumes inside the page the last one ended in.
+	//
+	// Re-validated on entry with exactly the checks the loop itself uses (span,
+	// privilege, decoded-page token), so a stale one can only miss. Dropped
+	// explicitly on a TLB flush, which can change the mapping under it without
+	// touching the decoded-page token.
+	FetchPage fetchPage_{};
+	bool      fetchPageValid_ = false;
+	void      invalidateFetchPage() { fetchPageValid_ = false; }
 	bool pageLoop_ = false;
+
+	// The owning device's cycle counter, advanced by this CPU as it retires
+	// instructions.
+	//
+	// The one-instruction-per-call interpreter lets the device advance its own
+	// counter after every instruction, so a peripheral read always sees an
+	// up-to-date value. An engine that retires several instructions per call
+	// would leave that counter frozen for the rest of the burst, and every
+	// peripheral whose state depends on it — not just the obvious timers —
+	// would answer the guest with a stale value. Compensating at each read site
+	// does not scale and misses the ones nobody thought of: measured, a Series 7
+	// boot froze passedCycles for five instructions and an Eiger status read
+	// came back 0x800 instead of 0xa02, 1,169,536 instructions in.
+	//
+	// So a multi-instruction engine advances the counter here as it goes, and
+	// the device stops advancing it itself. Deliberately NOT used by tick():
+	// single-instruction callers (callRomFunctionSync among them) do their own
+	// accounting and would double-count.
+	int64_t *cycleSink_ = nullptr;
+	void setCycleSink(int64_t *p) { cycleSink_ = p; }
+
+	// Read-only view of the owning device's own cycle counter, for the state
+	// trace only. The CPU's insnCycleApprox counts only cycles it executed;
+	// the device counter also moves when the outer loop fast-forwards idle
+	// time, so the two can disagree and only the device one explains a
+	// peripheral read. Never written through, never part of the hash (idle
+	// fast-forward can legitimately differ), just dumped alongside.
+	const int64_t *devCycles_ = nullptr;
+	void setDeviceCycleView(const int64_t *p) { devCycles_ = p; }
 
 	MaybeU32 readVirtualDebug(uint32_t virtAddr, ValueSize valueSize);
 	MaybeU32 virtToPhys(uint32_t virtAddr);
@@ -214,11 +505,52 @@ public:
     virtual std::pair<MaybeU32, MMUFault> fetchVirtual(uint32_t virtAddr) {
         return readVirtual(virtAddr, V32);
     }
-    // Classify a raw ARM word into an ArmDK (mirrors executeInstruction()'s
-    // dispatch chain). Pure function of the word + isTVersion; the SA-1100
-    // bridge caches the result per ROM address.
-    uint8_t decodeKind(uint32_t insn) const;
+	// Classify a raw ARM word into an ArmDK. MUST mirror executeInstruction()'s
+	// dispatch chain exactly (same patterns, same priority order); anything not
+	// in the fast whitelist returns DK_SLOW.
+	//
+	// Defined here rather than in the .cpp because it is now called once per
+	// executed instruction — the dispatch kind is derived from the word at the
+	// point of use rather than carried through the prefetch pipeline (see
+	// tickPageLoop). As an out-of-line call that cost ~25% of the burst
+	// engine's advantage; inlined, it is a jump table and a few masks.
+	uint8_t decodeKind(uint32_t i) const { return decodeKindV(i, isTVersion); }
+	// The classification itself, split out so the code generator
+	// (core/arm_jit.cpp) can call it with no CPU object in hand. isTVersion is
+	// a parameter rather than a member read because it is load-bearing here:
+	// with it clear, the halfword-transfer and long-multiply encodings fall
+	// through to the data-processing catch-all, and a code generator that
+	// classified them itself would compile an LDRH as an AND.
+	static uint8_t decodeKindV(uint32_t i, bool isTVersion) {
+		// Jump-table on bits 27:26 (the top-level ARM instruction class), then the
+		// minimum within-class checks — equivalent to executeInstruction()'s
+		// if-else chain but without walking it. Within case 0 the order matches the
+		// chain (the specific 00-class encodings before the data-processing
+		// catch-all). SWI/coprocessor (case 3) and BX/BLX (case 0) are not in the
+		// fast whitelist → DK_SLOW.
+		switch ((i >> 26) & 3) {
+		case 0:   // 00: data-processing family + multiply / swap / halfword / BX-BLX
+			if ((i & 0x0FB00FF0) == 0x01000090) return DK_SWAP;
+			if ((i & 0x0F8000F0) == 0x00000090) return DK_MULTIPLY;
+			if ((i & 0x0F8000F0) == 0x00800090 && isTVersion) return DK_MULTIPLY_LONG;
+			if ((i & 0x0E000090) == 0x00000090 && isTVersion && (i & 0x00000060) != 0) return DK_HALFWORD;
+			if ((i & 0x0FFFFFF0) == 0x012FFF10) return DK_SLOW;   // BX
+			if ((i & 0x0FFFFFF0) == 0x012FFF30) return DK_SLOW;   // BLX
+			return DK_DATAPROC;
+		case 1:   // 01: single data transfer (LDR/STR)
+			return DK_LDR_STR;
+		case 2:   // 10: branch (bit 25 = 1) or block data transfer (bit 25 = 0)
+			return (i & 0x02000000) ? DK_BRANCH : DK_LDM_STM;
+		default:  // 11: SWI / coprocessor — always the slow path
+			return DK_SLOW;
+		}
+	}
+
 	void initFastPathGate();
+	// Differential state tracing — see state_trace.h. Enabled by
+	// PSION_STATE_TRACE=<path>; a single predictable branch when off.
+	void initStateTrace();
+	StateTrace stateTrace_;
 	virtual MaybeU32 readPhysical(uint32_t physAddr, ValueSize valueSize) = 0;
 	virtual MMUFault writeVirtual(uint32_t value, uint32_t virtAddr, ARM710::ValueSize valueSize);
 	virtual bool writePhysical(uint32_t value, uint32_t physAddr, ARM710::ValueSize valueSize) = 0;
@@ -232,6 +564,32 @@ public:
 	// write the real GPRs[]/CPSR in place (see docs/jit-engine-scope.md, W2).
 	uintptr_t gprFileAddr() const { return reinterpret_cast<uintptr_t>(&GPRs[0]); }
 	uintptr_t cpsrAddr()    const { return reinterpret_cast<uintptr_t>(&CPSR); }
+	// The rest of the state a generated region reads or writes directly. Same
+	// rationale as the two above: a compiled block addresses the live CPU in
+	// linear memory rather than going through accessors. See armjit::Layout.
+	uintptr_t prefetch0Addr()     const { return reinterpret_cast<uintptr_t>(&prefetch[0]); }
+	uintptr_t prefetch1Addr()     const { return reinterpret_cast<uintptr_t>(&prefetch[1]); }
+	uintptr_t prefetchCountAddr() const { return reinterpret_cast<uintptr_t>(&prefetchCount); }
+	uintptr_t prefetchFault0Addr() const { return reinterpret_cast<uintptr_t>(&prefetchFaults[0]); }
+	uintptr_t prefetchFault1Addr() const { return reinterpret_cast<uintptr_t>(&prefetchFaults[1]); }
+	// A region's contract assumes a clean, full pipeline. The burst loop only
+	// checks prefetchFaults[1] AFTER the point where the JIT is offered the
+	// instruction, so the check has to be made here too — otherwise a faulted
+	// word gets executed as though it had fetched cleanly.
+	// The state a generated region's contract assumes: an instruction boundary
+	// with a full, unfaulted pipeline. tickPageLoop tests the parts separately
+	// now — it offers the dispatcher at the first boundary where an instruction
+	// would execute, which is after its own refill ticks — so this is kept for
+	// the tests and for anything else that wants the whole condition at once.
+	bool jitEntryStateClean() const {
+		return prefetchCount == 2 && prefetchFaults[0] == NoFault && prefetchFaults[1] == NoFault;
+	}
+	uintptr_t insnCycleAddr()     const { return reinterpret_cast<uintptr_t>(&insnCycleApprox); }
+	uintptr_t cycleSinkPtrAddr()  const { return reinterpret_cast<uintptr_t>(&cycleSink_); }
+	uintptr_t pendingIrqAddr()    const { return reinterpret_cast<uintptr_t>(&pendingIRQ); }
+	uintptr_t pendingFiqAddr()    const { return reinterpret_cast<uintptr_t>(&pendingFIQ); }
+	uintptr_t jitExitTicksAddr()  const { return reinterpret_cast<uintptr_t>(&jitExitTicks_); }
+	bool      armIsTVersion()     const { return isTVersion; }
 	// SPSR / banked-LR accessors used by trace probes that need to see
 	// the previous-mode CPU state at exception/SWI entry.  Forward to
 	// the *Impl variants defined further down in the class body so
@@ -292,8 +650,6 @@ public:
 		// the old contents.)
 		prefetch[0] = prefetch[1] = 0;
 		prefetchFaults[0] = prefetchFaults[1] = NoFault;
-		prefetchKind[0] = prefetchKind[1] = DK_SLOW;
-		lastFetchKind = DK_SLOW;
 	}
 
 	// Force-set CPSR (including mode bits) and re-bank registers
@@ -477,6 +833,11 @@ private:
 		CPSR_FlagMask   = 0xF0000000
 	};
 
+protected:
+	// The architectural register file. Protected rather than private because
+	// gprFileAddr()/cpsrAddr() already hand out raw pointers to it — the access
+	// control was nominal — and because tests/unit/arm_jit_test.cpp drives the
+	// real interpreter as the code generator's oracle from a subclass.
 	// active state
 	BankIndex bank;
 	uint32_t CPSR;
@@ -523,27 +884,27 @@ private:
 	bool flagC() const { return CPSR & CPSR_C; }
 	bool flagZ() const { return CPSR & CPSR_Z; }
 	bool flagN() const { return CPSR & CPSR_N; }
+	// Condition evaluation as a packed table rather than a switch.
+	//
+	// This is on the burst loop's per-instruction path and the compiler was not
+	// inlining the switch — 1.8% of the WASM profile sat in checkCondition as
+	// its own function. Each entry is the truth table of one condition code
+	// over all 16 NZCV states, so evaluating one is a load, a shift and a mask.
+	//
+	// Index order is CPSR bits 31:28, i.e. N=8 Z=4 C=2 V=1, matching CPSR >> 28.
+	// Generated exhaustively from the same expressions the switch used; case
+	// 0xF (NV) is never true, as before.
+	static constexpr uint16_t kCondTable[16] = {
+		/*EQ*/ 0xf0f0, /*NE*/ 0x0f0f, /*CS*/ 0xcccc, /*CC*/ 0x3333,
+		/*MI*/ 0xff00, /*PL*/ 0x00ff, /*VS*/ 0xaaaa, /*VC*/ 0x5555,
+		/*HI*/ 0x0c0c, /*LS*/ 0xf3f3, /*GE*/ 0xaa55, /*LT*/ 0x55aa,
+		/*GT*/ 0x0a05, /*LE*/ 0xf5fa, /*AL*/ 0xffff, /*NV*/ 0x0000,
+	};
+protected:
 	bool checkCondition(int cond) const {
-		switch (cond) {
-		/*EQ*/ case 0:   return flagZ();
-		/*NE*/ case 1:   return !flagZ();
-		/*CS*/ case 2:   return flagC();
-		/*CC*/ case 3:   return !flagC();
-		/*MI*/ case 4:   return flagN();
-		/*PL*/ case 5:   return !flagN();
-		/*VS*/ case 6:   return flagV();
-		/*VC*/ case 7:   return !flagV();
-		/*HI*/ case 8:   return flagC() && !flagZ();
-		/*LS*/ case 9:   return !flagC() || flagZ();
-		/*GE*/ case 0xA: return flagN() == flagV();
-		/*LT*/ case 0xB: return flagN() != flagV();
-		/*GT*/ case 0xC: return !flagZ() && (flagN() == flagV());
-		/*LE*/ case 0xD: return flagZ() || (flagN() != flagV());
-		/*AL*/ case 0xE: return true;
-		/*NV*/ /*case 0xF:*/
-		default:  return false;
-		}
+		return (kCondTable[cond & 0xF] >> (CPSR >> 28)) & 1;
 	}
+private:
 
 	static Mode modeFromCPSR(uint32_t v) { return (Mode)(v & CPSR_ModeMask); }
 	Mode currentMode()             const { return modeFromCPSR(CPSR); }
@@ -669,13 +1030,14 @@ protected:
 	uint32_t prefetch[2];
 	MMUFault prefetchFaults[2];
 	// Decoded-op cache plumbing (see ArmDK / docs/execution-engine-scope.md).
-	// prefetchKind shadows prefetch[]: the decode kind for each prefetched
-	// word, carried through the pipeline so tick() can fast-dispatch. fetchVirtual
-	// writes lastFetchKind for the word it just fetched. decodeFast_ gates the
-	// fast path; it is OPT-IN (default off, PSION_DECODE_FASTPATH=1 enables) while
-	// the Pac-Man KERN-EXEC 3 regression is investigated — see initFastPathGate().
-	uint8_t prefetchKind[2] = { DK_SLOW, DK_SLOW };
-	uint8_t lastFetchKind = DK_SLOW;
+	// No decode kind is carried alongside prefetch[]: both engines derive the
+	// dispatch selector from the instruction word at the point of use, because
+	// a shadow array can get out of step with the pipeline it shadows (the
+	// netBook Quartz wrong-dispatch bug) and cost a second decode per
+	// instruction to maintain. decodeFast_ gates tick()'s fast path; it is
+	// OPT-IN (default off, PSION_DECODE_FASTPATH=1 enables) — see
+	// initFastPathGate(). pageLoop_ (below) is on by default and supersedes it
+	// for almost every instruction.
 	bool    decodeFast_ = false;
 	// Phys-keyed decoded-instruction cache (docs/execution-engine-scope.md Tier 1).
 	// decodeCache_ gates it; decodeCacheCheck_ additionally runs the cached kind

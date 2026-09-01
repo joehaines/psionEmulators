@@ -178,6 +178,22 @@ emulator's PsiWin client can't.
   running behind it (as a real one does — EPOC's own "off" is a standby that
   keeps the clock), it just takes the screen, touchscreen and keyboard away
   until you open it again.
+  Being ER5u also puts this machine out of reach of the EPOC R5 ROM
+  extractors, which are non-Unicode binaries whose imports its DLLs cannot
+  bind — so `tools/romdump` is a ROM dumper written for ER5u instead. It is
+  an ordinary EPOC executable, built here without an SDK (`tools/e32`), and
+  it copies the ROM to the machine's own disk in 2 MB parts, because a
+  12 MB ROM does not fit on a Revo-class RAM disk in one piece. It asks how
+  many parts to write now, shows their progress, reads every one back and
+  compares it with the ROM before moving on, and picks up from where it
+  stopped the next time it is opened — so you dump what fits, copy those
+  parts off, and run it again for the rest.
+  [`tools/romdump/HOW-TO-USE.md`](tools/romdump/HOW-TO-USE.md) is the guide
+  for someone holding the machine.
+  `bash tests/integration/test-conan-romdump.sh` runs it on the real ROM
+  and checks the result;
+  [`docs/conan-rom-dumping.md`](docs/conan-rom-dumping.md) records how the
+  ER5u file-server ordinals and the E32Image format were established.
 
 Every device has a committed golden screenshot in `tests/golden/`; run
 `bash tests/boot/test-boot.sh --all` to re-verify locally.
@@ -191,6 +207,7 @@ frontend/   React + TypeScript web app (Vite)
 applib/     Source for the in-app software library (see applib/README.md)
 scripts/    Build / asset scripts, plus the public-mirror sync
 harness/    Native (non-WASM) host driver for the core
+tools/      Programs that run on the emulated machines (see tools/README.md)
 tests/      Boot validation, integration, unit tests (see tests/README.md)
 docs/       Per-device investigation notes
 roms/       ROM images (property of their owners; see NOTICE)

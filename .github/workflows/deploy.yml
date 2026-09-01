@@ -132,6 +132,15 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-netbook-eshell-keyboard.sh
 
+      # The Conan ROM dumper: an ER5u binary this repo builds itself
+      # (tools/e32 writes the E32Image container by hand), swapped into the
+      # ROM and run on the machine, with the resulting six 2 MB parts read
+      # back off the RAM disk. Guards both the container format and the
+      # file-server ordinals it links against.
+      - name: Run Conan ROM-dump validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-conan-romdump.sh
+
       - name: Upload boot-validation artefacts
         if: ${{ inputs.run_harness_tests && always() }}
         uses: actions/upload-artifact@v4
@@ -208,6 +217,13 @@ jobs:
       # input — it is the frontend's own consistency.
       - name: Check device lists match the registry
         run: node --experimental-strip-types tests/unit/device-lists-sync.mts
+
+      # tools/e32 writes EPOC32 binary containers by hand, so its idea of
+      # the format is checked against a binary Psion's own tools produced:
+      # D_EXC.exe out of the Conan ROM, whose checksums, import section and
+      # relocation section it has to reproduce byte for byte.
+      - name: Check the E32Image packer against the ROM's own binary
+        run: node --experimental-strip-types tests/unit/e32-format.mts
 
       - name: Build frontend
         run: bash scripts/build-frontend.sh

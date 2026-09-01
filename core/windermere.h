@@ -82,6 +82,13 @@ public:
     // for auto-off / Control Panel brightness / etc.
     bool getBacklight() const override { return (portValues & 0x1000) != 0; }
 
+    // Expose RAM to the harness so --save-ram-snapshot works, the way
+    // CLPS7110::Emulator does. Bank C0 is where EPOC keeps its own data
+    // and the C: RAM disk, so a snapshot of it is what a test looking for
+    // a file the machine just wrote has to search.
+    uint8_t *getRamBuffer() override       { return MemoryBlockC0; }
+    size_t   getRamSize()   const override { return sizeof(MemoryBlockC0); }
+
     uint8_t ROM[0x1000000];
 	uint8_t ROM2[0x40000];
     uint8_t MemoryBlockC0[0x800000];

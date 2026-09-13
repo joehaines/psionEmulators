@@ -8,10 +8,12 @@ Revo-Bluetooth generation — because the ROM extractors written for
 EPOC R5 are non-Unicode binaries and this generation's DLLs will not load
 them. It does not need a card, a cable, or anything installed first.
 
-A 12 MB ROM does not fit in one piece on a machine with 16 MB of RAM, so
-the dump comes off in **2 MB parts** and you can stop and start it:
+A ROM does not fit in one piece on a machine whose RAM is the same size,
+so the dump comes off in **2 MB parts** and you can stop and start it:
 write what fits, copy those parts off, delete them, run it again for the
-rest. Nothing you have not asked for is ever deleted.
+rest. Nothing you have not asked for is ever deleted. (The Conan this was
+written for has a 16 MB ROM, so it comes off in eight parts —
+`roms/conan_v0.10(17)_eng.IMG` in this repository is one such dump.)
 
 ---
 
@@ -34,13 +36,13 @@ again** (or press Enter). A text screen opens:
 
 ```
 Psion EPOC ER5u ROM dump
-ROM at 0x50000000 is 12288 KB: 6 parts of 2048 KB
-Next is part 1 of 6, written to C:\ROMDUMP.nnn
-Write how many of the 6 left?  1-6, Q = quit:
+ROM at 0x50000000 is 16384 KB: 8 parts of 2048 KB
+Next is part 1 of 8, written to C:\ROMDUMP.nnn
+Write how many of the 8 left?  1-8, Q = quit:
 ```
 
 The prompt always names how many parts are actually left, so it counts
-down as you go — `1-6`, then `1-5`, and so on. Answer with:
+down as you go — `1-8`, then `1-7`, and so on. Answer with:
 
 | Key | What happens |
 |-----|--------------|
@@ -106,12 +108,12 @@ machine (open it in Word, or `type romdump.txt` at an EShell prompt):
 Psion EPOC ER5u ROM dump
 
 ROM base   0x50000000
-ROM size   0x00C00000 (12288 KB)
+ROM size   0x01000000 (16384 KB)
 Part size  2048 KB
-Parts      6
-Last batch parts 1..6, 12288 KB
+Parts      8
+Last batch parts 1..8, 16384 KB
 Next part  none, the ROM is all written
-Verified   6 parts read back, all match the ROM
+Verified   8 parts read back, all match the ROM
 Result     complete
 ```
 
@@ -130,7 +132,22 @@ Enter, to open it.
 **"cannot write it - the disk is probably full."** Free some space —
 copy off and delete the parts you already have — and run it again. The
 part it stopped on is written again from the beginning next time, so
-nothing is left half-done.
+nothing is left half-done *on the machine*.
+
+> **Delete that half-written part before you copy anything off.** It is
+> still sitting on `C:` under its ordinary name, and step 1 above says to
+> copy `C:\ROMDUMP.*` — so it will travel to the PC looking exactly like
+> a finished part, just shorter. Joined in with the rest it produces an
+> image that still *opens* — the ROM's file directory is at the front, so
+> tools will happily list every file in it — while the bytes the missing
+> tail should have held are simply absent, and the machine built from it
+> will not boot. Check `C:\ROMDUMP.TXT` before copying: `Next part` names
+> the part that still has to be written, and only `Result complete` means
+> you have the whole ROM. Every part except the last should be exactly
+> 2,097,152 bytes.
+>
+> This is not hypothetical: the first dump taken with this tool lost
+> 2.8 MB exactly this way, and looked valid until it was booted.
 
 **"DOES NOT MATCH THE ROM".** The part on the disk is not what was read
 out of the ROM. Delete that part, free some space and try again; if it

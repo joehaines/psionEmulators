@@ -144,20 +144,32 @@ emulator's PsiWin client can't.
 - **MC400 ROMs** — the MC400 defaults to the v2.60F boot ROM; a discreet
   header link swaps to the older v1.26F ROM (and back) without leaving a
   second entry in the device picker.
-- **Revo (Conan)** — "Conan" is the Revo's successor, emulated from the
-  engineering image `roms/conan_s2_2201.engbuild.IMG` (EPOC R5, TRomHeader
-  version 0.01(22), built 2001-05-12, 12 MB where the shipping Revo's is 8).
-  It is the Revo's board: the two images' HAL tables name the same parts —
+- **Revo (Conan)** — "Conan" is the Revo's successor, emulated from
+  `roms/conan_v0.10(17)_eng.IMG`: the ROM of a real machine, dumped off it
+  with `tools/romdump` (TRomHeader version 0.10(17), built 2001-06-20,
+  16 MB where the shipping Revo's is 8). The machine names itself on its
+  own splash — **Psion Conan © Psion Digital 2001 / EPOC Release 6 ©
+  Copyright Symbian LTD 2001**, over a CONAN wordmark with ARM, EPOC and
+  Bluetooth badges — so the codename this repository has always used is the
+  ROM's own, and the machine is an **EPOC R6** (Symbian OS 6.0) build.
+  The earlier engineering image `roms/conan_s2_2201.engbuild.IMG` (EPOC R5,
+  version 0.01(22), built 2001-05-12, 12 MB) is kept alongside it as
+  `conanv001`, reached by a discreet header link the way the MC400's two
+  ROMs are; it paints the *Revo's* splash rather than Conan's own.
+  It is the Revo's board: the images' HAL tables name the same parts —
   the `LAP 53` panel, `MLM 650` digitiser, `ARM 710T`, and the `REVO` /
-  `REVO-PRO` device types — and it paints the Revo's own splash and desktop
-  at 480×160, so it runs the whole Revo profile and needs no new hardware
-  modelling. `core/conan.h` is `Revo::Emulator` under another name, and
-  records what was read out of the image to establish that.
-  What is new is the software in the extra 4 MB: WAP (`WAPSTKSRV.EXE`) and
-  Bluetooth (`btmanserver.exe`, `sdp.exe`, `thci.exe`) stacks the shipping
-  Revo ROM has neither of — and the case agrees, its lid badged **revo
-  Bluetooth**. Neither stack is reachable here: there is no modelled
-  Bluetooth radio, and the WAP stack has no bearer.
+  `REVO-PRO` device types, byte-for-byte the same run in both — and both
+  paint their splash and the Revo's desktop layout at 480×160, so Conan
+  runs the whole Revo profile and needs no new hardware modelling.
+  `core/conan.h` is `Revo::Emulator` under another name, and records what
+  was read out of the images to establish that.
+  What is new is the software in the extra megabytes: WAP (`WAPSTKSRV.EXE`)
+  and Bluetooth (`btmanserver.exe`, `sdp.exe`, `thci.exe`) stacks the
+  shipping Revo ROM has neither of — and the case agrees, its lid badged
+  **revo Bluetooth**. The machine ROM puts a **Bluetooth on** tab in the
+  desktop toolbar and adds an Opera browser besides. Neither stack is
+  reachable here: there is no modelled Bluetooth radio, and the WAP stack
+  has no bearer.
   Its connectivity is new too, and that one is user-visible: the image has no
   `PlpDL.prt`, the module carrying the PLP data link every other supported
   EPOC ROM speaks, and registers the Unicode link services (`SYS$RFSVU.*`,
@@ -168,26 +180,32 @@ emulator's PsiWin client can't.
   machine — exactly the wall PsiWin hit before its 2.3 release.
   [`docs/conan-remote-link.md`](docs/conan-remote-link.md) has the wire
   evidence and what supporting it would take.
-  Being an engineering build it puts EShell and `D_EXC` on the desktop, and
-  its own Agenda panics with `CONE 14` on every cold boot, leaving the
-  "Program closed" dialog you see in `tests/golden/conan.pgm`. That is the
-  image, not the emulation — rerun with the host clock back in mid-2000 and
-  the same frame comes out byte-identical to that golden apart from the clock
-  cell — and the machine behind the dialog is a working EPOC R5 desktop.
+  Both images boot to an interactive desktop, and both leave a dialog on it
+  that is the image's own doing rather than the emulation's. The machine ROM
+  spends its first minute on the splash and then reports "Problem
+  initialising Mail / Not found" (`tests/golden/conan.pgm`); the engineering
+  build puts EShell and `D_EXC` on the desktop and its own Agenda panics with
+  `CONE 14` on every cold boot, leaving the "Program closed" dialog you see
+  in `tests/golden/conanv001.pgm` — rerun that one with the host clock back
+  in mid-2000 and the frame comes out byte-identical to its golden apart from
+  the clock cell. Behind either dialog is a working desktop.
   **Close Lid** in the control bar shuts the case: the machine carries on
   running behind it (as a real one does — EPOC's own "off" is a standby that
   keeps the clock), it just takes the screen, touchscreen and keyboard away
   until you open it again.
-  Being ER5u also puts this machine out of reach of the EPOC R5 ROM
-  extractors, which are non-Unicode binaries whose imports its DLLs cannot
-  bind — so `tools/romdump` is a ROM dumper written for ER5u instead. It is
-  an ordinary EPOC executable, built here without an SDK (`tools/e32`), and
-  it copies the ROM to the machine's own disk in 2 MB parts, because a
-  12 MB ROM does not fit on a Revo-class RAM disk in one piece. It asks how
-  many parts to write now, shows their progress, reads every one back and
-  compares it with the ROM before moving on, and picks up from where it
-  stopped the next time it is opened — so you dump what fits, copy those
-  parts off, and run it again for the rest.
+  Being a Unicode build also puts this machine out of reach of the EPOC R5
+  ROM extractors, which are non-Unicode binaries whose imports its DLLs
+  cannot bind — so `tools/romdump` is a ROM dumper written for ER5u/ER6
+  instead. It is an ordinary EPOC executable, built here without an SDK
+  (`tools/e32`), and it copies the ROM to the machine's own disk in 2 MB
+  parts, because a 16 MB ROM does not fit on a Revo-class RAM disk in one
+  piece. It asks how many parts to write now, shows their progress, reads
+  every one back and compares it with the ROM before moving on, and picks
+  up from where it stopped the next time it is opened — so you dump what
+  fits, copy those parts off, and run it again for the rest.
+  **`roms/conan_v0.10(17)_eng.IMG` is what it produced**, off a real
+  machine, in eight parts: the tool is no longer just tested against an
+  image, it has delivered one.
   [`tools/romdump/HOW-TO-USE.md`](tools/romdump/HOW-TO-USE.md) is the guide
   for someone holding the machine.
   `bash tests/integration/test-conan-romdump.sh` runs it on the real ROM

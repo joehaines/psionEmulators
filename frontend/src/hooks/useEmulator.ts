@@ -275,6 +275,7 @@ const COLD_BOOT_PREROLL: Readonly<Record<string, number>> = {
   'series5':   7 * 64,
   'revo':      7 * 64,
   'conan':     7 * 64,
+  'conanv001': 7 * 64,
   'osaris':    7 * 64,
 };
 

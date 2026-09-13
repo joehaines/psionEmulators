@@ -67,11 +67,13 @@ static EmuBase *makeRevo() {
     // ROM's own string.
     return emu;
 }
-// Psion "Conan" — the Revo's successor, running a 2001 EPOC R5 engineering
-// image on the Revo's own board. Conan::Emulator is Revo::Emulator with a
+// Psion "Conan" — the Revo's successor, running a 2001 Psion Digital build
+// on the Revo's own board. Conan::Emulator is Revo::Emulator with a
 // different reported device name; the Conan variant keeps the two builds
 // separable for any future ROM-specific quirk without disturbing the Revo.
 // Like the Revo it never reads the ETNA PROM, so no setPromDeviceName.
+// Both Conan profiles below share this factory — they differ only in which
+// ROM image they load.
 static EmuBase *makeConan() {
     auto *emu = new Conan::Emulator;
     emu->setVariant(Windermere::Variant::Conan);
@@ -478,35 +480,46 @@ static const DeviceProfile kProfiles[] = {
         1, 1,
     },
     {
-        // Psion "Conan" — the Revo's successor, from the 2001 EPOC R5
-        // engineering image conan_s2_2201.engbuild.IMG (TRomHeader version
-        // 0.01(22), built 2001-05-12). Same board as the Revo, so it takes
-        // the whole Revo profile: 480x160 LCD inside a 527x208 digitiser,
-        // no card slot, Remote Link on UART2 and IrDA on UART1. See
-        // core/conan.h for what the image itself establishes about the
+        // Psion "Conan" — the Revo's successor, from the ROM of a real
+        // machine, dumped with tools/romdump (TRomHeader version 0.10(17),
+        // built 2001-06-20, 16 MB — the whole declared image, every part
+        // read back against the ROM on the device). Same board as the Revo,
+        // so it takes the whole Revo profile: 480x160 LCD inside a 527x208
+        // digitiser, no card slot, Remote Link on UART2 and IrDA on UART1.
+        // See core/conan.h for what the image establishes about the
         // hardware, and for the WAP + Bluetooth stacks that make it a
         // different machine from the shipping Revo. The one thing it does
         // NOT inherit is Remote Link: its ROM carries a later connectivity
         // stack that our PLP client can't talk to, so linkProtocol is 0 —
         // see the field comment below.
         //
-        // It boots to an interactive EPOC R5 desktop, fully painted and
-        // byte-stable from ~40 sim-seconds on (tests/golden/conan.pgm;
-        // identical PGMs at 40 / 45 / 50 s). The image's own Agenda
-        // panics with CONE 14 about 16 sim-seconds in and leaves a
-        // "Program closed" dialog over the desktop — an engineering-build
-        // fault, not an emulation one (with the host RTC moved back to
-        // mid-2000 the frame is byte-identical to the golden apart from
-        // the clock cell, and dismissing the dialog leaves a working
-        // machine), so the golden screenshot carries it.
+        // This image, unlike the 0.01(22) engineering build kept below,
+        // names the machine itself: it paints its own splash reading
+        // "Psion Conan (c) Psion Digital 2001 / EPOC Release 6 (c)
+        // Copyright Symbian LTD 2001", over a CONAN wordmark with ARM,
+        // EPOC and Bluetooth badges. So the codename this repository has
+        // always used for the device is the ROM's own, and the machine is
+        // an EPOC R6 (Symbian OS 6.0) build rather than the R5 its
+        // predecessor image reports.
+        //
+        // It boots to an interactive EPOC desktop — Agenda, Jotter and
+        // Contacts down the Documents sidebar, a "Bluetooth on" tab in the
+        // toolbar the shipping Revo has no equivalent of — byte-stable
+        // from ~80 sim-seconds on (tests/golden/conan.pgm; identical PGMs
+        // at 80 / 100 / 120 / 180 s), settling at variance ~2615. It takes
+        // longer to settle than the engineering build because it spends
+        // its first minute on the splash above. The "Problem initialising
+        // Mail / Not found" dialog in the golden is the image's own
+        // startup fault, not an emulation one, and the desktop behind it
+        // is interactive — the same class of thing as the older image's
+        // Agenda panic.
         "conan",
         "Psion Revo (Conan)",
-        "conan_s2_2201.engbuild.IMG",
-        // 0xBB2000 — the image's real length. Its TRomHeader declares a
-        // 12 MB ROM, but the image stops short of that; Windermere's
-        // 16 MB ROM[] is zero-filled before loadROM's copy, so the
-        // undelivered tail reads as 0 rather than as stale bytes.
-        0xBB2000,
+        "conan_v0.10(17)_eng.IMG",
+        // 0x1000000 — the image's real length, and exactly the iRomSize
+        // its TRomHeader declares. The dump is complete, so unlike the
+        // engineering build below there is no undelivered tail.
+        0x1000000,
         // Same 0x7060001 variant ID as the 5mx and Revo — see the Revo
         // profile above. Left 0 for the same reason: auto-detect stays on
         // the 5mx profile and Conan is only selected explicitly.
@@ -522,13 +535,70 @@ static const DeviceProfile kProfiles[] = {
         // the frontend hides Remote Link on it, drops the PLP "Printer via
         // PC" tab (raw serial printer capture still works — it doesn't go
         // through PLP), and stops offering cable app installs. This is the
-        // ER5u connectivity generation, the one that needed a new PsiWin on
-        // real hardware, and the image says so three ways:
+        // ER5u/ER6 connectivity generation, the one that needed a new
+        // PsiWin on real hardware, and both Conan images say so the same
+        // way: every other supported EPOC ROM ships PlpDL.prt, the module
+        // that carries the "PLP Link" data link (SYN 16 / DLE-STX framing,
+        // CRC-CCITT trailer) our frontend/src/lib/plp talks, and neither
+        // Conan image has it at all — Plp.prt provides "PLP Link" itself,
+        // over a new escaped serial transport. The escape coding, the
+        // ENQ/ACK probes and the Unicode link-service names are recorded
+        // against the engineering build in the profile below, which is
+        // where they were established; this image ships the same module
+        // set (Plp.prt, PlpSvr.dll, PlpRfs.rsy, no PlpDL.prt), so the
+        // conclusion carries over unchanged.
+        0, 1,
+    },
+    {
+        // The older Conan engineering image (TRomHeader version 0.01(22),
+        // built 2001-05-12, declaring 12 MB). Kept alongside the dumped
+        // 0.10(17) ROM above because it is a genuinely different build of
+        // the machine, not merely an earlier one: it paints the *Revo's*
+        // splash ("Psion Revo (c) Psion PLC 1999 / EPOC Release 5") where
+        // the later image paints Conan's own, and it reaches its desktop
+        // in half the time. Same hardware and factory as the default
+        // profile above — only the ROM image differs — so it shares
+        // makeConan, the skin and the (absent) slot layout. Hidden from
+        // the picker (hiddenFromPicker = true): the frontend offers it via
+        // the same discreet header link the MC400's two ROMs use, rather
+        // than a second near-duplicate list entry, but it keeps its own id
+        // so save states and the device label stay distinct.
         //
-        //   - Every other supported EPOC ROM ships PlpDL.prt, the module
-        //     that carries the "PLP Link" data link (SYN 16 / DLE-STX
-        //     framing, CRC-CCITT trailer) our frontend/src/lib/plp talks.
-        //     Conan has no PlpDL.prt at all: Plp.prt (0x502740b0) provides
+        // It boots to an interactive EPOC R5 desktop, fully painted and
+        // byte-stable from ~40 sim-seconds on (tests/golden/conanv001.pgm;
+        // identical PGMs at 40 / 45 / 50 s). The image's own Agenda
+        // panics with CONE 14 about 16 sim-seconds in and leaves a
+        // "Program closed" dialog over the desktop — an engineering-build
+        // fault, not an emulation one (with the host RTC moved back to
+        // mid-2000 the frame is byte-identical to the golden apart from
+        // the clock cell, and dismissing the dialog leaves a working
+        // machine), so the golden screenshot carries it.
+        "conanv001",
+        "Psion Revo (Conan v0.01)",
+        "conan_s2_2201.engbuild.IMG",
+        // 0xBB2000 — the image's real length. Its TRomHeader declares a
+        // 12 MB ROM, but the image stops short of that; Windermere's
+        // 16 MB ROM[] is zero-filled before loadROM's copy, so the
+        // undelivered tail reads as 0 rather than as stale bytes. Nothing
+        // is lost: the image's own file data ends at 0xBB15D3, inside the
+        // delivered bytes, so the short tail is padding the build never
+        // filled.
+        0xBB2000,
+        // Same 0x7060001 variant ID as the 5mx and Revo — see the Revo
+        // profile above. Left 0 for the same reason: auto-detect stays on
+        // the 5mx profile and Conan is only selected explicitly.
+        0,
+        "revo.svg",
+        DeviceStatus::Supported,
+        makeConan,
+        false,  // No memory-card slot, same as the Revo.
+        0, 0,
+        2, 1,   // Remote Link on UART2, IrDA on UART1
+        // linkProtocol 0 — see the default Conan profile above for why
+        // neither Conan image can use our PLP client. This is the image
+        // the finding was established on, and the detail lives here:
+        //
+        //   - Conan has no PlpDL.prt at all: Plp.prt (0x502740b0) provides
         //     "PLP Link" itself, over a new escaped serial transport.
         //   - That transport is an XON/XOFF-safe byte stream: ESC = 0x19,
         //     with 0x11 -> 19 20, 0x13 -> 19 21, 0x19 -> 19 19, plus two
@@ -554,6 +624,7 @@ static const DeviceProfile kProfiles[] = {
         // newer client written and validated against this transport, not a
         // tweak to the existing one.
         0, 1,
+        true,   // hiddenFromPicker — alternate-ROM variant of conan
     },
     {
         // The Psion netBook.  Real hardware ships a 2 MB YModem

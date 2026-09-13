@@ -265,3 +265,69 @@ outside too: for every 64 KB step through the first three parts, that run of ROM
 bytes is found in a snapshot of the machine's RAM. It stops at part 3 because
 `--save-ram-snapshot` dumps one 8 MB bank and the back half of a 12 MB dump
 lands in the other one.
+
+## What it produced on a real machine
+
+Everything above was established against `roms/conan_s2_2201.engbuild.IMG`
+and reproduced under the emulator. The tool has since been run on an actual
+Conan, and `roms/conan_v0.10(17)_eng.IMG` is what came off it — eight
+2 MB parts, joined in order, `ROMDUMP.TXT` reporting `Parts 8`,
+`Next part none, the ROM is all written`, `Result complete`.
+
+The machine's ROM is not the image the tool was written against, and the
+differences are worth recording:
+
+| | engineering image | real machine |
+|---|---|---|
+| TRomHeader version | 0.01(22) | 0.10(17) |
+| Built | 2001-05-12 | 2001-06-20 |
+| `iRomSize` | 0x00C00000 (12 MB) | 0x01000000 (16 MB) |
+| Image delivered | 0xBB2000 (short, padding only) | 0x1000000 (all of it) |
+| Files | 475 | 614 |
+| Splash | the Revo's, "EPOC Release 5" | its own, "Psion Conan … EPOC Release 6" |
+
+Two things follow from that.
+
+**The machine is an EPOC R6 build.** Its own splash reads "Psion Conan ©
+Psion Digital 2001 / EPOC Release 6 © Copyright Symbian LTD 2001", over a
+CONAN wordmark carrying ARM, EPOC and Bluetooth badges. The engineering
+image reports R5 and paints the Revo's splash, so "Conan" was this
+repository's name for the device until the machine supplied its own.
+
+**The ER5u ordinals hold on R6.** The file-server and console ordinals in
+the tables above were read out of an R5u image; the binary built from them
+ran unmodified on the R6 machine, wrote every part and verified each one
+against the ROM. Ordinals are frozen per release, so that is a result about
+the two releases as much as about this program.
+
+### The first attempt lost 2.8 MB, and looked fine
+
+Worth recording because the failure is silent. The first run stopped partway
+through part 7 — the RAM disk filled — and `WritePart` leaves the part it
+failed on where it is. Its name is an ordinary part name, so when the parts
+were copied off with `copy C:\ROMDUMP.*` the half-written one came too. The
+joined image parsed perfectly: the ROM's directory sits at the front, so
+`tools/e32/romfs.mts` listed all 614 files. But 72 of them were wholly
+past the end of the delivered bytes — including `Shell.RSC`, `Shell.mbm`
+and `Splash.mbm` — and the machine booted to a blank screen.
+
+What gave it away, in order:
+
+- the joined file was 0xD28000 where the header's `iRomSize` said
+  0x1000000;
+- the directory placed file data as far as 0xF0BA03, past the end of the
+  file, where the engineering image's own file data stops at 0xBB15D3,
+  *inside* its short image — that image's missing tail really is padding,
+  this one's was not;
+- `ROMDUMP.007` was 1,212,416 bytes, exactly 37 × `CHUNK_BYTES` — the
+  write loop's step, and therefore the only size a stopped write can leave
+  behind.
+
+The parts themselves were sound: every ROM binary in all seven had a valid
+UID1 at exactly the address the directory gave. The dump was not corrupt,
+just short — and the re-run rewrote part 7 from its beginning, byte-for-byte
+over the abandoned prefix, exactly as the resume is meant to.
+
+`tools/romdump/HOW-TO-USE.md` now warns about this under "cannot write it".
+The tool could also delete a part it failed to write, which would remove the
+trap at the cost of one more EFSRV import.

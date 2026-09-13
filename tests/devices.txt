@@ -28,16 +28,28 @@
 5mxpro_blboot | 5mxPRO_BL_v1.09_ger.bin     |  2 | 200 | --card-path tests/cards/5mxpro-osboot.img --post-attach-seconds 75 | 5mxpro
 mc218     | MC218_v1.05(259)_eng.bin        | 35 | 200
 revo      | Revo_v1.06(390)_eng.bin         | 35 | 200
-# conan: the Revo's successor, from the 2001 EPOC R5 engineering image.
-# Same Revo board (480x160), so it runs the Revo's whole profile — the
-# entry exists to keep the 12 MB image booting as the Revo's does.  The
-# desktop is fully painted and byte-stable from ~40 sim-seconds on
-# (identical PGM at 40 / 45 / 50 s), settling at variance ~2039.  The
-# "Program closed / Agenda / CONE / 14" dialog in the golden is the
+# conan: the Revo's successor, from a real machine's ROM dumped with
+# tools/romdump (TRomHeader 0.10(17), 2001-06-20, 16 MB — the complete
+# declared image).  Same Revo board (480x160), so it runs the Revo's whole
+# profile.  It spends its first minute on its own splash — "Psion Conan
+# (c) Psion Digital 2001 / EPOC Release 6" — and then paints an
+# interactive desktop, byte-stable from ~80 sim-seconds on (identical PGMs
+# at 80 / 100 / 120 / 180 s), settling at variance ~2615.  The "Problem
+# initialising Mail / Not found" dialog in the golden is the image's own
+# startup fault, not an emulator fault, and the desktop behind it is
+# interactive.
+conan     | conan_v0.10(17)_eng.IMG         | 80 | 1000
+# conanv001: the older Conan engineering image (0.01(22), 2001-05-12),
+# still supported and reachable from the frontend's header ROM-switch
+# link.  Same makeConan core as the default above — just a different
+# image — so it boots through the same path.  It paints the *Revo's* EPOC
+# R5 splash rather than Conan's own, and settles sooner: byte-stable from
+# ~40 sim-seconds (identical PGM at 40 / 45 / 50 s) at variance ~2039.
+# The "Program closed / Agenda / CONE / 14" dialog in its golden is the
 # image's own startup panic, not an emulator fault — with the host RTC
 # moved back to mid-2000 the frame is byte-identical to the golden apart
 # from the clock cell, and the machine behind the dialog is interactive.
-conan     | conan_s2_2201.engbuild.IMG      | 40 | 1000
+conanv001 | conan_s2_2201.engbuild.IMG      | 40 | 1000
 series3   | series3_v1.91f_eng.bin          |  3 | 50  | --min-mdrive-subdirs 0
 pocketbk  | acorn_pocketBook_II.bin         |  8 | 200 | --min-mdrive-subdirs 0
 series3c  | series3c_v5.20f_eng.bin         | 40 | 200 | --min-mdrive-subdirs 5

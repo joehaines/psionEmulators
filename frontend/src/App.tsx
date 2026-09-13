@@ -146,14 +146,20 @@ function sortProfiles(
 // from a low-prominence button in the header for side-by-side comparison.
 const MAME_CAPABLE_DEVICE_IDS = new Set(['series3a', 'pocketbk2']);
 
-// The MC400 ships in two ROM revisions. The picker lists only the default
-// (v2.60F, id 'mc400'); a discreet header link — mirroring the MAME escape
-// hatch above — swaps to the older v1.26F ('mc400v126', hidden from the
-// picker) and back. Each entry names the device to load and the label/title
-// for the link shown while the *other* ROM is running.
-const MC400_ROM_SWITCH: Record<string, { to: string; label: string; title: string }> = {
+// Some devices ship in two ROM revisions. The picker lists only the
+// default; a discreet header link — mirroring the MAME escape hatch above —
+// swaps to the alternate ROM (hidden from the picker) and back. Each entry
+// names the device to load and the label/title for the link shown while the
+// *other* ROM is running.
+//
+//   MC400    — v2.60F default, older v1.26F boot ROM behind the link.
+//   Conan    — the dumped 0.10(17) machine ROM by default, the earlier
+//              0.01(22) engineering image behind the link.
+const ALT_ROM_SWITCH: Record<string, { to: string; label: string; title: string }> = {
   mc400:     { to: 'mc400v126', label: 'v1.26F', title: 'Load the older MC400 v1.26F boot ROM' },
   mc400v126: { to: 'mc400',     label: 'v2.60F', title: 'Load the default MC400 v2.60F boot ROM' },
+  conan:     { to: 'conanv001', label: 'v0.01',  title: 'Load the older Conan v0.01 engineering ROM' },
+  conanv001: { to: 'conan',     label: 'v0.10',  title: 'Load the default Conan v0.10 machine ROM' },
 };
 
 const USAGE_HASH = '#/usage';
@@ -522,9 +528,9 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   // Swap the running MC400 between its two boot ROMs (v2.60F default ↔
   // older v1.26F). Each ROM is a distinct device id, so this is just a
   // normal device load — save states stay keyed per ROM revision.
-  const handleSwitchMc400Rom = () => {
+  const handleSwitchAltRom = () => {
     if (!currentDeviceId) return;
-    const target = MC400_ROM_SWITCH[currentDeviceId];
+    const target = ALT_ROM_SWITCH[currentDeviceId];
     if (!target) return;
     const profile = mergedProfiles.find(p => p.id === target.to);
     if (!profile) return;
@@ -681,14 +687,14 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
         {/* MC400 ROM-revision switch. The default device boots v2.60F;
             this discreet link loads the older v1.26F boot ROM (and back),
             without adding a second near-duplicate entry to the picker. */}
-        {!showHome && currentDeviceId && !mameDeviceId && MC400_ROM_SWITCH[currentDeviceId] && (
+        {!showHome && currentDeviceId && !mameDeviceId && ALT_ROM_SWITCH[currentDeviceId] && (
           <button
             type="button"
-            onClick={handleSwitchMc400Rom}
+            onClick={handleSwitchAltRom}
             className="text-[10px] text-gray-500/40 hover:text-gray-400 transition-colors px-1"
-            title={MC400_ROM_SWITCH[currentDeviceId].title}
+            title={ALT_ROM_SWITCH[currentDeviceId].title}
           >
-            {MC400_ROM_SWITCH[currentDeviceId].label}
+            {ALT_ROM_SWITCH[currentDeviceId].label}
           </button>
         )}
 

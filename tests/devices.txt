@@ -14,7 +14,6 @@
 # devices (series3c, series3mx) that pre-create WLD/SPR/DAT/WRD/AGN at
 # cold-format time.  ARM/EPOC32 devices omit this flag (different RAM layout).
 #
-# Notes on intentionally-omitted entries: (none currently)
 5mx       | 5mx_v1.05(260)_eng.bin          | 35 | 200
 5mxpro    | 5mxPRO_v1.05(319)_patch_eng.bin | 35 | 200
 # 5mxpro_blboot: the flow the WEB app actually uses — boot the 128 KB
@@ -67,6 +66,16 @@ series3mx | series3mx_v6.16f_eng.bin        | 10 | 200 | --min-mdrive-subdirs 5
 # PSION_S5_SHADOW=1 to re-enable the legacy path for historical
 # comparisons. See core/series5.h "2026-05-11 RESOLVED" notes.
 series5      | series5_v1.01(144)_eng.bin      | 35 | 1000
+# geofox: the Geofox One, same EPOC R1 kernel generation as the Series 5
+# and the same reason for a floor this high — it paints a full Shell
+# desktop (icon column, epoc hand, System pane, clock) and settles at
+# variance ~1540 with four distinct pixel values. It is also the
+# regression gate for the all-exception I-bit fix in core/arm710.cpp:
+# with PSION_ALL_EXC_IBIT=0 the machine takes five CPU exceptions, hangs
+# in a 64-bit divide and the panel stays uniformly blank (variance 0), so
+# any regression there shows up here as a variance failure rather than
+# silently.
+geofox    | Geofox_v1.01(146)_eng.bin       | 40 | 1000
 series7   | series7_v1.05(254)_b756_eng.bin | 30 | 1000
 mc400     | MC400_v2.60F.bin                | 10 | 200 | --min-mdrive-subdirs 0
 # mc400v126: the older MC400 boot ROM, still supported and reachable from

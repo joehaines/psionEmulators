@@ -132,6 +132,17 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-netbook-eshell-keyboard.sh
 
+      # Geofox mouse pad: the boot gate can't see input, and this machine's
+      # pointer is the one in the tree that has to be DERIVED — the pad
+      # reports relative motion, so the emulator tracks a shadow of the
+      # guest's own pointer to place an absolute host click. Drift there is
+      # invisible in a screenshot until a click lands on the wrong icon, so
+      # the test asserts on the reported press coordinates as well as on
+      # Word opening.
+      - name: Run Geofox mouse-pad validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-geofox-mouse.sh
+
       # The Conan ROM dumper: an ER5u binary this repo builds itself
       # (tools/e32 writes the E32Image container by hand), swapped into the
       # ROM and run on the machine, with the resulting six 2 MB parts read

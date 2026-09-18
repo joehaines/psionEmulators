@@ -125,6 +125,26 @@ interface SkinLayout {
   silkscreenHeight?: number;  // fraction of image height
 }
 
+// One individually-placed hardware key, for a machine whose special keys
+// aren't a single evenly-divided row the way buttonBar* assumes. The rect
+// is in device-photo fractions; `code` is the EPOC scancode the key sends.
+// Drawn as an invisible zone over the photo in device mode, exactly like
+// the SIBO bar's zones, and as a labelled button below the LCD when the
+// skin isn't showing. Only the Geofox needs this so far, so the table
+// lives beside its layout rather than inside SkinLayout.
+interface SpecialButton {
+  label: string;
+  code:  number;
+  left:   number;  // fraction of image width
+  top:    number;  // fraction of image height
+  width:  number;  // fraction of image width
+  height: number;  // fraction of image height
+  // Groups the key for the skinless strip: application keys get one row,
+  // the soft keys under the trackpad another, and the power / infrared /
+  // backlight keys a third.
+  group: 'app' | 'soft' | 'system';
+}
+
 // 5mx SVG: viewBox="0 0 2895.83 1270.83"
 // Screen cutout: x=187.5, y=20.83, w=2666.67, h=1000
 const SKIN_LAYOUTS: Record<string, SkinLayout> = {
@@ -320,6 +340,85 @@ const SKIN_LAYOUTS: Record<string, SkinLayout> = {
   },
 };
 
+// ── Geofox One hardware keys ───────────────────────────────────
+//
+// The Geofox puts its application keys on the deck rather than on the
+// screen: three ragged columns of teardrop keys to the left of the
+// trackpad, each with its function etched beside it, plus a round green
+// power key at the top of the cluster and a row of five soft keys under
+// the pad. Nothing else here has that arrangement — SIBO's eight keys sit
+// in one even row, and the EPOC32 Psions put their shortcuts on the
+// digitiser — so the cluster gets its own per-key rects.
+//
+// SCANCODES come from the machine's own keyboard matrix, and every label
+// below was then confirmed by pressing that code on a booted Geofox and
+// looking at what came up. The ROM carries the matrix table at 0x5007CD0C
+// — 96 bytes, one EPOC scancode per position — and core/geofox.h copies it
+// verbatim, so the codes are the ones the real keyboard driver delivers.
+// Rows 0-3 of matrix columns 5, 6 and 7 are exactly the twelve etched deck
+// keys, and their codes run down each column in order:
+//
+//     col 5        col 6        col 7
+//   0x97 Backlit  0xA8 Infrared 0xAD Mail
+//   0xB0 Agenda   0xAF Time     0xAE Calc
+//   0xB4 Word     0xB3 Sheet    0xB2 Data
+//   0x94 Menu     0xB1 Web      0xB5 Extras
+//
+// which is why the deck's right-hand column reads Web / Data / Sheet /
+// Word for 0xB1 / 0xB2 / 0xB3 / 0xB4 and its middle column reads Mail /
+// Calc / Time / Agenda for 0xAD / 0xAE / 0xAF / 0xB0 — two runs of four
+// consecutive codes down two physical columns. The right-hand column's
+// etched glyphs confirm it exactly, top to bottom: globe, folder stack,
+// spreadsheet grid, pen on a page. The middle column's are an envelope, a
+// 2x2 grid of windows, two clock faces and a desk calendar, which places
+// the measured Calc behind the grid glyph. 0xAB cycles the Shell's icon
+// zoom and 0xAC returns to the System screen from inside any application;
+// both were verified the same way. Mail and Web are the machine's own
+// MailDum.app / WebDum.app stubs and answer "Not in ROM" on this image,
+// which is the ROM's behaviour, not the emulator's.
+//
+// The five soft-key pills under the trackpad are captioned on the case
+// itself — Extras, Menu, Zoom, Connect, System, with their Fn functions
+// (Help, Zoom▼, Hang Up, App.) printed above them. Four of those five are
+// measured codes. Connect is the one inference here: matrix column 5 rows
+// 4-6 hold 0xAB, 0xAA, 0xAC, and Zoom and System are the confirmed 0xAB
+// and 0xAC, so the pill physically between them sends the 0xAA in between.
+// It reaches the guest like any other key; this ROM's Shell simply does
+// nothing visible with it, which is what a comms key does on a machine
+// with nothing to dial. The remaining two matrix codes, 0xA2 and 0xA3, are
+// not deck keys at all — the case has exactly fifteen keys plus power and
+// the other fifteen codes account for them — and they change nothing on
+// the desktop, in Word, in Sheet or with a menu open, where Esc under the
+// same test closes the menu. They are left unmapped.
+//
+// The power key is not in the matrix at all — no 0xA0 (EStdKeyOff) appears
+// in the ROM's table — so on real hardware it is a separate line into the
+// SoC rather than a scanned key. It gets no zone here: a button that
+// cannot reach the guest is worse than no button.
+const GEOFOX_BUTTONS: readonly SpecialButton[] = [
+  // Column A — the two red-etched keys below the power key.
+  { label: 'Infrared',  code: 0xA8, group: 'system', left:  23/530, top: 428/653, width: 18/530, height: 18/653 },
+  { label: 'Backlight', code: 0x97, group: 'system', left:  23/530, top: 454/653, width: 18/530, height: 19/653 },
+  // Column B.
+  { label: 'Mail',      code: 0xAD, group: 'app',    left:  73/530, top: 375/653, width: 19/530, height: 17/653 },
+  { label: 'Calc',      code: 0xAE, group: 'app',    left:  73/530, top: 401/653, width: 19/530, height: 18/653 },
+  { label: 'Time',      code: 0xAF, group: 'app',    left:  73/530, top: 428/653, width: 19/530, height: 18/653 },
+  { label: 'Agenda',    code: 0xB0, group: 'app',    left:  73/530, top: 454/653, width: 19/530, height: 19/653 },
+  // Column C.
+  { label: 'Web',       code: 0xB1, group: 'app',    left: 123/530, top: 375/653, width: 19/530, height: 18/653 },
+  { label: 'Data',      code: 0xB2, group: 'app',    left: 123/530, top: 401/653, width: 19/530, height: 18/653 },
+  { label: 'Sheet',     code: 0xB3, group: 'app',    left: 123/530, top: 428/653, width: 19/530, height: 18/653 },
+  { label: 'Word',      code: 0xB4, group: 'app',    left: 123/530, top: 455/653, width: 19/530, height: 18/653 },
+  // Soft keys under the trackpad, in the order the case prints them. Their
+  // Fn-shifted functions are printed above them and are not separate keys,
+  // so they get no zone of their own.
+  { label: 'Extras',    code: 0xB5, group: 'soft',   left: 165/530, top: 475/653, width: 33/530, height: 12/653 },
+  { label: 'Menu',      code: 0x94, group: 'soft',   left: 206/530, top: 475/653, width: 33/530, height: 12/653 },
+  { label: 'Zoom',      code: 0xAB, group: 'soft',   left: 248/530, top: 475/653, width: 33/530, height: 12/653 },
+  { label: 'Connect',   code: 0xAA, group: 'soft',   left: 290/530, top: 476/653, width: 33/530, height: 12/653 },
+  { label: 'System',    code: 0xAC, group: 'soft',   left: 332/530, top: 476/653, width: 33/530, height: 12/653 },
+];
+
 // ── Photo-skin layouts for the `device-skins/` folder ───────────────────
 //
 // Each entry matches the aspect ratio of the corresponding PNG/JPEG in
@@ -498,6 +597,50 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     silkscreenWidth:    38 / 1200,
     silkscreenHeight:  314 / 520,
   },
+  // Geofox One: 640×320 LCD — the tallest panel of any machine here. The
+  // photo (530×653) is a straight-on shot of the open clamshell; every
+  // rect below was measured off its pixels rather than scaled from
+  // another device, because the Geofox shares its case with nothing.
+  //
+  // geofox_one.png is geofox_one.jpg with the screen aperture painted out
+  // in the panel's own unlit colour. Every other skin in this folder ships
+  // with an empty screen, and it matters here rather than being tidiness:
+  // in device mode the emulated LCD is composited over the photo as a
+  // translucent grey layer, so anything printed in the aperture shows
+  // through it. The supplied shot has a running Geofox Mail window in it,
+  // so left in place it would show through whatever the guest is actually
+  // displaying. The original is kept as the home page's intro shot
+  // (public/intro/geofox.jpg), where a live screen is the point.
+  //
+  //   screen aperture   x=55..485, y=45..273
+  //   power key (green) x=32..51,  y=384..403
+  //   key columns       x=23..40 / 73..91 / 123..141
+  //   key rows          y=375..391 / 401..418 / 428..445 / 454..472
+  //   soft-key pills    y=475..487, 42 px apart from x=165
+  //
+  // digitiserPad* pins the pointer area to the screen aperture. That is
+  // the LCD's own coordinate space rather than a pen area: the Geofox has
+  // no touchscreen, it has a capacitive mouse pad in the keyboard deck,
+  // and the emulator turns a position on the panel back into the motion
+  // that pad reports (see core/geofox.h). Pinning it to the screen rather
+  // than to the pad in the photo is deliberate — pointing at the thing you
+  // want is the whole advantage a host mouse has over a 4 cm² pad — and
+  // the pin is also what keeps the mapping anchored to the panel at all:
+  // without it the default area sits at the top-left of the whole photo.
+  //
+  // The hardware keys either side of the pad are in GEOFOX_BUTTONS above.
+  'geofox_one.png': {
+    aspectRatio:  530 / 653,
+    screenLeft:    55 / 530,
+    screenTop:     45 / 653,
+    screenWidth:  431 / 530,
+    screenHeight: 229 / 653,
+    digitiserPadLeft:    55 / 530,
+    digitiserPadTop:     45 / 653,
+    digitiserPadWidth:  431 / 530,
+    digitiserPadHeight: 229 / 653,
+    digitiserWidth: 640, digitiserHeight: 320,
+  },
   // Osaris: 320×200 LCD. Digitiser 440×200 with 60px silkscreen each side.
   'osaris.png': {
     aspectRatio:  849 / 793,
@@ -596,6 +739,7 @@ export function getDeviceSkinPhotoFilename(deviceId: string | null): string | nu
     case 'pocketbk':    return 'acornPB.png';
     case 'pocketbk2':   return 'acornPB2.png';
     case 'organiser2':  return 'organiser2.png';
+    case 'geofox':      return 'geofox_one.png';
     case 'osaris':      return 'osaris.png';
     case 'revo':        return 'revo.png';
     case 'conan':       return 'CONAN.png';
@@ -703,6 +847,7 @@ export default function EmulatorView({
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
+    handlePointerHover,
     logs,
     clearLogs,
     setLoggingEnabled,
@@ -820,6 +965,11 @@ export default function EmulatorView({
   const hiddenInputRef  = useRef<HTMLTextAreaElement>(null);
   const fsContainerRef  = useRef<HTMLDivElement>(null);
   const overlayRef      = useRef<HTMLDivElement>(null);
+  // Set while a Geofox secondary click is holding the Menu key down, so
+  // the release goes out even when the gesture ends as a pointercancel
+  // (scroll takeover, window blur) rather than a clean pointerup — a
+  // cancel carries no button number to test.
+  const geofoxMenuHeldRef = useRef(false);
   const skinImgRef      = useRef<HTMLImageElement>(null);
   const siboBarImgRef   = useRef<HTMLImageElement>(null);
   const [showLogs,    setShowLogs]    = useState(false);
@@ -872,7 +1022,8 @@ export default function EmulatorView({
   // link) but complete the handshake with 0x22 — they reply Ack_Pdu and
   // proceed to NCP Info. Harness-verified reply matrix; see
   // scripts/test-remote-link.sh.
-  const isClps711x = currentDeviceId === 'osaris' || currentDeviceId === 'series5';
+  const isClps711x = currentDeviceId === 'osaris' || currentDeviceId === 'series5' ||
+                     currentDeviceId === 'geofox';
   const remoteLinkConSeq = isClps711x ? 2 : 4;
   // Which SIBO app-button is currently held (for press highlight on mobile)
   const [pressedSiboBtn, setPressedSiboBtn] = useState<string | null>(null);
@@ -1296,6 +1447,9 @@ export default function EmulatorView({
   // the click button is fired separately so a mobile user can position
   // the cursor before tapping click.
   const EPOC_TRACKPAD  = 120;
+  // Geofox One: the Menu deck key, and equally the key the mouse pad
+  // sends when it is tapped in its top-right corner (core/geofox.h).
+  const EPOC_GEOFOX_MENU = 0x94;
   // SIBO devices (Series 3 / 3a / 3c / 3mx / Pocket Book): the Psion key
   // (⊔, the logo key left of Menu) maps to EStdKeyRightAlt (21); the
   // diamond key (◆, right of Menu) maps to EStdKeyCapsLock (26).
@@ -1309,6 +1463,14 @@ export default function EmulatorView({
   const EPOC_DICT_STOP   = 157; // EStdKeyDictaphoneStop
   const isOrganiser2 = deviceInfo?.deviceName?.includes('Organiser') ?? false;
   const isMc400      = deviceInfo?.deviceName?.includes('MC400') ?? false;
+  // Geofox One: no touchscreen — a capacitive mouse pad in the keyboard
+  // deck drives an on-screen pointer, the way a laptop trackpad does (see
+  // core/geofox.h). The emulator turns a position on the panel back into
+  // pad motion, so the overlay's job is only to report where the host is
+  // pointing and whether it is pressing: a hovering mouse moves the
+  // pointer without clicking, and a finger drags it and clicks where it
+  // lands.
+  const isGeofox     = deviceInfo?.deviceName?.includes('Geofox') ?? false;
   const isSibo       = (deviceInfo?.deviceName?.includes('Series 3') ||
                         deviceInfo?.deviceName?.includes('Pocket Book') ||
                         deviceInfo?.deviceName?.includes('Siena')) ?? false;
@@ -1318,7 +1480,7 @@ export default function EmulatorView({
   const hasFnKey = currentDeviceId === '5mx'    || currentDeviceId === '5mxpro' ||
                    currentDeviceId === 'series5' || currentDeviceId === 'mc218'  ||
                    currentDeviceId === 'osaris'  || currentDeviceId === 'revo'   ||
-                   currentDeviceId === 'conan';
+                   currentDeviceId === 'conan'   || currentDeviceId === 'geofox';
 
   // EPOC clamshells with physical voice-recorder buttons on the case
   // (Record / Play / Stop), separate from the keyboard. Excludes Revo and
@@ -1336,6 +1498,15 @@ export default function EmulatorView({
     currentDeviceId === 'pocketbk'                                       ? 'AcornBP_buttons.png' :
     currentDeviceId === 'pocketbk2'                                      ? 'AcornPB2_buttons.png':
     null;
+  // Geofox One hardware keys. In device mode they are invisible zones over
+  // the photo's own etched keys; with the skin off there is no picture of
+  // the deck to point at, so the same keys are drawn as a labelled strip
+  // under the LCD — the role the SIBO button-bar image plays for the
+  // Series 3 family. Empty for every other device, which is what keeps
+  // both blocks out of their render.
+  const geofoxBtns: readonly SpecialButton[] =
+    currentDeviceId === 'geofox' ? GEOFOX_BUTTONS : [];
+
   const siboBarBtns: ReadonlyArray<{ label: string; code: number }> =
     (currentDeviceId === 'series3c' || currentDeviceId === 'series3mx') ? SIBO_BUTTONS_9    :
     currentDeviceId === 'pocketbk'                                       ? ACORN_BP_BUTTONS  :
@@ -1559,7 +1730,10 @@ export default function EmulatorView({
             height:      overlayHeight,
             touchAction: 'none',
             zIndex:      20,
-            cursor:      'crosshair',
+            // The Geofox draws its own arrow pointer and the pad keeps it
+            // under the host mouse, so a host cursor on top of it would
+            // just be a second, redundant pointer.
+            cursor:      isGeofox ? 'none' : 'crosshair',
           }}
           onPointerDown={e => {
             e.preventDefault();
@@ -1575,11 +1749,36 @@ export default function EmulatorView({
               sendEpocKey(EPOC_TRACKPAD, true);
               return;
             }
+            // Geofox secondary click: the real pad reaches the menu bar
+            // through a tap in its top-right corner, which the driver
+            // turns into EKeyDown 0x94 — the very code the Menu deck key
+            // sends. So a right-click goes out as that key, and the pad
+            // model needs no second button of its own.
+            if (isGeofox && e.button === 2) {
+              geofoxMenuHeldRef.current = true;
+              sendEpocKey(EPOC_GEOFOX_MENU, true);
+              return;
+            }
             const { x, y } = toDigitiserCoords(e);
             handlePointerDown(x, y);
           }}
           onPointerMove={e => {
             e.preventDefault();
+            // The Geofox's pointer exists whether or not anything is
+            // pressing, so position and press are reported separately:
+            // the PRIMARY button drags (a finger on the panel counts as
+            // one), and everything else only moves — a hovering mouse,
+            // or one holding the secondary button for the menu, which
+            // would otherwise put the pad's own button down for the
+            // length of the gesture. A touchscreen sends no move at all
+            // unless a finger is down, so the hover branch is a mouse's
+            // (or a pen's) alone.
+            if (isGeofox) {
+              const { x, y } = toDigitiserCoords(e);
+              if ((e.buttons & 1) !== 0) handlePointerMove(x, y);
+              else if (e.pointerType !== 'touch') handlePointerHover(x, y);
+              return;
+            }
             // Digitiser devices (Series 5 etc.) treat a move as a pen drag,
             // so they only track while the primary button is held — a
             // no-button hover must not inject a phantom pen-down. The MC400
@@ -1592,10 +1791,20 @@ export default function EmulatorView({
           }}
           onPointerUp={e => {
             e.preventDefault();
+            if (geofoxMenuHeldRef.current) {
+              geofoxMenuHeldRef.current = false;
+              sendEpocKey(EPOC_GEOFOX_MENU, false);
+              return;
+            }
             handlePointerUp();
             if (isMc400 && e.pointerType === 'mouse') sendEpocKey(EPOC_TRACKPAD, false);
           }}
           onPointerCancel={e => {
+            if (geofoxMenuHeldRef.current) {
+              geofoxMenuHeldRef.current = false;
+              sendEpocKey(EPOC_GEOFOX_MENU, false);
+              return;
+            }
             handlePointerUp();
             if (isMc400 && e.pointerType === 'mouse') sendEpocKey(EPOC_TRACKPAD, false);
           }}
@@ -1646,6 +1855,51 @@ export default function EmulatorView({
               />
             ))}
           </div>
+        )}
+
+        {/* Geofox hardware-key zones in device mode. Unlike the SIBO bar
+            these aren't one row divided evenly — the deck's keys are
+            scattered across three columns beside the trackpad plus a row
+            of soft keys under it — so each key is placed from its own
+            rect in GEOFOX_BUTTONS. Invisible until hovered or pressed,
+            exactly like the SIBO zones, so the photo reads as a photo. */}
+        {deviceMode && deviceSkinPhotoFile && geofoxBtns.length > 0 && (
+          <>
+            {geofoxBtns.map(({ label, code, left, top, width, height }) => (
+              <button
+                key={label}
+                type="button"
+                title={label}
+                aria-label={`${label} key`}
+                className={[
+                  'absolute select-none rounded-full transition-opacity',
+                  pressedSiboBtn === label
+                    ? 'opacity-40 bg-psion-highlight'
+                    : 'opacity-0 hover:opacity-25 hover:bg-white',
+                ].join(' ')}
+                style={{
+                  left:   left   * cw,
+                  top:    top    * ch,
+                  width:  width  * cw,
+                  height: height * ch,
+                  zIndex: 20,
+                }}
+                onPointerDown={e => {
+                  e.preventDefault();
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  setPressedSiboBtn(label);
+                  sendEpocKey(code, true);
+                  setTimeout(() => {
+                    sendEpocKey(code, false);
+                    setPressedSiboBtn(null);
+                  }, 120);
+                }}
+                onPointerUp={() => setPressedSiboBtn(null)}
+                onPointerCancel={() => setPressedSiboBtn(null)}
+                onContextMenu={e => e.preventDefault()}
+              />
+            ))}
+          </>
         )}
 
         {/* netpad silkscreen tap zones. Five equal bands down the icon
@@ -1700,6 +1954,55 @@ export default function EmulatorView({
 
       </div>
       </div>
+
+      {/* ── Geofox hardware-key strip ──
+          With the skin off there is no picture of the Geofox's deck to
+          press, so its etched keys are drawn as labelled buttons under
+          the LCD instead — three rows matching the three groups on the
+          case: the applications beside the trackpad, the soft keys under
+          it, and the power / infrared / backlight keys. In device mode
+          the zones sit on the photo's own keys inside the frame above
+          and this strip is hidden. */}
+      {geofoxBtns.length > 0 && !(deviceMode && deviceSkinPhotoFile) && (
+        <div
+          className="flex-shrink-0 flex flex-col gap-1.5 pt-2"
+          style={{ width: cw }}
+        >
+          {(['app', 'soft', 'system'] as const).map(group => (
+            <div key={group} className="flex flex-wrap justify-center gap-1.5">
+              {geofoxBtns.filter(b => b.group === group).map(({ label, code }) => (
+                <button
+                  key={label}
+                  type="button"
+                  title={label}
+                  className={[
+                    'px-2.5 py-1 rounded border text-xs font-mono select-none',
+                    'transition-colors',
+                    pressedSiboBtn === label
+                      ? 'bg-psion-highlight text-psion-charcoal border-psion-accent'
+                      : 'bg-psion-mid text-psion-charcoal border-psion-accent/50 hover:bg-psion-accent hover:text-white',
+                  ].join(' ')}
+                  onPointerDown={e => {
+                    e.preventDefault();
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    setPressedSiboBtn(label);
+                    sendEpocKey(code, true);
+                    setTimeout(() => {
+                      sendEpocKey(code, false);
+                      setPressedSiboBtn(null);
+                    }, 120);
+                  }}
+                  onPointerUp={() => setPressedSiboBtn(null)}
+                  onPointerCancel={() => setPressedSiboBtn(null)}
+                  onContextMenu={e => e.preventDefault()}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── SIBO app-button bar ──
           Displayed immediately below the LCD frame for Series 3 / 3a /

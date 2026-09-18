@@ -372,9 +372,30 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const sendEpocKey = useCallback((k: number, down: boolean) => clientRef.current?.sendKey(k, down), []);
   const pressEpocKey = useCallback((k: number) => clientRef.current?.enqueue(expandChord([], k)), []);
   const pressEpocChord = useCallback((mods: number[], k: number) => clientRef.current?.enqueue(expandChord(mods, k)), []);
-  const handlePointerDown = useCallback((x: number, y: number) => clientRef.current?.sendTouch(x, y, true), []);
-  const handlePointerMove = useCallback((x: number, y: number) => clientRef.current?.sendTouch(x, y, true), []);
-  const handlePointerUp = useCallback(() => clientRef.current?.sendTouch(0, 0, false), []);
+  // Last position sent to the guest, so the release lands where the
+  // press did. Sending pen-up at (0, 0) hit-tests the release against the
+  // top-left corner of the screen — which opens-then-closes folders on a
+  // digitiser machine, and on the Geofox, whose pointer is driven
+  // relatively, would walk the pointer into the corner on every click.
+  // useEmulator (the non-worker path) has kept its own lastTouchRef for
+  // exactly this reason; this is the same fix on the worker path.
+  const lastTouchRef = useRef({ x: 0, y: 0 });
+  const handlePointerDown = useCallback((x: number, y: number) => {
+    lastTouchRef.current = { x, y };
+    clientRef.current?.sendTouch(x, y, true);
+  }, []);
+  const handlePointerMove = useCallback((x: number, y: number) => {
+    lastTouchRef.current = { x, y };
+    clientRef.current?.sendTouch(x, y, true);
+  }, []);
+  const handlePointerHover = useCallback((x: number, y: number) => {
+    lastTouchRef.current = { x, y };
+    clientRef.current?.sendTouch(x, y, false);
+  }, []);
+  const handlePointerUp = useCallback(() => {
+    const { x, y } = lastTouchRef.current;
+    clientRef.current?.sendTouch(x, y, false);
+  }, []);
 
   const getBacklight = useCallback(() => statusRef.current.backlight, []);
   const getScreenOrientation = useCallback(() => statusRef.current.orientation, []);
@@ -594,7 +615,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     speakerEnabled, micEnabled, audioError,
     currentDeviceId, profiles,
     loadDevice, handleKeyDown, handleKeyUp, releaseHeldKeys, handleInput, handlePasteText, pasteFromClipboard,
-    sendEpocKey, handlePointerDown, handlePointerMove, handlePointerUp,
+    sendEpocKey, handlePointerDown, handlePointerMove, handlePointerUp, handlePointerHover,
     pressEpocKey, pressEpocChord, getBacklight, getScreenOrientation, saveState,
     clearLogs: () => setLogs([]),
     setLoggingEnabled: (on: boolean) => { loggingOnRef.current = on; clientRef.current?.setLoggingEnabled(on); },

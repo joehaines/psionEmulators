@@ -42,6 +42,12 @@ const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'workaboutmx', name: 'WorkaboutMX',          year: '2000' },
   { id: 'mc400',       name: 'MC400',                year: '1989' },
   { id: 'netpad',      name: 'netPad',               year: '2001' },
+  // Geofox Ltd's licensed EPOC clamshell. It sits near the end of this
+  // fallback order for the same reason the Conan does — the order is a
+  // most-iconic-first guess and a licensee's only model is not that —
+  // and the leaderboard reorders by real load counts as soon as it
+  // arrives.
+  { id: 'geofox',      name: 'Geofox One',           year: '1997' },
   // The one year here that isn't a launch year: there is no consumer launch
   // to date the Conan by, so it takes the year its ROM image was built
   // (2001-05-12), the same way its DEVICE_RELEASE_YEARS entry does. It sits
@@ -73,7 +79,7 @@ const CAPABILITIES = [
 
 const FAMILIES: { tag: string; title: string; models: string }[] = [
   { tag: 'EPOC32 · ARM',  title: 'EPOC32 machines',
-    models: 'Series 5 · 5mx · 5mx Pro · MC218 · Revo · Revo (Conan) · Osaris · Series 7 · netBook · netPad' },
+    models: 'Series 5 · 5mx · 5mx Pro · MC218 · Revo · Revo (Conan) · Osaris · Geofox One · Series 7 · netBook · netPad' },
   { tag: 'SIBO · 16-bit', title: 'Series 3 family',
     models: 'Series 3 · 3a · 3c · 3mx · Siena · Workabout · WorkaboutMX · Pocket Book I & II · MC400' },
   { tag: '8-bit',         title: 'Organiser',
@@ -287,7 +293,11 @@ export default function Home({
             acclaimed <strong>Series&nbsp;5</strong>, with its touchscreen and
             sliding keyboard. The 5mx, tiny Revo, Ericsson MC218, Oregon
             Scientific Osaris and the larger Series&nbsp;7 and netBook all built
-            on it.
+            on it. EPOC32 was licensed out too: the 1997{' '}
+            <strong>Geofox&nbsp;One</strong>, from the short-lived British
+            firm Geofox&nbsp;Ltd, ran the same OS on a taller
+            640&times;320 screen and steered it with a trackpad set into
+            the keyboard rather than a stylus.
           </p>
           <p className="text-sm mb-3">
             That OS proved Psion's most lasting legacy: in 1998 it was spun out

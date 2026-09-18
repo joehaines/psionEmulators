@@ -709,6 +709,14 @@ public:
 	// them cleanly).  Off by default; enabled by SA1100::Emulator when the
 	// netBook bootloader ROM is loaded.
 	void setNetBookBlBankedSpFix(bool e) { netBookBlBankedSpFix_ = e; }
+	// Mask IRQs on entry to *every* exception, not just IRQ/FIQ — which
+	// is what real ARM hardware does. Needed by any kernel that lets
+	// SP_svc and SP_irq share a stack (EPOC R1 does: see raiseException).
+	// Off by default so devices matching WindEmu's looser behaviour are
+	// unaffected; Series 5 gets it via series5HalFix, the Geofox sets it
+	// directly.
+	void setAllExceptionIBit(bool e) { allExcIBit_ = e; }
+	bool getAllExceptionIBit() const { return allExcIBit_; }
 	// Runtime-toggleable abort/exception trace for the booted netBook OS:
 	// logs every data/prefetch/undef exception with FAR + faulting PC.  Used
 	// to localize the drive-D-open crash by enabling it just before the access.
@@ -746,6 +754,7 @@ private:
 	bool cfDiagEnabled = false;
 	bool series5HalFix = false;
 	bool netBookBlBankedSpFix_ = false;
+	bool allExcIBit_ = false;
 	bool nbExcTrace_ = false;
 	// Approximate cycle counter, incremented by every executeInstruction()
 	// return value. Used by the optional PSION_INSN_TRACE_CYC trace

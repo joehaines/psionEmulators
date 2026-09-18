@@ -46,9 +46,9 @@ uint32_t Emulator::getRTC() {
 
 uint32_t Emulator::readReg8(uint32_t reg) {
 	if (reg == PADR) {
-		return ((portValues >> 24) & 0x80) | (readKeyboard() & 0x7F);
+		return composePortA();
 	} else if (reg == PBDR) {
-		return ((portValues >> 16) & 0x0F) | ((keyboardExtra ^ 0xF) << 4);
+		return composePortB();
 	} else if (reg == 0x02) {
 		return portCData;    // Series 5 PortC data (CL-PS7110 only)
 	} else if (reg == PDDR) {
@@ -216,6 +216,10 @@ uint32_t Emulator::readReg32(uint32_t reg) {
 		// PS7111 (MC218/Osaris/5mx) has chipHasSysCon2()==true.
 		bool isAds7843 = !chipHasSysCon2();
 		uint8_t controlByte = lastSyncioRequest & 0xFF;
+		// Device-specific SSI peripheral gets first refusal — see
+		// syncioResponse's declaration.
+		if (MaybeU32 r = syncioResponse(controlByte); r.has_value())
+			return r.value();
 		if (!isAds7843) {
 			// Legacy ADC1010 mapping for non-Series-5 chips:
 			switch (controlByte) {
@@ -994,6 +998,15 @@ MaybeU32 Emulator::readPhysical(uint32_t physAddr, ValueSize valueSize) {
 			MaybeU32 r = readRegion2(physAddr, V8);
 			return r.has_value() ? r.value() : 0x00;
 		}
+		else if (region == 3) {
+			// External chip-select nCS2 aperture (0x30000000-0x3FFFFFFF).
+			// Unlike nCS1 there is no fall-through default: a device with
+			// nothing wired here leaves the access unmapped, so the CPU
+			// takes the same bus-error abort it took before this branch
+			// existed. Only a subclass that claims the window changes
+			// anything.
+			return readRegion3(physAddr, V8);
+		}
 		else if (region == 4) {
 			if (isCLPS7600RegisterAddr(physAddr, chipHasCLPS7600()))
 				return pcCardController.read(physAddr & 0xFFFFFFF, V8);
@@ -1048,6 +1061,10 @@ MaybeU32 Emulator::readPhysical(uint32_t physAddr, ValueSize valueSize) {
 			// the same virtual so subclasses can treat 8/16/32 uniformly.
 			MaybeU32 r = readRegion2(physAddr, V32);
 			return r.has_value() ? r.value() : 0x00000000;
+		}
+		else if (region == 3) {
+			// See the V8 branch: unclaimed nCS2 stays unmapped.
+			return readRegion3(physAddr, V32);
 		}
 		else if (region == 4) {
 			if (isCLPS7600RegisterAddr(physAddr, chipHasCLPS7600()))
@@ -1118,6 +1135,12 @@ bool Emulator::writePhysical(uint32_t value, uint32_t physAddr, ValueSize valueS
 			writeRegion2(value, physAddr, V8);
 			return true;  // always swallow unknown nCS1 writes
 		}
+		else if (region == 3) {
+			// External chip-select nCS2: a subclass that claims the write
+			// handles it; anything else stays unmapped and faults, as it
+			// did before the window existed.
+			return writeRegion3(value, physAddr, V8);
+		}
 		else if (region == 4) {
 			if (isCLPS7600RegisterAddr(physAddr, chipHasCLPS7600()))
 				pcCardController.write(value, physAddr & 0xFFFFFFF, V8);
@@ -1164,6 +1187,9 @@ bool Emulator::writePhysical(uint32_t value, uint32_t physAddr, ValueSize valueS
 		else if (region == 2) {
 			writeRegion2(value, physAddr, V32);
 			return true;
+		}
+		else if (region == 3) {
+			return writeRegion3(value, physAddr, V32);
 		}
 		else if (region == 4) {
 			if (isCLPS7600RegisterAddr(physAddr, chipHasCLPS7600()))

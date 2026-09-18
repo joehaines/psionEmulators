@@ -9,6 +9,7 @@
 #include "conan.h"
 #include "clps7111.h"
 #include "osaris.h"
+#include "geofox.h"
 #include "series3.h"
 #include "series3c.h"
 #include "series7.h"
@@ -53,6 +54,11 @@ static EmuBase *makeCLPS7111()   { return new CLPS7111::Emulator; }
 // matching upstream WindEmu's Osaris config); Osaris::Emulator just
 // overrides the device-name string.
 static EmuBase *makeOsaris()     { return new Osaris::Emulator; }
+// Geofox One (1997) — the EPOC R1 clamshell from Psion licensee Geofox
+// Ltd. ARM710 on a CL-PS7110-class SoC (the ROM never programs FRBADDR,
+// so the frame buffer is the 7110's fixed 0xC0000000) with a 640x320
+// 2 bpp panel — taller than any Psion of the era. See core/geofox.h.
+static EmuBase *makeGeofox()     { return new Geofox::Emulator; }
 static EmuBase *makeSeries5()    { return new Series5::Emulator; }
 // Psion Revo uses a CL-PS7111-family SoC but the CLPS7111::Emulator in this
 // tree does not boot any real ROM (see the mc218 profile comment). The Revo
@@ -432,6 +438,60 @@ static const DeviceProfile kProfiles[] = {
         1, 1,   // cable + IrDA both on the single host-bridged UART1
                 // (CL-PS7110; ER3 link — same 0x22 Req_Con flavour as
                 // the Osaris, see RemoteLinkDialog's conSeq)
+        1, 1,
+    },
+    {
+        // Geofox One — 1997 EPOC32 clamshell from Geofox Ltd, a Psion
+        // licensee. Same ARM710 / CL-PS711x platform and the same EPOC
+        // Release 1 kernel generation as the Series 5 (its ROM reports
+        // version 1.01(146) against the Series 5's 1.01(144)), but a
+        // genuinely different machine: a 640x320 panel where the Series 5
+        // has 640x240, a trackpad instead of a touchscreen, and a row of
+        // hardware application keys down the left of the keyboard deck.
+        // See core/geofox.h for how the panel geometry was read out of
+        // the ROM's own LCDCON programming.
+        "geofox",
+        "Geofox One",
+        "Geofox_v1.01(146)_eng.bin",
+        0x800000,
+        // No EPOC variant ID: this ROM's header carries 0 where the
+        // Osaris / 5mx images carry a variant-file pointer, so
+        // detectROMVariant finds nothing and auto-detection falls back to
+        // matching on ROM size. 8 MB is shared with the Osaris and the
+        // Revo, both registered ahead of this entry, so the fallback will
+        // not pick the Geofox — the frontend and harness always name it
+        // explicitly by id, which is the path every 8 MB device already
+        // relies on.
+        0,
+        nullptr,  // skin resolved frontend-side, as for every device
+        DeviceStatus::Supported,
+        makeGeofox,
+        false,  // The case has a Type II PC Card slot and the ROM's
+                // battery warnings talk about powering a PC Card, but a
+                // card attached through the shared CF path does not
+                // mount: with one inserted the guest never touches the
+                // PC-card window at region 4 at all (measured with
+                // PSION_PHYS_WATCH over 0x40000000-0x4FFFFFFF across a
+                // full boot), so its socket detect/power is on hardware
+                // this emulator does not model yet. The Series 5's route
+                // in is an SSI ADC channel (0xE1, Vcc sense) and the
+                // Geofox makes exactly 32 SSI transfers in a whole boot,
+                // all of them the configuration-PROM scan. (The mouse pad
+                // is on that bus too, but it only transfers when the pad
+                // has something to report, so an untouched boot is still
+                // those 32 and nothing else.) Advertising
+                // the slot would only offer a card UI that silently does
+                // nothing.
+        0, 0,
+        1, 1,   // cable + IrDA both on the single host-bridged UART1, the
+                // CL-PS7110 arrangement the Series 5 uses; the ROM ships
+                // Euart1.pdd / Euart2.pdd, Plp.prt and IrDA.prt. Unverified:
+                // unlike the Series 5's, this ROM emits no PLP frame when
+                // the bridge attaches to either UART on a booted machine,
+                // so the link presumably has to be switched on from the
+                // System screen first (the netpad's EPOC R5 build behaves
+                // the same way on real hardware) — which the harness's
+                // serial rows do not do.
         1, 1,
     },
     {

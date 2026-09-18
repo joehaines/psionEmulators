@@ -8,7 +8,8 @@ architectures and fifteen years of devices. Play any of them in the browser at
 - **NEC V30 / V30H** (with Psion's ASIC1 / ASIC2 / ASIC9) — the SIBO family:
   Series 3, 3a, 3c, 3mx, Siena, Workabout, MC400/MC218.
 - **ARM710 (CL-PS7110 / Windermere) and StrongARM SA-1100** — the ARM-era
-  machines: Series 5, 5mx, Revo, Series 7, netBook.
+  machines: Series 5, 5mx, Revo, Series 7, netBook, and the licensed
+  Geofox One.
 
 Every CPU core, peripheral and OS path is emulated natively in C++, compiled to
 WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
@@ -27,6 +28,7 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | Acorn Pocket Book II | 1996 | NEC V30H | ✅ | — | ✅ ×2 | ✅ | ✅ | — | — | ❌ |
 | Siena | 1996 | NEC V30H | ✅ | — | ✅ ×1 | ✅ | ✅ | — | ✅ | ✅ |
 | Series 5 | 1997 | ARM710 (CL-PS7110) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Geofox One | 1997 | ARM710 (CL-PS7110) | ✅ | ❌ | — | ❓ | — | — | ❓ | ❓ |
 | Series 3mx | 1998 | NEC V30H | ✅ | — | ✅ ×2 | ✅ | ✅ | — | ✅ | ✅ |
 | Osaris | 1998 | ARM710 (CL-PS7111) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | WorkaboutMX | 1998 | NEC V30MX | ✅ | — | ✅ ×2 | ✅ | ✅ | — | ❌ | ✅ |
@@ -39,7 +41,7 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | Revo (Conan) | 2001 | ARM710 (Windermere) | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ❌ |
 | netpad | 2001 | StrongARM SA-1110 | ✅ | ✅ MMC | — | ⚠️ | ✅ | ✅ | ✅ | ✅ |
 
-✅ Supported · ⚠️ Partial / not fully booted · ❌ Not yet emulated · — Hardware not present.
+✅ Supported · ⚠️ Partial / not fully booted · ❌ Not yet emulated · — Hardware not present · ❓ Hardware present, not yet verified.
 **CF** = removable storage card (CompactFlash, or MMC on the netpad).
 **Link** = Remote Link / PsiWin file access over the serial cable — ❌ on the
 Conan means the port is there but its ROM speaks a later link protocol this
@@ -114,6 +116,76 @@ emulator's PsiWin client can't.
   [`docs/netpad-rom-and-mmc.md`](docs/netpad-rom-and-mmc.md) for the
   register map, which also explains why the ROM's only document-creating
   app is Data.
+- **Geofox One** — a 1997 EPOC32 clamshell from Geofox Ltd, a Psion
+  licensee, on the same ARM710 + CL-PS711x platform and the same EPOC
+  Release 1 kernel generation as the Series 5 (ROM 1.01(146) against the
+  Series 5's 1.01(144)). It **boots to the EPOC desktop** on its 640×320
+  panel — icon column, epoc hand, System pane and running clock — with no
+  CPU exceptions over a 40-second boot, and its applications open and run:
+  Word, Sheet, Data, Agenda, Calc, Time (with the world map) and the Extras
+  bar. The twelve keys etched down the keyboard deck go straight to their
+  applications, and the machine is navigable from the keyboard throughout.
+  Mail and Web answer "Not in ROM" — this image carries Geofox's
+  `MailDum.app` / `WebDum.app` stubs, so that is the ROM's own behaviour.
+
+  Four things had to be fixed to get there, each measured rather than
+  guessed. The first is a CPU bug, not a Geofox one:
+  - **ARM exception entry must mask IRQs.** The core only set CPSR.I on
+    IRQ and FIQ entry, following WindEmu; real ARM hardware sets it on
+    every exception, SWI included, and the Geofox is the clearest case
+    anywhere in this tree of why that matters. Its EKern hands SVC mode
+    and IRQ mode *the same 1 KB stack* — the mode-stack setup at ROM
+    0x50019BC8 loads SP_svc and SP_irq from one pointer — which is only
+    safe because a SWI is entered with interrupts off. With them left on,
+    the first timer IRQ to land inside a fast-path executive call pushed
+    r0-r3/ip/lr straight over the live SVC frame; the call then returned
+    into a stale handler address, and the wreckage surfaced seconds later
+    as a USER 19 (bad descriptor type) panic, a prefetch abort into EPOC's
+    own 0xBB stack poison, and a hang inside the 64-bit divide at
+    0x5004D65C entered mid-loop with a garbage iteration count. The window
+    server never ran, so the panel stayed blank. Series 5 already carried
+    the fix under its own flag; the Geofox now sets it directly, and
+    `tests/devices.txt` gates it — with `PSION_ALL_EXC_IBIT=0` the boot
+    goes back to five exceptions and a variance of zero.
+  - **The configuration PROM on the SSI bus.** The variant driver reads a
+    32-byte block over SYNCIO at boot and XORs it to 0x42 or gives up.
+    Unanswered it read as zeros, failed, and the boot stopped with EFile
+    up and no GUI.
+  - **The power/battery chip on chip-select nCS2.** The driver reads one
+    status byte a second from 0x30000000 and splits it into four fields
+    (main-battery-low flag, main level, backup level). Unmapped, the read
+    took a bus-error abort; mapped with the wrong bits it stops at the
+    media drivers. Bits 1-2 are the "power is fine" flags — the ROM's own
+    strings are "Replace main batteries" and "Main batteries too low for
+    PC Card" — and the value shipped was picked by sweeping all 256.
+  - **The keyboard.** Eight columns of twelve keys, selected through
+    SYSCON1's KBDSCAN and read back across port A and port B's low
+    nibble — wider than the seven-column, seven-row matrix the shared
+    CL-PS711x code assumed. The scancode table is the ROM's own, copied
+    from 0x5007CD0C, so the emulated keyboard sends exactly what the real
+    one does.
+
+  The **mouse pad** works. The Geofox has no touchscreen: it points with a
+  capacitive pad in the keyboard deck that reports relative motion the way
+  a mouse does, and the ROM's `Exyin.dll` reads it as a PS/2-shaped
+  packet — status byte with the two sign bits in it, then X, then Y — over
+  two SSI frames, 40 times a second, whenever the pad raises EINT2. The
+  emulator answers those frames, so the on-screen arrow moves, taps click,
+  double-taps open, and a drag rubber-band-selects. Because the host's
+  mouse and touchscreen both report a *position* and the pad reports
+  *motion*, the two are bridged by a closed loop: the emulator keeps a
+  shadow of the pointer the driver is holding and sends the deltas that
+  walk it there, staying below the driver's acceleration threshold so the
+  shadow stays exact rather than approximate. A hovering mouse moves the
+  pointer, a press clicks where it lands, and a right-click sends the Menu
+  key — which is exactly what the real pad's top-right-corner tap sends.
+
+  One piece of hardware is still not emulated, and the table above says so
+  rather than the emulator pretending otherwise: a **PC Card** attached
+  through the shared CompactFlash path does not mount. With a card
+  inserted the guest never touches the PC-card window at all, so the
+  socket's detect and power are on hardware still to be found. See
+  [`core/geofox.h`](core/geofox.h), which records the addresses.
 - **Remote Link** (serial cable) is emulated via a host serial bridge + PLP /
   PsiWin client (link → NCP → RFSV drive/dir/file), verified end-to-end on the
   Windermere machines and the SA-1100 Series 7 / netBook / netpad. The one

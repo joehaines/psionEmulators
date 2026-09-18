@@ -210,7 +210,16 @@ const IDB_STORE = 'state';
 //      garbage object state (observed: a restored 3c wedges hard
 //      once the Remote Link touches the relocated Condor) — cold-boot
 //      them instead.
-const STATE_SCHEMA_VERSION = 11;
+// v12 = Geofox One gained its mouse pad: Geofox::Emulator carries the
+//       pad's goal queue and the shadow of the pointer the guest's own
+//       driver holds (core/geofox.h), so the object is larger than the
+//       one a v11 heap was saved with. A restore overwrites the whole
+//       heap, allocator state included, so the new build would read and
+//       write the pad's fields over whatever the old heap put after that
+//       object — cold-boot instead. Only the Geofox's own layout moved
+//       (nothing else changed size or vtable shape), but the stored
+//       schema is global, so every device re-cold-boots once.
+const STATE_SCHEMA_VERSION = 12;
 
 // Schema versions whose IDB-stored heap blob is still bit-compatible
 // with the current C++ build's struct layout. Used by the restore /
@@ -220,7 +229,7 @@ const STATE_SCHEMA_VERSION = 11;
 // guard if a heap turns out to be incompatible despite being in this
 // set: it falls back to a clean cold boot rather than corrupting the
 // running emulator.
-const RESTORE_COMPATIBLE_VERSIONS = new Set([11]);
+const RESTORE_COMPATIBLE_VERSIONS = new Set([12]);
 
 // Audio enable preferences are now GLOBAL across devices — moved up to
 // the header in b8900a16 — so persist them in localStorage and retain
@@ -627,6 +636,13 @@ export interface EmulatorControls {
   handlePointerDown(digitiserX: number, digitiserY: number): void;
   handlePointerMove(digitiserX: number, digitiserY: number): void;
   handlePointerUp(): void;
+  // Move the pointer with no button held. Only the Geofox has somewhere
+  // for this to go: its mouse pad moves an on-screen pointer that exists
+  // whether or not a finger is tapping, so a host mouse hovering over the
+  // panel has to reach the guest as motion without a press. On a
+  // digitiser machine a hover is not an event at all, which is why the
+  // overlay only calls this for the pointer devices that have one.
+  handlePointerHover(digitiserX: number, digitiserY: number): void;
   // Enqueue a key-press pulse (down followed by up) for an arbitrary
   // EpocKey value. Used by the mobile on-screen Esc / Menu / arrow
   // buttons, since those keys aren't on the soft keyboard and can't
@@ -2201,6 +2217,11 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     moduleRef.current?.sendTouch(x, y, true);
   }, []);
 
+  const handlePointerHover = useCallback((x: number, y: number) => {
+    lastTouchRef.current = { x, y };
+    moduleRef.current?.sendTouch(x, y, false);
+  }, []);
+
   const handlePointerUp = useCallback(() => {
     // Send pen-up at the last touch position, NOT (0, 0).  EPOC's
     // window server uses the up-event's coords for hit-testing the
@@ -2686,7 +2707,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     currentDeviceId, profiles,
     loadDevice, handleKeyDown, handleKeyUp, releaseHeldKeys, handleInput, handlePasteText, pasteFromClipboard,
     sendEpocKey,
-    handlePointerDown, handlePointerMove, handlePointerUp,
+    handlePointerDown, handlePointerMove, handlePointerUp, handlePointerHover,
     pressEpocKey,
     pressEpocChord,
     getBacklight,

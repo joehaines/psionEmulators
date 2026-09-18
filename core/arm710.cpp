@@ -360,7 +360,19 @@ void ARM710::raiseException(Mode mode, uint32_t savedPC, uint32_t newPC) {
 	// Series 5 genuinely needs it to avoid the SVC/IRQ stack collision
 	// that triggers KERN-NO-SESSION; all other devices follow WindEmu's
 	// behaviour.  Override with PSION_ALL_EXC_IBIT=0/1.
-	bool allExcIBit = series5HalFix;
+	//
+	// 2026-09-17 (Geofox One bring-up): the Geofox needs it too, and its
+	// ROM shows exactly why the architectural behaviour is the right one.
+	// Its EKern hands SVC and IRQ the *same* 1 KB stack — the setup code
+	// at 0x50019BC8 loads SP_svc and SP_irq from the same pointer
+	// (SuperPage+0x388 -> 0x801057EC) — which is only safe because real
+	// hardware enters SWI with IRQs masked. Leave them enabled and the
+	// first IRQ taken during a fast-path executive call pushes r0-r3/ip/lr
+	// straight over the SVC frame, so the call returns into whatever the
+	// IRQ handler happened to leave behind. The Geofox gets it via
+	// setAllExceptionIBit(), not series5HalFix, whose other workarounds
+	// are specific to the Series 5 ROM.
+	bool allExcIBit = series5HalFix || allExcIBit_;
 	if (const char *e = PSION_ENV_CSTR("PSION_ALL_EXC_IBIT"))
 		allExcIBit = std::atoi(e) != 0;
 	if (allExcIBit || mode == IRQ32 || mode == FIQ32)

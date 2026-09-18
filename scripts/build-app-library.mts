@@ -89,8 +89,14 @@ const CATEGORIES: CategoryMeta[] = [
   { id: 'msgsuite',   label: 'EPOC — Message Suite',          platform: 'epoc32', devices: EPOC_DEVICES, tryDevice: '5mx', vault: false },
   { id: 'revogames',  label: 'Revo — Games',                  platform: 'epoc32', devices: ['revo'],     tryDevice: 'revo', vault: false },
   { id: 's7games',    label: 'Series 7 — Games',              platform: 'epoc32', devices: ['series7', 'netbook'], tryDevice: 'series7', vault: false },
-  // GeoFox One isn't an emulated device — keep the apps browsable and
-  // downloadable, but with no "Try it" target.
+  // GeoFox One. The machine boots to its desktop now (core/geofox.h), but
+  // there is still no automated way to get a file onto it: a PC Card does
+  // not mount (see the profile comment in core/device_registry.cpp), and
+  // unlike the Series 5 its ROM starts no PLP handshake when the cable is
+  // attached, so neither of appLibrary.ts's delivery routes works. devices
+  // stays empty and there is no "Try it" target; the apps stay browsable
+  // and downloadable meanwhile. Point both at 'geofox' once one of those
+  // routes is proven and TRY_CAPABLE gains a row for it.
   { id: 'geofox',     label: 'GeoFox One',                    platform: 'epoc32', devices: [],          tryDevice: null, vault: false },
   // The netpad shipped as a bare EPOC R5 machine: Psion Teklogix put the
   // applications (and their manuals) on the support CD as SIS installers

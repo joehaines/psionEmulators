@@ -27,6 +27,11 @@ export const DEVICE_LOGO_MAP: Record<string, string> = {
   '5mxpro':   '5_5mx_5mxpro_mc218.png',
   mc218:       '5_5mx_5mxpro_mc218.png',
   osaris:      'osaris.png',
+  // No `geofox` row on purpose. Every logo here is line art of the
+  // machine, and the only Geofox artwork in the tree is a photograph —
+  // dropping that into the picker's 56x40 thumbnail beside fifteen
+  // drawings reads as a mistake. DevicePanel falls back to the device's
+  // initials, which does not. Add a row the moment a line drawing exists.
   workaboutmx: 'workabout_workaboutmx.png',
   revo:        'revo.png',
   conan:       'conan_icon.png',
@@ -48,6 +53,8 @@ export const DEVICE_RELEASE_YEARS: Record<string, number> = {
   pocketbk2:   1996,
   siena:       1996,
   series5:     1997,
+  geofox:      1997,   // Geofox Ltd's one and only machine, out the same
+                       // year as the Series 5 and on the same EPOC R1
   series3mx:   1998,
   osaris:      1998,
   workaboutmx: 1998,

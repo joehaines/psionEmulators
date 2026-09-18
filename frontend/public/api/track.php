@@ -35,7 +35,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 // tests/unit/device-lists-sync.mts asserts this list against the registry
 // and against frontend/public/device-names.json on every CI run.
 $ALLOWED_DEVICES = [
-    '5mx', '5mxpro', 'mc218', 'osaris', 'series5', 'series7', 'revo',
+    '5mx', '5mxpro', 'mc218', 'osaris', 'geofox', 'series5', 'series7', 'revo',
     'conan', 'netbook', 'netpad', 'series3', 'pocketbk', 'mc400',
     'mc400v126', 'conanv001', 'series3a', 'pocketbk2', 'series3c', 'series3mx', 'siena',
     'workabout', 'workaboutmx', 'organiser2',

@@ -70,6 +70,42 @@ protected:
 	// override returning {} means "no custom mapping, fall through to default".
 	virtual MaybeU32 readRegion2(uint32_t physAddr, ValueSize valueSize) const { return {}; }
 	virtual bool writeRegion2(uint32_t value, uint32_t physAddr, ValueSize valueSize) { return false; }
+	// Region 3 = external chip-select nCS2 aperture (0x30000000-0x3FFFFFFF).
+	// Same contract as region 2, and the same default: return {} to leave
+	// the access unmapped, which is what every device registered before the
+	// Geofox does (nothing is wired there on a Series 5 / Osaris / MC218,
+	// and none of their ROMs touch it). The Geofox One DOES have a chip on
+	// nCS2 — its ROM reads a power/battery status byte from 0x30000000 once
+	// a second — so it claims the window; see core/geofox.h.
+	virtual MaybeU32 readRegion3(uint32_t physAddr, ValueSize valueSize) const { return {}; }
+	virtual bool writeRegion3(uint32_t value, uint32_t physAddr, ValueSize valueSize) { return false; }
+	// First refusal on an SSI (SYNCIO) frame. The control byte is the low
+	// byte of the request the kernel wrote; returning a value answers the
+	// frame with it and skips the ADC decode below. Default {} = "not
+	// mine", which leaves every existing device on the ADC paths exactly
+	// as before. The Geofox uses it for the configuration PROM its variant
+	// driver reads at boot, which sits on the SSI bus where the other
+	// machines have only their ADC.
+	//
+	// Non-const because an SSI peripheral is a stateful bus device, not a
+	// lookup table: the Geofox's mouse pad answers two consecutive frames
+	// of the same control byte with the two halves of one movement packet,
+	// so responding to a frame advances the peripheral. Reading a register
+	// (readReg32) was never const either, so nothing else had to change.
+	virtual MaybeU32 syncioResponse(uint8_t controlByte) { (void)controlByte; return {}; }
+	// How the keyboard matrix lands on ports A and B when the kernel reads
+	// them. The defaults are the expressions readReg8 used inline before
+	// these existed, so every device but the Geofox is byte-identical:
+	// port A carries seven row bits plus GPIO bit 7, port B carries the
+	// four "extra" modifier keys inverted in its high nibble. The Geofox
+	// wires its matrix differently — twelve rows, eight on port A and four
+	// in port B's LOW nibble, none inverted — so it overrides both.
+	virtual uint8_t composePortA() const {
+		return (uint8_t)(((portValues >> 24) & 0x80) | (readKeyboard() & 0x7F));
+	}
+	virtual uint8_t composePortB() const {
+		return (uint8_t)(((portValues >> 16) & 0x0F) | ((keyboardExtra ^ 0xF) << 4));
+	}
 	// Chip-variant virtuals. Defaults match CL-PS7111 (MC218 / Osaris). The
 	// CL-PS7110 (Series 5) has a smaller register block — overrides return
 	// false to make those registers behave as datasheet-specified

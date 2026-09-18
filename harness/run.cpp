@@ -633,6 +633,13 @@ int main(int argc, char **argv) {
     // harness run instead of one-shot --tap-at.
     struct TapEvent { double atSec; int x, y; };
     std::vector<TapEvent> tapEvents;
+    // --drag-seq: press at (x1,y1), travel to (x2,y2) with the button
+    // still down, then release. Taps cannot express this, and a pointing
+    // device that reports RELATIVE motion (the Geofox mouse pad) has to
+    // be driven the whole way rather than teleported, so a drag is the
+    // one gesture that exercises its tracking end to end.
+    struct DragEvent { double atSec; int x1, y1, x2, y2; };
+    std::vector<DragEvent> dragEvents;
     // Serial-bridge scripting: attach UART N as a host endpoint at some
     // sim time, send bytes at scheduled times, and capture every byte
     // the device transmits to a file. Lets the PLP / Remote Link
@@ -818,6 +825,16 @@ int main(int argc, char **argv) {
             ev.x = std::atoi(argv[++i]);
             ev.y = std::atoi(argv[++i]);
             tapEvents.push_back(ev);
+        }
+        // --drag-seq AT_SEC X1 Y1 X2 Y2
+        else if (a == "--drag-seq" && i + 5 < argc) {
+            DragEvent ev;
+            ev.atSec = std::atof(argv[++i]);
+            ev.x1 = std::atoi(argv[++i]);
+            ev.y1 = std::atoi(argv[++i]);
+            ev.x2 = std::atoi(argv[++i]);
+            ev.y2 = std::atoi(argv[++i]);
+            dragEvents.push_back(ev);
         }
         // --serial-attach UART AT_SEC  — attach the host bridge to UART
         // (1 or 2) at AT_SEC sim time. Required before any --serial-tx.
@@ -1134,6 +1151,7 @@ int main(int argc, char **argv) {
     // a small slot table keyed by EPOC code.
     size_t nextKeyIdx = 0;
     size_t nextTapIdx = 0;
+    size_t nextDragIdx = 0;
     size_t nextSerialAttachIdx = 0;
     size_t nextSerialDetachIdx = 0;
     size_t nextSerialTxIdx = 0;
@@ -1344,6 +1362,29 @@ int main(int argc, char **argv) {
                     }
                 }
                 emu->updateTouchInput(ev.x, ev.y, false);
+            }
+            while (nextDragIdx < dragEvents.size() && now >= dragEvents[nextDragIdx].atSec) {
+                const DragEvent &ev = dragEvents[nextDragIdx++];
+                std::fprintf(stderr, "=== t=%.2fs drag-seq (%d,%d) -> (%d,%d) ===\n",
+                             now, ev.x1, ev.y1, ev.x2, ev.y2);
+                // Press, then walk to the far end in sixteen host steps
+                // with four sim frames between them — roughly the rate a
+                // real pointer device reports at — then release. The
+                // frames in between are what let the guest's own pointer
+                // keep up on a machine whose pad is relative.
+                const int kDragSteps = 16, kDragFramesPerStep = 4;
+                for (int step = 0; step <= kDragSteps; step++) {   // step 0 is the press
+                    int x = ev.x1 + (ev.x2 - ev.x1) * step / kDragSteps;
+                    int y = ev.y1 + (ev.y2 - ev.y1) * step / kDragSteps;
+                    emu->updateTouchInput(x, y, true);
+                    for (int f = 0; f < kDragFramesPerStep; f++)
+                        emu->executeUntil(emu->currentCycles() + frameCycles);
+                }
+                // Hold at the far end long enough for the guest to finish
+                // travelling there before the button is let go.
+                for (int f = 0; f < 32; f++)
+                    emu->executeUntil(emu->currentCycles() + frameCycles);
+                emu->updateTouchInput(ev.x2, ev.y2, false);
             }
             // Serial-bridge attach / TX events scheduled for this sim time.
             while (bridge.ok && nextSerialAttachIdx < serialAttachEvents.size()

@@ -27,6 +27,7 @@ import * as net from 'node:net';
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import { PlpClient } from '../plp/client-spec.ts';
+import { linkConSeq } from '../deviceMeta.ts';
 import type { Pdu } from '../plp/link.ts';
 import { IrReceiveClient } from '../irda/receive.ts';
 import { isJobSentinelPage } from '../plp/wprt-spec.ts';
@@ -222,6 +223,15 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
     rom: `${REPO}roms/Osaris_v1.02(209)_eng.bin`,
     args: ['--serial-attach', '1', '8', '--serial-poll-until', '160', '1'],
   },
+  // Geofox One: cable on UART1 like the Series 5, and it ships with
+  // Remote Link already set to Cable at 115200, so there is no key
+  // script — plugging the bridge in is the whole setup. Attaching at 20 s
+  // is deliberately well after the machine has settled, which is the
+  // order a user connects in.
+  geofox: {
+    rom: `${REPO}roms/Geofox_v1.01(146)_eng.bin`,
+    args: ['--serial-attach', '1', '20', '--serial-poll-until', '180', '1'],
+  },
   // Windermere baseline for A/B latency comparison.
   '5mx': {
     rom: `${REPO}roms/5mx_v1.05(260)_eng.bin`,
@@ -331,7 +341,7 @@ async function runClient(): Promise<void> {
       pollHz: Number(process.env.POLLHZ ?? 50),
       protocol: cfg.protocol ?? 'rfsv32',
       // ER3/ER4 CL-PS711x devices use the 0x22 Req_Con + passive handshake.
-      conSeq: (device === 'series5' || device === 'osaris') ? 2 : 4,
+      conSeq: linkConSeq(device),
       onState: s => log('STATE →', s),
       onPduIn: p => log(pduStr('  IN ', p)),
       onPduOut: p => log(pduStr(' OUT ', p)),

@@ -14,6 +14,43 @@
 
 
 namespace CLPS7111 {
+
+// PSION_UART_TRACE=1 logs every UART1 data / line-control register access
+// with the PC that made it — what the guest's serial driver actually does
+// with the port, which is the only way to tell "the ROM never opened the
+// cable" apart from "the ROM opened it and we dropped its bytes". Bounded
+// so a chatty driver can't distort timing; off by default.
+static bool uartTraceOn() {
+	static int on = -1;
+	if (on < 0) on = std::getenv("PSION_UART_TRACE") ? 1 : 0;
+	return on != 0;
+}
+static bool uartTraceBudget() {
+	static int n = 0;
+	return uartTraceOn() && n++ < 4000;
+}
+
+// Kill switches for the two halves of the cable-plug model below, so what
+// each one buys can be re-measured rather than taken on trust.
+// PSION_UART_NO_ENABLE_RESET=1 keeps the stale interrupt latches across a
+// UARTEN 0 -> 1.
+static bool uartNoEnableReset() {
+	static int on = -1;
+	if (on < 0) on = std::getenv("PSION_UART_NO_ENABLE_RESET") ? 1 : 0;
+	return on != 0;
+}
+// PSION_UART_MODEM_INVERT=0/1 forces the SYSFLG1 modem-line polarity,
+// overriding the device's modemLinesActiveLow(). -1 = leave it to the
+// device.
+static int uartModemInvertOverride() {
+	static int v = -2;
+	if (v == -2) {
+		const char *e = std::getenv("PSION_UART_MODEM_INVERT");
+		v = e ? (std::atoi(e) ? 1 : 0) : -1;
+	}
+	return v;
+}
+
 Emulator::Emulator() : pcCardController(&cpu) {
 	// See Windermere::Emulator() for the full rationale. CLPS7111 has
 	// the same uninitialised-member-array layout (uint8_t ROM[8 MiB],
@@ -80,8 +117,14 @@ uint32_t Emulator::readReg8(uint32_t reg) {
 		if (uart1.hostAttached) {
 			uint8_t b = uart1.popRxByte();
 			updateUartIrqs();
+			if (uartTraceBudget())
+				log("UART1 RX read8 -> %02x (left=%zu) pc=%08x lr=%08x",
+				    b, uart1.rxFifoBytes(), getRealPC(), getGPR(14));
 			return b;
 		}
+		if (uartTraceBudget())
+			log("UART1 RX read8 (unattached) pc=%08x lr=%08x",
+			    getRealPC(), getGPR(14));
 		return 0;
 	} else if (reg == UBRLCR1) {
 		// UART1 baud / line-control (byte access). Return last-written
@@ -122,22 +165,24 @@ uint32_t Emulator::readReg32(uint32_t reg) {
 		//   bit 23 UTXFF    (UART TX FIFO full)
 		//   bit 25 CTXFF    (codec TX FIFO full)
 		//   bit 26 SSIBUSY  (sync serial busy)
-		// URXFE (UART1 RX FIFO empty). When a host cable is attached we
-		// reflect the bridge FIFO so the EPOC SIR driver sees inbound
-		// IrDA bytes: clear URXFE iff there is RX data queued. We also
-		// assert the modem-status lines (CTS bit 8 / DSR bit 9 / DCD bit
-		// 10) so the driver treats the link as live, mirroring
-		// UART::computeFlags(). When NOT attached, behave byte-identically
-		// to before (URXFE set, modem lines untouched) so boot is
-		// undisturbed.
-		if (uart1.hostAttached) {
-			if (!uart1.rxHasData())
-				flg |= (1u << 22);   // URXFE: RX empty
-			flg |= (1u << 8);        // CTS
-			flg |= (1u << 9);        // DSR
-			flg |= (1u << 10);       // DCD
-		} else {
-			flg |= (1u << 22);  // URXFE: RX empty (legacy stub behaviour)
+		// URXFE (UART1 RX FIFO empty): clear only when the bridge is
+		// attached AND has queued bytes. Unattached it stays set, which is
+		// the legacy stub behaviour boot has always seen.
+		if (!uart1.hostAttached || !uart1.rxHasData())
+			flg |= (1u << 22);
+		// Modem-status inputs (CTS bit 8 / DSR bit 9 / DCD bit 10): a host
+		// cable is the far end asserting all three. Whether "asserted"
+		// reaches the SoC pin as a 1 or a 0 is the board's line receiver's
+		// business, so it comes from the device — see
+		// modemLinesActiveLow() in clps7111.h. On an active-low machine
+		// the bits therefore read 1 (all three negated) with NO cable
+		// attached, which is the honest reading of an unplugged port.
+		{
+			int ov = uartModemInvertOverride();
+			bool inverted = ov >= 0 ? (ov != 0) : modemLinesActiveLow();
+			bool asserted = uart1.hostAttached;
+			if (asserted != inverted)
+				flg |= (1u << 8) | (1u << 9) | (1u << 10);
 		}
 		// CRXFE: codec RX FIFO empty. Reflects adcQueue state so the
 		// kernel's drain loop knows when to stop reading CODR. Also
@@ -522,8 +567,14 @@ uint32_t Emulator::readReg32(uint32_t reg) {
 		if (uart1.hostAttached) {
 			uint8_t b = uart1.popRxByte();
 			updateUartIrqs();
+			if (uartTraceBudget())
+				log("UART1 RX read32 -> %02x (left=%zu) pc=%08x lr=%08x",
+				    b, uart1.rxFifoBytes(), getRealPC(), getGPR(14));
 			return b;
 		}
+		if (uartTraceBudget())
+			log("UART1 RX read32 (unattached) pc=%08x lr=%08x",
+			    getRealPC(), getGPR(14));
 		return 0;
 	} else if (reg == UBRLCR1) {
 		// UART1 baud rate / line control. Osaris boot reads this in
@@ -623,9 +674,15 @@ void Emulator::writeReg8(uint32_t reg, uint8_t value) {
 			uart1.pushTxByte(value);
 			updateUartIrqs();
 		}
+		if (uartTraceBudget())
+			log("UART1 TX write8 %02x (attached=%d) pc=%08x lr=%08x",
+			    value, (int)uart1.hostAttached, getRealPC(), getGPR(14));
 		uart1Data = value;
 	} else if (reg == UBRLCR1) {
 		// UART1 baud / line-control (byte access).
+		if (uartTraceOn())
+			log("UART1 UBRLCR1 write8 %02x pc=%08x lr=%08x",
+			    value, getRealPC(), getGPR(14));
 		uart1LineCtl = value;
 	} else {
 		log("RegWrite8 unknown:: pc=%08x reg=%03x value=%02x", getRealPC(), reg, value);
@@ -639,6 +696,34 @@ void Emulator::writeReg32(uint32_t reg, uint32_t value) {
 		value &= sysConMask();
 		uint32_t prevSysCon1 = sysCon1;
 		sysCon1 = value;  // preserve full value for read-back
+		// UARTEN (bit 8) 0 -> 1: the guest has just switched the UART on,
+		// so it starts from a clean interrupt state. A disabled UART has
+		// no modem-status change detector running and no transmitter to
+		// finish a byte, so neither can have latched anything — but our
+		// host bridge does latch: serialAttachHost() sets IntModemStatus
+		// the moment a cable is "plugged in", which on a machine that has
+		// not opened its port yet sits there until it does and is then
+		// delivered as a spurious "the modem lines just changed" the
+		// instant the driver unmasks UMSINT.
+		//
+		// Real hardware reports no such edge: a cable present before the
+		// port was enabled is simply a cable that is already there, and
+		// SYSFLG1 says so on the first read. Clearing the latches here is
+		// what makes the emulated machine agree.
+		//
+		// IntRx is deliberately left to re-derive from the RX FIFO rather
+		// than being cleared with the others: it is a function of queued
+		// bytes, not an edge, and dropping it while bytes are waiting
+		// would strand them.
+		if (!uartNoEnableReset() &&
+		    (value & (1u << 8)) && !(prevSysCon1 & (1u << 8))) {
+			uart1.interrupts &= ~(UART::IntModemStatus | UART::IntTx);
+			pendingInterrupts &= ~((1u << UMSINT) | (1u << UTXINT));
+			if (uartTraceOn())
+				log("UART1 UARTEN 0->1: interrupt latches reset "
+				    "(attached=%d) pc=%08x", (int)uart1.hostAttached,
+				    getRealPC());
+		}
 		kScan = value & 0xF;
 		uint8_t tc1cfg = Timer::ENABLED; // always on with PS-7111!
 		if (value & 0x10) tc1cfg |= Timer::PERIODIC;
@@ -831,6 +916,22 @@ void Emulator::writeReg32(uint32_t reg, uint32_t value) {
 		pendingInterrupts &= ~(1 << RTCMI);
 	} else if (reg == UMSEOI) {
 		// UART Modem Status End of Interrupt — clears UMSINT.
+		//
+		// The UART model's own IntModemStatus latch has to be cleared
+		// here too, not just the interrupt-controller bit. A cable plug
+		// sets that latch once (serialAttachHost), and updateUartIrqs()
+		// re-derives UMSINT from it — and that runs on every host poll,
+		// 50 times a second. Clearing only pendingInterrupts therefore
+		// re-raised the interrupt the instant the guest had acknowledged
+		// it, and the driver got an endless stream of "the modem lines
+		// changed" for a cable that changed state exactly once.
+		//
+		// EOI means "this edge is handled", and the latch is part of the
+		// edge. Found while tracing the Geofox's link (it was not what
+		// was breaking it — see modemLinesActiveLow() in clps7111.h for
+		// what was), and it costs every CL-PS711x machine the same
+		// spurious signalling for as long as a cable is attached.
+		uart1.interrupts &= ~UART::IntModemStatus;
 		pendingInterrupts &= ~(1 << UMSINT);
 	} else if (reg == COEOI) {
 		// Codec End of Interrupt — clears CSINT. AudioCodecModel resets
@@ -904,9 +1005,15 @@ void Emulator::writeReg32(uint32_t reg, uint32_t value) {
 			uart1.pushTxByte((uint8_t)value);
 			updateUartIrqs();
 		}
+		if (uartTraceBudget())
+			log("UART1 TX write32 %02x (attached=%d) pc=%08x lr=%08x",
+			    value & 0xFF, (int)uart1.hostAttached, getRealPC(), getGPR(14));
 		uart1Data = value;
 	} else if (reg == UBRLCR1) {
 		// UART1 baud / line-control register.
+		if (uartTraceOn())
+			log("UART1 UBRLCR1 write32 %08x (brd=%u) pc=%08x lr=%08x",
+			    value, value & 0xFFF, getRealPC(), getGPR(14));
 		uart1LineCtl = value;
 	} else if (reg == UARTDR2) {
 		if (!chipHasSysCon2()) {

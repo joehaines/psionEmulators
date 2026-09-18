@@ -70,3 +70,30 @@ export const DEVICE_RELEASE_YEARS: Record<string, number> = {
   conanv001:   2001,   // the earlier engineering image (TRomHeader: 2001-05-12)
   netpad:      2001,
 };
+
+// Devices whose ROM speaks the ER3/ER4 CL-PS711x dialect of the PLP link
+// layer rather than the EPOC R5 one. Two things follow from membership,
+// and both matter wherever a PlpClient is built:
+//
+//   * the Req_Con_Pdu these ROMs accept carries seq 0x22, not the R5
+//     machines' 0x24 (LinkConfig.conSeq);
+//   * the host must never speak first. A host-sent Req_Req_Pdu doesn't
+//     just go unanswered on these ROMs, it wedges their link server —
+//     so the client waits for the device's own burst (PlpClient's
+//     passive mode) and the cable is re-plugged on every connect to
+//     provoke a fresh one.
+//
+// Kept here, in one list, because it was previously spelled out
+// separately at each call site and the Geofox — added long after the
+// Series 5 and Osaris — reached only one of them.
+export const CLPS711X_LINK_DEVICES: ReadonlySet<string> =
+  new Set(['series5', 'osaris', 'geofox']);
+
+// Req_Con_Pdu seq flavour for a device id — feeds LinkConfig.conSeq, and
+// conSeq === 2 is also what marks the passive handshake above. Takes a
+// nullable id so callers holding "no device loaded yet" can ask without
+// a guard; that answers 4, the R5 default, and nothing is connected to
+// talk to anyway.
+export function linkConSeq(deviceId: string | null | undefined): number {
+  return deviceId != null && CLPS711X_LINK_DEVICES.has(deviceId) ? 2 : 4;
+}

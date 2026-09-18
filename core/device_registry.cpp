@@ -485,13 +485,15 @@ static const DeviceProfile kProfiles[] = {
         0, 0,
         1, 1,   // cable + IrDA both on the single host-bridged UART1, the
                 // CL-PS7110 arrangement the Series 5 uses; the ROM ships
-                // Euart1.pdd / Euart2.pdd, Plp.prt and IrDA.prt. Unverified:
-                // unlike the Series 5's, this ROM emits no PLP frame when
-                // the bridge attaches to either UART on a booted machine,
-                // so the link presumably has to be switched on from the
-                // System screen first (the netpad's EPOC R5 build behaves
-                // the same way on real hardware) — which the harness's
-                // serial rows do not do.
+                // Euart1.pdd / Euart2.pdd, Plp.prt and IrDA.prt. The cable
+                // link is verified: the machine ships with Remote Link set
+                // to Cable at 115200, so nothing has to be switched on
+                // first, and attaching the bridge draws the Req_Req_Pdu
+                // burst that carries the handshake through to NCP Info —
+                // tests/integration/test-remote-link.sh has the row. That
+                // needed the board's modem lines read active-low, which is
+                // where this machine parts company with Psion's own
+                // CL-PS711x boards; see core/geofox.h.
         1, 1,
     },
     {

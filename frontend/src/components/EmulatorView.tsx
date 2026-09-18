@@ -22,6 +22,7 @@ import {
   type BulkProgress, type BulkInstallResult,
 } from '../lib/appLibrary';
 import { trackAppEvent } from '../lib/analytics';
+import { linkConSeq } from '../lib/deviceMeta';
 // Re-exported so App.tsx (and anything else reaching for the header's
 // sizing vocabulary) keeps importing it from the view it belongs to.
 export type { SizingMode, DeviceScale } from '../lib/deviceSizing';
@@ -1023,9 +1024,7 @@ export default function EmulatorView({
   // link) but complete the handshake with 0x22 — they reply Ack_Pdu and
   // proceed to NCP Info. Harness-verified reply matrix; see
   // scripts/test-remote-link.sh.
-  const isClps711x = currentDeviceId === 'osaris' || currentDeviceId === 'series5' ||
-                     currentDeviceId === 'geofox';
-  const remoteLinkConSeq = isClps711x ? 2 : 4;
+  const remoteLinkConSeq = linkConSeq(currentDeviceId);
   // Which SIBO app-button is currently held (for press highlight on mobile)
   const [pressedSiboBtn, setPressedSiboBtn] = useState<string | null>(null);
   const [pressedSilkscreen, setPressedSilkscreen] = useState<number | null>(null);

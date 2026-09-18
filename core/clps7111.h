@@ -172,6 +172,20 @@ protected:
 	// for tap-click feedback (BZTOG=0→1→0 pulses) and the audible click
 	// on tap is the actual user-facing behaviour.
 	virtual bool enableBuzzerPump() const { return false; }
+	// Polarity of the SYSFLG1 modem-status inputs (bit 8 CTS, 9 DSR,
+	// 10 DCD). These are pins, not internal state: what the SoC sees is
+	// whatever the board's RS-232 line receiver puts on them, and that is
+	// a per-machine wiring decision rather than a chip one.
+	//
+	// Psion's own CL-PS711x boards read active-high — a cable on the far
+	// end asserting CTS/DSR/DCD makes the bits read 1 — and that is the
+	// default. The Geofox, built by a different company around the same
+	// SoC, reads them inverted, which its ROM makes unmistakable: with
+	// the bits asserted our way its RemoteLinkServer configures UART1 and
+	// then never transmits a byte, and with them inverted it sends the
+	// Req_Req_Pdu burst the Series 5 sends and the link connects. See
+	// core/geofox.h.
+	virtual bool modemLinesActiveLow() const { return false; }
 	// Expose LCD controller state so subclasses can render their own sizes.
 	uint32_t currentLcdAddress() const { return lcdAddress; }
 	uint32_t currentLcdControl() const { return lcdControl; }

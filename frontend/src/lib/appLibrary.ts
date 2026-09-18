@@ -32,6 +32,7 @@ import { createFlashPack, addFileToPack, FLASH_PACK_SIZES } from './fefs.ts';
 import { sameBytes } from './bytes.ts';
 import { unzipAll } from './zip.ts';
 import { PlpClient } from './plp/client-spec.ts';
+import { linkConSeq } from './deviceMeta.ts';
 
 // ── Manifest types (mirrors scripts/build-app-library.mts) ──────────
 
@@ -588,9 +589,10 @@ export async function deliverApp(
 
   onPhase?.('Connecting Remote Link…');
   checkAborted();
-  // ER3/ER4 CL-PS711x ROMs (Series 5, Osaris) need the 0x22 Req_Con
-  // flavour and a passive handshake — same rule as RemoteLinkDialog.
-  const conSeq = (profile.id === 'series5' || profile.id === 'osaris') ? 2 : 4;
+  // ER3/ER4 CL-PS711x ROMs (Series 5, Osaris, Geofox) need the 0x22
+  // Req_Con flavour and a passive handshake — same rule as
+  // RemoteLinkDialog, and from the same list so the two can't drift.
+  const conSeq = linkConSeq(profile.id);
   // R5 active-handshake devices (Windermere / SA-1100) get the
   // parked-session flow: the cable stays attached between deliveries
   // and the device-side session is resumed via the adoption probe —

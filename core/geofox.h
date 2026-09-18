@@ -42,13 +42,19 @@ namespace Geofox {
 // those addresses land in unrelated Geofox code — the ROMs diverge from
 // offset 0x82 onwards.
 //
-// STATUS: boots to the EPOC desktop. The kernel comes up, the file
-// server mounts its drives, the loader brings in the whole graphics stack
-// (Gdi, BitGdi, ScDv, Video.ldd, Lcd.pdd, FbServ, EwSrv, Ws32), the window
-// server reads its Z:\System\Data\WsIni.ini and the shell paints the
+// STATUS: boots to the EPOC desktop, and its Remote Link connects. The
+// kernel comes up, the file server mounts its drives, the loader brings
+// in the whole graphics stack (Gdi, BitGdi, ScDv, Video.ldd, Lcd.pdd,
+// FbServ, EwSrv, Ws32), the window server reads its
+// Z:\System\Data\WsIni.ini and the shell paints the
 // 640 x 320 panel: the icon column (Word, Sheet, Data, Agenda), the epoc
 // hand, the System pane and the analogue clock. No CPU exceptions are
 // taken over a 40 s boot.
+//
+// The Remote Link over the serial cable works — see the modem-line
+// section further down for the one board-level difference from the
+// Series 5 that stood between the two, and why a machine that looked
+// like it had no link at all in fact had one running the whole time.
 //
 // The capacitive mouse pad in the keyboard deck is emulated — see the
 // mouse-pad section below for the packet the ROM's Exyin.dll reads off
@@ -392,6 +398,43 @@ protected:
     // desktop with the same pixel variance and no exceptions, so the fill
     // was a symptom, not hardware, and it is gone. PSION_RAM_FILL is still
     // there for anyone who wants to sweep patterns again.
+
+    // ── Remote Link: the cable's modem lines are inverted ──────────────
+    //
+    // The Geofox's serial cable is the CL-PS7110's own UART1, and its
+    // RemoteLinkServer opens that port during boot: the machine ships
+    // with the link set to Cable at 115200, so nothing has to be switched
+    // on from the System screen first. At roughly 11.3 simulated seconds
+    // it writes UBRLCR1 with bit-rate divisor 1 — which against the
+    // PS7110's 3.6864 MHz UART clock IS 115200 — sets SYSCON1 UARTEN, and
+    // unmasks URXINT1 and UMSINT. It then answers a cable with a PLP
+    // Req_Req_Pdu, `16 10 02 21 10 03 34 43`, byte for byte what the
+    // Series 5 sends, retrying about 0.6 s, 1.2 s and 2.4 s later and
+    // then going quiet.
+    //
+    // Whether it believes a cable is there is where this machine differs
+    // from Psion's own. Psion's CL-PS711x boards present CTS/DSR/DCD to
+    // SYSFLG1 active HIGH; the Geofox presents them active LOW. The ROM
+    // is unambiguous about it, and the two halves of the evidence point
+    // opposite ways, which is what makes it conclusive:
+    //
+    //   * with the bridge attached and the three bits asserted the Psion
+    //     way, the server did the whole port setup above and then never
+    //     wrote a single byte to UARTDR1 — measured across 120 s of
+    //     simulated time with the bridge attached from t=0.5 s, with the
+    //     machine otherwise booting exactly as it always had;
+    //   * with NO bridge attached the bits read 0, which under that same
+    //     convention means asserted — and there the server sent the
+    //     burst, four frames into an unplugged socket. That is how the
+    //     burst was found at all, in a trace of UARTDR1 writes on a
+    //     machine with nothing connected to it.
+    //
+    // Inverted, both halves come out the right way round: nothing
+    // attached reads as three negated lines and the server stays quiet,
+    // and a plug — at boot or twenty seconds after the desktop is up —
+    // draws the burst, the host's Req_Con_Pdu comes back, and the link
+    // goes on to NCP Info exactly as the Series 5 does.
+    bool modemLinesActiveLow() const override { return true; }
 
     // The base class's debug-log hooks are pinned to PCs in the Osaris
     // v1.02 ROM; on this image they land in unrelated functions and

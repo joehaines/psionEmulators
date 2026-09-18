@@ -28,7 +28,7 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | Acorn Pocket Book II | 1996 | NEC V30H | ✅ | — | ✅ ×2 | ✅ | ✅ | — | — | ❌ |
 | Siena | 1996 | NEC V30H | ✅ | — | ✅ ×1 | ✅ | ✅ | — | ✅ | ✅ |
 | Series 5 | 1997 | ARM710 (CL-PS7110) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Geofox One | 1997 | ARM710 (CL-PS7110) | ✅ | ❌ | — | ❓ | — | — | ❓ | ❓ |
+| Geofox One | 1997 | ARM710 (CL-PS7110) | ✅ | ❌ | — | ❓ | — | — | ❓ | ✅ |
 | Series 3mx | 1998 | NEC V30H | ✅ | — | ✅ ×2 | ✅ | ✅ | — | ✅ | ✅ |
 | Osaris | 1998 | ARM710 (CL-PS7111) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | WorkaboutMX | 1998 | NEC V30MX | ✅ | — | ✅ ×2 | ✅ | ✅ | — | ❌ | ✅ |
@@ -179,6 +179,25 @@ emulator's PsiWin client can't.
   shadow stays exact rather than approximate. A hovering mouse moves the
   pointer, a press clicks where it lands, and a right-click sends the Menu
   key — which is exactly what the real pad's top-right-corner tap sends.
+
+  The **Remote Link** works, over the serial cable on UART1. Getting there
+  came down to one wire. The machine ships with Remote Link set to Cable
+  at 115200, so its `RemoteLinkServer` opens UART1 by itself about eleven
+  seconds into boot — and then, in this emulator, sat there and never
+  transmitted a byte, which read from the outside exactly like a machine
+  with no link at all. It was waiting on its modem lines. Psion's own
+  CL-PS711x boards present CTS/DSR/DCD to `SYSFLG1` active high, and the
+  emulator asserted them that way for every machine on the SoC; the
+  Geofox, built by a different company, reads them inverted. Told the
+  Psion way that a cable had arrived, its link server heard the opposite
+  and stayed quiet. With the polarity right it does what the Series 5
+  does — answers a cable plug with a `Req_Req_Pdu` burst, takes the host's
+  `Req_Con_Pdu`, and goes on to NCP Info. Driven by the real client the
+  browser uses, plugging in twenty seconds after the desktop is up
+  connects in a tenth of a second and lists the machine's drives —
+  `C: D: E: F: G: Z:`. `tests/integration/test-remote-link.sh` gates the
+  handshake and the row fails outright if the polarity is put back;
+  `_plp_repro.mts geofox` runs the whole stack against the ROM.
 
   One piece of hardware is still not emulated, and the table above says so
   rather than the emulator pretending otherwise: a **PC Card** attached

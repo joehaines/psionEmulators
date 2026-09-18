@@ -48,6 +48,7 @@ DEVICES=(
     "mc218:MC218_v1.05(259)_eng.bin"
     "osaris:Osaris_v1.02(209)_eng.bin"
     "series5:series5_v1.01(144)_eng.bin"
+    "geofox:Geofox_v1.01(146)_eng.bin"
     "netbook:netBook_BL_v011_eng.bin"
     "series7:series7_v1.05(254)_b756_eng.bin"
     "netpad:Netpad.img"
@@ -115,6 +116,25 @@ for entry in "${DEVICES[@]}"; do
             --serial-attach 3 3.5 \
             --serial-auto-rule "21:24 de ad be ef" \
             --serial-auto-rule "24:00" 2>&1) || true
+    elif [ "$dev" = "geofox" ]; then
+        # Geofox One (EPOC R1, CL-PS7110): cable on UART1 and the same
+        # 0x22 Req_Con flavour as the Series 5, but the plug is what
+        # starts the exchange — the machine ships with Remote Link set to
+        # Cable at 115200, its RemoteLinkServer has UART1 open long
+        # before this, and it answers the modem-line change with a
+        # Req_Req_Pdu burst. So this row attaches at t=20, once the
+        # machine has settled, which is the order a user connects in.
+        #
+        # What it is really gating is the modem-line polarity: this
+        # board reads CTS/DSR/DCD inverted from Psion's own CL-PS711x
+        # machines (see core/geofox.h). Wire them the Psion way and the
+        # server sets up the port and then never transmits a byte, so
+        # this row fails with saw_req=0 — which is exactly the bug it
+        # exists to catch.
+        log=$("$HARNESS" "$rom_path" --device "$dev" --quiet-logs \
+            --serial-attach 1 20 \
+            --serial-auto-rule "21:22 de ad be ef" \
+            --serial-poll-until 30 2>&1) || true
     elif [ "$dev" = "osaris" ] || [ "$dev" = "series5" ]; then
         # CL-PS711x (Osaris ER4, Series 5 ER3): the cable link rides UART1
         # (shared with the IrDA SIR port — the PS711x serial bridge is
@@ -177,7 +197,8 @@ for entry in "${DEVICES[@]}"; do
 
     if [ "$saw_info" -eq 1 ] && [ "$saw_link" -eq 1 ]; then
         echo "PASS $dev — NCP Info + LINK.* Connect observed"
-    elif ([ "$dev" = "osaris" ] || [ "$dev" = "series5" ]) && [ "$saw_info" -eq 1 ]; then
+    elif ([ "$dev" = "osaris" ] || [ "$dev" = "series5" ] || [ "$dev" = "geofox" ]) \
+         && [ "$saw_info" -eq 1 ]; then
         # 0x22 Req_Con accepted: the device Ack'd and sent NCP Info — the
         # handshake works; only the ack-driven continuation needs the real
         # client (see the CL-PS711x row comment above).

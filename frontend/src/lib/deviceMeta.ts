@@ -27,11 +27,11 @@ export const DEVICE_LOGO_MAP: Record<string, string> = {
   '5mxpro':   '5_5mx_5mxpro_mc218.png',
   mc218:       '5_5mx_5mxpro_mc218.png',
   osaris:      'osaris.png',
-  // No `geofox` row on purpose. Every logo here is line art of the
-  // machine, and the only Geofox artwork in the tree is a photograph —
-  // dropping that into the picker's 56x40 thumbnail beside fifteen
-  // drawings reads as a mistake. DevicePanel falls back to the device's
-  // initials, which does not. Add a row the moment a line drawing exists.
+  // The line drawing this row waited for: until it existed the only
+  // Geofox artwork in the tree was a photograph, which would have read as
+  // a mistake in the picker's 56x40 thumbnail beside fifteen drawings, so
+  // the Geofox fell through to DevicePanel's initials instead.
+  geofox:      'geofox.png',
   workaboutmx: 'workabout_workaboutmx.png',
   revo:        'revo.png',
   conan:       'conan_icon.png',

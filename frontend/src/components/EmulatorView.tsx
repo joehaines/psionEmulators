@@ -609,8 +609,9 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
   // translucent grey layer, so anything printed in the aperture shows
   // through it. The supplied shot has a running Geofox Mail window in it,
   // so left in place it would show through whatever the guest is actually
-  // displaying. The original is kept as the home page's intro shot
-  // (public/intro/geofox.jpg), where a live screen is the point.
+  // displaying. The home page's intro shot (public/intro/geofox.jpg) is a
+  // separate asset and keeps a live screen, which is the point there: it
+  // holds the boot splash, the way the Series 5's and the Conan's do.
   //
   //   screen aperture   x=55..485, y=45..273
   //   power key (green) x=32..51,  y=384..403

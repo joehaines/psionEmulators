@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
+import { useUartLease } from '../hooks/useUartLease';
 import { PrinterCapture } from '../lib/printer/capture';
 import { decodePrintJob } from '../lib/printer/decode';
 import { textPagesToPdf } from '../lib/printer/pdf';
@@ -45,6 +46,10 @@ interface PcJob {
 type PcPhase = 'idle' | 'connecting' | 'listening' | 'receiving';
 
 export default function PrinterDialog({ controls, uartIndex, sibo, viaPcAvailable, conSeq, onClose }: Props) {
+  // The desktop drive sync holds this port in the background; claiming it
+  // here makes it yield for as long as this dialog is open.
+  useUartLease(uartIndex, 'printer');
+
   const [mode, setMode] = useState<'viapc' | 'serial'>(viaPcAvailable ? 'viapc' : 'serial');
   const [errorMsg, setErrorMsg] = useState('');
 

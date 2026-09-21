@@ -399,6 +399,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
 
   const getBacklight = useCallback(() => statusRef.current.backlight, []);
   const getScreenOrientation = useCallback(() => statusRef.current.orientation, []);
+  const getSimCycles = useCallback(() => statusRef.current.simCycles, []);
   const refreshSaved = useCallback(() => { void listSavedDevices().then(setSavedDevices); }, []);
   const saveState = useCallback(async () => {
     // Flush any live Remote Link session (without disconnecting it) so an
@@ -638,5 +639,6 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     revertToSaved,
     serialAttachHost, serialDetachHost, serialIsAttached,
     serialReadBytes, serialWriteBytes,
+    getSimCycles,
   };
 }

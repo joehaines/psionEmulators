@@ -119,6 +119,23 @@ public:
     // no override in effect; values 0-3 index sregs[] (ES/CS/SS/DS).
     int  segOverride = -1;
 
+    // Exact cycle count for the instruction currently being dispatched,
+    // overriding the scaled V30 figure step() would otherwise use. -1 (the
+    // resting value) means "no override"; step() consumes and clears it.
+    //
+    // i8086CycleScale()'s flat 2x is a fair average, but a handful of
+    // instructions are nowhere near it — the V30 does LOOP in 6 cycles
+    // where the 8086 needs 17, so doubling the V30 figure overstates an
+    // 8086 loop by half again. That matters on the MC: its boot ROM
+    // checksums all 256 KiB of itself in a LODSW/ADD/LOOP loop with no
+    // watchdog pet anywhere in it, and has to finish before ASIC1's
+    // watchdog NMI (three unacknowledged 4 Hz ticks). The real machine
+    // makes it with ~20% to spare; at 2x-the-V30 timing the emulated one
+    // ran ~19% slow and was NMI'd mid-checksum, into an interrupt vector
+    // the boot ROM has not written yet. Ops that know their real 8086
+    // figure set it here through i8086Exact().
+    int32_t absCycles = -1;
+
     V30(V30Bus& bus, V30Variant v = V30Variant::V30) : busRef_(bus), variant(v) {}
 
     V30Bus& busRef() { return busRef_; }
@@ -142,5 +159,13 @@ public:
 
 private:
     V30Bus&    busRef_;
+    // Where the instruction currently executing was fetched from. Only
+    // read by the PSION_OPCODE_DEBUG report in step(), where it is the
+    // difference between "this opcode is unimplemented" and "we are
+    // running off the end of the map": a CS:IP that wrapped past the top
+    // of the 1 MiB space reports as the reset vector but fetched from
+    // somewhere else entirely.
+    uint32_t   dbgFetchPc_ = 0;
+    uint16_t   dbgFetchCs_ = 0, dbgFetchIp_ = 0;
     V30Variant variant;
 };

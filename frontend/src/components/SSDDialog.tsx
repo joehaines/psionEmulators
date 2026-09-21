@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
+import { appDirForFile as dirForFile } from '../lib/siboAppDirs';
 import {
   createFlashPack, addFileToPack, removeFileFromPack, readFileFromPack, listFiles,
   classifyPack, readVolumeName, FLASH_PACK_SIZES,
@@ -22,24 +23,9 @@ interface Props {
 // they appear in the right file list on the System screen (which scans
 // \WRD\, \AGN\, ... on every drive). Anything else lands in the root,
 // still reachable via Disk → Directory.
-const APP_DIR_BY_EXT: Record<string, string> = {
-  WRD: 'WRD',   // Word
-  AGN: 'AGN',   // Agenda
-  SPR: 'SPR',   // Sheet
-  DBF: 'DAT',   // Data
-  WLD: 'WLD',   // World
-  OPL: 'OPL',   // OPL source
-  OPO: 'OPO',   // compiled OPL
-  OPA: 'APP',   // OPL applications
-  APP: 'APP',
-  IMG: 'APP',   // RunImg apps ship alongside .APP on factory packs
-};
-
-function dirForFile(name: string): string | undefined {
-  const dot = name.lastIndexOf('.');
-  if (dot < 0) return undefined;
-  return APP_DIR_BY_EXT[name.slice(dot + 1).toUpperCase()];
-}
+//
+// The table lives in lib/siboAppDirs.ts so the desktop app's shared-card
+// projection routes files identically rather than keeping a second copy.
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;

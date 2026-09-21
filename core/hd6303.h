@@ -99,6 +99,14 @@ public:
 
     void reset();
 
+    // Wake from standby. The HD6301X0/HD6303X keeps its on-chip RAM
+    // alive through standby on the backup supply and comes back out of
+    // it through its reset line, so the restart is a reset that does
+    // *not* clear on-chip RAM — and RAMCR ($14) says as much, which is
+    // how the ROM tells a wake-up from a battery-in-for-the-first-time
+    // cold start. reset() models the cold start; this models the wake.
+    void resumeFromStandby();
+
     // Decode + execute one instruction. Returns cycles consumed.
     int64_t step();
     // Pages 6-F dispatch (memory-operand opcodes). Split out from

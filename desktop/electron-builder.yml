@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: LicenseRef-PsionWebEmulator
+# Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
+
+appId: com.joehaines.psion
+productName: Psion Emulator
+copyright: © 2024-2026 Joe Haines
+
+directories:
+  output: dist
+  buildResources: resources
+
+# Only the built output ships. src/ and test/ are not in the app.
+files:
+  - build/main/**
+  - build/renderer/**
+  - package.json
+
+asar: true
+
+# ROMs live OUTSIDE the app archive, served from a directory by the app://
+# handler (see src/main/protocol.ts, which resolves them from
+# process.resourcesPath when packaged). Two reasons: they are ~200 MB, and
+# there is no point paying asar indirection on a file the protocol handler
+# streams straight off disk.
+#
+# Worth a deliberate look before shipping: bundling ROM dumps into a
+# redistributable binary is a different proposition from serving them from
+# your own site, which is what NOTICE.md currently describes. The protocol
+# handler already prefers a directory, so a lazy-download variant is a small
+# change if that posture is not wanted.
+extraResources:
+  - from: ../roms
+    to: roms
+    filter:
+      - '**/*'
+
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.utilities
+  icon: resources/icon.png
+  # UNSIGNED for now, by decision: getting the app right comes first, and
+  # notarisation needs certificates in CI before any of it can be verified.
+  identity: null
+  darkModeSupport: false
+
+win:
+  target:
+    - nsis
+    - zip
+  icon: resources/icon.png
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

@@ -238,10 +238,16 @@ async function idbDelete(key) {
   });
 }
 // Factory default SSDs: devices that physically shipped with a pack inserted.
-// The MC400 came with its ROM:: System Disk in Pack D (slot 3) — the window
-// server, shell, OPL and fonts that populate the lower app bar. Returns the
-// bundled image URL + pack kind, or null when the slot has no factory default.
+// The MC400 and MC200 both came with a ROM:: System Disk in Pack D (slot 3) —
+// the window server, shell, OPL and fonts that populate the lower app bar.
+// Returns the bundled image URL + pack kind, or null when the slot has no
+// factory default.
 function defaultSsdFor(deviceId, slot) {
+  if (deviceId === 'mc200' && slot === 3) {
+    // Same Pack D arrangement as the MC400 — the MC200's own
+    // factory System Disk, dumped.
+    return { url: 'roms/MC200_V2.12F_system.ssd', kind: 'protected' };
+  }
   if (deviceId === 'mc400' && slot === 3) {
     // Strapped write-protected, like the real ROM:: System Disk.
     return { url: 'roms/MC400_V2.60F_system.ssd', kind: 'protected' };

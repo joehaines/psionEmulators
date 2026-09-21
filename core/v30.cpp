@@ -47,6 +47,7 @@ void V30::reset() {
     halted = false;
     intInhibit = 0;
     segOverride = -1;
+    absCycles = -1;
 }
 
 // Handle a pending NMI or maskable IRQ at an instruction boundary.
@@ -55,6 +56,13 @@ void V30::reset() {
 static bool serviceInterrupts(V30& c) {
     if (c.nmiLine) {
         c.nmiLine = false;
+        if (std::getenv("PSION_WAKE_TRACE")) {
+            static uint64_t nmiCount = 0;
+            if (++nmiCount <= 20)
+                std::fprintf(stderr, "[nmi] #%llu from %04X:%04X -> %04X:%04X\n",
+                    (unsigned long long)nmiCount, c.sregs[1], c.ip,
+                    c.busRef().readMemWord(0x0000A), c.busRef().readMemWord(0x00008));
+        }
         push16(c, buildPSW(c));
         push16(c, c.sregs[1]);
         push16(c, c.ip);
@@ -185,6 +193,7 @@ int64_t V30::step() {
 
     uint32_t pc = lin(sregs[1], ip);
     uint8_t  op = busRef().readMemByte(pc);
+    dbgFetchPc_ = pc; dbgFetchCs_ = sregs[1]; dbgFetchIp_ = ip;
     ip = uint16_t(ip + 1);
 
     // Wild-jump forensics (PSION_OPCODE_DEBUG): report the first few
@@ -231,13 +240,22 @@ int64_t V30::step() {
     // (watchdog clear deadline, boot beep duration vs timer IRQ window)
     // close at the wrong sim time.
     const int scale = i8086CycleScale(variant);
+    // An op that knows its real 8086 timing pins it in absCycles (see
+    // i8086Exact); otherwise the V30 figure it returns is scaled. Cleared
+    // here rather than only on use, so a value set by an op that then
+    // falls through cannot leak into the next instruction.
+    absCycles = -1;
+    auto charge = [this, scale](int64_t v30Cycles) -> int64_t {
+        if (absCycles >= 0) { int64_t exact = absCycles; absCycles = -1; return exact; }
+        return v30Cycles * scale;
+    };
     int64_t cycles;
-    if ((cycles = dispatchMov  (*this, op)) >= 0) { clearSegOverride(*this); return cycles * scale; }
-    if ((cycles = dispatchArith(*this, op)) >= 0) { clearSegOverride(*this); return cycles * scale; }
-    if ((cycles = dispatchCtrl (*this, op)) >= 0) { clearSegOverride(*this); return cycles * scale; }
+    if ((cycles = dispatchMov  (*this, op)) >= 0) { clearSegOverride(*this); return charge(cycles); }
+    if ((cycles = dispatchArith(*this, op)) >= 0) { clearSegOverride(*this); return charge(cycles); }
+    if ((cycles = dispatchCtrl (*this, op)) >= 0) { clearSegOverride(*this); return charge(cycles); }
     cycles = dispatchMisc(*this, op);
     if (cycles == -2) return 2 * scale;       // segment-override prefix
-    if (cycles >= 0) { clearSegOverride(*this); return cycles * scale; }
+    if (cycles >= 0) { clearSegOverride(*this); return charge(cycles); }
 
     // No category claimed it: log + halt. The diagnostic is the iteration
     // signal — the next session (or the same one) implements whatever
@@ -259,6 +277,18 @@ int64_t V30::step() {
             uint32_t a = lin(sregs[2], uint16_t(regs.w[4] + i * 2));
             std::fprintf(stderr, " %04x", busRef_.readMemWord(a));
         }
+        // Where the opcode actually came from, and the bytes around it.
+        // When the halt is a wild jump rather than a genuinely missing
+        // opcode, these say so at a glance: the fetch address is not the
+        // CS:IP the line above reports (a CS:IP that ran off the top of
+        // the 1 MiB space wraps into low memory), and the bytes read as
+        // data, or as the 0xFF of an unmapped window.
+        std::fprintf(stderr, "\n  fetched from %05x (cs=%04x ip=%04x)",
+                     dbgFetchPc_, dbgFetchCs_, dbgFetchIp_);
+        std::fprintf(stderr, "\n  bytes at %05x:", lin(sregs[1], failedIp));
+        for (int i = -4; i < 12; i++)
+            std::fprintf(stderr, " %02x",
+                         busRef_.readMemByte((lin(sregs[1], failedIp) + i) & 0xFFFFF));
         std::fprintf(stderr, "\n");
     }
     halted = true;

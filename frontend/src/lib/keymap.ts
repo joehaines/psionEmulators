@@ -30,13 +30,18 @@
 //   • sibo-workabout — Workabout / WorkaboutMX.  Compact membrane keyboard;
 //     ','/'.'+ '+'/'=' are reversed relative to the other SIBO machines, and
 //     it has a full Psion layer.
-//   • mc400  — MC400.  A full laptop keyboard with standard UK Shift legends
-//     (no Psion symbol layer).
+//   • mc400  — MC400 / MC200.  A full laptop keyboard with standard UK Shift
+//     legends (no Psion symbol layer).
 //   • organiser2 — Organiser II.  A modal alpha keypad with NO dedicated
 //     digit or symbol keys: every digit and symbol is Shift + a letter key
 //     (Shift+S = ';', Shift+Y = '0', …).  Letters therefore must NOT be
 //     Shift-wrapped for upper-case (Shift selects the symbol layer); case is
 //     governed by the device's own CAP mode.
+//   • organiser1 — Organiser I.  Also a modal alpha keypad, but the layer
+//     is picked by the device's MODE key rather than by Shift: in CALC
+//     mode the O key types '1', in ENTER mode it types 'O'.  So digits and
+//     symbols map to the BARE key that carries the legend (no Shift), and
+//     the machine decides which it is.
 
 // ── Modifier EPOC codes used when building chords ─────────────────────────
 const SHIFT = 18; // EStdKeyLeftShift
@@ -108,6 +113,7 @@ export type KeyboardLayout =
   | 'sibo-3a'        // Series 3a / 3c / 3mx / Pocket Book / Pocket Book II
   | 'sibo-siena'     // Siena
   | 'sibo-workabout' // Workabout / WorkaboutMX
+  | 'organiser1'     // Organiser I
   | 'organiser2';    // Organiser II
 
 const SIBO_3A_IDS = new Set([
@@ -117,7 +123,9 @@ const SIBO_3A_IDS = new Set([
 // Resolves a device id (as used by core/device_registry.cpp) to its layout.
 export function keyboardLayoutForDevice(deviceId: string | null | undefined): KeyboardLayout {
   switch (deviceId) {
+    case 'organiser1':            return 'organiser1';
     case 'organiser2':            return 'organiser2';
+    case 'mc200':
     case 'mc400':
     case 'mc400v126':             return 'mc400';
     case 'series3':               return 'sibo-classic';
@@ -263,6 +271,25 @@ const ORGANISER2: Record<string, SymEntry> = {
   '*': [_S, 76 /*L*/], '/': [_S, 70 /*F*/], '.': [_S, 90 /*Z*/], ')': [_S, 68 /*D*/],
 };
 
+// Organiser I.  Its digits and symbols are the second legend on the letter
+// keys, as on the Organiser II — but this machine picks the layer by MODE,
+// not by Shift.  In CALC mode the same key that types O types 1; holding
+// Shift over it types nothing at all (the ROM discards the combination),
+// which is why these entries carry NO modifier: the host's '1' presses the
+// key that bears the 1, and the device's own mode decides what it means.
+// Verified against the ROM: MODE MODE MODE (to CALC) then O X P EXECUTE
+// leaves "CALC:1+2=3" on the panel.  Key positions from MAME psion1
+// INPUT_PORTS.
+const ORGANISER1: Record<string, SymEntry> = {
+  '0': [_N, 85 /*U*/], '1': [_N, 79 /*O*/], '2': [_N, 80 /*P*/], '3': [_N, 81 /*Q*/],
+  '4': [_N, 73 /*I*/], '5': [_N, 74 /*J*/], '6': [_N, 75 /*K*/], '7': [_N, 67 /*C*/],
+  '8': [_N, 68 /*D*/], '9': [_N, 69 /*E*/],
+  ',': [_N, 83 /*S*/], '%': [_N, 77 /*M*/], '=': [_N, 71 /*G*/], '<': [_N, 65 /*A*/],
+  '(': [_N, 89 /*Y*/], ':': [_N, 84 /*T*/], '$': [_N, 78 /*N*/], '"': [_N, 72 /*H*/],
+  '>': [_N, 66 /*B*/], ')': [_N, 90 /*Z*/], '+': [_N, 88 /*X*/], '-': [_N, 82 /*R*/],
+  '*': [_N, 76 /*L*/], '/': [_N, 70 /*F*/], '.': [_N, 86 /*V*/],
+};
+
 const LAYOUT_SYMBOLS: Record<KeyboardLayout, Record<string, SymEntry>> = {
   'epoc32':         EPOC32,
   'sa1100':         SA1100,
@@ -271,6 +298,7 @@ const LAYOUT_SYMBOLS: Record<KeyboardLayout, Record<string, SymEntry>> = {
   'sibo-3a':        SIBO_3A,
   'sibo-siena':     SIBO_SIENA,
   'sibo-workabout': SIBO_WORKABOUT,
+  'organiser1':     ORGANISER1,
   'organiser2':     ORGANISER2,
 };
 
@@ -317,11 +345,11 @@ export function charToEpocChord(char: string, layout: KeyboardLayout = 'epoc32')
   const upper = char.toUpperCase();
   const code  = upper.charCodeAt(0);
 
-  if (layout === 'organiser2') {
+  if (layout === 'organiser1' || layout === 'organiser2') {
     // Letters: NO Shift — Shift selects the digit/symbol layer on this
     // keyboard, and upper/lower case is governed by the device's CAP mode.
     if (code >= 65 && code <= 90) return { modifiers: [], key: code };
-    const e = ORGANISER2[char];
+    const e = LAYOUT_SYMBOLS[layout][char];
     return e ? { modifiers: e[0], key: e[1] } : null; // digits live here too
   }
 

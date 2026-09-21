@@ -71,6 +71,20 @@ interface Props {
   // header's zoom flyout can grey out the levels that would only come back
   // as the same fitted picture. See largestUsefulScale.
   onMaxDeviceScale?: (scale: number) => void;
+  // Reports the aspect ratio (width / height) of the composed device
+  // content: the frame, plus the SIBO app-button bar below it, plus the
+  // netpad's silkscreen column, with rotation already applied.
+  //
+  // Measured rather than derived, because only the rendered box knows the
+  // sum of those parts — and measuring cannot drift out of step with the
+  // layout the way a second copy of the arithmetic would. It is safe to
+  // feed straight back into a window resize: in 'fill' mode the ratio is a
+  // function of the skin artwork alone, not of the window, so it settles
+  // immediately instead of oscillating.
+  //
+  // Used by the desktop shell to lock its borderless window to the shape of
+  // the machine. Unset everywhere else.
+  onContentAspect?: (ratio: number) => void;
 }
 
 // Per-skin layout: aspect ratio of the full SVG and where the LCD screen
@@ -487,6 +501,15 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     screenLeft:   0.165, screenTop:  0.069,
     screenWidth:  0.696, screenHeight: 0.070,
   },
+  // Organiser I: one row of 16 characters — 96x8 dots, so close to a 12:1
+  // strip. Its window is far taller than that single row, so the box is
+  // the window's width with the row centred vertically inside it, carrying
+  // the same slight vertical stretch the Organiser II's box has.
+  'organiser1.png': {
+    aspectRatio:  600 / 900,
+    screenLeft:   0.192, screenTop:  0.188,
+    screenWidth:  0.595, screenHeight: 0.038,
+  },
   'workabout.png': {
     aspectRatio:  421 / 985,
     screenLeft:   0.223, screenTop:  0.232,
@@ -538,6 +561,15 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     aspectRatio:  976 / 1093,
     screenLeft:   0.246, screenTop:  0.104,
     screenWidth:  0.513, screenHeight: 0.286,
+  },
+  // MC200: the same case as the MC400 with the half-height 640x200 panel.
+  // The glass in the photo is taller than the active area (the panel has
+  // an inactive margin above and below it), so the box below is the
+  // glass's width with a 3.2:1 active area centred in it.
+  'MC200.png': {
+    aspectRatio:  1041 / 1024,
+    screenLeft:   0.212, screenTop:  0.144,
+    screenWidth:  0.566, screenHeight: 0.177,
   },
   // Series 7 / netBook: 640×480 TFT. Silkscreen columns are part of digitiser;
   // LCD-anchored mapping handles them.
@@ -737,9 +769,11 @@ export function getDeviceSkinPhotoFilename(deviceId: string | null): string | nu
     case 'netbook':     return '7_netbook.png';
     case 'netpad':      return 'netpad.png';
     case 'mc218':       return 'MC218.png';
+    case 'mc200':       return 'MC200.png';
     case 'mc400':       return 'MC400.png';
     case 'pocketbk':    return 'acornPB.png';
     case 'pocketbk2':   return 'acornPB2.png';
+    case 'organiser1':  return 'organiser1.png';
     case 'organiser2':  return 'organiser2.png';
     case 'geofox':      return 'geofox_one.png';
     case 'osaris':      return 'osaris.png';
@@ -832,6 +866,7 @@ export default function EmulatorView({
   chromeless = false,
   deviceMode = false,
   onMaxDeviceScale,
+  onContentAspect,
 }: Props) {
   const { color: backlightColor, on: backlightOn, toggle: toggleBacklight } = backlight;
   const isColourDevice = COLOUR_SCREEN_DEVICES.has(controls.currentDeviceId ?? '');
@@ -966,6 +1001,9 @@ export default function EmulatorView({
   const logBodyRef      = useRef<HTMLDivElement>(null);
   const hiddenInputRef  = useRef<HTMLTextAreaElement>(null);
   const fsContainerRef  = useRef<HTMLDivElement>(null);
+  // The box holding the device frame and any button bar beneath it, measured
+  // for onContentAspect.
+  const contentBoxRef   = useRef<HTMLDivElement>(null);
   const overlayRef      = useRef<HTMLDivElement>(null);
   // Set while a Geofox secondary click is holding the Menu key down, so
   // the release goes out even when the gesture ends as a pointercancel
@@ -1209,6 +1247,30 @@ export default function EmulatorView({
       mq.removeEventListener('change', onDprChange);
     };
   }, [skinLayout.aspectRatio, skinLayout.screenWidth, skinLayout.screenHeight, deviceInfo?.lcdWidth, deviceInfo?.lcdHeight, sizingMode, deviceScale, cssFS, chromeless, orientation, onMaxDeviceScale]);
+
+  // Composed content aspect → onContentAspect. A ResizeObserver rather than
+  // a derived value so the SIBO button bar, the netpad silkscreen column and
+  // the rotation transpose are all accounted for by construction.
+  useEffect(() => {
+    if (!onContentAspect) return;
+    const el = contentBoxRef.current;
+    if (!el) return;
+    let last = 0;
+    const report = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return;
+      const ratio = r.width / r.height;
+      // A 0.2% dead band: sub-pixel layout jitter must not turn into a
+      // stream of window resizes.
+      if (last && Math.abs(ratio - last) / last < 0.002) return;
+      last = ratio;
+      onContentAspect(ratio);
+    };
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onContentAspect]);
 
   // Header Fullscreen icon: parent bumps `fullscreenRequest` each click,
   // we trigger the same enter path we used to wire to the in-control-bar
@@ -1461,8 +1523,14 @@ export default function EmulatorView({
   const EPOC_DICT_RECORD = 158; // EStdKeyDictaphoneRecord
   const EPOC_DICT_PLAY   = 156; // EStdKeyDictaphonePlay
   const EPOC_DICT_STOP   = 157; // EStdKeyDictaphoneStop
-  const isOrganiser2 = deviceInfo?.deviceName?.includes('Organiser') ?? false;
-  const isMc400      = deviceInfo?.deviceName?.includes('MC400') ?? false;
+  // Both Organisers: the I and the II share the ON / MODE / EXE / DEL /
+  // SHIFT keys that have no natural label on a modern keyboard.
+  const isOrganiser  = deviceInfo?.deviceName?.includes('Organiser') ?? false;
+  // The Organiser I's SAVE and FIND sit on its up/down arrows, which is
+  // not a mapping anyone would guess, so it gets them by name.
+  const isOrganiser1 = /Organiser I$/.test(deviceInfo?.deviceName ?? '');
+  // Both MC laptops have the same trackpad-with-click above the keyboard.
+  const isMc         = /MC[24]00/.test(deviceInfo?.deviceName ?? '');
   // Geofox One: no touchscreen — a capacitive mouse pad in the keyboard
   // deck drives an on-screen pointer, the way a laptop trackpad does (see
   // core/geofox.h). The emulator turns a position on the panel back into
@@ -1583,7 +1651,7 @@ export default function EmulatorView({
           Wrapped in a zero-gap flex container so the button bar sits flush
           against the bottom of the LCD frame on every SIBO machine. The
           outer container's gap-4 only kicks in for the next sibling. */}
-      <div className="flex flex-col items-center flex-shrink-0">
+      <div ref={contentBoxRef} className="flex flex-col items-center flex-shrink-0">
       {/* ── Device frame ──
           Sits inside a footprint box that carries the rotation: while the
           guest draws rotated (the netpad's Tools menu → "Switch
@@ -1745,7 +1813,7 @@ export default function EmulatorView({
             // dedicated click bit and leave the pointer where it is. (Touch
             // users get the on-screen "Click" button instead, so they still
             // need the press to set position.)
-            if (isMc400 && e.pointerType === 'mouse') {
+            if (isMc && e.pointerType === 'mouse') {
               sendEpocKey(EPOC_TRACKPAD, true);
               return;
             }
@@ -1785,7 +1853,7 @@ export default function EmulatorView({
             // trackpad is different: position and click are separate inputs
             // (updateTouchInput ignores the down flag), so its on-screen
             // pointer should follow the real mouse even with no button down.
-            if (e.buttons === 0 && !(isMc400 && e.pointerType === 'mouse')) return;
+            if (e.buttons === 0 && !(isMc && e.pointerType === 'mouse')) return;
             const { x, y } = toDigitiserCoords(e);
             handlePointerMove(x, y);
           }}
@@ -1797,7 +1865,7 @@ export default function EmulatorView({
               return;
             }
             handlePointerUp();
-            if (isMc400 && e.pointerType === 'mouse') sendEpocKey(EPOC_TRACKPAD, false);
+            if (isMc && e.pointerType === 'mouse') sendEpocKey(EPOC_TRACKPAD, false);
           }}
           onPointerCancel={e => {
             if (geofoxMenuHeldRef.current) {
@@ -1806,7 +1874,7 @@ export default function EmulatorView({
               return;
             }
             handlePointerUp();
-            if (isMc400 && e.pointerType === 'mouse') sendEpocKey(EPOC_TRACKPAD, false);
+            if (isMc && e.pointerType === 'mouse') sendEpocKey(EPOC_TRACKPAD, false);
           }}
           onContextMenu={e => e.preventDefault()}
         />
@@ -2102,7 +2170,7 @@ export default function EmulatorView({
           All four live in a single no-wrap row so they never split across
           lines on narrow screens. SIBO devices have their own flanked Menu
           row below; Organiser II surfaces Menu as MODE. */}
-      {!isSibo && !isOrganiser2 && (
+      {!isSibo && !isOrganiser && (
         <div className="flex flex-nowrap gap-2 items-center justify-center px-4">
           <span className="contents md:hidden">
             {renderKeyBtn('Esc',   EPOC_ESCAPE, 'Escape key')}
@@ -2120,34 +2188,42 @@ export default function EmulatorView({
         {renderKeyBtn('→', EPOC_RIGHT, 'Arrow right')}
       </div>
 
-      {/* ── Organiser II key pad ──
-          ON / MODE / EXE / DEL / SHIFT are Organiser II hardware keys
-          with no natural label on a modern keyboard. We always render
-          this row (desktop AND mobile) for the Organiser so users can
-          press them by name; the underlying EPOC codes are also bound
-          to physical Esc/Tab/Enter/Backspace/Shift (see keymap.ts and
-          core/organiser2.cpp::setKeyboardKey for the matrix mapping).
-          OFF is omitted because on real hardware OFF is SHIFT+ON, not
-          a discrete key. */}
-      {isOrganiser2 && (
+      {/* ── Organiser key pad ──
+          ON / MODE / EXE / DEL / SHIFT are Organiser hardware keys with
+          no natural label on a modern keyboard. We always render this
+          row (desktop AND mobile) for both Organisers so users can press
+          them by name; the underlying EPOC codes are also bound to
+          physical Esc/Tab/Enter/Backspace/Shift (see keymap.ts and
+          core/organiser{1,2}.cpp::setKeyboardKey for the matrix
+          mapping). OFF is omitted because on real hardware OFF is
+          SHIFT+ON, not a discrete key — except on the Organiser I,
+          where MODE cycles round to it.
+          SAVE / FIND are the Organiser I's up / down arrows: the arrow
+          row above is hidden on Organisers, and nothing about a modern
+          keyboard says those two keys are where records are stored and
+          searched. */}
+      {isOrganiser && (
         <div className="flex flex-wrap gap-2 items-center justify-center px-4">
           {renderKeyBtn('ON',    EPOC_ESCAPE,    'On / Clear')}
           {renderKeyBtn('MODE',  EPOC_MENU,      'Mode')}
+          {isOrganiser1 && renderKeyBtn('SAVE', EPOC_UP,   'Save a record')}
+          {isOrganiser1 && renderKeyBtn('FIND', EPOC_DOWN, 'Find a record')}
           {renderKeyBtn('EXE',   EPOC_ENTER,     'Execute')}
           {renderKeyBtn('DEL',   EPOC_BACKSPACE, 'Delete')}
           {renderKeyBtn('SHIFT', EPOC_SHIFT,     'Shift')}
         </div>
       )}
 
-      {/* ── MC400 trackpad click ──
-          The MC400 has a dedicated click switch alongside its trackpad.
+      {/* ── MC trackpad click ──
+          The MC400 and MC200 have a dedicated click switch alongside
+          the trackpad.
           Touch users have no way to position-then-click without it (every
           tap on the trackpad area would otherwise both move and click in
           one event), so we surface the click bit as a dedicated button.
           Desktop mouse users get the ergonomic auto-click on mouse-down
           (handled in the overlay's onPointerDown above) but the button
           remains visible as a discoverable alternative. */}
-      {isMc400 && (
+      {isMc && (
         <div className="flex flex-wrap gap-2 items-center justify-center px-4">
           {renderKeyBtn('Click', EPOC_TRACKPAD, 'Trackpad click')}
         </div>

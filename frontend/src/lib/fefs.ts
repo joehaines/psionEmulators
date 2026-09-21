@@ -576,6 +576,64 @@ function findFile(img: Uint8Array, name: string): WalkedEntry | null {
 // FEFS magic check. Note this only inspects the *contents* — the pack
 // TYPE (RAM / Flash / write-protected) presented to the Psion is a
 // hardware strap chosen at attach time, independent of contents.
+/**
+ * Free bytes left in the pack's append arena.
+ *
+ * FEFS is append-only: every write lands past the current extent, and a
+ * delete only clears a valid bit. So this shrinks monotonically as the pack is
+ * used, whatever is deleted — which is why compactPack exists.
+ */
+export function packFreeBytes(packBytes: Uint8Array): number {
+  if (classifyPack(packBytes) !== 'flash') return 0;
+  return Math.max(0, packBytes.length - imageExtent(packBytes));
+}
+
+export function readVolumeFreeInfo(
+  packBytes: Uint8Array,
+): { free: number; used: number; total: number } {
+  const total = packBytes.length;
+  const free = packFreeBytes(packBytes);
+  return { free, used: total - free, total };
+}
+
+/**
+ * Rebuild the pack containing only its live files, reclaiming the space that
+ * logically-deleted ones still occupy.
+ *
+ * This is not an optimisation — it is what keeps a shared folder usable. FEFS
+ * models real Flash, where a delete can only clear bits and space comes back
+ * solely by erasing the part: removeFileFromPack therefore grows the pack's
+ * extent every time, and a host folder that changes a couple of times a day
+ * would exhaust a 2 MB pack within weeks of projections. Compacting is the
+ * software equivalent of reformatting the pack, which is exactly how a real
+ * one is reclaimed.
+ *
+ * The volume name is preserved. Directory structure is rebuilt implicitly:
+ * every live file is re-added at its full path, and addFileToPack creates the
+ * directories it needs.
+ */
+export function compactPack(packBytes: Uint8Array): Uint8Array {
+  if (classifyPack(packBytes) !== 'flash') {
+    throw new Error('Not a FEFS pack — nothing to compact');
+  }
+  const live = listFiles(packBytes);
+  const contents = live.map((f) => ({
+    name: f.name,
+    bytes: readFileFromPack(packBytes, f.name),
+  }));
+
+  let out = createFlashPack(packBytes.length, readVolumeName(packBytes) || 'FLASH');
+  for (const { name, bytes } of contents) {
+    // listFiles reports full paths ("WRD\REPORT.WRD"); split the directory
+    // back out so it is recreated rather than becoming part of the filename.
+    const cut = name.lastIndexOf('\\');
+    const dir = cut >= 0 ? name.slice(0, cut) : undefined;
+    const base = cut >= 0 ? name.slice(cut + 1) : name;
+    out = addFileToPack(out, base, bytes, dir);
+  }
+  return out;
+}
+
 export function classifyPack(packBytes: Uint8Array): PackKind {
   if (packBytes.length >= 2 && packBytes[0] === 0xA5 && packBytes[1] === 0xF1) {
     return 'flash';

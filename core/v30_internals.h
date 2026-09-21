@@ -20,6 +20,19 @@
 namespace V30Detail {
 
 // ──────────────────────────────────────────────────────────────────────
+// Exact 8086 instruction timing
+//
+// An op calls this with the real 8086 figure for the path it just took.
+// On a V30 instance it does nothing and the op's own return value stands;
+// on an I8086 instance it pins the instruction's cost to that figure
+// instead of letting step() double the V30 count. Use it where doubling
+// is plainly wrong — the loop and string instructions, which is where the
+// V30's advantage over the 8086 is nothing like 2x. See V30::absCycles.
+inline void i8086Exact(V30& c, int i8086Cycles) {
+    if (c.getVariant() == V30Variant::I8086) c.absCycles = i8086Cycles;
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Register index mapping
 //
 // ModR/M encodes 8-bit registers as: 0=AL, 1=CL, 2=DL, 3=BL,

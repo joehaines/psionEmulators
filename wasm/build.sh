@@ -32,7 +32,7 @@ SOURCES=(
     sibo_audio
     v30 v30_ops_mov v30_ops_arith v30_ops_ctrl v30_ops_misc
     psion_asic1 psion_asic2 psion_asic3 psion_ssd psion_condor psion_honda series3 series3c series3c_serial_bridge
-    hd6303 hd44780 psion_datapak organiser2
+    hd6303 hd44780 psion_datapak organiser1 organiser2
     device_registry
 )
 # psion_asic9 is landing on a parallel branch; compile it in if present.

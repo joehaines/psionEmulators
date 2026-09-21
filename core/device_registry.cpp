@@ -13,6 +13,7 @@
 #include "series3.h"
 #include "series3c.h"
 #include "series7.h"
+#include "organiser1.h"
 #include "organiser2.h"
 #include <cstring>
 
@@ -151,6 +152,52 @@ static EmuBase *makeMC400() {
     c.ramFillByte = 0xFF;
     return new Series3::Emulator(c);
 }
+// Psion MC200 (1989) — the MC400's smaller sibling. MAME builds it from
+// the same `psionmc` machine (I8086 at 15.36 MHz / 2, ASIC1 in laptop
+// mode, ASIC2, the ASIC5 PSU and four SSD slots), changing exactly three
+// things in `psionmc_state::mc200`: a 640x200 screen instead of 640x400,
+// `screen_update_single` instead of `screen_update_dual`, and 128 KiB of
+// RAM instead of 256 KiB. This factory is makeMC400 with those three
+// changes plus the LCD identity that follows from the panel — ASIC1
+// reports LCD type 1 for a 200-row laptop panel and 0 for a 400-row one
+// (MAME psion_asic1.cpp::lcd_type), and the ROM reads that field out of
+// A1Status to decide how to drive the display.
+//
+// Both machines shipped the same V2.12F boot ROM, so the comments on
+// makeMC400 above — why V30Variant::I8086, why ramDecodeMask stays 0, why
+// cold-boot RAM is filled with 0xFF — apply here unchanged.
+static EmuBase *makeMC200() {
+    Series3::Config c;
+    c.model       = Series3::Model::MC200;
+    c.displayName = "Psion MC200";
+    c.cpuVariant  = V30Variant::I8086;
+    c.busClockHz  = 7'680'000;
+    // 640x200 mono panel, single-plate: the whole framebuffer is one
+    // 16 KiB VRAM map, where the MC400 walks a second map at VRAM+0x4000
+    // for its lower 200 rows.
+    c.lcdWidth    = 640;
+    c.lcdHeight   = 200;
+    c.fbWidth     = 640;
+    c.fbHeight    = 200;
+    c.fbPlates    = 1;
+    c.ramSize     = 0x20000; // 128 KiB main RAM
+    c.ramDecodeMask = 0;
+    c.romSize     = 0x40000; // 256 KiB ROM (2 x 28F010, joined by
+                             // scripts/build-mc200-rom.mts)
+    c.romBase     = 0xC0000; // reset vector EA 00 00 00 C0 → C000:0000
+    c.mirrorRom   = false;
+    c.vramBase    = 0xB8000;
+    c.vramSize    = 0x8000;
+    c.laptopMode  = true;
+    c.lcdId       = 1;       // 640x200 in laptop mode
+    c.keyMatrix   = &Series3::mc400KeyMatrix;  // same psionmc keyboard
+    c.ssdSlots    = 4;       // Pack 1..4 on ASIC2 ch1..4; Pack D (slot 3)
+                             // holds the ROM:: System Disk, pre-inserted
+                             // by the frontend from
+                             // roms/MC200_V2.12F_system.ssd
+    c.ramFillByte = 0xFF;
+    return new Series3::Emulator(c);
+}
 // Psion Series 3c (V30H + ASIC9). SIBO2 bring-up scaffold; the CPU core
 // is still a stub and PsionAsic9 hasn't been ported yet, so the factory
 // exists to let the harness boot Series 3a/3c/3mx ROMs far enough to
@@ -250,6 +297,14 @@ static EmuBase *makeNetpad() { return new Series7::NetpadEmulator; }
 // LZ menu screen. See plan + reference/mame-psion-org2/ for the porting
 // source (MAME's src/mame/psion/psion.cpp, BSD-3-Clause).
 static EmuBase *makeOrganiser2() { return new Organiser2::Emulator; }
+
+// Psion Organiser I (1984) — the first of the line, and a much smaller
+// machine than the Organiser II: an HD6301X0 running its whole program
+// out of the CPU's own 4 KiB mask ROM, 2 KiB of external RAM, one row of
+// 16 characters on an HD44780, and the same two Datapak slots. The
+// driver is core/organiser1.{h,cpp}; the ROM image is MAME's `psion1`
+// byte for byte.
+static EmuBase *makeOrganiser1() { return new Organiser1::Emulator; }
 
 // Psion Workabout (1995, V30H + ASIC9). Industrial handheld variant
 // of the Series 3a/3c stack — same chipset, different keyboard, smaller
@@ -861,6 +916,32 @@ static const DeviceProfile kProfiles[] = {
         true,   // hiddenFromPicker — alternate-ROM variant of mc400
     },
     {
+        // Psion MC200 (1989) — the 640x200 half-height sibling of the
+        // MC400, same SIBO1 chip set and the same V2.12F boot ROM. The
+        // ROM image is the two 28F010 chip dumps in
+        // roms/MC200_V2.12F_ROM_disk/ interleaved into the 256 KiB image
+        // the CPU sees (scripts/build-mc200-rom.mts).
+        //
+        // romVariantId stays 0 and the 0x40000 size is shared with the two
+        // MC400 profiles registered above, so size-based auto-detect still
+        // resolves a bare 256 KiB SIBO image to the MC400 — the MC200 is
+        // selected by id, the way the MC400's own v1.26F variant is.
+        "mc200",
+        "Psion MC200",
+        "MC200_v2.12F.bin",
+        0x40000,
+        0,
+        "mc400.svg",
+        DeviceStatus::Supported,
+        makeMC200,
+        false,  // No CompactFlash slot
+        4,      // Four SSD pack slots on ASIC2 ch1..4, as on the MC400.
+                // Pack D (slot 3) holds the ROM:: System Disk, pre-inserted
+                // by the frontend on cold boot from
+                // roms/MC200_V2.12F_system.ssd — the real machine's factory
+                // pack, dumped (it is MAME's mc200_system_disk.bin).
+    },
+    {
         "series3a",
         "Psion Series 3a",
         "series3a_v3.40f_eng.bin",
@@ -970,6 +1051,29 @@ static const DeviceProfile kProfiles[] = {
                 // links through UART1. No IR (no transceiver fitted).
         2, 0,   // EPOC16 PLP + RFSV16 cable (verified live: Req_Pdu
                 // retries + NCP Info v3 handshake against v7.20f)
+    },
+    {
+        // Psion Organiser I (1984). 4 KiB image — the HD6301X0's own
+        // internal mask ROM, mapped at $F000-$FFFF; 2 KiB of external
+        // RAM; a single row of 16 characters on an HD44780 driven as
+        // two 8-position lines; two Datapak slots. See
+        // core/organiser1.h for the memory map and the port wiring.
+        //
+        // The machine switches itself off at the end of cold boot and
+        // waits for the ON key — the driver synthesises that press half
+        // a second in so the emulator comes up showing the prompt
+        // rather than a blank panel.
+        "organiser1",
+        "Psion Organiser I",
+        "Organiser1.rom",
+        0x1000,     // 4 KiB
+        0,          // no EPOC variant ID (pre-EPOC machine)
+        "organiser1.png",
+        DeviceStatus::Supported,
+        makeOrganiser1,
+        false,      // No CompactFlash slot
+        0,          // No SIBO SSD packs (different protocol)
+        2,          // Pack A + Pack B (Datapak / Rampak)
     },
     {
         // Psion Organiser II (LZ / LZ64). 64 KiB ROM image; HD6303X CPU

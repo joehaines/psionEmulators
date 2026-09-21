@@ -10,7 +10,11 @@
 // later LZ revision, but the device line as a whole is 1986). Where a
 // year isn't known, the device is sorted to the end of the age list.
 export const DEVICE_LOGO_MAP: Record<string, string> = {
+  // The Organiser I predates the Organiser II's wordmark logo, and the
+  // line drawing in device-logos is of the II; the I falls through to
+  // DevicePanel's initials rather than being labelled as its successor.
   organiser2:  'organiser2.png',
+  mc200:       'mc600.png',
   mc400:       'mc600.png',
   mc400v126:   'mc600.png',
   mc600:       'mc600.png',
@@ -42,7 +46,9 @@ export const DEVICE_LOGO_MAP: Record<string, string> = {
 };
 
 export const DEVICE_RELEASE_YEARS: Record<string, number> = {
+  organiser1:  1984,   // the first Psion computer of any kind
   organiser2:  1986,
+  mc200:       1989,   // launched alongside the MC400
   mc400:       1989,
   mc400v126:   1989,
   series3:     1991,

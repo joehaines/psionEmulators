@@ -83,6 +83,21 @@ mc400     | MC400_v2.60F.bin                | 10 | 200 | --min-mdrive-subdirs 0
 # default above — just a different image — so it boots through the same path.
 mc400v126 | MC400_V1.26F.bin                | 10 | 200 | --min-mdrive-subdirs 0 | mc400v126
 osaris    | Osaris_v1.02(209)_eng.bin       | 35 | 200
+# mc200: the MC400's 640x200 sibling, booting the V2.12F ROM the two
+# machines share (the two 28F010 chip dumps in roms/MC200_V2.12F_ROM_disk/
+# interleaved by scripts/build-mc200-rom.mts). With no System Disk in Pack
+# D it stops at its own splash — "PSION GRAPHIC USER INTERFACE / (c)
+# 1989-90 Psion PLC" over a CONTINUE button — which settles at variance
+# ~490 on the half-height panel. The mc200-sysdisk row in devices-ssd.txt
+# is the configuration the frontend cold-boots, and goes further.
+#
+# This row is also the regression gate for the exact-8086 timing of the
+# loop and string instructions (core/v30_internals.h::i8086Exact): the
+# V2.12F boot ROM checksums all 256 KiB of itself without petting the
+# watchdog, and at 2x-the-V30 timing it overran ASIC1's watchdog NMI and
+# was thrown into an unwritten interrupt vector mid-checksum. A
+# regression there shows up here as a blank panel.
+mc200     | MC200_v2.12F.bin                | 10 | 200 | --min-mdrive-subdirs 0
 #
 # (After the V30Variant::I8086 + cycle-scaling + cold-boot RAM-fill +
 # RAM-mirror-removal fixes the MC400 boot ROM now passes its RAM POST,
@@ -156,11 +171,26 @@ netbook_eshell | netBook_BL_v011_eng.bin     |  3 | 400 | --card-path tests/card
 # See docs/netbook-quartz.md.
 netbook_quartz | netBook_BL_v011_eng.bin     |  3 | 200 | --card-path tests/cards/quartz-netbook.img --post-attach-seconds 60 --max-variance 2000 | netbook
 
-# Organiser II — boots to the LZ cold-boot splash within 3 sim-seconds.
-# Variance 535 (text on row 1 = "SIZING PACK D:", row 2 = "PLEASE WAIT")
-# from a cold start. The OS is waiting on the datapak read protocol
-# (which we don't model yet) so it stays on the SIZING screen
-# indefinitely — that's still a passing CI gate, since the screen
-# content is stable and the variance threshold catches a regression
-# that drops back to blank.
+# Organiser II — boots to the LZ's first-run language prompt within 3
+# sim-seconds: "SELECT LANGUAGE / English Francais / Deutsch", variance
+# ~866 (the comment here used to describe an earlier "SIZING PACK D: /
+# PLEASE WAIT" state at variance 535; the committed golden has been the
+# language prompt for a while). EXE takes it on to the main menu —
+# Calc / Time / Notes.
+#
+# The datapak read protocol is still a stub (core/psion_datapak.cpp), so
+# an inserted pack is still not readable.
 organiser2 | OrganiserII.rom                 |  5 | 200
+# Organiser I — the 1984 original: an HD6301X0 running out of its own
+# 4 KiB internal mask ROM, 2 KiB of external RAM and one row of 16
+# characters. Cold boot ends with the ROM switching the machine off
+# again; the driver synthesises the ON press that a user would make
+# (core/organiser1.h), after which the machine paints its clock —
+# "00:00:0x JAN 1" — and ticks it once a second from the 500 ms NMI.
+# Variance ~1420 from the two-level panel.
+#
+# The clock is what makes this a gate rather than a screenshot: it only
+# advances while RAMCR's bit 6 comes back set out of reset
+# (core/hd6303.cpp), so a regression there leaves a screen that looks
+# right and a clock frozen at 00:00:00.
+organiser1 | Organiser1.rom                 |  8 | 200

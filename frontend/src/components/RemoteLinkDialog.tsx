@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
+import { useUartLease } from '../hooks/useUartLease';
 import { PlpClient, type ClientState } from '../lib/plp/client-spec';
 import type { DirEntry } from '../lib/plp/rfsv32-spec';
 import type { Pdu } from '../lib/plp/link';
@@ -170,6 +171,10 @@ function copyText(text: string): Promise<void> {
 }
 
 export default function RemoteLinkDialog({ controls, uartIndex, protocol, title, conSeq, deviceId, onClose }: Props) {
+  // The desktop drive sync holds this port in the background; claiming it
+  // here makes it yield for as long as this dialog is open.
+  useUartLease(uartIndex, 'remote-link');
+
   // ── Connection state ─────────────────────────────────────────────
   const [clientState, setClientState] = useState<ClientState>('idle');
   const [connectError, setConnectError] = useState<string>('');

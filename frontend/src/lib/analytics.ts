@@ -67,7 +67,17 @@ function getClientId(): string {
   }
 }
 
+// The desktop build never reports anything. A native app that phones home
+// is a different proposition from a web page that does, and there is no
+// server behind the bundled app anyway: API_BASE resolves inside the app's
+// own scheme, so every request would 404 in silence. Better to not make it.
+//
+// A build-time constant rather than a host check, so the whole reporting
+// path is dead code the bundler can drop.
+const DESKTOP_BUILD = import.meta.env.VITE_PSION_DESKTOP === '1';
+
 function canSend(): boolean {
+  if (DESKTOP_BUILD) return false;
   return typeof navigator !== 'undefined' && navigator.onLine !== false;
 }
 

@@ -2,14 +2,13 @@
 // copyright-holders:Sandro Ronco (MAME hd44780_device)
 //                  + adaptation by the Psion emulator project, 2026.
 //
-// Hitachi HD44780 character-LCD controller — scaffold.
+// Hitachi HD44780 character-LCD controller.
 //
-// Used by the Psion Organiser II's 16x4 character display (LZ / LZ64
-// models). This is a minimal stub: it accepts command + data writes,
-// keeps a DDRAM buffer, and renders an all-paper framebuffer. The full
-// character-set rendering (CGROM font + CGRAM user glyphs + display
-// shift / cursor blink / 4-bit interface mode) lands once the HD6303
-// CPU port is far enough along to actually exercise the controller.
+// Drives both Psion Organisers' panels: the II's 4x20 (LZ / LZ64) and
+// the I's single row of 16 characters. Command + data writes, a DDRAM
+// buffer, and rendering through the A00 CGROM font plus CGRAM user
+// glyphs. Not modelled: display shift, cursor blink, and the 4-bit
+// interface mode — no Psion ROM here uses them.
 //
 // Porting source: MAME src/devices/video/hd44780.{cpp,h} (BSD-3-Clause).
 
@@ -33,7 +32,32 @@ public:
     static constexpr int PIXEL_W = COLS * CELL_W;            // 120
     static constexpr int PIXEL_H = ROWS * CELL_H;            // 36
 
+    // Which machine's panel wiring the controller drives. Both Psions
+    // put the visible cells somewhere other than where a stock HD44780
+    // module would, and each does it differently, so the mapping from
+    // "controller cell" to "screen position" is per-machine:
+    //
+    //   PsionLZ      Organiser II LZ / LZ64: 4 rows × 20 cols through
+    //                the scrambled kPsionLayout table (see above).
+    //   Organiser1   Organiser I: one physical row of 16 characters,
+    //                driven as the controller's 2-line mode × 8
+    //                positions — line 0 lights the left half of the
+    //                row, line 1 the right (MAME
+    //                psion1_state::psion1_pixel_update, which paints
+    //                cell (line, pos) at x = (line * 8 + pos) * 6).
+    enum class Layout { PsionLZ, Organiser1 };
+
+    static constexpr int ORG1_COLS    = 16;
+    static constexpr int ORG1_CELL_H  = 8;   // single row: no inter-row gap
+    static constexpr int ORG1_PIXEL_W = ORG1_COLS * CELL_W;  // 96
+    static constexpr int ORG1_PIXEL_H = ORG1_CELL_H;         // 8
+
     HD44780() = default;
+
+    // Set once by the driver, before the first render. The PIXEL_W/H
+    // (LZ) and ORG1_PIXEL_W/H constants above are the buffer sizes
+    // renderFramebuffer expects for each.
+    void setLayout(Layout l) { m_layout = l; }
 
     void reset();
 
@@ -45,9 +69,9 @@ public:
     uint8_t readStatus() const;
     uint8_t readData();
 
-    // Render the current DDRAM into an 80x32 dot buffer (0 = paper,
-    // 1 = ink). Stub: paints all-paper. Once the CGROM font is wired
-    // in, this will render real character glyphs.
+    // Render the current DDRAM into a dot buffer (0 = paper, 1 = ink)
+    // through the configured layout — PIXEL_W x PIXEL_H for the LZ,
+    // ORG1_PIXEL_W x ORG1_PIXEL_H for the Organiser I.
     void renderFramebuffer(uint8_t *out, int outW, int outH) const;
 
     // Debug helper: returns a pointer to the 80-byte DDRAM buffer.
@@ -64,6 +88,7 @@ private:
     // every documented controller mode.
     std::array<uint8_t, 128> m_ddram{};
     std::array<uint8_t, 64> m_cgram{};
+    Layout  m_layout = Layout::PsionLZ;
     uint8_t m_ac      = 0;     // Address counter
     bool    m_acIsCgram = false;
     bool    m_displayOn = false;

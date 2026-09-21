@@ -37,6 +37,14 @@ export interface Fat16Entry {
   // Byte offset of this entry within the on-disk root directory, so callers
   // can invalidate it when deleting.
   entryOffset: number;
+  // Last-write time as epoch ms, from the packed +22/+24 fields the writer
+  // already stamps. Read back so a host-folder projection can tell which
+  // files the guest has rewritten without hashing the whole card.
+  //
+  // FAT stores local time with no zone, and its seconds field has two-second
+  // granularity, so this is approximate by design — it is a change detector,
+  // not a clock.
+  mtimeMs: number;
 }
 
 export interface Fat16Info {
@@ -244,6 +252,7 @@ function readDirEntries(
       attr,
       firstCluster: readU16(img, off + 26),
       entryOffset: off,
+      mtimeMs: decodeFatTimestamp(readU16(img, off + 24), readU16(img, off + 22)),
     });
   }
   return entries;
@@ -386,6 +395,42 @@ function writeShortDirEntry(
   writeU16(img, entryOff + 24, date); // last-write date
   writeU16(img, entryOff + 26, firstCluster & 0xFFFF);
   writeU32(img, entryOff + 28, size >>> 0);
+}
+
+// Unpack FAT's date/time pair into epoch ms. Returns 0 for an unset stamp so
+// callers can tell "no timestamp" from "the epoch".
+function decodeFatTimestamp(date: number, time: number): number {
+  if (!date) return 0;
+  const year = 1980 + ((date >> 9) & 0x7F);
+  const month = (date >> 5) & 0x0F;
+  const day = date & 0x1F;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return 0;
+  const hours = (time >> 11) & 0x1F;
+  const minutes = (time >> 5) & 0x3F;
+  const seconds = (time & 0x1F) * 2;
+  // Local time, because that is what FAT records — no zone is stored.
+  return new Date(year, month - 1, day, hours, minutes, seconds).getTime();
+}
+
+// Pack epoch ms into FAT's date/time pair.
+function encodeFatTimestamp(ms: number): { date: number; time: number } {
+  const d = new Date(ms);
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | Math.floor(d.getSeconds() / 2);
+  return { date, time };
+}
+
+/**
+ * Overwrite an entry's last-write stamp.
+ *
+ * Used when projecting a host folder onto a card: carrying the host file's
+ * mtime across means the read-back diff can compare timestamps rather than
+ * content, and the file shows a sensible date on the device.
+ */
+export function setEntryMtime(img: Uint8Array, entry: Fat16Entry, ms: number): void {
+  const { date, time } = encodeFatTimestamp(ms);
+  writeU16(img, entry.entryOffset + 22, time);
+  writeU16(img, entry.entryOffset + 24, date);
 }
 
 // Packed FAT timestamp for "now".
@@ -792,6 +837,170 @@ export function createBlankImage(sizeBytes: number, _label = 'PSION CF'): Uint8A
   img.fill(0x00, rootOff, rootOff + rootDirSectors * bytesPerSector);
 
   return img;
+}
+
+// ── Path-addressed helpers ───────────────────────────────────────────────
+//
+// Everything above is cluster-addressed, which is the right primitive but a
+// poor fit for projecting a host folder: that arrives as a list of relative
+// paths, and turning each into a cluster walk at every call site would be the
+// same loop written many times.
+//
+// Paths here are POSIX-separated and relative to the card root ('DOCS/A.TXT'),
+// case-insensitive as FAT is.
+
+function splitPath(pathStr: string): string[] {
+  return pathStr.split(/[/\\]+/).filter((seg) => seg.length > 0);
+}
+
+/** Resolve a directory path to its first cluster, or null if absent. */
+export function findDirCluster(img: Uint8Array, dirPath: string): number | null {
+  let cluster = ROOT_DIR_CLUSTER;
+  for (const seg of splitPath(dirPath)) {
+    const match = listDirectory(img, cluster)
+      .find((e) => e.isDirectory && e.name.toUpperCase() === seg.toUpperCase());
+    if (!match) return null;
+    cluster = match.firstCluster;
+  }
+  return cluster;
+}
+
+/** The entry at `filePath`, or null. */
+export function findByPath(img: Uint8Array, filePath: string): Fat16Entry | null {
+  const segs = splitPath(filePath);
+  if (segs.length === 0) return null;
+  const name = segs.pop() as string;
+  const dir = findDirCluster(img, segs.join('/'));
+  if (dir === null) return null;
+  return listDirectory(img, dir).find((e) => e.name.toUpperCase() === name.toUpperCase()) ?? null;
+}
+
+/** List a directory by path. Returns null when the directory is not there. */
+export function listPath(img: Uint8Array, dirPath: string): Fat16Entry[] | null {
+  const cluster = findDirCluster(img, dirPath);
+  return cluster === null ? null : listDirectory(img, cluster);
+}
+
+export interface EnsureDirResult extends AddResult {
+  cluster?: number;
+}
+
+/**
+ * Create every missing level of `dirPath`, returning the deepest cluster.
+ *
+ * Stops at the first failure and reports it, rather than leaving the caller to
+ * discover a half-made tree — a card that has run out of directory entries
+ * partway is exactly when a projection needs to say so.
+ */
+export function ensureDirPath(img: Uint8Array, dirPath: string): EnsureDirResult {
+  let cluster = ROOT_DIR_CLUSTER;
+  for (const seg of splitPath(dirPath)) {
+    const existing = listDirectory(img, cluster)
+      .find((e) => e.name.toUpperCase() === seg.toUpperCase());
+    if (existing) {
+      if (!existing.isDirectory) {
+        return { ok: false, reason: `${seg} exists as a file, not a folder` };
+      }
+      cluster = existing.firstCluster;
+      continue;
+    }
+    const made = createDirectory(img, cluster, seg);
+    if (!made.ok || made.cluster === undefined) {
+      return { ok: false, reason: made.reason ?? `could not create ${seg}` };
+    }
+    cluster = made.cluster;
+  }
+  return { ok: true, cluster };
+}
+
+/** Remove the entry at `filePath`, recursively if it is a directory. */
+export function deleteAtPath(img: Uint8Array, filePath: string): boolean {
+  const entry = findByPath(img, filePath);
+  if (!entry) return false;
+  if (entry.isDirectory) deleteEntryRecursive(img, entry);
+  else deleteEntry(img, entry);
+  return true;
+}
+
+export interface WriteFileResult extends AddResult {
+  /** True when an existing file of the same name was replaced. */
+  replaced?: boolean;
+}
+
+/**
+ * Write `data` to `filePath`, creating directories and replacing any existing
+ * file of that name.
+ *
+ * Replace-in-place is what addFileToDirectory deliberately does not do — it
+ * refuses a collision — but a projection re-runs over the same folder
+ * constantly, so "the file is already there" is the normal case rather than an
+ * error. Deleting first also reclaims the old file's clusters, so rewriting a
+ * file repeatedly does not consume the card.
+ */
+export function writeFileAtPath(
+  img: Uint8Array,
+  filePath: string,
+  data: Uint8Array,
+  opts: { mtimeMs?: number; attributes?: number } = {},
+): WriteFileResult {
+  const segs = splitPath(filePath);
+  if (segs.length === 0) return { ok: false, reason: 'empty path' };
+  const name = segs.pop() as string;
+
+  const dir = ensureDirPath(img, segs.join('/'));
+  if (!dir.ok || dir.cluster === undefined) {
+    return { ok: false, reason: dir.reason ?? 'could not create the folder' };
+  }
+
+  const existing = listDirectory(img, dir.cluster)
+    .find((e) => e.name.toUpperCase() === name.toUpperCase());
+  if (existing) {
+    if (existing.isDirectory) {
+      return { ok: false, reason: `${name} exists as a folder` };
+    }
+    deleteEntry(img, existing);
+  }
+
+  const added = addFileToDirectory(img, dir.cluster, name, data,
+                                   opts.attributes ?? FAT_ATTR_ARCHIVE);
+  if (!added.ok) return { ...added, replaced: !!existing };
+
+  if (opts.mtimeMs !== undefined && opts.mtimeMs > 0) {
+    const written = listDirectory(img, dir.cluster)
+      .find((e) => e.name.toUpperCase() === name.toUpperCase());
+    if (written) setEntryMtime(img, written, opts.mtimeMs);
+  }
+  return { ok: true, replaced: !!existing };
+}
+
+/**
+ * Every file on the card, as POSIX-separated paths relative to the root.
+ *
+ * Directories are reported too (isDir), so an empty one can be recreated on
+ * the host side of a round trip.
+ */
+export function walkAll(
+  img: Uint8Array,
+  maxDepth = 8,
+): { path: string; size: number; mtimeMs: number; isDir: boolean }[] {
+  const out: { path: string; size: number; mtimeMs: number; isDir: boolean }[] = [];
+  const visit = (cluster: number, prefix: string, depth: number): void => {
+    if (depth > maxDepth) return;
+    for (const e of listDirectory(img, cluster)) {
+      // The volume label lives in the root directory as an entry; it is
+      // metadata, not a file.
+      if (e.attr & ATTR_VOLUME_ID) continue;
+      const rel = prefix ? `${prefix}/${e.name}` : e.name;
+      if (e.isDirectory) {
+        out.push({ path: rel, size: 0, mtimeMs: e.mtimeMs, isDir: true });
+        visit(e.firstCluster, rel, depth + 1);
+      } else {
+        out.push({ path: rel, size: e.size, mtimeMs: e.mtimeMs, isDir: false });
+      }
+    }
+  };
+  visit(ROOT_DIR_CLUSTER, '', 0);
+  return out;
 }
 
 export function freeSpace(img: Uint8Array): { free: number; used: number; total: number } {

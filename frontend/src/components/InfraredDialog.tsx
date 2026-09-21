@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
+import { useUartLease } from '../hooks/useUartLease';
 import { IrSendClient, IrReceiveClient, IrNotListeningError, IrReceiveCanceledError } from '../lib/irda';
 import { IrSiboSendClient, IrSiboBeamError } from '../lib/irda/sibosend';
 import { setSerialPumpEnabled } from '../lib/wasmBridge';
@@ -70,6 +71,10 @@ function downloadBlob(bytes: Uint8Array, filename: string): void {
 // Both run the full EPOC Eikon-IR stack; only the Series 7 needs the emulated-
 // cycle pump during the one-way body phase (see notes inline).
 export default function InfraredDialog({ controls, uartIndex, protocol, onClose }: Props) {
+  // The desktop drive sync holds this port in the background; claiming it
+  // here makes it yield for as long as this dialog is open.
+  useUartLease(uartIndex, 'infrared');
+
   const sibo = protocol === 'sibo';
   const [phase, setPhase] = useState<Phase>('idle');
   const [status, setStatus] = useState<string>('');

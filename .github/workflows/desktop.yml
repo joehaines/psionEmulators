@@ -1,0 +1,174 @@
+# Builds the native desktop apps for Windows and macOS.
+#
+# Manual only for now. The artifacts are UNSIGNED by decision — getting the app
+# right comes first, and notarisation needs certificates in the repo before any
+# of it can be verified — so this produces something you can download and run
+# yourself, not something to hand to a stranger.
+#
+# Shape of it: one Linux job builds the WASM engine and uploads it, then the two
+# platform jobs download that and package around it. The alternative — building
+# WASM inside each platform job — would pay for the Emscripten toolchain twice
+# and, worse, could produce two subtly different engines in one release.
+#
+# macOS artifacts genuinely require a macOS runner: a .app bundle and a .dmg
+# cannot be cross-compiled. Windows NSIS is built on Windows to avoid needing
+# wine.
+
+name: Build Desktop Apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: Which platforms to build
+        type: choice
+        default: both
+        options: [both, mac, win]
+
+jobs:
+  # ── The emulator engine, built once ──────────────────────────────────────
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Emscripten SDK
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          # PINNED, for the same reason deploy.yml pins it: 6.0.2 produces a
+          # psion.js whose embind string returns throw on Safari/JSC. The
+          # desktop app runs on Chromium so it would not hit that, but building
+          # the desktop engine with a different compiler from the web one is a
+          # good way to end up debugging a difference that is not in this repo.
+          version: 6.0.1
+          actions-cache-folder: .emsdk-cache
+
+      - name: Cache WASM object files
+        uses: actions/cache@v4
+        with:
+          path: wasm/obj
+          key: wasm-obj-emsdk601-${{ hashFiles('core/**', 'wasm/main.cpp') }}
+
+      - name: Build WASM
+        run: bash scripts/build-wasm.sh
+
+      - name: Upload the engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: psion-wasm
+          path: |
+            frontend/public/psion.js
+            frontend/public/psion.wasm
+          retention-days: 3
+          if-no-files-found: error
+
+  # ── Pure tests, before spending runner minutes on packaging ──────────────
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: frontend
+      - name: Frontend desktop suites
+        run: npm run test:desktop
+        working-directory: frontend
+      - name: Main-process suites
+        # Only the ones that need no display: the Electron gates run below,
+        # where a packaged app already exists to point them at.
+        run: |
+          npm ci
+          npm run test:aspect
+          npm run test:hostfs
+        working-directory: desktop
+
+  package:
+    needs: [wasm, tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: mac
+          - os: windows-2022
+            target: win
+    runs-on: ${{ matrix.os }}
+    # Skip the platform the caller did not ask for.
+    if: >-
+      github.event.inputs.platforms == 'both'
+      || github.event.inputs.platforms == ''
+      || github.event.inputs.platforms == matrix.target
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download the engine
+        uses: actions/download-artifact@v4
+        with:
+          name: psion-wasm
+          path: frontend/public
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          (cd frontend && npm ci)
+          (cd desktop && npm ci)
+
+      - name: Build the renderer
+        shell: bash
+        run: cd frontend && npm run build:desktop
+
+      - name: Build main and preload
+        shell: bash
+        run: cd desktop && npm run build:main
+
+      - name: Prune assets the desktop app never draws
+        shell: bash
+        # Keeps skins/ and device-skins/ — the first IS the screen artwork, the
+        # second is what makes the Organiser II usable. See
+        # scripts/build-desktop.sh for the full reasoning.
+        run: |
+          cd desktop/build/renderer
+          rm -rf api mame-3a intro
+
+      - name: Package
+        shell: bash
+        # UNSIGNED: CSC_IDENTITY_AUTO_DISCOVERY off stops electron-builder
+        # hunting for a keychain identity on the macOS runner and failing when
+        # it finds none.
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          cd desktop
+          if [ "${{ matrix.target }}" = "mac" ]; then
+            npx electron-builder --mac dmg zip
+          else
+            npx electron-builder --win nsis zip
+          fi
+
+      - name: Check the packaged app starts
+        shell: bash
+        # Runs against the ARTIFACT, not the source tree. That distinction is the
+        # whole point: a runtime dependency left in devDependencies is absent
+        # from the archive and the packaged app fails to start, while every
+        # source-tree test passes — which is exactly how chokidar shipped
+        # missing once.
+        run: |
+          cd desktop
+          node test/packaged.spec.mjs
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v4
+        with:
+          name: psion-desktop-${{ matrix.target }}
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.exe
+            desktop/dist/*.zip
+          retention-days: 14
+          if-no-files-found: error

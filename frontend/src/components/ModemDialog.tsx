@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
+import { useUartLease } from '../hooks/useUartLease';
 import { ModemClient, type LinkPhase, type HttpEvent, type MailEvent } from '../lib/modem/client';
 import type { DispatcherMode } from '../lib/modem/dispatcher';
 import { getBrowserMailbox, type StoredMessage } from '../lib/inet/mailbox';
@@ -78,6 +79,10 @@ interface IpTraceLine  { index: number; dir: 'rx' | 'tx'; src: string; dst: stri
 interface HttpTraceLine { index: number; summary: string; }
 
 export default function ModemDialog({ controls, onClose }: Props) {
+  // The desktop drive sync holds this port in the background; claiming it
+  // here makes it yield for as long as this dialog is open.
+  useUartLease(UART_INDEX, 'modem');
+
   // ── Connection state ─────────────────────────────────────────────
   const [phase, setPhase] = useState<LinkPhase>('idle');
   const [errorMsg, setErrorMsg] = useState<string>('');

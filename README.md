@@ -4,9 +4,10 @@ A web-based emulator for Psion handheld computers, spanning three CPU
 architectures and fifteen years of devices. Play any of them in the browser at
 **[joehaines.com/psion](https://joehaines.com/psion)**.
 
-- **Hitachi HD6303X** — the 1986 [Psion Organiser II](https://en.wikipedia.org/wiki/Psion_Organiser).
+- **Hitachi HD6301X0 / HD6303X** — the 1984 [Psion Organiser I](https://en.wikipedia.org/wiki/Psion_Organiser)
+  and the 1986 Organiser II.
 - **NEC V30 / V30H** (with Psion's ASIC1 / ASIC2 / ASIC9) — the SIBO family:
-  Series 3, 3a, 3c, 3mx, Siena, Workabout, MC400/MC218.
+  Series 3, 3a, 3c, 3mx, Siena, Workabout, MC200/MC400/MC218.
 - **ARM710 (CL-PS7110 / Windermere) and StrongARM SA-1100** — the ARM-era
   machines: Series 5, 5mx, Revo, Series 7, netBook, and the licensed
   Geofox One.
@@ -18,7 +19,9 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 
 | Device | Year | CPU | Status | CF | SSD | Speaker | Mic | Touch | IR | Link |
 |--------|------|-----|--------|----|-----|---------|-----|-------|----|------|
+| Organiser I | 1984 | HD6301X0 | ✅ | — | — | ❌ | — | — | — | ❌ |
 | Organiser II (LZ/LZ64) | 1986 | HD6303X | ✅ | — | — | ❌ | — | — | — | ❌ |
+| MC200 | 1989 | Intel 80C86A | ✅ | — | ✅ ×4 | ✅ | — | — | — | ❌ |
 | MC400 | 1989 | Intel 80C86A | ✅ | — | ✅ ×4 | ✅ | — | — | — | ❌ |
 | Series 3 | 1991 | NEC V30 | ✅ | — | ✅ ×2 | ✅ | — | — | — | ❌ |
 | Acorn Pocket Book | 1992 | NEC V30 | ✅ | — | ✅ ×2 | ✅ | — | — | — | ❌ |
@@ -235,6 +238,28 @@ emulator's PsiWin client can't.
 - **MC400 ROMs** — the MC400 defaults to the v2.60F boot ROM; a discreet
   header link swaps to the older v1.26F ROM (and back) without leaving a
   second entry in the device picker.
+- **MC200** — the MC400's smaller sibling: the same SIBO1 board and the same
+  V2.12F boot ROM, with a 640×200 panel in place of the 640×400 one, a
+  single-plate framebuffer and 128 KiB of RAM. It cold-boots with its own
+  factory **ROM:: System Disk** in Pack D (`roms/MC200_V2.12F_system.ssd`,
+  the real pack dumped), so it goes from the *Psion Graphic User Interface*
+  splash through the first-run dialogs to the desktop. The ROM image is
+  built from the machine's two flash-chip dumps in
+  `roms/MC200_V2.12F_ROM_disk/` by `scripts/build-mc200-rom.mts` — see the
+  README in that folder.
+- **Organiser I** — the 1984 original, and the smallest machine here by
+  some distance: a Hitachi HD6301X0 running out of the CPU's own 4 KiB mask
+  ROM, 2 KiB of external RAM, and one row of 16 characters on an HD44780.
+  It boots to its clock (which ticks), takes the alphabetical keypad, and
+  cycles ENTER / OFF / CALC on MODE — in CALC the letter keys type the
+  digits printed under them, so `1 + 2 EXECUTE` leaves `CALC:1+2=3` on the
+  panel. Cold boot ends with the ROM switching the machine off again,
+  exactly as the hardware does; the driver presses ON for you so it comes
+  up ready (`core/organiser1.h`).
+- **HC120** — not yet emulated. The dump in the tree is one chip of the
+  machine's ROM and not the one the CPU starts from, so there is nothing to
+  boot; [`docs/hc120-rom.md`](docs/hc120-rom.md) records what the file is,
+  what is missing and what the rest of the machine needs.
 - **Revo (Conan)** — "Conan" is the Revo's successor, emulated from
   `roms/conan_v0.10(17)_eng.IMG`: the ROM of a real machine, dumped off it
   with `tools/romdump` (TRomHeader version 0.10(17), built 2001-06-20,
@@ -315,6 +340,7 @@ wasm/       Emscripten WASM layer with Embind exports
 frontend/   React + TypeScript web app (Vite)
 applib/     Source for the in-app software library (see applib/README.md)
 scripts/    Build / asset scripts, plus the public-mirror sync
+desktop/    Electron shell for the native Windows / macOS apps
 harness/    Native (non-WASM) host driver for the core
 tools/      Programs that run on the emulated machines (see tools/README.md)
 tests/      Boot validation, integration, unit tests (see tests/README.md)
@@ -338,6 +364,51 @@ cd frontend && npm run dev        # local dev server
 
 App icons / share images are generated from `favicon.svg` and committed; only
 re-run `cd frontend && npm run icons` if the logo changes.
+
+## Desktop apps (Windows / macOS)
+
+An Electron shell in `desktop/` turns the emulator into a native app: a
+borderless, resizable window that is nothing but the machine, locked to its
+aspect ratio, with a device switcher on `Ctrl/Cmd+K`.
+
+```sh
+bash scripts/build-desktop.sh dir     # unpacked app for this platform
+bash scripts/build-desktop.sh mac     # .dmg + .zip  (needs a macOS host)
+bash scripts/build-desktop.sh win     # NSIS .exe + .zip
+cd desktop && npm run dev             # run it framed, with devtools
+```
+
+The renderer is the same web app, built by `frontend/vite.desktop.config.ts`
+and served over a registered `app://` scheme — not `file://`, which blocks the
+Web Worker the emulator runs in. ROMs ship outside the app archive and are
+streamed from there.
+
+What the desktop build adds beyond a window:
+
+- **State that saves itself.** A snapshot about once a minute when the machine
+  is idle, plus on device switch, blur and quit, kept as a few generations per
+  device under the app's data directory in the same `PSIONST1` format the web
+  app's Upload button accepts. Earlier sessions are restorable from the
+  switcher. IndexedDB is still the live store; disk is a mirror and a history.
+- **A shared card folder.** One host folder, projected into whatever removable
+  medium the current machine takes — a FAT16 CompactFlash image for the ARM
+  machines, an MMC image for the netpad, a FEFS24 SSD pack for the Series 3
+  family — and read back when you switch away, so a file dropped in follows you
+  between machines. Not available on the Organiser II: per-file projection there
+  needs a Datapak filesystem writer that does not exist yet.
+- **A folder synced to the machine's own drive**, over the emulated Remote Link
+  cable, for the link-capable machines. Measured at 0.81 KB/s on a real 5mx, so
+  it suits documents and not large files — see
+  [docs/desktop-drive-sync.md](docs/desktop-drive-sync.md), which also records
+  two things about real ROMs that a mock filesystem will not tell you.
+
+Tests: `cd frontend && npm run test:desktop` for the pure logic,
+`cd desktop && npm test` for the main process and the Electron gates (needs a
+display; `xvfb-run` on Linux), and
+`node --experimental-strip-types tests/integration/test-drive-sync.mts` to drive
+the sync against a real ROM through `harness/run`.
+
+Builds are unsigned for now; signing and notarisation are a later step.
 
 ## App library
 

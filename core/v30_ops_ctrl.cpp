@@ -149,13 +149,22 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         return 24;
     }
 
-    // JCXZ short
+    // JCXZ short.
+    //
+    // This and the three LOOP forms below carry their real 8086 figures
+    // (Intel's 8086 timings: JCXZ 18/6, LOOP 17/5, LOOPZ 18/6, LOOPNZ
+    // 19/5) through i8086Exact, because doubling the V30 count — the
+    // default for an I8086 instance — is a poor fit here: a tight V30
+    // loop is more than twice as fast as the 8086's, not exactly twice.
+    // See V30::absCycles for why the MC's boot depends on it.
     case 0xE3: {
         int8_t d = fetchS8(c);
         if (c.regs.w[1] == 0) {
             c.ip = uint16_t(c.ip + d);
+            i8086Exact(c, 18);
             return 13;
         }
+        i8086Exact(c, 6);
         return 4;
     }
 
@@ -165,8 +174,10 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         c.regs.w[1] = uint16_t(c.regs.w[1] - 1);
         if (c.regs.w[1] != 0) {
             c.ip = uint16_t(c.ip + d);
+            i8086Exact(c, 17);
             return 13;
         }
+        i8086Exact(c, 5);
         return 4;
     }
 
@@ -176,8 +187,10 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         c.regs.w[1] = uint16_t(c.regs.w[1] - 1);
         if (c.regs.w[1] != 0 && zf(c)) {
             c.ip = uint16_t(c.ip + d);
+            i8086Exact(c, 18);
             return 13;
         }
+        i8086Exact(c, 6);
         return 4;
     }
 
@@ -187,8 +200,10 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         c.regs.w[1] = uint16_t(c.regs.w[1] - 1);
         if (c.regs.w[1] != 0 && !zf(c)) {
             c.ip = uint16_t(c.ip + d);
+            i8086Exact(c, 19);
             return 13;
         }
+        i8086Exact(c, 5);
         return 4;
     }
 

@@ -104,6 +104,22 @@ static inline void stringScasw(V30& c) {
     c.regs.w[7] = uint16_t(c.regs.w[7] + step);
 }
 
+// Real 8086 cycle count for one un-REPed string instruction (Intel's
+// 8086 timings). The V30 figures below are roughly a quarter of these,
+// so the flat 2x an I8086 instance would otherwise apply undercharges
+// them badly; i8086Exact pins the real number instead. See
+// V30::absCycles.
+static int i8086StringCycles(uint8_t op) {
+    switch (op) {
+    case 0xA4: case 0xA5: return 18;  // MOVS
+    case 0xA6: case 0xA7: return 22;  // CMPS
+    case 0xAA: case 0xAB: return 11;  // STOS
+    case 0xAC: case 0xAD: return 12;  // LODS
+    case 0xAE: case 0xAF: return 15;  // SCAS
+    default:              return 0;
+    }
+}
+
 // Run a single string op iteration (no REP). Returns per-iter cycles.
 static int stringStep(V30& c, uint8_t op) {
     switch (op) {
@@ -136,6 +152,12 @@ static int64_t repString(V30& c, uint8_t op, bool repZ) {
             if (!repZ &&  zf(c)) break;
         }
     }
+    // Intel's 8086 figures for a REP-prefixed string op are 9 + n*per-iter,
+    // where the per-iter cost is a cycle or two under the un-REPed one
+    // (the prefix is fetched once): MOVS 17, CMPS 22, SCAS 15, LODS 13,
+    // STOS 10. Charging the un-REPed figure per iteration plus the 9-cycle
+    // prefix is within a cycle of that across the set.
+    i8086Exact(c, int(9 + int64_t(i8086StringCycles(op)) * int64_t(count)));
     return int64_t(8) * int64_t(count) + 14;
 }
 
@@ -790,16 +812,15 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
     }
 
     // ──────── String ops (single iteration) ────────
-    case 0xA4: stringMovsb(c); return 8;
-    case 0xA5: stringMovsw(c); return 8;
-    case 0xA6: stringCmpsb(c); return 8;
-    case 0xA7: stringCmpsw(c); return 8;
-    case 0xAA: stringStosb(c); return 4;
-    case 0xAB: stringStosw(c); return 4;
-    case 0xAC: stringLodsb(c); return 4;
-    case 0xAD: stringLodsw(c); return 4;
-    case 0xAE: stringScasb(c); return 4;
-    case 0xAF: stringScasw(c); return 4;
+    // Each carries its real 8086 figure (see i8086StringCycles) so an
+    // I8086 instance is not charged twice the V30's much lower count.
+    case 0xA4: case 0xA5: case 0xA6: case 0xA7:
+    case 0xAA: case 0xAB: case 0xAC: case 0xAD:
+    case 0xAE: case 0xAF: {
+        int v30Cycles = stringStep(c, op);
+        i8086Exact(c, i8086StringCycles(op));
+        return v30Cycles;
+    }
 
     // ──────── REP prefixes (F2 REPNE / F3 REPE) ────────
     // Fetch the prefixed opcode inline. Only string ops (A4..AF) are

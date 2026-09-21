@@ -147,6 +147,9 @@ void HD6303::write16(uint16_t addr, uint16_t v) {
 // ── Reset / interrupt service ─────────────────────────────────────────
 
 void HD6303::reset() {
+    // RAMCR ($14) survives reset in one bit only — see the comment on the
+    // write below.
+    const uint8_t prevRamcr = m_iregs[0x14];
     pc  = read16(VEC_RES);
     a = b = 0;
     x = 0;
@@ -177,16 +180,70 @@ void HD6303::reset() {
     m_iregs[0x07] = 0xFF;  // P4 data
     m_iregs[0x17] = 0xFF;  // P5 data
     m_iregs[0x18] = 0xFF;  // P6 data
-    // RAMCR ($14) bit 7 = STBY (Standby Power-By). Set on real hardware
-    // when the device wakes from a low-power standby cycle. The Psion
-    // OS reads this at $C026 (BPL) to choose between warm-boot (state
-    // restore from saved RAM) and cold-boot (fresh init). On a true
-    // cold start (battery first installed), STBY is 0 → cold-boot path.
-    // We model true cold-boot here so leave the bit at 0.
-    m_iregs[0x14] = 0x00;
+    // RAMCR ($14). Bit 7 (STBY PWR) is the software-set "the RAM has been
+    // initialised and stayed alive" flag: the Psion OS sets it once it has
+    // formatted RAM (Organiser I: OIM #$80,$14 at $F039) and reads it back
+    // on the next start to choose warm boot over cold (Organiser II at
+    // $C026, BPL). It is not cleared by reset, which is the whole point of
+    // it — hardware clears it only when the backup supply fails. On a true
+    // cold start (battery in for the first time) it is 0, which is what a
+    // freshly constructed core has.
+    //
+    // Every other bit is (re)set by reset itself: MAME's
+    // hd6301x_cpu_device::device_reset does
+    // `m_ram_ctrl = (m_ram_ctrl & 0x80) | 0x7c`. Bit 6 matters most — it
+    // is in effect "the machine is switched on". The Organiser I's ROM
+    // clears it just before dropping into standby (AIM #$BF,$14 at $F065)
+    // and its periodic-NMI handler tests it (TIM #$40,$14 at $F43B),
+    // returning immediately when clear. Come out of reset with bit 6 clear
+    // and the machine runs, paints its screen, and never advances its
+    // clock, because every tick turns straight round.
+    m_iregs[0x14] = uint8_t((prevRamcr & 0x80) | 0x7C);
     if (traceEnv()) {
         std::fprintf(stderr,
             "[hd6303] reset pc=%04x sp=%04x\n", pc, sp);
+    }
+}
+
+void HD6303::resumeFromStandby() {
+    // Same restart as reset(), minus the two things standby preserves:
+    // the on-chip RAM keeps its contents on the backup supply, and
+    // RAMCR ($14) keeps its standby-power bit, so the ROM can tell this
+    // from a battery-in cold start and trust what is in RAM instead of
+    // formatting over it. On the real chip that bit (b6, STBY PWR) is
+    // set by software once it is happy with RAM and cleared by hardware
+    // if the backup supply ever fails — so carrying it across is the
+    // whole of what "the RAM survived" means.
+    //
+    // The Psion Organiser I's periodic-NMI handler is gated on exactly
+    // that bit (`TIM #$40,$14` / `BEQ` straight to RTI at $F43B): clear
+    // it on wake and the machine comes up, paints its screen and then
+    // never advances its clock, because every tick returns immediately.
+    const uint8_t ramcr = m_iregs[0x14];
+    pc  = read16(VEC_RES);
+    a = b = 0;
+    x = 0;
+    sp = 0x00FF;
+    ccr = CCR_FIXED | CCR_I;
+    irqLine = false;
+    nmiLine = false;
+    halted = false;
+    waiting = false;
+    waiContext = false;
+    m_iregs.fill(0);
+    m_iregs[0x02] = 0xFF;  // P1 data
+    m_iregs[0x03] = 0xFF;  // P2 data
+    m_iregs[0x06] = 0xFF;  // P3 data
+    m_iregs[0x07] = 0xFF;  // P4 data
+    m_iregs[0x17] = 0xFF;  // P5 data
+    m_iregs[0x18] = 0xFF;  // P6 data
+    // Coming out of standby is a reset on this hardware (ON pulls the
+    // reset line), so RAMCR lands the same way it does on any other
+    // reset: bit 7 carried across, the rest re-asserted.
+    m_iregs[0x14] = uint8_t((ramcr & 0x80) | 0x7C);
+    if (traceEnv()) {
+        std::fprintf(stderr,
+            "[hd6303] wake from standby pc=%04x sp=%04x\n", pc, sp);
     }
 }
 

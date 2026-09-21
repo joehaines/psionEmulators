@@ -60,6 +60,7 @@ namespace Series3 {
 enum class Model {
     Series3,    // 1991 handheld, 240x80 LCD upscaled to 480x160
     MC400,      // 1989 clamshell laptop, 640x400 mono LCD (dual-plate)
+    MC200,      // 1989 clamshell laptop, 640x200 mono LCD (single-plate)
 };
 
 struct KeyMatrixEntry {

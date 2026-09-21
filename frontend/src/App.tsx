@@ -11,6 +11,8 @@ import EmulatorView, { getSkinFilename, getDeviceSkinPhotoFilename, type SizingM
 import MameFrame from './components/MameFrame';
 import DevicePanel from './components/DevicePanel';
 import Leaderboard from './components/Leaderboard';
+import DesktopApp from './components/desktop/DesktopApp';
+import { isDesktop } from './lib/desktop/host';
 import AppLibrary from './components/AppLibrary';
 import Home from './components/Home';
 import SettingsView, { type SortMode } from './components/SettingsView';
@@ -186,6 +188,15 @@ export default function App() {
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
+
+  // Inside the Electron shell the whole app is the desktop shell: a
+  // borderless window that is nothing but the machine. It owns its own
+  // chrome, switcher and window geometry, and the web routes below (the
+  // usage leaderboard, the app library, the iframe embed) have no place in
+  // it. `isDesktop()` is false in every browser, so this branch is dead
+  // code on the web — and because it sits after the hooks above, the hook
+  // order is identical either way.
+  if (isDesktop()) return <DesktopApp />;
 
   // Render Leaderboard standalone (no WASM bootstrap) when the user lands
   // on or navigates to the usage route. Routing through a separate

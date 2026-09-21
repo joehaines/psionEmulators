@@ -136,10 +136,16 @@ function ssdTypeCode(bytes: Uint8Array, kind: PackKind | undefined): number {
   return k === 'protected' ? 3 : k === 'flash' ? 2 : 1;
 }
 // Factory default SSDs: devices that physically shipped with a pack inserted.
-// The MC400 came with its ROM:: System Disk in Pack D (slot 3) — the window
-// server, shell, OPL and fonts that populate the lower app bar. Returns the
-// bundled image URL + pack kind, or null when the slot has no factory default.
+// The MC400 and MC200 both came with a ROM:: System Disk in Pack D (slot 3) —
+// the window server, shell, OPL and fonts that populate the lower app bar.
+// Returns the bundled image URL + pack kind, or null when the slot has no
+// factory default.
 function defaultSsdFor(deviceId: string, slot: number): { url: string; kind: PackKind } | null {
+  if (deviceId === 'mc200' && slot === 3) {
+    // Same Pack D arrangement as the MC400 — the MC200's own
+    // factory System Disk, dumped.
+    return { url: `${import.meta.env.BASE_URL}roms/MC200_V2.12F_system.ssd`, kind: 'protected' };
+  }
   if (deviceId === 'mc400' && slot === 3) {
     // Strapped write-protected, like the real ROM:: System Disk.
     return { url: `${import.meta.env.BASE_URL}roms/MC400_V2.60F_system.ssd`, kind: 'protected' };
@@ -401,6 +407,43 @@ export async function collectStatesBundle(profileMap: Map<string, string>): Prom
   }
   return devices.length === 0 ? null : encodeBundle(devices);
 }
+// One device's save, in the same PSIONST1 form collectStatesBundle produces.
+//
+// The desktop app mirrors each save to a generation file on disk, and does it
+// per device rather than for the whole store: collectStatesBundle walks every
+// saved device, which on an autosave timer would mean re-encoding twenty
+// machines a minute to capture a change in one.
+//
+// The heap comes out of IDB already gzipped, so there is no recompression
+// here — this is a read, an encode of offsets, and a Blob. Returns null when
+// the device has no restore-compatible save yet.
+export async function collectDeviceBundle(
+  deviceId: string,
+  displayName?: string,
+): Promise<{ blob: Blob; schemaVersion: number } | null> {
+  const stored = await idbGet<{ version: number; deviceId?: string; heap: Uint8Array }>(
+    idbStateKey(deviceId));
+  if (!stored || !RESTORE_COMPATIBLE_VERSIONS.has(stored.version) || !stored.heap) return null;
+  const blob = await encodeBundle([{
+    id: deviceId, displayName, schemaVersion: stored.version,
+    heap: stored.heap,
+    cf:       (await idbGet<Uint8Array>(idbCardKey(deviceId)))    ?? undefined,
+    ssd0:     (await idbGet<Uint8Array>(idbSsdKey(deviceId, 0)))  ?? undefined,
+    ssd1:     (await idbGet<Uint8Array>(idbSsdKey(deviceId, 1)))  ?? undefined,
+    datapak0: (await idbGet<Uint8Array>(idbDatapakKey(deviceId, 0))) ?? undefined,
+    datapak1: (await idbGet<Uint8Array>(idbDatapakKey(deviceId, 1))) ?? undefined,
+  }]);
+  return { blob, schemaVersion: stored.version };
+}
+
+// True when this device has a restore-compatible save in IDB. The desktop
+// app asks before falling back to a generation file on disk — a wiped browser
+// profile is exactly when the disk copy earns its keep.
+export async function hasStoredState(deviceId: string): Promise<boolean> {
+  const stored = await idbGet<{ version: number; heap?: Uint8Array }>(idbStateKey(deviceId));
+  return !!stored && RESTORE_COMPATIBLE_VERSIONS.has(stored.version) && !!stored.heap;
+}
+
 // Import a bundle previously produced by collectStatesBundle, writing each chunk
 // back into IDB. Per-device errors are collected, not thrown.
 export async function applyStatesBundle(file: File): Promise<{ imported: number; errors: string[] }> {
@@ -666,6 +709,14 @@ export interface EmulatorControls {
   // whole EPOC desktop inside the unchanged 640×240 framebuffer, and the
   // device frame turns with it; every other machine reports 0 forever.
   getScreenOrientation(): number;
+  // Emulated cycles executed so far, when the running path can report them.
+  //
+  // Only the worker path publishes this (it arrives on every status tick);
+  // the main-thread path has no equivalent counter, so the field is optional
+  // and a caller that cannot get one must assume the machine has advanced.
+  // The desktop autosave uses it to avoid freezing the guest to write a
+  // snapshot identical to the last — see lib/desktop/autosave.ts.
+  getSimCycles?(): number;
   saveState(): Promise<void>;
   clearLogs(): void;
   // Enables or disables WASM-side log emission. The log panel toggle wires

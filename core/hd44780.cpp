@@ -2,8 +2,8 @@
 // copyright-holders:Sandro Ronco (MAME hd44780_device)
 //                  + adaptation by the Psion emulator project, 2026.
 //
-// Hitachi HD44780 character-LCD controller — scaffold implementation.
-// See hd44780.h for the porting source and what's stubbed.
+// Hitachi HD44780 character-LCD controller.
+// See hd44780.h for the porting source and what is not modelled.
 
 #include "hd44780.h"
 
@@ -24,9 +24,8 @@ void HD44780::reset() {
 
 void HD44780::writeCommand(uint8_t cmd) {
     // MAME's hd44780_device::control_write decodes by leading bit; we
-    // model only the operations the Organiser II ROM uses on the
-    // happy path. A full port covers display-shift, cursor home,
-    // function-set 4-bit-interface mode etc.
+    // model the operations the Organiser ROMs use. A full port covers
+    // display-shift and the function-set 4-bit-interface mode as well.
     if (cmd & 0x80) {
         // Set DDRAM address
         m_ac = cmd & 0x7F;
@@ -38,7 +37,7 @@ void HD44780::writeCommand(uint8_t cmd) {
     } else if (cmd & 0x20) {
         // Function set — ignore details for now (4-bit/8-bit, lines).
     } else if (cmd & 0x10) {
-        // Cursor / display shift — ignored in scaffold.
+        // Cursor / display shift — not used by either Organiser ROM.
     } else if (cmd & 0x08) {
         // Display ON/OFF / cursor / blink
         m_displayOn = (cmd & 0x04) != 0;
@@ -329,20 +328,36 @@ void HD44780::renderFramebuffer(uint8_t *out, int outW, int outH) const {
     std::memset(out, 0, size_t(outW) * size_t(outH));
     if (!m_displayOn) return;
 
+    // Cells to walk, and the character-cell height, both depend on the
+    // panel: the LZ drives 80 cells over 4 rows, the Organiser I drives
+    // 16 over a single row.
+    const bool org1   = m_layout == Layout::Organiser1;
+    const int  cells  = org1 ? 16 : 80;
+    const int  perLine = org1 ? 8 : 40;   // controller positions per line
+    const int  cellH  = org1 ? ORG1_CELL_H : CELL_H;
+
     // Walk the HD44780 cell-index space (line 0/1, pos 0-39) and look up
     // each cell's screen position via the layout. Read the DDRAM byte
     // for that cell, render the glyph at the screen position.
-    for (int idx = 0; idx < 80; idx++) {
+    for (int idx = 0; idx < cells; idx++) {
         // Translate cell index to DDRAM address. line 0 base = $00,
         // line 1 base = $40.
-        int line = idx / 40;
-        int pos  = idx % 40;
+        int line = idx / perLine;
+        int pos  = idx % perLine;
         uint8_t ddramAddr = uint8_t(line * 0x40 + pos);
         uint8_t code = m_ddram[ddramAddr & 0x7F];
-        // Layout maps cell index to screen position.
-        uint8_t screenPos = kPsionLayout[idx];
-        int row = screenPos / 20;
-        int col = screenPos % 20;
+        // Layout maps cell index to screen position. The Organiser I
+        // lays its two controller lines out left-to-right along one
+        // physical row; the LZ scrambles its cells through kPsionLayout.
+        int row, col;
+        if (org1) {
+            row = 0;
+            col = line * 8 + pos;
+        } else {
+            uint8_t screenPos = kPsionLayout[idx];
+            row = screenPos / 20;
+            col = screenPos % 20;
+        }
         const uint8_t *glyph = nullptr;
         uint8_t cgram_glyph[8] = {};
         if (code < 16) {
@@ -359,7 +374,7 @@ void HD44780::renderFramebuffer(uint8_t *out, int outW, int outH) const {
         if (!glyph) continue;
         // Paint at the cell's pixel position.
         for (int gy = 0; gy < 8; gy++) {
-            int py = row * CELL_H + gy;
+            int py = row * cellH + gy;
             if (py >= outH) break;
             uint8_t row_bits = glyph[gy];
             for (int gx = 0; gx < 5; gx++) {

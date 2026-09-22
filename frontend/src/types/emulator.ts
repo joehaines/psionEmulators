@@ -169,6 +169,17 @@ export interface PsionModule {
   canSetMachineIdPrefix?(): boolean;
   setMachineIdPrefix?(prefix: number): boolean;
   setMachineId?(id: number): boolean;
+  // ── ROM language variant ──────────────────────────────────────────
+  // A multilingual ROM carries one set of resources per language and
+  // picks between them at boot. getLanguageCount() is 0 or 1 where there
+  // is nothing to choose — only the Geofox One has two, English (UK) and
+  // English (USA). The guest reads the choice once during boot, so
+  // setLanguage() lands on the next reset. Optional so a psion.wasm that
+  // pre-dates the bindings still loads; the UI hides the control then.
+  getLanguageCount?(): number;
+  getLanguageName?(index: number): string;
+  getLanguage?(): number;
+  setLanguage?(index: number): boolean;
   // Debug/feature flag: set a PSION_* process env var before a device loads
   // (e.g. PSION_NB_NATIVE_CF for the netBook faithful CF boot).  Optional —
   // older WASM builds may not export it.

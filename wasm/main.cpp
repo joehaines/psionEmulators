@@ -801,6 +801,25 @@ bool setMachineIdPrefix(unsigned prefix) {
 // verbatim.
 bool setMachineId(unsigned id) { return g_emu && g_emu->setMachineId(id); }
 
+// ── ROM language variant ──
+// A multilingual ROM carries one set of resources per language and picks
+// between them at boot from a number the emulator supplies. Only the
+// Geofox One has more than one today — English (UK) and English (USA) —
+// and everything else reports a count of 0 so the UI hides the control.
+// The guest reads the number once during boot, so a change lands on the
+// next reset; see EmuBase::setLanguage.
+int getLanguageCount() { return g_emu ? g_emu->getLanguageCount() : 0; }
+// The variant's name in the machine's own words, or "" for an index this
+// machine does not have.
+std::string getLanguageName(int index) {
+    const char *name = g_emu ? g_emu->getLanguageName(index) : nullptr;
+    return name ? std::string(name) : std::string();
+}
+int getLanguage() { return g_emu ? g_emu->getLanguage() : 0; }
+// False when the device has no language choice or the index is out of
+// range, in which case nothing changed.
+bool setLanguage(int index) { return g_emu && g_emu->setLanguage(index); }
+
 // Returns JSON array of all known device profiles for the frontend device picker.
 std::string getAllDeviceProfilesJSON() {
     std::string out = "[";
@@ -927,6 +946,10 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("canSetMachineIdPrefix",    &canSetMachineIdPrefix);
     emscripten::function("setMachineIdPrefix",       &setMachineIdPrefix);
     emscripten::function("setMachineId",             &setMachineId);
+    emscripten::function("getLanguageCount",         &getLanguageCount);
+    emscripten::function("getLanguageName",          &getLanguageName);
+    emscripten::function("getLanguage",              &getLanguage);
+    emscripten::function("setLanguage",              &setLanguage);
     emscripten::function("setLoggingEnabled",        &setLoggingEnabled);
     emscripten::function("setEnvVar",                &setEnvVar);
     emscripten::function("dumpJitStats",             &dumpJitStats);

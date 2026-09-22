@@ -8,6 +8,7 @@
 //   --screenshot-every T  write a numbered PGM every T seconds of sim time
 //   --detach-after T      detach the card T seconds after attach
 //   --cycles N            repeat attach/detach N times to stress card state
+//   --language N          pick the ROM's language variant (Geofox: 0 UK, 1 USA)
 //
 // Logs from the core get a [cycles=...] prefix so they can be correlated with
 // sector-drain / ATA-command traces from vcfcard.cpp (which print direct to
@@ -691,6 +692,11 @@ int main(int argc, char **argv) {
     bool     machineIdSet = false;
     uint64_t machineIdValue = 0;
     bool     machineIdHasPrefix = false;
+    // --language N: pick the ROM's language variant before the first cycle
+    // runs, the same way the frontend's Language control does. Only the
+    // Geofox One has more than one (0 = English (UK), 1 = English (USA));
+    // ignored with a warning everywhere else.
+    int      languageIndex = -1;
     // --swap-card-path FILE: after the initial card attach + post-attach run,
     // detach the first card and attach this second one, then run
     // --swap-post-seconds more. Reproduces the browser "boot with one card,
@@ -765,6 +771,7 @@ int main(int argc, char **argv) {
         else if (a == "--max-traps" && i + 1 < argc) maxTraps = std::atoi(argv[++i]);
         else if (a == "--max-nonpaper" && i + 1 < argc) maxNonPaper = std::atoi(argv[++i]);
         else if (a == "--device" && i + 1 < argc) deviceOverride = argv[++i];
+        else if (a == "--language" && i + 1 < argc) languageIndex = std::atoi(argv[++i]);
         else if (a == "--machine-id" && i + 1 < argc) {
             std::string hex = argv[++i];
             // Accept EPOC's grouping (1000-118A-CAFE-BABE) as typed.
@@ -1052,6 +1059,20 @@ int main(int argc, char **argv) {
             std::fprintf(stderr,
                 "=== harness: deferring SSD slot %d attach to t=%.2fs ===\n",
                 slot, ssdAttachAfterSec);
+        }
+    }
+
+    // Language variant, before any cycles run: the guest reads the index
+    // out of its settings PROM early in boot and never looks again.
+    if (languageIndex >= 0) {
+        if (!emu->setLanguage(languageIndex)) {
+            std::fprintf(stderr,
+                "=== harness: --language %d ignored, %s has no such language "
+                "variant (%d available) ===\n",
+                languageIndex, emu->getDeviceName(), emu->getLanguageCount());
+        } else {
+            std::fprintf(stderr, "=== harness: language = %d (%s) ===\n",
+                         languageIndex, emu->getLanguageName(languageIndex));
         }
     }
 

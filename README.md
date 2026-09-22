@@ -203,6 +203,27 @@ emulator's PsiWin client can't.
   handshake and the row fails outright if the polarity is put back;
   `_plp_repro.mts geofox` runs the whole stack against the ROM.
 
+  The machine **speaks two languages**, and which one it boots into is now
+  a control in the toolbar. The Geofox shipped one ROM with English (UK)
+  and English (USA) in it side by side — a `.ruk` and a `.rus` of every
+  resource file, Word's `Normal.uk` and `Normal.us`, the locale DLLs
+  `ELocl.dll` / `ELocl1.dll` and the keyboard tables `Ekdata.dll` /
+  `Ekdata1.dll` — and picked between them at boot from two fields in the
+  settings PROM above, the ones the factory programmed for the market the
+  machine was sold into. `VArmPG.dll` reads them out of PROM bytes 4-5 and
+  6-7, `EKern` files them in `TMachineInfoV1` as `iLanguageIndex` and
+  `iKeyboardIndex`, the window server appends the index to `ELOCL` and
+  `EKDATA` to pick its DLLs, and `Bafl.dll` turns the locale's language
+  (`ELangEnglish` against `ELangAmerican`) into the `.ruk` or `.rus`
+  extension every application then loads. An emulated Geofox has no PROM
+  to have been programmed, so the **Language** control next to Reset is
+  what writes those two fields: pick one, press Reset, and the machine
+  comes up in it — the only way to get at the ROM's other half, since
+  nothing in EPOC R1's own System screen can change it. Both variants are
+  English, so the desktop looks identical either way;
+  `tests/integration/test-geofox-language.sh` therefore reads which
+  resource files and locale DLL the booted machine actually has open.
+
   One piece of hardware is still not emulated, and the table above says so
   rather than the emulator pretending otherwise: a **PC Card** attached
   through the shared CompactFlash path does not mount. With a card

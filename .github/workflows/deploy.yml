@@ -143,6 +143,16 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-geofox-mouse.sh
 
+      # Geofox language variant: the one ROM in the tree carrying two
+      # languages, chosen at boot from a field in the settings PROM the
+      # emulator synthesises. Both variants are English, so the desktop is
+      # pixel-identical either way and a screenshot proves nothing — the
+      # test boots each and reads out of RAM which resource files and
+      # locale DLL the machine actually has open.
+      - name: Run Geofox language-variant validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-geofox-language.sh
+
       # The Conan ROM dumper: an ER5u binary this repo builds itself
       # (tools/e32 writes the E32Image container by hand), swapped into the
       # ROM and run on the machine, with the resulting six 2 MB parts read

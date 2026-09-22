@@ -34,6 +34,7 @@ bash tests/integration/test-netpad-app-install.sh epocgames/fred  # …and a 3-L
 bash tests/integration/test-ssd-write.sh      # SIBO SSD pack format + write + read back
 bash tests/integration/test-conan-romdump.sh  # tools/romdump: dump the Conan's ROM on the machine
 bash tests/integration/test-geofox-mouse.sh   # Geofox mouse pad: pointer tracking, tap-to-open, drag-select
+bash tests/integration/test-geofox-language.sh  # Geofox ROM language: UK vs USA resources, locale + keyboard DLL
 bash tests/stress/netpad_orientation.sh       # netpad "Switch orientation"
 tests/unit/mmc_card_test                      # MMC-over-SPI card protocol
 tests/unit/machine_id_test                    # EPOC Unique id through the ETNA identity PROM

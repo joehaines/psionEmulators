@@ -2289,6 +2289,35 @@ export default function EmulatorView({
         </button>
         <button onClick={resetDevice} className={btn}>Reset</button>
 
+        {/* ── ROM language ──
+            A couple of machines shipped one ROM with two languages in it
+            and chose between them from a number in a settings chip the
+            factory programmed — the Geofox One's English (UK) / English
+            (USA) being the one we emulate. There is no such chip here, so
+            the choice is the user's: picking a language rewrites the
+            settings block the emulated machine reads, and the guest reads
+            it once, early in boot, which is why this sits next to Reset.
+            Hidden entirely on the single-language machines, which is
+            every other device in the list. */}
+        {controls.languageNames.length > 1 && (
+          <label
+            className="flex items-center gap-1.5 text-xs font-mono text-gray-500 select-none"
+            title="The language this ROM boots into. The machine reads it once at startup — press Reset to come up in the new one."
+          >
+            Language
+            <select
+              value={controls.language}
+              onChange={e => controls.setLanguage(Number(e.target.value))}
+              className="text-xs font-mono px-2 py-1.5 rounded border border-psion-accent/50 bg-white text-psion-charcoal cursor-pointer focus:outline-none focus:border-psion-accent"
+              aria-label="ROM language (takes effect on reset)"
+            >
+              {controls.languageNames.map((name, i) => (
+                <option key={name} value={i}>{name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {/* Lid — only for a clamshell we have a closed-case shot of. The
             machine carries on running behind it; see the lid notes above. */}
         {lidSkin && (

@@ -254,6 +254,68 @@ public:
         }
     }
 
+    // ── Two languages in one ROM ───────────────────────────────────────
+    //
+    // The Geofox ships an 8 MB image with English (UK) and English (USA)
+    // in it side by side. Its Z: drive carries both halves of everything
+    // the language touches — a .ruk and a .rus of every resource file
+    // (Eikon, Shell, Agenda, Word, Sheet, Data, Paint, Record, Spell,
+    // TextEd, OplR), Word's Normal.uk and Normal.us templates, the locale
+    // DLLs ELocl.dll and ELocl1.dll, and the keyboard tables Ekdata.dll
+    // and Ekdata1.dll — and picks between them at boot from a number this
+    // class supplies. The whole chain, read out of the image:
+    //
+    //   1. VArmPG.dll's LanguageIndex() (ROM 0x5007EDA8) and
+    //      KeyboardIndex() (0x5007EDC4) each validate the settings PROM
+    //      below and then return one of its fields: bytes [4..5] and
+    //      [6..7], the two signed-16 accessors at 0x5007EFF8 and
+    //      0x5007F014. A failed checksum makes both return 0.
+    //   2. ECust.dll forwards them (0x5007D3C4 / 0x5007D3C8) to EKern,
+    //      which stores them in TMachineInfoV1 at +0xE0 (iLanguageIndex)
+    //      and +0xE4 (iKeyboardIndex) — the two stores at 0x50016DE0 and
+    //      0x50016DE8, the machine-info block UserHal::MachineInfo()
+    //      hands out.
+    //   3. The window server reads both back and, for a value in 1..7,
+    //      loads "ELOCL" and "EKDATA" with the index appended — the
+    //      AppendNum at 0x500FD9A4 and the matching one at 0x5010C8BC.
+    //      Index 1 therefore means ELocl1.dll and Ekdata1.dll; anything
+    //      else leaves the machine on the unsuffixed pair.
+    //   4. ELocl1.dll differs from ELocl.dll in exactly the fields that
+    //      make it American: TLocale's language is ELangAmerican (10)
+    //      rather than ELangEnglish (1), the country code is 1 rather
+    //      than 44, and the currency symbol is '$' rather than '£'.
+    //   5. That language reaches the resource files through Bafl.dll,
+    //      whose NearestLanguageFile table (ROM 0x5019B49C, the four
+    //      strings "us" "US" "uk" "UK" followed by the "%02d" fallback)
+    //      turns ELangEnglish into the ".ruk" extension and
+    //      ELangAmerican into ".rus". So one number in the PROM swings
+    //      every string, template and keyboard layout in the ROM.
+    //
+    // Measured end to end rather than read off: a boot with index 0 has
+    // Z:\System\Apps\SHELL\Shell.ruk open in RAM and no ELocl1, and the
+    // same boot with index 1 has Shell.rus, Z:\System\Libs\ELocl1.dll and
+    // Z:\System\Libs\Ekdata1.dll. tests/integration/test-geofox-language.sh
+    // is that check.
+    //
+    // A real Geofox had that number written into its settings PROM at the
+    // factory; an emulated one has the PROM this class builds, so the
+    // choice is the user's. It is read once, early in boot, which is why
+    // the frontend asks for a reset after changing it.
+    static constexpr int kLanguageCount = 2;
+    static constexpr const char *kLanguageNames[kLanguageCount] = {
+        "English (UK)", "English (USA)",
+    };
+    int getLanguageCount() const override { return kLanguageCount; }
+    const char *getLanguageName(int index) const override {
+        return (index >= 0 && index < kLanguageCount) ? kLanguageNames[index] : nullptr;
+    }
+    int getLanguage() const override { return language; }
+    bool setLanguage(int index) override {
+        if (index < 0 || index >= kLanguageCount) return false;
+        language = index;
+        return true;
+    }
+
 protected:
     // ── Configuration EEPROM on the SSI bus ────────────────────────────
     //
@@ -305,10 +367,33 @@ protected:
         return (uint32_t)(lo | (hi << 8));
     }
 
+    // The two fields the language section above decodes: byte 4 is the
+    // low half of the signed-16 iLanguageIndex at [4..5], byte 6 the low
+    // half of iKeyboardIndex at [6..7]. Both indices are 0 or 1 here, so
+    // the high halves stay zero and the value never goes negative.
+    static constexpr int kLanguageIndexByte = 4;
+    static constexpr int kKeyboardIndexByte = 6;
+
     // The PROM image, built rather than stored: every byte is zero except
-    // the one carrying the checksum, so the XOR over the block is 0x42.
-    static uint8_t eepromByte(int index) {
-        return index == kEepromBytes - 1 ? kEepromChecksum : 0x00;
+    // the two language fields and the last one, which carries whatever
+    // makes the XOR over the block come to 0x42.
+    uint8_t eepromByte(int index) const {
+        return index == kEepromBytes - 1 ? eepromChecksumByte() : eepromFieldByte(index);
+    }
+
+    // Everything but the checksum byte.
+    uint8_t eepromFieldByte(int index) const {
+        return (index == kLanguageIndexByte || index == kKeyboardIndexByte)
+               ? (uint8_t)language : (uint8_t)0x00;
+    }
+
+    // Byte 31 is one of the four the ROM's field accessors never read, so
+    // it is free to carry the checksum: the validator at 0x5007EF38 XORs
+    // all 32 bytes and insists on 0x42.
+    uint8_t eepromChecksumByte() const {
+        uint8_t x = kEepromChecksum;
+        for (int i = 0; i < kEepromBytes - 1; i++) x ^= eepromFieldByte(i);
+        return x;
     }
 
     // ── nCS2 power-status chip ─────────────────────────────────────────
@@ -471,6 +556,11 @@ private:
     };
     // One bit per key, set while the key is held.
     uint16_t kbdColumns[kColumns] = {};
+
+    // The language variant the settings PROM reports — see the language
+    // section above. 0 is what a UK machine's PROM says, and what a
+    // machine with no PROM at all used to get by default.
+    int language = 0;
 
     // ── Mouse-pad state ────────────────────────────────────────────────
     //

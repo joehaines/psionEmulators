@@ -416,6 +416,32 @@ public:
 	                                   uint32_t factory, uint32_t current,
 	                                   std::vector<size_t> &out);
 
+	// ── ROM language variant ──────────────────────────────────────────
+	// A few ROMs are multilingual: they carry one set of resources per
+	// language and pick between them at boot from a number the hardware
+	// hands the kernel. Where the emulator is what supplies that number,
+	// the choice is the user's to make, and this is the interface for it.
+	//
+	// getLanguageCount() is 0 or 1 on a single-language ROM — nothing to
+	// choose — and the frontend hides the control. Only the Geofox One
+	// has more: its 8 MB image carries English (UK) and English (USA)
+	// side by side, down to two Enroute street-map databases, and the
+	// index lives in the settings PROM the emulator synthesises. See the
+	// language section in core/geofox.h for the whole chain.
+	//
+	// The index is read once during boot, so setLanguage() takes effect
+	// on the next reset rather than immediately — the same deal as
+	// setMachineId() above, and what the frontend tells the user.
+	virtual int getLanguageCount() const { return 0; }
+	// The name to show for a variant, in the machine's own words: these
+	// are the strings its System screen prints under Language. Returns
+	// nullptr for an index this machine does not have.
+	virtual const char *getLanguageName(int index) const { (void)index; return nullptr; }
+	virtual int getLanguage() const { return 0; }
+	// Returns false when the device has no language choice, or when the
+	// index is out of range — in which case nothing changes.
+	virtual bool setLanguage(int index) { (void)index; return false; }
+
 	// Storage-card (CompactFlash / PC Card) hooks. Default implementations
 	// are no-ops so devices without a card slot can ignore them.
 	virtual bool attachCard(const uint8_t *bytes, size_t size) { (void)bytes; (void)size; return false; }

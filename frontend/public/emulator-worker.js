@@ -601,13 +601,37 @@ function applyMachineId(override) {
   return readMachineId();
 }
 
+// ── ROM language variant (see the rpc handlers below) ──
+// A multilingual ROM carries one set of resources per language and picks
+// between them at boot. Only the Geofox One has more than one; everything
+// else reports no names and the UI hides the control. Same "did the bindings
+// land?" check as the machine id above.
+function languageReady() {
+  return !!(mod && mod.getLanguageCount && mod.getLanguageName
+            && mod.getLanguage && mod.setLanguage);
+}
+
+// Selects `override` (an index, or null to leave the machine alone) and
+// reports what stuck. Called from loadDevice before the device starts
+// stepping, so the guest's boot-time read of its settings PROM sees it.
+function applyLanguage(override) {
+  if (!languageReady()) return { names: [], index: 0 };
+  const count = mod.getLanguageCount() | 0;
+  if (count < 2) return { names: [], index: 0 };
+  if (override != null) mod.setLanguage(override | 0);
+  const names = [];
+  for (let i = 0; i < count; i++) names.push(mod.getLanguageName(i));
+  return { names, index: mod.getLanguage() | 0 };
+}
+
 // ── RPC handlers (return a value or throw) ──
 const rpc = {
   getProfiles() { return JSON.parse(mod.getAllDeviceProfilesJSON()); },
   // `machineId` (null when unset) is the user's stored Unique-id override for
   // this device, as a hex string — see the helpers above. It rides along with
   // the load because localStorage, where it is persisted, is main-thread-only.
-  async loadDevice({ deviceId, romUrl, preroll, restore = true, machineId = null }) {
+  async loadDevice({ deviceId, romUrl, preroll, restore = true, machineId = null,
+                     language = null }) {
     // Auto-save the outgoing device before switching (mirrors the main-thread
     // hook's save-on-switch). Must run BEFORE currentDeviceId is reassigned —
     // saveState() keys IndexedDB on it. Swallow errors so a bad save can't
@@ -818,6 +842,10 @@ const rpc = {
     // override is the more recent expression of intent than whatever ID the
     // snapshot was taken with.
     const machineIdState = applyMachineId(machineId);
+    // Likewise the ROM's language variant, read out of the settings PROM
+    // once and early. Covers the reset path (loadDevice again with
+    // restore=false) the same way.
+    const languageState = applyLanguage(language);
     micPerFrame = Math.max(1, Math.round((info.audioSampleRate || 8000) / 64));
     clockHz = (mod.getClockHz && mod.getClockHz()) || 0;
     telLastMs = 0; telLastCycles = 0;
@@ -852,7 +880,8 @@ const rpc = {
     if (!tickArmed) { tickArmed = true; tick(); }
     return { deviceName: name, info,
              ssdAttached: ssdAttachedState, datapakAttached: datapakAttachedState,
-             serialAttached: serialAttachedState, machineId: machineIdState };
+             serialAttached: serialAttachedState, machineId: machineIdState,
+             language: languageState };
   },
   pause() { paused = true; postStatus(); return true; },
   resume() { paused = false; postStatus(); return true; },
@@ -1026,6 +1055,10 @@ const rpc = {
   // argument; a null id here means "leave the chip alone", since the main
   // thread resolves "restore the factory value" to the real default first.
   setMachineId({ id }) { return applyMachineId(id); },
+  // The language index is persisted in localStorage by the main thread and
+  // rides along with loadDevice the same way; this handler is what the
+  // Language control calls between loads.
+  setLanguage({ index }) { return applyLanguage(index); },
   getCardBytes() {
     if (!mod.isCFImageAttached || !mod.isCFImageAttached()) return null;
     const size = mod.getCFImageSize();

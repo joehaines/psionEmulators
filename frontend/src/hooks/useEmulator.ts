@@ -115,6 +115,54 @@ export function applyMachineId(mod: PsionModule, override: bigint | null): Machi
   };
 }
 
+// ── ROM language variant ──
+// Which language a multilingual ROM boots into — an index into the
+// device's own list, stored per device the way the Unique id is, and
+// applied before the first cycle on every load and reset. localStorage
+// rather than IndexedDB for the same reason: the worker hook has to read
+// it synchronously on the main thread to pass into the worker's load.
+const languageKey = (id: string) => `psion-language-${id}`;
+export function loadStoredLanguage(deviceId: string): number | null {
+  try {
+    const raw = localStorage.getItem(languageKey(deviceId));
+    if (raw == null) return null;
+    const v = Number.parseInt(raw, 10);
+    return Number.isInteger(v) && v >= 0 ? v : null;
+  } catch { return null; }
+}
+export function storeLanguage(deviceId: string, index: number | null): void {
+  try {
+    if (index == null) localStorage.removeItem(languageKey(deviceId));
+    else localStorage.setItem(languageKey(deviceId), String(index));
+  } catch { /* private-mode / quota — the choice still applies to this session */ }
+}
+// What the UI needs: the names this ROM offers (empty on the single-
+// language machines, which is what hides the control) and which one the
+// machine is currently set to boot into.
+export interface LanguageState {
+  names: string[];
+  index: number;
+}
+// Selects `override` on the machine and reports what stuck. Called from
+// the load path before the device starts stepping, so the guest's
+// boot-time read of its settings PROM sees the user's choice. The
+// bindings landed together, so requiring the full set doubles as the "is
+// this psion.wasm new enough?" check.
+export function applyLanguage(mod: PsionModule, override: number | null): LanguageState {
+  if (typeof mod.getLanguageCount !== 'function'
+      || typeof mod.getLanguageName !== 'function'
+      || typeof mod.getLanguage !== 'function'
+      || typeof mod.setLanguage !== 'function') {
+    return { names: [], index: 0 };
+  }
+  const count = mod.getLanguageCount() | 0;
+  if (count < 2) return { names: [], index: 0 };
+  if (override != null) mod.setLanguage(override);
+  const names: string[] = [];
+  for (let i = 0; i < count; i++) names.push(mod.getLanguageName(i));
+  return { names, index: mod.getLanguage() | 0 };
+}
+
 const idbStateKey = (id: string) => `state-${id}`;
 const idbCardKey  = (id: string) => `cf-${id}`;
 // Per-(device, slot) SSD image key. Mirrors the CF card persistence
@@ -778,6 +826,17 @@ export interface EmulatorControls {
   // for EPOC itself to report the new one.
   setMachineId(id: bigint): Promise<bigint | null>;
 
+  // ── ROM language variant ──────────────────────────────────────────
+  // languageNames is empty on every single-language machine (and on an
+  // older psion.wasm without the bindings), which is what hides the
+  // control; the Geofox One offers English (UK) and English (USA).
+  // language indexes into it. setLanguage remembers the choice for this
+  // device and applies it to the emulator, but the running OS read the
+  // index at boot — the machine has to be reset to come up in it.
+  languageNames: string[];
+  language: number;
+  setLanguage(index: number): void;
+
   // Psion SSD pack management. Slot index matches the user-facing
   // "Pack A" / "Pack B" labels (slot 0 = A, slot 1 = B). ssdAttached
   // is sized to the device profile's ssdSlotCount; entries are true
@@ -896,6 +955,11 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // the panel can offer to go back to it.
   const [machineIdState, setMachineIdState] =
     useState<MachineIdState>({ supported: false, id: null, prefix: null, prefixSettable: false });
+  // Which language a multilingual ROM boots into. Re-read from the
+  // emulator on every load and reset; empty names mean this machine has
+  // no choice to offer and the UI hides the control.
+  const [languageState, setLanguageState] =
+    useState<LanguageState>({ names: [], index: 0 });
   // Speaker preference defaults to ON so the device's boot tune (5mx Pro
   // bootloader chime, OS desk-app start sound, key clicks) plays without
   // the user having to discover the speaker button first. The actual
@@ -1754,6 +1818,10 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       // too: a restored heap carries whatever ID was live when it was saved,
       // and the stored override is the more recent expression of intent.
       setMachineIdState(applyMachineId(mod, loadStoredMachineId(deviceId)));
+      // Same deal for the ROM's language variant: the guest reads its
+      // settings PROM once, early in boot, so the choice has to be in
+      // place before anything steps.
+      setLanguageState(applyLanguage(mod, loadStoredLanguage(deviceId)));
 
       setLoadProgress(0.95);
       await yieldToUI();
@@ -2080,6 +2148,9 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     // (Resetting is exactly how a new ID is meant to take effect: a running
     // EPOC has already cached the old one.)
     setMachineIdState(applyMachineId(mod, loadStoredMachineId(deviceId)));
+    // The language variant is the same story, and the reset is exactly
+    // how a newly picked one is meant to land.
+    setLanguageState(applyLanguage(mod, loadStoredLanguage(deviceId)));
 
     const info = mod.getDeviceInfo();
     const prerollFrames = embedMode ? (COLD_BOOT_PREROLL[deviceId] ?? 0) : 0;
@@ -2679,6 +2750,18 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     return (BigInt(next.prefix ?? 0) << 32n) | BigInt(next.id);
   }, []);
 
+  // Picks the ROM's language variant and remembers it, so every later
+  // load / reset of this device comes up on it. The running EPOC read the
+  // index at boot and cached everything that follows from it, so the
+  // caller has to reset for the change to show.
+  const setLanguage = useCallback((index: number): void => {
+    const mod = moduleRef.current;
+    const deviceId = currentDeviceIdRef.current;
+    if (!mod || !deviceId) return;
+    storeLanguage(deviceId, index);
+    setLanguageState(applyLanguage(mod, index));
+  }, []);
+
   // AudioContext creation and getUserMedia both require a user gesture, so
   // these callbacks must be wired directly to button click handlers — don't
   // call them from effects.
@@ -2771,6 +2854,9 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     machineIdPrefix: machineIdState.prefix,
     machineIdPrefixSettable: machineIdState.prefixSettable,
     setMachineId,
+    languageNames: languageState.names,
+    language: languageState.index,
+    setLanguage,
     attachSSD, detachSSD, getSSDBytes,
     datapakAttached,
     attachDatapak, detachDatapak, getDatapakBytes, getDatapakKind,

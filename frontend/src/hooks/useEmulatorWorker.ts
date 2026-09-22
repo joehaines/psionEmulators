@@ -16,14 +16,15 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import type { DeviceInfo, DeviceProfile } from '../types/emulator';
 import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice, isHostTextEntry } from '../lib/keymap';
-import { EmulatorWorkerClient, type WorkerStatus, type MachineIdReply } from '../lib/emulatorWorkerClient';
+import { EmulatorWorkerClient, type WorkerStatus, type MachineIdReply,
+         type LanguageReply } from '../lib/emulatorWorkerClient';
 import { createAudioEngine, type AudioEngine } from '../lib/audioEngine';
 import { createWorkerAudioShim, type WorkerAudioShim } from '../lib/workerAudioShim';
 import { setSerialPumpForward, setSimKeepAliveForward } from '../lib/wasmBridge';
 import { quiesceActiveSessions } from '../lib/plp/client-spec';
 import { trackDeviceLoad, trackFeature, startSession, endSession } from '../lib/analytics';
 import type { PackKind } from '../lib/fefs';
-import { osCardSpec, buildOsCardImage, collectStatesBundle, applyStatesBundle, listSavedDevices, triggerDownload, loadStoredMachineId, storeMachineId } from './useEmulator';
+import { osCardSpec, buildOsCardImage, collectStatesBundle, applyStatesBundle, listSavedDevices, triggerDownload, loadStoredMachineId, storeMachineId, loadStoredLanguage, storeLanguage } from './useEmulator';
 import type { EmulatorControls, EmulatorState, UseEmulatorOptions } from './useEmulator';
 
 type Ev = { key: number; down: boolean };
@@ -60,6 +61,10 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   // (see the machine-ID helpers in emulator-worker.js).
   const [machineIdState, setMachineIdState] =
     useState<MachineIdReply>({ supported: false, id: null, prefix: null, prefixSettable: false });
+  // Which language a multilingual ROM boots into; empty names mean this
+  // machine has no choice to offer and the UI hides the control.
+  const [languageState, setLanguageState] =
+    useState<LanguageReply>({ names: [], index: 0 });
   // Serial (PLP/IrDA): the protocol clients stay on the main thread and drive the
   // sync serialReadBytes/serialWriteBytes interface. The worker streams UART
   // output here (onSerialRx → per-uart buffer) and we ship host writes back; the
@@ -235,9 +240,13 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     setLoadStatus(null);
     try {
       const { info, ssdAttached: ssdSlots, datapakAttached: pakSlots, serialAttached: serialState,
-              machineId: machineIdReply } =
+              machineId: machineIdReply, language: languageReply } =
         await client.loadDevice(deviceId, romUrl, 0, restore,
-                                loadStoredMachineId(deviceId)?.toString(16) ?? null);
+                                loadStoredMachineId(deviceId)?.toString(16) ?? null,
+                                loadStoredLanguage(deviceId));
+      // Same for the ROM's language variant, applied in the worker before
+      // the first step because the guest reads it once, early in boot.
+      setLanguageState(languageReply ?? { names: [], index: 0 });
       // The worker applies the stored machine-ID override during the load
       // (before the first step) and reports back what the device ended up
       // holding, plus its factory value for the panel's "Restore default".
@@ -451,6 +460,17 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     return (BigInt(next.prefix ?? 0) << 32n) | BigInt(next.id);
   }, []);
 
+  // The ROM's language variant, persisted here on the main thread for the
+  // same reason as the machine ID and passed into every load. The running
+  // OS read the index at boot, so the user has to reset to see it.
+  const setLanguage = useCallback((index: number): void => {
+    const client = clientRef.current;
+    const deviceId = deviceIdRef.current;
+    if (!client || !deviceId) return;
+    storeLanguage(deviceId, index);
+    void client.setLanguage(index).then(setLanguageState);
+  }, []);
+
   const attachCard = useCallback(async (bytes: Uint8Array) => {
     const ok = (await clientRef.current?.attachCard(bytes)) ?? false;
     if (ok) { setCardAttached(true); trackFeature(deviceIdRef.current, 'cf_attach'); }
@@ -630,6 +650,9 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     machineIdPrefix: machineIdState.prefix,
     machineIdPrefixSettable: machineIdState.prefixSettable,
     setMachineId,
+    languageNames: languageState.names,
+    language: languageState.index,
+    setLanguage,
     ssdAttached, attachSSD, detachSSD,
     getSSDBytes: (slot: number) => clientRef.current?.getSSDBytes(slot) ?? null,
     datapakAttached, attachDatapak, detachDatapak,

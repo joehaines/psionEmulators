@@ -32,6 +32,15 @@ export interface MachineIdReply {
   prefixSettable: boolean;
 }
 
+/** Language snapshot from the worker: the variants this ROM offers, in the
+ *  machine's own words, and which one it is currently set to boot into.
+ *  `names` is empty on every single-language machine, which is what hides
+ *  the control. */
+export interface LanguageReply {
+  names: string[];
+  index: number;
+}
+
 export class EmulatorWorkerClient {
   private worker: Worker;
   private nextId = 1;
@@ -132,12 +141,13 @@ export class EmulatorWorkerClient {
   // ── RPC (cold/rare) ──
   getProfiles(): Promise<unknown[]> { return this.call('getProfiles'); }
   loadDevice(deviceId: string, romUrl: string, preroll: number, restore = true,
-             machineId: string | null = null):
+             machineId: string | null = null, language: number | null = null):
       Promise<{ deviceName: string; info: DeviceInfo;
                 ssdAttached?: boolean[]; datapakAttached?: boolean[];
                 serialAttached?: Record<number, boolean>;
-                machineId?: MachineIdReply }> {
-    return this.call('loadDevice', { deviceId, romUrl, preroll, restore, machineId });
+                machineId?: MachineIdReply; language?: LanguageReply }> {
+    return this.call('loadDevice',
+                     { deviceId, romUrl, preroll, restore, machineId, language });
   }
   pause(): Promise<boolean> { return this.call('pause'); }
   resume(): Promise<boolean> { return this.call('resume'); }
@@ -171,6 +181,13 @@ export class EmulatorWorkerClient {
    *  reserve bits of the chip word. */
   setMachineId(id: string): Promise<MachineIdReply> {
     return this.call('setMachineId', { id });
+  }
+  /** Picks the ROM's language variant. Like the Unique id, the current
+   *  value needs no RPC of its own: loadDevice reports it and this reply
+   *  refreshes it. The guest read the index at boot, so the caller has to
+   *  reset the machine for the change to show. */
+  setLanguage(index: number): Promise<LanguageReply> {
+    return this.call('setLanguage', { index });
   }
   async getRamSnapshot(): Promise<Uint8Array | null> {
     const r = await this.call<{ bytes: ArrayBuffer; byteLength: number } | null>('getRamSnapshot');

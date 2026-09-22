@@ -39,6 +39,123 @@ const SORT_OPTIONS: { value: SortMode; label: string; sub: string }[] = [
   { value: 'popularity-asc',  label: 'Least popular',    sub: 'Rare-loaded devices first' },
 ];
 
+// The native apps, published by .github/workflows/desktop.yml to a rolling
+// `desktop-latest` release. The tag and the filenames are fixed on purpose —
+// each build replaces the assets in place — so these URLs keep working across
+// version bumps and must not be changed without changing that workflow's
+// "Collect the downloads" step to match.
+const DESKTOP_ASSET_BASE =
+  'https://github.com/joehaines/psion/releases/download/desktop-latest';
+
+const DESKTOP_DOWNLOADS: { os: string; detail: string; file: string }[] = [
+  { os: 'macOS',   detail: 'Apple silicon · .dmg', file: 'Psion-Emulator-macOS-arm64.dmg' },
+  { os: 'Windows', detail: '64-bit · .exe installer', file: 'Psion-Emulator-Windows-x64-Setup.exe' },
+  { os: 'Linux',   detail: '64-bit · .AppImage', file: 'Psion-Emulator-Linux-x64.AppImage' },
+  // The Pi is its own button rather than a line of small print under Linux:
+  // arm64 is a different download, and someone looking for it is looking for
+  // the word "Raspberry Pi". The .deb is the one to lead with — Pi OS is
+  // Debian, and its AppImage cousin needs a FUSE 2 that Pi OS stopped
+  // shipping at Bookworm.
+  { os: 'Raspberry Pi', detail: '64-bit Pi OS · .deb', file: 'Psion-Emulator-Linux-arm64.deb' },
+];
+
+// What the app gives you that the browser cannot. Three, deliberately — the
+// full account is in the README; this is the version you read before deciding
+// whether to download anything.
+const DESKTOP_FEATURES: { title: string; body: string }[] = [
+  { title: 'It saves itself',
+    body: 'The machine is snapshotted to disk as you go and restored when you '
+        + 'open it again, with the last few sessions kept per device.' },
+  { title: 'One card folder, every machine',
+    body: 'A folder on your computer appears inside the emulated machine as '
+        + 'whatever it takes — a CompactFlash card, an MMC card, an SSD pack — '
+        + 'so a file dropped in follows you from one device to the next.' },
+  { title: 'A synced drive over the cable',
+    body: 'For the link-capable machines, a folder kept in step with the '
+        + "device's own drive over the emulated Remote Link cable." },
+];
+
+// The native-app downloads. These lived on the home page; they now sit
+// behind Experimental features, the same toggle that reveals the simulated
+// modem — the builds are unsigned, and an OS calling the app "damaged" on
+// first launch is not what a first-time visitor should meet.
+//
+// Unreachable from the desktop app itself: this whole view is web-only (the
+// shell renders DesktopApp, which has no settings route), so there is no
+// "download the app you are already running" to guard against.
+function DesktopDownloads() {
+  return (
+    <div className="p-3 space-y-3">
+      <p className="text-xs font-mono text-psion-charcoal leading-relaxed">
+        The same emulator as a native app for macOS, Windows, Linux and the
+        Raspberry Pi: one window that is nothing but the machine — no browser
+        around it, no tab to lose, and no network connection needed — with{' '}
+        <kbd className="bg-psion-mid border border-psion-accent/25 rounded px-1">
+          Ctrl/Cmd&nbsp;+&nbsp;K
+        </kbd>{' '}
+        to switch device. Everything this page does, plus three things it
+        cannot:
+      </p>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        {DESKTOP_FEATURES.map(f => (
+          <div
+            key={f.title}
+            className="bg-psion-mid border border-psion-accent/15 rounded p-2.5"
+          >
+            <h3 className="text-xs font-mono font-semibold text-psion-charcoal mb-0.5">
+              {f.title}
+            </h3>
+            <p className="text-[10px] text-gray-500 leading-relaxed">{f.body}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {DESKTOP_DOWNLOADS.map(d => (
+          <a
+            key={d.os}
+            href={`${DESKTOP_ASSET_BASE}/${d.file}`}
+            className="inline-flex flex-col items-start bg-psion-highlight text-psion-charcoal rounded px-3 py-1.5 hover:brightness-95 transition"
+          >
+            <span className="text-xs font-mono font-semibold">
+              <span aria-hidden="true">↓</span> {d.os}
+            </span>
+            <span className="text-[10px] opacity-70">{d.detail}</span>
+          </a>
+        ))}
+      </div>
+
+      <p className="text-[10px] text-gray-500 leading-relaxed">
+        The builds are unsigned. On Windows, choose{' '}
+        <em>More info → Run anyway</em>. On macOS, Gatekeeper instead reports
+        the app as "damaged" — move it to Applications, then clear the
+        quarantine flag the browser added by running this once in Terminal:
+      </p>
+      <pre className="text-[10px] font-mono text-gray-500 bg-psion-mid border border-psion-accent/25 rounded px-2 py-1.5 overflow-x-auto">
+        <code>xattr -cr /Applications/Psion\ Emulator.app</code>
+      </pre>
+      <p className="text-[10px] text-gray-500 leading-relaxed">
+        Linux warns about nothing: mark the AppImage executable with{' '}
+        <code className="font-mono">chmod +x</code> and run it. On a Raspberry
+        Pi — a Pi 4 or 5 with the 64-bit OS; the 32-bit one is not supported —
+        install the <code className="font-mono">.deb</code> with{' '}
+        <code className="font-mono">
+          sudo apt install ./Psion-Emulator-Linux-arm64.deb
+        </code>
+        . There is an arm64{' '}
+        <a
+          href={`${DESKTOP_ASSET_BASE}/Psion-Emulator-Linux-arm64.tar.gz`}
+          className="underline hover:text-psion-charcoal"
+        >
+          .tar.gz
+        </a>{' '}
+        too, for any arm64 Linux that isn't Debian-based.
+      </p>
+    </div>
+  );
+}
+
 // Standalone recovery tool for password-protected Psion Word (.WRD)
 // documents from a Series 3/3a/3c/Siena/Workabout. Drop in a .WRD file
 // and the tool reads the text out, recovering the password automatically;
@@ -305,6 +422,24 @@ export default function SettingsView({
             </div>
           </div>
         </section>
+
+        {/* Desktop apps (experimental) --------------------------------- */}
+        {/* Directly under Options on purpose: it appears the moment the
+            Experimental features box above is ticked, so what revealed it is
+            on screen at the same time. */}
+        {experimentalFeatures && (
+          <section className="mb-6 border border-psion-accent/30 rounded-lg overflow-hidden">
+            <header className="px-4 py-2 bg-psion-mid border-b border-psion-accent/30">
+              <h2 className="text-xs font-mono font-semibold uppercase tracking-wide text-psion-charcoal">
+                Download the desktop app
+              </h2>
+              <p className="text-xs font-mono text-gray-500 mt-0.5">
+                Unsigned native builds — macOS, Windows, Linux and the Raspberry Pi.
+              </p>
+            </header>
+            <DesktopDownloads />
+          </section>
+        )}
 
         {/* Word password recovery -------------------------------------- */}
         <section className="mb-6 border border-psion-accent/30 rounded-lg overflow-hidden">

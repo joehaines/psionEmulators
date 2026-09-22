@@ -562,6 +562,14 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     screenLeft:   0.246, screenTop:  0.104,
     screenWidth:  0.513, screenHeight: 0.286,
   },
+  // HC120: the 160x80 panel sits in a window that is taller than the
+  // active area, so the box is the glass's width with a 2:1 active area
+  // centred in it.
+  'hc120.png': {
+    aspectRatio:  492 / 1084,
+    screenLeft:   0.187, screenTop:  0.193,
+    screenWidth:  0.632, screenHeight: 0.143,
+  },
   // MC200: the same case as the MC400 with the half-height 640x200 panel.
   // The glass in the photo is taller than the active area (the panel has
   // an inactive margin above and below it), so the box below is the
@@ -769,6 +777,7 @@ export function getDeviceSkinPhotoFilename(deviceId: string | null): string | nu
     case 'netbook':     return '7_netbook.png';
     case 'netpad':      return 'netpad.png';
     case 'mc218':       return 'MC218.png';
+    case 'hc120':       return 'hc120.png';
     case 'mc200':       return 'MC200.png';
     case 'mc400':       return 'MC400.png';
     case 'pocketbk':    return 'acornPB.png';
@@ -1496,6 +1505,9 @@ export default function EmulatorView({
   const EPOC_ENTER     = 3;
   const EPOC_BACKSPACE = 1;
   const EPOC_SHIFT     = 18;
+  // EStdKeyOff — the HC120's case-mounted ON/OFF button, which is a
+  // different key from the ESC on its keypad (core/series3.cpp).
+  const EPOC_OFF       = 160;
   // Psion 5mx / 5mxpro / Series 5 / MC218 / Osaris / Revo: the Fn key
   // (bottom-left of the physical keyboard, blue-labelled symbols on the
   // alphabet keys). Maps to EStdKeyLeftFunc which the Windermere matrix
@@ -1529,6 +1541,9 @@ export default function EmulatorView({
   // The Organiser I's SAVE and FIND sit on its up/down arrows, which is
   // not a mapping anyone would guess, so it gets them by name.
   const isOrganiser1 = /Organiser I$/.test(deviceInfo?.deviceName ?? '');
+  // The HC120 has an ON/OFF button on the case, separate from the keypad's
+  // ESC — the only machine here where the two are different keys.
+  const isHc120      = deviceInfo?.deviceName?.includes('HC120') ?? false;
   // Both MC laptops have the same trackpad-with-click above the keyboard.
   const isMc         = /MC[24]00/.test(deviceInfo?.deviceName ?? '');
   // Geofox One: no touchscreen — a capacitive mouse pad in the keyboard
@@ -2179,6 +2194,7 @@ export default function EmulatorView({
           </span>
           {renderKeyBtn('Menu', EPOC_MENU, 'Menu key')}
           {hasFnKey && renderKeyBtn('Fn', EPOC_FN, 'Fn key')}
+          {isHc120 && renderKeyBtn('ON', EPOC_OFF, 'On / Off button')}
         </div>
       )}
       <div className="flex flex-wrap gap-2 items-center justify-center px-4 md:hidden">

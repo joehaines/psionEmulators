@@ -47,6 +47,23 @@ mc400-sysdisk   | MC400_v2.60F.bin            | 12 | 200 | --min-mdrive-subdirs 
 # so unlike the MC400's it needs no build step. Enter dismisses the splash
 # and the machine goes on into its first-run dialogs and then the desktop.
 mc200-sysdisk   | MC200_v2.12F.bin            | 12 | 200 | --min-mdrive-subdirs 0 --ssd-d roms/MC200_V2.12F_system.ssd --ssd-type-d protected | mc200
+# HC120 with a pack in drive A: carrying an AUTOEXEC.BTF — the machine's
+# normal working configuration, since its applications live on packs and
+# its ROM holds only the OS and a shell. The shell runs the batch file at
+# startup, so the screen ends up showing the commands and their output:
+#
+#   $ version / Epoc/Os V3.95F Rom V1.72F / Shell V2.10F / $ free /
+#   Free Ram: 447 Kbytes
+#
+# which is both a boot gate and an end-to-end check of the SSD read path
+# on this machine. Regenerate tests/fixtures/hc120-autoexec.ssd with:
+#   node --experimental-strip-types --input-type=module -e "
+#     import { createFlashPack, addFileToPack } from './frontend/src/lib/fefs.ts';
+#     import { writeFileSync } from 'node:fs';
+#     let p = createFlashPack(0x20000, 'HC120');
+#     p = addFileToPack(p, 'AUTOEXEC.BTF', new TextEncoder().encode('version\r\nfree\r\n'));
+#     writeFileSync('tests/fixtures/hc120-autoexec.ssd', p);"
+hc120-shell     | hc120_v1.72F.bin            | 12 | 200 | --min-mdrive-subdirs 0 --ssd-a tests/fixtures/hc120-autoexec.ssd --ssd-type-a flash | hc120
 # Mountable FEFS pack (read/write Flash) on the 3c — the primary
 # user-facing SSD configuration. Boot-validates the full attach + scan
 # + mount path with real directory structures on the pack.

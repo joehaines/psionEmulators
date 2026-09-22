@@ -68,11 +68,22 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 
 // `wasm-unsafe-eval` is required — Emscripten compiles the module at
-// runtime. Google Fonts is deliberately NOT allowed: the desktop app
+// runtime. `unsafe-eval` is ALSO required, separately: the engine is built
+// with embind (--bind, wasm/main.cpp's EMSCRIPTEN_BINDINGS), whose JS glue
+// crafts per-signature invoker functions with `new Function(...)` for speed
+// on hot calls like stepFrame/tickCpu — that's plain JS codegen, not wasm
+// compilation, so wasm-unsafe-eval alone does not cover it (the module
+// throws "Evaluating a string as JavaScript violates CSP" without this).
+// The alternative, linking with -s DYNAMIC_EXECUTION=0, drops embind to a
+// generic apply()-based invoker on every bound call — not worth it on this
+// app's per-instruction hot path. script-src stays 'self' app://psion
+// otherwise (no remote origins), which is what actually keeps arbitrary
+// script out.
+// Google Fonts is deliberately NOT allowed: the desktop app
 // ships no webfont, so index.html's preconnect is a dead no-op here.
 const CSP = [
   "default-src 'self' app://psion",
-  "script-src 'self' app://psion 'wasm-unsafe-eval'",
+  "script-src 'self' app://psion 'wasm-unsafe-eval' 'unsafe-eval'",
   "worker-src 'self' app://psion blob:",
   "connect-src 'self' app://psion",
   "img-src 'self' app://psion data: blob:",

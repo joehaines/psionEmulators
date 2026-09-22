@@ -104,6 +104,18 @@ void Emulator::wireChips() {
         // for column 0..9. KeyScan=0 calls col_cb(-1); the real bus
         // pull-ups read 0xFF in that deselected state, matching MAME's
         // `m_col_cb(*this, 0xff)` devcb default.
+        // PSION3_TRACE_KB=1 — every scan that sees a key down, plus one
+        // in every 500 otherwise so an idle machine still shows it is
+        // scanning. This is how the HC120's matrix was mapped: with its
+        // shell up, press a slot and watch which one the ROM reads back
+        // (see core/series3.cpp::hc120KeyMatrix).
+        if (std::getenv("PSION3_TRACE_KB")) {
+            uint8_t v = (col >= 0 && col < 10) ? m_key_row[col] : 0xFF;
+            static long n = 0;
+            if ((n++ % 500) == 0 || v != 0x00)
+                std::fprintf(stderr, "[kb] t=%.2fs scan #%ld col=%d -> %02x\n",
+                             double(passedCycles) / m_cfg.busClockHz, n, col, v);
+        }
         if (col < 0 || col >= 10) return 0xFF;
         return m_key_row[col];
     });
@@ -364,6 +376,14 @@ uint8_t Emulator::busRead(uint32_t linear) const {
     }
     if (m_cfg.ramDecodeMask == 0 && linear < ram.size()) {
         return ram[linear];
+    }
+    // Top-of-memory ROM alias (HC120) — see Config::romAliasSize.
+    if (m_cfg.romAliasSize > 0 &&
+        linear >= 0x100000u - m_cfg.romAliasSize &&
+        rom.size() >= m_cfg.romAliasSize) {
+        size_t off = rom.size() - m_cfg.romAliasSize
+                   + (linear - (0x100000u - uint32_t(m_cfg.romAliasSize)));
+        if (off < rom.size()) return rom[off];
     }
     if (linear >= m_cfg.romBase) {
         uint32_t off = linear - m_cfg.romBase;
@@ -816,6 +836,113 @@ KeyMatrixEntry mc400KeyMatrix(EpocKey key) {
     }
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Psion HC120 keyboard.
+//
+// No MAME driver exists for the HC, so this table was read off the
+// machine itself: with the shell up (it echoes what you type), every one
+// of the 80 matrix slots was pressed in turn and the character that came
+// back recorded. What fell out is a tidy grid — one matrix column per
+// physical keypad row, with the six keys of that row on bits 0x20 (left)
+// down to 0x01 (right):
+//
+//   col0  ESC   MENU  PgUp  PgDn  <-    INFO/->    + (0x40)
+//   col1  A     B     C     D     E     F          . (0x40)
+//   col2  G     H     I     J     K     L          0 (0x40)
+//   col3  M     N     O     P     Q     R      SPACE (0x40)
+//   col4  S     T     U     V     W     X      SHIFT (0x40)
+//   col5  <->   7     8     9     /     Y
+//   col6  DEL   4     5     6     *     Z
+//   col7  LOCK  1     2     3     -     ENTER
+//
+// The 0x40 bits are the bottom row of the keypad (SHIFT SPACE 0 . +),
+// which runs right to left as the column index rises. That accounts for
+// all 54 keys on the machine.
+//
+// Everything above was confirmed by the character it produced, except
+// the top row, which the shell gives little back on: its leftmost key
+// visibly edits the input line (the characters before the cursor go),
+// two slots (col0 0x10 and col0 0x80) echo a glyph outside the ASCII
+// font, and the rest do nothing you can see. None of that names a key,
+// so the row is mapped by position in the same left-to-right bit order
+// every other row uses, which at least puts ESC on the key that edits
+// the line.
+KeyMatrixEntry hc120KeyMatrix(EpocKey key) {
+    switch (static_cast<int>(key)) {  // ASCII char-literal cases below are intentional
+    // ── COL0 — the top row of the keypad, plus '+' ───────────────────
+    case EStdKeyEscape:      return { 0, 0x20 };
+    case EStdKeyMenu:        return { 0, 0x10 };
+    case EStdKeyUpArrow:
+    case EStdKeyPageUp:      return { 0, 0x08 };
+    case EStdKeyDownArrow:
+    case EStdKeyPageDown:    return { 0, 0x04 };
+    case EStdKeyLeftArrow:   return { 0, 0x02 };
+    case EStdKeyRightArrow:  return { 0, 0x01 };
+    case '+':                return { 0, 0x40 };
+
+    // ── COL1..COL4 — the letter rows, plus the bottom row ────────────
+    case 'A':                return { 1, 0x20 };
+    case 'B':                return { 1, 0x10 };
+    case 'C':                return { 1, 0x08 };
+    case 'D':                return { 1, 0x04 };
+    case 'E':                return { 1, 0x02 };
+    case 'F':                return { 1, 0x01 };
+    case '.':
+    case EStdKeyFullStop:    return { 1, 0x40 };
+
+    case 'G':                return { 2, 0x20 };
+    case 'H':                return { 2, 0x10 };
+    case 'I':                return { 2, 0x08 };
+    case 'J':                return { 2, 0x04 };
+    case 'K':                return { 2, 0x02 };
+    case 'L':                return { 2, 0x01 };
+    case '0':                return { 2, 0x40 };
+
+    case 'M':                return { 3, 0x20 };
+    case 'N':                return { 3, 0x10 };
+    case 'O':                return { 3, 0x08 };
+    case 'P':                return { 3, 0x04 };
+    case 'Q':                return { 3, 0x02 };
+    case 'R':                return { 3, 0x01 };
+    case EStdKeySpace:
+    case ' ':                return { 3, 0x40 };
+
+    case 'S':                return { 4, 0x20 };
+    case 'T':                return { 4, 0x10 };
+    case 'U':                return { 4, 0x08 };
+    case 'V':                return { 4, 0x04 };
+    case 'W':                return { 4, 0x02 };
+    case 'X':                return { 4, 0x01 };
+    case EStdKeyLeftShift:
+    case EStdKeyRightShift:  return { 4, 0x40 };
+
+    // ── COL5..COL7 — the numeric keypad rows ─────────────────────────
+    case EStdKeyTab:         return { 5, 0x20 };   // the <-> key
+    case '7':                return { 5, 0x10 };
+    case '8':                return { 5, 0x08 };
+    case '9':                return { 5, 0x04 };
+    case '/':                return { 5, 0x02 };
+    case 'Y':                return { 5, 0x01 };
+
+    case EStdKeyBackspace:
+    case EStdKeyDelete:      return { 6, 0x20 };   // the DEL / ORD key
+    case '4':                return { 6, 0x10 };
+    case '5':                return { 6, 0x08 };
+    case '6':                return { 6, 0x04 };
+    case '*':                return { 6, 0x02 };
+    case 'Z':                return { 6, 0x01 };
+
+    case EStdKeyCapsLock:    return { 7, 0x20 };   // the LOCK key
+    case '1':                return { 7, 0x10 };
+    case '2':                return { 7, 0x08 };
+    case '3':                return { 7, 0x04 };
+    case '-':                return { 7, 0x02 };
+    case EStdKeyEnter:       return { 7, 0x01 };
+
+    default: return { -1, 0 };
+    }
+}
+
 void Emulator::setKeyboardKey(EpocKey key, bool value) {
     // Esc is special — MAME's psion3_state::key_on routes it directly to
     // ASIC2's on_clr_w input (A1OnKey IRQ source), NOT through the COLn
@@ -827,7 +954,14 @@ void Emulator::setKeyboardKey(EpocKey key, bool value) {
     // read. Calling setOnClr on the release edge as well would lower the
     // IRQ line before the kernel had a chance to dispatch the EINT3 from
     // ASIC2, so a short tap on Esc could be missed entirely.
-    if (key == EStdKeyEscape) {
+    if (key == EStdKeyEscape && m_cfg.escIsOnKey) {
+        if (value) asic2.setOnClr(true);
+        return;
+    }
+    // A machine whose Esc is an ordinary keypad key (the HC120) still has
+    // an ON button on its case, on the same OnClr line. EStdKeyOff is the
+    // code the frontend's ON button sends for it.
+    if (key == EStdKeyOff && !m_cfg.escIsOnKey) {
         if (value) asic2.setOnClr(true);
         return;
     }

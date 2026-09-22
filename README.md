@@ -7,7 +7,7 @@ architectures and fifteen years of devices. Play any of them in the browser at
 - **Hitachi HD6301X0 / HD6303X** — the 1984 [Psion Organiser I](https://en.wikipedia.org/wiki/Psion_Organiser)
   and the 1986 Organiser II.
 - **NEC V30 / V30H** (with Psion's ASIC1 / ASIC2 / ASIC9) — the SIBO family:
-  Series 3, 3a, 3c, 3mx, Siena, Workabout, MC200/MC400/MC218.
+  Series 3, 3a, 3c, 3mx, Siena, Workabout, HC120, MC200/MC400/MC218.
 - **ARM710 (CL-PS7110 / Windermere) and StrongARM SA-1100** — the ARM-era
   machines: Series 5, 5mx, Revo, Series 7, netBook, and the licensed
   Geofox One.
@@ -24,6 +24,7 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | MC200 | 1989 | Intel 80C86A | ✅ | — | ✅ ×4 | ✅ | — | — | — | ❌ |
 | MC400 | 1989 | Intel 80C86A | ✅ | — | ✅ ×4 | ✅ | — | — | — | ❌ |
 | Series 3 | 1991 | NEC V30 | ✅ | — | ✅ ×2 | ✅ | — | — | — | ❌ |
+| HC120 | 1991 | NEC V30H | ✅ | — | ✅ ×2 | ✅ | — | — | — | ❌ |
 | Acorn Pocket Book | 1992 | NEC V30 | ✅ | — | ✅ ×2 | ✅ | — | — | — | ❌ |
 | Series 3a | 1993 | NEC V30H | ✅ | — | ✅ ×2 | ✅ | ✅ | — | — | — |
 | Workabout | 1995 | NEC V30H | ✅ | — | ✅ ×2 | ✅ | ✅ | — | — | ❌ |
@@ -256,10 +257,19 @@ emulator's PsiWin client can't.
   panel. Cold boot ends with the ROM switching the machine off again,
   exactly as the hardware does; the driver presses ON for you so it comes
   up ready (`core/organiser1.h`).
-- **HC120** — not yet emulated. The dump in the tree is one chip of the
-  machine's ROM and not the one the CPU starts from, so there is nothing to
-  boot; [`docs/hc120-rom.md`](docs/hc120-rom.md) records what the file is,
-  what is missing and what the rest of the machine needs.
+- **HC120** — the industrial handheld of the SIBO1 generation: the same
+  V30H + ASIC1 + ASIC2 as the Series 3, behind a 160×80 panel and a
+  54-key sealed keypad. Its ROM holds **EPOC/Os V3.95F** and a command
+  shell but no applications — on this machine those live on an SSD pack —
+  so with no pack in it the machine boots to *Insert Pack / and press
+  enter*, and with one carrying an `AUTOEXEC.BTF` it runs the batch file
+  and gives you the `$` prompt: `version`, `free`, `copy`, `format`,
+  `type`, `date` and the rest. Two things about it had to be worked out
+  rather than read: the ROM's two chips sit at 0xA0000-0xDFFFF with the
+  top 128 KiB of the address space showing the upper chip a second time,
+  and the keypad matrix — there is no MAME driver for the HC — was mapped
+  by pressing all 80 matrix slots and reading back what the shell echoed.
+  Both are written up in [`docs/hc120-rom.md`](docs/hc120-rom.md).
 - **Revo (Conan)** — "Conan" is the Revo's successor, emulated from
   `roms/conan_v0.10(17)_eng.IMG`: the ROM of a real machine, dumped off it
   with `tools/romdump` (TRomHeader version 0.10(17), built 2001-06-20,
@@ -329,6 +339,56 @@ emulator's PsiWin client can't.
   [`docs/conan-rom-dumping.md`](docs/conan-rom-dumping.md) records how the
   ER5u file-server ordinals and the E32Image format were established.
 
+  **The Series 5 generation has the same problem and now has its own
+  dumper.** An EPOC Release 1 machine — a Series 5, a pre-release Series 5,
+  a Geofox — is out of reach of the circulating extractors for the same
+  kind of reason the Conan is: its file server client is
+  `EFSRV[100000bd].DLL`, not the `[100039e4]` a later binary asks for, so
+  the loader never finds it, and its ordinals and its 8-bit text differ
+  besides. `tools/romdump-er1` is written against R1's numbers, read out
+  of the machines' own ROMs — and against the *same* EFSrv.dll build, 205
+  exports at identical offsets, in the prototype Series 5, the shipping
+  one and the Geofox alike, so one binary covers all three. It imports six
+  functions from that one DLL and nothing from EUser, has no console at
+  all — an early machine is the last place to depend on one — and writes
+  its account to `ROMDUMP.TXT` after every part instead. It prefers a
+  CompactFlash card to the RAM disk, resumes from the exact byte a full
+  disk stopped it at, and reads every part back against the ROM before
+  moving on.
+  **It dumps the emulated Series 5's whole 6 MB ROM** — six 1 MB parts,
+  every one read back and compared with the ROM —
+  in `bash tests/integration/test-er1-romdump.sh`, which puts it on the
+  machine's desktop and opens it there.
+  Getting it to that point turned up something worth knowing for anything
+  else built for these machines: a Series 5's **ARM710a is ARMv3**, with
+  no BX and no 64-bit multiply, and it does not fault on either — the
+  encodings alias data-processing space, so a compiler's division by a
+  constant silently returns nonsense. That is what made the first build
+  panic with KERN-EXEC 3; `tools/e32/armv3check.mts` now fails the build
+  if one gets in.
+  Because a prototype is the one machine whose numbers nobody has
+  measured, the program **checks itself against the machine it is on**:
+  it walks that machine's own ROM directory, finds its `EFSrv.dll`, and
+  recognises each call it makes by what only that call does, rather than
+  trusting the ordinals it was built with — and calls what it finds. It
+  writes `ROMDUMP.LOG` after every line, so a run that dies says exactly
+  where, on a machine whose only error message is "KERN-EXEC 3".
+  And because a prototype might not have that library at all, the
+  second build **needs no library**: the file server's client side —
+  connect, open, replace, read, write, close — is written out inside
+  the program over the kernel's executive calls, which are in the
+  instruction set rather than in a file. Both builds carry both ways
+  and take whichever answers. What that cost was finding, in the
+  machine's own EUser and EKern, that creating a session is only half
+  of connecting: the kernel hands back a good handle, and until the
+  server is sent function −1 it will answer the first real request by
+  killing the thread that sent it, with no panic and no log.
+  [`tools/romdump-er1/HOW-TO-USE.md`](tools/romdump-er1/HOW-TO-USE.md) is
+  the guide for someone holding the machine;
+  [`docs/series5-prototype-rom-dumping.md`](docs/series5-prototype-rom-dumping.md)
+  records how each ordinal was identified, what R1's loader actually
+  checks, and how the CPU was caught.
+
 Every device has a committed golden screenshot in `tests/golden/`; run
 `bash tests/boot/test-boot.sh --all` to re-verify locally.
 
@@ -340,7 +400,7 @@ wasm/       Emscripten WASM layer with Embind exports
 frontend/   React + TypeScript web app (Vite)
 applib/     Source for the in-app software library (see applib/README.md)
 scripts/    Build / asset scripts, plus the public-mirror sync
-desktop/    Electron shell for the native Windows / macOS apps
+desktop/    Electron shell for the native Windows / macOS / Linux apps
 harness/    Native (non-WASM) host driver for the core
 tools/      Programs that run on the emulated machines (see tools/README.md)
 tests/      Boot validation, integration, unit tests (see tests/README.md)
@@ -365,18 +425,104 @@ cd frontend && npm run dev        # local dev server
 App icons / share images are generated from `favicon.svg` and committed; only
 re-run `cd frontend && npm run icons` if the logo changes.
 
-## Desktop apps (Windows / macOS)
+## Desktop apps (Windows / macOS / Linux / Raspberry Pi)
 
 An Electron shell in `desktop/` turns the emulator into a native app: a
 borderless, resizable window that is nothing but the machine, locked to its
 aspect ratio, with a device switcher on `Ctrl/Cmd+K`.
 
+Download a build:
+
+- **macOS (Apple silicon)** — [Psion-Emulator-macOS-arm64.dmg](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-macOS-arm64.dmg)
+- **Windows (64-bit)** — [Psion-Emulator-Windows-x64-Setup.exe](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Windows-x64-Setup.exe)
+- **Linux (64-bit)** — [Psion-Emulator-Linux-x64.AppImage](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-x64.AppImage), or [Psion-Emulator-Linux-x64.deb](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-x64.deb) on Debian/Ubuntu
+- **Raspberry Pi (64-bit Pi OS)** — [Psion-Emulator-Linux-arm64.deb](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-arm64.deb), or [Psion-Emulator-Linux-arm64.tar.gz](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-arm64.tar.gz)
+- [All downloads](https://github.com/joehaines/psion/releases/tag/desktop-latest), including the no-installer `.zip` builds
+
+All are **unsigned** (see below), so macOS and Windows will resist running
+one. On Windows, choose *More info → Run anyway*. On macOS, Gatekeeper
+reports the app as "damaged" instead of the usual "unidentified developer"
+prompt — the right-click-to-open trick doesn't clear that. Move it to
+Applications, then run this once in Terminal to clear the quarantine flag the
+browser added:
+
+```
+xattr -cr /Applications/Psion\ Emulator.app
+```
+
+Linux objects to nothing; `chmod +x` the AppImage and run it.
+
+### On a Raspberry Pi
+
+A Pi 4 or 5 running the **64-bit** Raspberry Pi OS. 32-bit Pi OS is not
+supported: Electron's armv7l builds have been unmaintained for years, and a
+32-bit userland caps the emulator's heap below what the ARM machines
+(Series 5mx, Revo, Series 7) want.
+
+```sh
+sudo apt install ./Psion-Emulator-Linux-arm64.deb
+psion-emulator-desktop
+```
+
+The `.tar.gz` is the same app for any other arm64 Linux, or for a Pi where
+you would rather not install anything — untar it, `cd` in, and run
+`./psion-emulator-desktop`. There is deliberately no arm64 AppImage:
+AppImage needs FUSE 2, which Raspberry Pi OS has not shipped by default
+since Bookworm, and "install libfuse2 first" is a poor greeting.
+
+Unlike the `.deb`, nothing runs afterwards to fix up the permissions on
+Chromium's `chrome-sandbox` helper, so on a kernel without unprivileged
+user namespaces the tarball build aborts with a message about the SUID
+sandbox. Either grant the helper what it wants, once:
+
+```sh
+sudo chown root:root chrome-sandbox && sudo chmod 4755 chrome-sandbox
+```
+
+or start it with `--no-sandbox`. The `.deb` needs neither.
+
+Two things worth knowing on a Pi:
+
+- **It is not fast.** The engine is WebAssembly, and a Pi 4 runs the SIBO
+  machines comfortably but the ARM ones (Series 5mx, Series 7) below full
+  speed. A Pi 5 is markedly better.
+- **If the window comes up black**, the GPU stack is the usual culprit —
+  run `psion-emulator-desktop --disable-gpu` and it will fall back to
+  software rendering.
+
+### Offline
+
+The app needs no network connection, on any platform. Everything it reads —
+the engine, the ROMs, the device artwork — is inside the download and is
+served from disk over the app's own `app://` scheme, and the Content-Security
+Policy the shell sets names no remote origin at all, so the renderer *cannot*
+reach the network even if something later tries to. Usage reporting, the app
+library and the leaderboard are web-only features, compiled out of the
+desktop bundle rather than merely disabled. `desktop/test/offline.test.mts`
+holds that line in CI.
+
+(The one exception is the emulated modem's "real internet" mode, which is
+opt-in, user-driven, and blocked by that same CSP in the packaged app; the
+canned offline zone it ships with works as usual.)
+
+### Building them yourself
+
+The "Build Desktop Apps" workflow produces the releases — one job per
+platform, publishing into the rolling `desktop-latest` release under those
+fixed filenames, which is what lets the site link straight at them. Or:
+
 ```sh
 bash scripts/build-desktop.sh dir     # unpacked app for this platform
 bash scripts/build-desktop.sh mac     # .dmg + .zip  (needs a macOS host)
 bash scripts/build-desktop.sh win     # NSIS .exe + .zip
+bash scripts/build-desktop.sh linux   # .deb + .AppImage (x64) and .deb + .tar.gz (arm64)
 cd desktop && npm run dev             # run it framed, with devtools
 ```
+
+Linux is the one target that cross-builds: an x64 Linux host produces the
+arm64 Raspberry Pi packages too, because nothing in the app is compiled
+per-architecture — electron-builder pairs the same JavaScript with a
+different prebuilt Electron.
 
 The renderer is the same web app, built by `frontend/vite.desktop.config.ts`
 and served over a registered `app://` scheme — not `file://`, which blocks the

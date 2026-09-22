@@ -7,6 +7,7 @@
   "author": "Joe Haines <joehaines@gmail.com>",
   "license": "LicenseRef-PsionWebEmulator",
   "main": "build/main/main/main.js",
+  "desktopName": "psion-emulator-desktop.desktop",
   "scripts": {
     "build:tsc": "tsc -p tsconfig.json",
     "build:preload": "esbuild src/preload/preload.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outfile=build/main/preload/preload.js",
@@ -22,7 +23,8 @@
     "test:packaged": "electron-builder --dir && node test/packaged.spec.mjs",
     "test:aspect": "node --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON test/aspect.test.mts",
     "test:hostfs": "node --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON test/hostfs.test.mts",
-    "test": "npm run test:aspect && npm run test:hostfs && npm run test:capabilities && npm run test:window && npm run test:saves"
+    "test:offline": "node --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON test/offline.test.mts",
+    "test": "npm run test:aspect && npm run test:hostfs && npm run test:offline && npm run test:capabilities && npm run test:window && npm run test:saves"
   },
   "dependencies": {
     "chokidar": "^5.0.0"

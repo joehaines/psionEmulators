@@ -28,6 +28,11 @@ const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'revo',        name: 'Revo',                 year: '1999' },
   { id: 'series3c',    name: 'Series 3c',            year: '1996' },
   { id: 'organiser2',  name: 'Organiser II',         year: '1986' },
+  // The line's own starting point — sits right after the II it's the
+  // predecessor of, rather than by its own (earlier) year, for the same
+  // sibling-grouping reason the mc200/mc400 and hc120/workabout pairs
+  // below do.
+  { id: 'organiser1',  name: 'Organiser I',          year: '1984' },
   { id: 'series3',     name: 'Series 3',             year: '1991' },
   { id: 'series3mx',   name: 'Series 3mx',           year: '1998' },
   { id: 'series7',     name: 'Series 7',             year: '2000' },
@@ -40,7 +45,15 @@ const GALLERY: { id: string; name: string; year: string }[] = [
   { id: '5mxpro',      name: 'Series 5mx Pro',       year: '2000' },
   { id: 'workabout',   name: 'Workabout',            year: '1995' },
   { id: 'workaboutmx', name: 'WorkaboutMX',          year: '2000' },
+  // The other sealed industrial handheld of the line, from the same
+  // generation as the original Series 3 — grouped with the Workabout
+  // pair above rather than its own (earlier) year for the same reason.
+  { id: 'hc120',       name: 'HC120',                year: '1991' },
   { id: 'mc400',       name: 'MC400',                year: '1989' },
+  // The MC400's half-height sibling — sits right after it rather than by
+  // its own year, same sibling-grouping reason as the Workabout pair and
+  // the Organiser I above.
+  { id: 'mc200',       name: 'MC200',                year: '1989' },
   { id: 'netpad',      name: 'netPad',               year: '2001' },
   // Geofox Ltd's licensed EPOC clamshell. It sits near the end of this
   // fallback order for the same reason the Conan does — the order is a
@@ -57,10 +70,17 @@ const GALLERY: { id: string; name: string; year: string }[] = [
   { id: 'conan',       name: 'Revo (Conan)',         year: '2001' },
 ];
 
-// Intro shots are JPEGs apart from the netPad's and the Conan's, which ship
-// as PNGs (flat rendered case art — JPEG ringing shows badly on it, and the
-// Conan's is cut out against transparency rather than a background).
-const INTRO_IMAGE_EXT: Record<string, string> = { netpad: 'png', conan: 'png' };
+// Intro shots are JPEGs apart from the netPad's and the Conan's (flat
+// rendered case art — JPEG ringing shows badly on it) and the HC120's, the
+// MC200's and the Organiser I's, which are photos cut out against
+// transparency rather than a background, so they ship as PNGs too.
+const INTRO_IMAGE_EXT: Record<string, string> = {
+  netpad: 'png',
+  conan: 'png',
+  hc120: 'png',
+  mc200: 'png',
+  organiser1: 'png',
+};
 
 // Succinct capability list (kept broad on purpose — see home-page copy
 // review). Rendered as chips with a small yellow brand tab. Save states,

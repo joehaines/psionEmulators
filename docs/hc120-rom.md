@@ -1,86 +1,107 @@
-# Psion HC120: what `roms/hc120_v172f_2.bin` is, and what is missing
+# Psion HC120: the ROM's layout, and how its keyboard was mapped
 
-The HC120 is not emulated, and cannot be from what is in this tree: the ROM
-dump here is one chip of the machine's ROM, and it is not the chip the CPU
-starts executing from. This note records what the file is, how that was
-established, and what is needed to finish the job — the hardware side is
-mostly a known quantity, because the HC is the same SIBO1 chip set as the
-Series 3 and the MC.
+The HC120 is the industrial handheld of the SIBO1 generation — the same
+V30H + ASIC1 + ASIC2 as the Series 3, in a rubber-sealed case with a
+160x80 panel and a 54-key keypad. It is emulated by `Series3::Emulator`
+with an HC config (`makeHC120` in `core/device_registry.cpp`); no new chip
+modelling was needed. Two things about it did need working out, and this
+note records both, because neither is documented anywhere and neither is
+guessable from the files alone.
 
-## What the file is
+## The ROM is two chips, and the top of memory shows one of them twice
 
-`roms/hc120_v172f_2.bin` is 128 KiB of EPOC16 (SIBO) ROM content:
+`roms/hc120/` holds the machine's two 128 KiB flash chips, dumped one per
+file. They are linear halves, not the even/odd interleave the MC's pair
+uses, so `scripts/build-hc120-rom.mts` joins them by concatenation into
+the 256 KiB `roms/hc120_v1.72F.bin`.
 
-* It ends in the CPU's reset vector. The last paragraph of the image reads
-  `EA 00 00 00 A0` — `JMP FAR A000:0000` — followed by the build-date
-  string `010170`. The 8086 fetches its first instruction from `FFFF:0000`
-  = 0xFFFF0, and a reset vector can only be at the top of the 1 MiB space,
-  so **this image maps at 0xE0000-0xFFFFF**.
-* The image is linear code, not an interleaved half. Unlike the MC's two
-  28F010 chips (which hold the even and odd bytes of a 16-bit bus and are
-  joined by `scripts/build-mc200-rom.mts`), this file disassembles and
-  reads as continuous 8086 code with legible strings.
-* It carries OS and application content — `SYS$FSRV.*`, `SYS$SHLL.IMG`,
-  `SYS$NTFY.IMG`, `SYS$NCP.IMG`, `OPL.DYL`, `SCREEN.PIC`, a serial test
-  utility ("TTEST … V2.20F (27/11/91)"), and a print utility
-  ("PPRINT V1.00F") — so it is genuinely part of an HC ROM and not a
-  datapak or an SSD image.
+Where those 256 KiB sit is the interesting part:
 
-## Why it cannot boot on its own
+```
+0x00000-0x7FFFF  RAM (512 KiB on the HC120; 256 on the HC110, 128 on the HC100)
+0x80000-0x9FFFF  unmapped
+0xA0000-0xBFFFF  ROM chip 1 — opens with the SIBO boot block
+0xC0000-0xDFFFF  ROM chip 2
+0xE0000-0xFFFFF  ROM chip 2 again — the reset vector lives here
+```
 
-The reset vector jumps to **A000:0000 = 0xA0000**, which is 256 KiB below
-the bottom of this image. The first instruction the machine executes is in
-a part of the ROM that is not in this tree.
+The evidence for it:
 
-Two further things confirm the missing part rather than a mapping mistake
-on our side:
+* Chip 1 starts `E9 D3 D3 E9 35 D6 E9 37 D6 00 F9 00 …` — the three near
+  jumps and vector table that open every SIBO1 boot block (the MC400's
+  ROM opens the same way at its offset 0, the Series 3's at 0x40000).
+* Chip 2 ends in `EA 00 00 00 A0` — `JMP FAR A000:0000`. A reset vector
+  can only be at 0xFFFF0, so chip 2 answers at the top of memory, and the
+  first instruction the machine runs is at 0xA0000: the boot block at the
+  bottom of chip 1.
+* That leaves 0xC0000-0xDFFFF, which is one chip or the other. Both
+  arrangements were built and run: with chip 2 there the machine boots,
+  with chip 1 there it does not get as far as lighting the panel.
 
-* **No SIBO boot block.** Every SIBO1 ROM in this tree opens its boot block
-  with the same shape: three `E9 xx xx` near jumps followed by a vector
-  table (`00 F7 00 1D 01 2A 01 …`). On the MC400 that block is at ROM
-  offset 0 (mapped at 0xC0000); on the Series 3 it is at ROM offset
-  0x40000 (also mapped at 0xC0000). It appears nowhere in this file.
-* **No ROM:: directory.** The Series 3 and MC400 images carry a directory
-  of 6-byte entries (address + size) against names like `SYS$SHLL.IMG` and
-  `OPL.DYL`. This file has the names only where program code references
-  them as strings — the directory itself is in the missing part.
+So the top 128 KiB window is an alias of the upper chip rather than a
+third chip. The emulator models that as an address decode
+(`Series3::Config::romAliasSize`) rather than baking it into the image, so
+the committed ROM stays exactly what the two chips hold.
 
-## What is missing
+## What it boots into
 
-Published HC specifications give the machine 256 KiB of internal Flash ROM
-(HC110: 256 KiB RAM; HC120: 512 KiB RAM). Two readings fit the evidence,
-and both need the same thing:
+`EPOC/Os V3.95F`, `Rom V1.72F`, `Shell V2.10F`. The ROM holds the OS and a
+command shell — `version`, `free`, `copy`, `delete`, `format`, `type`,
+`date`, `lproc`, `backlight` and the rest — but no applications: on this
+machine those live on an SSD pack. With no pack in it the shell looks for
+`A:AUTOEXEC.BTF`, does not find it, and settles on
 
-1. **256 KiB in two 128 KiB chips**, with the top window mirroring the
-   upper half. This file is then the second chip, and the dump is missing
-   the first — which is what the `_2` suffix suggests, with
-   `hc120_v172f_1.bin` (or `_0`) still to come.
-2. **384 KiB at 0xA0000-0xFFFFF in three chips.** This file is the third,
-   and both earlier chunks are missing.
+```
+(c) Psion PLC 1991
+Insert Pack
+ and press enter
+```
 
-Either way the chunk that holds 0xA0000 — the boot block the reset vector
-jumps to — is the one to find. With it in hand, joining the parts is the
-same one-line job `scripts/build-mc200-rom.mts` does for the MC200 (a
-concatenation here, not an interleave, since these chunks are linear).
+which is the machine working, not the machine stuck. Put a pack in drive A
+with an `AUTOEXEC.BTF` on it and the shell runs it at startup;
+`tests/fixtures/hc120-autoexec.ssd` is exactly that, and the
+`hc120-shell` row in `tests/devices-ssd.txt` boots with it.
 
-## What is already known about the hardware
+## The keyboard, read off the machine
 
-The HC is a SIBO1 machine like the Series 3 and the MC, so it should fall
-out of `core/series3.{h,cpp}` the way the MC200 did — a `Series3::Config`
-and a registry entry, no new chip models:
+There is no MAME driver for the HC, so the key matrix was mapped
+empirically. The shell echoes what you type, which makes the machine its
+own oracle: with `PSION3_TRACE_KB` confirming the ROM scans all ten
+columns, each of the 80 matrix slots was pressed in turn and the character
+that came back read off the panel. The answer is a tidy grid — one matrix
+column per physical keypad row, six keys per row on bits 0x20 (left) down
+to 0x01 (right):
 
-| | |
-|---|---|
-| CPU | NEC V30H (not the MC's 80C86 — so `V30Variant::V30`, no `i8086` cycle scaling) at 3.84 MHz |
-| Chip set | ASIC1 + ASIC2, as the Series 3 |
-| LCD | 160x80 mono |
-| RAM | HC100 128 KiB, HC110 256 KiB, HC120 512 KiB |
-| ROM | 256 KiB Flash, top of the image at 0xFFFFF, boot entry at 0xA0000 |
-| Packs | two SSD slots |
+| col | 0x20 | 0x10 | 0x08 | 0x04 | 0x02 | 0x01 | 0x40 |
+|-----|------|------|------|------|------|------|------|
+| 0 | ESC | MENU | PgUp | PgDn | ← | INFO/→ | `+` |
+| 1 | A | B | C | D | E | F | `.` |
+| 2 | G | H | I | J | K | L | `0` |
+| 3 | M | N | O | P | Q | R | SPACE |
+| 4 | S | T | U | V | W | X | SHIFT |
+| 5 | ↔ | 7 | 8 | 9 | `/` | Y | — |
+| 6 | DEL | 4 | 5 | 6 | `*` | Z | — |
+| 7 | LOCK | 1 | 2 | 3 | `-` | ENTER | — |
 
-The frontend already has a photo skin for the machine at
-`frontend/public/device-skins/hc120.png` (492x1084). Its LCD glass sits at
-left 0.187, top 0.180, width 0.632, height 0.170 of the image — measured
-from the image, and ready for an `EmulatorView` entry once there is a
-device to point it at. A 160x80 panel is 2:1, so the active area inside
-that glass is the full width with a 2:1 box centred in it.
+The 0x40 bits are the keypad's bottom row (SHIFT SPACE 0 . +), running
+right to left as the column index rises. Between the eight rows of six and
+those five, every one of the machine's 54 keys is accounted for.
+
+Each entry above was confirmed by what it produced — letters and digits by
+the character echoed, SPACE by the gap it left between two letters, SHIFT
+by turning `a` into `A`, DEL by removing the character before it, ENTER by
+running the line. The top row is the exception: the shell gives little
+back on it. Its leftmost key visibly edits the input line — type `ab`,
+press it, and the characters before the cursor go — two slots (col0 0x10
+and col0 0x80) echo a glyph that is not in the ASCII font, and the rest do
+nothing you can see at a `$` prompt. None of that identifies a key, so the
+row is mapped by position, in the same left-to-right bit order every other
+row uses: ESC, MENU, PgUp, PgDn, ←, →, which at least puts ESC on the key
+that edits the line.
+
+One consequence for the driver: on the Series 3 and the MC, Esc *is* the
+ON key, wired to ASIC2's OnClr so it can wake the machine from standby,
+and `setKeyboardKey` routes it there instead of to the matrix. The HC has
+both — ESC on the keypad, and a separate ON/OFF button on the case — so
+its config clears `escIsOnKey` and Esc goes to the matrix like any other
+key.

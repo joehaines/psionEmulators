@@ -168,6 +168,7 @@ function Shell({ controls }: { controls: EmulatorControls }) {
   const backlight = useBacklight(controls, false);
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [needsDevice, setNeedsDevice] = useState(false);
   const [keysVisible, setKeysVisible] = useState(false);
   const [skinned, setSkinned] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -248,6 +249,35 @@ function Shell({ controls }: { controls: EmulatorControls }) {
       return () => clearTimeout(t);
     }
   }, [currentDeviceId, host]);
+
+  // ── First run ──────────────────────────────────────────────────────────
+  // useEmulatorWorker resumes `psion-last-device` by itself, but a machine
+  // that was never chosen cannot be resumed: on a fresh install the hook
+  // reaches 'ready' with nothing loaded and no device ever arrives, so the
+  // window sat on "Starting…" indefinitely. The web build lands on the home
+  // gallery in that case; a borderless window has no such page, and
+  // Ctrl/Cmd+K was the only — entirely undiscoverable — way out. Offer the
+  // switcher instead.
+  //
+  // Testing `state === 'ready' && !currentDeviceId` alone would fire on every
+  // launch: a resume awaits quiesceActiveSessions before it reaches
+  // 'loading-rom', so 'ready' with no device renders briefly even when one is
+  // on its way. Re-deriving the hook's own condition is what distinguishes
+  // the two — and it also catches a remembered id that no longer names a
+  // supported profile, which the hook silently declines to load.
+  const pickerDecided = useRef(false);
+  useEffect(() => {
+    if (currentDeviceId) { setNeedsDevice(false); return; }
+    if (pickerDecided.current || state !== 'ready' || !profiles.length) return;
+    let remembered: string | null = null;
+    // A blocked localStorage is the hook's first-run path too, so treat a
+    // throw as "nothing remembered" rather than giving up on the check.
+    try { remembered = localStorage.getItem(LAST_DEVICE_KEY); } catch { /* first run */ }
+    if (remembered && profiles.some((p) => p.id === remembered && p.status === 'supported')) return;
+    pickerDecided.current = true;
+    setNeedsDevice(true);
+    setSwitcherOpen(true);
+  }, [state, currentDeviceId, profiles]);
 
   // ── The native menu's device list ──────────────────────────────────────
   useEffect(() => {
@@ -402,7 +432,10 @@ function Shell({ controls }: { controls: EmulatorControls }) {
           alignItems: 'center', justifyContent: 'center', gap: 10,
           font: '12px ui-monospace, monospace', color: '#3a3a36', background: '#c9c9bd',
         }}>
-          <span>{loadStatus ?? 'Starting…'}</span>
+          <span>
+            {loadStatus
+              ?? (needsDevice ? 'Choose a device — Ctrl/Cmd+K' : 'Starting…')}
+          </span>
           {loadProgress !== null && (
             <div style={{ width: 180, height: 3, background: 'rgba(0,0,0,0.15)' }}>
               <div style={{

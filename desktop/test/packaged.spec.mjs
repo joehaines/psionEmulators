@@ -26,7 +26,7 @@
 
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,15 +42,48 @@ const check = (cond, msg) => {
 };
 
 // Find the unpacked app for whichever platform this is.
+//
+// Two layouts, because electron-builder writes one per platform: Windows and
+// Linux leave the tree at the top of dist/ (`win-unpacked`, `linux-unpacked`),
+// while macOS puts the .app one level down, inside the arch folder it packaged
+// into (`mac-arm64/Psion Emulator.app`). Looking only at the top level finds
+// nothing on macOS, which reads as "no build" directly after a build.
+//
+// The arch filter matters on Linux, where one run builds both: a dist/ with
+// `linux-arm64-unpacked` beside `linux-unpacked` would otherwise hand the
+// arm64 binary to an x64 runner on readdir order alone, and "cannot execute
+// binary file" is a confusing way to learn that.
 const DIST = join(DESKTOP, 'dist');
-const candidates = existsSync(DIST)
-  ? readdirSync(DIST).filter((d) => d.endsWith('-unpacked') || d.endsWith('.app'))
-  : [];
-if (!candidates.length) {
+const isApp = (name) => name.endsWith('-unpacked') || name.endsWith('.app');
+
+// Every arch electron-builder names a directory after, minus this one. An
+// unpacked tree naming any of these is somebody else's build.
+const FOREIGN_ARCHES = ['x64', 'arm64', 'armv7l', 'ia32']
+  .filter((a) => a !== process.arch)
+  .map((a) => `-${a}-`);
+const isForeign = (name) => FOREIGN_ARCHES.some((a) => `${name}-`.includes(a));
+
+function findUnpacked() {
+  if (!existsSync(DIST)) return null;
+  const top = readdirSync(DIST);
+  const direct = top.find((n) => isApp(n) && !isForeign(n));
+  if (direct) return join(DIST, direct);
+  for (const entry of top) {
+    if (isForeign(entry)) continue;
+    const dir = join(DIST, entry);
+    if (!statSync(dir).isDirectory()) continue;
+    const nested = readdirSync(dir).find(isApp);
+    if (nested) return join(dir, nested);
+  }
+  return null;
+}
+
+const unpacked = findUnpacked();
+if (!unpacked) {
   console.error('✗ no unpacked build found — run `npx electron-builder --dir` first');
   process.exit(1);
 }
-const unpacked = join(DIST, candidates[0]);
+console.log(`· testing ${unpacked}`);
 
 const BIN_BY_PLATFORM = {
   linux: join(unpacked, 'psion-emulator-desktop'),
@@ -137,11 +170,13 @@ try {
   check(probe.rom?.status === 200 && probe.rom.length > 0,
         `a ROM serves from resourcesPath with a Content-Length (${JSON.stringify(probe.rom)})`);
 
-  // Either the machine boots, or the renderer says the engine is missing. Both
-  // prove main, the scheme, the bridge and the worker path are working; only a
-  // blank page or a crash would not.
-  const reachedRenderer = /Starting|Loading|engine failed to load|Checking for a saved session/i
-    .test(probe.body);
+  // Either the machine boots, or the renderer says the engine is missing, or —
+  // on the fresh profile a packaged run always has — it offers the device
+  // picker. All three prove main, the scheme, the bridge and the worker path
+  // are working; only a blank page or a crash would not.
+  const reachedRenderer =
+    /Starting|Loading|Choose a device|engine failed to load|Checking for a saved session/i
+      .test(probe.body);
   check(reachedRenderer,
         `the desktop shell rendered (${JSON.stringify(probe.body.trim().slice(0, 80))})`);
 

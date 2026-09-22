@@ -1,18 +1,25 @@
-# Builds the native desktop apps for Windows and macOS.
+# Builds the native desktop apps for Windows, macOS and Linux (including the
+# Raspberry Pi).
 #
-# Manual only for now. The artifacts are UNSIGNED by decision — getting the app
-# right comes first, and notarisation needs certificates in the repo before any
-# of it can be verified — so this produces something you can download and run
-# yourself, not something to hand to a stranger.
+# Manual only. The artifacts are UNSIGNED by decision — getting the app right
+# comes first, and notarisation needs certificates in the repo before any of it
+# can be verified — so a download here is something you run past your own OS's
+# warning, not something that installs quietly.
 #
-# Shape of it: one Linux job builds the WASM engine and uploads it, then the two
-# platform jobs download that and package around it. The alternative — building
-# WASM inside each platform job — would pay for the Emscripten toolchain twice
-# and, worse, could produce two subtly different engines in one release.
+# Shape of it: one Linux job builds the WASM engine and uploads it, the pure
+# tests run beside it, and then ONE JOB PER PLATFORM downloads that engine and
+# packages around it (.github/workflows/desktop-package.yml, called once per
+# platform).
+# Building WASM inside each platform job would pay for the Emscripten toolchain
+# twice and, worse, could produce two subtly different engines in one release.
 #
-# macOS artifacts genuinely require a macOS runner: a .app bundle and a .dmg
-# cannot be cross-compiled. Windows NSIS is built on Windows to avoid needing
-# wine.
+# The per-platform jobs are separate rather than a matrix on purpose: a
+# job-level `if` cannot read the `matrix` context — it is evaluated before the
+# matrix expands — so "build only mac" was not expressible that way. It is the
+# error this file used to fail to parse with.
+#
+# The last job publishes what was built to the rolling `desktop-latest`
+# release, which is where the website's download buttons point.
 
 name: Build Desktop Apps
 
@@ -22,8 +29,15 @@ on:
       platforms:
         description: Which platforms to build
         type: choice
-        default: both
-        options: [both, mac, win]
+        default: all
+        options: [all, mac, win, linux]
+      publish:
+        description: >-
+          Publish to the desktop-latest release (what the site links to).
+          Off means the apps stay as run artifacts, downloadable only by
+          someone signed in to GitHub.
+        type: boolean
+        default: true
 
 jobs:
   # ── The emulator engine, built once ──────────────────────────────────────
@@ -76,99 +90,123 @@ jobs:
         run: npm run test:desktop
         working-directory: frontend
       - name: Main-process suites
-        # Only the ones that need no display: the Electron gates run below,
-        # where a packaged app already exists to point them at.
+        # Only the ones that need no display: the Electron gates run inside the
+        # packaging jobs, where a packaged app already exists to point them at.
         run: |
           npm ci
           npm run test:aspect
           npm run test:hostfs
+          npm run test:offline
         working-directory: desktop
 
-  package:
+  # ── The apps themselves, one job each ────────────────────────────────────
+
+  mac:
     needs: [wasm, tests]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-14
-            target: mac
-          - os: windows-2022
-            target: win
-    runs-on: ${{ matrix.os }}
-    # Skip the platform the caller did not ask for.
-    if: >-
-      github.event.inputs.platforms == 'both'
-      || github.event.inputs.platforms == ''
-      || github.event.inputs.platforms == matrix.target
+    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'mac' }}
+    uses: ./.github/workflows/desktop-package.yml
+    with:
+      target: mac
+      runner: macos-14
+
+  win:
+    needs: [wasm, tests]
+    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'win' }}
+    uses: ./.github/workflows/desktop-package.yml
+    with:
+      target: win
+      runner: windows-2022
+
+  # One job for both Linux architectures. Unlike mac and win, the runner does
+  # not decide what is built: an x64 runner produces the arm64 Raspberry Pi
+  # packages too, because nothing in the app is compiled per-arch —
+  # electron-builder pairs the same JavaScript with a different prebuilt
+  # Electron. The packaged-app smoke test can only launch the x64 one.
+  linux:
+    needs: [wasm, tests]
+    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'linux' }}
+    uses: ./.github/workflows/desktop-package.yml
+    with:
+      target: linux
+      runner: ubuntu-latest
+
+  # ── Publish ──────────────────────────────────────────────────────────────
+  # A single rolling release, `desktop-latest`, holding one installer per
+  # platform under a stable filename. The site links straight at those URLs, so
+  # they must not move when the version bumps — hence --clobber onto a fixed
+  # tag rather than a release per version.
+  #
+  # `always()` so a one-platform run still publishes that platform: the other
+  # job is skipped, not failed, and the assets it uploaded last time stay put.
+  release:
+    needs: [mac, win, linux]
+    if: ${{ always() && inputs.publish && (needs.mac.result == 'success' || needs.win.result == 'success' || needs.linux.result == 'success') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Download the engine
+      - name: Download the built apps
         uses: actions/download-artifact@v4
         with:
-          name: psion-wasm
-          path: frontend/public
+          pattern: psion-desktop-*
+          path: downloads
+          merge-multiple: true
 
-      - name: Install dependencies
-        shell: bash
-        run: |
-          (cd frontend && npm ci)
-          (cd desktop && npm ci)
-
-      - name: Build the renderer
-        shell: bash
-        run: cd frontend && npm run build:desktop
-
-      - name: Build main and preload
-        shell: bash
-        run: cd desktop && npm run build:main
-
-      - name: Prune assets the desktop app never draws
-        shell: bash
-        # Keeps skins/ and device-skins/ — the first IS the screen artwork, the
-        # second is what makes the Organiser II usable. See
-        # scripts/build-desktop.sh for the full reasoning.
-        run: |
-          cd desktop/build/renderer
-          rm -rf api mame-3a intro
-
-      - name: Package
-        shell: bash
-        # UNSIGNED: CSC_IDENTITY_AUTO_DISCOVERY off stops electron-builder
-        # hunting for a keychain identity on the macOS runner and failing when
-        # it finds none.
+      - name: Publish to the desktop-latest release
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd desktop
-          if [ "${{ matrix.target }}" = "mac" ]; then
-            npx electron-builder --mac dmg zip
+          set -eu
+          cat > notes.md <<'NOTES'
+          The Psion emulator as a native app: one window that is nothing but the
+          machine, with its state saved to disk, a shared card folder and a
+          folder synced over the emulated Remote Link cable.
+
+          - **macOS** — `Psion-Emulator-macOS-arm64.dmg` (Apple silicon)
+          - **Windows** — `Psion-Emulator-Windows-x64-Setup.exe`
+          - **Linux** — `Psion-Emulator-Linux-x64.AppImage`, or
+            `Psion-Emulator-Linux-x64.deb` on Debian/Ubuntu
+          - **Raspberry Pi** (64-bit Pi OS, Pi 4 or later) —
+            `Psion-Emulator-Linux-arm64.deb`, installed with
+            `sudo apt install ./Psion-Emulator-Linux-arm64.deb`. The
+            `.tar.gz` is the same app for any other arm64 Linux, or for a Pi
+            where you would rather not install anything: untar it, `cd` in,
+            and run `./psion-emulator-desktop` (see the README if it
+            complains about the SUID sandbox).
+
+          These builds are **unsigned**, so the OS will warn about them:
+          on macOS open the app from its right-click menu the first time,
+          on Windows choose *More info → Run anyway*. Linux does not warn —
+          mark the AppImage executable (`chmod +x`) and run it.
+
+          The app works with no network connection: the ROMs, the engine and
+          every asset are inside the download.
+
+          Rolling release — the files are replaced in place by each build, so
+          the download links keep working. The `.zip` builds of macOS and
+          Windows are attached to the workflow run that produced them.
+          NOTES
+
+          if ! gh release view desktop-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create desktop-latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Psion Emulator — desktop apps" \
+              --notes-file notes.md
           else
-            npx electron-builder --win nsis zip
+            gh release edit desktop-latest --repo "$GITHUB_REPOSITORY" --notes-file notes.md
           fi
 
-      - name: Check the packaged app starts
-        shell: bash
-        # Runs against the ARTIFACT, not the source tree. That distinction is the
-        # whole point: a runtime dependency left in devDependencies is absent
-        # from the archive and the packaged app fails to start, while every
-        # source-tree test passes — which is exactly how chokidar shipped
-        # missing once.
-        run: |
-          cd desktop
-          node test/packaged.spec.mjs
-
-      - name: Upload the app
-        uses: actions/upload-artifact@v4
-        with:
-          name: psion-desktop-${{ matrix.target }}
-          path: |
-            desktop/dist/*.dmg
-            desktop/dist/*.exe
-            desktop/dist/*.zip
-          retention-days: 14
-          if-no-files-found: error
+          # Installers only — except on Linux, where the arm64 .tar.gz IS an
+          # installer of sorts: it is the only form a Pi without FUSE 2 can
+          # run, so it ships. The mac/win .zips are the same app again at
+          # ~300 MB each and stay on the run that built them.
+          shopt -s nullglob
+          assets=(downloads/*.dmg downloads/*.exe downloads/*.AppImage
+                  downloads/*.deb downloads/*.tar.gz)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "No installers were produced — nothing to publish." >&2
+            exit 1
+          fi
+          gh release upload desktop-latest "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber

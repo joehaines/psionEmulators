@@ -98,6 +98,19 @@ osaris    | Osaris_v1.02(209)_eng.bin       | 35 | 200
 # was thrown into an unwritten interrupt vector mid-checksum. A
 # regression there shows up here as a blank panel.
 mc200     | MC200_v2.12F.bin                | 10 | 200 | --min-mdrive-subdirs 0
+# hc120: the 1991 industrial handheld — the same V30H + ASIC1 + ASIC2 as
+# the Series 3 behind a 160x80 panel. Its ROM holds EPOC/Os V3.95F and a
+# command shell but no applications: those live on an SSD pack, so with
+# no pack in it the machine cold-boots to "(c) Psion PLC 1991 / Insert
+# Pack / and press enter" and waits, at variance ~465. The hc120-shell
+# row in devices-ssd.txt is the one that gets a prompt.
+#
+# The ROM image is the two chip dumps in roms/hc120/ joined by
+# scripts/build-hc120-rom.mts. It is 256 KiB at 0xA0000-0xDFFFF with the
+# top 128 KiB of the address space aliasing the upper chip — this row
+# gates that decode (Series3::Config::romAliasSize): get it wrong and the
+# reset vector at 0xFFFF0 reads as something else and nothing boots.
+hc120     | hc120_v1.72F.bin                | 10 | 200 | --min-mdrive-subdirs 0
 #
 # (After the V30Variant::I8086 + cycle-scaling + cold-boot RAM-fill +
 # RAM-mirror-removal fixes the MC400 boot ROM now passes its RAM POST,

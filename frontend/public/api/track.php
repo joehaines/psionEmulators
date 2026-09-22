@@ -38,7 +38,7 @@ $ALLOWED_DEVICES = [
     '5mx', '5mxpro', 'mc218', 'osaris', 'geofox', 'series5', 'series7', 'revo',
     'conan', 'netbook', 'netpad', 'series3', 'pocketbk', 'mc400',
     'mc400v126', 'conanv001', 'series3a', 'pocketbk2', 'series3c', 'series3mx', 'siena',
-    'workabout', 'workaboutmx', 'organiser1', 'organiser2', 'mc200',
+    'workabout', 'workaboutmx', 'organiser1', 'organiser2', 'mc200', 'hc120',
 ];
 $ALLOWED_EVENTS = [
     'load', 'session', 'cf_attach', 'speaker_on', 'mic_on',

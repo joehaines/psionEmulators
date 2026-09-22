@@ -61,6 +61,7 @@ enum class Model {
     Series3,    // 1991 handheld, 240x80 LCD upscaled to 480x160
     MC400,      // 1989 clamshell laptop, 640x400 mono LCD (dual-plate)
     MC200,      // 1989 clamshell laptop, 640x200 mono LCD (single-plate)
+    HC120,      // 1991 industrial handheld, 160x80 mono LCD
 };
 
 struct KeyMatrixEntry {
@@ -75,6 +76,7 @@ using KeyMatrixFn = KeyMatrixEntry(*)(EpocKey);
 
 KeyMatrixEntry series3KeyMatrix(EpocKey key);
 KeyMatrixEntry mc400KeyMatrix(EpocKey key);
+KeyMatrixEntry hc120KeyMatrix(EpocKey key);
 
 struct Config {
     Model       model         = Model::Series3;
@@ -121,6 +123,16 @@ struct Config {
     uint32_t    romBase       = 0x80000;   // upper half of 1 MiB
     bool        mirrorRom     = true;      // Series 3 mirrors a 512K image; MC400 doesn't
 
+    // Extra ROM window above the chips' own range. Some SIBO1 machines
+    // decode their ROM into more of the address space than the chips
+    // fill: the HC120's 256 KiB pair answers at 0xA0000-0xDFFFF, and the
+    // top 128 KiB window (0xE0000-0xFFFFF) reads the upper chip a second
+    // time — it has to answer something, because the CPU fetches its
+    // reset vector from 0xFFFF0. Setting this to N makes the last N bytes
+    // of the image answer for the top N bytes of the address space; 0
+    // (the default) leaves the plain romBase decode alone.
+    size_t      romAliasSize  = 0;      // HC120: 0x20000
+
     // RAM-decoder mask. Series 3 decodes only the bottom 256 KiB
     // (0x00000-0x3FFFF, mask = ramSize-1 with no upper bound) — addresses
     // 0x40000-0x7FFFF are unmapped. The MC400 wires the same 256 KiB chip
@@ -143,6 +155,16 @@ struct Config {
 
     // Keyboard matrix translator. Defaults to the Series 3 layout.
     KeyMatrixFn keyMatrix     = &series3KeyMatrix;
+
+    // Whether Esc is the machine's ON key. On the Series 3 and the MC the
+    // two are the same key, wired to ASIC2's OnClr input rather than to
+    // the keyboard matrix so that it can wake the machine from standby —
+    // so setKeyboardKey routes Esc there and never to the matrix. The
+    // HC120 has both: ESC on the keypad and a separate ON/OFF button on
+    // the case, so its Esc belongs on the matrix like any other key — and
+    // EStdKeyOff drives OnClr in its place, which is what the frontend's
+    // ON button sends.
+    bool        escIsOnKey    = true;
 
     // SSD pack slot count (Series 3 / MC400 both ship 2: Pack A on
     // ASIC2 channel 1, Pack B on channel 2).

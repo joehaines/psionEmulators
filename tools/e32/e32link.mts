@@ -43,9 +43,11 @@ export interface ImportBlock { dll: string; ordinals: number[]; }
 const KExecutableImageUid = 0x1000007a;
 const KDynamicLibraryUid = 0x10000079;
 const HEADER_SIZE = 0x7c;
-// The tools version and CPU id the ER5u ROM's own binaries carry. The
-// loader compares iVersion against what it can handle, so it is copied
-// rather than invented.
+// The tools version and CPU id the ER5u ROM's own binaries carry, and
+// the default here. iVersion is the version of the tools that built the
+// image; --tools-version overrides it for an older EPOC, where the
+// binaries of the day carry a lower number (EPOC R1's own RAM-format
+// executables carry 0x00560001 to 0x006e0001).
 const TOOLS_VERSION = 0x00ad0001;
 const CPU_ARM = 0x2000;
 const KInferredRelocType = 0x3000;
@@ -247,7 +249,7 @@ function main(): void {
   h.writeUInt32LE(CPU_ARM, 0x14);
   h.writeUInt32LE(wordSum(bin), 0x18);          // iCheckSumCode
   h.writeUInt32LE(0, 0x1c);                     // iCheckSumData (no data section)
-  h.writeUInt32LE(TOOLS_VERSION, 0x20);
+  h.writeUInt32LE(num(arg('--tools-version', String(TOOLS_VERSION))), 0x20);
   // iTime, a TInt64 of microseconds since year 0 — the same epoch EPOC's
   // TTime uses. Fixed by default so builds are reproducible.
   const t = BigInt(arg('--time', '63183916800000000'));

@@ -198,6 +198,39 @@ static EmuBase *makeMC200() {
     c.ramFillByte = 0xFF;
     return new Series3::Emulator(c);
 }
+// Psion HC120 (1991) — the industrial handheld of the SIBO1 generation:
+// V30H + ASIC1 + ASIC2 like the Series 3, but a 160x80 panel, 512 KiB of
+// RAM and a 256 KiB ROM sitting directly above it. See docs/hc120-rom.md
+// for how the ROM's layout was established from the two chip dumps.
+static EmuBase *makeHC120() {
+    Series3::Config c;
+    c.model       = Series3::Model::HC120;
+    c.displayName = "Psion HC120";
+    c.cpuVariant  = V30Variant::V30H;
+    c.lcdWidth    = 320;     // 160x80 panel, 2x upscale for the UI
+    c.lcdHeight   = 160;
+    c.fbWidth     = 160;
+    c.fbHeight    = 80;
+    c.fbPlates    = 1;
+    c.ramSize     = 0x80000; // 512 KiB (HC120; HC110 has 256, HC100 128)
+    // 256 KiB of flash at 0xA0000-0xDFFFF, with the top 128 KiB window
+    // reading the upper chip again — the reset vector at 0xFFFF0 lives
+    // in that alias and jumps to A000:0000, the boot block at the bottom
+    // of the lower chip. See docs/hc120-rom.md.
+    c.romSize     = 0x40000;
+    c.romBase     = 0xA0000;
+    c.mirrorRom   = false;
+    c.romAliasSize = 0x20000;
+    c.laptopMode  = false;
+    c.lcdId       = 0;
+    c.ssdSlots    = 2;
+    c.keyMatrix   = &Series3::hc120KeyMatrix;
+    // ESC is a key on the keypad here, not the ON button — the HC has a
+    // separate ON/OFF button on the case above the screen.
+    c.escIsOnKey  = false;
+    return new Series3::Emulator(c);
+}
+
 // Psion Series 3c (V30H + ASIC9). SIBO2 bring-up scaffold; the CPU core
 // is still a stub and PsionAsic9 hasn't been ported yet, so the factory
 // exists to let the harness boot Series 3a/3c/3mx ROMs far enough to
@@ -940,6 +973,29 @@ static const DeviceProfile kProfiles[] = {
                 // by the frontend on cold boot from
                 // roms/MC200_V2.12F_system.ssd — the real machine's factory
                 // pack, dumped (it is MAME's mc200_system_disk.bin).
+    },
+    {
+        // Psion HC120 (1991) — the sealed industrial handheld of the
+        // SIBO1 generation. Its ROM carries EPOC/Os V3.95F and a command
+        // shell but no applications: those live on an SSD pack, so with
+        // no pack in it the machine boots to "Insert Pack / and press
+        // enter" and waits. The image is the machine's two flash chips
+        // (roms/hc120/) joined by scripts/build-hc120-rom.mts.
+        //
+        // romVariantId stays 0 and the 0x40000 size is shared with the
+        // MC profiles registered above, so size-based auto-detect still
+        // resolves a bare 256 KiB SIBO image to the MC400 — the HC is
+        // selected by id.
+        "hc120",
+        "Psion HC120",
+        "hc120_v1.72F.bin",
+        0x40000,
+        0,
+        "hc120.png",
+        DeviceStatus::Supported,
+        makeHC120,
+        false,  // No CompactFlash slot
+        2,      // Two SSD pack slots
     },
     {
         "series3a",

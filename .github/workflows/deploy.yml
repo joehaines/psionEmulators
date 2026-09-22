@@ -152,6 +152,21 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-conan-romdump.sh
 
+      # The same for EPOC Release 1: the Series 5 opens the dumper from
+      # its own desktop and dumps its own 6 MB ROM to its RAM disk, and
+      # the parts are checked against the ROM image from outside. Both
+      # builds are run — the ordinary one, and the one with no import
+      # table at all, which finds every call it makes in the machine's
+      # own ROM and is the fallback for a machine that will not load the
+      # first.
+      - name: Run Series 5 ROM-dump validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-er1-romdump.sh
+
+      - name: Run Series 5 ROM-dump validation (no-import build)
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-er1-romdump.sh --no-imports
+
       - name: Upload boot-validation artefacts
         if: ${{ inputs.run_harness_tests && always() }}
         uses: actions/upload-artifact@v4
@@ -235,6 +250,22 @@ jobs:
       # relocation section it has to reproduce byte for byte.
       - name: Check the E32Image packer against the ROM's own binary
         run: node --experimental-strip-types tests/unit/e32-format.mts
+
+      # The EPOC Release 1 ROM dumper (tools/romdump-er1). The first of
+      # these compiles the dumper's own C for this machine against a
+      # stand-in file server and a stand-in ROM, and puts it through a
+      # full disk, a disk smaller than one part, a resumed dump and a
+      # disk that gives back the wrong bytes. The second asks each R1 ROM
+      # in the repository which EFSRV export is which, requires all three
+      # to agree, runs the built binary through the checks R1's own
+      # loader applies, and requires it to hold no instruction a Series
+      # 5's ARMv3 CPU cannot execute. Running it on the machine itself is
+      # the harness test further up.
+      - name: Check the R1 ROM dumper's behaviour
+        run: bash tests/unit/run-er1-romdump-test.sh
+
+      - name: Check the R1 ROM dumper against the machines' own ROMs
+        run: node --experimental-strip-types tests/unit/er1-romdump-image.mts
 
       - name: Build frontend
         run: bash scripts/build-frontend.sh

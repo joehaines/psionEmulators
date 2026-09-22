@@ -56,3 +56,73 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+
+# ── Linux, including the Raspberry Pi ─────────────────────────────────────
+#
+# Two architectures: x64 for a desktop PC, arm64 for a Raspberry Pi 4/5 (or
+# a Pi 3) running a 64-bit OS. 32-bit Raspberry Pi OS is NOT a target —
+# Electron's armv7l builds are long unmaintained, and a 32-bit userland
+# caps the emulator's heap well below what the ARM machines want.
+#
+# Three formats, because on a Pi the obvious one is the one that fails:
+#
+#   deb      The primary Pi path. Raspberry Pi OS is Debian, so this is
+#            what `apt install ./…` expects and what puts the app in the
+#            menu.
+#   tar.gz   The escape hatch, arm64 only. AppImage needs FUSE 2, which
+#            Raspberry Pi OS has not shipped by default since Bookworm
+#            (it has FUSE 3); rather than ask a Pi user to install
+#            libfuse2 before they can try anything, give them a tree they
+#            can untar and run.
+#   AppImage x64 only, where FUSE 2 is still a safe assumption — the
+#            portable one-file download for a desktop Linux that isn't
+#            Debian-based.
+linux:
+  target:
+    - target: deb
+      arch: [x64, arm64]
+    - target: tar.gz
+      arch: [arm64]
+    - target: AppImage
+      arch: [x64]
+  category: Utility
+  icon: resources/icon.png
+  synopsis: Classic Psion palmtops, emulated
+  description: >-
+    Run the classic Psion palmtops natively: Organiser II, the SIBO Series 3
+    family, Siena, Workabout, and the ARM-era Series 5, 5mx, Revo, Series 7
+    and netBook. Every CPU core and peripheral is emulated, and the app needs
+    no network connection.
+  # Pairs with `desktopName` in package.json: Electron uses it as the
+  # Wayland app_id, which is what associates the running window with this
+  # .desktop entry — and therefore with its icon in the dock. Current
+  # Raspberry Pi OS is a Wayland desktop, where the StartupWMClass line
+  # electron-builder writes for X11 does nothing on its own.
+  syncDesktopName: true
+  desktop:
+    entry:
+      # Categories comes from `category:` above; only Keywords is additional.
+      Keywords: psion;emulator;epoc;sibo;organiser;palmtop;
+
+deb:
+  # electron-builder recommends libappindicator3-1 by default, for a tray
+  # icon this app does not create — and the package has not existed since
+  # Debian 11, so on a current Raspberry Pi OS it is an unsatisfiable
+  # recommendation for a feature that isn't there.
+  recommends: []
+  # Spelled out rather than left to electron-builder's defaults because of
+  # Debian's 64-bit time_t transition: `libgtk-3-0` and `libatspi2.0-0` were
+  # renamed with a `t64` suffix in Trixie, so a package that names only the
+  # old ones will not install on a current Raspberry Pi OS, and one that
+  # names only the new ones will not install on Bookworm. The `|`
+  # alternatives satisfy either.
+  depends:
+    - libgtk-3-0 | libgtk-3-0t64
+    - libatspi2.0-0 | libatspi2.0-0t64
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - libuuid1
+    - libsecret-1-0
+    - xdg-utils

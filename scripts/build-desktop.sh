@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# Builds the native desktop apps (Windows + macOS).
+# Builds the native desktop apps (Windows, macOS and Linux).
 #
 # Usage:
 #   source <emsdk>/emsdk_env.sh        # only needed if the WASM isn't built yet
-#   bash scripts/build-desktop.sh [mac|win|all|dir]
+#   bash scripts/build-desktop.sh [mac|win|linux|all|dir]
 #
 # `dir` produces an unpacked app for the current platform without an
 # installer, which is the quickest way to try a change.
 #
 # macOS artifacts REQUIRE a macOS host — there is no cross-compiling a .app.
 # Windows NSIS is best built on Windows; from Linux it needs wine.
+# Linux is the one that cross-builds cleanly: `linux` produces both the x64
+# and the arm64 (Raspberry Pi) packages from an x64 Linux host, because
+# nothing in the app is compiled per-arch — electron-builder downloads the
+# matching Electron and packs the same JavaScript around it.
 
 set -e
 
@@ -87,17 +91,26 @@ echo "--- Step 5: packaging ($TARGET) ---"
 case "$TARGET" in
   mac) npx electron-builder --mac dmg zip ;;
   win) npx electron-builder --win nsis zip ;;
+  # No target list and no --arch: the formats and the architectures both come
+  # from the `linux:` block in electron-builder.yml, which is the only place
+  # that knows a Pi wants a .deb and a .tar.gz rather than an AppImage.
+  linux) npx electron-builder --linux ;;
   dir) npx electron-builder --dir ;;
   all)
-    if [ "$(uname -s)" = "Darwin" ]; then
-      npx electron-builder --mac dmg zip --win nsis zip
-    else
-      echo "  not on macOS — building Windows only."
-      echo "  (a .app/.dmg cannot be cross-compiled; use a macOS host or runner)"
-      npx electron-builder --win nsis zip
-    fi
+    case "$(uname -s)" in
+      Darwin) npx electron-builder --mac dmg zip --win nsis zip ;;
+      Linux)
+        echo "  not on macOS — building Linux and Windows."
+        echo "  (a .app/.dmg cannot be cross-compiled; use a macOS host or runner)"
+        npx electron-builder --linux --win nsis zip
+        ;;
+      *)
+        echo "  building Windows only."
+        npx electron-builder --win nsis zip
+        ;;
+    esac
     ;;
-  *) echo "unknown target: $TARGET (expected mac, win, all or dir)"; exit 1 ;;
+  *) echo "unknown target: $TARGET (expected mac, win, linux, all or dir)"; exit 1 ;;
 esac
 
 echo ""

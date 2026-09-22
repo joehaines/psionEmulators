@@ -1,0 +1,181 @@
+# Builds and packages the desktop app for ONE platform.
+#
+# Called by desktop.yml once per target, so mac, win and linux are separate
+# jobs with their own logs, their own runner and their own pass/fail — rather
+# than one matrix job. That split is also what makes the "which platforms" choice work:
+# a job-level `if` cannot see the `matrix` context (it is evaluated before the
+# matrix expands), so gating a matrix leg on an input is not expressible. One
+# caller per platform, each with a plain `if` on the input, is.
+#
+# The engine is NOT built here: desktop.yml builds the WASM once on Linux and
+# uploads it, and this downloads it. Building it per platform would pay for the
+# Emscripten toolchain twice and could put two subtly different engines in one
+# release.
+
+name: Package Desktop App
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: mac | win | linux — picks the electron-builder targets.
+        required: true
+        type: string
+      runner:
+        description: The runner to package on. macOS artifacts genuinely need a
+          macOS runner (a .app and a .dmg cannot be cross-compiled) and Windows
+          NSIS is built on Windows to avoid needing wine. Linux needs no
+          matching runner at all — it cross-builds its arm64 (Raspberry Pi)
+          packages from the x64 one, since nothing here is compiled per-arch.
+        required: true
+        type: string
+      wasm-artifact:
+        description: Name of the artifact holding the prebuilt engine.
+        required: false
+        default: psion-wasm
+        type: string
+
+jobs:
+  package:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download the engine
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.wasm-artifact }}
+          path: frontend/public
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          (cd frontend && npm ci)
+          (cd desktop && npm ci)
+
+      # ── Build ────────────────────────────────────────────────────────────
+      # The app itself: renderer, then main + preload. Kept apart from the
+      # packaging step below so a compile error reads as a compile error
+      # rather than as a failed electron-builder run.
+
+      - name: Build the renderer
+        shell: bash
+        run: cd frontend && npm run build:desktop
+
+      - name: Build main and preload
+        shell: bash
+        run: cd desktop && npm run build:main
+
+      - name: Prune assets the desktop app never draws
+        shell: bash
+        # Keeps skins/ and device-skins/ — the first IS the screen artwork, the
+        # second is what makes the Organiser II usable. See
+        # scripts/build-desktop.sh for the full reasoning.
+        run: |
+          cd desktop/build/renderer
+          rm -rf api mame-3a intro
+
+      # Run here rather than only in the `tests` job: half of this check reads
+      # the BUILT index.html, and the tests job has no renderer to read. A
+      # remote <link> that survived into the artifact is exactly what it is
+      # for, so it belongs where the artifact exists.
+      - name: Check nothing reaches for the network
+        shell: bash
+        run: cd desktop && npm run test:offline
+
+      # ── Package ──────────────────────────────────────────────────────────
+
+      - name: Package
+        shell: bash
+        # UNSIGNED: CSC_IDENTITY_AUTO_DISCOVERY off stops electron-builder
+        # hunting for a keychain identity on the macOS runner and failing when
+        # it finds none.
+        #
+        # No --arch flag for mac or win, so each runner builds for its own:
+        # arm64 on macos-14, x64 on windows-2022. An Intel Mac build means
+        # adding --x64 here (and a second download link on the site to go with
+        # it). Linux is the exception — its architectures are configured, not
+        # inherited from the runner, because the Raspberry Pi build has to come
+        # off an x64 runner.
+        #
+        # --publish never is NOT optional on a runner. electron-builder reads
+        # the `repository` field in desktop/package.json, notices it is on CI,
+        # and helpfully uploads to GitHub Releases on its own — then fails the
+        # whole step for want of a GH_TOKEN, after every artifact has already
+        # been written. Publishing is the release job's business, and it puts
+        # the files under fixed names this build cannot know about.
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          cd desktop
+          case "${{ inputs.target }}" in
+            mac) npx electron-builder --mac dmg zip --publish never ;;
+            win) npx electron-builder --win nsis zip --publish never ;;
+            # Deliberately no target list and no --arch: which formats, and
+            # which architectures, live in electron-builder.yml's `linux:`
+            # block — it is the only place that knows a Raspberry Pi wants a
+            # .deb and a .tar.gz rather than an AppImage.
+            linux) npx electron-builder --linux --publish never ;;
+          esac
+
+      - name: Check the packaged app starts
+        shell: bash
+        # Runs against the ARTIFACT, not the source tree. That distinction is the
+        # whole point: a runtime dependency left in devDependencies is absent
+        # from the archive and the packaged app fails to start, while every
+        # source-tree test passes — which is exactly how chokidar shipped
+        # missing once.
+        #
+        # Only the runner's own architecture can be launched, so on Linux this
+        # exercises the x64 build and the arm64 packages ride on it being the
+        # same JavaScript around a different prebuilt Electron. xvfb because a
+        # CI runner has no display and Electron will not open a window without
+        # one.
+        run: |
+          cd desktop
+          if [ "${{ inputs.target }}" = "linux" ]; then
+            xvfb-run -a node test/packaged.spec.mjs
+          else
+            node test/packaged.spec.mjs
+          fi
+
+      # Stable names, because the website links straight at them: the release
+      # tag is rolling, so the asset URLs have to survive a version bump that
+      # electron-builder would otherwise write into the filename.
+      - name: Collect the downloads
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p upload
+          shopt -s nullglob
+          case "${{ inputs.target }}" in
+            mac)
+              for f in desktop/dist/*.dmg; do cp "$f" "upload/Psion-Emulator-macOS-arm64.dmg"; done
+              for f in desktop/dist/*.zip; do cp "$f" "upload/Psion-Emulator-macOS-arm64.zip"; done
+              ;;
+            win)
+              for f in desktop/dist/*.exe; do cp "$f" "upload/Psion-Emulator-Windows-x64-Setup.exe"; done
+              for f in desktop/dist/*.zip; do cp "$f" "upload/Psion-Emulator-Windows-x64.zip"; done
+              ;;
+            linux)
+              # electron-builder writes the Debian arch name (amd64), not its
+              # own (x64), so the two .deb globs cannot both be "*arm64*".
+              for f in desktop/dist/*amd64.deb; do cp "$f" "upload/Psion-Emulator-Linux-x64.deb"; done
+              for f in desktop/dist/*arm64.deb; do cp "$f" "upload/Psion-Emulator-Linux-arm64.deb"; done
+              for f in desktop/dist/*arm64.tar.gz; do cp "$f" "upload/Psion-Emulator-Linux-arm64.tar.gz"; done
+              for f in desktop/dist/*.AppImage; do cp "$f" "upload/Psion-Emulator-Linux-x64.AppImage"; done
+              ;;
+          esac
+          ls -lh upload
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v4
+        with:
+          name: psion-desktop-${{ inputs.target }}
+          path: upload/*
+          retention-days: 14
+          if-no-files-found: error

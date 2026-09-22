@@ -22,6 +22,14 @@
 //   benefit — it would cache the app shell against itself across upgrades.
 //   main.tsx calls registerSW() unconditionally though, so rather than
 //   edit it we resolve the virtual module to a no-op.
+//
+//   No Google Fonts. index.html links JetBrains Mono for the web build;
+//   the packaged app's CSP (desktop/src/main/protocol.ts) deliberately
+//   allows no remote origin, so the request was blocked and logged two
+//   console violations on every launch. Stripping the tags here rather
+//   than widening the CSP keeps the app offline-by-construction, and
+//   costs nothing: the only user of that face is the leaderboard's chart
+//   labels, which already name `monospace` as their fallback.
 
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -44,9 +52,22 @@ function stubPwaRegister(): Plugin {
   };
 }
 
+/**
+ * Drop index.html's Google Fonts <link>s from the desktop renderer.
+ * Matches only the two font origins, so an unrelated <link> added to
+ * index.html later still ships.
+ */
+function stripRemoteFonts(): Plugin {
+  return {
+    name: 'psion-strip-remote-fonts',
+    transformIndexHtml: (html) =>
+      html.replace(/^[ \t]*<link\b[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>\r?\n?/gm, ''),
+  };
+}
+
 export default defineConfig({
   base: '/psion/',
-  plugins: [react(), stubPwaRegister()],
+  plugins: [react(), stubPwaRegister(), stripRemoteFonts()],
   define: {
     // Read by lib/desktop/host.ts and by analytics.ts, so the desktop
     // build can tree-shake the web-only paths and never phone home.

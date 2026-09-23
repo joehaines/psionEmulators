@@ -804,8 +804,9 @@ bool setMachineId(unsigned id) { return g_emu && g_emu->setMachineId(id); }
 // ── ROM language variant ──
 // A multilingual ROM carries one set of resources per language and picks
 // between them at boot from a number the emulator supplies. Only the
-// Geofox One has more than one today — English (UK) and English (USA) —
-// and everything else reports a count of 0 so the UI hides the control.
+// Geofox One (English (UK), English (USA)) and the Siena (those two plus
+// Swedish and Spanish) have more than one today, and everything else
+// reports a count of 0 so the UI hides the control.
 // The guest reads the number once during boot, so a change lands on the
 // next reset; see EmuBase::setLanguage.
 int getLanguageCount() { return g_emu ? g_emu->getLanguageCount() : 0; }

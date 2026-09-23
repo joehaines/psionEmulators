@@ -153,6 +153,15 @@ void Emulator::wireChips() {
         asic9.setSibChannelWriter(4, [this](uint16_t f) { m_honda.writeSibFrame(f); });
         // SSD slot 0 is plugged into the Honda slot as the carrier.
         m_honda.attachSsdCarrier(&m_ssd[0]);
+        // Locale straps on port C bits 1/0/5, sensed only while the ROM
+        // drives bit 2 — see scanLocales(). Index bit 0 is pin 1, index
+        // bit 1 pin 0, index bit 2 pin 5.
+        asic9.setPortCdReader([this](uint16_t latched) -> uint16_t {
+            if (!(latched & 0x0004)) return 0;
+            return uint16_t(((m_language & 1) ? 0x02 : 0) |
+                            ((m_language & 2) ? 0x01 : 0) |
+                            ((m_language & 4) ? 0x20 : 0));
+        });
     } else {
         asic9.setSibChannelReader(1, [this]() { return m_ssd[0].readFrame(); });
         asic9.setSibChannelWriter(1, [this](uint16_t f) { m_ssd[0].writeFrame(f); });
@@ -220,6 +229,7 @@ void Emulator::wireChips() {
 void Emulator::loadROM(uint8_t *buffer, size_t size) {
     std::fill(rom.begin(), rom.end(), 0xFF);
     std::memcpy(rom.data(), buffer, std::min(size, rom.size()));
+    scanLocales();
 
     if (!initialised) {
         cpu.reset();
@@ -231,6 +241,80 @@ void Emulator::loadROM(uint8_t *buffer, size_t size) {
         m_mxUart0.reset();
         initialised = true;
     }
+}
+
+// ── Locales: one ROM, four countries (Siena) ──────────────────────────
+//
+// The Siena v4.20f image is not English-only. It holds four complete
+// locale blocks, each on a paragraph boundary and each opening with its
+// country's dialling code:
+//
+//   0xB73F0   44  English (UK)   £, "English"
+//   0xB86F0    1  English (USA)  $, GMT-5 home zone, "USA"
+//   0xB99E0   46  Swedish        SEK, "Swedish"
+//   0xBACE0   34  Spanish        Pts, "Spanish"
+//
+// Every block carries the date/time/number formats, currency, the
+// keyboard translation tables and the OS message table for its country
+// (the messages themselves are English in all four — this is the _eng
+// build). The last 32 bytes of the image, just below the reset vector,
+// are the index: eight segment words at 0xFFFE0, the four above then
+// 0xFFFF for "none".
+//
+// What picks the entry is hardware. At A000:27E9 the kernel's locale
+// setup raises port C bit 2 (A9WPortCDData, I/O 0x24), reads the port
+// back, and builds a 3-bit index from three pins — bit 1 -> 1,
+// bit 0 -> 2, bit 5 -> 4 — then drops bit 2 again and loads
+// es:[index*2] from segment 0xFFFE. The pins are, by every sign, board
+// straps set for the market the machine was built for (MAME's siena.cpp
+// lists the US model's locale switch as unknown); bit 2 looks like the
+// enable that lets them be sensed. An 0xFFFF entry sends the kernel
+// looking for a SYS$CTRY file instead.
+//
+// So the emulator is the factory here: the port C reader below answers
+// that read with the strap pattern for m_language. Only the Siena is
+// wired — the 3a/3c/3mx images carry a single entry, and the Workabout
+// images' four entries are all country 44, with nothing to choose.
+void Emulator::scanLocales() {
+    m_localeCount = 0;
+    if (m_cfg.model != Model::Siena || rom.size() < 0x60000) return;
+    // Linear 0xA0000-0xFFFFF is the top 384 KiB of the image.
+    auto romAt = [this](uint32_t linear) -> size_t {
+        return (rom.size() - 0x60000) + (linear - 0xA0000);
+    };
+    for (int i = 0; i < kMaxLocales; ++i) {
+        size_t at = romAt(0xFFFE0 + 2 * i);
+        uint16_t seg = uint16_t(rom[at] | (rom[at + 1] << 8));
+        if (seg == 0xFFFF) break;
+        uint32_t block = uint32_t(seg) << 4;
+        if (block < 0xA0000 || block > 0xFFFFE) break;
+        size_t b = romAt(block);
+        m_localeCountry[m_localeCount++] = uint16_t(rom[b] | (rom[b + 1] << 8));
+    }
+    // One locale is no choice at all.
+    if (m_localeCount < 2) m_localeCount = 0;
+    if (m_language >= m_localeCount) m_language = 0;
+}
+
+const char *Emulator::getLanguageName(int index) const {
+    if (index < 0 || index >= m_localeCount) return nullptr;
+    switch (m_localeCountry[index]) {
+    case 44: return "English (UK)";
+    case 1:  return "English (USA)";
+    case 46: return "Swedish";
+    case 34: return "Spanish";
+    case 33: return "French";
+    case 49: return "German";
+    case 39: return "Italian";
+    case 31: return "Dutch";
+    default: return "Other";
+    }
+}
+
+bool Emulator::setLanguage(int index) {
+    if (index < 0 || index >= m_localeCount) return false;
+    m_language = index;
+    return true;
 }
 
 void Emulator::executeUntil(int64_t cycles) {

@@ -2290,12 +2290,13 @@ export default function EmulatorView({
         <button onClick={resetDevice} className={btn}>Reset</button>
 
         {/* ── ROM language ──
-            A couple of machines shipped one ROM with two languages in it
-            and chose between them from a number in a settings chip the
-            factory programmed — the Geofox One's English (UK) / English
-            (USA) being the one we emulate. There is no such chip here, so
-            the choice is the user's: picking a language rewrites the
-            settings block the emulated machine reads, and the guest reads
+            A couple of machines shipped one ROM with several languages in
+            it and chose between them from something the factory set: the
+            Geofox One's English (UK) / English (USA) from a number in its
+            settings chip, the Siena's English (UK) / English (USA) /
+            Swedish / Spanish from strap pins on ASIC9's port C. Neither
+            exists here, so the choice is the user's: picking a language
+            rewrites what the emulated machine reads, and the guest reads
             it once, early in boot, which is why this sits next to Reset.
             Hidden entirely on the single-language machines, which is
             every other device in the list. */}

@@ -125,6 +125,13 @@ public:
     void setPortAbReader(std::function<uint16_t()> r) { m_port_ab_r = std::move(r); }
     void setPortAbWriter(std::function<void(uint16_t)> w) { m_port_ab_w = std::move(w); }
 
+    // Port C/D GPIOs. Writes to A9WPortCDData are latched; a read asks
+    // the host reader, handing it that latch so it can answer for pins
+    // the guest is driving (the Siena's locale straps are only sensed
+    // while the ROM holds port C bit 2 high). With no reader installed a
+    // read returns 0, as it always has.
+    void setPortCdReader(std::function<uint16_t(uint16_t)> r) { m_port_cd_r = std::move(r); }
+
     // PCM codec sample IO (8 kHz nominal). in() is called when
     // A9WControl's SoundDir bit selects capture; out() when playing.
     void setPcmIn(std::function<uint8_t()> r) { m_pcm_in = std::move(r); }
@@ -322,6 +329,7 @@ private:
     uint16_t m_a9_port_ab_ddr        = 0;
     uint8_t  m_a9_port_c_ddr         = 0;
     uint8_t  m_a9_port_d_ddr         = 0;
+    uint16_t m_a9_port_cd_data       = 0;
 
     uint8_t  m_a9_psel_6000          = 0;
     uint8_t  m_a9_psel_7000          = 0;
@@ -363,6 +371,7 @@ private:
     std::function<void(uint8_t)>        m_col_cb;
     std::function<uint16_t()>           m_port_ab_r;
     std::function<void(uint16_t)>       m_port_ab_w;
+    std::function<uint16_t(uint16_t)>   m_port_cd_r;
     std::function<uint8_t()>            m_pcm_in;
     std::function<void(uint8_t)>        m_pcm_out;
     std::function<uint8_t(uint32_t)>    m_mem_reader;

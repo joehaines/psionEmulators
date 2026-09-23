@@ -423,19 +423,23 @@ public:
 	// the choice is the user's to make, and this is the interface for it.
 	//
 	// getLanguageCount() is 0 or 1 on a single-language ROM — nothing to
-	// choose — and the frontend hides the control. Only the Geofox One
-	// has more: its 8 MB image carries English (UK) and English (USA)
-	// side by side, down to two Enroute street-map databases, and the
-	// index lives in the settings PROM the emulator synthesises. See the
-	// language section in core/geofox.h for the whole chain.
+	// choose — and the frontend hides the control. Two machines have
+	// more. The Geofox One's 8 MB image carries English (UK) and English
+	// (USA) side by side, down to two Enroute street-map databases, and
+	// the index lives in the settings PROM the emulator synthesises; see
+	// the language section in core/geofox.h. The Siena's carries four
+	// locales — English (UK), English (USA), Swedish, Spanish — picked by
+	// strap pins on ASIC9 port C; see the locale section in
+	// core/series3c.cpp.
 	//
 	// The index is read once during boot, so setLanguage() takes effect
 	// on the next reset rather than immediately — the same deal as
 	// setMachineId() above, and what the frontend tells the user.
 	virtual int getLanguageCount() const { return 0; }
-	// The name to show for a variant, in the machine's own words: these
-	// are the strings its System screen prints under Language. Returns
-	// nullptr for an index this machine does not have.
+	// The name to show for a variant: on the Geofox the strings its
+	// System screen prints under Language, on the Siena the country the
+	// locale block names. Returns nullptr for an index this machine does
+	// not have.
 	virtual const char *getLanguageName(int index) const { (void)index; return nullptr; }
 	virtual int getLanguage() const { return 0; }
 	// Returns false when the device has no language choice, or when the

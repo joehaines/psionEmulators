@@ -172,8 +172,9 @@ export interface PsionModule {
   // ── ROM language variant ──────────────────────────────────────────
   // A multilingual ROM carries one set of resources per language and
   // picks between them at boot. getLanguageCount() is 0 or 1 where there
-  // is nothing to choose — only the Geofox One has two, English (UK) and
-  // English (USA). The guest reads the choice once during boot, so
+  // is nothing to choose. The Geofox One has two, English (UK) and
+  // English (USA); the Siena has those plus Swedish and Spanish (see
+  // core/series3c.cpp). The guest reads the choice once during boot, so
   // setLanguage() lands on the next reset. Optional so a psion.wasm that
   // pre-dates the bindings still loads; the UI hides the control then.
   getLanguageCount?(): number;

@@ -134,6 +134,17 @@ public:
     int32_t     getClockSpeed() const override { return m_cfg.busClockHz; }
     const char *getDeviceName() const override { return m_cfg.displayName; }
 
+    // ── ROM language variant (Siena) ────────────────────────────────────
+    // The Siena's v4.20f image carries four locales — English (UK),
+    // English (USA), Swedish and Spanish — and picks one at boot from
+    // three strap pins on ASIC9 port C. The strap is what we supply, so
+    // the choice is the user's; see the locale section in series3c.cpp
+    // for the chain. Every other SIBO2 model reports no choice.
+    int getLanguageCount() const override { return m_localeCount; }
+    const char *getLanguageName(int index) const override;
+    int getLanguage() const override { return m_language; }
+    bool setLanguage(int index) override;
+
     int getDigitiserWidth()  const override { return m_cfg.lcdWidth; }
     int getDigitiserHeight() const override { return m_cfg.lcdHeight; }
     int getLCDOffsetX()      const override { return 0; }
@@ -306,6 +317,17 @@ private:
     uint64_t  m_pcmInCount      = 0;
 
     bool initialised = false;
+
+    // Locale table read out of the ROM by scanLocales() (Siena only):
+    // the country code at the head of each locale block the ROM's
+    // top-of-image table points at, in table order. m_language is the
+    // index the port C strap reports — 0, what the ROM's own table
+    // puts first, until the user picks another.
+    static constexpr int kMaxLocales = 8;
+    int      m_localeCount = 0;
+    uint16_t m_localeCountry[kMaxLocales] = {};
+    int      m_language = 0;
+    void scanLocales();
 
     // Keyboard matrix: 8 columns, each an 11-bit row mask. MAME's kbd_r
     // returns OR of all columns currently strobed via A9WControlExtra's

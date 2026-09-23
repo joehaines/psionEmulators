@@ -285,12 +285,25 @@ emulator's PsiWin client can't.
   so with no pack in it the machine boots to *Insert Pack / and press
   enter*, and with one carrying an `AUTOEXEC.BTF` it runs the batch file
   and gives you the `$` prompt: `version`, `free`, `copy`, `format`,
-  `type`, `date` and the rest. Two things about it had to be worked out
-  rather than read: the ROM's two chips sit at 0xA0000-0xDFFFF with the
-  top 128 KiB of the address space showing the upper chip a second time,
-  and the keypad matrix — there is no MAME driver for the HC — was mapped
-  by pressing all 80 matrix slots and reading back what the shell echoed.
-  Both are written up in [`docs/hc120-rom.md`](docs/hc120-rom.md).
+  `type`, `date` and the rest. The machine was first emulated in MAME by
+  Nigel Barnes (the `psionhc` driver), which this port follows for the
+  ROM's placement — its two chips at 0xA0000-0xDFFFF, with the top 128 KiB
+  of the address space showing the upper chip a second time — and for the
+  keypad matrix. See [`docs/hc120-rom.md`](docs/hc120-rom.md).
+- **Siena** — its v4.20f ROM is **four locales in one image**: English
+  (UK), English (USA), Swedish and Spanish, each a complete block of
+  date/time/number formats, currency, keyboard tables and system messages
+  (the messages are English in all four — this is the `_eng` build). Which
+  one a machine runs is read once at boot from three pins on ASIC9's port
+  C — straps, by every sign, set for the market it was sold into — and
+  used to index a table of locale segments just below the reset vector. An emulated Siena has no straps
+  of its own, so the **Language** control next to Reset sets them: pick
+  one, press Reset, and the machine comes up in it. The difference shows
+  wherever the locale does — Swedish and Spanish run a 24-hour clock where
+  UK and USA show am/pm, and each carries its own currency (£, $, SEK,
+  Pts). `tests/integration/test-siena-language.sh` boots all four and
+  checks the machine's live country record in RAM; the chain is written up
+  in the locale section of `core/series3c.cpp`.
 - **Revo (Conan)** — "Conan" is the Revo's successor, emulated from
   `roms/conan_v0.10(17)_eng.IMG`: the ROM of a real machine, dumped off it
   with `tools/romdump` (TRomHeader version 0.10(17), built 2001-06-20,

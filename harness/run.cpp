@@ -8,7 +8,8 @@
 //   --screenshot-every T  write a numbered PGM every T seconds of sim time
 //   --detach-after T      detach the card T seconds after attach
 //   --cycles N            repeat attach/detach N times to stress card state
-//   --language N          pick the ROM's language variant (Geofox: 0 UK, 1 USA)
+//   --language N          pick the ROM's language variant (Geofox: 0 UK, 1 USA;
+//                         Siena: 0 UK, 1 USA, 2 Swedish, 3 Spanish)
 //
 // Logs from the core get a [cycles=...] prefix so they can be correlated with
 // sector-drain / ATA-command traces from vcfcard.cpp (which print direct to
@@ -694,7 +695,8 @@ int main(int argc, char **argv) {
     bool     machineIdHasPrefix = false;
     // --language N: pick the ROM's language variant before the first cycle
     // runs, the same way the frontend's Language control does. Only the
-    // Geofox One has more than one (0 = English (UK), 1 = English (USA));
+    // Geofox One (0 = English (UK), 1 = English (USA)) and the Siena (the
+    // same two, then 2 = Swedish, 3 = Spanish) have more than one;
     // ignored with a warning everywhere else.
     int      languageIndex = -1;
     // --swap-card-path FILE: after the initial card attach + post-attach run,

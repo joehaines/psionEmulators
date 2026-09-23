@@ -153,6 +153,15 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-geofox-language.sh
 
+      # Siena locale: its ROM carries four (English (UK), English (USA),
+      # Swedish, Spanish) and picks one from strap pins on ASIC9 port C,
+      # which the emulator supplies. The System screen it boots to is the
+      # same in all four, so the test boots each and checks which locale
+      # block the kernel copied into RAM as its live country record.
+      - name: Run Siena locale validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-siena-language.sh
+
       # The Conan ROM dumper: an ER5u binary this repo builds itself
       # (tools/e32 writes the E32Image container by hand), swapped into the
       # ROM and run on the machine, with the resulting six 2 MB parts read

@@ -603,8 +603,8 @@ function applyMachineId(override) {
 
 // ── ROM language variant (see the rpc handlers below) ──
 // A multilingual ROM carries one set of resources per language and picks
-// between them at boot. Only the Geofox One has more than one; everything
-// else reports no names and the UI hides the control. Same "did the bindings
+// between them at boot. Only the Geofox One and the Siena have more than
+// one; everything else reports no names and the UI hides the control. Same "did the bindings
 // land?" check as the machine id above.
 function languageReady() {
   return !!(mod && mod.getLanguageCount && mod.getLanguageName

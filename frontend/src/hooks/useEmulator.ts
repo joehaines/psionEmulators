@@ -273,7 +273,12 @@ const IDB_STORE = 'state';
 //       object — cold-boot instead. Only the Geofox's own layout moved
 //       (nothing else changed size or vtable shape), but the stored
 //       schema is global, so every device re-cold-boots once.
-const STATE_SCHEMA_VERSION = 12;
+// v13 = Siena locale straps: PsionAsic9 latches A9WPortCDData and gained
+//       a port C/D reader, and Series3c::Emulator carries the locale
+//       table it reads out of the ROM plus the chosen index. Every SIBO2
+//       device's object grew, so v12 heaps would restore with every
+//       later field shifted — cold-boot instead.
+const STATE_SCHEMA_VERSION = 13;
 
 // Schema versions whose IDB-stored heap blob is still bit-compatible
 // with the current C++ build's struct layout. Used by the restore /
@@ -283,7 +288,7 @@ const STATE_SCHEMA_VERSION = 12;
 // guard if a heap turns out to be incompatible despite being in this
 // set: it falls back to a clean cold boot rather than corrupting the
 // running emulator.
-const RESTORE_COMPATIBLE_VERSIONS = new Set([12]);
+const RESTORE_COMPATIBLE_VERSIONS = new Set([13]);
 
 // Audio enable preferences are now GLOBAL across devices — moved up to
 // the header in b8900a16 — so persist them in localStorage and retain
@@ -829,7 +834,8 @@ export interface EmulatorControls {
   // ── ROM language variant ──────────────────────────────────────────
   // languageNames is empty on every single-language machine (and on an
   // older psion.wasm without the bindings), which is what hides the
-  // control; the Geofox One offers English (UK) and English (USA).
+  // control. The Geofox One offers English (UK) and English (USA); the
+  // Siena those two plus Swedish and Spanish.
   // language indexes into it. setLanguage remembers the choice for this
   // device and applies it to the emulator, but the running OS read the
   // index at boot — the machine has to be reset to come up in it.

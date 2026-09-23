@@ -200,8 +200,9 @@ static EmuBase *makeMC200() {
 }
 // Psion HC120 (1991) — the industrial handheld of the SIBO1 generation:
 // V30H + ASIC1 + ASIC2 like the Series 3, but a 160x80 panel, 512 KiB of
-// RAM and a 256 KiB ROM sitting directly above it. See docs/hc120-rom.md
-// for how the ROM's layout was established from the two chip dumps.
+// RAM and a 256 KiB ROM sitting directly above it. First emulated in MAME
+// by Nigel Barnes (src/mame/psion/psionhc.cpp), whose driver this config
+// follows; see docs/hc120-rom.md.
 static EmuBase *makeHC120() {
     Series3::Config c;
     c.model       = Series3::Model::HC120;

@@ -106,9 +106,9 @@ void Emulator::wireChips() {
         // `m_col_cb(*this, 0xff)` devcb default.
         // PSION3_TRACE_KB=1 — every scan that sees a key down, plus one
         // in every 500 otherwise so an idle machine still shows it is
-        // scanning. This is how the HC120's matrix was mapped: with its
-        // shell up, press a slot and watch which one the ROM reads back
-        // (see core/series3.cpp::hc120KeyMatrix).
+        // scanning. This is how the HC120's matrix was checked against
+        // MAME's: with its shell up, press a slot and watch which one the
+        // ROM reads back (see core/series3.cpp::hc120KeyMatrix).
         if (std::getenv("PSION3_TRACE_KB")) {
             uint8_t v = (col >= 0 && col < 10) ? m_key_row[col] : 0xFF;
             static long n = 0;
@@ -839,34 +839,30 @@ KeyMatrixEntry mc400KeyMatrix(EpocKey key) {
 // ──────────────────────────────────────────────────────────────────────
 // Psion HC120 keyboard.
 //
-// No MAME driver exists for the HC, so this table was read off the
-// machine itself: with the shell up (it echoes what you type), every one
-// of the 80 matrix slots was pressed in turn and the character that came
-// back recorded. What fell out is a tidy grid — one matrix column per
-// physical keypad row, with the six keys of that row on bits 0x20 (left)
-// down to 0x01 (right):
+// The matrix is the one in MAME's psionhc driver (Nigel Barnes,
+// src/mame/psion/psionhc.cpp, INPUT_PORTS psionhc_uk): one matrix column
+// per physical keypad row, with the six keys of that row on bits 0x20
+// (left) down to 0x01 (right):
 //
-//   col0  ESC   MENU  PgUp  PgDn  <-    INFO/->    + (0x40)
+//   col0  ESC   MENU  PgUp  PgDn  <-    INFO/->    + (0x40)  OFF (0x80)
 //   col1  A     B     C     D     E     F          . (0x40)
 //   col2  G     H     I     J     K     L          0 (0x40)
 //   col3  M     N     O     P     Q     R      SPACE (0x40)
 //   col4  S     T     U     V     W     X      SHIFT (0x40)
 //   col5  <->   7     8     9     /     Y
-//   col6  DEL   4     5     6     *     Z
-//   col7  LOCK  1     2     3     -     ENTER
+//   col6  DEL   4     5     6     *     Z      Backlight (0x40)
+//   col7  LOCK  1     2     3     -     ENTER   Contrast (0x40)
 //
-// The 0x40 bits are the bottom row of the keypad (SHIFT SPACE 0 . +),
-// which runs right to left as the column index rises. That accounts for
-// all 54 keys on the machine.
+// The 0x40 bits of col0-4 are the bottom row of the keypad
+// (SHIFT SPACE 0 . +), which runs right to left as the column index
+// rises. OFF, Backlight and Contrast have no EPOC key code to hang off,
+// so they are not mapped here.
 //
-// Everything above was confirmed by the character it produced, except
-// the top row, which the shell gives little back on: its leftmost key
-// visibly edits the input line (the characters before the cursor go),
-// two slots (col0 0x10 and col0 0x80) echo a glyph outside the ASCII
-// font, and the rest do nothing you can see. None of that names a key,
-// so the row is mapped by position in the same left-to-right bit order
-// every other row uses, which at least puts ESC on the key that edits
-// the line.
+// Each key that is mapped was also checked here with the shell up (it
+// echoes what you type): the character that came back for letters,
+// digits and symbols, ESC by it clearing the input line. The rest of the
+// top row gives nothing visible back at a `$` prompt; for those MAME's
+// names stand. See docs/hc120-rom.md.
 KeyMatrixEntry hc120KeyMatrix(EpocKey key) {
     switch (static_cast<int>(key)) {  // ASCII char-literal cases below are intentional
     // ── COL0 — the top row of the keypad, plus '+' ───────────────────

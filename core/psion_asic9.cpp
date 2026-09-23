@@ -137,6 +137,7 @@ void PsionAsic9::reset() {
     m_a9_port_ab_ddr = 0;
     m_a9_port_c_ddr = 0;
     m_a9_port_d_ddr = 0;
+    m_a9_port_cd_data = 0;
     m_a9_psel_6000 = 0;
     m_a9_psel_7000 = 0;
     m_a9_psel_8000 = 0;
@@ -587,8 +588,8 @@ uint16_t PsionAsic9::ioRead(uint32_t offset, uint16_t mask) {
         return uint16_t((m_port_ab_r ? m_port_ab_r() : 0) & ~m_a9_port_ab_ddr);
     case 0x22: // A9WPortABDDR
         return m_a9_port_ab_ddr;
-    case 0x24: // A9WPortCDData (stub, returns 0)
-        return 0;
+    case 0x24: // A9WPortCDData — 0 unless the host wires a reader
+        return m_port_cd_r ? m_port_cd_r(m_a9_port_cd_data) : 0;
     case 0x26: // A9BPortCDDDR
         return uint16_t(m_a9_port_c_ddr | (m_a9_port_d_ddr << 8));
     case 0x28: // A9BPageSelect6000 / 7000
@@ -755,7 +756,8 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
     case 0x22: // A9WPortABDDR (16-bit)
         m_a9_port_ab_ddr = (m_a9_port_ab_ddr & ~mask) | (data & mask);
         break;
-    case 0x24: // A9WPortCDData (stub)
+    case 0x24: // A9WPortCDData — latched for the port C/D reader
+        m_a9_port_cd_data = (m_a9_port_cd_data & ~mask) | (data & mask);
         if (std::getenv("PSION_PACK_TRACE"))
             std::fprintf(stderr, "[a9] PortCD <= %04x mask=%04x\n", data, mask);
         break;

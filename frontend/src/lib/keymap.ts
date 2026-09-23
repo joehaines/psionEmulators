@@ -279,10 +279,8 @@ const ORGANISER2: Record<string, SymEntry> = {
 
 // HC120.  The keypad carries the digits and the four arithmetic symbols
 // as unshifted keys (7 8 9 /, 4 5 6 *, 1 2 3 -, 0 . +), with %, @ and \
-// as the Shift legends of / * and -.  There is no comma, semicolon or
-// quote key on the machine — those characters cannot be typed, so they
-// are absent here rather than mapped to something that would send the
-// wrong key.  Read off the machine: see core/series3.cpp::hc120KeyMatrix.
+// as the Shift legends of / * and -.  Key positions from MAME's psionhc
+// driver (Nigel Barnes); see core/series3.cpp::hc120KeyMatrix.
 const HC120: Record<string, SymEntry> = {
   '.': [_N, C_STOP], '/': [_N, 47], '*': [_N, 42], '-': [_N, 45], '+': [_N, 43],
   '%': [_S, 47], '@': [_S, 42], '\\': [_S, 45],

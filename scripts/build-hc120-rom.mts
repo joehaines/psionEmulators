@@ -11,9 +11,10 @@
 // chips answer at 0xA0000-0xDFFFF, and the top 128 KiB window
 // (0xE0000-0xFFFFF) — which has to answer something, because the CPU
 // fetches its reset vector from 0xFFFF0 — reads the upper chip a second
-// time. The emulator models that alias (Series3::Config::romAliasSize),
-// so the image here stays exactly what the two chips hold. See
-// docs/hc120-rom.md.
+// time. That placement is the one MAME's psionhc driver (Nigel Barnes)
+// gives the same v172f_1 / v172f_2 pair. The emulator models the alias
+// (Series3::Config::romAliasSize), so the image here stays exactly what
+// the two chips hold. See docs/hc120-rom.md.
 //
 //   node --experimental-strip-types scripts/build-hc120-rom.mts \
 //        [roms/hc120] [roms/hc120_v1.72F.bin]

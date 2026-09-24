@@ -278,7 +278,12 @@ const IDB_STORE = 'state';
 //       table it reads out of the ROM plus the chosen index. Every SIBO2
 //       device's object grew, so v12 heaps would restore with every
 //       later field shifted — cold-boot instead.
-const STATE_SCHEMA_VERSION = 13;
+// v14 = ROM language pickers on the ETNA machines: Etna carries how many
+//       PROM bytes its checksum covers, Windermere::Emulator the ROM's
+//       locale table and chosen entry, and Series5::Emulator its locale
+//       flag and index. Those objects grew on every ARM device, so v13
+//       heaps would restore shifted — cold-boot instead.
+const STATE_SCHEMA_VERSION = 14;
 
 // Schema versions whose IDB-stored heap blob is still bit-compatible
 // with the current C++ build's struct layout. Used by the restore /
@@ -618,7 +623,9 @@ interface OsCardSpec {
 // `variant` selects an alternate OS payload for the same device. The default
 // (undefined) is the device's normal OS image; the 5mx Pro and the netBook
 // both also offer the 'eshell' variant, which boots the ESHELL test ROM
-// (roms/ESHELL/SYS$ROM.BIN / roms/ESHELL/OS.IMG) instead of the stock OS.
+// (roms/ESHELL/SYS$ROM.BIN / roms/ESHELL/OS.IMG) instead of the stock OS,
+// and the netBook the 'quartz' variant (roms/OS.IMG, Quartz v6.0). The
+// buttons that offer them come from ALT_BOOTS in lib/easterEggs.ts.
 // The synthesised card is otherwise identical — same size, same on-card file
 // name — so the bootloader loads it exactly as it would the stock image.
 export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpec | null {
@@ -656,6 +663,19 @@ export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpe
       // plenty for an image this size.
       return {
         url: `${import.meta.env.BASE_URL}roms/ESHELL/OS.IMG`,
+        imageSize: 16 * 1024 * 1024,
+        fileName: 'OS.IMG',
+        osVisible: true,
+      };
+    }
+    if (variant === 'quartz') {
+      // The netBook build of Quartz, EPOC's pen UI and the ancestor of
+      // UIQ (roms/OS.IMG, docs/netbook-quartz.md). A 3.6 MB EPOCARM image
+      // the bootloader reads off the card like any other OS.IMG; the same
+      // 16 MiB card tests/boot/test-boot.sh builds for its netbook_quartz
+      // entry.
+      return {
+        url: `${import.meta.env.BASE_URL}roms/OS.IMG`,
         imageSize: 16 * 1024 * 1024,
         fileName: 'OS.IMG',
         osVisible: true,
@@ -835,7 +855,9 @@ export interface EmulatorControls {
   // languageNames is empty on every single-language machine (and on an
   // older psion.wasm without the bindings), which is what hides the
   // control. The Geofox One offers English (UK) and English (USA); the
-  // Siena those two plus Swedish and Spanish.
+  // Siena those two plus Swedish and Spanish; the Series 5, 5mx, 5mx Pro,
+  // MC218 and Revo their English market variants; the Conan French,
+  // German, Spanish, Italian and Dutch as well.
   // language indexes into it. setLanguage remembers the choice for this
   // device and applies it to the emulator, but the running OS read the
   // index at boot — the machine has to be reset to come up in it.

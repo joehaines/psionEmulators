@@ -47,6 +47,11 @@ enum class Variant {
 
 class Emulator : public EmuBase {
 public:
+    // One selectable ROM language: which ELocl<n> / Ekdata<n> it boots
+    // (see the language section further down).
+    struct LocaleEntry { const char *name; uint8_t locale; uint8_t keyboard; };
+    struct LocaleTable { const LocaleEntry *entries; size_t size; };
+
     // Composed ARM710 (T-variant on Windermere — 5mx, Revo, MC218 are all
     // ARM710T parts). Public so helpers like Etna and VCFCard, which take a
     // raw ARM710* in their constructors, can be wired to it directly.
@@ -106,6 +111,21 @@ public:
     uint8_t scratchRegs[0x1000] = {0};
 
 private:
+    LocaleTable localeEntries() const;
+    static LocaleTable localeEntriesFor(Variant v);
+    void scanLocales(const uint8_t *buf, size_t size);
+    // Revo board only: the ROM directory entries the machine loads its
+    // locale and keyboard table from by default, and the { entry, iSize,
+    // iAddressLin } of each numbered DLL that can stand in for them (index
+    // 0 is the default's own). See scanRomLocaleEntries in windermere.cpp.
+    struct RomEntryRef { size_t entryOffset = 0; uint32_t size = 0, addr = 0; };
+    void scanRomLocaleEntries(const uint8_t *buf, size_t size);
+    void repointRomEntry(const RomEntryRef &target, const RomEntryRef &source);
+    RomEntryRef romLocaleTarget, romKeyboardTarget;
+    RomEntryRef romLocaleSource[7], romKeyboardSource[7];
+    int romNameStride = 1;   // 1: 8-bit directory names, 2: UTF-16
+    bool romHasLocales = false;
+    int languageEntry = 0;
     Variant variant_ = Variant::Mx5;
     uint16_t pendingInterrupts = 0;
     uint16_t interruptMask = 0;
@@ -598,6 +618,26 @@ public:
 		return !machineIdPrefixOffsets.empty() || isMx5Pro();
 	}
 	bool setMachineIdPrefix(uint32_t prefix) override;
+
+	// ── ROM language variant ─────────────────────────────────────────
+	// Every Windermere ROM here carries more than one locale DLL. On the
+	// 5mx, 5mx Pro and MC218 the one it boots with comes from the ETNA PROM
+	// (Etna::setLocaleIndices); on the Revo board (Revo, Conan) the ROM's
+	// own directory is edited so the chosen DLL is the one it loads (see
+	// scanRomLocaleEntries). Each entry below names a (locale, keyboard)
+	// pair; the choice is applied straight away and the guest picks it up
+	// on the next boot. The locales were decoded
+	// from each ELocl<n>.dll's TLocale block (docs/rom-audit.md). Where
+	// the keyboard table matching a locale is not known for certain the
+	// entry keeps the UK table rather than guess — a wrong table would
+	// turn the host keyboard's punctuation into someone else's letters.
+	int getLanguageCount() const override { return (int)localeEntries().size; }
+	const char *getLanguageName(int index) const override {
+		auto t = localeEntries();
+		return (index >= 0 && index < (int)t.size) ? t.entries[index].name : nullptr;
+	}
+	int getLanguage() const override { return languageEntry; }
+	bool setLanguage(int index) override;
 	uint8_t *getROMBuffer() override;
 	size_t getROMSize() override;
 	void loadROM(uint8_t *buffer, size_t size) override;

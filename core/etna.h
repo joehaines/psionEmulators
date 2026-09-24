@@ -9,9 +9,16 @@ class ARM710;
 
 class Etna {
     uint8_t prom[0x80] = {};
+    // Bytes covered by the XOR check, the last of them being the checksum:
+    // 0x80 on the Windermere machines, 0x20 on the Series 5.
+    int promChecksumLength = 0x80;
     uint16_t promReadAddress = 0, promReadValue = 0;
     bool promReadActive = false;
     int promAddressBitsReceived = 0;
+    // Data bits clocked out of the current word (0..16); see the
+    // sequential-read note in setPromBit1High.
+    int promDataBitsSent = 0;
+    void loadPromWord();
 
     uint8_t pendingInterrupts = 0, interruptMask = 0;
     uint8_t wake1 = 0, wake2 = 0;
@@ -113,6 +120,28 @@ public:
     static constexpr uint32_t kDefaultMachineId = 0x12345678;
     uint32_t getMachineId() const;
     void setMachineId(uint32_t id);
+
+    // ── Language and keyboard index ───────────────────────────────────
+    // The factory also programmed which locale DLL (ELocl<n>) and keyboard
+    // table (Ekdata<n>) the machine boots with. Both are 3-bit fields in
+    // the first 32-bit word of the PROM: language in bits 18..20 and
+    // keyboard in bits 21..23, i.e. bits 2..4 and 5..7 of byte 2. The
+    // variant's LanguageIndex() / KeyboardIndex() (5mx ROM 0x500875D8 /
+    // 0x500875F0) return exactly those after the XOR check, EKern files
+    // them in TMachineInfoV1 +0xE0 / +0xE4, and the window server loads
+    // ELOCL<n> / EKDATA<n> for n in 1..7. Read once at boot, so a change
+    // lands on the next reset. See docs/rom-audit.md.
+    static constexpr uint8_t kPromLocaleByte = 2;
+    void setLocaleIndices(int language, int keyboard);
+
+    // The Series 5's settings PROM is the same part on the same pins, but
+    // its variant (VArmP2.dll 0x5007E45C) reads only 16 words and checks
+    // the XOR of those 32 bytes against 0x42, so resetImage(0x20) gives it
+    // a blank image of that size. Its PROM was never wired before, so it
+    // always read zeros; an all-zero image changes nothing except that it
+    // now passes the check, and only the fields set afterwards
+    // (setLocaleIndices) differ from what the machine has always seen.
+    void resetImage(int checksumLength);
 
     // Card slot presence — flipped by the emulator when a virtual CF card
     // is attached or detached. Does not latch an insert event; card

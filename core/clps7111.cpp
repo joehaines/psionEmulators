@@ -609,12 +609,10 @@ void Emulator::writeReg8(uint32_t reg, uint8_t value) {
 		uint32_t oldPorts = portValues;
 		portValues &= 0xFF00FFFF;
 		portValues |= (uint32_t)value << 16;
-//		if ((portValues & 0x10000) && !(oldPorts & 0x10000))
-//			etna.setPromBit0High();
-//		else if (!(portValues & 0x10000) && (oldPorts & 0x10000))
-//			etna.setPromBit0Low();
-//		if ((portValues & 0x20000) && !(oldPorts & 0x20000))
-//			etna.setPromBit1High();
+		// Port B bits 0 / 1 are the settings PROM's select and clock on
+		// the machines that have one wired here (the Series 5); the
+		// default hook does nothing, which is right for the Osaris.
+		onPortBWrite(oldPorts, portValues);
 		diffPorts(oldPorts, portValues);
 	} else if (reg == 0x02) {
 		portCData = value;   // Series 5 PortC data

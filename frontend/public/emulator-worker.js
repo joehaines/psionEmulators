@@ -202,7 +202,10 @@ function applyDeviceModePixels(buf) {
 
 // ── IndexedDB (same store the main thread uses, so saves are interoperable) ──
 const IDB_NAME = 'psion-emu', IDB_STORE = 'state';
-const STATE_SCHEMA_VERSION = 11;
+// Must match STATE_SCHEMA_VERSION in src/hooks/useEmulator.ts (see the
+// history there): a heap saved with an older object layout restores with
+// every later field shifted, so a mismatch has to cold-boot instead.
+const STATE_SCHEMA_VERSION = 14;
 function openIDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1);

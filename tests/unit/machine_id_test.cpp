@@ -272,6 +272,50 @@ int main() {
         check(none.empty(), "a card with no copy of the constant yields no offsets");
     }
 
+    // ── Language and keyboard index ────────────────────────────────────
+    //
+    // The variant's LanguageIndex() / KeyboardIndex() read the first 32-bit
+    // word of the image (words 0 and 1, little-endian) and return bits
+    // 18..20 and 21..23. Those are what pick ELocl<n> / Ekdata<n>, so the
+    // test reassembles that word through the guest reader and extracts the
+    // fields the way the ROM does (5mx ROM 0x500875D8 / 0x500875F0).
+    std::printf("== language / keyboard index ==\n");
+    {
+        Etna fresh(&cpu);
+        auto word0 = [&](Etna &e) {
+            return (uint32_t)readPromWord(e, 0) | ((uint32_t)readPromWord(e, 1) << 16);
+        };
+        check(((word0(fresh) >> 18) & 7) == 0 && ((word0(fresh) >> 21) & 7) == 0,
+              "a factory image boots language 0, keyboard 0");
+        fresh.setLocaleIndices(4, 6);
+        const uint32_t w = word0(fresh);
+        check(((w >> 18) & 7) == 4, "language index reads back in bits 18..20");
+        check(((w >> 21) & 7) == 6, "keyboard index reads back in bits 21..23");
+        check(fresh.getMachineId() == Etna::kDefaultMachineId,
+              "the machine ID is untouched by a language change");
+        readPromImage(fresh, image);
+        check(checksumValid(image), "checksum re-folded after a language change");
+        fresh.setLocaleIndices(1, 1);
+        check(((word0(fresh) >> 18) & 7) == 1 && ((word0(fresh) >> 21) & 7) == 1,
+              "a second change replaces the first");
+
+        // The Series 5 reads 16 words and checks the XOR of those 32 bytes
+        // (VArmP2.dll 0x5007E4EC), so its image folds the checksum into
+        // byte 0x1F — and starts out all zero apart from that.
+        Etna s5(&cpu);
+        s5.resetImage(0x20);
+        s5.setLocaleIndices(1, 1);
+        uint8_t chk = 0;
+        for (uint8_t i = 0; i < 16; i++) {
+            const uint16_t v = readPromWord(s5, i);
+            chk ^= (uint8_t)(v & 0xFF);
+            chk ^= (uint8_t)(v >> 8);
+        }
+        check(chk == 0x42, "a Series 5 image XORs to 0x42 over its 32 bytes");
+        const uint32_t s5w = word0(s5);
+        check(s5w == (1u << 18 | 1u << 21), "and carries nothing but the indices in word 0");
+    }
+
     if (g_failures) {
         std::printf("\n%d check(s) FAILED\n", g_failures);
         return 1;

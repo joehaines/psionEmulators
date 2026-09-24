@@ -10,6 +10,8 @@
 #include "hardware.h"
 #include <algorithm>
 #include <cstdlib>
+#include <cctype>
+#include <cstdio>
 #include <cstring>
 #include <time.h>
 #include "common.h"
@@ -539,7 +541,7 @@ void Emulator::writeReg8(uint32_t reg, uint8_t value) {
         if (oldCtrl != buzzerCtrl)
             log("BZCONT8 %02x->%02x (BZMOD=%d BZTOG=%d) pc=%08x",
                 oldCtrl, buzzerCtrl, (buzzerCtrl >> 1) & 1, buzzerCtrl & 1, getGPR(15));
-    } else {
+	} else {
 		scratchRegs[reg & 0xFFF] = value;
 	}
 }
@@ -1428,6 +1430,245 @@ void Emulator::applyMachineIdPrefixToCard() {
 	    machineIdPrefix, machineIdPrefixCardOffsets.size());
 }
 
+// ── ROM language variant ─────────────────────────────────────────────
+// One table per ROM family. The locale index picks ELocl<n>.dll and the
+// keyboard index Ekdata<n>.dll (index 0 is the unsuffixed DLL). What each
+// DLL holds, from its TLocale block and key tables:
+//
+//   5mx v1.05(260)         ELocl1: English, country 44, kr, 24-hour clock,
+//                          '.' date separator ("Scandinavian English");
+//                          Ekdata1 carries the Nordic letters.
+//   5mx Pro / MC218 v1.05  as the 5mx, plus ELocl2 American (country 1,
+//                          $, mm/dd, US keyboard in Ekdata2) and ELocl3 /
+//                          ELocl4, which are the UK locale re-tagged with
+//                          country codes 351 (Portugal) and 36 (Hungary).
+//                          The MC218's ELocl1 carries Sweden's code, 46.
+//   Revo v1.06(390)        ELocl1 Scandinavian, Elocl2 / EkData2 American.
+//   Conan v0.10(17)        ELocl2..6: French, German, Spanish, Italian,
+//                          Dutch — real day and month names, one keyboard.
+//
+// The 5mx Pro's OS (SYS$ROM.BIN, on the card) is the same build as the
+// patched ROM image, so it shares the MC218's table.
+namespace {
+const Emulator::LocaleEntry kLocales5mx[] = {
+	{ "English (UK)",           0, 0 },
+	{ "English (Scandinavian)", 1, 1 },
+};
+const Emulator::LocaleEntry kLocales5mxPro[] = {
+	{ "English (UK)",           0, 0 },
+	{ "English (Scandinavian)", 1, 1 },
+	{ "English (USA)",          2, 2 },
+	{ "English (Portugal)",     3, 0 },
+	{ "English (Hungary)",      4, 0 },
+};
+const Emulator::LocaleEntry kLocalesMc218[] = {
+	{ "English (UK)",           0, 0 },
+	{ "English (Sweden)",       1, 1 },
+	{ "English (USA)",          2, 2 },
+	{ "English (Portugal)",     3, 0 },
+	{ "English (Hungary)",      4, 0 },
+};
+const Emulator::LocaleEntry kLocalesRevo[] = {
+	{ "English (UK)",           0, 0 },
+	{ "English (Scandinavian)", 1, 1 },
+	{ "English (USA)",          2, 2 },
+};
+const Emulator::LocaleEntry kLocalesConan[] = {
+	{ "English (UK)", 0, 0 },
+	{ "French",       2, 0 },
+	{ "German",       3, 0 },
+	{ "Spanish",      4, 0 },
+	{ "Italian",      5, 0 },
+	{ "Dutch",        6, 0 },
+};
+template <size_t N>
+constexpr size_t countOf(const Emulator::LocaleEntry (&)[N]) { return N; }
+} // namespace
+
+Emulator::LocaleTable Emulator::localeEntries() const {
+	return romHasLocales ? localeEntriesFor(variant_) : LocaleTable{ nullptr, 0 };
+}
+
+Emulator::LocaleTable Emulator::localeEntriesFor(Variant v) {
+	switch (v) {
+	case Variant::Mx5:    return { kLocales5mx,    countOf(kLocales5mx) };
+	case Variant::Mx5Pro: return { kLocales5mxPro, countOf(kLocales5mxPro) };
+	case Variant::Mc218:  return { kLocalesMc218,  countOf(kLocalesMc218) };
+	case Variant::Revo:   return { kLocalesRevo,   countOf(kLocalesRevo) };
+	case Variant::Conan:  return { kLocalesConan,  countOf(kLocalesConan) };
+	}
+	return { nullptr, 0 };
+}
+
+// A table is only offered when the ROM actually carries the highest
+// locale DLL it names: the older Conan engineering image shares the
+// Conan variant but has a single ELocl.dll, and a ROM we don't know
+// shouldn't grow a picker that does nothing. Names are matched without
+// regard to case (the Revo spells one "Elocl2.dll"). The 5mx Pro's ROM[]
+// is its bootloader — the OS and its DLLs arrive later on the CF card —
+// so its table is taken on trust.
+//
+// The Revo board can't be steered through the PROM the way the 5mx is.
+// The Revo's variant does read a language and keyboard index from it
+// (the low nibbles of bytes 0x3A / 0x3B, ROM 0x500804B8), but over data
+// lines the emulator has never routed, and routing them means handing the
+// machine a *valid* PROM for the first time, which changes other board
+// settings and leaves it at a blank screen. The Conan doesn't use an index
+// at all: its window server asks the HAL for ELanguageIndex, looks for
+// "ELOCL.%02d", and loads ELOCL.LOC when that isn't there (EwSrv.exe, ROM
+// 0x502A39A8) — no ELOCL.nn is in the ROM, so it always boots the UK
+// ELocl.loc, and its French, German, Spanish, Italian and Dutch DLLs sit
+// unreached beside it.
+//
+// On both, then, the emulator does what a localised ROM build did: the
+// locale the machine boots *is* the chosen one, by editing the ROM's own
+// directory in place (the way loadROM patches the machine UID). Every DLL
+// involved is an XIP image of the same kind, so the loader maps whichever
+// image an entry names:
+//   * Conan: the ELocl.loc entry is pointed at the chosen ELocl<n>.dll.
+//   * Revo: with index 0 its window server loads no locale DLL at all —
+//     the kernel's built-in UK locale stands — but it always tries
+//     ELOCL0 first (EwSrv.exe, ROM 0x50158990). So the ELocl1.dll entry
+//     is renamed ELocl0.dll (same length, and ROM directories here are
+//     searched linearly, not by bisection) and pointed at the chosen DLL.
+//   * Both: the Ekdata.dll entry the kernel loads at boot is pointed at
+//     the chosen keyboard table.
+// Choosing entry 0 puts every edited entry back as the factory built it.
+//
+// A TRomEntry is { TInt iSize; TLinAddr iAddressLin; TUint8 iAtt;
+// TUint8 iNameLength; TText iName[] } padded to a word, 0x10 in iAtt
+// marking a directory. TRomHeader +0x8C is the ROM base and +0x94 the
+// root-directory list { count, { variant, address }[] }. Names are 8-bit
+// on the Revo's build and UTF-16 on the Conan's — see tools/e32/romfs.mts.
+void Emulator::scanRomLocaleEntries(const uint8_t *buf, size_t size) {
+	romLocaleTarget = {};
+	romKeyboardTarget = {};
+	for (auto &r : romLocaleSource) r = {};
+	for (auto &r : romKeyboardSource) r = {};
+	auto u32 = [&](size_t o) -> uint32_t {
+		return o + 4 <= size ? (uint32_t)buf[o] | ((uint32_t)buf[o + 1] << 8) |
+		                       ((uint32_t)buf[o + 2] << 16) | ((uint32_t)buf[o + 3] << 24)
+		                     : 0;
+	};
+	const uint32_t base = u32(0x8C);
+	auto off = [&](uint32_t addr) -> size_t {
+		return (addr >= base && addr - base < size) ? addr - base : SIZE_MAX;
+	};
+	size_t list = off(u32(0x94));
+	if (list == SIZE_MAX || u32(list) == 0 || u32(list) > 8) return;
+	const size_t root = off(u32(list + 8));
+	// The Conan's default locale is ELOCL.LOC; the Revo's the unsuffixed DLL.
+	const char *localeTarget = isConan() ? "elocl.loc" : "elocl.dll";
+	// UTF-16 names have a zero high byte after the first character, which
+	// an 8-bit name ("System", ...) never does.
+	const size_t firstEntry = root == SIZE_MAX ? SIZE_MAX : root + 4;
+	const int stride = (firstEntry != SIZE_MAX && firstEntry + 11 < size &&
+	                    buf[firstEntry + 9] > 1 && buf[firstEntry + 11] == 0) ? 2 : 1;
+	romNameStride = stride;
+	auto numbered = [](const char *name, const char *stem, const char *ext) -> int {
+		const size_t n = std::strlen(stem);
+		if (std::strncmp(name, stem, n) != 0) return -1;
+		if (name[n] < '1' || name[n] > '6' || std::strcmp(name + n + 1, ext) != 0) return -1;
+		return name[n] - '0';
+	};
+	std::vector<size_t> dirs{root};
+	int guard = 0;
+	while (!dirs.empty() && guard++ < 256) {
+		const size_t d = dirs.back(); dirs.pop_back();
+		if (d == SIZE_MAX) continue;
+		const size_t end = d + 4 + u32(d);
+		if (end > size) continue;
+		size_t q = d + 4;
+		while (q + 10 <= end) {
+			const uint32_t esz = u32(q), ea = u32(q + 4);
+			const uint8_t att = buf[q + 8], nl = buf[q + 9];
+			if (q + 10 + (size_t)nl * stride > size) break;
+			char name[64] = {};
+			for (int k = 0; k < nl && k < 63; k++)
+				name[k] = (char)std::tolower(buf[q + 10 + k * stride]);
+			const RomEntryRef ref{ q, esz, ea };
+			int n;
+			if (att & 0x10)
+				dirs.push_back(off(ea));
+			else if (std::strcmp(name, localeTarget) == 0)
+				romLocaleTarget = romLocaleSource[0] = ref;
+			else if (std::strcmp(name, "ekdata.dll") == 0)
+				romKeyboardTarget = romKeyboardSource[0] = ref;
+			else if ((n = numbered(name, "elocl", ".dll")) > 0)
+				romLocaleSource[n] = ref;
+			else if ((n = numbered(name, "ekdata", ".dll")) > 0)
+				romKeyboardSource[n] = ref;
+			q = (q + 10 + (size_t)nl * stride + 3) & ~(size_t)3;
+		}
+	}
+}
+
+void Emulator::scanLocales(const uint8_t *buf, size_t size) {
+	romHasLocales = false;
+	auto t = localeEntriesFor(variant_);
+	if (t.size < 2) return;
+	if (variant_ == Variant::Mx5Pro) { romHasLocales = true; return; }
+	if (isRevoFamily()) {
+		// Every DLL the table names has to be there to be pointed at, and
+		// on the Revo the ELocl1.dll entry that becomes ELocl0.dll.
+		scanRomLocaleEntries(buf, size);
+		romHasLocales = isConan() ? romLocaleTarget.addr != 0
+		                          : romLocaleSource[1].addr != 0;
+		for (size_t i = 0; i < t.size && romHasLocales; i++) {
+			romHasLocales = romLocaleSource[t.entries[i].locale].addr != 0 &&
+			                (t.entries[i].keyboard == 0 ||
+			                 (romKeyboardTarget.addr != 0 &&
+			                  romKeyboardSource[t.entries[i].keyboard].addr != 0));
+		}
+		return;
+	}
+	int maxLocale = 0;
+	for (size_t i = 0; i < t.size; i++)
+		maxLocale = std::max(maxLocale, (int)t.entries[i].locale);
+	char want[16];
+	std::snprintf(want, sizeof(want), "elocl%d.dll", maxLocale);
+	const size_t n = std::strlen(want);
+	for (size_t i = 0; i + n <= size && !romHasLocales; i++) {
+		size_t k = 0;
+		while (k < n && std::tolower(buf[i + k]) == want[k]) k++;
+		romHasLocales = k == n;
+	}
+}
+
+// Point the directory entry at `target` (loaded by default) at the image
+// `source` names. Entry 0 of each source table is the target's own factory
+// values, so choosing index 0 puts the ROM back as it was.
+void Emulator::repointRomEntry(const RomEntryRef &target, const RomEntryRef &source) {
+	if (!target.addr || !source.addr) return;
+	for (int k = 0; k < 4; k++) {
+		ROM[target.entryOffset + k]     = (uint8_t)(source.size >> (8 * k));
+		ROM[target.entryOffset + 4 + k] = (uint8_t)(source.addr >> (8 * k));
+	}
+}
+
+bool Emulator::setLanguage(int index) {
+	auto t = localeEntries();
+	if (index < 0 || index >= (int)t.size) return false;
+	languageEntry = index;
+	if (isRevoFamily()) {
+		// ROM[] is what the guest reads, and the entries are only consulted
+		// when the next boot loads the DLLs — the same deal as the PROM.
+		const int locale = t.entries[index].locale;
+		if (isConan()) {
+			repointRomEntry(romLocaleTarget, romLocaleSource[locale]);
+		} else {
+			// Borrow the ELocl1.dll entry as ELocl0.dll (see above).
+			const RomEntryRef &slot = romLocaleSource[1];
+			ROM[slot.entryOffset + 10 + 5 * romNameStride] = locale ? '0' : '1';
+			repointRomEntry(slot, locale ? romLocaleSource[locale] : slot);
+		}
+		repointRomEntry(romKeyboardTarget, romKeyboardSource[t.entries[index].keyboard]);
+	} else {
+		etna.setLocaleIndices(t.entries[index].locale, t.entries[index].keyboard);
+	}
+	return true;
+}
+
 bool Emulator::setMachineIdPrefix(uint32_t prefix) {
 	if (!canSetMachineIdPrefix()) return false;
 	writeRomWords(ROM, machineIdPrefixOffsets, prefix);
@@ -1442,6 +1683,7 @@ bool Emulator::setMachineIdPrefix(uint32_t prefix) {
 
 void Emulator::loadROM(uint8_t *buffer, size_t size) {
 	memcpy(ROM, buffer, std::min(size, sizeof(ROM)));
+	scanLocales(buffer, size);
 	// The ROM is the only copy of the model UID, so find it before anything
 	// else patches or runs (the host programs the Unique id right after
 	// this returns, before the first instruction).

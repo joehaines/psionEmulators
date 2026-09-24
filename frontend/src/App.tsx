@@ -11,6 +11,8 @@ import EmulatorView, { getSkinFilename, getDeviceSkinPhotoFilename, type SizingM
 import MameFrame from './components/MameFrame';
 import DevicePanel from './components/DevicePanel';
 import Leaderboard from './components/Leaderboard';
+import EasterEggs from './components/EasterEggs';
+import { EASTER_EGGS_HASH } from './lib/easterEggs';
 import DesktopApp from './components/desktop/DesktopApp';
 import { isDesktop } from './lib/desktop/host';
 import AppLibrary from './components/AppLibrary';
@@ -204,6 +206,11 @@ export default function App() {
   // ever runs in the emulator subtree.
   if (route === USAGE_HASH) {
     return <Leaderboard onClose={() => { window.location.hash = ''; }} />;
+  }
+  // The Easter eggs page — static like the leaderboard, linked from Home and
+  // from the hint line under a device that has one (lib/easterEggs.ts).
+  if (route === EASTER_EGGS_HASH) {
+    return <EasterEggs onClose={() => { window.location.hash = ''; }} />;
   }
   if (isAppsRoute(route)) {
     const { device, category, app } = parseAppsRoute(route);

@@ -5658,8 +5658,57 @@ public:
         // virtual overrides (FRBADDR / SYSCON2 / on-chip SRAM all absent,
         // SYSCON 24-bit) live in CLPS7110::Emulator — see
         // core/clps7110.{h,cpp}.
+        // The settings PROM: an empty (all-zero) image until the user
+        // picks a language, exactly what this machine read before the
+        // PROM was wired — see onPortBWrite below.
+        etna.resetImage(0x20);
     }
     const char *getDeviceName() const override { return "Series 5"; }
+
+    // ── Settings PROM and ROM language ────────────────────────────────
+    // VArmP2.dll reads a 16-word PROM at boot (0x5007E45C in v1.01(144)):
+    // port B bit 0 selects the chip, bit 1 clocks it, and the data goes
+    // out and comes back on ETNA register 0x0C bits 2 and 3 — the same
+    // part and protocol as the Windermere machines' identity PROM, which
+    // is why Etna already speaks it. It validates the block (XOR 0x42)
+    // and returns bits 18..20 of the first word as LanguageIndex() and
+    // bits 21..23 as KeyboardIndex() (0x5007E5DC / 0x5007E5F4). Until
+    // these lines were wired it read zeros, failed the check, and every
+    // emulated Series 5 booted index 0.
+    void onPortBWrite(uint32_t oldPorts, uint32_t newPorts) override {
+        if ((newPorts & 0x10000) && !(oldPorts & 0x10000))
+            etna.setPromBit0High();
+        else if (!(newPorts & 0x10000) && (oldPorts & 0x10000))
+            etna.setPromBit0Low();
+        if ((newPorts & 0x20000) && !(oldPorts & 0x20000))
+            etna.setPromBit1High();
+    }
+    // v1.01(144) carries ELocl1.dll — English with the Scandinavian
+    // formats (kr, 24-hour clock) — and Ekdata1.dll with the Nordic
+    // letters; v1.00(113) has only the UK pair, so it offers no choice.
+    void loadROM(uint8_t *buffer, size_t size) override {
+        CLPS7110::Emulator::loadROM(buffer, size);
+        static const char kWant[] = "ELocl1.dll";
+        hasScandinavianLocale = false;
+        const size_t n = sizeof(kWant) - 1;
+        for (size_t i = 0; i + n <= size && !hasScandinavianLocale; i++)
+            hasScandinavianLocale = std::memcmp(buffer + i, kWant, n) == 0;
+        if (!hasScandinavianLocale) language = 0;
+    }
+    int getLanguageCount() const override { return hasScandinavianLocale ? 2 : 0; }
+    const char *getLanguageName(int index) const override {
+        static const char *const kNames[2] = { "English (UK)", "English (Scandinavian)" };
+        return (index >= 0 && index < getLanguageCount()) ? kNames[index] : nullptr;
+    }
+    int getLanguage() const override { return language; }
+    bool setLanguage(int index) override {
+        if (index < 0 || index >= getLanguageCount()) return false;
+        language = index;
+        etna.setLocaleIndices(index, index);
+        return true;
+    }
+    bool hasScandinavianLocale = false;
+    int language = 0;
     size_t getROMSize() override { return 0x600000; }
 
     // Series 5 LCD: 640 x 240, 4 bpp mono, same framebuffer format as 5mx.

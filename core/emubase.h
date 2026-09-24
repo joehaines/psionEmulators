@@ -423,9 +423,14 @@ public:
 	// the choice is the user's to make, and this is the interface for it.
 	//
 	// getLanguageCount() is 0 or 1 on a single-language ROM — nothing to
-	// choose — and the frontend hides the control. Two machines have
-	// more. The Geofox One's 8 MB image carries English (UK) and English
-	// (USA) side by side, down to two Enroute street-map databases, and
+	// choose — and the frontend hides the control. The Series 5, 5mx,
+	// 5mx Pro and MC218 pick theirs from byte 2 of the ETNA settings
+	// PROM (Etna::setLocaleIndices); on the Revo and Conan the emulator
+	// makes the chosen locale the ROM's default by editing its directory
+	// (the locale notes in core/windermere.cpp, docs/rom-audit.md). Two
+	// more are wired differently. The Geofox One's 8 MB image carries
+	// English (UK) and English (USA) side by side, down to two Enroute
+	// street-map databases, and
 	// the index lives in the settings PROM the emulator synthesises; see
 	// the language section in core/geofox.h. The Siena's carries four
 	// locales — English (UK), English (USA), Swedish, Spanish — picked by

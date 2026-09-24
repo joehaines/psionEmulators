@@ -242,6 +242,17 @@ export default function Home({
             you can install straight onto a running device in a single click.
           </p>
           <p className="text-sm sm:text-[0.95rem] mt-3">
+            The ROMs have a few secrets of their own, too: hidden credits, a
+            cheat in the built-in Bombs game and factory test programs. The{' '}
+            <a
+              href="#/eggs"
+              className="text-psion-charcoal font-semibold underline decoration-psion-highlight decoration-2 underline-offset-2 hover:text-psion-highlight transition-colors"
+            >
+              Easter eggs
+            </a>{' '}
+            page lists every one and how to set it off.
+          </p>
+          <p className="text-sm sm:text-[0.95rem] mt-3">
             You can emulate all models with or without the surrounding device
             on display.
           </p>

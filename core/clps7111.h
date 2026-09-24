@@ -132,6 +132,10 @@ protected:
 	// SYSCON1 is 24-bit on PS7110, 32-bit on PS7111. Override to mask
 	// writes so reserved bits stay zero.
 	virtual uint32_t sysConMask()    const { return 0xFFFFFFFFu; }
+	// Called on every 8-bit write to PBDR with the port state before and
+	// after (port B in bits 16..23). The Series 5 clocks its settings
+	// PROM over bits 0 (select) and 1 (clock) — see Series5::Emulator.
+	virtual void onPortBWrite(uint32_t oldPorts, uint32_t newPorts) { (void)oldPorts; (void)newPorts; }
 	// Default value returned for unrecognised SYNCIO read requests.
 	// 0xFFFFFFFF (open-bus floating-high) matches the WindEmu reference
 	// emulator and lets Osaris/MC218/5mx boot. The CL-PS7110 Series 5

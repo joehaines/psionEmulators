@@ -98,11 +98,26 @@ void Etna::setMachineId(uint32_t id) {
     recalcChecksum();
 }
 
+void Etna::setLocaleIndices(int language, int keyboard) {
+    prom[kPromLocaleByte] = (uint8_t)((prom[kPromLocaleByte] & 0x03)
+                                      | ((language & 7) << 2)
+                                      | ((keyboard & 7) << 5));
+    recalcChecksum();
+}
+
+void Etna::resetImage(int checksumLength) {
+    for (int i = 0; i < 0x80; i++)
+        prom[i] = 0;
+    promChecksumLength = checksumLength;
+    recalcChecksum();
+}
+
 void Etna::recalcChecksum() {
+    const int last = promChecksumLength - 1;
     uint8_t chk = 0;
-    for (int i = 0; i < 0x7F; i++)
+    for (int i = 0; i < last; i++)
         chk ^= prom[i];
-    prom[0x7F] = chk ^ 66;
+    prom[last] = chk ^ 66;
 }
 
 
@@ -292,6 +307,13 @@ void Etna::setPromBit0High()
     promReadActive = true;
 }
 
+void Etna::loadPromWord()
+{
+    int addressInBytes = (promReadAddress & kPromWordIndexMask) * 2;
+    addressInBytes %= sizeof(prom);
+    promReadValue = prom[addressInBytes] | (prom[addressInBytes + 1] << 8);
+}
+
 void Etna::setPromBit0Low()
 {
     promReadActive = false;
@@ -310,14 +332,25 @@ void Etna::setPromBit1High()
         promReadAddress |= bit;
         if (++promAddressBitsReceived == kPromFrameBits) {
             // we can fetch the value now
-            int addressInBytes = (promReadAddress & kPromWordIndexMask) * 2;
-            addressInBytes %= sizeof(prom);
-            promReadValue = prom[addressInBytes] | (prom[addressInBytes + 1] << 8);
+            promDataBitsSent = 0;
+            loadPromWord();
         }
     } else {
+        // Sequential read, as on a real 93Cxx: once a word's sixteen bits
+        // are out, further clocks with select still held carry on with the
+        // next word. The Windermere machines reselect for every word and
+        // never get here; the Series 5 sends one READ for word 0 and clocks
+        // out all sixteen words behind it (VArmP2.dll 0x5007E45C).
+        if (promDataBitsSent == 16) {
+            promReadAddress = (uint16_t)((promReadAddress & ~kPromWordIndexMask)
+                                         | ((promReadAddress + 1) & kPromWordIndexMask));
+            promDataBitsSent = 0;
+            loadPromWord();
+        }
         wake1 &= ~8;
         if (promReadValue & 0x8000)
             wake1 |= 8;
         promReadValue <<= 1;
+        promDataBitsSent++;
     }
 }

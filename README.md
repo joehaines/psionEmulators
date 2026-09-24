@@ -64,7 +64,8 @@ emulator's PsiWin client can't.
   image's own `ekeyb.dll`, with no help from the emulator. See
   [docs/netbook-eshell.md](docs/netbook-eshell.md). A third image boots by the
   same path: `roms/OS.IMG` is a netBook build of EPOC's pen-oriented **Quartz**
-  UI, and it runs through the Quartz v6.0 splash to the Quartz app screen. See
+  UI, and it runs through the Quartz v6.0 splash to the Quartz app screen —
+  **Boot Quartz**, next to Boot ESHELL, puts it on the card. See
   [docs/netbook-quartz.md](docs/netbook-quartz.md), which is also the record of
   the two emulator-side bugs it found — both places where a workaround had
   bound itself to one particular OS build (its kernel-data layout, and its
@@ -304,6 +305,26 @@ emulator's PsiWin client can't.
   Pts). `tests/integration/test-siena-language.sh` boots all four and
   checks the machine's live country record in RAM; the chain is written up
   in the locale section of `core/series3c.cpp`.
+- **More ROMs than you'd think are multilingual.** The **Language** control
+  next to Reset also appears on the Series 5 (v1.01), 5mx, 5mx Pro, MC218,
+  Revo and Conan, whose ROMs each carry several locale DLLs. The Series 5
+  and the 5mx family pick theirs at boot from byte 2 of the factory
+  settings PROM, which the emulator now programs (the Series 5's PROM is
+  wired for the first time for it); the choices are English with the UK,
+  Scandinavian or US formats, plus two export builds on the 5mx Pro and
+  MC218. The Revo and Conan boot whatever locale their ROM build made the
+  default, so there the emulator edits the ROM's own directory to make the
+  chosen DLL the default — which on the **Conan** unlocks **French,
+  German, Spanish, Italian and Dutch** dates, days, months and number
+  formats that no emulated Conan had reached. `tests/integration/test-epoc-language.sh`
+  boots each and checks which locale is live in RAM; the audit that found
+  them is [docs/rom-audit.md](docs/rom-audit.md).
+- **Easter eggs.** The ROMs keep a few secrets, and the emulator says how to
+  find them: a one-line hint under a machine that has one, and an
+  **Easter eggs** page (`#/eggs`, linked from the home page) listing them
+  all — the Series 3c / 3mx credits played to "Jerusalem", the cheat mode in
+  the Series 5 family's Bombs, the 5mx Pro bootloader's credits, and the
+  factory test programs left in several ROMs.
 - **Revo (Conan)** — "Conan" is the Revo's successor, emulated from
   `roms/conan_v0.10(17)_eng.IMG`: the ROM of a real machine, dumped off it
   with `tools/romdump` (TRomHeader version 0.10(17), built 2001-06-20,

@@ -23,6 +23,7 @@ import {
 } from '../lib/appLibrary';
 import { trackAppEvent } from '../lib/analytics';
 import { linkConSeq } from '../lib/deviceMeta';
+import { ALT_BOOTS, EASTER_EGGS_HASH, eggsForDevice } from '../lib/easterEggs';
 // Re-exported so App.tsx (and anything else reaching for the header's
 // sizing vocabulary) keeps importing it from the view it belongs to.
 export type { SizingMode, DeviceScale } from '../lib/deviceSizing';
@@ -1557,6 +1558,10 @@ export default function EmulatorView({
   const isSibo       = (deviceInfo?.deviceName?.includes('Series 3') ||
                         deviceInfo?.deviceName?.includes('Pocket Book') ||
                         deviceInfo?.deviceName?.includes('Siena')) ?? false;
+  // Easter eggs this machine can set off (lib/easterEggs.ts). A
+  // bootloader-only egg drops out once the OS card has been read.
+  const deviceEggs = eggsForDevice(currentDeviceId).filter(egg =>
+    !egg.bootloaderOnly || (!controls.cardAttached && !controls.osCardConsumed));
   // Windermere-family clamshell devices with a physical Fn key. Series 7 /
   // netBook is intentionally excluded — its keyboard has a full F1-F10 row
   // and no Fn modifier.
@@ -2290,12 +2295,15 @@ export default function EmulatorView({
         <button onClick={resetDevice} className={btn}>Reset</button>
 
         {/* ── ROM language ──
-            A couple of machines shipped one ROM with several languages in
-            it and chose between them from something the factory set: the
-            Geofox One's English (UK) / English (USA) from a number in its
-            settings chip, the Siena's English (UK) / English (USA) /
-            Swedish / Spanish from strap pins on ASIC9's port C. Neither
-            exists here, so the choice is the user's: picking a language
+            Several machines shipped one ROM with several languages in it
+            and chose between them from something the factory set: a
+            settings PROM on the Geofox One, the Series 5, 5mx, 5mx Pro
+            and MC218, strap pins on ASIC9's port C on the Siena. The
+            Revo and the Conan (whose ROM carries French, German, Spanish,
+            Italian and Dutch) boot whichever locale their ROM build made
+            the default, so there the emulator edits the ROM's directory
+            to make the chosen one the default. None of that exists here,
+            so the choice is the user's: picking a language
             rewrites what the emulated machine reads, and the guest reads
             it once, early in boot, which is why this sits next to Reset.
             Hidden entirely on the single-language machines, which is
@@ -2480,18 +2488,18 @@ export default function EmulatorView({
           {controls.osDownloading ? 'Downloading OS…' : 'Insert CF card containing OS'}
         </button>}
 
-        {/* Boot the ESHELL ROM on the 5mx Pro or the netBook. Same bootloader
-            path as the OS-card button above, but it synthesises the card from
-            the machine's ESHELL image (roms/ESHELL/SYS$ROM.BIN on the 5mx Pro,
-            roms/ESHELL/OS.IMG on the netBook — the 'eshell' osCardSpec
-            variant) instead of the stock OS image. Unlike the OS-card button
-            this one does NOT pulse — ESHELL is an opt-in alternative boot, not
-            the action the user is expected to take, so it stays a quiet static
-            button. */}
-        {(currentDeviceId === '5mxpro' || currentDeviceId === 'netbook') &&
-         !controls.cardAttached &&
-         !controls.osCardConsumed && <button
-          onClick={() => { if (!controls.osDownloading) void controls.attachOsCard('eshell'); }}
+        {/* Alternative boots for the bootloader machines (5mx Pro, netBook).
+            Same bootloader path as the OS-card button above, but the card is
+            synthesised from another OS image — ESHELL's text console on both,
+            Quartz on the netBook (the osCardSpec variants; the list lives in
+            ALT_BOOTS, lib/easterEggs.ts). Unlike the OS-card button these do
+            NOT pulse — they are opt-in alternatives, not the action the user
+            is expected to take, so they stay quiet static buttons. */}
+        {!controls.cardAttached &&
+         !controls.osCardConsumed &&
+         (ALT_BOOTS[currentDeviceId ?? ''] ?? []).map(alt => <button
+          key={alt.variant}
+          onClick={() => { if (!controls.osDownloading) void controls.attachOsCard(alt.variant); }}
           disabled={controls.osDownloading}
           className={[
             'px-3 py-1.5 rounded text-xs font-mono whitespace-nowrap',
@@ -2503,12 +2511,10 @@ export default function EmulatorView({
                  'hover:!bg-psion-accent hover:text-white hover:border-psion-accent',
                  'active:!bg-psion-charcoal active:text-white'].join(' '),
           ].join(' ')}
-          title={currentDeviceId === 'netbook'
-            ? "Boot the ESHELL ROM instead of the stock netBook OS"
-            : "Boot the ESHELL ROM instead of the stock 5mx Pro OS"}
+          title={alt.title}
         >
-          Boot ESHELL
-        </button>}
+          {alt.label}
+        </button>)}
 
         {ssdSlotCount > 0 && <button
           onClick={() => setShowSsdDlg(true)}
@@ -2572,20 +2578,22 @@ export default function EmulatorView({
             currently-running device. */}
       </div>
 
-      {/* Easter-egg hint for the 5mx Pro bootloader. Its bootloader hides a
-          credits page: typing "about" at the bootloader prompt lists the team
-          that built it. We surface that below the control bar while the
-          bootloader is still up, and hide it once the user inserts the OS card
-          (osCardConsumed) — by then the bootloader has handed off to the OS and
-          the command is gone. Scoped to 5mx Pro; the netBook bootloader has no
-          equivalent easter egg. */}
-      {currentDeviceId === '5mxpro' &&
-       !controls.cardAttached &&
-       !controls.osCardConsumed && (
+      {/* Easter-egg hints. One line per egg this machine can set off, from
+          EASTER_EGGS in lib/easterEggs.ts, with a link to the page that lists
+          them all. The 5mx Pro's bootloader "about" is only offered while the
+          bootloader is up: once the OS card has been read (osCardConsumed)
+          the bootloader has handed off and the command is gone. */}
+      {deviceEggs.length > 0 && (
         <div className="px-4 pt-1 text-center text-[11px] font-mono text-psion-charcoal/70">
-          There is a bootloader easter egg, type{' '}
-          <span className="font-semibold text-psion-charcoal">"about"</span>{' '}
-          to see it
+          {deviceEggs.map(egg => (
+            <div key={egg.id}>{egg.hint}</div>
+          ))}
+          <a
+            href={EASTER_EGGS_HASH}
+            className="underline decoration-psion-highlight decoration-2 underline-offset-2 hover:text-psion-charcoal"
+          >
+            All Easter eggs
+          </a>
         </div>
       )}
 

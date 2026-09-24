@@ -162,6 +162,16 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-siena-language.sh
 
+      # ROM language on the EPOC R5 machines: the Series 5 and 5mx family
+      # pick a locale DLL from the settings PROM the emulator programs, the
+      # Revo and Conan boot whichever one their ROM directory makes the
+      # default. The locales differ only in formats, so the test boots each
+      # and checks which locale record (or, on the Conan, which month names)
+      # the kernel has live in RAM.
+      - name: Run EPOC R5 language validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-epoc-language.sh
+
       # The Conan ROM dumper: an ER5u binary this repo builds itself
       # (tools/e32 writes the E32Image container by hand), swapped into the
       # ROM and run on the machine, with the resulting six 2 MB parts read

@@ -29,8 +29,8 @@
 set -u
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 HARNESS=$REPO/harness/run
-ROM=$REPO/roms/netBook_BL_v011_eng.bin
-CARD=$REPO/roms/netbook_os.img
+ROM=$REPO/roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin
+CARD=$REPO/roms/netBook/netBook_v1.05(450)_eng/OS.IMG
 TMP=$(mktemp -d /tmp/nbstress.XXXXXX)
 
 TAPS=${PSION_MULTI_TAP:-30}

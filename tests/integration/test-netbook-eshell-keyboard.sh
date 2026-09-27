@@ -27,8 +27,8 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/run"
-ROM="${ROM:-$REPO_ROOT/roms/netBook_BL_v011_eng.bin}"
-OSIMG="${OSIMG:-$REPO_ROOT/roms/ESHELL/OS.IMG}"
+ROM="${ROM:-$REPO_ROOT/roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin}"
+OSIMG="${OSIMG:-$REPO_ROOT/roms/netBook/ESHELL_v0.01_eng/OS.IMG}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

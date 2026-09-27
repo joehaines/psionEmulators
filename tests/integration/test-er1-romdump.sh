@@ -27,20 +27,37 @@
 # build for a machine the ordinary one will not open, and it has to
 # dump the ROM just the same.
 #
-#   bash tests/integration/test-er1-romdump.sh [--no-imports]
+# With --app it runs ROMDUMP.APP: that code again, packaged as an
+# application DLL, for a machine whose System screen will not open an
+# EXE at all. It goes into the ROM the same way, under a name ending
+# .APP, and the System screen opens it the way it opens any
+# application — through AppRun, which loads it and calls its
+# NewApplication, which is where the dump happens. (Putting it over
+# Z:\System\Apps\Word\Word.app and tapping the Word icon does not
+# work: that restarts the machine, and does so for a genuine Psion
+# application such as applib's BOXES.APP too, so it is that slot in the
+# ROM, not the binary, that will not take a RAM-format application.)
+#
+#   bash tests/integration/test-er1-romdump.sh [--no-imports | --app]
 
 set -eu
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/run"
-ROM="$REPO_ROOT/roms/series5_v1.01(144)_eng.bin"
+ROM="$REPO_ROOT/roms/Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin"
 EXE="$REPO_ROOT/tools/romdump-er1/ROMDUMP.EXE"
 VARIANT=""
 NAME="er1-romdump"
+RENAME='ROMDUMPABCDEFGH.EXE'
 if [ "${1:-}" = "--no-imports" ]; then
     EXE="$REPO_ROOT/tools/romdump-er1/ROMDUMP0.EXE"
     VARIANT="--no-imports"
     NAME="er1-romdump-noimports"
+elif [ "${1:-}" = "--app" ]; then
+    EXE="$REPO_ROOT/tools/romdump-er1/ROMDUMP.APP"
+    VARIANT="--app"
+    NAME="er1-romdump-app"
+    RENAME='ROMDUMPABCDEFGH.APP'
 fi
 RESULTS="$REPO_ROOT/tests/results"
 WORK="$(mktemp -d)"
@@ -70,7 +87,7 @@ mkdir -p "$RESULTS"
 # does, and this test should not lean on the emulator being kinder.
 node --experimental-strip-types "$REPO_ROOT/tools/e32/romfs1.mts" \
     replace "$ROM" 'Z:\System\Samples\Welcome to Series 5' "$EXE" \
-    "$WORK/series5-romdump.bin" --rename 'ROMDUMPABCDEFGH.EXE' \
+    "$WORK/series5-romdump.bin" --rename "$RENAME" \
     --donor 'Z:\System\Data\Help'
 
 "$HARNESS" "$WORK/series5-romdump.bin" --device series5 --quiet-logs --skip-card \

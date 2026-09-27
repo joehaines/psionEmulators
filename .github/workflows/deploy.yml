@@ -196,6 +196,13 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-er1-romdump.sh --no-imports
 
+      # And the application build, ROMDUMP.APP: the no-import code as an
+      # application DLL, for a machine whose System screen will not open
+      # an EXE. It is opened from the desktop like any application.
+      - name: Run Series 5 ROM-dump validation (application build)
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-er1-romdump.sh --app
+
       - name: Upload boot-validation artefacts
         if: ${{ inputs.run_harness_tests && always() }}
         uses: actions/upload-artifact@v4
@@ -273,6 +280,12 @@ jobs:
       - name: Check device lists match the registry
         run: node --experimental-strip-types tests/unit/device-lists-sync.mts
 
+      # The ROM paths: the registry's default images, the ROM choices the
+      # Settings page offers (frontend/src/lib/romCatalog.ts) and what the
+      # desktop app bundles, against each other and against roms/.
+      - name: Check ROM catalogue matches the registry and roms/
+        run: node --experimental-strip-types tests/unit/rom-catalog-sync.mts
+
       # tools/e32 writes EPOC32 binary containers by hand, so its idea of
       # the format is checked against a binary Psion's own tools produced:
       # D_EXC.exe out of the Conan ROM, whose checksums, import section and
@@ -299,17 +312,10 @@ jobs:
       - name: Build frontend
         run: bash scripts/build-frontend.sh
 
-      # ── Copy ROMs into dist ──────────────────────────────────────────────────
-
-      - name: Copy ROMs to dist
-        run: |
-          mkdir -p dist/roms
-          cp -r roms/* dist/roms/
-
       # ── Generate the app library into dist ──────────────────────────────────
       # Converts the 3-Lib CD-ROM in applib/ into dist/apps:
       # manifest.json + one zip per app + extracted icons. Generated at
-      # deploy time (never committed) — like the ROM copy above.
+      # deploy time (never committed).
 
       - name: Build app library
         run: node --experimental-strip-types scripts/build-app-library.mts --out dist/apps
@@ -322,6 +328,87 @@ jobs:
           cp frontend/src/assets/skins/* dist/skins/ 2>/dev/null || true
 
       # ── FTP Deploy ───────────────────────────────────────────────────────────
+
+      # The ROMs go up in their own step, before the site that links to them.
+      #
+      # Only the images the site serves are uploaded — every device's
+      # default, every choice Settings offers, and the fixed pack/OS images
+      # (scripts/stage-deploy-roms.mts). roms/ in the repository is the whole
+      # Psion-ROM archive; the rest of it stays in git. Even so it is ~650 MB,
+      # which is most of what the host allows: the FTP account's quota is
+      # what broke the deploy that first shipped the archive (the server
+      # refuses writes with "552 Quota exceeded", and FTP-Deploy-Action
+      # surfaced it as a reset data socket).
+      #
+      # lftp's mirror, not FTP-Deploy-Action, because it can resume: a file
+      # already on the server at the same size is skipped (--ignore-time: a
+      # fresh checkout gives every file a new mtime, so times say nothing),
+      # a dropped transfer is retried, and a half-written file has the wrong
+      # size and goes again. So a retry carries on where the last attempt
+      # stopped, and a normal deploy uploads only new ROMs. The catch with
+      # comparing sizes: a ROM replaced by different bytes of the same length
+      # would not be re-uploaded — give a new build its own folder, as roms/
+      # already does (the service worker caches ROMs CacheFirst on the same
+      # assumption).
+      #
+      # --delete scoped to roms/: anything there the site no longer serves is
+      # removed from the server, and --delete-first removes it before the
+      # uploads, so a deploy that swaps ROMs frees the space it then needs.
+      # Nothing outside roms/ is touched. A quota refusal stops the step at
+      # once with the reason, rather than retrying into the same wall.
+      #
+      # Plain FTP in passive mode, as FTP-Deploy-Action's defaults.
+      - name: Deploy ROMs via FTP
+        timeout-minutes: 60
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp >/dev/null
+          node --experimental-strip-types scripts/stage-deploy-roms.mts deploy-roms
+          # Same place FTP-Deploy-Action puts the site: roms/ under server-dir.
+          target="roms"
+          [ -z "$FTP_SERVER_DIR" ] || target="${FTP_SERVER_DIR%/}/roms"
+          # --env-password: the password never goes through lftp's "user,pass"
+          # parsing (a comma in it would split it) or onto a command line.
+          export LFTP_PASSWORD="$FTP_PASS"
+          # One line on purpose: lftp stops stripping the quotes round an
+          # argument once its -e script spans lines, and mirrored into a
+          # directory literally named "…/roms" with the quote marks in it.
+          settings="set ftp:ssl-allow no; set ftp:passive-mode yes; set net:timeout 60"
+          settings="$settings; set net:max-retries 4; set net:reconnect-interval-base 10"
+          settings="$settings; set net:reconnect-interval-max 60"
+          mirror="mirror --reverse --delete --delete-first --ignore-time --no-perms --verbose=1"
+          script="$settings; $mirror deploy-roms \"$target\"; quit"
+          # Stop lftp at the first quota refusal: it would otherwise go on to
+          # the next file, and the host takes minutes to refuse each one.
+          full() { grep -qiE 'quota|552[- ]' lftp.log; }
+          for attempt in 1 2 3 4 5; do
+            : > lftp.log
+            lftp --env-password -u "$FTP_USER" "ftp://$FTP_HOST" -e "$script" >lftp.log 2>&1 &
+            pid=$!
+            tail -n +1 -f --pid="$pid" lftp.log &
+            while kill -0 "$pid" 2>/dev/null; do
+              if full; then kill "$pid"; break; fi
+              sleep 2
+            done
+            rc=0; wait "$pid" || rc=$?
+            sleep 1  # let tail print the last lines
+            if full; then
+              echo "::error::The FTP account's disk quota is full — the server refused to store ROMs. Free space or raise the quota, then re-run. ($(grep -iE -m1 'quota' lftp.log))"
+              exit 1
+            fi
+            if [ "$rc" -eq 0 ]; then
+              echo "ROMs in sync (attempt $attempt)"
+              exit 0
+            fi
+            echo "::warning::ROM upload attempt $attempt failed (lftp exit $rc); resuming in 30 s"
+            sleep 30
+          done
+          echo "::error::ROM upload failed after 5 attempts"
+          exit 1
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -336,3 +423,4 @@ jobs:
           exclude: |
             **/.git*
             **/.git*/**
+            roms/**

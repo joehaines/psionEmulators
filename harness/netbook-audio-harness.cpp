@@ -8,7 +8,7 @@
 //
 // Build:  bash harness/build.sh
 // Usage:  ./netbook-audio-harness <bootloader.bin> [<os-card.img>]
-//   default os-card = roms/netbook_os.img (the same CF image the
+//   default os-card = roms/netBook/netBook_v1.05(450)_eng/OS.IMG (the same CF image the
 //   netbook_full boot test uses).
 //
 // What it checks:
@@ -271,7 +271,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     const char *romPath  = argv[1];
-    const char *cardPath = argc >= 3 ? argv[2] : "roms/netbook_os.img";
+    const char *cardPath = argc >= 3 ? argv[2] : "roms/netBook/netBook_v1.05(450)_eng/OS.IMG";
 
     auto rom = readFile(romPath);
     uint32_t variant = detectROMVariant(rom.data(), rom.size());

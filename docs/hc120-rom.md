@@ -16,11 +16,11 @@ here.
 
 ## The ROM is two chips, and the top of memory shows one of them twice
 
-`roms/hc120/` holds the machine's two 128 KiB flash chips, dumped one per
+`roms/HC120/hc120_v1.72F_eng/` holds the machine's two 128 KiB flash chips, dumped one per
 file — the same `v172f_1.bin` / `v172f_2.bin` pair MAME's `psionhc120`
 ROM set names. They are linear halves, not the even/odd interleave the
 MC's pair uses, so `scripts/build-hc120-rom.mts` joins them by
-concatenation into the 256 KiB `roms/hc120_v1.72F.bin`.
+concatenation into the 256 KiB `roms/HC120/hc120_v1.72F_eng/hc120_v1.72F.bin`.
 
 MAME's driver maps the flash into the top half of the address space with
 each chip appearing twice (`ROM_RELOAD`): chip 1 at 0x80000 and 0xA0000,

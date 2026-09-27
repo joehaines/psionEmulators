@@ -52,7 +52,7 @@ import { createBlankImage } from '../../frontend/src/lib/fat16.ts';
 
 const REPO = path.resolve(new URL('../..', import.meta.url).pathname);
 const HARNESS = path.join(REPO, 'harness', 'run');
-const ROM = path.join(REPO, 'roms', 'Netpad.img');
+const ROM = path.join(REPO, 'roms', 'netPad/netPad_v1.75(247)_eng/Netpad.img');
 
 const arg = (flag: string, fallback: string): string => {
   const i = process.argv.indexOf(flag);
@@ -85,7 +85,7 @@ function fail(msg: string): never {
 
 if (!fs.existsSync(HARNESS)) fail('harness/run not built — run bash harness/build.sh');
 if (!fs.existsSync(ROM)) {
-  console.log('SKIP: Netpad.img not present');
+  console.log('SKIP: netPad/netPad_v1.75(247)_eng/Netpad.img not present');
   process.exit(0);
 }
 

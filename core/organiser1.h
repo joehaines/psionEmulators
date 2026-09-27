@@ -18,7 +18,7 @@
 //                 ON key resets it
 //   $3000         read: increment the keyboard scan counter
 //   $4000-$47FF   2 KiB external RAM (the whole of the machine's RAM)
-//   $F000-$FFFF   the HD6301X0's internal mask ROM — roms/Organiser1.rom,
+//   $F000-$FFFF   the HD6301X0's internal mask ROM — roms/Organiser1/Organiser1_eng/Organiser1.rom,
 //                 which is MAME's `psion1` ROM byte for byte. The 6800-
 //                 family interrupt vectors live in its last 18 bytes.
 //

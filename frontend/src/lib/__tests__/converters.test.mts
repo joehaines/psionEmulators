@@ -676,7 +676,7 @@ function carveEpocFile(rom: Uint8Array, offset: number): Uint8Array | null {
 }
 
 {
-  const romPath = new URL('../../../../roms/S7_v1.05(254)_b754_eng.bin', import.meta.url).pathname;
+  const romPath = new URL('../../../../roms/Series7/S7_v1.05(254)_b754_eng/S7_v1.05(254)_b754_eng.bin', import.meta.url).pathname;
   if (existsSync(romPath)) {
     const rom = new Uint8Array(readFileSync(romPath));
     const file = carveEpocFile(rom, 0xa777e0)!;   // Z:\System\Samples\Welcome to Series 7
@@ -714,7 +714,7 @@ function carveEpocFile(rom: Uint8Array, offset: number): Uint8Array | null {
 }
 
 {
-  const romPath = new URL('../../../../roms/5mx_v1.05(260)_eng.bin', import.meta.url).pathname;
+  const romPath = new URL('../../../../roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin', import.meta.url).pathname;
   if (existsSync(romPath)) {
     const rom = new Uint8Array(readFileSync(romPath));
     const file = carveEpocFile(rom, 0x3d3d90)!;   // Z:\System\Samples\Welcome to Series 5mx

@@ -26,6 +26,7 @@ import type { DeviceProfile } from './types/emulator';
 import psionLogoUrl from './assets/psion-logo.svg';
 import { trackDeviceLoad, startSession, endSession, fetchLeaderboard, type LeaderboardRow } from './lib/analytics';
 import { DEVICE_RELEASE_YEARS } from './lib/deviceMeta';
+import { romUrlFor, romStateTag } from './lib/romCatalog';
 
 // Persisted device-mode preference. When on, photo-realistic device skins
 // from the `device-skins/` public folder are shown instead of the minimal
@@ -302,6 +303,10 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   const [nonFavouriteDevices, setNonFavouriteDevices] = useState<Set<string>>(() => loadNonFavourites());
   const [sortMode, setSortMode] = useState<SortMode>(() => loadSortMode());
   const [settingsViewOpen, setSettingsViewOpen] = useState(false);
+  // The running device's ROM (romCatalog's romStateTag) when Settings was
+  // opened: if the user picks another for it there, closing Settings
+  // reboots it on the new one.
+  const romAtSettingsOpenRef = useRef<{ deviceId: string; tag: string } | null>(null);
   // Home/landing view. Shown by default when no device is loaded (the
   // "blank screen behind the menu on load"), and re-asserted whenever the
   // user clicks the Psion logo in the header. It's a pure UI overlay — a
@@ -540,7 +545,7 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   const handleLaunchFromHome = (deviceId: string) => {
     const profile = mergedProfiles.find(p => p.id === deviceId);
     if (!profile) return;
-    void handleSelectDevice(deviceId, `${import.meta.env.BASE_URL}roms/${profile.romFilename}`);
+    void handleSelectDevice(deviceId, romUrlFor(profile, import.meta.env.BASE_URL));
   };
 
   // Swap the running MC400 between its two boot ROMs (v2.60F default ↔
@@ -552,13 +557,15 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
     if (!target) return;
     const profile = mergedProfiles.find(p => p.id === target.to);
     if (!profile) return;
-    void handleSelectDevice(target.to, `${import.meta.env.BASE_URL}roms/${profile.romFilename}`);
+    void handleSelectDevice(target.to, romUrlFor(profile, import.meta.env.BASE_URL));
   };
 
   const handleSwitchToMame = () => {
     if (!currentDeviceId || !MAME_CAPABLE_DEVICE_IDS.has(currentDeviceId)) return;
     const profile = mergedProfiles.find(p => p.id === currentDeviceId);
     if (!profile) return;
+    // Always the default ROM: the MAME bundle is built around it, not
+    // around the Settings ROM choice (romCatalog) the native core honours.
     const romUrl = `${import.meta.env.BASE_URL}roms/${profile.romFilename}`;
     endSession('switch');
     setMameDevice({ id: currentDeviceId, romUrl });
@@ -745,7 +752,11 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
         onImportStates={importStates}
         baseUrl={import.meta.env.BASE_URL}
         nonFavouriteDevices={nonFavouriteDevices}
-        onOpenSettings={() => { setSettingsViewOpen(true); setPanelOpen(false); }}
+        onOpenSettings={() => {
+          romAtSettingsOpenRef.current = currentDeviceId
+            ? { deviceId: currentDeviceId, tag: romStateTag(currentDeviceId) } : null;
+          setSettingsViewOpen(true); setPanelOpen(false);
+        }}
         listError={error}
       />
 
@@ -776,6 +787,16 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
             leaderboard={leaderboard}
             onClose={() => {
               setSettingsViewOpen(false);
+              // A new ROM chosen for the machine that is running: boot it.
+              // The outgoing session is saved against the old ROM, and the
+              // new one starts from its own save, if it has one.
+              const before = romAtSettingsOpenRef.current;
+              romAtSettingsOpenRef.current = null;
+              if (before && before.deviceId === currentDeviceId
+                  && romStateTag(before.deviceId) !== before.tag) {
+                const profile = mergedProfiles.find(p => p.id === before.deviceId);
+                if (profile) void handleSelectDevice(profile.id, romUrlFor(profile, import.meta.env.BASE_URL));
+              }
               // No device loaded → main area would land on an empty
               // state. Reopen the device picker so Back from Settings
               // always lands somewhere useful.
@@ -1087,8 +1108,7 @@ function EmbedApp({ deviceId }: { deviceId: string }) {
       return;
     }
     setLoadStarted(true);
-    const romUrl = `${import.meta.env.BASE_URL}roms/${profile.romFilename}`;
-    void loadDevice(deviceId, romUrl);
+    void loadDevice(deviceId, romUrlFor(profile, import.meta.env.BASE_URL));
   }, [state, deviceId, profiles, loadStarted, loadDevice]);
 
   // Backlight stays off in embed mode — the simulated EL panel is a

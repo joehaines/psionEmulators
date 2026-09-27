@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # netpad audio (AC'97 codec on the board FPGA) validation.
 #
-# Boots roms/Netpad.img and then drives the codec over the emulated bus
+# Boots roms/netPad/netPad_v1.75(247)_eng/Netpad.img and then drives the codec over the emulated bus
 # with the exact register sequence the ROM's own sound PDD performs —
 # \System\Libs\Esdrv.pdd, published as "Sound.Ac97", whose record path
 # is at ROM 0x502e7ac8 and play path at 0x502e795c — with a tone pushed
@@ -29,7 +29,7 @@ set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/netpad-audio-harness"
-ROM="${ROM:-$REPO_ROOT/roms/Netpad.img}"
+ROM="${ROM:-$REPO_ROOT/roms/netPad/netPad_v1.75(247)_eng/Netpad.img}"
 
 if [ ! -f "$ROM" ]; then
     echo "SKIP: ROM $ROM not present" >&2

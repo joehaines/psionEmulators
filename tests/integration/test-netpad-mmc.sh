@@ -25,7 +25,7 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/run"
-ROM="${ROM:-$REPO_ROOT/roms/Netpad.img}"
+ROM="${ROM:-$REPO_ROOT/roms/netPad/netPad_v1.75(247)_eng/Netpad.img}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

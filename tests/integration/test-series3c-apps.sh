@@ -19,7 +19,7 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/run"
-ROM="$REPO_ROOT/roms/series3c_v5.20f_eng.bin"
+ROM="$REPO_ROOT/roms/Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin"
 CONF="$REPO_ROOT/tests/series3c-apps.txt"
 LOG_DIR="$REPO_ROOT/tests/logs"
 RESULTS_DIR="$REPO_ROOT/tests/results"

@@ -40,7 +40,7 @@ const HARNESS = `${REPO}harness/run`;
 
 const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 'rfsv32'; beam?: boolean; irrecv?: boolean; print?: boolean }> = {
   series7: {
-    rom: `${REPO}roms/series7_v1.05(254)_b756_eng.bin`,
+    rom: `${REPO}roms/Series7/S7_v1.05(254)_b756_eng/S7_v1.05(254)_b756_eng.bin`,
     args: ['--boot-seconds', '20', '--serial-attach', '3', '0.5',
            '--serial-poll-until', '60', '3',
            // Optional: inject dense periodic taps to keep WServ continuously
@@ -52,9 +52,9 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
                : [])],
   },
   netbook: {
-    rom: `${REPO}roms/netBook_BL_v011_eng.bin`,
+    rom: `${REPO}roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin`,
     args: ['--boot-seconds', '3', '--post-attach-seconds', '60',
-           '--card-path', `${REPO}roms/netbook_os.img`,
+           '--card-path', `${REPO}roms/netBook/netBook_v1.05(450)_eng/OS.IMG`,
            '--serial-attach', '3', '3.5',
            '--serial-poll-until', '60', '3'],
   },
@@ -63,7 +63,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // Psion+L, RightArrow to "Link cable" and Enter to start the link
   // server, then attaches the host bridge on Condor uartIndex 0.
   series3c: {
-    rom: `${REPO}roms/series3c_v5.20f_eng.bin`,
+    rom: `${REPO}roms/Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin`,
     protocol: 'rfsv16',
     args: ['--boot-seconds', '38',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -79,7 +79,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
            '--serial-poll-until', '120', '0'],
   },
   series3mx: {
-    rom: `${REPO}roms/series3mx_v6.16f_eng.bin`,
+    rom: `${REPO}roms/Series3mx/maple_v6.16f_eng/maple_v6.16f_eng.bin`,
     protocol: 'rfsv16',
     args: ['--boot-seconds', '38',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -91,7 +91,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // Workabout boot menu: Menu -> System screen -> Enter, then the
   // standard Psion+L Remote link dialog (Right toggles Off -> On).
   workaboutmx: {
-    rom: `${REPO}roms/workaboutMX_v7.20f_eng.bin`,
+    rom: `${REPO}roms/WorkaboutMX/w2mx_v7.20f_eng/w2mx_v7.20f_eng.bin`,
     protocol: 'rfsv16',
     args: ['--boot-seconds', '40',
            '--press-key', '26', '148', '32', '--press-key', '28', '17', '32',
@@ -112,7 +112,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // receives the file. Fully deterministic — no link phase, so no
   // "Updating lists" rescan races.
   'series3c-beam': {
-    rom: `${REPO}roms/series3c_v5.20f_eng.bin`,
+    rom: `${REPO}roms/Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin`,
     beam: true,
     args: ['--boot-seconds', '24',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -127,7 +127,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
            '--serial-poll-until', '75', '0'],
   },
   'series3c-irrecv': {
-    rom: `${REPO}roms/series3c_v5.20f_eng.bin`,
+    rom: `${REPO}roms/Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin`,
     irrecv: true,
     args: ['--boot-seconds', '38',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -142,7 +142,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // I/O 0x40-0x4E) — host bridge uartIndex 1 — with the same Psion+Tab
   // Infrared screen and 136-byte beam dialect as the 3c.
   'series3mx-irrecv': {
-    rom: `${REPO}roms/series3mx_v6.16f_eng.bin`,
+    rom: `${REPO}roms/Series3mx/maple_v6.16f_eng/maple_v6.16f_eng.bin`,
     irrecv: true,
     args: ['--boot-seconds', '38',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -155,7 +155,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
            '--serial-poll-until', '95', '1'],
   },
   'series3mx-beam': {
-    rom: `${REPO}roms/series3mx_v6.16f_eng.bin`,
+    rom: `${REPO}roms/Series3mx/maple_v6.16f_eng/maple_v6.16f_eng.bin`,
     beam: true,
     args: ['--boot-seconds', '24',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -172,7 +172,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // Device→host beam on the Siena: exit all apps, highlight the Data
   // file, dedicated IR Send key (PageUp / EpocKey 10).
   'siena-beam': {
-    rom: `${REPO}roms/siena_v4.20f_eng.bin`,
+    rom: `${REPO}roms/Siena/vine_v4.20f_eng/vine_v4.20f_eng.bin`,
     beam: true,
     args: ['--boot-seconds', '24',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -189,7 +189,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // Siena receiver probe: its dedicated IR Receive key (PageDown /
   // EpocKey 11) arms the receive screen directly.
   'siena-irrecv': {
-    rom: `${REPO}roms/siena_v4.20f_eng.bin`,
+    rom: `${REPO}roms/Siena/vine_v4.20f_eng/vine_v4.20f_eng.bin`,
     irrecv: true,
     args: ['--boot-seconds', '36',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -202,7 +202,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
            '--serial-poll-until', '90', '0'],
   },
   siena: {
-    rom: `${REPO}roms/siena_v4.20f_eng.bin`,
+    rom: `${REPO}roms/Siena/vine_v4.20f_eng/vine_v4.20f_eng.bin`,
     protocol: 'rfsv16',
     args: ['--boot-seconds', '40',
            '--press-key', '8', '4', '16', '--press-key', '18', '4', '16',
@@ -216,11 +216,11 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // passive — see client-spec.ts ensureLinkUp). Used to profile the slow
   // RFSV directory/file reads reported in the browser.
   series5: {
-    rom: `${REPO}roms/series5_v1.01(144)_eng.bin`,
+    rom: `${REPO}roms/Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin`,
     args: ['--serial-attach', '1', '25', '--serial-poll-until', '180', '1'],
   },
   osaris: {
-    rom: `${REPO}roms/Osaris_v1.02(209)_eng.bin`,
+    rom: `${REPO}roms/Osaris/Osaris_v1.02(209)_eng/Osaris_v1.02(209)_eng.bin`,
     args: ['--serial-attach', '1', '8', '--serial-poll-until', '160', '1'],
   },
   // Geofox One: cable on UART1 like the Series 5, and it ships with
@@ -229,12 +229,12 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // is deliberately well after the machine has settled, which is the
   // order a user connects in.
   geofox: {
-    rom: `${REPO}roms/Geofox_v1.01(146)_eng.bin`,
+    rom: `${REPO}roms/Geofox/Geofox_v1.01(146)_eng/Geofox_v1.01(146)_eng.bin`,
     args: ['--serial-attach', '1', '20', '--serial-poll-until', '180', '1'],
   },
   // Windermere baseline for A/B latency comparison.
   '5mx': {
-    rom: `${REPO}roms/5mx_v1.05(260)_eng.bin`,
+    rom: `${REPO}roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin`,
     args: ['--serial-attach', '2', '8', '--serial-poll-until', '160', '2'],
   },
   // Printer via PC, end-to-end: connect the WPRT print client over the
@@ -245,7 +245,7 @@ const ROMS: Record<string, { rom: string; args: string[]; protocol?: 'rfsv16' | 
   // renders it to /tmp/5mx-print.pdf. Screenshots before/after the
   // print keystroke pin down where the script is if anything drifts.
   '5mx-print': {
-    rom: `${REPO}roms/5mx_v1.05(260)_eng.bin`,
+    rom: `${REPO}roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin`,
     print: true,
     args: ['--serial-attach', '2', '8',
            // Generous gaps: on first boot the System screen can take

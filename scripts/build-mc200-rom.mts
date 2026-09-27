@@ -1,4 +1,4 @@
-// Join the two Psion MC200 boot-ROM dumps in roms/MC200_V2.12F_ROM_disk/
+// Join the two Psion MC200 boot-ROM dumps in roms/MC200/MC200_v2.12F_eng/ROM_disk/
 // into the single 256 KiB image the emulator loads.
 //
 // The MC200 (like the MC400 and MC Word) carries its boot ROM in two
@@ -12,7 +12,7 @@
 // of the ROM) at 0xFFFF0 and the build date "081090".
 //
 //   node --experimental-strip-types scripts/build-mc200-rom.mts \
-//        [roms/MC200_V2.12F_ROM_disk] [roms/MC200_v2.12F.bin]
+//        [roms/MC200/MC200_v2.12F_eng/ROM_disk] [roms/MC200/MC200_v2.12F_eng/MC200_v2.12F.bin]
 //
 // The joined image is committed, so this script only needs re-running if
 // the chip dumps are ever replaced.
@@ -20,8 +20,8 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const [
-  srcDir = 'roms/MC200_V2.12F_ROM_disk',
-  out    = 'roms/MC200_v2.12F.bin',
+  srcDir = 'roms/MC200/MC200_v2.12F_eng/ROM_disk',
+  out    = 'roms/MC200/MC200_v2.12F_eng/MC200_v2.12F.bin',
 ] = process.argv.slice(2);
 
 const even = new Uint8Array(readFileSync(join(srcDir, 'v212f_0.bin')));

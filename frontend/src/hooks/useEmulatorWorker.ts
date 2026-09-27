@@ -24,6 +24,7 @@ import { setSerialPumpForward, setSimKeepAliveForward } from '../lib/wasmBridge'
 import { quiesceActiveSessions } from '../lib/plp/client-spec';
 import { trackDeviceLoad, trackFeature, startSession, endSession } from '../lib/analytics';
 import type { PackKind } from '../lib/fefs';
+import { romStateTag, romUrlFor, romLanguageNames } from '../lib/romCatalog';
 import { osCardSpec, buildOsCardImage, collectStatesBundle, applyStatesBundle, listSavedDevices, triggerDownload, loadStoredMachineId, storeMachineId, loadStoredLanguage, storeLanguage } from './useEmulator';
 import type { EmulatorControls, EmulatorState, UseEmulatorOptions } from './useEmulator';
 
@@ -35,6 +36,15 @@ function expandChord(modifiers: number[], key: number): Ev[] {
   q.push({ key, down: false });
   for (let i = modifiers.length - 1; i >= 0; i--) q.push({ key: modifiers[i], down: false });
   return q;
+}
+
+// The worker reports the names the emulator has; the ROM's own list
+// (romCatalog) decides what is shown — see romLanguageNames.
+function romLanguages(deviceId: string, tag: string,
+                      reply: LanguageReply | undefined): LanguageReply {
+  if (!reply) return { names: [], index: 0 };
+  const names = romLanguageNames(deviceId, reply.names, tag);
+  return { names, index: names.length ? reply.index : 0 };
 }
 
 export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorControls {
@@ -111,6 +121,9 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   // an empty dep list, so they can't read the state value without going
   // stale).  Kept in sync wherever setCurrentDeviceId runs.
   const deviceIdRef = useRef<string | null>(null);
+  // romStateTag of the ROM the running machine booted (romCatalog) — fixed
+  // at load, like the main-thread hook's currentRomTagRef.
+  const romTagRef = useRef<string>('');
   const lastDeviceModeSent = useRef<boolean | null>(null);
 
   // deviceModeRef is written directly by EmulatorView each render; intercept the
@@ -187,7 +200,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
       const lastId = initialDeviceId || (embedMode ? null : localStorage.getItem('psion-last-device'));
       if (lastId) {
         const p = profs.find(x => x.id === lastId && x.status === 'supported');
-        if (p) void doLoad(lastId, `${base}roms/${p.romFilename}`);
+        if (p) void doLoad(lastId, romUrlFor(p, base));
       }
     }).catch(err => { setError(String(err)); setState('error'); });
     return () => {
@@ -220,6 +233,9 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     // no analytics for it, so don't count it as a fresh load / new session
     // either — otherwise worker-mode load counts drift above main-thread ones.
     const isReset = !restore && deviceIdRef.current === deviceId;
+    // The ROM this load boots, as chosen in Settings; the caller resolved
+    // romUrl from the same choice.
+    const romTag = romStateTag(deviceId);
     lastLoadRef.current = { deviceId, romUrl };
     // Park any live Remote Link session BEFORE the worker auto-saves the
     // outgoing device (inside loadDevice). The device is still stepping
@@ -243,10 +259,11 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
               machineId: machineIdReply, language: languageReply } =
         await client.loadDevice(deviceId, romUrl, 0, restore,
                                 loadStoredMachineId(deviceId)?.toString(16) ?? null,
-                                loadStoredLanguage(deviceId));
+                                loadStoredLanguage(deviceId, romTag), romTag);
       // Same for the ROM's language variant, applied in the worker before
       // the first step because the guest reads it once, early in boot.
-      setLanguageState(languageReply ?? { names: [], index: 0 });
+      romTagRef.current = romTag;
+      setLanguageState(romLanguages(deviceId, romTag, languageReply));
       // The worker applies the stored machine-ID override during the load
       // (before the first step) and reports back what the device ended up
       // holding, plus its factory value for the panel's "Restore default".
@@ -467,8 +484,9 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     const client = clientRef.current;
     const deviceId = deviceIdRef.current;
     if (!client || !deviceId) return;
-    storeLanguage(deviceId, index);
-    void client.setLanguage(index).then(setLanguageState);
+    const tag = romTagRef.current;
+    storeLanguage(deviceId, index, tag);
+    void client.setLanguage(index).then(r => setLanguageState(romLanguages(deviceId, tag, r)));
   }, []);
 
   const attachCard = useCallback(async (bytes: Uint8Array) => {

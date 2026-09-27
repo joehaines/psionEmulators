@@ -1,11 +1,11 @@
 // Build a proper FAT16 CF disk image containing OS.IMG, exactly as the
 // frontend's "Insert CF card containing OS" dialog does.  The faithful
 // bootloader CF path needs a real FAT16 volume (the raw EPOCARM ROM image
-// roms/netbook_os.img is NOT a FAT volume — it's the bare OS.IMG content,
+// roms/netBook/netBook_v1.05(450)_eng/OS.IMG is NOT a FAT volume — it's the bare OS.IMG content,
 // which the bootloader can't mount).
 //
 //   node --experimental-strip-types scripts/build-cf-fat16.mts \
-//        roms/netbook_os.img /tmp/cf_fat16.img [sizeMB]
+//        roms/netBook/netBook_v1.05(450)_eng/OS.IMG /tmp/cf_fat16.img [sizeMB]
 import { createBlankImage, addFile, isFat16, listRoot } from '../frontend/src/lib/fat16.ts';
 import { readFileSync, writeFileSync } from 'fs';
 const [osPath, outPath, sizeMB] = process.argv.slice(2);

@@ -13,7 +13,7 @@
 #
 # Usage:
 #   ENGINE="PSION_DECODE_PAGELOOP=1" scripts/ab-engine.sh \
-#       s7 "roms/series7_v1.05(254)_b756_eng.bin" series7 8 --skip-card
+#       s7 "roms/Series7/S7_v1.05(254)_b756_eng/S7_v1.05(254)_b756_eng.bin" series7 8 --skip-card
 #
 #   ENGINE=...   the engine config under test (default: none, i.e. a self-check)
 #   REF=...      the reference config (default: none). The burst engine is now

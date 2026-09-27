@@ -31,7 +31,7 @@
 set -u
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 HARNESS=$REPO/harness/run
-ROM=$REPO/roms/Netpad.img
+ROM=$REPO/roms/netPad/netPad_v1.75(247)_eng/Netpad.img
 TMP=$(mktemp -d /tmp/nptouch.XXXXXX)
 trap 'rm -rf "$TMP"' EXIT
 

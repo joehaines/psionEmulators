@@ -19,6 +19,7 @@ import InternalMountController, { type InternalMountStatus } from './InternalMou
 import DesktopChrome from './DesktopChrome';
 import DeviceKeyStrip from './DeviceKeyStrip';
 import DesktopDeviceSwitcher from './DesktopDeviceSwitcher';
+import { romUrlFor } from '../../lib/romCatalog';
 
 // The desktop shell: a borderless window that is nothing but the machine.
 //
@@ -335,7 +336,7 @@ function Shell({ controls }: { controls: EmulatorControls }) {
     // The hash route is the existing switching path; going through it keeps
     // the desktop from growing a second one.
     window.location.hash = `#/${profile.id}`;
-    void loadDevice(profile.id, `${import.meta.env.BASE_URL}roms/${profile.romFilename}`);
+    void loadDevice(profile.id, romUrlFor(profile, import.meta.env.BASE_URL));
   }, [currentDeviceId, loadDevice]);
 
   const toggleKeys = useCallback(() => {

@@ -29,7 +29,10 @@ const arg = (flag: string): string => {
   return process.argv[i + 1];
 };
 
-const noImports = process.argv.includes('--no-imports');
+// ROMDUMP.APP is ROMDUMP0.EXE's code, so it reaches the file server
+// the same way, and its log says the same things.
+const app = process.argv.includes('--app');
+const noImports = app || process.argv.includes('--no-imports');
 const ram = fs.readFileSync(arg('--ram'));
 const rom = fs.readFileSync(arg('--rom'));
 let failures = 0;
@@ -103,7 +106,7 @@ const whole = ram.toString('latin1');
 const logAt = whole.indexOf('rom hdr base=0x50000000 size=');
 check('the machine kept a log', logAt >= 0);
 if (logAt >= 0) {
-  const from = Math.max(0, whole.lastIndexOf('ROMDUMP for EPOC R1', logAt));
+  const from = Math.max(0, whole.lastIndexOf(app ? 'ROMDUMP.APP for EPOC R1' : 'ROMDUMP for EPOC R1', logAt));
   console.log(whole.slice(from, from + 700).split('\r\n\r\n')[0]);
 }
 // The two builds reach the file server different ways, and the log says
@@ -139,6 +142,25 @@ if (noImports) {
   const exe = fs.readFileSync(arg('--exe'));
   check('this build has no import table for the loader to bind',
         exe.readUInt32LE(0x54) === 0, `iDllRefTableCount=${exe.readUInt32LE(0x54)}`);
+}
+
+// The application build is a DLL the framework loads, and the one thing
+// such a DLL may not have is static data: the log says where its
+// globals ended up instead — on the stack, below the framework's.
+if (app) {
+  const exe = fs.readFileSync(arg('--exe'));
+  check('the application is a DLL with UID2 KUidApp, no static data and one export',
+        exe.readUInt32LE(0) === 0x10000079 && exe.readUInt32LE(4) === 0x1000006c &&
+        exe.readUInt32LE(0x34) === 0 && exe.readUInt32LE(0x44) === 0 &&
+        exe.readUInt32LE(0x5c) === 1);
+  const m = whole.match(/app: framework sp=0x([0-9A-F]{8}) globals at 0x([0-9A-F]{8})/);
+  check('the log says where the framework left the stack and where the globals went', !!m);
+  if (m) {
+    const sp = parseInt(m[1], 16), globals = parseInt(m[2], 16);
+    console.log(` framework sp 0x${m[1]}, globals 0x${m[2]}: ${sp - globals} bytes of stack taken for them`);
+    check('the globals are on the stack, below the framework\'s frames',
+          globals < sp && sp - globals < 0x2000);
+  }
 }
 
 // ── And that it did not fall over ───────────────────────────────────

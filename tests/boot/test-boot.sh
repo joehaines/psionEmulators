@@ -96,7 +96,7 @@ test_device() {
     # mirroring what the frontend ships.
     if [[ "$extra" == *tests/cards/5mxpro-osboot.img* ]] \
        && [ ! -f "$REPO_ROOT/tests/cards/5mxpro-osboot.img" ]; then
-        local os_rom="$ROMS/5mxPRO_v1.05(319)_patch_eng.bin"
+        local os_rom="$ROMS/Series5mxPRO/5mxPRO_v1.05(319)_patch_site_eng/5mxPRO_v1.05(319)_patch_eng.bin"
         if [ ! -f "$os_rom" ] || ! command -v node >/dev/null 2>&1; then
             echo "SKIP $id: cannot synthesise boot card (need node + $os_rom)" >&2
             return 77
@@ -116,12 +116,12 @@ EOF
 
     # The netBook's ESHELL boot card: the same FAT16 container the frontend
     # synthesises for the 'eshell' osCardSpec variant, carrying
-    # roms/ESHELL/OS.IMG as D:\OS.IMG. Exercises the faithful CF read (the
+    # roms/netBook/ESHELL_v0.01_eng/OS.IMG as D:\OS.IMG. Exercises the faithful CF read (the
     # browser's default path) against an OS image far smaller than the stock
     # one, which is what the size-scaled faithful-boot gate exists for.
     if [[ "$extra" == *tests/cards/eshell-netbook.img* ]] \
        && [ ! -f "$REPO_ROOT/tests/cards/eshell-netbook.img" ]; then
-        local esh_rom="$ROMS/ESHELL/OS.IMG"
+        local esh_rom="$ROMS/netBook/ESHELL_v0.01_eng/OS.IMG"
         if [ ! -f "$esh_rom" ] || ! command -v node >/dev/null 2>&1; then
             echo "SKIP $id: cannot synthesise ESHELL card (need node + $esh_rom)" >&2
             return 77
@@ -140,13 +140,13 @@ EOF
     fi
 
     # The netBook's Quartz boot card: the same FAT16 container the frontend
-    # synthesises for a netBook OS image, carrying roms/OS.IMG (the Quartz v6.0
+    # synthesises for a netBook OS image, carrying roms/netBook/Quartz_v6.0_eng/OS.IMG (the Quartz v6.0
     # netBook build) as D:\OS.IMG.  Exercises the faithful CF read against an
     # EPOC image whose kernel data layout differs from the stock netBook OS —
     # which is what the UCB1200-mutex guard in core/sa1100.cpp exists for.
     if [[ "$extra" == *tests/cards/quartz-netbook.img* ]] \
        && [ ! -f "$REPO_ROOT/tests/cards/quartz-netbook.img" ]; then
-        local qz_rom="$ROMS/OS.IMG"
+        local qz_rom="$ROMS/netBook/Quartz_v6.0_eng/OS.IMG"
         if [ ! -f "$qz_rom" ] || ! command -v node >/dev/null 2>&1; then
             echo "SKIP $id: cannot synthesise Quartz card (need node + $qz_rom)" >&2
             return 77

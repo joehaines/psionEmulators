@@ -17,11 +17,11 @@ Interleaving them reconstructs the 256 KiB image the CPU sees at
 node --experimental-strip-types scripts/build-mc200-rom.mts
 ```
 
-writes `roms/MC200_v2.12F.bin` — the file the `mc200` device profile loads —
+writes `roms/MC200/MC200_v2.12F_eng/MC200_v2.12F.bin` — the file the `mc200` device profile loads —
 and checks the reset vector (`EA 00 00 00 C0` at 0xFFFF0, a far jump to
 C000:0000) came out right. The joined image is committed, so the script
 only needs re-running if these dumps are ever replaced.
 
 The machine's ROM:: filing system — window server, shell, OPL, fonts —
-lives on the System Disk pack instead, `roms/MC200_V2.12F_system.ssd`,
+lives on the System Disk pack instead, `roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd`,
 which the frontend pre-inserts in Pack D on cold boot.

@@ -8,11 +8,11 @@
 #   - emsdk 3.0.0 activated (source ~/emsdk/emsdk_env.sh)
 #   - MAME 0.253 source tree (default: $HOME/mamedev/mame0253)
 #       git clone --branch mame0253 https://github.com/mamedev/mame.git mame0253
-#   - Series 3a ROM image $ROM at: roms/s3a_v3.22f_eng.bin
+#   - Series 3a ROM image $ROM at: roms/Series3a/s3a_v3.22f_eng/s3a_v3.22f_eng.bin
 #
 # Environment overrides:
 #   MAME_DIR  : path to MAME source tree (default $HOME/mamedev/mame0253)
-#   ROM       : Series 3a ROM filename inside roms/ (default s3a_v3.22f_eng.bin)
+#   ROM       : Series 3a ROM path inside roms/ (default Series3a/s3a_v3.22f_eng/s3a_v3.22f_eng.bin)
 #   JOBS      : parallel make jobs (default nproc)
 #   OPTIMIZE  : emscripten optimisation level 0-3 (default 0; CI uses 3)
 #   SYMBOLS   : include debug symbols 0/1 (default 1; CI uses 0)
@@ -22,9 +22,9 @@ set -e
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="$REPO_ROOT/frontend/public/mame-3a"
 MAME_DIR="${MAME_DIR:-$HOME/mamedev/mame0253}"
-ROM_NAME="${ROM:-s3a_v3.22f_eng.bin}"
+ROM_NAME="${ROM:-Series3a/s3a_v3.22f_eng/s3a_v3.22f_eng.bin}"
 ROM_PATH="$REPO_ROOT/roms/$ROM_NAME"
-PB2_ROM_NAME="${PB2_ROM:-pb2_v1.30f_acn.bin}"
+PB2_ROM_NAME="${PB2_ROM:-Series3a/pb2_v1.30f_acn/pb2_v1.30f_acn.bin}"
 PB2_ROM_PATH="$REPO_ROOT/roms/$PB2_ROM_NAME"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
 OPTIMIZE="${OPTIMIZE:-0}"
@@ -79,14 +79,14 @@ ROM_STAGE="$(mktemp -d)"
 trap 'rm -rf "$ROM_STAGE"' EXIT
 mkdir -p "$ROM_STAGE/roms"
 cp "$ROM_PATH" "$ROM_STAGE/roms/"
-(cd "$ROM_STAGE/roms" && zip -q psion3a.zip "$ROM_NAME")
+(cd "$ROM_STAGE/roms" && zip -q psion3a.zip "$(basename "$ROM_NAME")")
 
 # Bundle Pocket Book II ROM if available (same MAME driver, different machine name)
 PB2_PRELOAD_ARGS=""
 if [ -f "$PB2_ROM_PATH" ]; then
     echo "  Bundling pocketbk2 ROM: $PB2_ROM_NAME"
     cp "$PB2_ROM_PATH" "$ROM_STAGE/roms/"
-    (cd "$ROM_STAGE/roms" && zip -q pocketbk2.zip "$PB2_ROM_NAME")
+    (cd "$ROM_STAGE/roms" && zip -q pocketbk2.zip "$(basename "$PB2_ROM_NAME")")
     PB2_PRELOAD_ARGS="--preload $ROM_STAGE/roms/pocketbk2.zip@/roms/pocketbk2.zip --preload $ROM_STAGE/roms/pocketbk2.zip@/pocketbk2.zip --preload $ROM_STAGE/roms/pocketbk2.zip@/roms/pocketbk2/pocketbk2.zip"
 else
     echo "  pocketbk2 ROM not found at $PB2_ROM_PATH — skipping"

@@ -4,7 +4,7 @@
 // EPOC's own tools (petran) are not available and would not run here, so
 // this emits the container by hand.  Every field below was read out of a
 // real ER5u binary rather than assumed: Z:\System\Samples\D_EXC.exe in
-// roms/conan_s2_2201.engbuild.IMG is a RAM-format E32Image sitting in the
+// roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img is a RAM-format E32Image sitting in the
 // ROM as a plain file, so it doubles as the format's worked example (see
 // docs/conan-rom-dumping.md, "The container").
 //
@@ -232,7 +232,19 @@ function main(): void {
   const importSec = buildImportSection(blocks);
   const relocSec = buildRelocSection(relocs);
 
-  const codeSize = bin.length;
+  // The export directory, for a DLL: one word per ordinal, from 1, each
+  // the export's offset from the start of the code section. Psion's own
+  // tools put it as the last thing in the code section, after the IAT,
+  // and the loader adds the code address to each entry itself, so the
+  // entries carry no relocations (every R1 .APP in applib/ is laid out
+  // this way, e.g. BOXES.APP: text 0x5bb4, export directory at 0x660c,
+  // code size 0x6610).
+  const exportNames = argAll('--export');
+  const exportDir = Buffer.alloc(exportNames.length * 4);
+  exportNames.forEach((n, i) => exportDir.writeUInt32LE(need(n) - base, i * 4));
+  const code = Buffer.concat([bin, exportDir]);
+
+  const codeSize = code.length;
   const textSize = iatStart;
   const importOffset = HEADER_SIZE + codeSize;
   const relocOffset = importOffset + importSec.length;
@@ -247,7 +259,7 @@ function main(): void {
   h.writeUInt32LE(uidChecksum(uid1, uid2, uid3), 0x0c);
   h.write('EPOC', 0x10, 'latin1');
   h.writeUInt32LE(CPU_ARM, 0x14);
-  h.writeUInt32LE(wordSum(bin), 0x18);          // iCheckSumCode
+  h.writeUInt32LE(wordSum(code), 0x18);         // iCheckSumCode
   h.writeUInt32LE(0, 0x1c);                     // iCheckSumData (no data section)
   h.writeUInt32LE(num(arg('--tools-version', String(TOOLS_VERSION))), 0x20);
   // iTime, a TInt64 of microseconds since year 0 — the same epoch EPOC's
@@ -264,10 +276,12 @@ function main(): void {
   h.writeUInt32LE(bssSize, 0x44);
   h.writeUInt32LE(entry, 0x48);
   h.writeUInt32LE(base, 0x4c);                  // iCodeBase
-  h.writeUInt32LE(base + codeSize, 0x50);       // iDataBase — .bss follows the code
+  // iDataBase — .bss follows the code. A DLL with no static data at
+  // all carries 0 here, as Psion's own R1 applications do.
+  h.writeUInt32LE(isDll && bssSize === 0 ? 0 : base + codeSize, 0x50);
   h.writeUInt32LE(blocks.length, 0x54);         // iDllRefTableCount
-  h.writeUInt32LE(0, 0x58);                     // iExportDirOffset
-  h.writeUInt32LE(0, 0x5c);                     // iExportDirCount
+  h.writeUInt32LE(exportNames.length ? HEADER_SIZE + bin.length : 0, 0x58);  // iExportDirOffset
+  h.writeUInt32LE(exportNames.length, 0x5c);    // iExportDirCount
   h.writeUInt32LE(textSize, 0x60);
   h.writeUInt32LE(HEADER_SIZE, 0x64);           // iCodeOffset
   h.writeUInt32LE(0, 0x68);                     // iDataOffset
@@ -276,11 +290,12 @@ function main(): void {
   h.writeUInt32LE(0, 0x74);                     // iDataRelocOffset
   h.writeUInt32LE(num(arg('--priority', '0x15e')), 0x78);  // EPriorityForeground
 
-  fs.writeFileSync(out, Buffer.concat([h, bin, importSec, relocSec]));
+  fs.writeFileSync(out, Buffer.concat([h, code, importSec, relocSec]));
   console.log(`${out}: ${HEADER_SIZE + codeSize + importSec.length + relocSec.length} bytes ` +
               `(text 0x${textSize.toString(16)}, iat 0x${(iatEnd - iatStart).toString(16)}, ` +
               `bss 0x${bssSize.toString(16)}, ${relocs.length} relocs, ` +
-              `${blocks.reduce((n, b) => n + b.ordinals.length, 0)} imports)`);
+              `${blocks.reduce((n, b) => n + b.ordinals.length, 0)} imports` +
+              (exportNames.length ? `, ${exportNames.length} exports` : '') + ')');
 }
 
 if (process.argv[1] && process.argv[1].endsWith('e32link.mts')) main();

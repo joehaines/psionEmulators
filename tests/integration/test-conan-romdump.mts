@@ -15,7 +15,7 @@
 //
 // Run (via tests/integration/test-conan-romdump.sh):
 //   node --experimental-strip-types tests/integration/test-conan-romdump.mts \
-//        --ram ram.bin --rom roms/conan_s2_2201.engbuild.IMG
+//        --ram ram.bin --rom roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img
 
 import * as fs from 'node:fs';
 

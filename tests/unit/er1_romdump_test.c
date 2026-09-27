@@ -491,9 +491,9 @@ int main(void)
     // ── 8. The self-check, against real R1 ROMs ────────────────────
     {
         static const char *kRoms[] = {
-            "roms/S5_v1.00(113)_eng.bin",       /* the Series 5 prototype */
-            "roms/series5_v1.01(144)_eng.bin",  /* the shipping Series 5 */
-            "roms/Geofox_v1.01(146)_eng.bin",   /* the Geofox One */
+            "roms/Series5/S5_v1.00(113)_eng/S5_v1.00(113)_eng.bin",       /* the Series 5 prototype */
+            "roms/Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin",  /* the shipping Series 5 */
+            "roms/Geofox/Geofox_v1.01(146)_eng/Geofox_v1.01(146)_eng.bin",   /* the Geofox One */
         };
         static const char *kCalls[] = {
             "iClose", "iConnect", "iOpen", "iReplace", "iRead", "iWrite",

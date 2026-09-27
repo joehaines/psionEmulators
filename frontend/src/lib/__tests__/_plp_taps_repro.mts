@@ -28,7 +28,7 @@ import { PlpClient } from '../plp/client-spec.ts';
 const REPO = new URL('../../../../', import.meta.url).pathname;
 const SOCK = `/tmp/psion-plp-taps.sock`;
 const HARNESS = `${REPO}harness/run`;
-const ROM = `${REPO}roms/5mx_v1.05(260)_eng.bin`;
+const ROM = `${REPO}roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin`;
 
 const SIZE = Number(process.env.SIZE ?? 2 * 1024 * 1024);
 const TAP_EVERY = Number(process.env.TAP_EVERY ?? 1.5);

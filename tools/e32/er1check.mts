@@ -22,7 +22,7 @@
 //     not have, and an ordinal past the end of a DLL's export table.
 //
 // Run (node 22+):
-//   node --experimental-strip-types tools/e32/er1check.mts ordinals 'roms/S5_v1.00(113)_eng.bin'
+//   node --experimental-strip-types tools/e32/er1check.mts ordinals 'roms/Series5/S5_v1.00(113)_eng/S5_v1.00(113)_eng.bin'
 //   node --experimental-strip-types tools/e32/er1check.mts check ROM tools/romdump-er1/ROMDUMP.EXE
 
 import * as fs from 'node:fs';

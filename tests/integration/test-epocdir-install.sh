@@ -38,8 +38,8 @@ OUT_DIR="$REPO_ROOT/tests/results"
 mkdir -p "$OUT_DIR"
 
 case "$DEVICE" in
-    5mx)    ROM="5mx_v1.05(260)_eng.bin" ;;
-    netpad) ROM="Netpad.img" ;;
+    5mx)    ROM="Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin" ;;
+    netpad) ROM="netPad/netPad_v1.75(247)_eng/Netpad.img" ;;
     *)      echo "unknown device $DEVICE (have 5mx, netpad)" >&2; exit 2 ;;
 esac
 

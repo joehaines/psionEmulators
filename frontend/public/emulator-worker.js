@@ -181,6 +181,11 @@ function feedMic(frames) {
 }
 let baseUrl = '/';
 let currentDeviceId = null;
+// Which of the device's ROMs is running: the main thread's romStateTag
+// (frontend/src/lib/romCatalog.ts), '' for the device's default ROM. A
+// saved session is a RAM image, only valid on the ROM that wrote it, so
+// saves carry it and a load only restores a save made on the same ROM.
+let currentRomTag = '';
 
 // Frame-spaced synthetic-key queue (mirrors the main-thread render loop).
 let keyQueue = [];
@@ -249,11 +254,11 @@ function defaultSsdFor(deviceId, slot) {
   if (deviceId === 'mc200' && slot === 3) {
     // Same Pack D arrangement as the MC400 — the MC200's own
     // factory System Disk, dumped.
-    return { url: 'roms/MC200_V2.12F_system.ssd', kind: 'protected' };
+    return { url: 'roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd', kind: 'protected' };
   }
   if (deviceId === 'mc400' && slot === 3) {
     // Strapped write-protected, like the real ROM:: System Disk.
-    return { url: 'roms/MC400_V2.60F_system.ssd', kind: 'protected' };
+    return { url: 'roms/MC400/MC400_v2.60F_eng/MC400_V2.60F_system.ssd', kind: 'protected' };
   }
   return null;
 }
@@ -634,18 +639,19 @@ const rpc = {
   // this device, as a hex string — see the helpers above. It rides along with
   // the load because localStorage, where it is persisted, is main-thread-only.
   async loadDevice({ deviceId, romUrl, preroll, restore = true, machineId = null,
-                     language = null }) {
+                     language = null, romTag = '' }) {
     // Auto-save the outgoing device before switching (mirrors the main-thread
     // hook's save-on-switch). Must run BEFORE currentDeviceId is reassigned —
     // saveState() keys IndexedDB on it. Swallow errors so a bad save can't
     // wedge the switch; the device-switch must always proceed.
-    if (mod && currentDeviceId && currentDeviceId !== deviceId) {
+    if (mod && currentDeviceId && (currentDeviceId !== deviceId || currentRomTag !== romTag)) {
       postLoadProgress(0.02, 'Saving current session…');
       try { await rpc.saveState(); }
       catch (e) { postMessage({ type: 'log', text: 'save-on-switch failed: ' + (e && e.message || e), err: true }); }
     }
     running = false; paused = false;
     currentDeviceId = deviceId;
+    currentRomTag = romTag;
     // The new device instance has no host bridges. Stale attach flags from the
     // outgoing device would make drainSerial() poll a UART that was never
     // attached on the new instance — and (with the matching stale main-thread
@@ -718,7 +724,8 @@ const rpc = {
       try {
         const stored = await idbGet('state-' + deviceId);
         if (stored && stored.version === STATE_SCHEMA_VERSION && stored.heap && stored.byteLength
-            && (!stored.deviceId || stored.deviceId === deviceId)) {
+            && (!stored.deviceId || stored.deviceId === deviceId)
+            && (stored.rom || '') === romTag) {
           postLoadProgress(0.82, 'Restoring saved session…');
           const heap = await gunzip(stored.heap);
           if (heap.byteLength > 0 && growHeapToFit(heap.byteLength)) {
@@ -1125,6 +1132,7 @@ const rpc = {
       await idbPut('state-' + currentDeviceId, {
         version: STATE_SCHEMA_VERSION, deviceId: currentDeviceId,
         heap: data, byteLength: raw.byteLength,
+        ...(currentRomTag ? { rom: currentRomTag } : {}),
       });
       return true;
     } finally { paused = wasPaused; }
@@ -1137,6 +1145,7 @@ const rpc = {
     const stored = await idbGet('state-' + currentDeviceId);
     if (!stored || stored.version !== STATE_SCHEMA_VERSION || !stored.heap || !stored.byteLength) return false;
     if (stored.deviceId && stored.deviceId !== currentDeviceId) return false;
+    if ((stored.rom || '') !== currentRomTag) return false;
     const heap = await gunzip(stored.heap);
     if (heap.byteLength === 0) return false;
     const wasPaused = paused; paused = true;

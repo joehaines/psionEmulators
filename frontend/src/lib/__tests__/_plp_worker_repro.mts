@@ -26,7 +26,7 @@ import type { Pdu } from '../plp/link.ts';
 
 const require = createRequire(import.meta.url);
 const PUB = new URL('../../../public/', import.meta.url).pathname;
-const ROM = new URL('../../../../roms/5mx_v1.05(260)_eng.bin', import.meta.url).pathname;
+const ROM = new URL('../../../../roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin', import.meta.url).pathname;
 const SIZE = Number(process.argv[2] ?? 190_000);
 const LOOPS = Number(process.env.LOOPS ?? 1);   // repeat the upload in ONE session
 const LOG = !!process.env.LOG;

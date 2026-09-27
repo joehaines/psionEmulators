@@ -13,7 +13,7 @@ so the dump comes off in **2 MB parts** and you can stop and start it:
 write what fits, copy those parts off, delete them, run it again for the
 rest. Nothing you have not asked for is ever deleted. (The Conan this was
 written for has a 16 MB ROM, so it comes off in eight parts —
-`roms/conan_v0.10(17)_eng.IMG` in this repository is one such dump.)
+`roms/Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG` in this repository is one such dump.)
 
 ---
 
@@ -169,7 +169,7 @@ a file the engineering build already shows on its desktop:
 
 ```sh
 node --experimental-strip-types tools/e32/romfs.mts \
-    replace roms/conan_s2_2201.engbuild.IMG \
+    replace roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img \
     'Z:\System\Samples\D_EXC.exe' tools/romdump/ROMDUMP.EXE /tmp/conan-romdump.IMG
 
 bash tests/integration/test-conan-romdump.sh     # the whole thing, checked

@@ -1,6 +1,6 @@
 # netBook: booting the Quartz build
 
-`roms/OS.IMG` is a netBook build of **Quartz** — EPOC's pen-oriented UI
+`roms/netBook/Quartz_v6.0_eng/OS.IMG` is a netBook build of **Quartz** — EPOC's pen-oriented UI
 (the `Qik*` / `Qikon` layer, the ancestor of UIQ) linked for netBook
 hardware instead of the Crystal desktop the stock `OS.IMG` carries. It
 boots on a real netBook off a CF card exactly like the stock image does,
@@ -200,7 +200,7 @@ the guest.
 ## Testing
 
 `tests/devices.txt` gains `netbook_quartz`: the v0.11 bootloader plus a
-synthesised FAT16 card carrying `roms/OS.IMG`, read the faithful way —
+synthesised FAT16 card carrying `roms/netBook/Quartz_v6.0_eng/OS.IMG`, read the faithful way —
 the same path the browser takes for any netBook OS image.
 
 Its variance gate is a **band**, not a floor, because the two bugs fail

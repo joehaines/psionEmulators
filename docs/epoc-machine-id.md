@@ -148,7 +148,7 @@ ignores clocks until the start bit arrives, exactly as the real chip does.
 
 ```sh
 # Boot, open Information → Machine…, screenshot the dialog.
-harness/run "roms/5mx_v1.05(260)_eng.bin" --device 5mx --boot-seconds 46 \
+harness/run "roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin" --device 5mx --boot-seconds 46 \
   --machine-id CAFEBABE \
   --press-key 35 148 --press-key 36 15 --press-key 37 15 \
   --press-key 38 15 --press-key 39 15 --press-key 40 17 --press-key 41 3 \
@@ -158,15 +158,15 @@ node scripts/pgm2png.mjs /tmp/id.pgm      # Unique id: 1000-118A-CAFE-BABE
 # The two card-booted machines. Both take the whole 16 digits; the card is
 # what gets patched, so it has to be attached (the boot suite synthesises
 # tests/cards/5mxpro-osboot.img on first use).
-harness/run "roms/5mxPRO_BL_v1.09_ger.bin" --device 5mxpro --boot-seconds 2 \
+harness/run "roms/Series5mxPRO/BootLoader/5mxPRO_BL_v1.09_ger/5mxPRO_BL_v1.09_ger.bin" --device 5mxpro --boot-seconds 2 \
   --card-path tests/cards/5mxpro-osboot.img --post-attach-seconds 95 \
   --machine-id 0BADF00D-DEADBEEF \
   --press-key 80 148 --press-key 82 15 --press-key 83 15 --press-key 84 15 \
   --press-key 85 15 --press-key 86 17 --press-key 88 3 \
   --screenshot /tmp/id.pgm                # Unique id: 0BAD-F00D-DEAD-BEEF
 
-harness/run "roms/netBook_BL_v011_eng.bin" --device netbook --boot-seconds 3 \
-  --card-path roms/netbook_os.img --post-attach-seconds 115 \
+harness/run "roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin" --device netbook --boot-seconds 3 \
+  --card-path roms/netBook/netBook_v1.05(450)_eng/OS.IMG --post-attach-seconds 115 \
   --machine-id 0BADF00D-DEADBEEF \
   --press-key 96 148 --press-key 98 15 --press-key 99 15 --press-key 100 15 \
   --press-key 101 15 --press-key 102 17 --press-key 104 3 \

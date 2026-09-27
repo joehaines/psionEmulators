@@ -9,7 +9,7 @@ import { PlpClient } from '../plp/client-spec.ts';
 
 const REPO = new URL('../../../../', import.meta.url).pathname;
 const HARNESS = `${REPO}harness/run`;
-const ROM = `${REPO}roms/5mx_v1.05(260)_eng.bin`;
+const ROM = `${REPO}roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin`;
 const SIZE = Number(process.argv[2] ?? 190_000);
 const SOCK = `/tmp/psion-plp-upload.sock`;
 try { fs.unlinkSync(SOCK); } catch { /* */ }

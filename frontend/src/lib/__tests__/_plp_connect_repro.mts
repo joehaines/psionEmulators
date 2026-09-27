@@ -21,7 +21,7 @@ import type { Pdu } from '../plp/link.ts';
 
 const REPO = new URL('../../../../', import.meta.url).pathname;
 const HARNESS = `${REPO}harness/run`;
-const ROM = `${REPO}roms/5mx_v1.05(260)_eng.bin`;
+const ROM = `${REPO}roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin`;
 const ATTACH_SEC = process.argv[2] ?? '1';      // attach during boot
 const TRIALS = Number(process.argv[3] ?? (process.env.PDU ? 1 : 8));
 const PDU = !!process.env.PDU;

@@ -28,7 +28,7 @@ cd "$(dirname "$0")/../.."
 
 BOOT="${1:-6}"
 ATTACH="${2:-6}"
-ROM="roms/netBook_BL_v011_eng.bin"
+ROM="roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin"
 RUN="harness/run"
 LOGDIR="/tmp/nb-cf-bl"
 LOG="$LOGDIR/run.log"
@@ -37,17 +37,17 @@ mkdir -p "$LOGDIR"
 
 # The faithful path mounts the CF as a FAT16 volume and opens D:\OS.IMG as a
 # FILE — so it needs a real FAT16 disk image, NOT the raw EPOCARM ROM
-# (roms/netbook_os.img starts with "EPOCARM ROM" and has no FAT boot sector;
+# (roms/netBook/netBook_v1.05(450)_eng/OS.IMG starts with "EPOCARM ROM" and has no FAT boot sector;
 # only the synthetic netBookLoadOsFromCard handoff handles the raw image).
 # Build the FAT16 image the way the frontend's "Insert CF card" dialog does.
 CARD="$LOGDIR/cf_fat16.img"
 if command -v node >/dev/null 2>&1; then
     node --experimental-strip-types scripts/build-cf-fat16-image.mts \
-        roms/netbook_os.img "$CARD" 24 >/dev/null 2>&1 \
-        || { echo "FAT16 image build failed" >&2; CARD="roms/netbook_os.img"; }
+        roms/netBook/netBook_v1.05(450)_eng/OS.IMG "$CARD" 24 >/dev/null 2>&1 \
+        || { echo "FAT16 image build failed" >&2; CARD="roms/netBook/netBook_v1.05(450)_eng/OS.IMG"; }
 else
     echo "node not found — falling back to raw image (faithful mount will fail)" >&2
-    CARD="roms/netbook_os.img"
+    CARD="roms/netBook/netBook_v1.05(450)_eng/OS.IMG"
 fi
 
 if [[ ! -x "$RUN" ]]; then

@@ -1,4 +1,4 @@
-// Join the two Psion HC120 ROM chip dumps in roms/hc120/ into the single
+// Join the two Psion HC120 ROM chip dumps in roms/HC120/hc120_v1.72F_eng/ into the single
 // 256 KiB image the emulator loads.
 //
 // The HC120's ROM is two 128 KiB flash chips on the V30H's bus, dumped
@@ -17,7 +17,7 @@
 // the two chips hold. See docs/hc120-rom.md.
 //
 //   node --experimental-strip-types scripts/build-hc120-rom.mts \
-//        [roms/hc120] [roms/hc120_v1.72F.bin]
+//        [roms/HC120/hc120_v1.72F_eng] [roms/HC120/hc120_v1.72F_eng/hc120_v1.72F.bin]
 //
 // The joined image is committed, so this script only needs re-running if
 // the chip dumps are ever replaced.
@@ -25,8 +25,8 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const [
-  srcDir = 'roms/hc120',
-  out    = 'roms/hc120_v1.72F.bin',
+  srcDir = 'roms/HC120/hc120_v1.72F_eng',
+  out    = 'roms/HC120/hc120_v1.72F_eng/hc120_v1.72F.bin',
 ] = process.argv.slice(2);
 
 const lower = new Uint8Array(readFileSync(join(srcDir, 'v172f_1.bin')));

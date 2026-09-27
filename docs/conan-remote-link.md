@@ -1,6 +1,6 @@
 # Conan: why Remote Link can't connect
 
-The Conan (`roms/conan_s2_2201.engbuild.IMG`, TRomHeader 0.01(22), built
+The Conan (`roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img`, TRomHeader 0.01(22), built
 2001-05-12) is the only supported EPOC machine whose ROM does **not** speak the
 PLP data link `frontend/src/lib/plp` implements. Its profile in
 `core/device_registry.cpp` therefore carries `linkProtocol = 0`, which hides the
@@ -106,7 +106,7 @@ bash tests/integration/test-remote-link.sh conan
 Raw, if you want to watch it yourself:
 
 ```sh
-./harness/run roms/conan_s2_2201.engbuild.IMG --device conan --quiet-logs \
+./harness/run roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img --device conan --quiet-logs \
     --serial-attach 2 8 \
     --serial-tx 2 10 "19,23" \
     --serial-tx-framed 2 14 "21" \

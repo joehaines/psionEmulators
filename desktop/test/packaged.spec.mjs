@@ -139,7 +139,7 @@ try {
     // A ROM proves resourcesPath/roms resolved — a different branch from dev.
     let rom = null;
     try {
-      const r = await fetch(new URL('roms/OrganiserII.rom', location.href).href);
+      const r = await fetch(new URL('roms/OrganiserII/OrganiserII_LZ64_eng/OrganiserII.rom', location.href).href);
       rom = { status: r.status, length: Number(r.headers.get('Content-Length') || 0) };
     } catch (e) { rom = { error: String(e) }; }
     return {

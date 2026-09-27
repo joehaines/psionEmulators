@@ -519,7 +519,18 @@ static void CopyCalls(TFsCalls *aTo, const TFsCalls *aFrom)
 
 // Bytes per RFile::Read on the read-back pass. In .bss, not on the
 // stack: the stack is the 8 KB every R1 binary asks for.
+//
+// ROMDUMP.APP (APP_BUILD, see start_app.S) has no .bss: its globals are
+// a block on AppRun's 12 KB stack, below the 2.7 KB the framework has
+// already used of it on a Series 5. So that build keeps its buffers
+// small — the read-back takes more requests, and the log and the report
+// still have room for what a whole run writes (2.1 KB and 1 KB on the
+// emulated Series 5) with some to spare.
+#ifdef APP_BUILD
+#define VERIFY_BYTES 0x200u
+#else
 #define VERIFY_BYTES 0x2000u
+#endif
 
 // Enough parts for a 64 MB ROM at 1 MB each, and the name has room for
 // three digits.
@@ -741,7 +752,11 @@ static TInt ReadWholeFile(RFs_ *aFs, const TPtrC8_ *aName, void *aBuf, TInt aMax
 // nothing left on it; one that has to grow cannot, and a log that
 // disappears exactly when the disk fills up would be worse than no log
 // at all.
+#ifdef APP_BUILD
+#define LOG_BYTES 3072
+#else
 #define LOG_BYTES 8192
+#endif
 
 static char gLog[LOG_BYTES];
 static TInt gLogAt;
@@ -1133,7 +1148,12 @@ static TInt WriteProgress(RFs_ *aFs, char aDrive, TUint aRomBase, TUint aRomSize
 //
 // The per-part rows are built as they happen, in their own buffer, and
 // the rest of the report is built around them each time.
-static char gReport[4096];
+#ifdef APP_BUILD
+#define REPORT_BYTES 2048
+#else
+#define REPORT_BYTES 4096
+#endif
+static char gReport[REPORT_BYTES];
 static char gRows[1024];
 static TInt gRowCount;
 static TInt gRowsAt;
@@ -1687,6 +1707,20 @@ TInt RomDumpCheckOnly(RFs_ *aFs)
     return KErrNone;
 }
 
+#ifdef APP_BUILD
+// Where the framework's stack stood when it called NewApplication, and
+// where this build's globals are — the stack is the one thing a machine
+// could run short of that the emulated Series 5 has plenty of, so the
+// log says how close it came.
+static TUint gAppCallerSp;
+
+void AppStackNote(TUint aCallerSp);
+void AppStackNote(TUint aCallerSp)
+{
+    gAppCallerSp = aCallerSp;
+}
+#endif
+
 TInt RomDumpMain(void)
 {
     RFs_ fs;
@@ -1719,7 +1753,15 @@ TInt RomDumpMain(void)
     // machine's own ROM.
     StartingCalls(&gFs);
 
+#ifdef APP_BUILD
+    LogText("ROMDUMP.APP for EPOC R1 - " BUILD_ID); LogEol();
+    LogText("app: framework sp=0x"); LogHex(gAppCallerSp, 8);
+    LogText(" globals at 0x"); LogHex((TUint)&gAppCallerSp, 8);
+    LogText(" log at 0x"); LogHex((TUint)gLog, 8);
+    LogEol();
+#else
     LogText("ROMDUMP for EPOC R1 - " BUILD_ID); LogEol();
+#endif
 
     // Three ways to reach the file server, in the order they are tried.
     // Which one a machine needs is the first thing the log says.

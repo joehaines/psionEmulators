@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import type { DeviceProfile } from '../types/emulator';
 import { loadPsionModule } from '../lib/wasmBridge';
 import DeviceCard from './DeviceCard';
+import { romUrlFor } from '../lib/romCatalog';
 
 interface Props {
   onSelect: (romUrl: string) => void;
@@ -26,7 +27,7 @@ export default function DeviceSelector({ onSelect }: Props) {
   }, []);
 
   const handleSelect = (profile: DeviceProfile) => {
-    onSelect(`${import.meta.env.BASE_URL}roms/${profile.romFilename}`);
+    onSelect(romUrlFor(profile, import.meta.env.BASE_URL));
   };
 
   return (

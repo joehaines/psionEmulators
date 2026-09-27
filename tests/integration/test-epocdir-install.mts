@@ -75,7 +75,7 @@ interface DeviceMeta {
 
 const DEVICES: Record<string, DeviceMeta> = {
   '5mx': {
-    rom: '5mx_v1.05(260)_eng.bin',
+    rom: 'Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin',
     profile: { id: '5mx', hasCFSlot: false, ssdSlotCount: 0, remoteLinkUart: 2, linkProtocol: 1 },
     golden: '5mx.pgm',
     attachAt: 8,
@@ -86,7 +86,7 @@ const DEVICES: Record<string, DeviceMeta> = {
   // here without the Tools-menu toggle real hardware wants. It reaches
   // its desktop at ~14 s, hence the later plug-in.
   netpad: {
-    rom: 'Netpad.img',
+    rom: 'netPad/netPad_v1.75(247)_eng/Netpad.img',
     profile: { id: 'netpad', hasCFSlot: false, hasMmcSlot: false, ssdSlotCount: 0,
                remoteLinkUart: 3, linkProtocol: 1 },
     golden: 'netpad.pgm',

@@ -28,7 +28,7 @@
 // checked the same way in the other direction.
 //
 // Build:  bash harness/build.sh
-// Usage:  ./netpad-audio-harness [<netpad.img>]   (default roms/Netpad.img)
+// Usage:  ./netpad-audio-harness [<netpad.img>]   (default roms/netPad/netPad_v1.75(247)_eng/Netpad.img)
 //
 // Exit codes (distinct so CI can bisect):
 //   0  microphone and speaker paths both verified
@@ -183,7 +183,7 @@ int16_t toneSample(int n) {
 }  // namespace
 
 int main(int argc, char **argv) {
-    const char *romPath = (argc > 1) ? argv[1] : "roms/Netpad.img";
+    const char *romPath = (argc > 1) ? argv[1] : "roms/netPad/netPad_v1.75(247)_eng/Netpad.img";
     // The harness needs the trace on to see the service interrupt; echo
     // the lines only when the caller asked for them as well.
     g_echoTrace = std::getenv("PSION_NETPAD_AC97_TRACE") != nullptr;

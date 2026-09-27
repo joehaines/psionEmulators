@@ -25,7 +25,9 @@ romdump-er1/ ROMDUMP.EXE for EPOC Release 1 machines (Series 5, including
              ROMDUMP0.EXE with no import table at all — it carries the
              file server's client side inside it, over the kernel's own
              executive calls, for a machine that has no library it can
-             borrow one from
+             borrow one from. And a third time as ROMDUMP.APP: that
+             code as an application DLL, for a machine whose System
+             screen will not open an EXE at all
 ```
 
 Each has a HOW-TO-USE.md written for someone holding the machine.
@@ -62,7 +64,7 @@ and the directory entry is pointed at it, so nothing else moves either
 way.
 
 ```sh
-node --experimental-strip-types tools/e32/romfs.mts list roms/conan_s2_2201.engbuild.IMG
+node --experimental-strip-types tools/e32/romfs.mts list roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img
 bash tests/integration/test-conan-romdump.sh
 ```
 
@@ -78,7 +80,7 @@ gets the machine's whole 6 MB ROM onto its own RAM disk.
 bash tests/integration/test-er1-romdump.sh
 bash tests/unit/run-er1-romdump-test.sh
 node --experimental-strip-types tests/unit/er1-romdump-image.mts
-node --experimental-strip-types tools/e32/er1check.mts ordinals 'roms/S5_v1.00(113)_eng.bin'
+node --experimental-strip-types tools/e32/er1check.mts ordinals 'roms/Series5/S5_v1.00(113)_eng/S5_v1.00(113)_eng.bin'
 node --experimental-strip-types tools/e32/armv3check.mts --e32 tools/romdump-er1/ROMDUMP.EXE
 ```
 

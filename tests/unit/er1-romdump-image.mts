@@ -24,12 +24,13 @@ import { scanArmV3 } from '../../tools/e32/armv3check.mts';
 const REPO = path.resolve(new URL('../..', import.meta.url).pathname);
 const EXE = path.join(REPO, 'tools', 'romdump-er1', 'ROMDUMP.EXE');
 const EXE0 = path.join(REPO, 'tools', 'romdump-er1', 'ROMDUMP0.EXE');
+const APP = path.join(REPO, 'tools', 'romdump-er1', 'ROMDUMP.APP');
 
 // Every R1 machine this repository has a ROM for.
 const ROMS = [
-  'S5_v1.00(113)_eng.bin',      // the Series 5 prototype — what the tool is for
-  'series5_v1.01(144)_eng.bin', // the shipping Series 5
-  'Geofox_v1.01(146)_eng.bin',  // the Geofox One, same EPOC generation
+  'Series5/S5_v1.00(113)_eng/S5_v1.00(113)_eng.bin',      // the Series 5 prototype — what the tool is for
+  'Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin', // the shipping Series 5
+  'Geofox/Geofox_v1.01(146)_eng/Geofox_v1.01(146)_eng.bin',  // the Geofox One, same EPOC generation
 ];
 
 // What tools/romdump-er1 is built against.
@@ -107,6 +108,48 @@ if (!fs.existsSync(EXE)) {
   check('ROMDUMP0.EXE holds no instruction an ARM710a cannot execute', bad.length === 0);
 }
 
+// The third is ROMDUMP0.EXE's code as an application DLL, for a machine
+// whose System screen will not open an EXE. What makes it one is its
+// header, laid out as Psion's own R1 applications are (applib's
+// BOXES.APP and eptable.app): UID1 KDynamicLibraryUid, UID2 KUidApp, no
+// data and no bss — the R1 loader gives a RAM-loaded DLL no static data
+// — and an export directory of one word at the end of the code section,
+// holding NewApplication's offset from the start of the code.
+{
+  const f = fs.readFileSync(APP);
+  const u = (o: number): number => f.readUInt32LE(o);
+  check('ROMDUMP.APP is a DLL (UID1 0x10000079, iFlags 3)', u(0) === 0x10000079 && u(0x2c) === 3);
+  check('ROMDUMP.APP is an application (UID2 KUidApp 0x1000006c)', u(4) === 0x1000006c);
+  check('ROMDUMP.APP has a UID3 from the development range',
+        u(8) >= 0x01000000 && u(8) <= 0x0fffffff, `0x${u(8).toString(16)}`);
+  check('ROMDUMP.APP has no static data (iDataSize and iBssSize 0)', u(0x34) === 0 && u(0x44) === 0);
+  check('ROMDUMP.APP imports nothing at all', u(0x54) === 0, `iDllRefTableCount=${u(0x54)}`);
+  const codeOffset = u(0x64), codeSize = u(0x30), textSize = u(0x60);
+  const expOff = u(0x58), expCount = u(0x5c);
+  check('ROMDUMP.APP exports one function, from the last word of its code section',
+        expCount === 1 && expOff === codeOffset + codeSize - 4);
+  const newApp = u(expOff);
+  check('and that function (NewApplication) is in its text', newApp > 0 && newApp < textSize,
+        `0x${newApp.toString(16)}`);
+  const skip = new Set<number>();
+  const rel = u(0x70);
+  if (rel) {
+    const size = u(rel);
+    let q = rel + 8;
+    while (q < rel + 8 + size) {
+      const page = u(q), blk = u(q + 4);
+      if (blk < 8) break;
+      for (let k = 8; k < blk; k += 2) {
+        const ent = f.readUInt16LE(q + k);
+        if (ent) skip.add(page + (ent & 0xfff));
+      }
+      q += blk;
+    }
+  }
+  const bad = scanArmV3(f.subarray(codeOffset, codeOffset + textSize), 0, skip);
+  check('ROMDUMP.APP holds no instruction an ARM710a cannot execute', bad.length === 0);
+}
+
 for (const name of ROMS) {
   const romPath = path.join(REPO, 'roms', name);
   if (!fs.existsSync(romPath)) {
@@ -127,6 +170,14 @@ for (const name of ROMS) {
   }
 
   for (const r of checkImage(rom, EXE)) check(`${name}: ${r.text}`, r.ok);
+  // The loader's own checks apply to the application too; the ones that
+  // describe ROMDUMP.EXE (its UID1, the zero UID3 the Shell runs an
+  // executable by, and its six imports — the application has none) are
+  // the ones checked differently above.
+  for (const r of checkImage(rom, APP)) {
+    if (/^iUid1 is |^iUid3 is 0|^the image imports every call/.test(r.text)) continue;
+    check(`${name}: ROMDUMP.APP ${r.text}`, r.ok);
+  }
 }
 
 console.log(failures ? `${failures} FAILURES` : 'all checks pass');

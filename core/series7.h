@@ -34,7 +34,7 @@ public:
 };
 
 // The Psion netpad — a netBook-class SA-1100 machine that boots its own
-// EPOC R5 ROM (roms/Netpad.img) directly from PA 0 like the Series 7,
+// EPOC R5 ROM (roms/netPad/netPad_v1.75(247)_eng/Netpad.img) directly from PA 0 like the Series 7,
 // but drives a colour panel at a Series-5-like resolution rather than the
 // netBook/Series 7 640×480. Only the panel geometry differs from the base
 // SA-1100 SoC, so we override lcdWidth()/lcdHeight(); everything else

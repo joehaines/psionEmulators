@@ -34,7 +34,7 @@ import type { Pdu } from '../plp/link.ts';
 const REPO = new URL('../../../../', import.meta.url).pathname;
 const SOCK = `/tmp/psion-plp-switch.sock`;
 const HARNESS = `${REPO}harness/run`;
-const ROM = `${REPO}roms/5mx_v1.05(260)_eng.bin`;
+const ROM = `${REPO}roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin`;
 const UART = 2;
 
 const REDUNDANT = !!process.env.REDUNDANT_ATTACH;

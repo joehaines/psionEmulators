@@ -7,7 +7,7 @@ own UI instead, so the timed window is an application actually doing something.
 Run one with `scripts/wasm-bench.mjs --script`:
 
     PSION_RTC_SEED=0 node scripts/wasm-bench.mjs frontend/public/psion.js \
-        roms/netBook_BL_v011_eng.bin netbook 0 \
+        roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin netbook 0 \
         --script scripts/bench/netbook-sheet.json --shot-dir /tmp
 
 `PSION_RTC_SEED=0` pins the clock, without which the on-screen time makes the

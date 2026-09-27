@@ -141,13 +141,14 @@ export class EmulatorWorkerClient {
   // ── RPC (cold/rare) ──
   getProfiles(): Promise<unknown[]> { return this.call('getProfiles'); }
   loadDevice(deviceId: string, romUrl: string, preroll: number, restore = true,
-             machineId: string | null = null, language: number | null = null):
+             machineId: string | null = null, language: number | null = null,
+             romTag = ''):
       Promise<{ deviceName: string; info: DeviceInfo;
                 ssdAttached?: boolean[]; datapakAttached?: boolean[];
                 serialAttached?: Record<number, boolean>;
                 machineId?: MachineIdReply; language?: LanguageReply }> {
     return this.call('loadDevice',
-                     { deviceId, romUrl, preroll, restore, machineId, language });
+                     { deviceId, romUrl, preroll, restore, machineId, language, romTag });
   }
   pause(): Promise<boolean> { return this.call('pause'); }
   resume(): Promise<boolean> { return this.call('resume'); }

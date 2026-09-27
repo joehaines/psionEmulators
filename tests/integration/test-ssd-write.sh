@@ -30,7 +30,7 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/run"
-ROM="${ROM:-$REPO_ROOT/roms/series3a_v3.40f_eng.bin}"
+ROM="${ROM:-$REPO_ROOT/roms/Series3a/s3a_v3.40f_eng/s3a_v3.40f_eng.bin}"
 LOG_DIR="$REPO_ROOT/tests/logs"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

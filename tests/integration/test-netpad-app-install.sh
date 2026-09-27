@@ -31,7 +31,7 @@ fi
 if [ ! -x "$REPO_ROOT/harness/run" ]; then
     bash "$REPO_ROOT/harness/build.sh" >&2
 fi
-if [ ! -f "$REPO_ROOT/roms/Netpad.img" ]; then
+if [ ! -f "$REPO_ROOT/roms/netPad/netPad_v1.75(247)_eng/Netpad.img" ]; then
     echo "SKIP: netpad ROM not present" >&2
     exit 0
 fi

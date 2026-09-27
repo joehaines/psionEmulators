@@ -36,7 +36,7 @@
 set -u
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 HARNESS=$REPO/harness/run
-ROM="$REPO/roms/Geofox_v1.01(146)_eng.bin"
+ROM="$REPO/roms/Geofox/Geofox_v1.01(146)_eng/Geofox_v1.01(146)_eng.bin"
 TMP=$(mktemp -d /tmp/gfmouse.XXXXXX)
 trap 'rm -rf "$TMP"' EXIT
 

@@ -22,7 +22,7 @@ import { uidChecksum, wordSum, buildImportSection, buildRelocSection }
 import { readRom } from '../../tools/e32/romfs.mts';
 
 const REPO = path.resolve(new URL('../..', import.meta.url).pathname);
-const ROM = path.join(REPO, 'roms', 'conan_s2_2201.engbuild.IMG');
+const ROM = path.join(REPO, 'roms', 'Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img');
 const OURS = path.join(REPO, 'tools', 'romdump', 'ROMDUMP.EXE');
 
 let failures = 0;

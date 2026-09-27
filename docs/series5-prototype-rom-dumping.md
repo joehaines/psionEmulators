@@ -16,11 +16,11 @@ binaries of the period that happen to be in `applib/`. It is 7.5 KB,
 imports six functions from one DLL, and — unlike its ER5u sibling in
 `tools/romdump` — says nothing on the screen at all.
 
-Everything below was read out of `roms/S5_v1.00(113)_eng.bin`, a
+Everything below was read out of `roms/Series5/S5_v1.00(113)_eng/S5_v1.00(113)_eng.bin`, a
 pre-release Series 5 build, unless it says otherwise, and
 `tools/e32/er1check.mts` reproduces the identifications on demand for
-that ROM, for the shipping `roms/series5_v1.01(144)_eng.bin` and for the
-Geofox's `roms/Geofox_v1.01(146)_eng.bin`.
+that ROM, for the shipping `roms/Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin` and for the
+Geofox's `roms/Geofox/Geofox_v1.01(146)_eng/Geofox_v1.01(146)_eng.bin`.
 
 ## The machine really is a non-Unicode R1 build
 
@@ -258,6 +258,64 @@ tried before the dump starts rather than after it has silently failed.
 Both work: on the emulated Series 5 each loads and dumps the whole 6 MB
 ROM, and `bash tests/integration/test-er1-romdump.sh [--no-imports]` is
 those two runs.
+
+### And a build the System screen does not have to recognise
+
+The first machine it was tried on, a Protea at v0.06, answered both
+EXEs with **"This type of file cannot be opened"**. That is the System
+screen, not the loader: before it runs anything it asks the recognisers
+in `Z:\System\Recogs` what the file is, and on every R1 ROM here
+`RecExe.rdl` is what says "an executable" (by UID1 0x1000007a). An
+earlier build evidently has no such answer, so neither binary was ever
+loaded, and nothing in either of them could have helped.
+
+What every build of the system must be able to start is an
+*application*: Word, Agenda and the rest are DLLs with UID2
+`KUidApp` (0x1000006c), which `Z:\System\Programs\AppRun.exe` loads
+into a process of its own and asks for ordinal 1, `NewApplication`. So
+`build.sh` builds `ROMDUMP0.EXE`'s code a third way, as `ROMDUMP.APP`,
+whose `NewApplication` does the whole dump and then returns no
+application object. The framework reports that as "Not enough memory",
+which is the one sign on the screen that the dump has finished.
+
+The header is laid out the way Psion's own tools laid out R1
+applications — `applib/`'s BOXES.APP and eptable.app are the worked
+examples — and two things about it are forced:
+
+* **No static data.** The R1 loader gives a RAM-loaded DLL none; every
+  R1 application in `applib/` has `iDataSize` and `iBssSize` 0. The
+  dumper keeps its log, report and read-back buffer in globals, so
+  `romdump.c` is compiled with **`-frwpi`**: every global is addressed
+  as an offset from r9, and `NewApplication` (`start_app.S`) points r9
+  at a zeroed block on its own stack before calling the same
+  `RomDumpMain`. r9 is callee-saved in the APCS the ROM was built with,
+  so the ROM's functions leave it alone. `romdump_app.ld` lays the
+  globals out from offset 0 in a segment that is never loaded, and
+  `e32link.mts --export` writes the one-word export directory at the end
+  of the code section, holding an offset rather than an address — the
+  loader adds the code base itself.
+* **A small stack.** AppRun's main thread has 12 KB (its ROM header,
+  +0x34), and on the Series 5 the framework has used 2.7 KB of it by the
+  time `NewApplication` runs. The app build's log, report and read-back
+  buffers are 3 KB, 2 KB and 512 bytes, which a whole run fits in with
+  room over (it writes about 2.1 KB of log and 1 KB of report); the
+  block is 6.8 KB and leaves about 2.8 KB below it. The log's first line
+  after the banner gives the framework's stack pointer and where the
+  block went, so a machine that runs short says how short.
+
+On the emulated Series 5, `bash tests/integration/test-er1-romdump.sh
+--app` opens it from the desktop, as the EXE tests do, and it dumps the
+whole ROM. Two things that test learned the hard way: putting the
+application over `Z:\System\Apps\Word\Word.app` and tapping the Word
+icon **restarts the machine** — and does so for a genuine Psion
+application (BOXES.APP) too, so it is that slot in the ROM that will not
+take a RAM-format application, not this binary — why, is not yet known;
+and the Extras-bar
+route (a copy in `C:\System\Apps\RomDump\`) is not tested, because
+this emulator has no way yet of putting a file on `C:`. The pre-release
+`S5_v1.00(113)` ROM does not boot in the emulator, so the application's
+header is checked against it, and the other two R1 ROMs, by
+`tests/unit/er1-romdump-image.mts` instead.
 
 This is also the answer to whether the libraries could be "packaged into
 the exe". A *library* cannot: EPOC32 has no static linking, an E32Image

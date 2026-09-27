@@ -6,6 +6,7 @@ import type { DeviceProfile } from '../types/emulator';
 import { getEpocDeliveryPref, setEpocDeliveryPref } from '../lib/appLibrary';
 import type { LeaderboardRow } from '../lib/analytics';
 import { DEVICE_RELEASE_YEARS, DEVICE_LOGO_MAP } from '../lib/deviceMeta';
+import { ROM_CATALOG, romOptions, selectedRom, setSelectedRom, type RomOption } from '../lib/romCatalog';
 import {
   isSiboWord, isSiboWordEncrypted, extractSiboWordText,
 } from '../lib/converters/psion-word-sibo';
@@ -153,6 +154,94 @@ function DesktopDownloads() {
         too, for any arm64 Linux that isn't Debian-based.
       </p>
     </div>
+  );
+}
+
+// ROM versions: for each device with more than one ROM in roms/, which one
+// it boots (lib/romCatalog.ts). The choice is stored per device and read at
+// load time; App reboots the running device on the new ROM when Settings
+// closes. Saved sessions and language choices are kept per ROM, so moving
+// between ROMs and back loses neither.
+function romLabel(o: RomOption, isDefault: boolean): string {
+  return `v${o.version} · ${o.language}${isDefault ? ' (default)' : ''}`;
+}
+
+function romLanguagesText(o: RomOption): string {
+  if (o.languages === undefined || o.languages.length === 0) return `Boots in ${o.language}; no language choice.`;
+  return `Language choices: ${o.languages.join(', ')}.`;
+}
+
+function RomVersions({ profiles }: { profiles: DeviceProfile[] }) {
+  const devices = profiles.filter(p => romOptions(p.id).length > 0);
+  const [chosen, setChosen] = useState<Record<string, string>>(() =>
+    Object.fromEntries(devices.map(p => [p.id, selectedRom(p.id)!.id])));
+
+  const choose = (deviceId: string, romId: string) => {
+    setSelectedRom(deviceId, romId);
+    setChosen(c => ({ ...c, [deviceId]: romId }));
+  };
+  const anyChanged = devices.some(p => chosen[p.id] !== ROM_CATALOG[p.id].options[0].id);
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-psion-accent/20 bg-psion-mid/40">
+        <p className="text-[10px] font-mono text-gray-500 leading-tight">
+          Each ROM keeps its own saved session and language. Changing the ROM
+          of the device you are running restarts it when you leave Settings.
+        </p>
+        <button
+          type="button"
+          disabled={!anyChanged}
+          onClick={() => devices.forEach(p => choose(p.id, ROM_CATALOG[p.id].options[0].id))}
+          className="text-[11px] font-mono text-gray-600 hover:text-psion-charcoal transition-colors disabled:opacity-40 disabled:cursor-default flex-shrink-0"
+          title="Put every device back on its default ROM"
+        >
+          Reset all
+        </button>
+      </div>
+      <div>
+        {devices.map(profile => {
+          const options = romOptions(profile.id);
+          const current = options.find(o => o.id === chosen[profile.id]) ?? options[0];
+          const set = ROM_CATALOG[profile.id];
+          return (
+            <div
+              key={profile.id}
+              className="px-4 py-2 border-b border-psion-accent/20 last:border-b-0"
+            >
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <label
+                  htmlFor={`rom-${profile.id}`}
+                  className="text-xs font-mono text-psion-charcoal flex-1 min-w-[10rem]"
+                >
+                  {profile.displayName}
+                  {set.kind === 'os' && (
+                    <span className="text-[10px] text-gray-500"> — OS image on the boot card</span>
+                  )}
+                </label>
+                <select
+                  id={`rom-${profile.id}`}
+                  value={current.id}
+                  onChange={e => choose(profile.id, e.target.value)}
+                  className="max-w-full px-2 py-1 rounded text-[11px] font-mono bg-white border border-psion-accent/60 text-psion-charcoal focus:border-psion-accent focus:outline-none"
+                >
+                  {options.map((o, i) => (
+                    <option key={o.id} value={o.id}>{romLabel(o, i === 0)}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[10px] font-mono text-gray-500 mt-1 leading-tight">
+                {romLanguagesText(current)}
+                {current.note && <> {current.note}</>}
+              </p>
+              <p className="text-[10px] font-mono text-gray-400 leading-tight break-all">
+                roms/{current.path}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -440,6 +529,19 @@ export default function SettingsView({
             <DesktopDownloads />
           </section>
         )}
+
+        {/* ROM versions ------------------------------------------------ */}
+        <section className="mb-6 border border-psion-accent/30 rounded-lg overflow-hidden">
+          <header className="px-4 py-2 bg-psion-mid border-b border-psion-accent/30">
+            <h2 className="text-xs font-mono font-semibold uppercase tracking-wide text-psion-charcoal">
+              ROM versions
+            </h2>
+            <p className="text-xs font-mono text-gray-500 mt-0.5">
+              Choose which ROM each device boots. The default is the one it has always used.
+            </p>
+          </header>
+          <RomVersions profiles={profiles} />
+        </section>
 
         {/* Word password recovery -------------------------------------- */}
         <section className="mb-6 border border-psion-accent/30 rounded-lg overflow-hidden">

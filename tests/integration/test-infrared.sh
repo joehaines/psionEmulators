@@ -75,7 +75,7 @@ if [ ! -x "$HARNESS" ]; then bash "$REPO_ROOT/harness/build.sh" >&2; fi
 # EPOC keys used: Menu=148, Right=15, Down=17, Enter=3.
 case "$DEVICE" in
   5mx)
-    DEF_ROM="$REPO_ROOT/roms/5mx_v1.05(260)_eng.bin"
+    DEF_ROM="$REPO_ROOT/roms/Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin"
     # Menu -> Right x5 (Tools) -> Down x3 (Infrared) -> Right -> Down -> Enter
     DEF_NAV="--press-key 35 148 \
       --press-key 36 15 --press-key 36.5 15 --press-key 37 15 --press-key 37.5 15 --press-key 38 15 \
@@ -88,7 +88,7 @@ case "$DEVICE" in
     NAV_OVERRIDE="${FIVEMX_NAV:-}"
     ;;
   osaris)
-    DEF_ROM="$REPO_ROOT/roms/Osaris_v1.02(209)_eng.bin"
+    DEF_ROM="$REPO_ROOT/roms/Osaris/Osaris_v1.02(209)_eng/Osaris_v1.02(209)_eng.bin"
     # Desktop renders ~45s. Menu bar: File Edit Disk View Information Tools.
     # Menu -> Right x5 (Tools) -> Down x4 (Infrared, 5th item) -> Right (submenu,
     # Send highlighted) -> Down (Receive) -> Enter -> "Infrared receive" dialog.
@@ -104,7 +104,7 @@ case "$DEVICE" in
     NAV_OVERRIDE="${OSARIS_NAV:-}"
     ;;
   series5)
-    DEF_ROM="$REPO_ROOT/roms/series5_v1.01(144)_eng.bin"
+    DEF_ROM="$REPO_ROOT/roms/Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin"
     # Desktop renders ~55s sim. Same EPOC R1 menu bar as the 5mx:
     # File Edit Disk View Information Tools. Menu -> Right x5 (Tools) ->
     # Down x3 (Infrared, 4th item) -> Right (submenu, Send highlighted) ->
@@ -145,7 +145,7 @@ case "$DEVICE" in
     NAV_OVERRIDE="${SERIES5_NAV:-}"
     ;;
   series7)
-    DEF_ROM="$REPO_ROOT/roms/series7_v1.05(254)_b756_eng.bin"
+    DEF_ROM="$REPO_ROOT/roms/Series7/S7_v1.05(254)_b756_eng/S7_v1.05(254)_b756_eng.bin"
     DEF_UART=2   # IrDA = SA-1100 ICP on SER2/UART2
     # EPOC R5 desktop renders by ~sim 35s. Menu bar: File Edit Disk View
     # Information Tools. Menu -> Right x5 (Tools) -> Down x4 (Infrared, after
@@ -163,10 +163,10 @@ case "$DEVICE" in
     NAV_OVERRIDE="${SERIES7_NAV:-}"
     ;;
   netbook)
-    DEF_ROM="$REPO_ROOT/roms/netBook_BL_v011_eng.bin"
+    DEF_ROM="$REPO_ROOT/roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin"
     DEF_UART=2          # IrDA = SA-1100 ICP on SER2/UART2
     BOOT_MODE="card"    # boots EPOC R5 OS image from CF, then runs post-attach
-    DEF_CARD="${NB_CARD:-$REPO_ROOT/roms/netbook_os.img}"
+    DEF_CARD="${NB_CARD:-$REPO_ROOT/roms/netBook/netBook_v1.05(450)_eng/OS.IMG}"
     DEF_BOOT_SEC=3
     # Same EPOC R5 shell as the Series 7, but the OS handoff happens after the
     # CF attach (~sim 3) so the desktop renders later (~sim 45). Walk the same
@@ -186,7 +186,7 @@ case "$DEVICE" in
     NAV_OVERRIDE="${NETBOOK_NAV:-}"
     ;;
   netpad)
-    DEF_ROM="$REPO_ROOT/roms/Netpad.img"
+    DEF_ROM="$REPO_ROOT/roms/netPad/netPad_v1.75(247)_eng/Netpad.img"
     DEF_UART=2   # IrDA = SA-1110 ICP on SER2/UART2, same wiring as the S7
     # The netpad boots to its desktop by ~sim 14 and is a pen machine, so
     # the whole walk goes in as synthetic key events (see

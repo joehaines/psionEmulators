@@ -14,7 +14,7 @@ disassembles at length. It is under 8 KB, imports ten functions, and talks to
 whoever is holding the machine through the same console the ROM's own EShell
 uses.
 
-Everything below was read out of `roms/conan_s2_2201.engbuild.IMG` unless it
+Everything below was read out of `roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img` unless it
 says otherwise, and `tools/e32/romfs.mts` and `tests/integration/test-conan-romdump.sh`
 reproduce it.
 
@@ -268,9 +268,9 @@ lands in the other one.
 
 ## What it produced on a real machine
 
-Everything above was established against `roms/conan_s2_2201.engbuild.IMG`
+Everything above was established against `roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img`
 and reproduced under the emulator. The tool has since been run on an actual
-Conan, and `roms/conan_v0.10(17)_eng.IMG` is what came off it — eight
+Conan, and `roms/Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG` is what came off it — eight
 2 MB parts, joined in order, `ROMDUMP.TXT` reporting `Parts 8`,
 `Next part none, the ROM is all written`, `Result complete`.
 

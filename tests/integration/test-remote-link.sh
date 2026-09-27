@@ -42,17 +42,17 @@ if [ ! -x "$HARNESS" ]; then
 fi
 
 DEVICES=(
-    "revo:Revo_v1.06(390)_eng.bin"
-    "5mx:5mx_v1.05(260)_eng.bin"
-    "5mxpro:5mxPRO_v1.05(319)_patch_eng.bin"
-    "mc218:MC218_v1.05(259)_eng.bin"
-    "osaris:Osaris_v1.02(209)_eng.bin"
-    "series5:series5_v1.01(144)_eng.bin"
-    "geofox:Geofox_v1.01(146)_eng.bin"
-    "netbook:netBook_BL_v011_eng.bin"
-    "series7:series7_v1.05(254)_b756_eng.bin"
-    "netpad:Netpad.img"
-    "conan:conan_s2_2201.engbuild.IMG"
+    "revo:Revo/Revo_v1.06(390)_eng/Revo_v1.06(390)_eng.bin"
+    "5mx:Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin"
+    "5mxpro:Series5mxPRO/5mxPRO_v1.05(319)_patch_site_eng/5mxPRO_v1.05(319)_patch_eng.bin"
+    "mc218:MC218/MC218_v1.05(259)_eng/MC218_v1.05(259)_eng.bin"
+    "osaris:Osaris/Osaris_v1.02(209)_eng/Osaris_v1.02(209)_eng.bin"
+    "series5:Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin"
+    "geofox:Geofox/Geofox_v1.01(146)_eng/Geofox_v1.01(146)_eng.bin"
+    "netbook:netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin"
+    "series7:Series7/S7_v1.05(254)_b756_eng/S7_v1.05(254)_b756_eng.bin"
+    "netpad:netPad/netPad_v1.75(247)_eng/Netpad.img"
+    "conan:Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img"
 )
 
 target="${1:-all}"
@@ -105,7 +105,7 @@ for entry in "${DEVICES[@]}"; do
         # never retries.  So the bridge must be attached BEFORE that
         # first frame — t=3.5s puts us right after CF handoff but
         # before EPOC's RemoteLinkServer4 transmits.
-        os_img="$ROMS/netbook_os.img"
+        os_img="$ROMS/netBook/netBook_v1.05(450)_eng/OS.IMG"
         if [ ! -f "$os_img" ]; then
             echo "SKIP $dev: OS image $os_img not present" >&2
             continue

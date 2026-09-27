@@ -6,10 +6,10 @@
 // only the synthetic netBookLoadOsFromCard handoff handles the raw image.
 //
 //   node --experimental-strip-types scripts/build-cf-fat16-image.mts \
-//        roms/netbook_os.img /tmp/cf_fat16.img [sizeMB]
+//        roms/netBook/netBook_v1.05(450)_eng/OS.IMG /tmp/cf_fat16.img [sizeMB]
 import { createBlankImage, addFile, isFat16, listRoot } from '../frontend/src/lib/fat16.ts';
 import { readFileSync, writeFileSync } from 'fs';
-const [src = 'roms/netbook_os.img', out = '/tmp/cf_fat16.img', mb = '24'] = process.argv.slice(2);
+const [src = 'roms/netBook/netBook_v1.05(450)_eng/OS.IMG', out = '/tmp/cf_fat16.img', mb = '24'] = process.argv.slice(2);
 const os = new Uint8Array(readFileSync(src));
 const img = createBlankImage(parseInt(mb, 10) * 1024 * 1024);
 const r = addFile(img, 'OS.IMG', os);

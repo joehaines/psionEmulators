@@ -29,7 +29,7 @@
 // runs it for real.
 //
 // Run (node 22+):
-//   node --experimental-strip-types tools/e32/romfs1.mts list 'roms/S5_v1.00(113)_eng.bin'
+//   node --experimental-strip-types tools/e32/romfs1.mts list 'roms/Series5/S5_v1.00(113)_eng/S5_v1.00(113)_eng.bin'
 //   node --experimental-strip-types tools/e32/romfs1.mts extract ROM 'Z:\System\Libs\EFSrv.dll' out.dll
 //   node --experimental-strip-types tools/e32/romfs1.mts replace ROM 'Z:\System\Libs\Elink.exe' new.exe out.img
 

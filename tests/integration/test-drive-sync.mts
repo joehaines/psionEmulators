@@ -61,8 +61,8 @@ interface DeviceMeta {
 // plugged in before EPOC's RemoteLinkServer is up, so connect() drives the
 // handshake exactly as the browser does.
 const DEVICES: Record<string, DeviceMeta> = {
-  '5mx': { rom: '5mx_v1.05(260)_eng.bin', uart: 2, linkProtocol: 1, conSeq: 4, attachAt: 8 },
-  netpad: { rom: 'Netpad.img', uart: 3, linkProtocol: 1, conSeq: 4, attachAt: 18 },
+  '5mx': { rom: 'Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin', uart: 2, linkProtocol: 1, conSeq: 4, attachAt: 8 },
+  netpad: { rom: 'netPad/netPad_v1.75(247)_eng/Netpad.img', uart: 3, linkProtocol: 1, conSeq: 4, attachAt: 18 },
 };
 
 const meta = DEVICES[DEVICE];

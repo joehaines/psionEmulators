@@ -1,5 +1,5 @@
 // Build the Psion MC400 "System Disk" SSD image from the ROM:: disk files
-// shipped in roms/MC400_V2.60F_ROM_disk/.
+// shipped in roms/MC400/MC400_v2.60F_eng/ROM_disk/.
 //
 // The MC400 (1989 SIBO laptop) shipped with a System Disk SSD inserted in
 // Pack D containing the window server, shell, OPL, fonts and the rest of the
@@ -12,14 +12,14 @@
 // info byte declares write-protection, exactly like the genuine System Disk.
 //
 //   node --experimental-strip-types scripts/build-mc400-ssd.mts \
-//        [roms/MC400_V2.60F_ROM_disk] [roms/MC400_V2.60F_system.ssd]
+//        [roms/MC400/MC400_v2.60F_eng/ROM_disk] [roms/MC400/MC400_v2.60F_eng/MC400_V2.60F_system.ssd]
 import { createFlashPack, addFileToPack, listFiles } from '../frontend/src/lib/fefs.ts';
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 const [
-  srcDir = 'roms/MC400_V2.60F_ROM_disk',
-  out    = 'roms/MC400_V2.60F_system.ssd',
+  srcDir = 'roms/MC400/MC400_v2.60F_eng/ROM_disk',
+  out    = 'roms/MC400/MC400_v2.60F_eng/MC400_V2.60F_system.ssd',
 ] = process.argv.slice(2);
 
 // 256K Flash pack — the ~170 KB of ROM:: files fit with room to spare, and a

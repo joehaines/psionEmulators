@@ -81,10 +81,10 @@ or a list of the things that are costing multiples on top of them.
 ## 2. Real-time factor, as measured
 
 ```
-./harness/run "roms/series7_v1.05(254)_b756_eng.bin" \
+./harness/run "roms/Series7/S7_v1.05(254)_b756_eng/S7_v1.05(254)_b756_eng.bin" \
     --boot-seconds 20 --skip-card --quiet-logs
-./harness/run roms/netBook_BL_v011_eng.bin --boot-seconds 3 \
-    --card-path roms/netbook_os.img --post-attach-seconds 20 --quiet-logs
+./harness/run roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin --boot-seconds 3 \
+    --card-path roms/netBook/netBook_v1.05(450)_eng/OS.IMG --post-attach-seconds 20 --quiet-logs
 ```
 
 | device | executed cycles / wall sec | guest clock | busy : real-time |
@@ -135,7 +135,7 @@ SA-1100 one does. Out of scope here, but worth its own look.)
 
 ```
 valgrind --tool=callgrind ./harness/run \
-    "roms/series7_v1.05(254)_b756_eng.bin" --boot-seconds 6 --skip-card --quiet-logs
+    "roms/Series7/S7_v1.05(254)_b756_eng/S7_v1.05(254)_b756_eng.bin" --boot-seconds 6 --skip-card --quiet-logs
 ```
 
 Totals for 6 simulated seconds of Series 7 desktop:
@@ -1001,7 +1001,7 @@ Reproduce:
 
 ```
 node scripts/wasm-bench.mjs frontend/public/psion.js \
-    roms/netBook_BL_v011_eng.bin netbook 3 \
+    roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin netbook 3 \
     --card tests/cards/quartz-netbook.img --post-attach 30
 PSION_BATCH_TICKS=16 PSION_BURST_TICKS=16 node scripts/wasm-bench.mjs ...
 ```
@@ -1167,6 +1167,6 @@ Reproduce:
 ```
 rm -rf wasm/obj && bash scripts/build-wasm.sh
 PSION_RTC_SEED=0 node scripts/wasm-bench.mjs frontend/public/psion.js \
-    roms/netBook_BL_v011_eng.bin netbook 0 \
+    roms/netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin netbook 0 \
     --script scripts/bench/netbook-sheet.json
 ```

@@ -16,12 +16,13 @@ R1's, by R1's numbers.
 It needs no card, no cable and nothing installed first, and it never
 deletes anything it did not write.
 
-**There are two of them, and you want the first:**
+**There are three of them, and you want the first:**
 
 | File | When |
 |------|------|
 | `ROMDUMP.EXE` | always try this one first |
 | `ROMDUMP0.EXE` | only if the first will not open at all |
+| `ROMDUMP.APP` | if the System screen says **"This type of file cannot be opened"** — see *[The application build](#the-application-build-romdumpapp)* |
 
 They are the same program. The difference is that `ROMDUMP.EXE` asks the
 machine's loader for six functions from the file server's library by
@@ -184,6 +185,10 @@ program will use what it found.
 No `ROMDUMP.TXT` anywhere means the program never got as far as the file
 server. Worth trying:
 
+* **"This type of file cannot be opened"?** Then the System screen
+  turned the file away before it ran. Use `ROMDUMP.APP` — see
+  *The application build* below.
+
 * **Try `ROMDUMP0.EXE`.** If the machine will not open `ROMDUMP.EXE`,
   this is exactly what that second file is for: it imports nothing, so
   there is nothing for the loader to look for and fail to find, and it
@@ -196,6 +201,39 @@ server. Worth trying:
   releases with different libraries, and they need a different build.
 * **Try running it from `C:`** rather than from a card, in case the card
   is the problem rather than the program.
+
+## The application build: ROMDUMP.APP
+
+"This type of file cannot be opened" comes from the System screen, not
+from the program: the System screen did not recognise the file as
+something it can run, so it never reached the loader. That is what a
+very early prototype said (a Protea at v0.06) to both EXEs.
+`ROMDUMP.APP` is the same program as `ROMDUMP0.EXE`, packaged as an
+**application** — the kind of file Word and Agenda are — so the machine
+starts it the way it starts its own programs.
+
+1. **Copy `ROMDUMP.APP` onto the machine** — to `C:\Documents` is fine.
+   It is 24,876 bytes; if the copy on the machine is any other size, the
+   transfer changed it.
+2. **Open it** from the System screen, exactly like the EXE: select it,
+   then tap it again or press Enter.
+3. **Wait two or three minutes.** Nothing appears while it works.
+4. **When it has finished, the machine says "Not enough memory".** That
+   is expected, and it means the dump is done: an application is meant
+   to hand the system a window to show when it starts, and this one
+   hands back nothing because it has already done all its work. Tap
+   Continue. Then open `ROMDUMP.TXT`, as in step 3 above.
+
+**If the System screen will not open `ROMDUMP.APP` either**, install it
+as an application proper, which puts it on the Extras bar: copy it to
+`C:\System\Apps\RomDump\RomDump.app` — the folder and the file
+must have the same name — and tap its icon on the Extras bar. PsiWin
+will make the folders as it copies. Starting it from the Extras bar
+does not depend on the System screen recognising anything.
+
+Everything else above applies unchanged: it writes the same
+`ROMDUMP.TXT`, `ROMDUMP.LOG` and parts, and carries on the same way when
+the disk fills. Its log starts `ROMDUMP.APP for EPOC R1`.
 
 ## If it closes with "KERN-EXEC 3"
 

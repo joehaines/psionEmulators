@@ -1,6 +1,6 @@
 # netBook: booting an OS image that isn't the stock one
 
-`roms/ESHELL/OS.IMG` is a netBook build of ESHELL — EPOC's text console,
+`roms/netBook/ESHELL_v0.01_eng/OS.IMG` is a netBook build of ESHELL — EPOC's text console,
 the thing Symbian's own engineers booted when they wanted a command
 prompt instead of the Eikon desktop. It boots on real netBook hardware
 from a CF card exactly like the stock `OS.IMG` does, and it now boots
@@ -190,7 +190,7 @@ does it starts from a known-good baseline.
 ## Testing
 
 `tests/devices.txt` gains `netbook_eshell`: the bootloader plus a
-synthesised FAT16 card carrying `roms/ESHELL/OS.IMG`, which is the exact
+synthesised FAT16 card carrying `roms/netBook/ESHELL_v0.01_eng/OS.IMG`, which is the exact
 path the browser takes (`osCardSpec('netbook', 'eshell')`). It gates
 both boot fixes at once — the small image exercises the scaled
 completion gate, and the console only paints if the vector page

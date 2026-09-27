@@ -20,7 +20,7 @@
 // entry pointed at it. Either way nothing else in the image moves.
 //
 // Run (node 22+):
-//   node --experimental-strip-types tools/e32/romfs.mts list roms/conan_s2_2201.engbuild.IMG
+//   node --experimental-strip-types tools/e32/romfs.mts list roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img
 //   node --experimental-strip-types tools/e32/romfs.mts extract ROM 'Z:\System\Samples\D_EXC.exe' out.exe
 //   node --experimental-strip-types tools/e32/romfs.mts replace ROM 'Z:\...\D_EXC.exe' new.exe out.img
 

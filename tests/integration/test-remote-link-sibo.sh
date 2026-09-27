@@ -69,7 +69,7 @@ fail=0
 want="${1:-all}"
 
 if [ "$want" = "all" ] || [ "$want" = "series3c" ]; then
-    run_one series3c series3c_v5.20f_eng.bin \
+    run_one series3c Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin \
         --boot-seconds 50 \
         --press-key 8 4 16 --press-key 18 4 16 \
         --press-key 30 20 64 --press-key 30.3 76 16 \
@@ -81,7 +81,7 @@ if [ "$want" = "all" ] || [ "$want" = "series3c" ]; then
 fi
 
 if [ "$want" = "all" ] || [ "$want" = "series3mx" ]; then
-    run_one series3mx series3mx_v6.16f_eng.bin \
+    run_one series3mx Series3mx/maple_v6.16f_eng/maple_v6.16f_eng.bin \
         --boot-seconds 50 \
         --press-key 8 4 16 --press-key 18 4 16 \
         --press-key 30 20 64 --press-key 30.3 76 16 \
@@ -95,7 +95,7 @@ fi
 if [ "$want" = "all" ] || [ "$want" = "workaboutmx" ]; then
     # Workabout boot menu: Menu -> System screen -> Enter, then the
     # standard Psion+L Remote link dialog (Right toggles Off->On).
-    run_one workaboutmx workaboutMX_v7.20f_eng.bin \
+    run_one workaboutmx WorkaboutMX/w2mx_v7.20f_eng/w2mx_v7.20f_eng.bin \
         --boot-seconds 54 \
         --press-key 26 148 32 --press-key 28 17 32 --press-key 30 3 16 \
         --serial-attach 0 31 \
@@ -107,7 +107,7 @@ if [ "$want" = "all" ] || [ "$want" = "workaboutmx" ]; then
 fi
 
 if [ "$want" = "all" ] || [ "$want" = "siena" ]; then
-    run_one siena siena_v4.20f_eng.bin \
+    run_one siena Siena/vine_v4.20f_eng/vine_v4.20f_eng.bin \
         --boot-seconds 52 \
         --press-key 8 4 16 --press-key 18 4 16 --press-key 28 4 16 \
         --press-key 32 20 64 --press-key 32.3 76 16 \

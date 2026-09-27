@@ -22,6 +22,7 @@ import {
   type BundleDeviceInput,
 } from '../lib/stateBundle';
 import { quiesceActiveSessions } from '../lib/plp/client-spec';
+import { romStateTag, romUrlFor, osImagePath, romLanguageNames, romHasLanguageChoice } from '../lib/romCatalog';
 
 export type EmulatorState = 'idle' | 'loading-wasm' | 'ready' | 'loading-rom' | 'running' | 'error';
 
@@ -117,23 +118,27 @@ export function applyMachineId(mod: PsionModule, override: bigint | null): Machi
 
 // ── ROM language variant ──
 // Which language a multilingual ROM boots into — an index into the
-// device's own list, stored per device the way the Unique id is, and
-// applied before the first cycle on every load and reset. localStorage
+// ROM's own list, stored per device and ROM (romStateTag: the default ROM
+// keeps the plain per-device key it always had) the way the Unique id is,
+// and applied before the first cycle on every load and reset. localStorage
 // rather than IndexedDB for the same reason: the worker hook has to read
 // it synchronously on the main thread to pass into the worker's load.
-const languageKey = (id: string) => `psion-language-${id}`;
-export function loadStoredLanguage(deviceId: string): number | null {
+const languageKey = (id: string, tag: string) => `psion-language-${id}${tag ? `@${tag}` : ''}`;
+export function loadStoredLanguage(deviceId: string, tag: string = romStateTag(deviceId)): number | null {
+  // A ROM that offers no choice boots its own language: nothing to apply.
+  if (!romHasLanguageChoice(deviceId, tag)) return null;
   try {
-    const raw = localStorage.getItem(languageKey(deviceId));
+    const raw = localStorage.getItem(languageKey(deviceId, tag));
     if (raw == null) return null;
     const v = Number.parseInt(raw, 10);
     return Number.isInteger(v) && v >= 0 ? v : null;
   } catch { return null; }
 }
-export function storeLanguage(deviceId: string, index: number | null): void {
+export function storeLanguage(deviceId: string, index: number | null,
+                              tag: string = romStateTag(deviceId)): void {
   try {
-    if (index == null) localStorage.removeItem(languageKey(deviceId));
-    else localStorage.setItem(languageKey(deviceId), String(index));
+    if (index == null) localStorage.removeItem(languageKey(deviceId, tag));
+    else localStorage.setItem(languageKey(deviceId, tag), String(index));
   } catch { /* private-mode / quota — the choice still applies to this session */ }
 }
 // What the UI needs: the names this ROM offers (empty on the single-
@@ -148,7 +153,8 @@ export interface LanguageState {
 // boot-time read of its settings PROM sees the user's choice. The
 // bindings landed together, so requiring the full set doubles as the "is
 // this psion.wasm new enough?" check.
-export function applyLanguage(mod: PsionModule, override: number | null): LanguageState {
+export function applyLanguage(mod: PsionModule, override: number | null,
+                              deviceId: string, tag: string): LanguageState {
   if (typeof mod.getLanguageCount !== 'function'
       || typeof mod.getLanguageName !== 'function'
       || typeof mod.getLanguage !== 'function'
@@ -158,9 +164,22 @@ export function applyLanguage(mod: PsionModule, override: number | null): Langua
   const count = mod.getLanguageCount() | 0;
   if (count < 2) return { names: [], index: 0 };
   if (override != null) mod.setLanguage(override);
-  const names: string[] = [];
-  for (let i = 0; i < count; i++) names.push(mod.getLanguageName(i));
-  return { names, index: mod.getLanguage() | 0 };
+  const reported: string[] = [];
+  for (let i = 0; i < count; i++) reported.push(mod.getLanguageName(i));
+  // The names are the ROM's (romCatalog): an alternate ROM can carry a
+  // different set behind the DLLs the emulator's per-device table names.
+  const names = romLanguageNames(deviceId, reported, tag);
+  return { names, index: names.length ? mod.getLanguage() | 0 : 0 };
+}
+
+// A saved session is a RAM image, which only makes sense on the ROM that
+// wrote it, so each save records its ROM (romStateTag; absent = the
+// device's default ROM) and a load only restores one made on the ROM it
+// is about to boot. The other ROM's save is left where it is.
+export function savedStateMatchesRom(stored: unknown, tag: string): boolean {
+  const rom = (stored && typeof stored === 'object' && 'rom' in stored)
+    ? (stored as { rom?: unknown }).rom : undefined;
+  return (typeof rom === 'string' ? rom : '') === tag;
 }
 
 const idbStateKey = (id: string) => `state-${id}`;
@@ -192,11 +211,11 @@ function defaultSsdFor(deviceId: string, slot: number): { url: string; kind: Pac
   if (deviceId === 'mc200' && slot === 3) {
     // Same Pack D arrangement as the MC400 — the MC200's own
     // factory System Disk, dumped.
-    return { url: `${import.meta.env.BASE_URL}roms/MC200_V2.12F_system.ssd`, kind: 'protected' };
+    return { url: `${import.meta.env.BASE_URL}roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd`, kind: 'protected' };
   }
   if (deviceId === 'mc400' && slot === 3) {
     // Strapped write-protected, like the real ROM:: System Disk.
-    return { url: `${import.meta.env.BASE_URL}roms/MC400_V2.60F_system.ssd`, kind: 'protected' };
+    return { url: `${import.meta.env.BASE_URL}roms/MC400/MC400_v2.60F_eng/MC400_V2.60F_system.ssd`, kind: 'protected' };
   }
   return null;
 }
@@ -623,8 +642,8 @@ interface OsCardSpec {
 // `variant` selects an alternate OS payload for the same device. The default
 // (undefined) is the device's normal OS image; the 5mx Pro and the netBook
 // both also offer the 'eshell' variant, which boots the ESHELL test ROM
-// (roms/ESHELL/SYS$ROM.BIN / roms/ESHELL/OS.IMG) instead of the stock OS,
-// and the netBook the 'quartz' variant (roms/OS.IMG, Quartz v6.0). The
+// (roms/Series5mxPRO/ESHELL_v1.06_eng/SYS$ROM.BIN / roms/netBook/ESHELL_v0.01_eng/OS.IMG) instead of the stock OS,
+// and the netBook the 'quartz' variant (roms/netBook/Quartz_v6.0_eng/OS.IMG, Quartz v6.0). The
 // buttons that offer them come from ALT_BOOTS in lib/easterEggs.ts.
 // The synthesised card is otherwise identical — same size, same on-card file
 // name — so the bootloader loads it exactly as it would the stock image.
@@ -632,14 +651,16 @@ export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpe
   if (deviceId === '5mxpro') {
     if (variant === 'eshell') {
       return {
-        url: `${import.meta.env.BASE_URL}roms/ESHELL/SYS$ROM.BIN`,
+        url: `${import.meta.env.BASE_URL}roms/Series5mxPRO/ESHELL_v1.06_eng/SYS$ROM.BIN`,
         imageSize: 16 * 1024 * 1024,
         fileName: 'SYS$ROM.BIN',
         osVisible: true,
       };
     }
     return {
-      url: `${import.meta.env.BASE_URL}roms/5mxPRO_v1.05(319)_patch_eng.bin`,
+      // The OS image chosen in Settings (romCatalog), by default the
+      // patched 1.05(319) build.
+      url: `${import.meta.env.BASE_URL}roms/${osImagePath('5mxpro')}`,
       imageSize: 16 * 1024 * 1024,
       fileName: 'SYS$ROM.BIN',
       // Write SYS$ROM.BIN as a plain visible file so the user sees it on the
@@ -662,7 +683,7 @@ export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpe
       // file name, same faithful medata/ATA path — so a 16 MiB card is
       // plenty for an image this size.
       return {
-        url: `${import.meta.env.BASE_URL}roms/ESHELL/OS.IMG`,
+        url: `${import.meta.env.BASE_URL}roms/netBook/ESHELL_v0.01_eng/OS.IMG`,
         imageSize: 16 * 1024 * 1024,
         fileName: 'OS.IMG',
         osVisible: true,
@@ -670,19 +691,21 @@ export function osCardSpec(deviceId: string | null, variant?: string): OsCardSpe
     }
     if (variant === 'quartz') {
       // The netBook build of Quartz, EPOC's pen UI and the ancestor of
-      // UIQ (roms/OS.IMG, docs/netbook-quartz.md). A 3.6 MB EPOCARM image
+      // UIQ (roms/netBook/Quartz_v6.0_eng/OS.IMG, docs/netbook-quartz.md). A 3.6 MB EPOCARM image
       // the bootloader reads off the card like any other OS.IMG; the same
       // 16 MiB card tests/boot/test-boot.sh builds for its netbook_quartz
       // entry.
       return {
-        url: `${import.meta.env.BASE_URL}roms/OS.IMG`,
+        url: `${import.meta.env.BASE_URL}roms/netBook/Quartz_v6.0_eng/OS.IMG`,
         imageSize: 16 * 1024 * 1024,
         fileName: 'OS.IMG',
         osVisible: true,
       };
     }
     return {
-      url: `${import.meta.env.BASE_URL}roms/netBook_v1.05(450)_eng.img`,
+      // The OS image chosen in Settings (romCatalog), by default the
+      // patched 1.05(450) build.
+      url: `${import.meta.env.BASE_URL}roms/${osImagePath('netbook')}`,
       imageSize: 32 * 1024 * 1024,
       fileName: 'OS.IMG',
       // On the real netBook OS.IMG is a plain visible file, so the System
@@ -1054,6 +1077,10 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   const audioEngineRef       = useRef<AudioEngine | null>(null);
   const romBytesRef          = useRef<Uint8Array | null>(null);
   const currentDeviceIdRef   = useRef<string | null>(null);
+  // romStateTag of the ROM the running machine booted (romCatalog). Fixed
+  // at load, so a choice changed in Settings meanwhile can't relabel the
+  // running machine's saves or language index.
+  const currentRomTagRef     = useRef<string>('');
   // Cache of the raw OS-image payload fetch, keyed by device id. The fetch is
   // kicked off at device-load time (see prefetchOsPayload) so the "Insert CF
   // card containing OS" button doesn't block on the network when clicked. We
@@ -1156,8 +1183,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     const profs = JSON.parse(moduleRef.current.getAllDeviceProfilesJSON()) as DeviceProfile[];
     const profile = profs.find(p => p.id === lastId && p.status === 'supported');
     if (profile) {
-      const romUrl = `${import.meta.env.BASE_URL}roms/${profile.romFilename}`;
-      void doLoadDevice(lastId, romUrl, true);
+      void doLoadDevice(lastId, romUrlFor(profile, import.meta.env.BASE_URL), true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -1511,6 +1537,9 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       await idbPut(idbStateKey(deviceId), {
         version:  STATE_SCHEMA_VERSION,
         deviceId,            // belt-and-braces: the key already encodes this
+        // Which of the device's ROMs this RAM image belongs to — see
+        // savedStateMatchesRom. Omitted on the default ROM, as before.
+        ...(currentRomTagRef.current ? { rom: currentRomTagRef.current } : {}),
         heap:     data,
         byteLength: raw.byteLength,  // uncompressed size, for restore-time growth
       });
@@ -1628,6 +1657,9 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   async function doLoadDevice(deviceId: string, romUrl: string, tryRestore: boolean) {
     let mod = moduleRef.current;
     if (!mod) return;
+    // The ROM this load boots, as chosen in Settings (romCatalog). The
+    // caller resolved romUrl from the same choice.
+    const romTag = romStateTag(deviceId);
 
     // Claim this load. `superseded()` becomes true the moment another
     // doLoadDevice() starts, letting us bail at every await boundary so two
@@ -1687,7 +1719,8 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
             // If the stored value carries a deviceId (v5+), require it to
             // match the requested one. v4 saves predate the field and
             // rely on the IDB key alone for identity.
-            && (!versioned.deviceId || versioned.deviceId === deviceId)) {
+            && (!versioned.deviceId || versioned.deviceId === deviceId)
+            && savedStateMatchesRom(versioned, romTag)) {
           setLoadProgress(0.1);
           setLoadStatus('Restoring saved session…');
           const heap = await decompress(versioned.heap);
@@ -1758,7 +1791,9 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
               }
             }
           }
-        } else if (stored) {
+        } else if (stored && savedStateMatchesRom(stored, romTag)) {
+          // Unusable on this build. (A save from another of the device's
+          // ROMs is fine, just not for this one — it stays.)
           await idbDelete(idbStateKey(deviceId));
         }
       }
@@ -1849,13 +1884,14 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       // Same deal for the ROM's language variant: the guest reads its
       // settings PROM once, early in boot, so the choice has to be in
       // place before anything steps.
-      setLanguageState(applyLanguage(mod, loadStoredLanguage(deviceId)));
+      setLanguageState(applyLanguage(mod, loadStoredLanguage(deviceId, romTag), deviceId, romTag));
 
       setLoadProgress(0.95);
       await yieldToUI();
       if (superseded()) return;
 
       currentDeviceIdRef.current = deviceId;
+      currentRomTagRef.current = romTag;
       sessionActiveRef.current = true;
       // Embed mode shares localStorage with the main app at the same
       // origin; persisting here would silently change the main app's
@@ -2178,7 +2214,8 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     setMachineIdState(applyMachineId(mod, loadStoredMachineId(deviceId)));
     // The language variant is the same story, and the reset is exactly
     // how a newly picked one is meant to land.
-    setLanguageState(applyLanguage(mod, loadStoredLanguage(deviceId)));
+    setLanguageState(applyLanguage(mod, loadStoredLanguage(deviceId, currentRomTagRef.current),
+                                   deviceId, currentRomTagRef.current));
 
     const info = mod.getDeviceInfo();
     const prerollFrames = embedMode ? (COLD_BOOT_PREROLL[deviceId] ?? 0) : 0;
@@ -2468,6 +2505,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     if (!versioned || !RESTORE_COMPATIBLE_VERSIONS.has(versioned.version)
         || !versioned.heap || versioned.heap.byteLength === 0) return false;
     if (versioned.deviceId && versioned.deviceId !== deviceId) return false;
+    if (!savedStateMatchesRom(versioned, currentRomTagRef.current)) return false;
 
     const heap = await decompress(versioned.heap);
     if (heap.byteLength === 0) return false;
@@ -2786,8 +2824,8 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     const mod = moduleRef.current;
     const deviceId = currentDeviceIdRef.current;
     if (!mod || !deviceId) return;
-    storeLanguage(deviceId, index);
-    setLanguageState(applyLanguage(mod, index));
+    storeLanguage(deviceId, index, currentRomTagRef.current);
+    setLanguageState(applyLanguage(mod, index, deviceId, currentRomTagRef.current));
   }, []);
 
   // AudioContext creation and getUserMedia both require a user gesture, so

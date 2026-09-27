@@ -31,7 +31,7 @@
 set -u
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 HARNESS=$REPO/harness/run
-ROM="$REPO/roms/siena_v4.20f_eng.bin"
+ROM="$REPO/roms/Siena/vine_v4.20f_eng/vine_v4.20f_eng.bin"
 TMP=$(mktemp -d /tmp/sienalang.XXXXXX)
 trap 'rm -rf "$TMP"' EXIT
 

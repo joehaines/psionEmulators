@@ -41,18 +41,18 @@ fi
 # "text:WANT!NOT" — a UTF-16 string that must be in RAM and one that must not
 # (the Conan's locales are told apart by their month names).
 CASES=(
-    "series5|series5_v1.01(144)_eng.bin|40|1|ELocl1.dll"
-    "5mx|5mx_v1.05(260)_eng.bin|40|0|ELocl.dll"
-    "5mx|5mx_v1.05(260)_eng.bin|40|1|ELocl1.dll"
-    "mc218|MC218_v1.05(259)_eng.bin|40|1|ELocl1.dll"
-    "mc218|MC218_v1.05(259)_eng.bin|40|2|ELocl2.dll"
-    "mc218|MC218_v1.05(259)_eng.bin|40|4|ELocl4.dll"
-    "5mxpro|5mxPRO_v1.05(319)_patch_eng.bin|40|2|ELocl2.dll"
-    "revo|Revo_v1.06(390)_eng.bin|40|0|ELocl.dll"
-    "revo|Revo_v1.06(390)_eng.bin|40|1|ELocl1.dll"
-    "revo|Revo_v1.06(390)_eng.bin|40|2|Elocl2.dll"
-    "conan|conan_v0.10(17)_eng.IMG|90|1|text:Janvier!January"
-    "conan|conan_v0.10(17)_eng.IMG|90|2|text:Januar!January"
+    "series5|Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin|40|1|ELocl1.dll"
+    "5mx|Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin|40|0|ELocl.dll"
+    "5mx|Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin|40|1|ELocl1.dll"
+    "mc218|MC218/MC218_v1.05(259)_eng/MC218_v1.05(259)_eng.bin|40|1|ELocl1.dll"
+    "mc218|MC218/MC218_v1.05(259)_eng/MC218_v1.05(259)_eng.bin|40|2|ELocl2.dll"
+    "mc218|MC218/MC218_v1.05(259)_eng/MC218_v1.05(259)_eng.bin|40|4|ELocl4.dll"
+    "5mxpro|Series5mxPRO/5mxPRO_v1.05(319)_patch_site_eng/5mxPRO_v1.05(319)_patch_eng.bin|40|2|ELocl2.dll"
+    "revo|Revo/Revo_v1.06(390)_eng/Revo_v1.06(390)_eng.bin|40|0|ELocl.dll"
+    "revo|Revo/Revo_v1.06(390)_eng/Revo_v1.06(390)_eng.bin|40|1|ELocl1.dll"
+    "revo|Revo/Revo_v1.06(390)_eng/Revo_v1.06(390)_eng.bin|40|2|Elocl2.dll"
+    "conan|Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG|90|1|text:Janvier!January"
+    "conan|Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG|90|2|text:Januar!January"
 )
 
 run_case() {

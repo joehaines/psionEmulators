@@ -3,7 +3,7 @@
 Findings from making Solid State Disks writable on the SIBO machines
 (Series 3/3a/3c/3mx, Siena, Workabout, MC400), recorded so the protocol
 details don't have to be re-derived from traces. Everything below was
-established against `roms/series3a_v3.40f_eng.bin` running under
+established against `roms/Series3a/s3a_v3.40f_eng/s3a_v3.40f_eng.bin` running under
 `harness/run`, with `PSION_SSD_TRACE=1` logging every SIBO frame.
 
 ## The symptom
@@ -175,7 +175,7 @@ tests/unit/ssd_smoke                       # protocol + flash command unit test
 bash tests/boot/test-boot.sh --ssd         # per-device boot with packs attached
 
 # Watch the bus (very verbose — a format is ~2.4 M frames):
-PSION_SSD_TRACE=1 ./harness/run roms/series3a_v3.40f_eng.bin --device series3a \
+PSION_SSD_TRACE=1 ./harness/run roms/Series3a/s3a_v3.40f_eng/s3a_v3.40f_eng.bin --device series3a \
     --boot-seconds 20 --skip-card --quiet-logs \
     --ssd-a tests/fixtures/fefs-128k.ssd --ssd-type-a flash 2>trace.log
 ```

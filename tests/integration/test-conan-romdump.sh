@@ -36,7 +36,7 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/run"
-ROM="$REPO_ROOT/roms/conan_s2_2201.engbuild.IMG"
+ROM="$REPO_ROOT/roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img"
 EXE="$REPO_ROOT/tools/romdump/ROMDUMP.EXE"
 GOLDEN_DIR="$REPO_ROOT/tests/golden"
 RESULTS="$REPO_ROOT/tests/results"

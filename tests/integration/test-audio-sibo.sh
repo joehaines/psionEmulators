@@ -27,7 +27,7 @@ set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HARNESS="$REPO_ROOT/harness/sibo-audio-harness"
-ROM="$REPO_ROOT/roms/series3c_v5.20f_eng.bin"
+ROM="$REPO_ROOT/roms/Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin"
 
 if [ ! -x "$HARNESS" ]; then
     echo "sibo-audio-harness not built. Running harness/build.sh..." >&2
@@ -81,7 +81,7 @@ echo "=== SIBO audio: Series 3a Record-app flow ===" >&2
 # appeared to stop at Time and the record session aborted via watchdog
 # NMI); both are now fixed (see docs/audio-architecture.md). Same M7702
 # codec silicon as the 3c.
-S3A_ROM="$REPO_ROOT/roms/series3a_v3.40f_eng.bin"
+S3A_ROM="$REPO_ROOT/roms/Series3a/s3a_v3.40f_eng/s3a_v3.40f_eng.bin"
 if [ -f "$S3A_ROM" ]; then
     if ! "$HARNESS" "$S3A_ROM" --device series3a \
         --boot-seconds 0 --run-seconds 62 --mic-tone-at 52 \

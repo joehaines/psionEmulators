@@ -63,7 +63,7 @@ emulator's PsiWin client can't.
   prompt — the keys go through the Eiger/ASIC14 keyboard matrix into the
   image's own `ekeyb.dll`, with no help from the emulator. See
   [docs/netbook-eshell.md](docs/netbook-eshell.md). A third image boots by the
-  same path: `roms/OS.IMG` is a netBook build of EPOC's pen-oriented **Quartz**
+  same path: `roms/netBook/Quartz_v6.0_eng/OS.IMG` is a netBook build of EPOC's pen-oriented **Quartz**
   UI, and it runs through the Quartz v6.0 splash to the Quartz app screen —
   **Boot Quartz**, next to Boot ESHELL, puts it on the card. See
   [docs/netbook-quartz.md](docs/netbook-quartz.md), which is also the record of
@@ -264,11 +264,11 @@ emulator's PsiWin client can't.
 - **MC200** — the MC400's smaller sibling: the same SIBO1 board and the same
   V2.12F boot ROM, with a 640×200 panel in place of the 640×400 one, a
   single-plate framebuffer and 128 KiB of RAM. It cold-boots with its own
-  factory **ROM:: System Disk** in Pack D (`roms/MC200_V2.12F_system.ssd`,
+  factory **ROM:: System Disk** in Pack D (`roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd`,
   the real pack dumped), so it goes from the *Psion Graphic User Interface*
   splash through the first-run dialogs to the desktop. The ROM image is
   built from the machine's two flash-chip dumps in
-  `roms/MC200_V2.12F_ROM_disk/` by `scripts/build-mc200-rom.mts` — see the
+  `roms/MC200/MC200_v2.12F_eng/ROM_disk/` by `scripts/build-mc200-rom.mts` — see the
   README in that folder.
 - **Organiser I** — the 1984 original, and the smallest machine here by
   some distance: a Hitachi HD6301X0 running out of the CPU's own 4 KiB mask
@@ -326,14 +326,14 @@ emulator's PsiWin client can't.
   the Series 5 family's Bombs, the 5mx Pro bootloader's credits, and the
   factory test programs left in several ROMs.
 - **Revo (Conan)** — "Conan" is the Revo's successor, emulated from
-  `roms/conan_v0.10(17)_eng.IMG`: the ROM of a real machine, dumped off it
+  `roms/Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG`: the ROM of a real machine, dumped off it
   with `tools/romdump` (TRomHeader version 0.10(17), built 2001-06-20,
   16 MB where the shipping Revo's is 8). The machine names itself on its
   own splash — **Psion Conan © Psion Digital 2001 / EPOC Release 6 ©
   Copyright Symbian LTD 2001**, over a CONAN wordmark with ARM, EPOC and
   Bluetooth badges — so the codename this repository has always used is the
   ROM's own, and the machine is an **EPOC R6** (Symbian OS 6.0) build.
-  The earlier engineering image `roms/conan_s2_2201.engbuild.IMG` (EPOC R5,
+  The earlier engineering image `roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img` (EPOC R5,
   version 0.01(22), built 2001-05-12, 12 MB) is kept alongside it as
   `conanv001`, reached by a discreet header link the way the MC400's two
   ROMs are; it paints the *Revo's* splash rather than Conan's own.
@@ -384,7 +384,7 @@ emulator's PsiWin client can't.
   every one back and compares it with the ROM before moving on, and picks
   up from where it stopped the next time it is opened — so you dump what
   fits, copy those parts off, and run it again for the rest.
-  **`roms/conan_v0.10(17)_eng.IMG` is what it produced**, off a real
+  **`roms/Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG` is what it produced**, off a real
   machine, in eight parts: the tool is no longer just tested against an
   image, it has delivered one.
   [`tools/romdump/HOW-TO-USE.md`](tools/romdump/HOW-TO-USE.md) is the guide

@@ -813,6 +813,11 @@ export function getSkinFilename(deviceName: string, deviceId: string | null): st
   if (deviceId === 'series7')  return '7_netbook.jpeg';
   if (deviceId === 'netbook')  return '7_netbook.jpeg';
   if (deviceId === 'organiser2') return 'organiser2.svg';
+  // The Organiser I has no non-device-mode skin, like the MC400: outside
+  // device mode it renders as a bare LCD (no surround). Without this check
+  // it would fall through to the deviceName.includes('Organiser') case
+  // below and wrongly pick up the Organiser II's placeholder surround.
+  if (deviceId === 'organiser1') return null;
   // deviceName fallbacks (only reached once WASM has reported the name).
   if (deviceName.includes('5mx') || deviceName.includes('5MX')) return '5mx.png';
   if (deviceName.includes('Series 5') || deviceName.includes('Psion 5')) return '5.png';

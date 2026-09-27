@@ -46,6 +46,12 @@
 #                 first — a prototype whose file server library has a
 #                 different UID, say — and it can say nothing at all if
 #                 the ROM does not give it what it needs.
+#   ROMDUMP.APP   ROMDUMP0.EXE's code as an application, for a machine
+#                 whose System screen will not open an EXE at all (the
+#                 v0.06 Protea says "This type of file cannot be
+#                 opened"). A DLL with UID2 0x1000006c, started by
+#                 AppRun like Word or Agenda; the dump happens inside
+#                 its NewApplication. See start_app.S.
 #
 # Usage: bash tools/romdump-er1/build.sh [--no-install]
 
@@ -68,19 +74,33 @@ CFLAGS="--target=armv4-none-eabi -mfloat-abi=soft -march=armv4 -mno-thumb
 # The build stamp the log carries, so a log sent back from a machine
 # names the binary that wrote it.
 STAMP="${BUILD_ID:-$(date -u +%Y-%m-%d)}"
+# The application's UID3. It is from the range EPOC sets aside for
+# development (0x01000000-0x0fffffff), which is what an application
+# nobody allocated a UID for carries; nothing on the machine registers
+# it, and the System screen finds the application by its folder.
+APP_UID3=0x0d0c5e01
+
 build_one () {          # $1 = output name, $2... = extra flags
     local out="$1"; shift
-    local extra_c="" import_arg=()
-    if [ "$out" = "ROMDUMP0.EXE" ]; then
-        extra_c="-DNO_IMPORTS"
-    else
+    local extra_c="" import_arg=() link_arg=() start="start.S" script="romdump.ld"
+    case "$out" in
+    ROMDUMP.EXE)
         import_arg=(--import 'EFSRV[100000bd].DLL:14,17,105,119,133,170')
-    fi
+        link_arg=(--uid2 0 --uid3 0) ;;
+    ROMDUMP0.EXE)
+        extra_c="-DNO_IMPORTS"
+        link_arg=(--uid2 0 --uid3 0) ;;
+    ROMDUMP.APP)
+        # -frwpi: every global is an offset from r9 (see start_app.S).
+        extra_c="-DNO_IMPORTS -DAPP_BUILD -frwpi"
+        start="start_app.S"; script="romdump_app.ld"
+        link_arg=(--dll --uid2 0x1000006c --uid3 $APP_UID3 --export NewApplication) ;;
+    esac
     clang $CFLAGS $extra_c -DBUILD_ID="\"$STAMP\"" -c "$HERE/romdump.c" -o "$OUT/romdump.o"
-    clang $CFLAGS $extra_c -c "$HERE/start.S" -o "$OUT/start.o"
+    clang $CFLAGS $extra_c -c "$HERE/$start" -o "$OUT/start.o"
     for pass in 1 2; do
         base=$([ "$pass" = 1 ] && echo $BASE1 || echo $BASE2)
-        sed "s/BASE;/$base;/" "$HERE/romdump.ld" > "$OUT/pass$pass.ld"
+        sed "s/BASE;/$base;/" "$HERE/$script" > "$OUT/pass$pass.ld"
         ld.lld -T "$OUT/pass$pass.ld" --no-dynamic-linker --build-id=none \
                -o "$OUT/pass$pass.elf" "$OUT/start.o" "$OUT/romdump.o"
         llvm-objcopy -O binary "$OUT/pass$pass.elf" "$OUT/pass$pass.bin"
@@ -89,7 +109,7 @@ build_one () {          # $1 = output name, $2... = extra flags
     node --experimental-strip-types "$REPO/tools/e32/e32link.mts" \
         --bin "$OUT/pass1.bin" --bin2 "$OUT/pass2.bin" --syms "$OUT/pass1.nm" \
         --base $BASE1 --base2 $BASE2 "${import_arg[@]}" \
-        --uid2 0 --uid3 0 --stack 0x2000 --tools-version 0x560001 \
+        "${link_arg[@]}" --stack 0x2000 --tools-version 0x560001 \
         --out "$OUT/$out"
     # Nothing an ARM710a cannot execute may leave this directory.
     node --experimental-strip-types "$REPO/tools/e32/armv3check.mts" --e32 "$OUT/$out"
@@ -97,9 +117,11 @@ build_one () {          # $1 = output name, $2... = extra flags
 
 build_one ROMDUMP.EXE
 build_one ROMDUMP0.EXE
+build_one ROMDUMP.APP
 
 if [ "${1:-}" != "--no-install" ]; then
     cp "$OUT/ROMDUMP.EXE" "$HERE/ROMDUMP.EXE"
     cp "$OUT/ROMDUMP0.EXE" "$HERE/ROMDUMP0.EXE"
-    echo "installed $HERE/ROMDUMP.EXE and $HERE/ROMDUMP0.EXE"
+    cp "$OUT/ROMDUMP.APP" "$HERE/ROMDUMP.APP"
+    echo "installed $HERE/ROMDUMP.EXE, $HERE/ROMDUMP0.EXE and $HERE/ROMDUMP.APP"
 fi

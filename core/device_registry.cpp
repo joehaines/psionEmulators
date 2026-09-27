@@ -143,7 +143,7 @@ static EmuBase *makeMC400() {
     c.ssdSlots    = 4;       // Pack 1..4 wired on ASIC2 ch1..4 (MAME mc400.cpp).
                              // Pack D (slot index 3) holds the ROM:: System
                              // Disk, pre-inserted by the frontend on cold boot
-                             // (defaultSsdFor) from roms/MC400_V2.60F_system.ssd.
+                             // (defaultSsdFor) from roms/MC400/MC400_v2.60F_eng/MC400_V2.60F_system.ssd.
     // Cold-boot RAM as 0xFF — the V1.26F boot ROM's RAM-POST is gated
     // on a non-zero "post-done" marker at [0x416]+[0x418]; zeroed RAM
     // makes the kernel skip POST and leave [0x414] (top-of-RAM segment)
@@ -194,7 +194,7 @@ static EmuBase *makeMC200() {
     c.ssdSlots    = 4;       // Pack 1..4 on ASIC2 ch1..4; Pack D (slot 3)
                              // holds the ROM:: System Disk, pre-inserted
                              // by the frontend from
-                             // roms/MC200_V2.12F_system.ssd
+                             // roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd
     c.ramFillByte = 0xFF;
     return new Series3::Emulator(c);
 }
@@ -430,7 +430,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "5mx",
         "Psion Series 5mx",
-        "5mx_v1.05(260)_eng.bin",
+        "Series5mx/5mx_v1.05(260)_eng/5mx_v1.05(260)_eng.bin",
         0x1000000,
         0x7060001,
         "5mx.svg",
@@ -449,7 +449,7 @@ static const DeviceProfile kProfiles[] = {
         // DRAM. The frontend synthesises a default FAT16 CF image carrying a
         // SYS$ROM.BIN payload so the bootloader has something to load on first
         // run — see buildDefault5mxProCard in useEmulator.ts.
-        "5mxPRO_BL_v1.09_ger.bin",
+        "Series5mxPRO/BootLoader/5mxPRO_BL_v1.09_ger/5mxPRO_BL_v1.09_ger.bin",
         0x20000,        // 128 KiB — actual bootloader size on disk
         0x7060001,
         "5mx.svg",
@@ -471,7 +471,7 @@ static const DeviceProfile kProfiles[] = {
         // the CLPS7111-based machine.
         "mc218",
         "Ericsson MC218",
-        "MC218_v1.05(259)_eng.bin",
+        "MC218/MC218_v1.05(259)_eng/MC218_v1.05(259)_eng.bin",
         0xC00000,
         // MC218 ROM carries the same variant ID (0x7060001) as the 5mx, so
         // findProfileByVariant will always match the 5mx profile first and
@@ -495,7 +495,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "osaris",
         "Oregon Scientific Osaris",
-        "Osaris_v1.02(209)_eng.bin",
+        "Osaris/Osaris_v1.02(209)_eng/Osaris_v1.02(209)_eng.bin",
         0x800000,
         0,
         "osaris.svg",
@@ -512,7 +512,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "series5",
         "Psion Series 5",
-        "series5_v1.01(144)_eng.bin",
+        "Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin",
         0x600000,
         0,
         "series5.svg",
@@ -541,7 +541,7 @@ static const DeviceProfile kProfiles[] = {
         // the ROM's own LCDCON programming.
         "geofox",
         "Geofox One",
-        "Geofox_v1.01(146)_eng.bin",
+        "Geofox/Geofox_v1.01(146)_eng/Geofox_v1.01(146)_eng.bin",
         0x800000,
         // No EPOC variant ID: this ROM's header carries 0 where the
         // Osaris / 5mx images carry a variant-file pointer, so
@@ -603,7 +603,7 @@ static const DeviceProfile kProfiles[] = {
         // limitation is resolved.
         "series7",
         "Psion Series 7",
-        "series7_v1.05(254)_b756_eng.bin",
+        "Series7/S7_v1.05(254)_b756_eng/S7_v1.05(254)_b756_eng.bin",
         0x1000000,
         0,
         "series7.svg",
@@ -617,7 +617,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "revo",
         "Psion Revo",
-        "Revo_v1.06(390)_eng.bin",
+        "Revo/Revo_v1.06(390)_eng/Revo_v1.06(390)_eng.bin",
         0x800000,
         // Shares variantId 0x7060001 with 5mx; leave 0 so auto-detect stays
         // on the 5mx profile and Revo is only selected explicitly.
@@ -666,7 +666,7 @@ static const DeviceProfile kProfiles[] = {
         // Agenda panic.
         "conan",
         "Psion Revo (Conan)",
-        "conan_v0.10(17)_eng.IMG",
+        "Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG",
         // 0x1000000 — the image's real length, and exactly the iRomSize
         // its TRomHeader declares. The dump is complete, so unlike the
         // engineering build below there is no undelivered tail.
@@ -726,7 +726,7 @@ static const DeviceProfile kProfiles[] = {
         // machine), so the golden screenshot carries it.
         "conanv001",
         "Psion Revo (Conan v0.01)",
-        "conan_s2_2201.engbuild.IMG",
+        "Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img",
         // 0xBB2000 — the image's real length. Its TRomHeader declares a
         // 12 MB ROM, but the image stops short of that; Windermere's
         // 16 MB ROM[] is zero-filled before loadROM's copy, so the
@@ -805,7 +805,7 @@ static const DeviceProfile kProfiles[] = {
         // (2026-06-03 resolution).
         "netbook",
         "Psion netBook",
-        "netBook_BL_v011_eng.bin",
+        "netBook/BootLoader/netBook_BL_v011_eng/netBook_BL_v011_eng.bin",
         0x200000,               // 2 MB YModem bootloader flash image
         0,
         "netbook.svg",
@@ -864,7 +864,7 @@ static const DeviceProfile kProfiles[] = {
         // Selection is by explicit device id or the (unique) exact ROM size.
         "netpad",
         "Psion netpad",
-        "Netpad.img",
+        "netPad/netPad_v1.75(247)_eng/Netpad.img",
         12296196,               // exact ROM size (unique -> size auto-detect)
         0,                      // no variant-id autodetect; id/size selects it
         nullptr,                // skin resolved frontend-side, as for every device
@@ -880,7 +880,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "series3",
         "Psion Series 3",
-        "series3_v1.91f_eng.bin",
+        "Series3/s3_v1.91f_eng/s3_v1.91f_eng.bin",
         0x80000,
         0,
         nullptr,
@@ -892,7 +892,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "pocketbk",
         "Acorn Pocket Book",
-        "acorn_pocketBook_II.bin",
+        "Series3/pb_v1.91f_acn/pb_v1.91f_acn.bin",
         0x80000,
         0,
         nullptr,
@@ -914,7 +914,7 @@ static const DeviceProfile kProfiles[] = {
         // image with no variant ID) resolves to the default device.
         "mc400",
         "Psion MC400",
-        "MC400_v2.60F.bin",
+        "MC400/MC400_v2.60F_eng/MC400_v2.60F.bin",
         0x40000,
         0,
         "mc400.svg",
@@ -934,7 +934,7 @@ static const DeviceProfile kProfiles[] = {
         // distinct from the v2.60F default.
         "mc400v126",
         "Psion MC400 (v1.26F)",
-        "MC400_V1.26F.bin",
+        "MC400/MC400_v1.26F_eng/MC400_V1.26F.bin",
         0x40000,
         0,
         "mc400.svg",
@@ -953,7 +953,7 @@ static const DeviceProfile kProfiles[] = {
         // Psion MC200 (1989) — the 640x200 half-height sibling of the
         // MC400, same SIBO1 chip set and the same V2.12F boot ROM. The
         // ROM image is the two 28F010 chip dumps in
-        // roms/MC200_V2.12F_ROM_disk/ interleaved into the 256 KiB image
+        // roms/MC200/MC200_v2.12F_eng/ROM_disk/ interleaved into the 256 KiB image
         // the CPU sees (scripts/build-mc200-rom.mts).
         //
         // romVariantId stays 0 and the 0x40000 size is shared with the two
@@ -962,7 +962,7 @@ static const DeviceProfile kProfiles[] = {
         // selected by id, the way the MC400's own v1.26F variant is.
         "mc200",
         "Psion MC200",
-        "MC200_v2.12F.bin",
+        "MC200/MC200_v2.12F_eng/MC200_v2.12F.bin",
         0x40000,
         0,
         "mc400.svg",
@@ -972,7 +972,7 @@ static const DeviceProfile kProfiles[] = {
         4,      // Four SSD pack slots on ASIC2 ch1..4, as on the MC400.
                 // Pack D (slot 3) holds the ROM:: System Disk, pre-inserted
                 // by the frontend on cold boot from
-                // roms/MC200_V2.12F_system.ssd — the real machine's factory
+                // roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd — the real machine's factory
                 // pack, dumped (it is MAME's mc200_system_disk.bin).
     },
     {
@@ -981,7 +981,7 @@ static const DeviceProfile kProfiles[] = {
         // shell but no applications: those live on an SSD pack, so with
         // no pack in it the machine boots to "Insert Pack / and press
         // enter" and waits. The image is the machine's two flash chips
-        // (roms/hc120/) joined by scripts/build-hc120-rom.mts.
+        // (roms/HC120/hc120_v1.72F_eng/) joined by scripts/build-hc120-rom.mts.
         //
         // romVariantId stays 0 and the 0x40000 size is shared with the
         // MC profiles registered above, so size-based auto-detect still
@@ -989,7 +989,7 @@ static const DeviceProfile kProfiles[] = {
         // selected by id.
         "hc120",
         "Psion HC120",
-        "hc120_v1.72F.bin",
+        "HC120/hc120_v1.72F_eng/hc120_v1.72F.bin",
         0x40000,
         0,
         "hc120.png",
@@ -1001,7 +1001,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "series3a",
         "Psion Series 3a",
-        "series3a_v3.40f_eng.bin",
+        "Series3a/s3a_v3.40f_eng/s3a_v3.40f_eng.bin",
         0x200000,
         0,
         nullptr,
@@ -1013,7 +1013,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "pocketbk2",
         "Acorn Pocket Book II",
-        "pb2_v1.30f_acn.bin",
+        "Series3a/pb2_v1.30f_acn/pb2_v1.30f_acn.bin",
         0x200000,
         0,
         nullptr,
@@ -1025,7 +1025,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "series3c",
         "Psion Series 3c",
-        "series3c_v5.20f_eng.bin",
+        "Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin",
         0x200000,
         0,
         nullptr,
@@ -1043,7 +1043,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "series3mx",
         "Psion Series 3mx",
-        "series3mx_v6.16f_eng.bin",
+        "Series3mx/maple_v6.16f_eng/maple_v6.16f_eng.bin",
         0x200000,
         0,
         nullptr,
@@ -1065,7 +1065,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "siena",
         "Psion Siena",
-        "siena_v4.20f_eng.bin",
+        "Siena/vine_v4.20f_eng/vine_v4.20f_eng.bin",
         0x100000,
         0,
         nullptr,
@@ -1080,7 +1080,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "workabout",
         "Psion Workabout",
-        "workabout_w1_v2.40f_eng.bin",
+        "Workabout/w1_v2.40f_eng/w1_v2.40f_eng.bin",
         0x200000,
         0,
         "workabout.svg",
@@ -1092,7 +1092,7 @@ static const DeviceProfile kProfiles[] = {
     {
         "workaboutmx",
         "Psion WorkaboutMX",
-        "workaboutMX_v7.20f_eng.bin",
+        "WorkaboutMX/w2mx_v7.20f_eng/w2mx_v7.20f_eng.bin",
         0x200000,
         0,
         "workabout.svg",
@@ -1122,7 +1122,7 @@ static const DeviceProfile kProfiles[] = {
         // rather than a blank panel.
         "organiser1",
         "Psion Organiser I",
-        "Organiser1.rom",
+        "Organiser1/Organiser1_eng/Organiser1.rom",
         0x1000,     // 4 KiB
         0,          // no EPOC variant ID (pre-EPOC machine)
         "organiser1.png",
@@ -1141,7 +1141,7 @@ static const DeviceProfile kProfiles[] = {
         // opcode (mirroring how the V30 stub bootstrapped Series 3).
         "organiser2",
         "Psion Organiser II",
-        "OrganiserII.rom",
+        "OrganiserII/OrganiserII_LZ64_eng/OrganiserII.rom",
         0x10000,    // 64 KiB
         0,          // no EPOC variant ID (pre-EPOC machine)
         "organiser2.svg",

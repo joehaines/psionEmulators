@@ -13,7 +13,7 @@ in its Program list: *Data*. Browsing `Z:` over Remote Link shows a
 Jotter, Record, Paint, Calc, Spell, TimeW, Comms, Msgapp, TextEd — which
 makes it look as though the ROM isn't loading properly on boot.
 
-**It is loading properly.** `roms/Netpad.img` is a complete EPOC R5 image:
+**It is loading properly.** `roms/netPad/netPad_v1.75(247)_eng/Netpad.img` is a complete EPOC R5 image:
 a 0xC0000 boot partition followed by an OS ROM whose header (at file
 offset 0xC0000) declares `iRomBase = 0x50000000` and `iRomSize =
 0xB00000`, and every file the ROM directory lists resolves inside the

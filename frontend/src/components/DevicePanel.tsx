@@ -4,6 +4,7 @@
 import { useRef, useState } from 'react';
 import type { DeviceProfile } from '../types/emulator';
 import { DEVICE_LOGO_MAP } from '../lib/deviceMeta';
+import { romUrlFor } from '../lib/romCatalog';
 
 // Known brand prefixes, longest first so "Oregon Scientific" matches
 // before any single-word prefix could.
@@ -75,7 +76,7 @@ export default function DevicePanel({
 
   const handleSelect = (profile: DeviceProfile) => {
     if (profile.status !== 'supported') return;
-    onSelect(profile.id, `${baseUrl}roms/${profile.romFilename}`);
+    onSelect(profile.id, romUrlFor(profile, baseUrl));
   };
 
   const handleDownload = async () => {

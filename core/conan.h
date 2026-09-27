@@ -9,11 +9,11 @@ namespace Conan {
 // Psion "Conan" — the Revo's successor. Two ROMs of it are emulated, and
 // both run through this class (see device_registry.cpp):
 //
-//   conan      roms/conan_v0.10(17)_eng.IMG — the ROM of a real machine,
+//   conan      roms/Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG — the ROM of a real machine,
 //              dumped off it with tools/romdump. TRomHeader version
 //              0.10(17), built 2001-06-20, 16 MB, and the dump is the
 //              whole declared image.
-//   conanv001  roms/conan_s2_2201.engbuild.IMG — an earlier engineering
+//   conanv001  roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img — an earlier engineering
 //              image. TRomHeader version 0.01(22), built 2001-05-12,
 //              declaring 12 MB.
 //

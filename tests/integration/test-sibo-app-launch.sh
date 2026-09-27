@@ -34,11 +34,11 @@ fi
 # Kernel cycles between dialog and LCD-off during cold boot, so we send
 # multiple Esc presses spaced out to catch the dialog whenever it's up.
 DEVICES=(
-    "series3a:series3a_v3.40f_eng.bin:35:20000"
-    "pocketbk2:pb2_v1.30f_acn.bin:35:20000"
-    "series3c:series3c_v5.20f_eng.bin:50:15000"
-    "series3mx:series3mx_v6.16f_eng.bin:35:15000"
-    "siena:siena_v4.20f_eng.bin:60:9000"
+    "series3a:Series3a/s3a_v3.40f_eng/s3a_v3.40f_eng.bin:35:20000"
+    "pocketbk2:Series3a/pb2_v1.30f_acn/pb2_v1.30f_acn.bin:35:20000"
+    "series3c:Series3c/oak_v5.20f_eng/oak_v5.20f_eng.bin:50:15000"
+    "series3mx:Series3mx/maple_v6.16f_eng/maple_v6.16f_eng.bin:35:15000"
+    "siena:Siena/vine_v4.20f_eng/vine_v4.20f_eng.bin:60:9000"
 )
 
 run_one() {

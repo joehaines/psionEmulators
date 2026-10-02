@@ -33,6 +33,9 @@ bash tests/integration/test-netpad-app-install.sh  # app library → netpad: ins
 bash tests/integration/test-netpad-app-install.sh epocgames/fred  # …and a 3-Lib EPOC app on it
 bash tests/integration/test-ssd-write.sh      # SIBO SSD pack format + write + read back
 bash tests/integration/test-conan-romdump.sh  # tools/romdump: dump the Conan's ROM on the machine
+bash tests/integration/test-lemmings-series5.sh  # tools/lemmings: the game on a Series 5, level 1 in play
+bash tests/integration/test-lemmings-netpad.sh   # …and on a netpad from an MMC card, in colour
+bash tools/lemmings/host/test.sh              # the game's rules on a PC: all twelve levels solved, frame budget
 bash tests/integration/test-geofox-mouse.sh   # Geofox mouse pad: pointer tracking, tap-to-open, drag-select
 bash tests/integration/test-geofox-language.sh  # Geofox ROM language: UK vs USA resources, locale + keyboard DLL
 bash tests/integration/test-siena-language.sh   # Siena ROM locale: UK / USA / Swedish / Spanish via the port C straps

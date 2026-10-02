@@ -28,6 +28,10 @@ romdump-er1/ ROMDUMP.EXE for EPOC Release 1 machines (Series 5, including
              borrow one from. And a third time as ROMDUMP.APP: that
              code as an application DLL, for a machine whose System
              screen will not open an EXE at all
+lemmings/    LEMMINGS.EXE, a Lemmings-style game for the Series 5 —
+             its own engine, sprites and twelve levels — built the
+             same way. The rules are portable C that also runs
+             headless on a PC for the tests; see its README
 ```
 
 Each has a HOW-TO-USE.md written for someone holding the machine.

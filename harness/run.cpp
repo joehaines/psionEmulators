@@ -341,7 +341,32 @@ static std::vector<uint8_t> readGrayscale(EmuBase *emu, int &w, int &h) {
     return gray;
 }
 
+// A path ending in .ppm is written as colour (P6) — for the netpad, netBook
+// and Series 7, whose panels are colour; anything else is the usual
+// greyscale PGM. The pixel order in the 32-bit buffer is the one
+// readGrayscale reads its R channel from.
+static bool writePPMIfAsked(EmuBase *emu, const char *path) {
+    size_t n = std::strlen(path);
+    if (n < 4 || std::strcmp(path + n - 4, ".ppm") != 0) return false;
+    int w = emu->getLCDWidth(), h = emu->getLCDHeight();
+    std::vector<uint8_t> pixels(w * h * 4);
+    std::vector<uint8_t *> lines(h);
+    for (int y = 0; y < h; y++) lines[y] = pixels.data() + y * w * 4;
+    emu->readLCDIntoBuffer(lines.data(), true);
+    FILE *f = std::fopen(path, "wb");
+    if (!f) {
+        std::fprintf(stderr, "Could not open %s for write\n", path);
+        return true;
+    }
+    std::fprintf(f, "P6\n%d %d\n255\n", w, h);
+    for (int i = 0; i < w * h; i++) std::fwrite(&pixels[i * 4], 1, 3, f);
+    std::fclose(f);
+    std::fprintf(stderr, "wrote %s (%dx%d, colour)\n", path, w, h);
+    return true;
+}
+
 static void writePGM(EmuBase *emu, const char *path) {
+    if (writePPMIfAsked(emu, path)) return;
     int w, h;
     auto gray = readGrayscale(emu, w, h);
     FILE *f = std::fopen(path, "wb");
@@ -1743,6 +1768,27 @@ int main(int argc, char **argv) {
         std::fprintf(stderr,
                      "=== PC sampling: %llu samples, %zu unique PCs, top 30: ===\n",
                      (unsigned long long)pcSamples, sorted.size());
+        // Where the time went by region: 64 KB chunks, biggest first. Handy for
+        // telling a guest program's own code (low addresses) from the ROM's.
+        {
+            std::map<uint32_t, uint64_t> byChunk;
+            for (auto &kv : pcHist) byChunk[kv.first & 0xffff0000u] += kv.second;
+            std::vector<std::pair<uint64_t, uint32_t>> chunks;
+            for (auto &kv : byChunk) chunks.emplace_back(kv.second, kv.first);
+            std::sort(chunks.begin(), chunks.end(),
+                      [](auto &a, auto &b) { return a.first > b.first; });
+            std::fprintf(stderr, "=== PC sampling by 64 KB region: ===\n");
+            for (size_t i = 0; i < std::min<size_t>(12, chunks.size()); i++)
+                std::fprintf(stderr, "  %08x-%08x  %5.1f%%\n", chunks[i].second,
+                             chunks[i].second + 0xffff,
+                             100.0 * (double)chunks[i].first / (double)pcSamples);
+        }
+        if (const char *hp = std::getenv("PSION_PCHIST_FILE")) {      // every sampled PC, for a profiler
+            if (FILE *hf = std::fopen(hp, "w")) {
+                for (auto &e : sorted) std::fprintf(hf, "%08x %llu\n", e.second, (unsigned long long)e.first);
+                std::fclose(hf);
+            }
+        }
         for (size_t i = 0; i < std::min<size_t>(30, sorted.size()); i++) {
             double pct = 100.0 * (double)sorted[i].first / (double)pcSamples;
             std::fprintf(stderr, "  pc=%08x  hits=%llu  %5.1f%%\n",

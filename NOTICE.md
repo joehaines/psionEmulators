@@ -43,6 +43,23 @@ ROMs, and third-party source (incl. Symbian/EPOC and NetBSD code) used only for
 reverse-engineering during development. It is excluded from the published
 repository and is not required to build or run the application.
 
+## Doom port (`tools/doom/`) — GNU GPL v2
+
+`tools/doom/doomgeneric/` is a modified copy of **doomgeneric**
+(https://github.com/ozkl/doomgeneric), itself derived from id Software's
+Doom source release and Simon Howard's Chocolate Doom. It is licensed under
+the **GNU General Public License, version 2** (`tools/doom/doomgeneric/LICENSE.doomgeneric`);
+the changes made here (video layer, fixed-point maths, zone allocation, floating-point
+removal) are under the same licence. The programs built from it
+(`tools/doom/DOOM.EXE`) are therefore GPL-2.0 too, and this source is their
+corresponding source. The port's own platform code under `tools/doom/epoc/`
+is offered under the GPL-2.0 as well, where it is combined with that source.
+
+`tools/Doom1.WAD` is the **shareware** data file of Doom 1.9 (id Software),
+which id Software's shareware licence allows to be copied unmodified. It is not
+covered by `LICENSE` or the GPL, and the registered/commercial WADs are not
+included.
+
 ## App library — 3-Lib collection (`applib/`)
 
 `applib/` preserves Steve Litchfield's **3-Lib** shareware/freeware library,

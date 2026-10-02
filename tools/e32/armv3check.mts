@@ -40,8 +40,19 @@ export interface Offence { offset: number; word: number; what: string; }
 
 export function scanArmV3(code: Buffer, base = 0, skip = new Set<number>()): Offence[] {
   const out: Offence[] = [];
+  // A constant the compiler loads with "ldr rN, [pc, #n]" lives in the code
+  // section too, and can look like any instruction. Those loads name their
+  // constants exactly, so those words are left out of the scan as well.
+  const literals = new Set<number>();
   for (let o = 0; o + 4 <= code.length; o += 4) {
-    if (skip.has(o)) continue;              // a relocated word is an address, not an instruction
+    const w = code.readUInt32LE(o);
+    if ((w & 0x0f7f0000) === 0x051f0000) {            // LDR Rd, [pc, #+/-imm12]
+      const imm = w & 0xfff;
+      literals.add(o + 8 + ((w & 0x00800000) ? imm : -imm));
+    }
+  }
+  for (let o = 0; o + 4 <= code.length; o += 4) {
+    if (skip.has(o) || literals.has(o)) continue;   // a relocated word is an address, not an instruction
     const w = code.readUInt32LE(o);
     const say = (what: string): void => { out.push({ offset: base + o, word: w, what }); };
 
@@ -69,6 +80,12 @@ export function scanArmV3(code: Buffer, base = 0, skip = new Set<number>()): Off
 
 function main(): void {
   const args = process.argv.slice(2);
+  // --data-from N: the code section's read-only data starts at offset N
+  // (a linker symbol tells the build where); it holds numbers, and a
+  // number can look like anything, so it is not scanned.
+  let dataFrom = -1;
+  const di = args.indexOf('--data-from');
+  if (di >= 0) { dataFrom = parseInt(args[di + 1], 0); args.splice(di, 2); }
   const isE32 = args[0] === '--e32';
   const path = isE32 ? args[1] : args[0];
   if (!path) {
@@ -105,6 +122,7 @@ function main(): void {
     note = `text 0x${textSize.toString(16)} at 0x${codeOffset.toString(16)}, ` +
            `${skip.size} relocated words skipped`;
   }
+  if (dataFrom >= 0 && dataFrom < code.length) code = code.subarray(0, dataFrom);
   const bad = scanArmV3(code, base, skip);
   for (const b of bad) {
     console.error(`${path}+0x${b.offset.toString(16)}: 0x${b.word.toString(16).padStart(8, '0')} — ${b.what}`);

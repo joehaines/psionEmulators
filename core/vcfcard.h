@@ -116,6 +116,11 @@ public:
 	// SA1100::Emulator::nextSocEventCycle().
 	bool irqPendingRaw() const { return irqPending && _inserted; }
 	int  irqDelayRemaining() const { return irqDelayCycles; }
+	// Task-file snapshot for the harness's end-of-run CF_STATE line.
+	uint8_t statusReg() const { return ataStatus; }
+	uint32_t sectorBufferLeft() const { return sectorBufferFill - sectorBufferPos; }
+	uint32_t currentLBA() const { return ataLBA; }
+	bool writing() const { return ataWriting; }
 
 	// Diagnostic counters consumed by the host's CF-IRQ re-enable strategy
 	// sweep. Every ATA command written to reg 0x7 bumps ataCommandCount;

@@ -222,6 +222,37 @@ function makeLoopback() {
   }
 }
 
+// Receive-window wrap on the 3-bit CL-PS711x link (Series 5 / Osaris, conSeq 2).
+// These ROMs number Data_Pdus 1..7 then 0. The window used to wrap at 2048
+// whatever the dialect, so after seq 7 it expected 8, rejected the device's
+// seq 0 as out-of-order and re-acked 7 forever — directory reads on those
+// machines took minutes. A 2048-wrap (R5) link must still expect 8 after 7.
+{
+  const run = (conSeq: number, seqs: number[]): number[] => {
+    const got: number[] = [];
+    const link = new LinkLayer({
+      conSeq, sendBytes: () => { /* discard */ },
+      onData: p => got.push(p[0]), maxRetxRounds: 0,
+    });
+    const dec = new FrameDecoder();
+    for (const f of dec.feed(encodePdu({ cont: PDU_CONT_REQ, seq: 2, data: new Uint8Array(0) })))
+      link.handleFrame(f.payload);                       // peer Req_Req → confirming
+    for (const f of dec.feed(encodePdu(ackPdu(0)))) link.handleFrame(f.payload);
+    check(link.state === 'connected', `rx-wrap(conSeq ${conSeq}): connected (got ${link.state})`);
+    for (const sq of seqs)
+      for (const f of dec.feed(encodePdu(dataPdu(sq, new Uint8Array([sq])))))
+        link.handleFrame(f.payload);
+    return got;
+  };
+  const wrapped = run(2, [1, 2, 3, 4, 5, 6, 7, 0, 1, 2]);
+  check(wrapped.join() === '1,2,3,4,5,6,7,0,1,2',
+    `rx-wrap: 3-bit link delivers across 7 → 0 (got ${wrapped.join()})`);
+  // R5: seq 0 after 7 is a stale/out-of-order frame, not the next one.
+  const r5 = run(4, [1, 2, 3, 4, 5, 6, 7, 0, 8]);
+  check(r5.join() === '1,2,3,4,5,6,7,8',
+    `rx-wrap: R5 link still expects 8 after 7 (got ${r5.join()})`);
+}
+
 if (failures > 0) {
   console.error(`\n${failures} test failure(s)`);
   process.exit(1);

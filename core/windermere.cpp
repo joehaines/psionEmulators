@@ -2342,11 +2342,20 @@ void Emulator::executeUntil(int64_t cycles) {
 		// invokes wedged the kernel right at mount completion and the
 		// desktop never came up. UND32/USR invokes carry all the
 		// throughput (>85% of hits in both scenarios measured).
+		// And only with IRQs enabled (CPSR.I clear), as a real interrupt
+		// would be: UND32 is also where the kernel's DFC runner works its
+		// queue (0x50005238), unlinking each TDfc with IRQs off. The callback
+		// queues the driver's completion TDfc (TDfc::Add), and doing that
+		// in the middle of an unlink loses it from the queue while leaving
+		// its iNext set, so it is never queued again: the media read never
+		// completes and the file server waits for ever. It hit about one
+		// boot in two of Doom's WAD loads, depending on the RTC seed.
 		uint32_t cpuMode = getCPSR() & 0x1F;
 		if (cfDirectInvoke && cfDirectInvokeThis && cfCard.inserted() &&
 		    cfCard.irqAsserted() &&
 		    (interruptMask & (1u << EINT3)) == 0 &&
 		    (cpuMode == 0x1B || cpuMode == 0x10) &&
+		    (getCPSR() & 0x80) == 0 &&
 		    passedCycles >= cfDirectInvokeLastCyc + kCfDirectInvokeInterval) {
 			uint32_t drainsBefore = cfCard.sectorBoundaryCount;
 			uint32_t ret = callRomFunctionSync(cfRomCallbackAddr, cfDirectInvokeThis);

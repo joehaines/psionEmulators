@@ -7,7 +7,8 @@
 //
 // Delivery picks the mechanism the device actually had:
 //   - EPOC32 with a card slot → the app's .SIS on a fresh (or the
-//     currently-inserted) FAT16 card; the user opens it from drive D:.
+//     currently-inserted) FAT16 card; the user opens it from drive D:
+//     (E: on the Series 7 and netBook).
 //     CompactFlash everywhere bar the netpad, whose slot takes an MMC —
 //     the same raw image either way, and the netpad's default because
 //     the slot mounts with nothing switched on first.
@@ -27,7 +28,7 @@
 // main-thread and worker mode.
 
 import type { EmulatorControls } from '../hooks/useEmulator.ts';
-import { createBlankImage, addFile, listRoot, deleteEntry } from './fat16.ts';
+import { createBlankImage, addFile, listRoot, deleteEntry, sameLayout, type AddResult } from './fat16.ts';
 import { createFlashPack, addFileToPack, FLASH_PACK_SIZES } from './fefs.ts';
 import { sameBytes } from './bytes.ts';
 import { unzipAll } from './zip.ts';
@@ -60,7 +61,10 @@ export interface AppEntry {
   // 'sibo'     — EPOC16 program + data, delivered on an SSD pack.
   // 'epocdir'  — an already-installed EPOC32 app folder, copied into
   //              \System\Apps\<App>\ (installFile names the .app).
-  installKind: 'sis' | 'sibo' | 'epocdir' | 'none';
+  // 'epocexe'  — a bare EPOC32 program (installFile names the .exe) plus its
+  //              data: not installed, just put on the device to be opened
+  //              from the file browser.
+  installKind: 'sis' | 'sibo' | 'epocdir' | 'epocexe' | 'none';
   installFile: string | null;
   readmes: string[];
   vault: boolean;
@@ -413,6 +417,56 @@ export function cardNameFor(profile: DeviceProfileLike): string {
   return profile.hasMmcSlot ? 'MMC card' : 'CF card';
 }
 
+// The Series 7 and netBook. Their CompactFlash is drive E: (D: is the PC
+// Card slot), and a card swapped in under a live mount is never re-read:
+// the OS keeps serving the old card's directory and FAT from its cache, so
+// whatever is opened from the new one reads as "Corrupt". A card already
+// in their slot is rewritten in place instead (the core refreshes those
+// caches), which needs the new image laid out like the one it replaces.
+const IN_PLACE_CARD_DEVICES = new Set(['series7', 'netbook']);
+
+function cardDriveFor(controls: EmulatorControls): string {
+  return IN_PLACE_CARD_DEVICES.has(controls.currentDeviceId ?? '') ? 'E:' : 'D:';
+}
+
+// The card in the slot; null when there is none.
+async function slotCard(controls: EmulatorControls): Promise<Uint8Array | null> {
+  if (!controls.cardAttached) return null;
+  const existing = await Promise.resolve(controls.getCardBytes());
+  return existing && existing.length > 0 ? existing : null;
+}
+
+// Size for a fresh card when the one in the slot can't take the delivery.
+// Where that card can only be rewritten in place, the fresh one has to be
+// the same size to share its layout.
+function freshCardSize(controls: EmulatorControls, existing: Uint8Array | null, want: number): number {
+  return existing && IN_PLACE_CARD_DEVICES.has(controls.currentDeviceId ?? '') ? existing.length : want;
+}
+
+// Add a file to the card root, replacing a same-named one: re-running a
+// delivery refreshes the card rather than failing on its own earlier copy.
+function putReplacing(img: Uint8Array, name: string, data: Uint8Array): AddResult {
+  const clash = listRoot(img).find(e => !e.isDirectory && e.name.toUpperCase() === name.toUpperCase());
+  if (clash) deleteEntry(img, clash);
+  return addFile(img, name, data);
+}
+
+// Put `img` in the machine's card slot (see IN_PLACE_CARD_DEVICES).
+// `existing` is the card that was in the slot, if any.
+async function insertCard(
+  controls: EmulatorControls, img: Uint8Array, existing: Uint8Array | null, card: string,
+): Promise<void> {
+  if (existing && IN_PLACE_CARD_DEVICES.has(controls.currentDeviceId ?? '')) {
+    if (!sameLayout(existing, img)) {
+      throw new Error(`There is no room for this on the ${card} in the slot. `
+        + `Delete some files from it in the ${card} dialog, then try again.`);
+    }
+    if (!(await controls.updateCardInPlace(img))) throw new Error(`Could not update the ${card}.`);
+    return;
+  }
+  if (!(await controls.attachCard(img))) throw new Error(`Could not attach the ${card}.`);
+}
+
 export function deliveryKindFor(profile: DeviceProfileLike, entry: AppEntry):
     'cf' | 'ssd' | 'link' | null {
   const linkOk = (profile.remoteLinkUart ?? -1) >= 0 && (profile.linkProtocol ?? 0) === 1;
@@ -424,6 +478,13 @@ export function deliveryKindFor(profile: DeviceProfileLike, entry: AppEntry):
   // machine the library offers as a try target can link, so nothing is
   // lost by not offering a card route here.
   if (entry.installKind === 'epocdir') return linkOk ? 'link' : null;
+  // A bare program has no install step and no long names, so it rides on
+  // the card where there is a free one (the bootloader machines' slot
+  // holds their OS card), else over the cable.
+  if (entry.installKind === 'epocexe') {
+    if (hasCard && !BOOTLOADER_TRY_DEVICES.has(profile.id)) return 'cf';
+    return linkOk ? 'link' : null;
+  }
   if (entry.installKind === 'sis') {
     // A card-first device ignores the preference: its cable needs the
     // user to switch Remote link on first, the card doesn't.
@@ -459,34 +520,73 @@ async function deliverViaCard(
   const sis = files.get(entry.installFile);
   if (!sis) throw new Error(`Installer ${entry.installFile} missing from bundle.`);
   const name = to83(entry.installFile);
+  if (entry.installKind === 'epocexe') return deliverExeViaCard(entry, files, controls, card, onPhase);
 
   onPhase?.(`Building ${card}…`);
   // Reuse the inserted card when there is one (keeps the user's
   // files); otherwise create a fresh 16 MB image.
-  let img: Uint8Array | null = null;
-  if (controls.cardAttached) {
-    const existing = await Promise.resolve(controls.getCardBytes());
-    if (existing && existing.length > 0) img = existing.slice();
-  }
+  const existing = await slotCard(controls);
+  let img: Uint8Array | null = existing ? existing.slice() : null;
   let reused = true;
   if (!img) { img = createBlankImage(16 * 1024 * 1024); reused = false; }
-  const added = addFile(img, name, sis);
+  const added = putReplacing(img, name, sis);
   if (!added.ok) {
-    // Name collision or full card — fall back to a fresh image.
-    img = createBlankImage(16 * 1024 * 1024);
+    // Full card — fall back to a fresh image.
+    img = createBlankImage(freshCardSize(controls, existing, 16 * 1024 * 1024));
     reused = false;
     const retry = addFile(img, name, sis);
     if (!retry.ok) throw new Error(`Could not add ${name} to the card image: ${retry.reason}`);
   }
   onPhase?.(`Inserting ${card}…`);
-  const ok = await controls.attachCard(img);
-  if (!ok) throw new Error(`Could not attach the ${card}.`);
+  await insertCard(controls, img, existing, card);
   return {
     summary: `${name} is on the ${card}${reused ? '' : ' (a fresh card was inserted)'}.`,
     steps: [
-      `On the device, open the System screen and switch to the D: drive (the ${card}).`,
+      `On the device, open the System screen and switch to the ${cardDriveFor(controls)} drive (the ${card}).`,
       `Open ${name} — the installer runs on the device.`,
       'Confirm the install prompts; the app then appears in Extras.',
+    ],
+  };
+}
+
+// A bare program goes onto the card root next to its data files (Doom
+// looks for DOOM1.WAD beside DOOM.EXE), all under their 8.3 names.
+async function deliverExeViaCard(
+  entry: AppEntry,
+  files: Map<string, Uint8Array>,
+  controls: EmulatorControls,
+  card: string,
+  onPhase?: (phase: string) => void,
+): Promise<DeliveryResult> {
+  const exe = to83(entry.installFile!);
+  const put = (img: Uint8Array): string | null => {
+    for (const [rel, data] of files) {
+      if (rel.includes('/')) continue;
+      const name = to83(rel);
+      const r = putReplacing(img, name, data);
+      if (!r.ok) return `${name}: ${r.reason}`;
+    }
+    return null;
+  };
+  onPhase?.(`Building ${card}…`);
+  const existing = await slotCard(controls);
+  let img: Uint8Array | null = existing ? existing.slice() : null;
+  let reused = true;
+  if (!img || put(img)) {
+    // No card, or a full one — fall back to a fresh image.
+    img = createBlankImage(freshCardSize(controls, existing, 16 * 1024 * 1024));
+    reused = false;
+    const err = put(img);
+    if (err) throw new Error(`Could not add ${err} to the card image.`);
+  }
+  onPhase?.(`Inserting ${card}…`);
+  await insertCard(controls, img, existing, card);
+  return {
+    summary: `${exe} is on the ${card}${reused ? '' : ' (a fresh card was inserted)'}.`,
+    steps: [
+      `On the device, open the System screen and switch to the ${cardDriveFor(controls)} drive (the ${card}).`,
+      `Open ${exe} — it starts straight away; it is a program, not an installer.`,
+      'Its data files are on the same card, where it looks for them.',
     ],
   };
 }
@@ -578,8 +678,13 @@ export async function deliverApp(
   if (!entry.installFile) throw new Error('No installer in this app bundle.');
   const sis = files.get(entry.installFile);
   if (!sis) throw new Error(`Installer ${entry.installFile} missing from bundle.`);
-  const asFolder = entry.installKind === 'epocdir';
-  const folder = asFolder ? epocAppFolder(entry.installFile) : '';
+  const asExe = entry.installKind === 'epocexe';
+  const asFolder = entry.installKind === 'epocdir' || asExe;
+  // A bare program gets a folder of its own on C:, named after the EXE.
+  const folder = asExe ? to83(entry.installFile).replace(/\.[^.]*$/, '')
+    : asFolder ? epocAppFolder(entry.installFile) : '';
+  const pathFor = (rel: string) => asExe
+    ? `\\${folder}\\${rel.split('/').join('\\')}` : epocDirPathFor(entry.installFile!, rel);
   const name = to83(entry.installFile);
   // Bytes to move: the one installer, or every file in the folder.
   const totalBytes = asFolder
@@ -663,7 +768,7 @@ export async function deliverApp(
   };
   try {
     await race(client.connect(60_000));
-    onPhase?.(asFolder ? `Copying ${entry.name} to \\System\\Apps\\${folder}…` : `Uploading ${name}…`);
+    onPhase?.(asExe ? `Copying ${entry.name} to C:\\${folder}…` : asFolder ? `Copying ${entry.name} to \\System\\Apps\\${folder}…` : `Uploading ${name}…`);
     onProgress?.(0, totalBytes);
     lastAdvance = Date.now();
     stallTimer = setInterval(() => {
@@ -679,7 +784,7 @@ export async function deliverApp(
       const made = new Set<string>();
       let done = 0;
       for (const [rel, data] of files) {
-        const target = epocDirPathFor(entry.installFile, rel);
+        const target = pathFor(rel);
         const dir = target.slice(0, target.lastIndexOf('\\') + 1);
         if (!made.has(dir)) {
           await raceStall(client.makeDirAll(`C:${dir}`));
@@ -711,6 +816,15 @@ export async function deliverApp(
     }
   }
   if (!linkErr) {
+    if (asExe) {
+      return {
+        summary: `${entry.name} is in C:\\${folder}.`,
+        steps: [
+          `On the System screen open the ${folder} folder on C: and open ${to83(entry.installFile)}.`,
+          'It is a program, not an installer: it starts straight away, and finds its data files beside it.',
+        ],
+      };
+    }
     if (asFolder) {
       return {
         summary: `${entry.name} is installed in C:\\System\\Apps\\${folder}.`,
@@ -735,7 +849,7 @@ export async function deliverApp(
   // via the card instead — that path never touches the wedge-prone link
   // server. Not open to installed folders: the card can only carry 8.3 names
   // (see deliveryKindFor), so a "rescue" there would install a broken copy.
-  if ((profile.hasCFSlot || profile.hasMmcSlot) && !asFolder) {
+  if ((profile.hasCFSlot || profile.hasMmcSlot) && (!asFolder || asExe)) {
     const card = cardNameFor(profile);
     onPhase?.(`Remote Link stalled — delivering via the ${card} instead…`);
     return await deliverViaCard(entry, files, controls, card, onPhase);
@@ -862,10 +976,7 @@ export function cardSizeFor(payloadBytes: number): number {
 function writePlanToImage(img: Uint8Array, files: PlannedFile[]): { name: string; reason: string }[] {
   const failed: { name: string; reason: string }[] = [];
   for (const f of files) {
-    const clash = listRoot(img).find(
-      e => !e.isDirectory && e.name.toUpperCase() === f.name.toUpperCase());
-    if (clash) deleteEntry(img, clash);
-    const added = addFile(img, f.name, f.data);
+    const added = putReplacing(img, f.name, f.data);
     if (!added.ok) failed.push({ name: f.app, reason: added.reason ?? 'could not be written to the card' });
   }
   return failed;
@@ -959,17 +1070,15 @@ export async function installAppsOnCard(
   // build a fresh image sized to the set.
   let img: Uint8Array | null = null;
   let freshCard = true;
-  if (controls.cardAttached) {
-    const existing = await Promise.resolve(controls.getCardBytes());
-    if (existing && existing.length >= cardSizeFor(payload)) {
-      const copy = existing.slice();
-      // Only keep the reused card if the whole set actually went on
-      // it — a part-written one would leave the user with half a CD.
-      if (writePlanToImage(copy, plan.files).length === 0) { img = copy; freshCard = false; }
-    }
+  const existing = await slotCard(controls);
+  if (existing && existing.length >= cardSizeFor(payload)) {
+    const copy = existing.slice();
+    // Only keep the reused card if the whole set actually went on
+    // it — a part-written one would leave the user with half a CD.
+    if (writePlanToImage(copy, plan.files).length === 0) { img = copy; freshCard = false; }
   }
   if (!img) {
-    img = createBlankImage(cardSizeFor(payload));
+    img = createBlankImage(freshCardSize(controls, existing, cardSizeFor(payload)));
     const failed = writePlanToImage(img, plan.files);
     if (failed.length > 0) {
       throw new Error(`Could not fit the standard apps onto a ${card}: ${failed[0].reason}`);
@@ -977,8 +1086,7 @@ export async function installAppsOnCard(
   }
 
   report(`Inserting the ${card}…`);
-  const ok = await controls.attachCard(img);
-  if (!ok) throw new Error(`Could not attach the ${card}.`);
+  await insertCard(controls, img, existing, card);
 
   const installed = plan.files.map(f => ({ id: f.id, name: f.app, file: f.name }));
   const first = installed[0]?.file ?? 'the installer';
@@ -991,7 +1099,7 @@ export async function installAppsOnCard(
       + `${installed.length === 1 ? 'is' : 'are'} on the ${card}`
       + `${freshCard ? ' (a fresh card was inserted)' : ''}.`,
     steps: [
-      `On the device, open the System screen and switch to the D: drive (the ${card}).`,
+      `On the device, open the System screen and switch to the ${cardDriveFor(controls)} drive (the ${card}).`,
       `Open an installer — ${first} and the rest — and confirm its prompts; the app then appears in Extras.`,
       'Every installer stays on the card, so the ones you skip are there whenever you want them.',
     ],

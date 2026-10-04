@@ -12,6 +12,8 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include <set>
+#include <string>
 #include <unordered_map>
 
 // POSIX environ for the kAnyS7DiagEnvSet scan in executeUntil.
@@ -10438,21 +10440,58 @@ void Emulator::executeUntil(int64_t cycles) {
         // updateCardImageInPlace() swapped the backing bytes but kept the OS
         // mount + medata driver alive.  The OS re-reads file CONTENT live
         // (data-region cluster reads were observed post-update) but serves the
-        // directory ENTRY list from a cached copy of the root-directory sector
-        // in the F32 server heap — a cache a media-change would normally
-        // invalidate, but the media-change never fires on a swap (the encoder-
-        // dispatch divergence; see docs).  We reproduce JUST that invalidation
-        // by finding the cached sector (content-match on the OLD root-dir bytes,
-        // which are unique enough — they carry the old card's file names) and
-        // overwriting it with the NEW card's root-dir sector.  Then we re-read
-        // the same E: pane and the new files appear.  No eject/insert/re-mount,
-        // so no device-absent "Corrupt".  Kill switch: PSION_CF_NO_INPLACE_FLUSH.
+        // directory ENTRY list and the cluster chains from cached copies of the
+        // directory sectors and the FAT in the F32 server heap — caches a
+        // media-change would normally invalidate, but the media-change never
+        // fires on a swap (the encoder-dispatch divergence; see docs).  We
+        // reproduce JUST that invalidation by overwriting the cached sectors with
+        // the new card's.  No eject/insert/re-mount, so no device-absent
+        // "Corrupt".  Kill switch: PSION_CF_NO_INPLACE_FLUSH.
         //
-        // The F32 server heap holds exactly one copy of the sector (confirmed by
-        // a heap-wide signature scan); patch every byte-identical match to be
-        // safe.  Deferred to executeUntil so it runs with a coherent heap.
-        if (s7CfInPlaceFlush_ && isSeries7Rom_ && !s7CfInPlaceOld_.empty()) {
+        // Two ways of finding a cached sector, both over the F32 heap window:
+        //  - the FAT is held as one contiguous block, found by FAT sector 0
+        //    (unique: it carries the media byte) and patched sector by sector at
+        //    its offset from there, as long as the cached bytes still equal the
+        //    old card's (that bounds the walk to the cached block);
+        //  - every other changed sector whose old bytes are distinctive (see
+        //    updateCardImageInPlace) is matched by content, every copy patched.
+        // Deferred to executeUntil so it runs with a coherent heap.
+        if (s7CfInPlaceFlush_ && isSeries7Rom_) {
             s7CfInPlaceFlush_ = false;   // one-shot
+            constexpr uint32_t kHeapLo = 0x81400000u, kHeapHi = 0x81f00000u;
+            auto heapEquals = [&](uint32_t a, const std::vector<uint8_t> &v) {
+                for (uint32_t k = 0; k < 512; k++)
+                    if (cpu.readVirtualDebug(a + k, ARM710::V8).value_or(0x100) != v[k]) return false;
+                return true;
+            };
+            auto heapWrite = [&](uint32_t a, const std::vector<uint8_t> &v) {
+                for (uint32_t k = 0; k < 512; k++)
+                    cpu.writeVirtual((uint32_t)v[k], a + k, ARM710::V8);
+            };
+            if (!s7CfInPlaceFatOld_.empty()) {
+                const auto &f0 = s7CfInPlaceFatOld_[0];
+                const uint32_t p0 = (uint32_t)f0[0] | ((uint32_t)f0[1] << 8) |
+                                    ((uint32_t)f0[2] << 16) | ((uint32_t)f0[3] << 24);
+                const size_t nfs = s7CfInPlaceFatOld_.size();
+                uint32_t blocks = 0, fatPatched = 0;
+                for (uint32_t a = kHeapLo; a + 512 <= kHeapHi; a += 4) {
+                    if (cpu.readVirtualDebug(a, ARM710::V32).value_or(~p0) != p0) continue;
+                    if (!heapEquals(a, f0)) continue;
+                    blocks++;
+                    for (size_t k = 0; k < nfs && a + (k + 1) * 512 <= kHeapHi; k++) {
+                        const uint32_t at = a + (uint32_t)k * 512;
+                        if (!heapEquals(at, s7CfInPlaceFatOld_[k])) break;   // end of the cached block
+                        if (s7CfInPlaceFatOld_[k] == s7CfInPlaceFatNew_[k]) continue;
+                        heapWrite(at, s7CfInPlaceFatNew_[k]);
+                        fatPatched++;
+                    }
+                    cpu.log("CF: in-place flush — cached FAT at heap %08x", a);
+                }
+                cpu.log("CF: in-place flush — patched %u FAT sector(s) in %u cached "
+                        "FAT block(s) cyc=%lld", fatPatched, blocks, (long long)passedCycles);
+                s7CfInPlaceFatOld_.clear();
+                s7CfInPlaceFatNew_.clear();
+            }
             const size_t nsec = s7CfInPlaceOld_.size();
             // Per-sector first-word prefix for a cheap reject on the heap scan.
             std::vector<uint32_t> pfx(nsec);
@@ -10467,20 +10506,14 @@ void Emulator::executeUntil(int64_t cycles) {
             // with the NEW sector.  A position matches at most one sector, so we
             // break out after a hit; every distinct heap copy is still patched.
             uint32_t patched = 0;
-            for (uint32_t a = 0x81400000u; a + 512 <= 0x81f00000u; a += 4) {
+            for (uint32_t a = kHeapLo; a + 512 <= kHeapHi; a += 4) {
                 uint32_t w0 = cpu.readVirtualDebug(a, ARM710::V32).value_or(0xffffffffu);
                 for (size_t i = 0; i < nsec; i++) {
-                    if (w0 != pfx[i]) continue;
-                    const auto &o = s7CfInPlaceOld_[i];
-                    bool match = true;
-                    for (uint32_t k = 4; k < 512; k++)
-                        if (cpu.readVirtualDebug(a + k, ARM710::V8).value_or(0) != o[k]) { match = false; break; }
-                    if (!match) continue;
+                    if (w0 != pfx[i] || !heapEquals(a, s7CfInPlaceOld_[i])) continue;
                     const auto &n = s7CfInPlaceNew_[i];
-                    for (uint32_t k = 0; k < 512; k++)
-                        cpu.writeVirtual((uint32_t)n[k], a + k, ARM710::V8);
+                    heapWrite(a, n);
                     patched++;
-                    cpu.log("CF: in-place flush — patched cached dir sector #%zu at "
+                    cpu.log("CF: in-place flush — patched cached sector #%zu at "
                             "heap %08x (entry0 '%c%c%c%c%c%c%c%c') cyc=%lld", i, a,
                             (char)n[0], (char)n[1], (char)n[2], (char)n[3],
                             (char)n[4], (char)n[5], (char)n[6], (char)n[7],
@@ -10489,7 +10522,7 @@ void Emulator::executeUntil(int64_t cycles) {
                 }
             }
             cpu.log("CF: in-place flush — patched %u heap copies for %zu changed "
-                    "dir sector(s) cyc=%lld", patched, nsec, (long long)passedCycles);
+                    "sector(s) cyc=%lld", patched, nsec, (long long)passedCycles);
             s7CfInPlaceOld_.clear();
             s7CfInPlaceNew_.clear();
         }
@@ -10778,6 +10811,14 @@ void Emulator::executeUntil(int64_t cycles) {
         // edges because a single edge can be lost if it crosses the kernel's
         // foreground ASIC reads.  The level (and re-fires) stop once the
         // handler acks by W1C-clearing ASIC[0x2a-0x2b] bit 13.
+        // A card held since boot (s7CfBootCard_): the OS timer runs now, so
+        // insert it.
+        if (!s7CfBootCard_.empty() && s7Osmr1PeriodicArmCount_ > 0) {
+            std::vector<uint8_t> card;
+            card.swap(s7CfBootCard_);
+            cpu.log("SA1100: inserting the CF card held since boot (%zu bytes)", card.size());
+            attachCard(card.data(), card.size());
+        }
         const bool nbCfKilledDel = isNetBookRom_
             ? PSION_ENV_BOOL("PSION_NB_NO_NATIVE_CF")
             : PSION_ENV_BOOL("PSION_S7_NO_NATIVE_CF");
@@ -29084,6 +29125,16 @@ bool Emulator::attachCard(const uint8_t *bytes, size_t size) {
         return false;
     if (!isBootloaderPath && !isFullOsPath) return false;
 
+    // Series 7 still booting: hold the card until the OS timer runs (see
+    // s7CfBootCard_).  executeUntil inserts it.
+    if (isFullOsPath && !isNetBookRom_ && s7Osmr1PeriodicArmCount_ == 0
+            && !PSION_ENV_BOOL("PSION_S7_NO_BOOT_CARD_HOLD")) {
+        s7CfBootCard_.assign(bytes, bytes + size);
+        cpu.log("SA1100 attachCard: %zu bytes while booting — held until the OS "
+                "timer runs", size);
+        return true;
+    }
+
     cfCard.attach(bytes, size);
     // NOTE: do NOT enable VCFCard faithfulMode for the booted netBook OS.
     // faithfulMode's netBook ATA semantics (post-command BSY transient +
@@ -29487,6 +29538,10 @@ bool Emulator::updateCardImageInPlace(const uint8_t *bytes, size_t size) {
     // needs — there is no F32 directory-cache patching to do because the
     // socket and mount are never disturbed.
     if (isNetpad_) return mmcCard.updateImageInPlace(bytes, size);
+    if (!s7CfBootCard_.empty()) {           // held since boot: nothing mounted yet
+        s7CfBootCard_.assign(bytes, bytes + size);
+        return true;
+    }
     if (!cfCard.inserted()) return false;   // nothing mounted to update
 
     // Capture every DIRECTORY sector that CHANGED across the update, BEFORE
@@ -29500,6 +29555,8 @@ bool Emulator::updateCardImageInPlace(const uint8_t *bytes, size_t size) {
     // listing of any directory reflects the update — no eject/insert/re-mount.
     s7CfInPlaceOld_.clear();
     s7CfInPlaceNew_.clear();
+    s7CfInPlaceFatOld_.clear();
+    s7CfInPlaceFatNew_.clear();
     s7CfInPlaceFlush_ = false;
     // The cache-patch flush works on the EPOC R5 F32 server shared by the
     // Series 7 AND the netBook OS (same kernel; F32 heap in the same 0x814xxxxx
@@ -29517,6 +29574,7 @@ bool Emulator::updateCardImageInPlace(const uint8_t *bytes, size_t size) {
         // (stale) cached cluster chain points a new file at the wrong/garbage
         // clusters -> the file reads back corrupt even though its directory
         // entry is correct.  Walk the FAT region the same way cfRootDirLba does.
+        uint32_t fat1 = 0, spf = 0, totFat = 0;
         if (olen >= 1024 && oimg[510] == 0x55 && oimg[511] == 0xAA) {
             uint8_t pt = oimg[0x1be + 4];
             uint32_t partLba = (pt == 0x04 || pt == 0x06 || pt == 0x0e)
@@ -29527,15 +29585,41 @@ bool Emulator::updateCardImageInPlace(const uint8_t *bytes, size_t size) {
             if (bpb + 24 <= olen) {
                 uint32_t rsvd = (uint32_t)oimg[bpb + 14] | ((uint32_t)oimg[bpb + 15] << 8);
                 uint8_t  nfat = oimg[bpb + 16];
-                uint32_t spf  = (uint32_t)oimg[bpb + 22] | ((uint32_t)oimg[bpb + 23] << 8);
-                uint32_t fat1 = partLba + rsvd;
-                uint32_t totFat = (uint32_t)nfat * spf;
+                spf  = (uint32_t)oimg[bpb + 22] | ((uint32_t)oimg[bpb + 23] << 8);
+                fat1 = partLba + rsvd;
+                totFat = (uint32_t)nfat * spf;
                 if (nfat && spf && totFat <= 100000)
                     for (uint32_t s = 0; s < totFat; s++) metaLbas.push_back(fat1 + s);
+                else
+                    totFat = 0;
             }
         }
         // Directory sectors (root + sub-directories).
         cfCollectDirSectors(oimg, olen, metaLbas);
+        // A changed sector is found in the heap by its OLD bytes, so those have
+        // to name it.  A blank sector (one byte repeated: a free stretch of the
+        // FAT, an unused directory sector) matches every zeroed block in RAM, and
+        // OLD bytes shared by sectors whose NEW bytes differ match the wrong
+        // cached copy — patching either kind wrote one sector's new bytes over
+        // all of them (the whole cached FAT, and unrelated heap besides), which
+        // broke the cluster chain of any large file added to a card that had
+        // free space.  Those sectors are left out of the content match; the FAT
+        // ones are patched by position instead (s7CfInPlaceFatOld_).
+        auto blank = [](const uint8_t *p) {
+            for (int k = 1; k < 512; k++) if (p[k] != p[0]) return false;
+            return true;
+        };
+        std::map<std::string, std::string> outcome;   // OLD bytes -> NEW bytes
+        std::set<std::string> ambiguous;
+        for (uint32_t lba : metaLbas) {
+            size_t off = (size_t)lba * 512;
+            if (off + 512 > olen || off + 512 > size) continue;
+            std::string o((const char *)oimg + off, 512), n((const char *)bytes + off, 512);
+            auto it = outcome.find(o);
+            if (it == outcome.end()) outcome.emplace(std::move(o), std::move(n));
+            else if (it->second != n) ambiguous.insert(it->first);
+        }
+        bool fatChanged = false;
         // Record every metadata sector whose bytes changed across the update.
         for (uint32_t lba : metaLbas) {
             size_t off = (size_t)lba * 512;
@@ -29543,20 +29627,31 @@ bool Emulator::updateCardImageInPlace(const uint8_t *bytes, size_t size) {
             const uint8_t *o = oimg + off;
             const uint8_t *n = bytes + off;
             if (std::memcmp(o, n, 512) == 0) continue;   // unchanged
+            if (totFat && lba >= fat1 && lba < fat1 + totFat) fatChanged = true;
+            if (blank(o) || ambiguous.count(std::string((const char *)o, 512))) continue;
             s7CfInPlaceOld_.emplace_back(o, o + 512);
             s7CfInPlaceNew_.emplace_back(n, n + 512);
+        }
+        // The first FAT, whole, for the positional patch.  Its sector 0 starts
+        // with the media byte and the reserved entries, so it is never blank.
+        if (fatChanged && (size_t)(fat1 + spf) * 512 <= std::min(olen, size)) {
+            for (uint32_t s = 0; s < spf; s++) {
+                size_t off = (size_t)(fat1 + s) * 512;
+                s7CfInPlaceFatOld_.emplace_back(oimg + off, oimg + off + 512);
+                s7CfInPlaceFatNew_.emplace_back(bytes + off, bytes + off + 512);
+            }
         }
     }
 
     cfCard.attach(bytes, size);             // replace image, keep card present
 
     // Arm the heap cache-patch flush if any metadata (FAT / directory) sector
-    // changed.  The flush content-matches each old sector against the F32
-    // server's heap cache and overwrites it with the new bytes.
-    if (!s7CfInPlaceOld_.empty()) s7CfInPlaceFlush_ = true;
+    // changed.  The flush finds each stale copy in the F32 server's heap (the
+    // FAT by position, the rest by content) and overwrites it with the new bytes.
+    if (!s7CfInPlaceOld_.empty() || !s7CfInPlaceFatOld_.empty()) s7CfInPlaceFlush_ = true;
     cpu.log("SA1100 updateCardImageInPlace: %zu bytes (mount kept alive, "
-            "cache-patch armed=%d, changed meta sectors=%zu)", size,
-            (int)s7CfInPlaceFlush_, s7CfInPlaceOld_.size());
+            "cache-patch armed=%d, content-matched sectors=%zu, FAT sectors=%zu)", size,
+            (int)s7CfInPlaceFlush_, s7CfInPlaceOld_.size(), s7CfInPlaceFatOld_.size());
     return true;
 }
 
@@ -29575,6 +29670,7 @@ void Emulator::detachCard() {
     // clear the staged image so the CF dialog reflects the eject.
     cfCard.detach();
     machineIdPrefixCardOffsets_.clear();
+    s7CfBootCard_.clear();
     s7CardInserted_  = false;
     pcmciaReadLogs_  = 0;
     pcmciaWriteLogs_ = 0;

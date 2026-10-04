@@ -293,6 +293,24 @@ void D_Display (void)
     }
 
 
+    // EPOC port: on the small grey screens the menu's red lettering is lost
+    // against a moving picture (a demo plays behind the main menu), so the 3D
+    // view is darkened first. Only the view is touched: the border and status
+    // bar are not redrawn every frame, and would go black.
+    if (menuactive && gamestate == GS_LEVEL && !automapactive)
+    {
+        int row, col;
+        extern lighttable_t *colormaps;
+        const byte *dim = colormaps + 22 * 256;
+
+        for (row = viewwindowy; row < viewwindowy + viewheight; row++)
+        {
+            byte *p = I_VideoBuffer + row * SCREENWIDTH + viewwindowx;
+            for (col = 0; col < scaledviewwidth; col++)
+                p[col] = dim[p[col]];
+        }
+    }
+
     // menus go directly to the screen
     M_Drawer ();          // menu is drawn even on top of everything
     NetUpdate ();         // send out any new accumulation

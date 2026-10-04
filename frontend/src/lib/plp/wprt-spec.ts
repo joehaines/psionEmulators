@@ -172,7 +172,14 @@ export class WprtClient {
       }
       this.pendingResolve = data => { clear(); resolve(data); };
       this.pendingReject  = err  => { clear(); reject(err); };
-      this.ncp.sendOn(this.clientChan, cmd);
+      try {
+        this.ncp.sendOn(this.clientChan, cmd);
+      } catch {
+        // Channel gone — clear the in-flight slot (else every later command
+        // fails "already in flight") and let PlpClient re-open WPRT.
+        clear();
+        reject(new LinkResetError());
+      }
     });
   }
 

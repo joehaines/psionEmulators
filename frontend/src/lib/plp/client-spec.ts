@@ -445,20 +445,7 @@ export class PlpClient {
     // sending ours stops the device from refusing subsequent Connect
     // requests with an immediate Disconnect, a quirk the harness
     // experiments revealed.)
-    this.ncp.sendNcpInfo();
-
-    // Give the device time to send its NCP Info.  On Windermere it
-    // arrives spontaneously (peerInfoReceived already true by now). On
-    // the SA-1100 netBook there's a round-trip delay — the device only
-    // sends NCP Info AFTER receiving our Ack + NCP Info.  A short yield
-    // lets the poll loop deliver any pending device frames before we
-    // fire the RFSV Connect.  Non-blocking: we don't fail if the device
-    // is slow; RFSV Connect has its own timeout.
-    if (!this.ncp.peerInfoReceived) {
-      for (let i = 0; i < 30 && !this.ncp.peerInfoReceived; i++) {
-        await new Promise<void>(r => setTimeout(r, 100));
-      }
-    }
+    await this.exchangeNcpInfo();
 
     // Open SYS$RFSV.*. Ncp.connectServer resolves with the assigned
     // server channel on success.
@@ -488,6 +475,41 @@ export class PlpClient {
     }
     setSerialPumpEnabled(true);
     this.transition('connected');
+  }
+
+  // Announce ourselves to the device's NCP and wait (briefly) for it to
+  // announce itself. Shared by openRfsv and openWprt.
+  //
+  // The device may re-handshake the data link WHILE we wait — the SIBO ROMs do
+  // it routinely on the second connection after a cable re-plug, a couple of
+  // seconds after our first Info goes out. A link reset wipes the device's NCP
+  // state, our Info with it, and that is not cosmetic: the device still accepts
+  // the following Connect and acks the request frames, but its file server
+  // never answers (the Series 3c's drive probes all timed out and the dialog
+  // listed no drives). So if the link was reset during the wait, announce again
+  // on the fresh link before going on.
+  private async exchangeNcpInfo(): Promise<void> {
+    this.ncp.sendNcpInfo();
+    // On Windermere the device's Info arrives spontaneously (peerInfoReceived
+    // is already true by now). On the SA-1100 netBook there's a round-trip
+    // delay — it only sends NCP Info AFTER receiving our Ack + NCP Info. A
+    // short yield lets the poll loop deliver any pending device frames before
+    // the Connect. Non-blocking: we don't fail if the device is slow; the
+    // Connect has its own timeout.
+    const gen = this.linkGen;
+    if (!this.ncp.peerInfoReceived) {
+      for (let i = 0; i < 30 && !this.ncp.peerInfoReceived; i++) {
+        await new Promise<void>(r => setTimeout(r, 100));
+      }
+    }
+    if (this.linkGen !== gen && this.linkState_ === 'connected') {
+      this.ncp.sendNcpInfo();
+      // Then let the device digest it before the Connect follows. Straight
+      // after a re-handshake it is busy (it opens its own LINK.* connection
+      // back to us), and a frame arriving in that window is dropped — which the
+      // SIBO link, having no host→device retransmit, cannot recover.
+      await new Promise<void>(r => setTimeout(r, 1_500));
+    }
   }
 
   // Guarantee a live RFSV channel before a file op, re-establishing it if
@@ -780,12 +802,7 @@ export class PlpClient {
   }
 
   private async openWprt(timeoutMs: number): Promise<void> {
-    this.ncp.sendNcpInfo();
-    if (!this.ncp.peerInfoReceived) {
-      for (let i = 0; i < 30 && !this.ncp.peerInfoReceived; i++) {
-        await new Promise<void>(r => setTimeout(r, 100));
-      }
-    }
+    await this.exchangeNcpInfo();
 
     this.transition('rfsv-opening');
     // Spec sequence: try the Connect first; the server usually isn't

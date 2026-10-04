@@ -1738,6 +1738,11 @@ int main(int argc, char **argv) {
                      simSec, wallSec, s.ataCommands, s.sectorDrains,
                      s.irqAssertions, s.irqDeassertions, s.eint3Dispatches,
                      s.reschedulePokes, s.accelTimerHits);
+        std::fprintf(stderr,
+                     "CF_STATE: irq_pending=%d irq_asserted=%d status=%02x sectors_left=%d "
+                     "buf_left=%d lba=%d irq_enabled=%d irq_latched=%d etna=%04x\n",
+                     s.irqPending, s.irqAsserted, s.status & 0xff, s.sectorsLeft,
+                     s.bufLeft, s.lba, s.irqEnabled, s.irqLatched, s.etna & 0xffff);
         // SA-1100 throughput: executed (ticked) cycles vs sim cycles. The
         // delta is idle fast-forwarded through WFI; executed/wall is the raw
         // interpreter speed that bounds a CPU-bound app like a game. Only

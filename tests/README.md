@@ -68,3 +68,11 @@ cd frontend
 node test/keyboard-focus/run.mjs      # host UI text fields vs. emulator key capture
 node test/plp-browser/run.mjs         # Remote Link transfer in a real worker
 ```
+
+`frontend/src/lib/__tests__/_plp_audit.mts <device>` is the end-to-end Remote
+Link audit: the real `PlpClient` against the real ROM over the native harness
+(connect, drives, directory, 40 KB upload + byte-exact download, delete, then a
+second session after a cable re-plug or a parked-session adoption). It needs the
+harness built and the ROMs present, and runs in real time (20-130 s per device);
+its header lists the options. The `_plp_*_repro.mts` files beside it are the
+single-purpose probes it grew out of.

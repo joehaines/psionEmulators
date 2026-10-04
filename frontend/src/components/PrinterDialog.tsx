@@ -72,17 +72,26 @@ export default function PrinterDialog({ controls, uartIndex, sibo, viaPcAvailabl
     setListening(false);
   }, []);
 
+  // R5 active-handshake devices (Windermere / SA-1100) are parked, not torn
+  // down, exactly as in RemoteLinkDialog and the app-delivery flow: their link
+  // server survives neither a Disc_Pdu nor a cable unplug (it goes dormant until
+  // Remote Link is toggled on the device), so Stop leaves the cable attached and
+  // the session alive for the next client to adopt. Only the passive CL-PS711x
+  // ROMs (conSeq 2) recover from a teardown, via the per-connect re-plug.
+  const parkable = conSeq !== 2;
+
   const stopViaPc = useCallback(() => {
     const client = plpRef.current;
     plpRef.current = null;
     if (client) {
       client.abortPrintWait();
-      client.disconnect();
+      if (parkable) void client.releaseQuiesced();
+      else client.disconnect();
     }
-    if (controls.serialIsAttached(uartIndex)) controls.serialDetachHost(uartIndex);
+    if (!parkable && controls.serialIsAttached(uartIndex)) controls.serialDetachHost(uartIndex);
     setPcPhase('idle');
     setPcProgress(null);
-  }, [controls, uartIndex]);
+  }, [controls, uartIndex, parkable]);
 
   // Same StrictMode-safe teardown pattern as ModemDialog: the detach
   // lives in an unmount-only cleanup so a double-mount can't tear down
@@ -91,7 +100,12 @@ export default function PrinterDialog({ controls, uartIndex, sibo, viaPcAvailabl
     if (captureRef.current) { captureRef.current.stop(); captureRef.current = null; }
     const client = plpRef.current;
     plpRef.current = null;
-    if (client) { client.abortPrintWait(); client.disconnect(); }
+    if (client) {
+      client.abortPrintWait();
+      if (parkable) void client.releaseQuiesced();
+      else client.disconnect();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Serial capture handlers ───────────────────────────────────────
@@ -133,13 +147,25 @@ export default function PrinterDialog({ controls, uartIndex, sibo, viaPcAvailabl
   const handlePcStart = useCallback(() => {
     setErrorMsg('');
     if (plpRef.current) return;
-    if (controls.serialIsAttached(uartIndex)) {
-      setErrorMsg('Serial port is in use — disconnect Remote Link / Modem first.');
-      return;
-    }
-    if (!controls.serialAttachHost(uartIndex)) {
-      setErrorMsg(`Could not attach host to UART${uartIndex}. The emulator may not be running.`);
-      return;
+    if (parkable) {
+      // The cable is normally ALREADY attached here: Remote Link and app
+      // delivery park their session with the bridge left in place. Refusing
+      // that as "in use" made Printer via PC unusable after any other link
+      // use, and detaching it would put the device's link server to sleep.
+      // Just make sure it's attached; connectPrint() adopts a parked session.
+      if (!controls.serialIsAttached(uartIndex) && !controls.serialAttachHost(uartIndex)) {
+        setErrorMsg(`Could not attach host to UART${uartIndex}. The emulator may not be running.`);
+        return;
+      }
+    } else {
+      if (controls.serialIsAttached(uartIndex)) {
+        setErrorMsg('Serial port is in use — disconnect Remote Link / Modem first.');
+        return;
+      }
+      if (!controls.serialAttachHost(uartIndex)) {
+        setErrorMsg(`Could not attach host to UART${uartIndex}. The emulator may not be running.`);
+        return;
+      }
     }
     const client = new PlpClient(
       () => controls.serialReadBytes(uartIndex),
@@ -178,13 +204,17 @@ export default function PrinterDialog({ controls, uartIndex, sibo, viaPcAvailabl
         if (plpRef.current !== client) return;
         setErrorMsg(e instanceof Error ? e.message : String(e));
         plpRef.current = null;
-        client.disconnect();
-        if (controls.serialIsAttached(uartIndex)) controls.serialDetachHost(uartIndex);
+        if (parkable) {
+          void client.releaseQuiesced();
+        } else {
+          client.disconnect();
+          if (controls.serialIsAttached(uartIndex)) controls.serialDetachHost(uartIndex);
+        }
         setPcPhase('idle');
         setPcProgress(null);
       }
     })();
-  }, [controls, uartIndex, conSeq]);
+  }, [controls, uartIndex, conSeq, parkable]);
 
   const handleClose = useCallback(() => {
     stopSerial();

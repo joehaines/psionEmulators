@@ -124,7 +124,7 @@ interface AppEntry {
   icon: string | null;          // path under <out>
   devices: string[];
   tryDevice: string | null;
-  installKind: 'sis' | 'sibo' | 'epocdir' | 'none';
+  installKind: 'sis' | 'sibo' | 'epocdir' | 'epocexe' | 'none';
   installFile: string | null;   // path within the zip
   readmes: string[];            // readme-like docs, paths within the zip
   vault: boolean;
@@ -430,9 +430,23 @@ function isEpoc32App(abs: string): boolean {
   }
 }
 
+// A native EPOC32 program: E32 image with UID1 = EXE (0x1000007a).
+function isEpoc32Exe(abs: string): boolean {
+  let fd: number | null = null;
+  try {
+    fd = fs.openSync(abs, 'r');
+    const head = Buffer.alloc(4);
+    return fs.readSync(fd, head, 0, 4, 0) === 4 && head.readUInt32LE(0) === 0x1000007a;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== null) try { fs.closeSync(fd); } catch { /* ignore */ }
+  }
+}
+
 function pickInstaller(
   files: AppFile[], platform: CategoryMeta['platform'], dirName: string,
-): { kind: 'sis' | 'sibo' | 'epocdir' | 'none'; file: string | null } {
+): { kind: 'sis' | 'sibo' | 'epocdir' | 'epocexe' | 'none'; file: string | null } {
   const lcDir = dirName.toLowerCase().replace(/[^a-z0-9]/g, '');
   if (platform === 'epoc32') {
     const sis = files.filter(f => f.rel.toLowerCase().endsWith('.sis'));
@@ -455,6 +469,14 @@ function pickInstaller(
         .sort((a, b) =>
           (a.rel.split('/').length - b.rel.split('/').length) || (b.size - a.size));
       if (apps.length > 0) return { kind: 'epocdir', file: apps[0].rel };
+      // A bare program (Doom, Lemmings): a top-level native EXE with no
+      // application framework around it. It is opened from the file
+      // browser, so the bundle is delivered as-is, together with its
+      // data files, and not installed.
+      const exes = files
+        .filter(f => !f.rel.includes('/') && /\.exe$/i.test(f.rel) && isEpoc32Exe(f.abs))
+        .sort((a, b) => b.size - a.size);
+      if (exes.length > 0) return { kind: 'epocexe', file: exes[0].rel };
       return { kind: 'none', file: null };
     }
     // Prefer shallow paths, then a name resembling the app dir, then size

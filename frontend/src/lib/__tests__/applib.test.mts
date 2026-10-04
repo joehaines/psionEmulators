@@ -327,6 +327,19 @@ eq(deliveryKindFor({ id: '5mx', hasCFSlot: true }, folderApp), null,
 }
 check(tryTargetsFor(folderApp).includes('5mx'), 'installed folder still has try targets');
 
+// ── bare programs ('epocexe') ───────────────────────────────────────
+const exeApp: AppEntry = {
+  ...sisApp, id: 'epocgames/demoexe', installKind: 'epocexe', installFile: 'DEMO.EXE',
+};
+eq(deliveryKindFor({ id: '5mx', hasCFSlot: true, remoteLinkUart: 2, linkProtocol: 1 }, exeApp),
+   'cf', 'bare program takes the card where there is one');
+eq(deliveryKindFor({ id: 'netpad', hasMmcSlot: true }, exeApp), 'cf', 'netpad MMC too');
+eq(deliveryKindFor({ id: '5mxpro', hasCFSlot: true, remoteLinkUart: 2, linkProtocol: 1 }, exeApp),
+   'link', 'bootloader machine keeps its card and uses the cable');
+eq(deliveryKindFor({ id: 'revo', remoteLinkUart: 2, linkProtocol: 1 }, exeApp), 'link',
+   'card-less machine uses the cable');
+check(tryTargetsFor(exeApp).includes('5mx'), 'bare program has try targets');
+
 // ── deliverApp: CF path ─────────────────────────────────────────────
 
 await (async () => {
@@ -347,6 +360,56 @@ await (async () => {
   eq(f?.size, sis.length, 'CF file has the SIS payload size');
   check(result.steps.length >= 2 && result.summary.includes('DEMO.SIS'),
         'CF instructions mention the file');
+})();
+
+// ── deliverApp: CF path on a Series 7 with a card already in ────────
+// Its OS never re-reads a card swapped in under it (the old one's cached
+// directory and FAT make the new one read as "Corrupt"), so the card in
+// the slot is rewritten in place, keeping its layout; and its CF is E:.
+
+await (async () => {
+  const exe = text('fake exe'), wad = new Uint8Array(200_000).fill(7);
+  const zip = makeZip([{ name: 'DEMO.EXE', data: exe }, { name: 'DEMO1.WAD', data: wad }]);
+  let card = createBlankImage(16 * 1024 * 1024);
+  check(addFile(card, 'MINE.TXT', text('the user\'s own file')).ok, 'seed the user\'s card');
+  let attaches = 0, updates = 0;
+  const controls = {
+    currentDeviceId: 'series7',
+    cardAttached: true,
+    getCardBytes: () => card,
+    attachCard: async () => { attaches++; return true; },
+    updateCardInPlace: async (img: Uint8Array) => { updates++; card = img; return true; },
+    ssdAttached: [] as boolean[],
+  } as never;
+  const profile = { id: 'series7', hasCFSlot: true, remoteLinkUart: 1, linkProtocol: 1 };
+  const result = await deliverApp(exeApp, zip, controls, profile);
+  eq(attaches, 0, 'Series 7: a card in the slot is not swapped');
+  eq(updates, 1, 'Series 7: the card in the slot is rewritten in place');
+  const names = listDirectory(card, 0).map(e => e.name);
+  check(['MINE.TXT', 'DEMO.EXE', 'DEMO1.WAD'].every(n => names.includes(n)),
+        `the user's files stay beside the program (got ${names.join(', ')})`);
+  check(result.steps.some(s => s.includes('E: drive')), 'Series 7 instructions name drive E:');
+  check(!result.summary.includes('fresh card'), 'the card in the slot was reused');
+
+  // Trying it again refreshes the program's files rather than failing
+  // on them and throwing the user's card away.
+  const again = await deliverApp(exeApp, zip, controls, profile);
+  eq(updates, 2, 'second try is rewritten in place too');
+  const after = listDirectory(card, 0);
+  eq(after.filter(e => e.name === 'DEMO.EXE').length, 1, 'DEMO.EXE replaced, not duplicated');
+  check(after.some(e => e.name === 'MINE.TXT'), 'user file survives a second try');
+  check(!again.summary.includes('fresh card'), 'second try reuses the card');
+
+  // A card too full for the program gets a fresh one of the same size
+  // (so the same layout), still rewritten in place.
+  const small = createBlankImage(4 * 1024 * 1024);
+  check(addFile(small, 'BIG.DAT', new Uint8Array(3_900_000)).ok, 'fill a small card');
+  card = small;
+  const full = await deliverApp(exeApp, makeZip([{ name: 'DEMO.EXE', data: exe },
+    { name: 'DEMO1.WAD', data: new Uint8Array(500_000) }]), controls, profile);
+  eq(updates, 3, 'full card: rewritten in place');
+  eq(card.length, small.length, 'full card: the fresh one keeps the slot card\'s size');
+  check(full.summary.includes('fresh card'), 'full card: says a fresh card went in');
 })();
 
 // ── deliverApp: SSD path ────────────────────────────────────────────

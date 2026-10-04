@@ -84,8 +84,38 @@ const hex = (b: Uint8Array) => Array.from(b).map(x => x.toString(16).padStart(2,
   void frame;
   link.handleFrame(new Uint8Array([0x31, 0xAA, 0xBB]));   // Data seq 1
   link.handleFrame(new Uint8Array([0x31, 0xAA, 0xBB]));   // retransmit
+  link.handleFrame(new Uint8Array([0x31, 0xAA, 0xBB]));   // retransmit again, same poll batch
+  link.handleFrame(new Uint8Array([0x31, 0xAA, 0xBB]));   // …and again
   check('duplicate delivered once', delivered.length === 1, String(delivered.length));
-  check('duplicate still re-acked', acks >= 3, String(acks));  // handshake Ack + 2 data Acks
+  // Handshake Ack + the new frame's Ack went out at once; the three copies'
+  // re-acks are held for the end of the poll batch rather than sent per copy.
+  check('new frame acked at once', acks === 2, String(acks));
+  link.flushAck();
+  check('duplicates re-acked once per batch', acks === 3, String(acks));
+  link.flushAck();
+  check('nothing left to flush', acks === 3, String(acks));
+}
+
+// ── A peer Disc_Pdu on an established link is reported as a reset ──────
+// The peer's follow-up Req_Pdu finds the link idle, so without this the upper
+// layers never learn their NCP channels are gone.
+{
+  let resets = 0;
+  const link = new LinkLayer({
+    variant: 'sibo',
+    sendBytes: () => { /* discard */ },
+    onData: () => { /* unused */ },
+    onReset: () => { resets++; },
+  });
+  link.initiate();
+  link.handleFrame(new Uint8Array([0x20]));   // connected
+  link.handleFrame(new Uint8Array([0x10]));   // peer Disc_Pdu
+  check('Disc on a live link reports a reset', resets === 1, String(resets));
+  link.handleFrame(new Uint8Array([0x20]));   // peer re-handshakes (link idle → connected)
+  check('the re-handshake that follows is not a second reset', resets === 1, String(resets));
+  link.handleFrame(new Uint8Array([0x10]));
+  link.handleFrame(new Uint8Array([0x10]));   // Disc on an already-idle link
+  check('Disc on an idle link reports nothing', resets === 2, String(resets));
 }
 
 function stripFrame(wire: Uint8Array): Uint8Array {

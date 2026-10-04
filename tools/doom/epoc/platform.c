@@ -266,7 +266,7 @@ static int screen_init(void)
 
 // A record of what the program was last doing, for finding it in a RAM snapshot
 // when it stops (search for the magic).
-volatile u32 g_dbg[8] = { 0x31474244 /* "DBG1" */, 0, 0, 0, 0, 0, 0, 0 };
+volatile u32 g_dbg[16] = { 0x31474244 /* "DBG1" */, 0, 0, 0, 0, 0, 0, 0 };
 
 volatile u32 g_kdbg[10] = { 0x3159454b /* "KEY1" */, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -275,14 +275,22 @@ volatile u32 g_kdbg[10] = { 0x3159454b /* "KEY1" */, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 uint32_t DG_GetTicksMs(void)
 {
     // 64 ticks a second: 15.625 ms each. The count does not start at zero (on a
-    // Series 7 it starts somewhere past two billion), so count from the first
-    // time asked; 32 bits of milliseconds is then 49 days of play.
-    static u32 t0;
+    // Series 7 it starts somewhere past two billion), so only the differences
+    // between readings are used. A reading that goes backwards (the Series 7's
+    // does now and then) is not allowed to make time run backwards: Doom's
+    // clock treats a step back as "skip the next million tics" and stalls on
+    // the title screen. Steps forward are capped at half a minute.
+    static u32 last, acc;
     static int have;
     u32 t = Exec_TickCount();
-    if (!have) { t0 = t; have = 1; }
     g_dbg[6] = t; g_dbg[7]++;
-    return ((t - t0) * 125u) >> 3;
+    if (!have) { last = t; have = 1; }
+    else {
+        i32 d = (i32)(t - last);
+        if (d > 0) acc += d > 64 * 30 ? 64 * 30 : (u32)d; else if (d < 0) g_dbg[8]++;
+        last = t;
+    }
+    return (acc * 125u) >> 3;
 }
 
 // ── keys ────────────────────────────────────────────────────────────
@@ -356,7 +364,7 @@ int DG_GetKey(int *pressed, unsigned char *key)
 
 void DG_SleepMs(uint32_t ms)
 {
-    g_dbg[5]++;
+    g_dbg[5]++; { extern int gametic, gamestate, I_GetTime(void); g_dbg[11] = (u32)gametic; g_dbg[12] = (u32)I_GetTime(); g_dbg[14] = (u32)gamestate; }
     volatile i32 st = PEND;
     if (ms < 1) ms = 1;
     Exec_After((i32)(ms * 1000u), &st);
@@ -534,6 +542,7 @@ void epoc_present(const unsigned char *src)        // 320 x 200 palette indices
     int y, vy0, vy1, vx0, vx1;
     int vs = (g_bpp == 8 && g_h >= 400) ? 2 : 1;       // twice down as well on a tall panel
     u8 *row;
+    g_dbg[10]++;
     if (!g_fb_ok) return;
     if (g_con_on) {                                 // the first frame: clear away the start-up text
         g_con_on = 0;

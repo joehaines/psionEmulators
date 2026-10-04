@@ -341,7 +341,19 @@ export class RfsvClient {
       this.pendingRearm = rearm;
       this.pendingOpId = opId;
       rearm();
-      this.ncp.sendOn(this.clientChan, request);
+      try {
+        this.ncp.sendOn(this.clientChan, request);
+      } catch {
+        // The channel is no longer open (the device sent a Disconnect, or the
+        // link was reset under us). Letting this escape the executor rejected
+        // the promise but left pendingResolve and both timers armed, so every
+        // following request failed "already in flight" for up to the 30–120 s
+        // timeout. Clear now and report it as a lost channel, which withRfsv
+        // answers by re-opening SYS$RFSV.* and retrying.
+        clear();
+        this.pendingOpId = -1;
+        reject(new LinkResetError());
+      }
     });
   }
 

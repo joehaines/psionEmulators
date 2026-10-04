@@ -6,6 +6,7 @@ import type { EmulatorControls } from '../../hooks/useEmulator';
 import type { DeviceProfile } from '../../types/emulator';
 import { requireHost } from '../../lib/desktop/host';
 import { PlpClient } from '../../lib/plp/client-spec';
+import { linkConSeq } from '../../lib/deviceMeta';
 import { acquireUart, onUartFree, type UartLease } from '../../lib/plp/uartLease';
 import { applyMirror, planMirror } from '../../lib/hostsync/mirror';
 import { createDeviceFs, defaultMirrorRoot } from '../../lib/hostsync/deviceFsPlp';
@@ -193,9 +194,9 @@ export default function InternalMountController({ controls, profile, onStatus }:
     }
 
     // Same parameters as appLibrary's delivery path, which is the flow proven
-    // against these ROMs: the CL-PS711x machines need the 0x22 Req_Con flavour,
+    // against these ROMs: the CL-PS711x machines (Series 5, Osaris, Geofox) need the 0x22 Req_Con flavour,
     // and SA-1100 takes a 2 KB chunk because it has no host RX FIFO cap.
-    const conSeq = (profile?.id === 'series5' || profile?.id === 'osaris') ? 2 : 4;
+    const conSeq = linkConSeq(profile?.id);
     // Counts anything the device says. The dormancy test below turns on it:
     // total silence on a parkable machine means the link server is asleep and
     // only the user can wake it, whereas bytes-but-no-handshake is a different

@@ -22,6 +22,6 @@ CARD="${DOOM_CARD:-$WORK/card.img}"
 node --experimental-strip-types "$REPO/tools/e32/romfs1.mts" replace "$ROM" \
     'Z:\System\Samples\Welcome to Series 5' "$EXE" "$WORK/s5.bin" \
     --rename 'LEMMINGSABCDEFG.EXE' >/dev/null
-"$REPO/harness/run" "$WORK/s5.bin" --device series5 --log-file "$OUT.full" \
+"${DOOM_HARNESS:-$REPO/harness/run}" "$WORK/s5.bin" --device series5 --log-file "$OUT.full" \
     --boot-seconds 30 --card-path "$CARD" --post-attach-seconds $((SECS - 30)) \
     --press-key 50 3 --screenshot "$OUT" "$@" > "$OUT.log" 2>&1

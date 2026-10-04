@@ -337,7 +337,8 @@ public:
     // netpad: the slot holds an MMC card on the FPGA's SPI port; every
     // other SA-11x0 machine here has a PC-Card socket.
     bool     isCardInserted() const override {
-        return isNetpad_ ? mmcCard.inserted() : cfCard.inserted();
+        return isNetpad_ ? mmcCard.inserted()
+                         : cfCard.inserted() || !s7CfBootCard_.empty();
     }
     // CF image accessors used by the WASM bridge (readCFImage path) so
     // the frontend's CFCardDialog can pull the current bytes back and
@@ -348,9 +349,11 @@ public:
     // otherwise the user clicks "Insert CF card containing OS" and
     // the dialog still shows an empty card.
     size_t       getCardImageSize() const override {
+        if (!s7CfBootCard_.empty()) return s7CfBootCard_.size();
         return isNetpad_ ? mmcCard.imageSize() : cfCard.imageSize();
     }
     const uint8_t *getCardImageData() const override {
+        if (!s7CfBootCard_.empty()) return s7CfBootCard_.data();
         return isNetpad_ ? mmcCard.imageData() : cfCard.data();
     }
     // Bootloader-handoff helper: scans a FAT16 CF image for the
@@ -433,6 +436,15 @@ public:
     // acks (W1C to 0x2a/0x2b) so the encoder stops re-firing.
     bool     s7CfDetectLevel_ = false;
     int      s7CfDetectFires_ = 0;
+    // A Series 7 card attached before the OS timer model is running (the first
+    // simulated second — see armOsmr1PeriodicIfEnabled): the frontend attaches
+    // a saved card, or Try it's card, as soon as the ROM loads.  Seen by the
+    // booting OS — the socket status, the card-detect pulse and the core's CF
+    // mount hooks, which all assume a booted OS — it left the boot on the
+    // splash screen for good.  The card is held here instead, reported as
+    // attached, and inserted through attachCard() once the timer runs, which
+    // is when every insert that boots cleanly lands anyway.
+    std::vector<uint8_t> s7CfBootCard_;
     // True while a CF *removal* (eject) is being delivered through the same
     // GPIO10/encoder MedChgCf path as an insert.  An eject is also a
     // media-change, so the driver re-probes the now-empty socket and tears
@@ -497,6 +509,14 @@ public:
     // in executeUntil.  Parallel vectors (entry i = one 512-byte sector).
     std::vector<std::vector<uint8_t>> s7CfInPlaceOld_;
     std::vector<std::vector<uint8_t>> s7CfInPlaceNew_;
+    // OLD/NEW copies of the first FAT, sector by sector (entry k = FAT sector
+    // k), captured when any FAT sector changed.  The F32 mount holds the whole
+    // FAT as one contiguous heap block, and most sectors of a card with free
+    // space are all zeros, so a FAT sector can't be found by its own content:
+    // the flush finds the block by FAT sector 0 (unique — it starts with the
+    // media byte) and patches each sector at its offset from there.
+    std::vector<std::vector<uint8_t>> s7CfInPlaceFatOld_;
+    std::vector<std::vector<uint8_t>> s7CfInPlaceFatNew_;
     // Parse a FAT16 BPB (bare or MBR-partitioned) and return the absolute LBA of
     // the first root-directory sector, plus the FAT1 LBA and root-dir sector
     // count via out-params.  Returns 0 if not a recognisable FAT16 image.
@@ -538,6 +558,9 @@ public:
         CfStats s;
         s.ataCommands  = cfCard.ataCommandCount;
         s.sectorDrains = cfCard.sectorBoundaryCount;
+        s.irqPending = cfCard.irqPendingRaw(); s.irqAsserted = cfCard.irqAsserted();
+        s.status = cfCard.statusReg(); s.sectorsLeft = (int)cfCard.sectorsRemaining();
+        s.bufLeft = (int)cfCard.sectorBufferLeft(); s.lba = (int)cfCard.currentLBA();
         return s;
     }
 

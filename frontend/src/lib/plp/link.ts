@@ -301,11 +301,7 @@ export class LinkLayer {
     // Seq 0 is only special as the FIRST frame after a handshake, and that
     // case is naturally 1 anyway (handshake leaves seqTx=0 → first send → 1);
     // 0 is a normal data Seq at the wrap.
-    if (this.cfg.variant === 'sibo' || this.cfg.conSeq === 2) {
-      this.seqTx = (this.seqTx + 1) & 0x7;
-    } else {
-      this.seqTx = (this.seqTx + 1) & 0x7FF;  // mod 2048 (R5 link), 2047 → 0
-    }
+    this.seqTx = (this.seqTx + 1) & this.seqMask();   // 2047 → 0 on R5, 7 → 0 on 3-bit
     const pdu = dataPdu(this.seqTx, payload);
     this.send(pdu);
     // Queue for retransmission (EPOC/R5 only — see `unacked`). The device
@@ -338,6 +334,12 @@ export class LinkLayer {
       u.sentAt = now;
       this.cfg.sendBytes(u.bytes);
     }
+  }
+
+  // Sequence-number modulus mask for this dialect: 3 bits on the SIBO EPOC16
+  // link and the ER3/ER4 CL-PS711x link (conSeq 2), 11 bits on the R5 link.
+  private seqMask(): number {
+    return this.cfg.variant === 'sibo' || this.cfg.conSeq === 2 ? 0x7 : 0x7FF;
   }
 
   private clearUnacked(): void {
@@ -479,12 +481,26 @@ export class LinkLayer {
       // was consumed as the following FOPEN's reply). Its Seq space is tiny
       // and only the immediately-previous frame ever repeats, so a one-deep
       // compare suffices.
+      //
+      // Re-acks of those duplicates are coalesced to one per poll batch
+      // (flushAck), not sent per copy. The device re-sends a reply many times
+      // inside one host poll interval — the sim runs ahead of the host — and an
+      // Ack per copy is a burst of host→device bytes that the device must drain
+      // before it can service the Ack that matters: its retransmit timer keeps
+      // firing, the copies multiply, and once its retransmit budget runs out it
+      // sends Disc_Pdu and tears the link down mid-transfer (the "SIBO upload
+      // stalls partway" report). A frame that is NEW is still acked at once.
       if (this.cfg.variant === 'sibo') {
         const dup = this.gotData && pdu.seq === this.seqRx;
         this.seqRx = pdu.seq;
         this.gotData = true;
-        this.send(ackPdu(this.seqRx));
-        if (!dup) this.cfg.onData(pdu.data);
+        if (dup) {
+          this.ackPending = true;
+        } else {
+          this.ackPending = false;
+          this.send(ackPdu(this.seqRx));
+          this.cfg.onData(pdu.data);
+        }
         return;
       }
       // EPOC/R5: a proper in-order receive window. Under the web-worker
@@ -499,7 +515,14 @@ export class LinkLayer {
       // Seq we hold so the device learns what actually landed and advances its
       // window instead of looping. Acking the cumulative high-water (not the
       // received frame's Seq) is what lets the device retire the window.
-      const expected = (this.seqRx + 1) & 0x7FF;  // 2047 → 0, mirrors sendData
+      //
+      // The window must wrap where the PEER's counter wraps. The ER3/ER4
+      // CL-PS711x ROMs (Series 5, Osaris; conSeq 2) number their Data_Pdus in
+      // 3 bits, so after seq 7 they send 0. Expecting 8 (the R5 modulus) here
+      // rejected every frame after the first eight of a reply as out-of-order
+      // and re-acked 7 forever — directory reads on those machines crawled for
+      // minutes until the device's own retransmit logic happened to line up.
+      const expected = (this.seqRx + 1) & this.seqMask();
       if (!this.gotData || pdu.seq === expected) {
         this.seqRx = pdu.seq;
         this.gotData = true;
@@ -522,10 +545,19 @@ export class LinkLayer {
     if (pdu.cont === PDU_CONT_DISC) {
       // Peer terminated the link. Reset to idle so the next
       // initiate() can rebuild the connection from scratch.
+      const wasUp = this.state_ === 'connected' || this.state_ === 'confirming';
       this.transition('idle');
       this.seqTx = 0;
       this.seqRx = 0;
+      this.gotData = false;
       this.clearUnacked();
+      // An established link torn down by the peer takes every NCP channel with
+      // it, exactly as a mid-session re-handshake does — and unlike that case
+      // the Req_Pdu that follows finds the link already idle, so the reset
+      // would otherwise never be reported. The upper layers would keep an
+      // 'open' channel the device has forgotten and the in-flight request would
+      // sit out its full timeout instead of re-opening the channel.
+      if (wasUp) this.cfg.onReset?.();
       return;
     }
   }

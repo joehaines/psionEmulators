@@ -16,6 +16,6 @@ WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 node --experimental-strip-types "$REPO/tools/doom/mkcard.mts" "$WORK/card.img" "$REPO/tools/Doom1.WAD" >/dev/null
 python3 "$REPO/tools/doom/tools/romx.py" "$ROM" replace 'Z:\System\Samples\Welcome to Series 7' "$EXE" "$WORK/s7.bin" \
     --rename AUTO --donor 'Z:\System\Data\Iens9522.dat,Z:\System\Data\Rektc400.dat' >/dev/null
-"$REPO/harness/run" "$WORK/s7.bin" --device series7 --log-file "$OUT.full" --boot-seconds 45 \
+"${DOOM_HARNESS:-$REPO/harness/run}" "$WORK/s7.bin" --device series7 --log-file "$OUT.full" --boot-seconds 45 \
     --card-path "$WORK/card.img" --post-attach-seconds $((SECS - 45)) \
     --press-key 60 17 --press-key 61 17 --press-key 62 17 --press-key 63 17 --press-key 64 17 --press-key 65 17 --press-key 66 17 --press-key 68 3 --screenshot "$OUT" "$@" > "$OUT.log" 2>&1

@@ -125,6 +125,19 @@ function findBpbSector(img: Uint8Array): number {
   return -1;
 }
 
+// Whether two images share their partition and FAT geometry — every FAT
+// and directory sector at the same place — so one can be swapped for the
+// other under a live mount.
+export function sameLayout(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  const sec = findBpbSector(a);
+  if (sec < 0 || sec !== findBpbSector(b)) return false;
+  // BPB fields from bytes-per-sector (11) to the 32-bit sector count (35).
+  const bpb = sec * SECTOR_SIZE;
+  for (let i = 11; i < 36; i++) if (a[bpb + i] !== b[bpb + i]) return false;
+  return true;
+}
+
 export function isFat16(img: Uint8Array): boolean {
   return findBpbSector(img) >= 0;
 }

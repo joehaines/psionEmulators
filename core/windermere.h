@@ -841,10 +841,17 @@ public:
 	void setCfAccelTimer(bool enable) override { cfAccelTimer = enable; }
 	void setCfDirectInvoke(bool enable) override { cfDirectInvoke = enable; }
 	CfStats getCfStats() const override {
-		return { cfCard.ataCommandCount, cfCard.sectorBoundaryCount,
-		         cfStatIrqAssertions, cfStatIrqDeassertions,
-		         cfStatEint3Dispatches, cfStatReschedulePokes,
-		         cfAccelTimerHits };
+		CfStats s;
+		s.ataCommands = cfCard.ataCommandCount; s.sectorDrains = cfCard.sectorBoundaryCount;
+		s.irqAssertions = cfStatIrqAssertions; s.irqDeassertions = cfStatIrqDeassertions;
+		s.eint3Dispatches = cfStatEint3Dispatches; s.reschedulePokes = cfStatReschedulePokes;
+		s.accelTimerHits = cfAccelTimerHits;
+		s.irqPending = cfCard.irqPendingRaw(); s.irqAsserted = cfCard.irqAsserted();
+		s.status = cfCard.statusReg(); s.sectorsLeft = (int)cfCard.sectorsRemaining();
+		s.bufLeft = (int)cfCard.sectorBufferLeft(); s.lba = (int)cfCard.currentLBA();
+		s.irqEnabled = (interruptMask >> EINT3) & 1; s.irqLatched = (pendingInterrupts >> EINT3) & 1;
+		s.etna = etna.pcCdIntState();
+		return s;
 	}
 	// Gap condition: card asserting IREQ# while the kernel has EINT3 (bit 7)
 	// masked off. In this state the CF driver falls through to the 2 s

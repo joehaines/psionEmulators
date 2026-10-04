@@ -557,6 +557,9 @@ public:
 		uint32_t eint3Dispatches = 0;
 		uint32_t reschedulePokes = 0;
 		uint32_t accelTimerHits = 0;
+		// end-of-run state (CF_STATE line), -1 where a device does not say
+		int irqPending = -1, irqAsserted = -1, status = -1, sectorsLeft = -1, bufLeft = -1, lba = -1;
+		int irqEnabled = -1, irqLatched = -1, etna = -1;
 	};
 	virtual CfStats getCfStats() const { return {}; }
 

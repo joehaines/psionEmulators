@@ -256,7 +256,10 @@ export class Rfsv16Client {
       } catch (e) {
         clearTimeout(timer);
         this.pending = null;
-        reject(e instanceof Error ? e : new Error(String(e)));
+        // sendOn only throws for a channel that is no longer open; report it
+        // as a lost channel so PlpClient.withRfsv16 re-opens it and retries.
+        void e;
+        reject(new LinkResetError());
       }
     });
   }
@@ -281,15 +284,23 @@ export class Rfsv16Client {
   // malformed "M\" (FOPEN error -38, E_GEN_BADNAME).
   async getDriveList(): Promise<string[]> {
     const drives: string[] = [];
+    let answered = 0;
+    let lastErr: Error | null = null;
     for (const d of ['M', 'A', 'B']) {
       try {
         const r = await this.send(buildStatusDevice(`${d}:`), 5_000, `STATUSDEVICE ${d}:`);
+        answered++;
         if (r.status === 0) drives.push(`${d}:`);
       } catch (e) {
         if (e instanceof LinkResetError) throw e;
-        // Treat per-drive failures (timeouts on absent packs) as absent.
+        // A per-drive timeout counts as that drive being absent...
+        lastErr = e instanceof Error ? e : new Error(String(e));
       }
     }
+    // ...but if NOTHING answered, the device isn't serving file requests at all.
+    // Returning an empty list there showed the user "no drives" with no error
+    // after a silent 15 s wait; report the failure instead.
+    if (answered === 0 && lastErr) throw lastErr;
     return drives;
   }
 

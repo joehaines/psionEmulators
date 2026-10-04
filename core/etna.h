@@ -194,6 +194,7 @@ public:
     // rather than re-firing every tick when EPOC's handler leaves the
     // bits uncleared.
     void ackMediaChange() { pcCdIntStatus = 0; }
+    uint16_t pcCdIntState() const { return (uint16_t)(pcCdIntStatus | (pcCdIntMask << 8)); }
 
     // Counter bumped every time the driver writes ETNA's IntClear register
     // with bit 0 set (the CF-IRQ ack path). Consumed by Windermere's CF

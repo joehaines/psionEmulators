@@ -131,10 +131,26 @@ const app = await _electron.launch({
 
 try {
   const page = await app.firstWindow();
-  await page.waitForLoadState('domcontentloaded');
-  check(true, 'the packaged app opens a window');
+  // Narrated, so a failure below says what the window was doing at the time.
+  page.on('framenavigated', (f) => {
+    if (f === page.mainFrame()) console.log(`· the window navigated to ${f.url()}`);
+  });
+  page.on('crash', () => console.log('· the renderer crashed'));
 
-  const probe = await page.evaluate(async () => {
+  // firstWindow() resolves as soon as the window EXISTS, which can be while it
+  // still shows Chromium's initial empty document, before loadURL(START_URL)
+  // has committed. A load-state wait there resolves against that document, and
+  // the probe then dies with "Execution context was destroyed" when the real
+  // page replaces it. So wait for the app's own URL first.
+  await page.waitForURL((u) => u.protocol === 'app:',
+                         { timeout: 120_000, waitUntil: 'domcontentloaded' });
+  check(true, `the packaged app opens a window (${page.url()})`);
+
+  // Retried ONCE if a navigation lands mid-probe — what the Windows runner hit
+  // (its first launch of a fresh build is slow enough to stall ~25 s). The
+  // retry runs every check again on whatever page is there now, so a window
+  // that keeps reloading still fails; the narration above says why.
+  const runProbe = () => page.evaluate(async () => {
     const h = window.psionHost;
     // A ROM proves resourcesPath/roms resolved — a different branch from dev.
     let rom = null;
@@ -158,6 +174,19 @@ try {
       body: document.body.innerText.slice(0, 160),
     };
   });
+  let probe;
+  try {
+    probe = await runProbe();
+  } catch (e) {
+    if (!/Execution context was destroyed/.test(String(e))) throw e;
+    console.log('· a navigation interrupted the probe — waiting for the page and retrying once');
+    // The rejection can arrive before Playwright has seen the new document,
+    // when a load-state wait would still resolve against the old one. So wait
+    // for the navigation itself (bounded: it may already have been reported).
+    await page.waitForEvent('framenavigated', { timeout: 10_000 }).catch(() => {});
+    await page.waitForLoadState('domcontentloaded');
+    probe = await runProbe();
+  }
 
   check(probe.url.startsWith('app://psion/psion/'),
         `the renderer is served over the custom scheme (${probe.url})`);

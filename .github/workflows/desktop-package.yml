@@ -8,7 +8,7 @@
 # caller per platform, each with a plain `if` on the input, is.
 #
 # The engine is NOT built here: desktop.yml builds the WASM once on Linux and
-# uploads it, and this downloads it. Building it per platform would pay for the
+# saves it to the Actions cache, and this restores it. Building it per platform would pay for the
 # Emscripten toolchain twice and could put two subtly different engines in one
 # release.
 
@@ -29,10 +29,19 @@ on:
           packages from the x64 one, since nothing here is compiled per-arch.
         required: true
         type: string
-      wasm-artifact:
-        description: Name of the artifact holding the prebuilt engine.
-        required: false
-        default: psion-wasm
+      wasm-cache-key:
+        description: Actions cache key holding the prebuilt engine.
+        required: true
+        type: string
+      release-repo:
+        description: owner/name of the repository whose release gets the
+          installers — the public mirror when publishing, this repo for a
+          preview.
+        required: true
+        type: string
+      release-tag:
+        description: The release's tag. desktop.yml has already created it.
+        required: true
         type: string
 
 jobs:
@@ -45,11 +54,17 @@ jobs:
         with:
           node-version: 22
 
-      - name: Download the engine
-        uses: actions/download-artifact@v4
+      # The path list must stay identical to the save in desktop.yml: it is
+      # part of what the cache is matched on.
+      - name: Fetch the engine
+        uses: actions/cache/restore@v4
         with:
-          name: ${{ inputs.wasm-artifact }}
-          path: frontend/public
+          path: |
+            frontend/public/psion.js
+            frontend/public/psion.wasm
+          key: ${{ inputs.wasm-cache-key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Install dependencies
         shell: bash
@@ -106,15 +121,19 @@ jobs:
         # the `repository` field in desktop/package.json, notices it is on CI,
         # and helpfully uploads to GitHub Releases on its own — then fails the
         # whole step for want of a GH_TOKEN, after every artifact has already
-        # been written. Publishing is the release job's business, and it puts
+        # been written. Publishing is the last step's business, and it puts
         # the files under fixed names this build cannot know about.
+        #
+        # No .zip for mac or win here (scripts/build-desktop.sh still makes
+        # them locally): at ~300 MB each they were the same app again, never
+        # published, and only ever went into run artifacts.
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
           cd desktop
           case "${{ inputs.target }}" in
-            mac) npx electron-builder --mac dmg zip --publish never ;;
-            win) npx electron-builder --win nsis zip --publish never ;;
+            mac) npx electron-builder --mac dmg --publish never ;;
+            win) npx electron-builder --win nsis --publish never ;;
             # Deliberately no target list and no --arch: which formats, and
             # which architectures, live in electron-builder.yml's `linux:`
             # block — it is the only place that knows a Raspberry Pi wants a
@@ -155,11 +174,9 @@ jobs:
           case "${{ inputs.target }}" in
             mac)
               for f in desktop/dist/*.dmg; do cp "$f" "upload/Psion-Emulator-macOS-arm64.dmg"; done
-              for f in desktop/dist/*.zip; do cp "$f" "upload/Psion-Emulator-macOS-arm64.zip"; done
               ;;
             win)
               for f in desktop/dist/*.exe; do cp "$f" "upload/Psion-Emulator-Windows-x64-Setup.exe"; done
-              for f in desktop/dist/*.zip; do cp "$f" "upload/Psion-Emulator-Windows-x64.zip"; done
               ;;
             linux)
               # electron-builder writes the Debian arch name (amd64), not its
@@ -172,10 +189,28 @@ jobs:
           esac
           ls -lh upload
 
-      - name: Upload the app
-        uses: actions/upload-artifact@v4
-        with:
-          name: psion-desktop-${{ inputs.target }}
-          path: upload/*
-          retention-days: 14
-          if-no-files-found: error
+      # Straight into the release, NOT a run artifact: see the top of
+      # desktop.yml for what artifacts of this size did to the storage quota.
+      # Each platform only touches its own filenames, so the three jobs can
+      # upload into the same release side by side.
+      - name: Upload to the release
+        shell: bash
+        env:
+          RELEASE_REPO: ${{ inputs.release-repo }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+          MIRROR_TOKEN: ${{ secrets.PUBLIC_MIRROR_TOKEN }}
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          if [ "$RELEASE_REPO" = "$GITHUB_REPOSITORY" ]; then
+            export GH_TOKEN="$REPO_TOKEN"
+          else
+            export GH_TOKEN="$MIRROR_TOKEN"
+          fi
+          shopt -s nullglob
+          assets=(upload/*)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "No installers were produced — nothing to publish." >&2
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$RELEASE_REPO" --clobber

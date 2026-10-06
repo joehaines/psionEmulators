@@ -6,10 +6,10 @@
 # can be verified — so a download here is something you run past your own OS's
 # warning, not something that installs quietly.
 #
-# Shape of it: one Linux job builds the WASM engine and uploads it, the pure
-# tests run beside it, and then ONE JOB PER PLATFORM downloads that engine and
-# packages around it (.github/workflows/desktop-package.yml, called once per
-# platform).
+# Shape of it: one Linux job builds the WASM engine and hands it on, the pure
+# tests run beside it, and then ONE JOB PER PLATFORM picks that engine up,
+# packages around it and uploads its installers straight to the release
+# (.github/workflows/desktop-package.yml, called once per platform).
 # Building WASM inside each platform job would pay for the Emscripten toolchain
 # twice and, worse, could produce two subtly different engines in one release.
 #
@@ -18,8 +18,18 @@
 # matrix expands — so "build only mac" was not expressible that way. It is the
 # error this file used to fail to parse with.
 #
-# The last job publishes what was built to the rolling `desktop-latest`
-# release, which is where the website's download buttons point.
+# Nothing here is a workflow ARTIFACT. Artifacts in this private repo count
+# against the account's Actions storage quota, and one run of this workflow
+# used to put ~2 GB of installers there for two weeks — enough to exhaust the
+# quota and fail every later upload, the small engine included ("Artifact
+# storage quota has been hit"). So the engine travels by actions/cache (its own
+# per-repo allowance, not the artifact quota) and the installers go straight to
+# a release, which costs no Actions storage at all.
+#
+# Where they go: `desktop-latest` in the PUBLIC mirror, joehaines/psionEmulators,
+# which is where the website's download buttons point. Not this repository —
+# it is private, and a private repo's release assets are a 404 to anyone not
+# signed in with access to it, i.e. to every visitor of the site.
 
 name: Build Desktop Apps
 
@@ -33,9 +43,9 @@ on:
         options: [all, mac, win, linux]
       publish:
         description: >-
-          Publish to the desktop-latest release (what the site links to).
-          Off means the apps stay as run artifacts, downloadable only by
-          someone signed in to GitHub.
+          Publish to the public desktop-latest release (what the site links
+          to). Off means they go to a desktop-preview prerelease in this
+          private repo instead, downloadable only by someone with access.
         type: boolean
         default: true
 
@@ -66,15 +76,20 @@ jobs:
       - name: Build WASM
         run: bash scripts/build-wasm.sh
 
-      - name: Upload the engine
-        uses: actions/upload-artifact@v4
+      # By cache, not artifact — see the top of this file. The key is unique to
+      # the run, so a packaging job can only ever pick up the engine built by
+      # its own run. enableCrossOsArchive because the restore happens on macOS
+      # and Windows runners, which by default refuse a cache saved on Linux.
+      # The path list must stay identical to the restore in
+      # desktop-package.yml: it is part of what the cache is matched on.
+      - name: Hand the engine to the packaging jobs
+        uses: actions/cache/save@v4
         with:
-          name: psion-wasm
           path: |
             frontend/public/psion.js
             frontend/public/psion.wasm
-          retention-days: 3
-          if-no-files-found: error
+          key: psion-wasm-run-${{ github.run_id }}
+          enableCrossOsArchive: true
 
   # ── Pure tests, before spending runner minutes on packaging ──────────────
   tests:
@@ -99,66 +114,52 @@ jobs:
           npm run test:offline
         working-directory: desktop
 
-  # ── The apps themselves, one job each ────────────────────────────────────
-
-  mac:
-    needs: [wasm, tests]
-    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'mac' }}
-    uses: ./.github/workflows/desktop-package.yml
-    with:
-      target: mac
-      runner: macos-14
-
-  win:
-    needs: [wasm, tests]
-    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'win' }}
-    uses: ./.github/workflows/desktop-package.yml
-    with:
-      target: win
-      runner: windows-2022
-
-  # One job for both Linux architectures. Unlike mac and win, the runner does
-  # not decide what is built: an x64 runner produces the arm64 Raspberry Pi
-  # packages too, because nothing in the app is compiled per-arch —
-  # electron-builder pairs the same JavaScript with a different prebuilt
-  # Electron. The packaged-app smoke test can only launch the x64 one.
-  linux:
-    needs: [wasm, tests]
-    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'linux' }}
-    uses: ./.github/workflows/desktop-package.yml
-    with:
-      target: linux
-      runner: ubuntu-latest
-
-  # ── Publish ──────────────────────────────────────────────────────────────
+  # ── The release the installers go into ───────────────────────────────────
   # A single rolling release, `desktop-latest`, holding one installer per
   # platform under a stable filename. The site links straight at those URLs, so
   # they must not move when the version bumps — hence --clobber onto a fixed
   # tag rather than a release per version.
   #
-  # `always()` so a one-platform run still publishes that platform: the other
-  # job is skipped, not failed, and the assets it uploaded last time stay put.
+  # Made (or its notes refreshed) here, before any packaging job, because each
+  # of those uploads its own installers into it as soon as it has them. A
+  # one-platform run therefore replaces that platform's files and leaves the
+  # others' in place.
+  #
+  # PUBLIC_MIRROR_TOKEN is the fine-grained PAT sync-public.yml already uses
+  # for joehaines/psionEmulators; its Contents: read and write is what
+  # creating a release and uploading assets there needs.
   release:
-    needs: [mac, win, linux]
-    if: ${{ always() && inputs.publish && (needs.mac.result == 'success' || needs.win.result == 'success' || needs.linux.result == 'success') }}
+    needs: [wasm, tests]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      repo: ${{ steps.where.outputs.repo }}
+      tag: ${{ steps.where.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download the built apps
-        uses: actions/download-artifact@v4
-        with:
-          pattern: psion-desktop-*
-          path: downloads
-          merge-multiple: true
-
-      - name: Publish to the desktop-latest release
+      - name: Create or refresh the release
+        id: where
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH: ${{ inputs.publish }}
+          MIRROR_TOKEN: ${{ secrets.PUBLIC_MIRROR_TOKEN }}
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
+          if [ "$PUBLISH" = "true" ]; then
+            if [ -z "$MIRROR_TOKEN" ]; then
+              echo "::error::PUBLIC_MIRROR_TOKEN is not set. Publishing goes to" \
+                   "joehaines/psionEmulators, which GITHUB_TOKEN cannot write to."
+              exit 1
+            fi
+            repo=joehaines/psionEmulators tag=desktop-latest prerelease=
+            export GH_TOKEN="$MIRROR_TOKEN"
+          else
+            repo="$GITHUB_REPOSITORY" tag=desktop-preview prerelease=--prerelease
+            export GH_TOKEN="$REPO_TOKEN"
+          fi
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
           cat > notes.md <<'NOTES'
           The Psion emulator as a native app: one window that is nothing but the
           machine, with its state saved to disk, a shared card folder and a
@@ -185,28 +186,66 @@ jobs:
           every asset are inside the download.
 
           Rolling release — the files are replaced in place by each build, so
-          the download links keep working. The `.zip` builds of macOS and
-          Windows are attached to the workflow run that produced them.
+          the download links keep working.
           NOTES
+          if [ -n "$prerelease" ]; then
+            printf '\n**Preview build** — not what the site links to.\n' >> notes.md
+          fi
 
-          if ! gh release view desktop-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create desktop-latest \
-              --repo "$GITHUB_REPOSITORY" \
+          if ! gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$repo" $prerelease \
               --title "Psion Emulator — desktop apps" \
               --notes-file notes.md
           else
-            gh release edit desktop-latest --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+            gh release edit "$tag" --repo "$repo" --notes-file notes.md
           fi
 
-          # Installers only — except on Linux, where the arm64 .tar.gz IS an
-          # installer of sorts: it is the only form a Pi without FUSE 2 can
-          # run, so it ships. The mac/win .zips are the same app again at
-          # ~300 MB each and stay on the run that built them.
-          shopt -s nullglob
-          assets=(downloads/*.dmg downloads/*.exe downloads/*.AppImage
-                  downloads/*.deb downloads/*.tar.gz)
-          if [ ${#assets[@]} -eq 0 ]; then
-            echo "No installers were produced — nothing to publish." >&2
-            exit 1
-          fi
-          gh release upload desktop-latest "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+  # ── The apps themselves, one job each ────────────────────────────────────
+
+  mac:
+    needs: [wasm, tests, release]
+    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'mac' }}
+    uses: ./.github/workflows/desktop-package.yml
+    permissions:
+      contents: write
+    secrets: inherit
+    with:
+      target: mac
+      runner: macos-14
+      wasm-cache-key: psion-wasm-run-${{ github.run_id }}
+      release-repo: ${{ needs.release.outputs.repo }}
+      release-tag: ${{ needs.release.outputs.tag }}
+
+  win:
+    needs: [wasm, tests, release]
+    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'win' }}
+    uses: ./.github/workflows/desktop-package.yml
+    permissions:
+      contents: write
+    secrets: inherit
+    with:
+      target: win
+      runner: windows-2022
+      wasm-cache-key: psion-wasm-run-${{ github.run_id }}
+      release-repo: ${{ needs.release.outputs.repo }}
+      release-tag: ${{ needs.release.outputs.tag }}
+
+  # One job for both Linux architectures. Unlike mac and win, the runner does
+  # not decide what is built: an x64 runner produces the arm64 Raspberry Pi
+  # packages too, because nothing in the app is compiled per-arch —
+  # electron-builder pairs the same JavaScript with a different prebuilt
+  # Electron. The packaged-app smoke test can only launch the x64 one.
+  linux:
+    needs: [wasm, tests, release]
+    if: ${{ inputs.platforms == 'all' || inputs.platforms == 'linux' }}
+    uses: ./.github/workflows/desktop-package.yml
+    permissions:
+      contents: write
+    secrets: inherit
+    with:
+      target: linux
+      runner: ubuntu-latest
+      wasm-cache-key: psion-wasm-run-${{ github.run_id }}
+      release-repo: ${{ needs.release.outputs.repo }}
+      release-tag: ${{ needs.release.outputs.tag }}
+

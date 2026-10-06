@@ -488,11 +488,11 @@ aspect ratio, with a device switcher on `Ctrl/Cmd+K`.
 
 Download a build:
 
-- **macOS (Apple silicon)** — [Psion-Emulator-macOS-arm64.dmg](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-macOS-arm64.dmg)
-- **Windows (64-bit)** — [Psion-Emulator-Windows-x64-Setup.exe](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Windows-x64-Setup.exe)
-- **Linux (64-bit)** — [Psion-Emulator-Linux-x64.AppImage](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-x64.AppImage), or [Psion-Emulator-Linux-x64.deb](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-x64.deb) on Debian/Ubuntu
-- **Raspberry Pi (64-bit Pi OS)** — [Psion-Emulator-Linux-arm64.deb](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-arm64.deb), or [Psion-Emulator-Linux-arm64.tar.gz](https://github.com/joehaines/psion/releases/download/desktop-latest/Psion-Emulator-Linux-arm64.tar.gz)
-- [All downloads](https://github.com/joehaines/psion/releases/tag/desktop-latest), including the no-installer `.zip` builds
+- **macOS (Apple silicon)** — [Psion-Emulator-macOS-arm64.dmg](https://github.com/joehaines/psionEmulators/releases/download/desktop-latest/Psion-Emulator-macOS-arm64.dmg)
+- **Windows (64-bit)** — [Psion-Emulator-Windows-x64-Setup.exe](https://github.com/joehaines/psionEmulators/releases/download/desktop-latest/Psion-Emulator-Windows-x64-Setup.exe)
+- **Linux (64-bit)** — [Psion-Emulator-Linux-x64.AppImage](https://github.com/joehaines/psionEmulators/releases/download/desktop-latest/Psion-Emulator-Linux-x64.AppImage), or [Psion-Emulator-Linux-x64.deb](https://github.com/joehaines/psionEmulators/releases/download/desktop-latest/Psion-Emulator-Linux-x64.deb) on Debian/Ubuntu
+- **Raspberry Pi (64-bit Pi OS)** — [Psion-Emulator-Linux-arm64.deb](https://github.com/joehaines/psionEmulators/releases/download/desktop-latest/Psion-Emulator-Linux-arm64.deb), or [Psion-Emulator-Linux-arm64.tar.gz](https://github.com/joehaines/psionEmulators/releases/download/desktop-latest/Psion-Emulator-Linux-arm64.tar.gz)
+- [All downloads](https://github.com/joehaines/psionEmulators/releases/tag/desktop-latest)
 
 All are **unsigned** (see below), so macOS and Windows will resist running
 one. On Windows, choose *More info → Run anyway*. On macOS, Gatekeeper
@@ -564,7 +564,13 @@ canned offline zone it ships with works as usual.)
 
 The "Build Desktop Apps" workflow produces the releases — one job per
 platform, publishing into the rolling `desktop-latest` release under those
-fixed filenames, which is what lets the site link straight at them. Or:
+fixed filenames, which is what lets the site link straight at them. That
+release lives on the public mirror, `joehaines/psionEmulators` (this repository
+is private, and a private repo's release assets are a 404 to anyone without
+access), so the workflow needs the same `PUBLIC_MIRROR_TOKEN` secret as the
+mirror sync. Untick *publish* and the installers go to a `desktop-preview`
+prerelease here instead. The workflow keeps no run artifacts — the installers
+would exhaust the account's Actions storage quota. Or:
 
 ```sh
 bash scripts/build-desktop.sh dir     # unpacked app for this platform

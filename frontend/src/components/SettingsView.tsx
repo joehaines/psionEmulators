@@ -41,12 +41,13 @@ const SORT_OPTIONS: { value: SortMode; label: string; sub: string }[] = [
 ];
 
 // The native apps, published by .github/workflows/desktop.yml to a rolling
-// `desktop-latest` release. The tag and the filenames are fixed on purpose —
+// `desktop-latest` release on the PUBLIC mirror — not on joehaines/psion,
+// which is private, so its release assets 404 for every visitor. The tag and the filenames are fixed on purpose —
 // each build replaces the assets in place — so these URLs keep working across
 // version bumps and must not be changed without changing that workflow's
 // "Collect the downloads" step to match.
 const DESKTOP_ASSET_BASE =
-  'https://github.com/joehaines/psion/releases/download/desktop-latest';
+  'https://github.com/joehaines/psionEmulators/releases/download/desktop-latest';
 
 const DESKTOP_DOWNLOADS: { os: string; detail: string; file: string }[] = [
   { os: 'macOS',   detail: 'Apple silicon · .dmg', file: 'Psion-Emulator-macOS-arm64.dmg' },

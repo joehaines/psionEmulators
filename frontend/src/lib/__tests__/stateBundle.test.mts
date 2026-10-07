@@ -43,7 +43,7 @@ async function readBlob(b: Blob): Promise<Uint8Array> {
   const heapCompressed = await compressChunk(heapRaw);
 
   const blob = await encodeBundle([
-    { id: '5mx', displayName: 'Psion Series 5mx', schemaVersion: 5, heap: heapCompressed },
+    { id: '5mx', displayName: 'Psion Series 5mx', schemaVersion: 5, engine: 'ab'.repeat(32), heap: heapCompressed },
   ]);
 
   const bytes = await readBlob(blob);
@@ -57,6 +57,9 @@ async function readBlob(b: Blob): Promise<Uint8Array> {
   check(decoded.header.devices.length === 1, 'device count');
   check(decoded.header.devices[0].id === '5mx', 'device id');
   check(decoded.header.devices[0].displayName === 'Psion Series 5mx', 'displayName');
+  // The engine that saved the heap travels with it: an import on any other
+  // psion.wasm must be able to refuse it (lib/engineId.ts).
+  check(decoded.header.devices[0].engine === 'ab'.repeat(32), 'engine');
 
   const chunks = decoded.devices.get('5mx');
   check(!!chunks, 'chunks present for 5mx');

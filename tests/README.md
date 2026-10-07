@@ -8,7 +8,7 @@ All emulator validation lives here. Build the native harness first
 | Path | What it covers |
 |------|----------------|
 | `boot/test-boot.sh` | Per-device boot validation against committed golden screenshots — the primary regression gate (run in CI). |
-| `integration/` | Feature/end-to-end tests: FAT16, FEFS, SSD pack writes, infrared, remote-link (PLP), SIBO app launch, Series 3c apps, netBook CF bootloader, netpad MMC card, app-library cold delivery, EPOC app-folder install, netpad app-library SIS install, Conan ROM dump (including that it resumes), Geofox mouse pad, Geofox, Siena and EPOC R5 ROM language. |
+| `integration/` | Feature/end-to-end tests: FAT16, FEFS, SSD pack writes, infrared, remote-link (PLP), SIBO app launch, Series 3c apps, netBook CF bootloader, netpad MMC card, app-library cold delivery, EPOC app-folder install, netpad app-library SIS install, Conan ROM dump (including that it resumes), Geofox mouse pad, Geofox, Siena and EPOC R5 ROM language, LCD backlight. |
 | `stress/` | Touch / event-binding reliability stress runs for the Series 7 and netBook, plus the netpad's end-to-end stylus (`netpad_touch.sh`), key-delivery / OS-timer-rate (`netpad_keys.sh`) and screen-orientation (`netpad_orientation.sh`) tests. |
 | `unit/` | Standalone C++ unit tests (`ssd_smoke`, `cf_write_test`, `mmc_card_test`, `machine_id_test`, `v30_smoke`); all but `v30_smoke` are built by `harness/build.sh`. Plus two node tests (no harness needed): `device-lists-sync.mts`, the two device lists outside the C++ registry — track.php's analytics allowlist and the id → display-name map — checked against it, because both fail silently; and `e32-format.mts`, which holds `tools/e32`'s EPOC32 image packer against a binary Psion's own tools produced. |
 | `golden/` | Committed reference LCD screenshots (one PGM per device); the boot gate diffs against these. |
@@ -40,6 +40,8 @@ bash tests/integration/test-geofox-mouse.sh   # Geofox mouse pad: pointer tracki
 bash tests/integration/test-geofox-language.sh  # Geofox ROM language: UK vs USA resources, locale + keyboard DLL
 bash tests/integration/test-siena-language.sh   # Siena ROM locale: UK / USA / Swedish / Spanish via the port C straps
 bash tests/integration/test-epoc-language.sh    # Series 5 / 5mx / 5mx Pro / MC218 / Revo / Conan ROM locale: PROM index or ROM directory
+bash tests/integration/test-backlight.sh      # LCD backlight: every backlit machine, switched by its own key
+bash tests/integration/test-backlight.sh --slow  # …and the netBook, booted from its OS card
 bash tests/stress/netpad_orientation.sh       # netpad "Switch orientation"
 tests/unit/mmc_card_test                      # MMC-over-SPI card protocol
 tests/unit/machine_id_test                    # EPOC Unique id through the ETNA identity PROM
@@ -57,7 +59,7 @@ stripping) and run from `frontend/`:
 cd frontend
 npm run test:plp  test:irda  test:modem  test:modem-e2e \
         test:converters  test:printer  test:wprt  test:state  test:applib \
-        test:rotation  test:sizing  test:machine-id
+        test:rotation  test:sizing  test:machine-id  test:backlight
 ```
 
 Real-browser suites (Playwright; `PW_EXE` points at a Chromium if it isn't in

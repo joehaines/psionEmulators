@@ -855,8 +855,8 @@ KeyMatrixEntry mc400KeyMatrix(EpocKey key) {
 //
 // The 0x40 bits of col0-4 are the bottom row of the keypad
 // (SHIFT SPACE 0 . +), which runs right to left as the column index
-// rises. OFF, Backlight and Contrast have no EPOC key code to hang off,
-// so they are not mapped here.
+// rises. Backlight takes EStdKeyBacklightToggle; OFF and Contrast have
+// no EPOC key code to hang off, so they are not mapped here.
 //
 // Each key that is mapped was also checked here with the shell up (it
 // echoes what you type): the character that came back for letters,
@@ -927,6 +927,7 @@ KeyMatrixEntry hc120KeyMatrix(EpocKey key) {
     case '6':                return { 6, 0x04 };
     case '*':                return { 6, 0x02 };
     case 'Z':                return { 6, 0x01 };
+    case EStdKeyBacklightToggle: return { 6, 0x40 };   // the Backlight key
 
     case EStdKeyCapsLock:    return { 7, 0x20 };   // the LOCK key
     case '1':                return { 7, 0x10 };

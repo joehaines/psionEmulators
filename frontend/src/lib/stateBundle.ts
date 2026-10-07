@@ -53,6 +53,11 @@ export interface BundleDeviceMeta {
   displayName?: string;
   /** STATE_SCHEMA_VERSION at save time. */
   schemaVersion: number;
+  /**
+   * The psion.wasm the heap was saved by (lib/engineId.ts). Absent in
+   * bundles from before it was recorded, which then never restore.
+   */
+  engine?: string;
   chunks: {
     heap?: BundleChunk;
     cf?: BundleChunk;
@@ -73,6 +78,8 @@ export interface BundleDeviceInput {
   id: string;
   displayName?: string;
   schemaVersion: number;
+  /** The psion.wasm the heap was saved by (lib/engineId.ts). */
+  engine?: string;
   /**
    * The IDB-stored heap blob. Already gzip-compressed (that's the wire
    * shape we store at save time). Pass it through unchanged.
@@ -160,6 +167,7 @@ export async function encodeBundle(devices: BundleDeviceInput[]): Promise<Blob> 
     id: string;
     displayName?: string;
     schemaVersion: number;
+    engine?: string;
     chunks: { name: keyof DecodedDeviceChunks; bytes: Uint8Array }[];
   }
   const compressed: CompressedDevice[] = [];
@@ -168,6 +176,7 @@ export async function encodeBundle(devices: BundleDeviceInput[]): Promise<Blob> 
       id: d.id,
       displayName: d.displayName,
       schemaVersion: d.schemaVersion,
+      engine: d.engine,
       chunks: [],
     };
     if (d.heap && d.heap.length > 0) {
@@ -195,6 +204,7 @@ export async function encodeBundle(devices: BundleDeviceInput[]): Promise<Blob> 
       id: cd.id,
       displayName: cd.displayName,
       schemaVersion: cd.schemaVersion,
+      ...(cd.engine ? { engine: cd.engine } : {}),
       chunks: {},
     };
     for (const { name, bytes } of cd.chunks) {

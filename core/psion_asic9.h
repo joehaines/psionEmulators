@@ -121,7 +121,9 @@ public:
     // here as the byte mask MAME writes to the col callback).
     void setColCb(std::function<void(uint8_t)> cb) { m_col_cb = std::move(cb); }
 
-    // Port A/B GPIOs. The host supplies a 16-bit reader and writer.
+    // Port A/B GPIOs. The host supplies a 16-bit reader for the input
+    // pins and a writer that is handed the levels on the output pins
+    // (DDR bit set = output on this port) whenever data or DDR changes.
     void setPortAbReader(std::function<uint16_t()> r) { m_port_ab_r = std::move(r); }
     void setPortAbWriter(std::function<void(uint16_t)> w) { m_port_ab_w = std::move(w); }
 
@@ -131,6 +133,13 @@ public:
     // while the ROM holds port C bit 2 high). With no reader installed a
     // read returns 0, as it always has.
     void setPortCdReader(std::function<uint16_t(uint16_t)> r) { m_port_cd_r = std::move(r); }
+    // Port C/D pins the guest is driving, as levels: the data latch with
+    // every pin left as an input (DDR bit set) reading low. Port C is the
+    // low byte, port D the high byte.
+    uint16_t portCdOutputs() const {
+        const uint16_t inputs = uint16_t(m_a9_port_c_ddr | (m_a9_port_d_ddr << 8));
+        return uint16_t(m_a9_port_cd_data & ~inputs);
+    }
 
     // PCM codec sample IO (8 kHz nominal). in() is called when
     // A9WControl's SoundDir bit selects capture; out() when playing.
@@ -327,6 +336,7 @@ private:
     uint32_t m_a9_protection_lower   = 0;
 
     uint16_t m_a9_port_ab_ddr        = 0;
+    uint16_t m_a9_port_ab_data       = 0;
     uint8_t  m_a9_port_c_ddr         = 0;
     uint8_t  m_a9_port_d_ddr         = 0;
     uint16_t m_a9_port_cd_data       = 0;

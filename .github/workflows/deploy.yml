@@ -132,6 +132,14 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-netbook-eshell-keyboard.sh
 
+      # LCD backlight: each backlit machine's own key must reach its ROM's
+      # backlight service and light the output the core reads — a GPIO
+      # read-back, a keyboard-matrix position or a config EEPROM going wrong
+      # all look like "the light doesn't work", and none shows at boot.
+      - name: Run LCD backlight validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-backlight.sh
+
       # Geofox mouse pad: the boot gate can't see input, and this machine's
       # pointer is the one in the tree that has to be DERIVED — the pad
       # reports relative motion, so the emulator tracks a shadow of the

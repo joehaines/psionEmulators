@@ -16,6 +16,16 @@ export interface DeviceInfo {
   // Optional so an older psion.wasm without the field still loads.
   hasMic?: boolean;
   audioSampleRate: number;
+  // LCD backlight (core/emubase.h's backlight section). Whether the
+  // machine has one; whether its level is a brightness (the Series 7 /
+  // netBook's colour panel) rather than on/off; and the EpocKey codes of
+  // the machine's own key for it — modifier 0 when it has a key of its
+  // own (Geofox, Workabout, HC120). Optional so an older psion.wasm
+  // without the fields still loads (no backlight).
+  hasBacklight?: boolean;
+  backlightDimmable?: boolean;
+  backlightModifier?: number;
+  backlightKey?: number;
 }
 
 export interface DeviceProfile {
@@ -83,11 +93,10 @@ export interface PsionModule {
   getDeviceInfo(): DeviceInfo;
   sendKey(epocKey: number, down: boolean): void;
   sendTouch(x: number, y: number, down: boolean): void;
-  // Live state of the LCD electroluminescent backlight pin. Polled by
-  // EmulatorView to drive the on-screen backlight overlay. Optional so
-  // a freshly-pulled checkout whose psion.wasm pre-dates this binding
-  // still loads — JS treats missing as "always off".
-  getBacklight?(): boolean;
+  // Live LCD backlight level, 0 (dark) to 100, read off the output the
+  // running OS drives. Optional so a psion.wasm that pre-dates the
+  // binding still loads — JS treats missing as dark.
+  getBacklightLevel?(): number;
   // Quarter-turns anticlockwise the panel image has to be shown at for
   // the UI to read upright. Non-zero only on the netpad, whose Tools
   // menu → "Switch orientation" makes EPOC draw the desktop rotated

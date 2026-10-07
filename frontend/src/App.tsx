@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEmulator, type EmulatorControls } from './hooks/useEmulator';
 import { useEmulatorWorker } from './hooks/useEmulatorWorker';
 import { loadPsionModule } from './lib/wasmBridge';
-import { useBacklight } from './hooks/useBacklight';
+import { useBacklight, type BacklightState } from './hooks/useBacklight';
 import LoadingOverlay from './components/LoadingOverlay';
 import EmulatorView, { getSkinFilename, getDeviceSkinPhotoFilename, type SizingMode, type DeviceScale } from './components/EmulatorView';
 import MameFrame from './components/MameFrame';
@@ -400,11 +400,9 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
     return m;
   }, [leaderboard]);
 
-  // Backlight simulation lives behind the Experimental features flag —
-  // the 3mx path is a known partial (no auto-off because the port pin
-  // isn't modelled) and the feature is purely cosmetic, so it ships in
-  // the same opt-in bucket as the simulated Modem.
-  const backlight = useBacklight(controls, experimentalFeatures);
+  // LCD backlight: the running machine's own, driven by its own key (see
+  // useBacklight). Present only on machines that have one.
+  const backlight = useBacklight(controls);
 
   useEffect(() => {
     try { window.localStorage.setItem(DEVICE_MODE_KEY, deviceMode ? '1' : '0'); } catch {}
@@ -681,17 +679,12 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
           />
         )}
 
-        {/* Backlight toggle — only shown on the four devices that
-            actually had an EL panel (5 / 5mx / 5mx Pro / 3mx). Lives in
-            the header so it's reachable from any sizing mode, including
-            on mobile when the soft keyboard would otherwise hide the
-            in-view control bar. */}
-        {!showHome && !mameDeviceId && state === 'running' && backlight.color && (
-          <BacklightControl
-            on={backlight.on}
-            color={backlight.color}
-            onToggle={backlight.toggle}
-          />
+        {/* Backlight — only on machines that have one. Lives in the
+            header so it's reachable from any sizing mode, including on
+            mobile when the soft keyboard would otherwise hide the in-view
+            control bar. */}
+        {!showHome && !mameDeviceId && state === 'running' && backlight.available && (
+          <BacklightControl backlight={backlight} />
         )}
 
         {/* Discreet escape-hatch to the MAME bundle for SIBO 3a/PB2.
@@ -1111,11 +1104,10 @@ function EmbedApp({ deviceId }: { deviceId: string }) {
     void loadDevice(deviceId, romUrlFor(profile, import.meta.env.BASE_URL));
   }, [state, deviceId, profiles, loadStarted, loadDevice]);
 
-  // Backlight stays off in embed mode — the simulated EL panel is a
-  // cosmetic feature (and its 3mx fallback is a known partial); without
-  // the header/control-bar toggles to opt in or out, leaving it on
-  // would surprise embedders who aren't expecting their page to dim.
-  const dummyBacklight = { color: undefined, on: false, toggle: () => {} };
+  // The machine's backlight still works in an embed (its own key lights
+  // it), but the page around the iframe is the embedder's, so no
+  // lights-out dimming.
+  const backlight = useBacklight(controls, { lightsOut: false });
 
   if (loadError || (state === 'error' && error)) {
     return (
@@ -1133,7 +1125,7 @@ function EmbedApp({ deviceId }: { deviceId: string }) {
         fullscreenRequest={0}
         showDebugging={false}
         experimentalFeatures={false}
-        backlight={dummyBacklight}
+        backlight={backlight}
         chromeless
       />
     );
@@ -1275,31 +1267,24 @@ function AudioControls({
 
 // ── Header backlight toggle ────────────────────────────────────────────
 //
-// Lightbulb icon mirroring the speaker/mic style. When the device's
-// backlight is on, the button picks up a tinted background derived from
-// the live backlight colour so the same affordance reads as "lit". On
-// mobile this is the most reliable trigger — Cmd+Space / Super+Space are
-// usually swallowed by the host OS, and the in-view control bar can be
-// pushed off-screen by the soft keyboard.
-function BacklightControl({
-  on,
-  color,
-  onToggle,
-}: {
-  on: boolean;
-  color: string;
-  onToggle: () => void;
-}) {
-  // Red border marks this as an Experimental-features-gated control,
-  // matching the in-view Light / Modem buttons in EmulatorView. The
-  // border stays the same colour whether the backlight is on or off
-  // so the signal doesn't disappear when the user lights the panel.
-  const baseBtn = 'inline-flex items-center justify-center w-7 h-7 rounded border border-red-600 transition-colors';
-  const idleBtn = `${baseBtn} text-psion-charcoal/60 hover:text-psion-charcoal hover:bg-psion-mid`;
-  // When the backlight is on, paint the button with the actual EL
-  // colour so the icon itself reads as glowing. Charcoal foreground
-  // keeps the bulb legible against the pale tint.
-  const litBtn = `${baseBtn} text-psion-charcoal`;
+// Lightbulb icon mirroring the speaker/mic style. It presses the
+// machine's own backlight key, and shows what the machine's backlight is
+// doing: an EL panel's button takes on the panel's glow while it is lit;
+// the Series 7 / netBook's shows the brightness the key steps through.
+// On mobile this is the most reliable trigger — the in-view control bar
+// can be pushed off-screen by the soft keyboard.
+function BacklightControl({ backlight }: { backlight: BacklightState }) {
+  const { on, color, dimmable, level, hint, toggle } = backlight;
+  const baseBtn = 'inline-flex items-center justify-center h-7 rounded border transition-colors';
+  const idleBtn = `${baseBtn} border-transparent text-psion-charcoal/60 hover:text-psion-charcoal hover:bg-psion-mid`;
+  // Lit EL: paint the button with the panel's own colour so the icon
+  // reads as glowing. Charcoal foreground keeps the bulb legible.
+  const litBtn = `${baseBtn} border-psion-charcoal/30 text-psion-charcoal`;
+  const lit = on && !dimmable;
+  const title = dimmable
+    ? `Backlight brightness ${level}% — tap to step it (${hint})`
+    : on ? `Backlight on — tap to switch off (${hint})`
+         : `Backlight off — tap to switch on (${hint})`;
 
   return (
     <div
@@ -1309,14 +1294,12 @@ function BacklightControl({
     >
       <button
         type="button"
-        onClick={onToggle}
-        className={on ? litBtn : idleBtn}
-        style={on ? { backgroundColor: color } : undefined}
-        title={on
-          ? 'Backlight on — tap to switch off (also: Fn+Space)'
-          : 'Backlight off — tap to switch on (also: Fn+Space)'}
-        aria-pressed={on}
-        aria-label={on ? 'Backlight on' : 'Backlight off'}
+        onClick={toggle}
+        className={`${lit ? litBtn : idleBtn} ${dimmable ? 'px-1.5 gap-1' : 'w-7'}`}
+        style={lit ? { backgroundColor: color } : undefined}
+        title={title}
+        aria-pressed={dimmable ? undefined : on}
+        aria-label={dimmable ? `Backlight brightness ${level}%` : on ? 'Backlight on' : 'Backlight off'}
       >
         {/* Lightbulb glyph: bulb body + filament + screw base. */}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -1324,8 +1307,9 @@ function BacklightControl({
           <path d="M9 18h6" />
           <path d="M10 21h4" />
           <path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.5 1.6 1.8 2.5h4.4c.3-.9 1-1.8 1.8-2.5A6 6 0 0 0 12 3z"
-                fill={on ? 'currentColor' : 'none'} fillOpacity={on ? 0.25 : 0} />
+                fill={on ? 'currentColor' : 'none'} fillOpacity={on ? (dimmable ? level / 400 : 0.25) : 0} />
         </svg>
+        {dimmable && <span className="text-[10px] font-mono tabular-nums">{level}%</span>}
       </button>
     </div>
   );

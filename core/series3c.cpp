@@ -120,8 +120,34 @@ void Emulator::wireChips() {
         for (int i = 0; i < 8; ++i) {
             if (m_key_col_mask & (1 << i)) v |= m_key_row[i];
         }
+        // WorkaboutMX: the configuration EEPROM's DO comes back on B2.
+        if (m_cfg.model == Model::WorkaboutMX && m_mxEeprom.dataOut()) v |= 0x0400;
         return v;
     });
+
+    // WorkaboutMX configuration EEPROM (93C46, 64 x 16) on port B: CS on
+    // B3, SK on B0, DI on B1 (the port's DDR is 0xAB00), DO on B2. The
+    // v7.20f kernel reads words 2, 0 and 1 at boot (ROM 0x1a2917): if
+    // w0 ^ w1 ^ w2, folded to a nibble, is 0 the words are trusted,
+    // otherwise it substitutes its own w1 = 0x0010, w2 = 0x0011. Bit 4
+    // of w1 says a backlight is fitted — without it the backlight
+    // service refuses every call — and the low five bits of w2 pick a
+    // drive letter ('A' + n). Before this model DO read 0, so all three
+    // words read 0, passed the checksum and described a machine with
+    // no backlight. What we program is the kernel's own defaults, with
+    // w0 set so the checksum holds; every other word stays 0, as the
+    // kernel has always seen it.
+    if (m_cfg.model == Model::WorkaboutMX) {
+        std::array<uint16_t, MicrowireEeprom::kWords> words{};
+        words[1] = 0x0010;                  // backlight fitted
+        words[2] = 0x0011;
+        words[0] = words[1] ^ words[2];     // checksum: w0 ^ w1 ^ w2 == 0
+        m_mxEeprom.load(words);
+        asic9.setPortAbWriter([this](uint16_t out) {
+            m_mxEeprom.setPins((out & 0x0800) != 0, (out & 0x0100) != 0,
+                               (out & 0x0200) != 0);
+        });
+    }
 
     // SSD packs: per MAME reference/mame-psion/psion/psion3a.cpp:507-510,
     // ASIC9 SIBO channel 1 is "Pack 1" and channel 0 is "Pack 2". We
@@ -1098,15 +1124,24 @@ static bool portIsCondor(uint16_t port) {
 // per-UART helpers select base 0x40 vs 0x50 off their device structs.
 // The register shape matches the Condor's 16550 half, so PsionCondor
 // instances serve both windows: m_condor doubles as UART1 and
-// m_mxUart0 is UART0 (the v6.16f / v7.20f kernels never touch
-// 0x100-0x11F). The Remote Link port differs per machine — the 3mx
-// links through UART1, the Workabout MX through UART0 (its v7.20f
-// link server runs the same bring-up at 0x40-0x4E and then polls LSR
-// @0x4A) — hostUart() resolves which instance the host bridge binds.
+// m_mxUart0 is UART0 (the v6.16f kernel never touches 0x100-0x11F; the
+// v7.20f kernel writes only 0x100, which on the WorkaboutMX is a board
+// latch — see isMxBoardLatch). The Remote Link port differs per
+// machine — the 3mx links through UART1, the Workabout MX through UART0
+// (its v7.20f link server runs the same bring-up at 0x40-0x4E and then
+// polls LSR @0x4A) — hostUart() resolves which instance the host bridge
+// binds.
 // Windows deliberately stop at +0x0F: regs 8-15 of the Condor file
 // are Condor-specific (reads of reg 8 pop the RX FIFO), so aliasing
 // 0x60-0x6F onto them would corrupt the stream if the kernel ever
 // probed up there.
+// WorkaboutMX: I/O 0x100 is a write-only board control latch, not the
+// Condor the 3a/3c/Siena decode there. The v7.20f kernel writes it from
+// a RAM shadow (bit 6 is the backlight, ROM 0x1b637b); before this it
+// fell through to the Condor model and landed in its transmit register.
+bool Emulator::isMxBoardLatch(uint16_t port) const {
+    return m_cfg.model == Model::WorkaboutMX && port == 0x100;
+}
 PsionCondor *Emulator::mxUartAt(uint16_t port) {
     if (m_cfg.model != Model::Series3mx && m_cfg.model != Model::WorkaboutMX)
         return nullptr;
@@ -1141,6 +1176,7 @@ void Emulator::condorWrite(uint16_t port, uint8_t v) {
 }
 
 uint8_t  Emulator::readIoByte(uint16_t port) {
+    if (isMxBoardLatch(port)) return m_mxBoardLatch;
     if (portIsCondor(port)) {
         uint8_t b = condorRead(port);
         if (ioDebugEnabled())
@@ -1161,6 +1197,7 @@ uint8_t  Emulator::readIoByte(uint16_t port) {
     return b;
 }
 uint16_t Emulator::readIoWord(uint16_t port) {
+    if (isMxBoardLatch(port)) return m_mxBoardLatch;
     if (PsionCondor *u = mxUartAt(port)) {
         return u->readReg(uint8_t((port & 0x0F) >> 1));
     }
@@ -1176,6 +1213,12 @@ uint16_t Emulator::readIoWord(uint16_t port) {
     return v;
 }
 void     Emulator::writeIoByte(uint16_t port, uint8_t v) {
+    if (isMxBoardLatch(port)) {
+        if (ioDebugEnabled())
+            std::fprintf(stderr, "[IO] w8  mxlatch port=%03X <= %02X\n", port, v);
+        m_mxBoardLatch = v;
+        return;
+    }
     if (portIsCondor(port)) {
         if (ioDebugEnabled())
             std::fprintf(stderr, "[IO] w8  condor port=%03X <= %02X\n", port, v);
@@ -1197,6 +1240,7 @@ void     Emulator::writeIoByte(uint16_t port, uint8_t v) {
     }
 }
 void     Emulator::writeIoWord(uint16_t port, uint16_t v) {
+    if (isMxBoardLatch(port)) { m_mxBoardLatch = uint8_t(v); return; }
     if (PsionCondor *u = mxUartAt(port)) {
         u->writeReg(uint8_t((port & 0x0F) >> 1), uint8_t(v & 0xFF));
         return;
@@ -1424,11 +1468,11 @@ void Emulator::setKeyboardKey(EpocKey key, bool value) {
     // reference/mame-psion/psion/workabout.cpp INPUT_PORTS_START. Only
     // the On/Esc key wakes the machine via eint0_w (no F-key wakeup —
     // there's just F11=Menu and the dedicated On/Off + Contrast +
-    // Backlight membrane buttons). Three keys on COL6 / COL7 (Off,
-    // Contrast, Backlight) have no matching EStdKey constant; we wire
-    // Off → EStdKeyOff (sleep) but leave Contrast / Backlight unmapped
-    // since the host browser has no analogue for adjusting hardware
-    // contrast or backlight on a virtual device.
+    // Backlight membrane buttons). Off is COL6 0x020 → EStdKeyOff (sleep).
+    // Backlight is COL7 0x040 → EStdKeyBacklightToggle: pressing that
+    // position is what runs each ROM's backlight service (see
+    // hasBacklight in series3c.h). Contrast is COL6 0x040 and stays
+    // unmapped.
     if (m_cfg.model == Model::Workabout ||
         m_cfg.model == Model::WorkaboutMX) {
         switch (static_cast<int>(key)) {  // ASCII char-literal cases below are intentional
@@ -1509,6 +1553,7 @@ void Emulator::setKeyboardKey(EpocKey key, bool value) {
         case '5':
         case '%':                s = { 7, 0x010 }; break;
         case EStdKeyLeftArrow:   s = { 7, 0x020 }; break;
+        case EStdKeyBacklightToggle: s = { 7, 0x040 }; break; // Backlight
         default: break;
         }
         if (s.col >= 0) {

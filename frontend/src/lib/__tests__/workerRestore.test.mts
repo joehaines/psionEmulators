@@ -17,11 +17,18 @@
 // bounds" when freeing any pointer allocated before the last full-heap
 // overwrite — the same observable behaviour as the WASM trap.
 //
+// It also covers the engine gate (src/lib/engineId.ts): a snapshot carries
+// the function-table indices of the psion.wasm that wrote it, so the worker
+// must only restore saves stamped with its own engine's identity — the
+// desktop app on a Raspberry Pi wedged on "Restoring saved session…" with a
+// session saved by a locally built engine.
+//
 // Run via:
 //   node --experimental-strip-types frontend/src/lib/__tests__/workerRestore.test.mts
 
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { engineIdOf } from '../engineId.ts';
 
 let failures = 0;
 function check(cond: unknown, msg: string) {
@@ -121,16 +128,23 @@ function postMessageStub(msg: Record<string, unknown>) {
   }
 }
 
+// What the worker fetches as psion.wasm (ROM fetches get zeros), and the
+// options each createPsionModule call was given.
+const WASM_BYTES = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 1, 0, 0, 0, 0xde, 0xad, 0xbe, 0xef]);
+const moduleOptions: Array<Record<string, unknown>> = [];
+
 const sandbox: Record<string, unknown> = {
   onmessage: null,                       // predefined so strict-mode `onmessage =` resolves
   postMessage: postMessageStub,
   importScripts: () => {},               // psion.js stubbed by createPsionModule below
-  createPsionModule: async () => makeModule(),
+  createPsionModule: async (opts: Record<string, unknown>) => { moduleOptions.push(opts); return makeModule(); },
   indexedDB: indexedDBStub,
-  fetch: async () => ({
+  crypto: globalThis.crypto,             // SHA-256, as in a browser worker
+  fetch: async (url: string) => ({
     ok: true,
     headers: { get: () => null },        // no Content-Length → arrayBuffer path
-    arrayBuffer: async () => new Uint8Array(16).buffer,
+    arrayBuffer: async () => (String(url).endsWith('psion.wasm')
+      ? WASM_BYTES.slice().buffer : new Uint8Array(16).buffer),
   }),
   performance: { now: () => Date.now() },
   setTimeout: () => 0,                   // drop the tick reschedule; test drives rpc directly
@@ -165,6 +179,34 @@ function snapshot(firstByte: number): Uint8Array {
 await deliver({ data: { type: 'init', baseUrl: '/' } });
 check(moduleInstances === 1, 'init created the module');
 
+// The identity the worker stamps on saves — the same function the main
+// thread uses (hasStoredState, bundle import/export) must produce it.
+const ENGINE = await engineIdOf(WASM_BYTES);
+check(/^[0-9a-f]{64}$/.test(ENGINE), `engine id is a SHA-256 hex digest (${ENGINE})`);
+check(sandbox.ENGINE_ID === undefined
+      && vm.runInContext('ENGINE_ID', sandbox) === ENGINE,
+      `worker's engine id matches lib/engineId (${vm.runInContext('ENGINE_ID', sandbox)})`);
+{
+  const opts = moduleOptions[0] ?? {};
+  const bin = opts.wasmBinary as ArrayBuffer | undefined;
+  check(!!bin && Buffer.from(bin).equals(Buffer.from(WASM_BYTES)),
+        'the module is instantiated from the same bytes that were fingerprinted');
+}
+// Without SubtleCrypto (insecure origin) both sides fall back to the same
+// FNV fingerprint.
+{
+  const workerFnv = await vm.runInContext(
+    `(() => { const c = self.crypto; self.crypto = undefined;
+              return engineIdOf(new Uint8Array([1, 2, 3, 250])).finally(() => { self.crypto = c; }); })()`,
+    sandbox) as string;
+  const desc = Object.getOwnPropertyDescriptor(globalThis, 'crypto')!;
+  Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+  const libFnv = await engineIdOf(new Uint8Array([1, 2, 3, 250]));
+  Object.defineProperty(globalThis, 'crypto', desc);
+  check(workerFnv.startsWith('fnv:') && workerFnv === libFnv,
+        `FNV fallback agrees between worker and lib (${workerFnv} vs ${libFnv})`);
+}
+
 // 1. Cold-boot a first device (no snapshot) — allocates the worker's lcdPtr.
 {
   const r = await callRpc('loadDevice', { deviceId: 'series5', romUrl: '/rom1', preroll: 0 });
@@ -175,7 +217,7 @@ check(moduleInstances === 1, 'init created the module');
 //    restore overwrote the allocator, then ensureLcdBuffers freed the first
 //    device's stale lcdPtr against it → "memory access out of bounds".
 {
-  idbStore.set('state-revo', { version: 11, deviceId: 'revo', heap: snapshot(0x5A), byteLength: HEAP_SIZE });
+  idbStore.set('state-revo', { version: 14, deviceId: 'revo', engine: ENGINE, heap: snapshot(0x5A), byteLength: HEAP_SIZE });
   const r = await callRpc('loadDevice', { deviceId: 'revo', romUrl: '/rom2', preroll: 0 });
   check(!r.error, `switch-with-snapshot restores without trapping (got ${r.error})`);
   const info = (r.result as { info?: { deviceName?: string } } | undefined)?.info;
@@ -185,7 +227,7 @@ check(moduleInstances === 1, 'init created the module');
 // 3. revertToSaved bumps the allocator epoch again — its ensureLcdBuffers
 //    call had the same stale-free hazard.
 {
-  idbStore.set('state-revo', { version: 11, deviceId: 'revo', heap: snapshot(0x5A), byteLength: HEAP_SIZE });
+  idbStore.set('state-revo', { version: 14, deviceId: 'revo', engine: ENGINE, heap: snapshot(0x5A), byteLength: HEAP_SIZE });
   const r = await callRpc('revertToSaved');
   check(!r.error && r.result === true, `revertToSaved restores without trapping (error=${r.error} result=${r.result})`);
 }
@@ -193,7 +235,7 @@ check(moduleInstances === 1, 'init created the module');
 // 4. Implausible snapshot (stale build): memory is poisoned once written, so
 //    the worker must rebuild the module, cold-boot, and delete the snapshot.
 {
-  idbStore.set('state-osaris', { version: 11, deviceId: 'osaris', heap: snapshot(0xBA), byteLength: HEAP_SIZE });
+  idbStore.set('state-osaris', { version: 14, deviceId: 'osaris', engine: ENGINE, heap: snapshot(0xBA), byteLength: HEAP_SIZE });
   const before = moduleInstances;
   const r = await callRpc('loadDevice', { deviceId: 'osaris', romUrl: '/rom3', preroll: 0 });
   check(!r.error, `implausible snapshot falls back to cold boot without error (got ${r.error})`);
@@ -201,6 +243,42 @@ check(moduleInstances === 1, 'init created the module');
   check(info?.deviceName === 'ColdBoot', `fallback is a cold boot (deviceName=${info?.deviceName})`);
   check(moduleInstances === before + 1, 'poisoned heap was replaced with a fresh module');
   check(!idbStore.has('state-osaris'), 'bad snapshot was deleted so the next load cold-boots cleanly');
+}
+
+// 5. THE Raspberry Pi hang: a save made by a different psion.wasm (same
+//    schema version, plausible-looking heap) must not be written over this
+//    engine's memory at all — load cold-boots, revert refuses, and the
+//    log says why.
+{
+  idbStore.set('state-series7', { version: 14, deviceId: 'series7', engine: 'f'.repeat(64),
+                                  heap: snapshot(0x5A), byteLength: HEAP_SIZE });
+  const before = messages.length;
+  const r = await callRpc('loadDevice', { deviceId: 'series7', romUrl: '/rom4', preroll: 0 });
+  check(!r.error, `foreign-engine save loads without error (got ${r.error})`);
+  const info = (r.result as { info?: { deviceName?: string } } | undefined)?.info;
+  check(info?.deviceName === 'ColdBoot', `foreign-engine save is not restored (deviceName=${info?.deviceName})`);
+  check(messages.slice(before).some(m => m.type === 'log' && /different engine build/.test(String(m.text))),
+        'the cold boot is explained in the log');
+  const rv = await callRpc('revertToSaved');
+  check(rv.result === false, `revertToSaved refuses a foreign-engine save (result=${rv.result})`);
+}
+
+// 6. Saves from before engines were recorded carry no stamp: unknowable,
+//    so they cold-boot too.
+{
+  idbStore.set('state-revo', { version: 14, deviceId: 'revo', heap: snapshot(0x5A), byteLength: HEAP_SIZE });
+  const r = await callRpc('loadDevice', { deviceId: 'revo', romUrl: '/rom2', preroll: 0 });
+  const info = (r.result as { info?: { deviceName?: string } } | undefined)?.info;
+  check(info?.deviceName === 'ColdBoot', `unstamped save is not restored (deviceName=${info?.deviceName})`);
+}
+
+// 7. A save is stamped with this engine, and so restores on it.
+{
+  const r = await callRpc('saveState');
+  check(r.result === true, `saveState succeeds (result=${r.result} error=${r.error})`);
+  const stored = idbStore.get('state-revo') as { engine?: string; version?: number } | undefined;
+  check(stored?.engine === ENGINE, `save is stamped with the engine (${stored?.engine})`);
+  check(stored?.version === 14, `save carries the schema version (${stored?.version})`);
 }
 
 if (failures > 0) {

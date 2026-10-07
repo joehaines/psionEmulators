@@ -32,6 +32,7 @@
 #pragma once
 
 #include "emubase.h"
+#include "microwire_eeprom.h"
 #include "psion_asic9.h"
 #include "psion_condor.h"
 #include "psion_honda.h"
@@ -129,6 +130,38 @@ public:
     size_t   getRamSize()   const override   { return ram.size(); }
     void     loadRamSnapshot(const uint8_t *bytes, size_t size) override {
         std::memcpy(ram.data(), bytes, std::min(size, ram.size()));
+    }
+
+    // ── LCD backlight ───────────────────────────────────────────────────
+    // Each machine's ROM has the same EPOC16 backlight service (AL = 0 off,
+    // 1 on, 2 toggle, 3 query) aimed at a different output:
+    //   3mx         ASIC9 port C bit 5 (read-modify-write; ROM 0x1b49db)
+    //   Workabout   ASIC9 port C bit 0 (ROM 0x1af64d)
+    //   WorkaboutMX bit 6 of the board latch at I/O 0x100, kept in a RAM
+    //               shadow (ROM 0x1b635d) — and only once the
+    //               configuration EEPROM says a backlight is fitted
+    // The 3c's ROM carries the 3mx's service and flips the same pin, but
+    // the 3c has no lamp; the 3a and Siena ROMs have no service at all.
+    bool hasBacklight() const override {
+        return m_cfg.model == Model::Series3mx ||
+               m_cfg.model == Model::Workabout ||
+               m_cfg.model == Model::WorkaboutMX;
+    }
+    int getBacklightLevel() const override {
+        switch (m_cfg.model) {
+        case Model::Series3mx:   return (asic9.portCdOutputs() & 0x20) ? 100 : 0;
+        case Model::Workabout:   return (asic9.portCdOutputs() & 0x01) ? 100 : 0;
+        case Model::WorkaboutMX: return (m_mxBoardLatch & 0x40) ? 100 : 0;
+        default:                 return 0;
+        }
+    }
+    BacklightKey getBacklightKey() const override {
+        switch (m_cfg.model) {
+        case Model::Series3mx:   return { EStdKeyLeftAlt, EStdKeySpace };   // Psion+Space
+        case Model::Workabout:
+        case Model::WorkaboutMX: return { 0, EStdKeyBacklightToggle };     // its own key
+        default:                 return { 0, 0 };
+        }
     }
 
     int32_t     getClockSpeed() const override { return m_cfg.busClockHz; }
@@ -283,6 +316,13 @@ private:
     // vector 0x76). m_condor doubles as "UART1" (0x50-0x5E) on these
     // models.
     PsionCondor m_mxUart0;
+    // WorkaboutMX only: the board's write-only control latch at I/O 0x100
+    // (bit 6 = backlight; the ROM keeps a RAM shadow and never reads it
+    // back), and the 93C46 configuration EEPROM bit-banged on ASIC9 port
+    // B — CS on B3, SK on B0, DI on B1, DO back on B2. See wireChips()
+    // for what the EEPROM holds.
+    uint8_t         m_mxBoardLatch = 0;
+    MicrowireEeprom m_mxEeprom;
     // Which PsionCondor instance serves a host-bridge uartIndex:
     //   0 = the Remote Link port — the Condor on the 3a/3c/Siena,
     //       ASIC9MX UART1 on the 3mx, ASIC9MX UART0 on the Workabout
@@ -293,6 +333,7 @@ private:
     //       @0x48, IER 0x07 @0x42). The 3c/Siena Condor multiplexes
     //       cable + IR onto the same register file, so both ride
     //       uartIndex 0 there.
+    bool isMxBoardLatch(uint16_t port) const;
     PsionCondor &hostUart(int uartIndex) {
         if (m_cfg.model == Model::WorkaboutMX) return m_mxUart0;
         if (m_cfg.model == Model::Series3mx && uartIndex == 1) return m_mxUart0;

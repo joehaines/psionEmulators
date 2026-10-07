@@ -6077,6 +6077,14 @@ protected:
     // flag is consumed (set to false) by the hook after one fire.
     mutable bool touchInjectPending = false;
 
+    // EL backlight on port C bit 4 — the CL-PS7110-only port. The ROM
+    // sets and clears it on Fn+Space and on its own timeout.
+    bool hasBacklight() const override { return true; }
+    int getBacklightLevel() const override { return (portCLatch() & 0x10) ? 100 : 0; }
+    BacklightKey getBacklightKey() const override {
+        return { EStdKeyLeftFunc, EStdKeySpace };
+    }
+
     // Series 5 keyboard scan reads all 8 columns. CLPS7111 (MC218/Osaris)
     // only has 7 columns; the base readKeyboard walks 0..6 and returns 0
     // for kScan==7. Series 5 needs column 7 (left shift / arrows row) too.

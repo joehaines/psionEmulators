@@ -259,6 +259,20 @@ public:
     // drawing rotated — see netpadScreenOrientation in sa1100.cpp.
     int      getScreenOrientation() const override;
 
+    // Backlight brightness: ASIC14 register 0x18 (see kBacklightReg),
+    // stepped by Fn+Space. None on the netpad, which has no ASIC14.
+    bool hasBacklight() const override { return !isNetpad(); }
+    bool isBacklightDimmable() const override { return hasBacklight(); }
+    int  getBacklightLevel() const override {
+        if (!hasBacklight()) return 0;
+        const int reg = backlightRegister();
+        return (reg * 100 + kMaxBacklight / 2) / kMaxBacklight;
+    }
+    BacklightKey getBacklightKey() const override {
+        return hasBacklight() ? BacklightKey{ EStdKeyLeftFunc, EStdKeySpace }
+                              : BacklightKey{ 0, 0 };
+    }
+
     // ── Unique id, low half (Eiger serial EEPROM) ─────────────────────
     // The 32-bit little-endian word at EEPROM offset 0x18, which the
     // kernel reads over the ASIC command port (see initEepromImage) and
@@ -2436,6 +2450,20 @@ private:
     static constexpr int      kDefaultContrast = 20;   // factory default
     static constexpr int      kMinContrast     = 1;
     static constexpr int      kMaxContrast     = 32;
+
+    // The same chip's register 0x18 is the backlight brightness, 0..31.
+    // Fn+Space steps it 0, 4, 8, … 28, 31 and wraps to 0 (measured off the
+    // b756 and netBook v1.05(450) ROMs); the OS sets 8 once it is up, the
+    // netBook bootloader 2 before it. readLCDIntoBuffer folds it into the
+    // panel response alongside contrast, unchanged at the OS's own 8.
+    // The netpad has no ASIC14 — its panel is lit whenever it is on.
+    static constexpr uint32_t kBacklightReg     = 0x18;
+    static constexpr int      kDefaultBacklight = 8;
+    static constexpr int      kMaxBacklight     = 31;
+    int backlightRegister() const {
+        const int reg = asicRegs[kBacklightReg];
+        return reg > kMaxBacklight ? kMaxBacklight : reg;
+    }
 
     // (T9) Eiger ASIC class wired into the dispatcher.  Constructed
     // with a backing pointer to asicRegs so its register accessors

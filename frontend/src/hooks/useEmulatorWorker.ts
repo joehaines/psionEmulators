@@ -90,7 +90,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const audioShimRef = useRef<WorkerAudioShim | null>(null);
 
   const clientRef = useRef<EmulatorWorkerClient | null>(null);
-  const statusRef = useRef<WorkerStatus>({ paused: false, simCycles: 0, backlight: false, cfGap: false, cardAttached: false, orientation: 0 });
+  const statusRef = useRef<WorkerStatus>({ paused: false, simCycles: 0, backlightLevel: 0, cfGap: false, cardAttached: false, orientation: 0 });
   const transferredElRef = useRef<HTMLCanvasElement | null>(null);
   // canvasRef is a CALLBACK ref (not a plain RefObject): the <canvas> is
   // unmounted/remounted when the user opens Settings or while a device loads, and
@@ -423,7 +423,10 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     clientRef.current?.sendTouch(x, y, false);
   }, []);
 
-  const getBacklight = useCallback(() => statusRef.current.backlight, []);
+  const getBacklightLevel = useCallback(() => statusRef.current.backlightLevel ?? 0, []);
+  const setBacklightTint = useCallback((colour: string | null, lit: boolean) => {
+    void clientRef.current?.setBacklightTint(colour, lit);
+  }, []);
   const getScreenOrientation = useCallback(() => statusRef.current.orientation, []);
   const getSimCycles = useCallback(() => statusRef.current.simCycles, []);
   const refreshSaved = useCallback(() => { void listSavedDevices().then(setSavedDevices); }, []);
@@ -655,7 +658,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     currentDeviceId, profiles,
     loadDevice, handleKeyDown, handleKeyUp, releaseHeldKeys, handleInput, handlePasteText, pasteFromClipboard,
     sendEpocKey, handlePointerDown, handlePointerMove, handlePointerUp, handlePointerHover,
-    pressEpocKey, pressEpocChord, getBacklight, getScreenOrientation, saveState,
+    pressEpocKey, pressEpocChord, getBacklightLevel, setBacklightTint, getScreenOrientation, saveState,
     clearLogs: () => setLogs([]),
     setLoggingEnabled: (on: boolean) => { loggingOnRef.current = on; clientRef.current?.setLoggingEnabled(on); },
     powerOff, powerOn, resetDevice,

@@ -10,7 +10,8 @@ import type { DeviceInfo } from '../types/emulator';
 export interface WorkerStatus {
   paused: boolean;
   simCycles: number;
-  backlight: boolean;
+  // Live LCD backlight level, 0 (dark) to 100 — see getBacklightLevel.
+  backlightLevel: number;
   cfGap: boolean;
   cardAttached: boolean;
   // Quarter-turns anticlockwise the panel image has to be shown at (the
@@ -49,7 +50,7 @@ export class EmulatorWorkerClient {
   private resolveReady!: () => void;
   private rejectReady!: (e: Error) => void;
 
-  status: WorkerStatus = { paused: false, simCycles: 0, backlight: false, cfGap: false, cardAttached: false, orientation: 0 };
+  status: WorkerStatus = { paused: false, simCycles: 0, backlightLevel: 0, cfGap: false, cardAttached: false, orientation: 0 };
   onStatus: ((s: WorkerStatus) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Device-load progress pushes (value 0..1, or null = indeterminate). */
@@ -154,6 +155,11 @@ export class EmulatorWorkerClient {
   resume(): Promise<boolean> { return this.call('resume'); }
   reset(): Promise<boolean> { return this.call('reset'); }
   setDeviceMode(on: boolean): Promise<boolean> { return this.call('setDeviceMode', { on }); }
+  /** The EL colour the worker lights the LCD with (null: never — no EL
+   *  panel), and whether it is lit; the worker fades the LCD to match. */
+  setBacklightTint(colour: string | null, lit: boolean): Promise<boolean> {
+    return this.call('setBacklightTint', { colour, lit });
+  }
   setLoggingEnabled(on: boolean): void { this.worker.postMessage({ type: 'setLoggingEnabled', on }); }
   /** Enable/disable host audio in the worker (fire-and-forget). */
   setHostAudio(speaker: boolean, mic: boolean): void {

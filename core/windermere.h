@@ -80,12 +80,21 @@ public:
     // genuinely about one ROM build.
     bool isRevoFamily() const { return isRevo() || isConan(); }
 
-    // PRT bit 12 (0x1000) is the LCD EL-backlight enable pin (see
-    // diffPorts in windermere.cpp). EPOC drives it in response to
-    // Fn+Space and tracks the backlight-on timeout itself, so reading
-    // the live pin gives the frontend a feed that's already correct
-    // for auto-off / Control Panel brightness / etc.
-    bool getBacklight() const override { return (portValues & 0x1000) != 0; }
+    // Port D bit 4 (PRT 0x1000) switches the EL backlight (see diffPorts
+    // in windermere.cpp); EPOC flips it on Fn+Space and drops it again
+    // when its own backlight timer runs out. The Conan lights a blue EL
+    // panel off the same pin (both its ROM builds drive it on Fn+Space).
+    // The Revo has no backlight even though its ROM drives the pin too.
+    // A gate on the build rather than isRevoFamily(): the Conan runs on
+    // the Revo's board but has the lamp.
+    bool hasBacklight() const override { return !isRevo(); }
+    int getBacklightLevel() const override {
+        return (hasBacklight() && (portValues & 0x1000)) ? 100 : 0;
+    }
+    BacklightKey getBacklightKey() const override {
+        return hasBacklight() ? BacklightKey{ EStdKeyLeftFunc, EStdKeySpace }
+                              : BacklightKey{ 0, 0 };
+    }
 
     // Expose RAM to the harness so --save-ram-snapshot works, the way
     // CLPS7110::Emulator does. Bank C0 is where EPOC keeps its own data

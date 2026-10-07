@@ -9,6 +9,7 @@ import {
   serialReadBytes as serialReadBytesWasm,
   serialWriteBytes as serialWriteBytesWasm,
 } from '../lib/wasmBridge';
+import { currentEngineId, madeByEngine } from '../lib/engineId';
 import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice, isHostTextEntry } from '../lib/keymap';
 import { isFat16, createBlankImage, addFile, FAT_ATTR_HIDDEN, FAT_ATTR_SYSTEM } from '../lib/fat16';
 import type { PackKind } from '../lib/fefs';
@@ -23,6 +24,9 @@ import {
 } from '../lib/stateBundle';
 import { quiesceActiveSessions } from '../lib/plp/client-spec';
 import { romStateTag, romUrlFor, osImagePath, romLanguageNames, romHasLanguageChoice } from '../lib/romCatalog';
+import {
+  BacklightFade, blendBacklitPixels, buildBacklightLut, parseHexColour, tintBacklitPixels,
+} from '../lib/backlight';
 
 export type EmulatorState = 'idle' | 'loading-wasm' | 'ready' | 'loading-rom' | 'running' | 'error';
 
@@ -306,13 +310,14 @@ const STATE_SCHEMA_VERSION = 14;
 
 // Schema versions whose IDB-stored heap blob is still bit-compatible
 // with the current C++ build's struct layout. Used by the restore /
-// import paths so an older save can still load — earlier versions
-// either changed C++ struct layout (v1-v3) or pre-date the heap-shape
-// stored format. The restore path's LCD-bounds check is the final
-// guard if a heap turns out to be incompatible despite being in this
-// set: it falls back to a clean cold boot rather than corrupting the
-// running emulator.
-const RESTORE_COMPATIBLE_VERSIONS = new Set([13]);
+// import paths. Only ever the current version: a save also has to come
+// from this exact psion.wasm (lib/engineId.ts), and a build with a
+// different schema version is by definition a different engine. This was
+// once a literal that had to be bumped alongside STATE_SCHEMA_VERSION; it
+// was left at 13 when that went to 14, which made every v14 save invisible
+// to hasStoredState / collectDeviceBundle (so the desktop app mirrored
+// nothing to disk) and let old v13 generations be imported over them.
+const RESTORE_COMPATIBLE_VERSIONS = new Set([STATE_SCHEMA_VERSION]);
 
 // Audio enable preferences are now GLOBAL across devices — moved up to
 // the header in b8900a16 — so persist them in localStorage and retain
@@ -467,13 +472,16 @@ export async function listSavedDevices(): Promise<string[]> {
 // when there are no states.
 export async function collectStatesBundle(profileMap: Map<string, string>): Promise<Blob | null> {
   const stateKeys = (await idbGetAllKeys()).filter(k => k.startsWith('state-'));
+  const engine = await currentEngineId();
   const devices: BundleDeviceInput[] = [];
   for (const key of stateKeys) {
     const deviceId = key.slice(6);
     const stored = await idbGet<{ version: number; deviceId?: string; heap: Uint8Array }>(key);
     if (!stored || !RESTORE_COMPATIBLE_VERSIONS.has(stored.version) || !stored.heap) continue;
+    if (!madeByEngine(stored, engine)) continue;
     devices.push({
       id: deviceId, displayName: profileMap.get(deviceId), schemaVersion: stored.version,
+      engine: engine!,
       heap: stored.heap,
       cf:       (await idbGet<Uint8Array>(idbCardKey(deviceId)))    ?? undefined,
       ssd0:     (await idbGet<Uint8Array>(idbSsdKey(deviceId, 0)))  ?? undefined,
@@ -501,8 +509,11 @@ export async function collectDeviceBundle(
   const stored = await idbGet<{ version: number; deviceId?: string; heap: Uint8Array }>(
     idbStateKey(deviceId));
   if (!stored || !RESTORE_COMPATIBLE_VERSIONS.has(stored.version) || !stored.heap) return null;
+  const engine = await currentEngineId();
+  if (!madeByEngine(stored, engine)) return null;
   const blob = await encodeBundle([{
     id: deviceId, displayName, schemaVersion: stored.version,
+    engine: engine!,
     heap: stored.heap,
     cf:       (await idbGet<Uint8Array>(idbCardKey(deviceId)))    ?? undefined,
     ssd0:     (await idbGet<Uint8Array>(idbSsdKey(deviceId, 0)))  ?? undefined,
@@ -518,13 +529,15 @@ export async function collectDeviceBundle(
 // profile is exactly when the disk copy earns its keep.
 export async function hasStoredState(deviceId: string): Promise<boolean> {
   const stored = await idbGet<{ version: number; heap?: Uint8Array }>(idbStateKey(deviceId));
-  return !!stored && RESTORE_COMPATIBLE_VERSIONS.has(stored.version) && !!stored.heap;
+  return !!stored && RESTORE_COMPATIBLE_VERSIONS.has(stored.version) && !!stored.heap
+    && madeByEngine(stored, await currentEngineId());
 }
 
 // Import a bundle previously produced by collectStatesBundle, writing each chunk
 // back into IDB. Per-device errors are collected, not thrown.
 export async function applyStatesBundle(file: File): Promise<{ imported: number; errors: string[] }> {
   const decoded = await decodeBundle(new Uint8Array(await file.arrayBuffer()));
+  const engine = await currentEngineId();
   let imported = 0; const errors: string[] = [];
   for (const meta of decoded.header.devices) {
     const deviceId = meta.id;
@@ -536,8 +549,10 @@ export async function applyStatesBundle(file: File): Promise<{ imported: number;
           throw new Error(`bundle is newer than this build (v${meta.schemaVersion} > v${STATE_SCHEMA_VERSION}) — please update the app`);
         if (!RESTORE_COMPATIBLE_VERSIONS.has(meta.schemaVersion))
           throw new Error(`bundle is from an older build (v${meta.schemaVersion}); only v${[...RESTORE_COMPATIBLE_VERSIONS].join(', v')} are restore-compatible`);
+        if (!madeByEngine(meta, engine))
+          throw new Error('bundle was saved by a different build of the emulator engine; a session only restores on the engine that saved it');
         const heapRaw = await decompress(chunks.heap);
-        await idbPut(idbStateKey(deviceId), { version: STATE_SCHEMA_VERSION, deviceId, heap: chunks.heap, byteLength: heapRaw.byteLength });
+        await idbPut(idbStateKey(deviceId), { version: STATE_SCHEMA_VERSION, deviceId, engine, heap: chunks.heap, byteLength: heapRaw.byteLength });
       }
       if (chunks.cf && chunks.cf.byteLength > 0) await idbPut(idbCardKey(deviceId), await decompress(chunks.cf));
       if (chunks.ssd0 && chunks.ssd0.byteLength > 0) await idbPut(idbSsdKey(deviceId, 0), await decompress(chunks.ssd0));
@@ -789,17 +804,19 @@ export interface EmulatorControls {
   pressEpocKey(epocKey: number): void;
   // Variant of pressEpocKey that holds a list of modifier keys (Shift,
   // Fn, Psion, …) down across the press, then releases them. Frame-
-  // spaced through the same queue. Used by the on-screen Backlight
-  // button so the EPOC kernel sees the same Fn+Space / Psion+Space
-  // chord a real keyboard would have sent.
+  // spaced through the same queue. Used by the Backlight controls so
+  // the guest sees the same Fn+Space / Psion+Space chord a real
+  // keyboard would have sent.
   pressEpocChord(modifiers: number[], key: number): void;
-  // Live state of the LCD electroluminescent backlight pin. Polled by
-  // the on-screen backlight overlay so its visual state stays in sync
-  // with the kernel (which is what handles Fn+Space, the auto-off
-  // timeout, and the Control Panel brightness slider). Returns false
-  // on devices whose backlight pin isn't modelled (Series 3 family
-  // including 3mx — MAME hasn't wired it either).
-  getBacklight(): boolean;
+  // Live LCD backlight level, 0 (dark) to 100, read off the output the
+  // guest OS drives (its own key handling and auto-off timer included).
+  // 0 on machines without a backlight. See lib/backlight.ts.
+  getBacklightLevel(): number;
+  // The EL colour to light the LCD with (null: never — a machine with no
+  // EL panel), and whether it is lit now. The blit fades the LCD to that
+  // state over BACKLIGHT_FADE_MS, starting from the call — the same moment
+  // the rest of the page starts its own fade.
+  setBacklightTint(colour: string | null, lit: boolean): void;
   // Quarter-turns anticlockwise the emulated panel currently has to be
   // shown at. The netpad's "Switch orientation" (Tools menu) rotates the
   // whole EPOC desktop inside the unchanged 640×240 framebuffer, and the
@@ -1073,6 +1090,25 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   // recoverable (Reset device / switch device) rather than an endless loop.
   const stepErrorCountRef    = useRef(0);
   const deviceModeRef        = useRef(false);
+  // Lit-EL state set by setBacklightTint: the lookup (null when the
+  // machine has no EL panel), whether it is lit, and the fade between.
+  const backlightLutRef      = useRef<{ colour: string; lut: Uint8Array } | null>(null);
+  const backlightLitRef      = useRef(false);
+  const backlightFadeRef     = useRef(new BacklightFade());
+  // Everything done to a frame between readLCD and the blit. A lit EL
+  // panel is its own light source, so while it is lit it wins over device
+  // mode's translucent rendering (which lets the photo's unlit LCD show
+  // through) — otherwise the lit panel would be seen through a grey veil.
+  // Partway through the fade the frame is a blend of the two.
+  const postProcessLcd = (buf: Uint8ClampedArray) => {
+    const lit = backlightLutRef.current;
+    const mix = lit ? backlightFadeRef.current.step(backlightLitRef.current, performance.now()) : 0;
+    if (lit && mix >= 1) tintBacklitPixels(buf, lit.lut);
+    else if (lit && mix > 0) {
+      const dev = deviceModeRef.current;
+      blendBacklitPixels(buf, lit.lut, mix, dev ? DEVICE_GREY_LUT : null, dev ? DEVICE_ALPHA_LUT : null);
+    } else if (deviceModeRef.current) applyDeviceModePixels(buf);
+  };
   const logBufferRef         = useRef<string[]>([]);
   const audioEngineRef       = useRef<AudioEngine | null>(null);
   const romBytesRef          = useRef<Uint8Array | null>(null);
@@ -1360,7 +1396,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     // splash is already in the framebuffer by the time we get here.
     mod.readLCD(ptr);
     pixelBuf.set(mod.HEAPU8.subarray(ptr, ptr + pixelBuf.length));
-    if (deviceModeRef.current) applyDeviceModePixels(pixelBuf);
+    postProcessLcd(pixelBuf);
     ctx.putImageData(imageData, 0, 0);
 
     const tick = () => {
@@ -1456,7 +1492,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
         }
         mod.readLCD(ptr);
         pixelBuf.set(mod.HEAPU8.subarray(ptr, ptr + pixelBuf.length));
-        if (deviceModeRef.current) applyDeviceModePixels(pixelBuf);
+        postProcessLcd(pixelBuf);
         ctx.putImageData(imageData, 0, 0);
         // Drain the emulated codec's DAC queue into the WebAudio worklet.
         // Wrapped in try/catch so any audio-path exception — e.g. a mobile
@@ -1534,9 +1570,11 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       // compresses to single-digit MB.
       const raw = mod.HEAPU8.slice();
       const data = await compress(raw);
+      const engine = await currentEngineId();
       await idbPut(idbStateKey(deviceId), {
         version:  STATE_SCHEMA_VERSION,
         deviceId,            // belt-and-braces: the key already encodes this
+        engine,              // the psion.wasm this heap belongs to — lib/engineId.ts
         // Which of the device's ROMs this RAM image belongs to — see
         // savedStateMatchesRom. Omitted on the default ROM, as before.
         ...(currentRomTagRef.current ? { rom: currentRomTagRef.current } : {}),
@@ -1720,7 +1758,9 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
             // match the requested one. v4 saves predate the field and
             // rely on the IDB key alone for identity.
             && (!versioned.deviceId || versioned.deviceId === deviceId)
-            && savedStateMatchesRom(versioned, romTag)) {
+            && savedStateMatchesRom(versioned, romTag)
+            // Only the engine that wrote the heap can run it (lib/engineId.ts).
+            && madeByEngine(versioned, await currentEngineId())) {
           setLoadProgress(0.1);
           setLoadStatus('Restoring saved session…');
           const heap = await decompress(versioned.heap);
@@ -2096,12 +2136,17 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     enqueueChord(modifiers, key);
   }, []);
 
-  // Returns the live state of the LCD backlight pin. Falls back to
-  // false on devices whose port pin isn't modelled and on older WASM
-  // bundles that pre-date the getBacklight binding.
-  const getBacklight = useCallback((): boolean => {
+  // Live backlight level. 0 on a WASM bundle that pre-dates the binding.
+  const getBacklightLevel = useCallback((): number => {
     const mod = moduleRef.current;
-    return mod && typeof mod.getBacklight === 'function' ? mod.getBacklight() : false;
+    return mod && typeof mod.getBacklightLevel === 'function' ? mod.getBacklightLevel() : 0;
+  }, []);
+  const setBacklightTint = useCallback((colour: string | null, lit: boolean) => {
+    backlightLitRef.current = lit;
+    if (colour === (backlightLutRef.current?.colour ?? null)) return;
+    // A new panel (another machine, or none): no fade into it.
+    backlightLutRef.current = colour ? { colour, lut: buildBacklightLut(parseHexColour(colour)) } : null;
+    backlightFadeRef.current.reset(lit);
   }, []);
 
   // Orientation the guest is drawing at, in quarter-turns anticlockwise.
@@ -2506,6 +2551,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
         || !versioned.heap || versioned.heap.byteLength === 0) return false;
     if (versioned.deviceId && versioned.deviceId !== deviceId) return false;
     if (!savedStateMatchesRom(versioned, currentRomTagRef.current)) return false;
+    if (!madeByEngine(versioned, await currentEngineId())) return false;
 
     const heap = await decompress(versioned.heap);
     if (heap.byteLength === 0) return false;
@@ -2910,7 +2956,8 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
     handlePointerDown, handlePointerMove, handlePointerUp, handlePointerHover,
     pressEpocKey,
     pressEpocChord,
-    getBacklight,
+    getBacklightLevel,
+    setBacklightTint,
     getScreenOrientation,
     saveState, clearLogs, powerOff, powerOn, resetDevice, clearSession,
     attachCard, updateCardInPlace, detachCard, attachOsCard, getCardBytes,

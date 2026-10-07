@@ -194,6 +194,11 @@ protected:
 	uint32_t currentLcdAddress() const { return lcdAddress; }
 	uint32_t currentLcdControl() const { return lcdControl; }
 	uint64_t currentLcdPalette() const { return lcdPalette; }
+	// GPIO data latches, for the board wiring a subclass models (the
+	// backlight pin, say). Ports A/B/D/E pack into portValues as
+	// A<<24 | B<<16 | D<<8 | E; Port C exists on the CL-PS7110 only.
+	uint32_t portLatches() const { return portValues; }
+	uint8_t  portCLatch()  const { return portCData; }
 
 protected:
 	// SYSFLG1 default value. Subclasses (e.g. Series5::Emulator for the

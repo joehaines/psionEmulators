@@ -166,7 +166,9 @@ function Shell({ controls }: { controls: EmulatorControls }) {
 
   // Off, as in the embed route: the simulated EL panel is an experimental
   // cosmetic feature and the desktop chrome has no toggle to opt into it.
-  const backlight = useBacklight(controls, false);
+  // The desktop shell has its own window chrome, which the web page's
+  // lights-out styles were never written for.
+  const backlight = useBacklight(controls, { lightsOut: false });
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [needsDevice, setNeedsDevice] = useState(false);

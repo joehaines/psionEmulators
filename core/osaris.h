@@ -25,6 +25,14 @@ public:
     // pump here only audibly fires on the kernel's deliberate
     // BZTOG=1 click pulses.
     bool enableBuzzerPump() const override { return true; }
+
+    // EL backlight on port E bit 2: the ROM sets and clears it on
+    // Fn+Space (and drops it on its own timeout).
+    bool hasBacklight() const override { return true; }
+    int getBacklightLevel() const override { return (portLatches() & 0x04) ? 100 : 0; }
+    BacklightKey getBacklightKey() const override {
+        return { EStdKeyLeftFunc, EStdKeySpace };
+    }
 };
 
 }

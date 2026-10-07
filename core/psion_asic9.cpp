@@ -135,6 +135,7 @@ void PsionAsic9::reset() {
     m_a9_protection_upper = 0;
     m_a9_protection_lower = 0;
     m_a9_port_ab_ddr = 0;
+    m_a9_port_ab_data = 0;
     m_a9_port_c_ddr = 0;
     m_a9_port_d_ddr = 0;
     m_a9_port_cd_data = 0;
@@ -585,11 +586,28 @@ uint16_t PsionAsic9::ioRead(uint32_t offset, uint16_t mask) {
     case 0x1e: // A9WFrc2Data
         return m_frc2_count;
     case 0x20: // A9WPortABData
-        return uint16_t((m_port_ab_r ? m_port_ab_r() : 0) & ~m_a9_port_ab_ddr);
+        // Pins the guest drives (DDR bit set, on this port) read back the
+        // level it is driving; the rest are the host's inputs. The
+        // WorkaboutMX bit-bangs its configuration EEPROM here with
+        // read-modify-writes, which a port reading 0 for its outputs
+        // turns into a stream of dropped chip-selects.
+        return uint16_t(((m_port_ab_r ? m_port_ab_r() : 0) & ~m_a9_port_ab_ddr)
+                        | (m_a9_port_ab_data & m_a9_port_ab_ddr));
     case 0x22: // A9WPortABDDR
         return m_a9_port_ab_ddr;
-    case 0x24: // A9WPortCDData — 0 unless the host wires a reader
-        return m_port_cd_r ? m_port_cd_r(m_a9_port_cd_data) : 0;
+    case 0x24: { // A9WPortCDData
+        // A pin the guest drives reads back the level it is driving, the
+        // way any GPIO data register does; only the pins left as inputs
+        // ask the host. Port C/D's DDR bits are 1 for an INPUT — the
+        // Siena sets 0x23 on port C, exactly the three locale-strap pins
+        // scanLocales() senses, while it drives bit 2 to power them.
+        // The read-back matters: the Series 3mx switches its backlight by
+        // a read-modify-write of port C bit 5, so a port that read as 0
+        // turned the light on at every press and never off again.
+        const uint16_t inputs = uint16_t(m_a9_port_c_ddr | (m_a9_port_d_ddr << 8));
+        const uint16_t sensed = m_port_cd_r ? m_port_cd_r(m_a9_port_cd_data) : 0;
+        return uint16_t((sensed & inputs) | (m_a9_port_cd_data & ~inputs));
+    }
     case 0x26: // A9BPortCDDDR
         return uint16_t(m_a9_port_c_ddr | (m_a9_port_d_ddr << 8));
     case 0x28: // A9BPageSelect6000 / 7000
@@ -751,10 +769,12 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
         m_frc2_count  = m_frc2_reload;
         break;
     case 0x20: // A9WPortABData (16-bit)
-        if (m_port_ab_w) m_port_ab_w(data);
+        m_a9_port_ab_data = (m_a9_port_ab_data & ~mask) | (data & mask);
+        if (m_port_ab_w) m_port_ab_w(uint16_t(m_a9_port_ab_data & m_a9_port_ab_ddr));
         break;
     case 0x22: // A9WPortABDDR (16-bit)
         m_a9_port_ab_ddr = (m_a9_port_ab_ddr & ~mask) | (data & mask);
+        if (m_port_ab_w) m_port_ab_w(uint16_t(m_a9_port_ab_data & m_a9_port_ab_ddr));
         break;
     case 0x24: // A9WPortCDData — latched for the port C/D reader
         m_a9_port_cd_data = (m_a9_port_cd_data & ~mask) | (data & mask);

@@ -2,6 +2,7 @@
 // Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
 
 import type { PsionModule } from '../types/emulator';
+import { fetchEngine } from './engineId';
 
 let modulePromise: Promise<PsionModule> | null = null;
 
@@ -25,7 +26,10 @@ export async function loadPsionModule(): Promise<PsionModule> {
         throw new Error('createPsionModule not found on window');
       }
 
-      const mod = await (factory() as Promise<PsionModule>);
+      // Instantiated from the bytes engineId fingerprinted, so a save is
+      // stamped with the identity of the code that actually ran.
+      const { bytes } = await fetchEngine();
+      const mod = await (factory({ wasmBinary: bytes }) as Promise<PsionModule>);
       // Test hook: expose the module on window for the audio harness
       // (scripts/test-audio-browser.mjs) so it can read codec counters
       // without scraping the DOM. No-op for prod usage.
@@ -143,7 +147,8 @@ export async function reloadPsionModule(): Promise<PsionModule> {
   if (typeof factory !== 'function') {
     throw new Error('createPsionModule not found on window');
   }
-  const mod = await (factory() as Promise<PsionModule>);
+  const { bytes } = await fetchEngine();
+  const mod = await (factory({ wasmBinary: bytes }) as Promise<PsionModule>);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).__psionMod = mod;
   modulePromise = Promise.resolve(mod);

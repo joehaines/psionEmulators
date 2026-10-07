@@ -293,16 +293,57 @@ public:
 		(void)bytes; (void)size;
 	}
 
-	// LCD electroluminescent backlight pin state. The frontend polls this
-	// to drive the on-screen backlight overlay so it tracks whatever the
-	// running EPOC kernel is doing — Fn+Space toggling, the OS-level
-	// auto-off timeout, the Control Panel brightness slider, etc.
-	// Default false for devices that either have no EL panel (Series 3 /
-	// 3a / Osaris / Organiser II / MC400) or whose backlight pin isn't
-	// modelled yet (Series 3c / 3mx — MAME hasn't wired the port pin
-	// either; the relevant TODO is in reference/psion3a.cpp). Windermere
-	// (Series 5 / 5mx / 5mx Pro) exposes the real PRT bit.
-	virtual bool getBacklight() const { return false; }
+	// ── LCD backlight ──────────────────────────────────────────────────
+	//
+	// The lamp is the machine's own: every value here is read off the
+	// output its OS drives, never a frontend toggle, so the OS's own key
+	// handling, auto-off timer and power-down all show through unaided.
+	// Which output that is was found per machine by pressing its
+	// backlight key under the harness and watching which pin moved (and,
+	// on the SIBO machines, by reading the ROM's backlight service):
+	//
+	//   Series 5mx / 5mx Pro / MC218  Windermere port D bit 4   Fn+Space
+	//   Revo (Conan) — a blue panel   Windermere port D bit 4   Fn+Space
+	//   Series 5                      CL-PS7110 port C bit 4    Fn+Space
+	//   Osaris                        CL-PS7111 port E bit 2    Fn+Space
+	//   Geofox One                    CL-PS7110 port D bit 1    own key
+	//   Series 7 / netBook            ASIC14 (Eiger) register   Fn+Space
+	//                                 0x18, a 5-bit brightness   (steps it)
+	//                                 the key steps through
+	//   Series 3mx                    ASIC9 port C bit 5        Psion+Space
+	//   Workabout                     ASIC9 port C bit 0        own key
+	//   WorkaboutMX                   board latch (I/O 0x100)   own key
+	//                                 bit 6
+	//   HC120                         ASIC2 Control3 bit 7      own key
+	//
+	// Machines that report no backlight: the ones built without a lamp
+	// even where their ROM drives the pin anyway (the Revo shares the
+	// 5mx's ROM code and flips port D bit 4; the Series 3c shares the
+	// 3mx's and flips port C bit 5 — neither board has a lamp on the end
+	// of it), and the ones whose OS has no backlight control at all
+	// (Series 3 / 3a / Siena / MC200 / MC400 / Organisers, and the netpad,
+	// whose colour panel is lit whenever the machine is on).
+
+	// True when the machine has an LCD backlight its OS switches.
+	virtual bool hasBacklight() const { return false; }
+
+	// True when getBacklightLevel() is a brightness setting rather than
+	// on/off: the Series 7 / netBook light a colour panel and step its
+	// brightness. Every other backlit machine has an EL panel that is
+	// simply lit or not.
+	virtual bool isBacklightDimmable() const { return false; }
+
+	// Live lamp level, 0 (dark) to 100 (full). On/off panels report 0 or
+	// 100. Always 0 when hasBacklight() is false.
+	virtual int getBacklightLevel() const { return 0; }
+
+	bool getBacklight() const { return getBacklightLevel() > 0; }
+
+	// The key the machine's own keyboard switches the backlight with, and
+	// the modifier held with it (0 for none) — as EpocKey codes, so a host
+	// can press exactly what the user would. key is 0 when there is none.
+	struct BacklightKey { int modifier; int key; };
+	virtual BacklightKey getBacklightKey() const { return { 0, 0 }; }
 
 	// Orientation the running OS is drawing the screen at, as the number
 	// of quarter-turns ANTICLOCKWISE a host has to apply to the panel

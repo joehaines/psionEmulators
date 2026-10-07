@@ -242,6 +242,15 @@ public:
         return (uint8_t)((scannedRows() >> 8) & 0x0F);
     }
 
+    // EL backlight on port D bit 1. The Geofox has a key of its own for
+    // it — scancode 0x97, EStdKeyBacklightToggle, at column 5 bit 0 of
+    // the ROM's table below — rather than the Psions' Fn+Space chord.
+    bool hasBacklight() const override { return true; }
+    int getBacklightLevel() const override { return (portLatches() & 0x0200) ? 100 : 0; }
+    BacklightKey getBacklightKey() const override {
+        return { 0, EStdKeyBacklightToggle };
+    }
+
     void setKeyboardKey(EpocKey key, bool value) override {
         for (int col = 0; col < kColumns; col++) {
             for (int bit = 0; bit < kKeysPerColumn; bit++) {

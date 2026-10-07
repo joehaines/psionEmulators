@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
 import type { BacklightState } from '../hooks/useBacklight';
+import { BACKLIGHT_FADE_MS } from '../lib/backlight';
 import CFCardDialog from './CFCardDialog';
 import SSDDialog from './SSDDialog';
 import DatapakDialog from './DatapakDialog';
@@ -46,8 +47,8 @@ interface Props {
   showDebugging: boolean;
   experimentalFeatures: boolean;
   lcdAccuracyMode?: boolean;
-  // Live EL-backlight state, owned by App.tsx (see useBacklight) so the
-  // header can render its own always-visible toggle in parallel with
+  // The machine's LCD backlight, owned by App.tsx (see useBacklight) so
+  // the header can render its own always-visible toggle in parallel with
   // the in-view control-bar button this component still draws.
   backlight: BacklightState;
   // Standalone-iframe (`#/embed/<id>`) mode. When true the component
@@ -883,7 +884,10 @@ export default function EmulatorView({
   onMaxDeviceScale,
   onContentAspect,
 }: Props) {
-  const { color: backlightColor, on: backlightOn, toggle: toggleBacklight } = backlight;
+  const {
+    available: backlightAvailable, dimmable: backlightDimmable, level: backlightLevel,
+    color: backlightColor, on: backlightOn, hint: backlightHint, toggle: toggleBacklight,
+  } = backlight;
   const isColourDevice = COLOUR_SCREEN_DEVICES.has(controls.currentDeviceId ?? '');
   controls.deviceModeRef.current = deviceMode && lcdAccuracyMode && !isColourDevice;
   const {
@@ -1476,7 +1480,7 @@ export default function EmulatorView({
   // Experimental-feature variants — same shape as btn / btnActive but
   // with a saturated red border so the user can tell at a glance which
   // controls are gated by the Experimental features setting (currently
-  // the Backlight toggle and the simulated Modem). Hover / active states
+  // the simulated Modem). Hover / active states
   // keep the red border so the signal doesn't disappear on interaction.
   const expBtn = [
     'px-3 py-1.5 rounded text-xs font-mono whitespace-nowrap select-none cursor-pointer',
@@ -1747,16 +1751,20 @@ export default function EmulatorView({
           />
         )}
 
-        {/* Simulated EL backlight — opaque coloured layer over the LCD
-            cutout, sitting BEHIND the canvas so the canvas's transparent
-            "unlit" pixels reveal the backlight colour while its opaque
-            "lit" pixels remain as dark text on the glowing background.
-            The box-shadow projects a soft tinted glow out onto the rest
-            of the device frame so the keyboard / case isn't pitch black
-            in lights-out mode — matches what happens in a real dark room
-            when the EL panel lights up. Only shown for devices that
-            actually had a backlit panel. */}
-        {backlightOn && backlightColor && !lidIsClosed && (
+        {/* Lit EL panel, while the machine's own backlight output is on —
+            a coloured layer over the LCD cutout, BEHIND the canvas. The
+            canvas itself is lit in the blit path (see lib/backlight.ts),
+            opaquely in every view, so what this layer adds is its
+            box-shadow: a soft tinted glow cast out onto the device frame,
+            so the case isn't pitch black in lights-out mode — what a real
+            dark room looks like when the EL panel lights. EL machines only
+            (color is unset for the Series 7 / netBook, whose core renders
+            the lamp). */}
+        {/* Mounted whenever the machine has an EL panel and faded by
+            opacity, so the glow comes up and dies away with the LCD rather
+            than popping in. The halo is kept soft and close: it should
+            light the bezel, not wash out the keys below it. */}
+        {backlightColor && !lidIsClosed && (
           <div
             aria-hidden="true"
             className="absolute pointer-events-none"
@@ -1766,7 +1774,9 @@ export default function EmulatorView({
               width:  canvasWidth,
               height: canvasHeight,
               backgroundColor: backlightColor,
-              boxShadow: `0 0 ${canvasHeight * 0.6}px ${canvasHeight * 0.25}px ${backlightColor}`,
+              boxShadow: `0 0 ${canvasHeight * 0.35}px ${canvasHeight * 0.04}px ${backlightColor}b3`,
+              opacity: backlightOn ? 1 : 0,
+              transition: `opacity ${BACKLIGHT_FADE_MS}ms ease-in-out`,
               zIndex: 5,
             }}
           />
@@ -2386,23 +2396,24 @@ export default function EmulatorView({
           Keyboard
         </button>
 
-        {/* On-screen Backlight button. Mirrors the real Fn+Space (Psion+Space
-            on the 3mx) keystroke — many host OSes swallow that combo before
-            the browser sees it (Cmd+Space → Spotlight on macOS, Super+Space
-            → input-method switcher on Linux/Windows), so a button is the only
-            reliable trigger. State is the live EPOC backlight pin on
-            Windermere; the 3mx falls back to a local toggle because its port
-            pin isn't modelled yet. */}
-        {backlightColor && (
+        {/* On-screen Backlight button: presses the machine's own backlight
+            key (Fn+Space, Psion+Space or a key of its own) — many host OSes
+            swallow Fn+Space's host equivalent before the browser sees it
+            (Cmd+Space → Spotlight, Super+Space → input switching), hence
+            this and the Ctrl+Shift+L shortcut. Its state is the machine's
+            own backlight output. */}
+        {backlightAvailable && (
           <button
             onClick={toggleBacklight}
-            className={backlightOn ? expBtnActive : expBtn}
-            title={backlightOn
-              ? 'Backlight on — click to switch off (also: Fn+Space)'
-              : 'Backlight off — click to switch on (also: Fn+Space)'}
-            aria-pressed={backlightOn}
+            className={backlightOn && !backlightDimmable ? btnActive : btn}
+            title={backlightDimmable
+              ? `Backlight brightness ${backlightLevel}% — click to step it (${backlightHint})`
+              : backlightOn
+                ? `Backlight on — click to switch off (${backlightHint})`
+                : `Backlight off — click to switch on (${backlightHint})`}
+            aria-pressed={backlightDimmable ? undefined : backlightOn}
           >
-            {backlightOn ? 'Light ●' : 'Light'}
+            {backlightDimmable ? `Light ${backlightLevel}%` : backlightOn ? 'Light ●' : 'Light'}
           </button>
         )}
 

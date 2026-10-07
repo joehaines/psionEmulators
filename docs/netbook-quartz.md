@@ -49,7 +49,10 @@ The image's own boot, all the way through:
 | 28 s | Quartz v6.0 splash (variance ~11200) |
 | 40 s | **Quartz app screen** — a mostly-white content area under a status
   bar carrying the shift and on-screen-keyboard buttons, the clock, the
-  free-memory figure and the mail/battery icons (variance ~450) |
+  free-memory figure and the mail/battery icons (variance ~180; ~450
+  before the panel modelled its backlight — this build never programs the
+  brightness, so the lamp stays at the bootloader's dim level, see
+  [backlight.md](backlight.md)) |
 | 60 s+ | still there, with the clock advancing |
 
 Getting from the splash to the app screen was the second of the two bugs
@@ -204,9 +207,10 @@ synthesised FAT16 card carrying `roms/netBook/Quartz_v6.0_eng/OS.IMG`, read the 
 the same path the browser takes for any netBook OS image.
 
 Its variance gate is a **band**, not a floor, because the two bugs fail
-on either side of the app screen's ~450:
+on either side of the app screen's ~180:
 
 - bug 1 leaves a blank white panel, variance 0 — caught by the floor;
-- bug 2 parks the machine on the splash, variance ~11,200 — which a floor
+- bug 2 parks the machine on the splash, variance ~11,200 (~4,400 at the
+  dim lamp) — which a floor
   alone waves through, so the row also carries `--max-variance 2000`
   (a new harness flag added for exactly this).

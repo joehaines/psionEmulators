@@ -99,6 +99,10 @@ public:
     void setReadPortDataCb(std::function<uint8_t()> cb)      { m_read_pd_cb  = std::move(cb); }
     void setWritePortDataCb(std::function<void(uint8_t)> cb) { m_write_pd_cb = std::move(cb); }
 
+    // A2Control3 as last written. Its top bit is a spare output the HC120
+    // wires to its backlight (see Series3::Emulator::getBacklightLevel).
+    uint8_t control3() const { return m_a2_control3; }
+
     // SIBO serial channels 0..7. Reads return a single byte from the
     // selected slave; writes consume the 16-bit frame already prefixed
     // with NULL_FRAME / CONTROL_FRAME / DATA_FRAME so the slave can

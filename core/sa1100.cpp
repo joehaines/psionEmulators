@@ -7,6 +7,7 @@
 #include "eiger.h"
 #include "eiger_classifier.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -28215,8 +28216,25 @@ void Emulator::readLCDIntoBuffer(uint8_t **lines, bool is32BitOutput) const {
         double gain   = 1.0 + (double)d * kSlope;
         double offset = (double)d * kLevelPerStep;   // +d darkens, -d lightens
         if (gain < 0.0) gain = 0.0;
+        // Backlight brightness (ASIC14 register 0x18, kBacklightReg). The
+        // panel is transmissive, so the lamp is all the light it has:
+        // scale the output by the lamp's brightness relative to the level
+        // EPOC sets at boot, which renders exactly as before. Below that
+        // it falls off along a square-root curve to a quarter at 0 —
+        // dark, but the image is still there, which is what a lamp
+        // turned right down behind a colour STN looks like — and above it
+        // rises to a third brighter at full.
+        double lamp = 1.0;
+        if (hasBacklight()) {
+            const int bl = backlightRegister();
+            if (bl <= kDefaultBacklight)
+                lamp = 0.25 + 0.75 * std::sqrt((double)bl / kDefaultBacklight);
+            else
+                lamp = 1.0 + (1.0 / 3.0) * (double)(bl - kDefaultBacklight)
+                                         / (kMaxBacklight - kDefaultBacklight);
+        }
         for (int v = 0; v < 256; v++) {
-            double out = 128.0 + ((double)v - 128.0) * gain - offset;
+            double out = (128.0 + ((double)v - 128.0) * gain - offset) * lamp;
             if (out < 0.0)   out = 0.0;
             if (out > 255.0) out = 255.0;
             contrastLut[v] = (uint8_t)(out + 0.5);

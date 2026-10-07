@@ -199,6 +199,13 @@ struct DeviceInfo {
     bool hasAudio;
     bool hasMic;
     int audioSampleRate;
+    // LCD backlight (see EmuBase's backlight section): whether there is
+    // one, whether its level is a brightness rather than on/off, and the
+    // EpocKey codes of the machine's own key for it (modifier 0 = none).
+    bool hasBacklight;
+    bool backlightDimmable;
+    int backlightModifier;
+    int backlightKey;
 };
 
 DeviceInfo getDeviceInfo() {
@@ -214,6 +221,10 @@ DeviceInfo getDeviceInfo() {
         g_emu->hasAudio(),
         g_emu->hasMicrophone(),
         g_emu->getAudioSampleRate(),
+        g_emu->hasBacklight(),
+        g_emu->isBacklightDimmable(),
+        g_emu->getBacklightKey().modifier,
+        g_emu->getBacklightKey().key,
     };
 }
 
@@ -440,13 +451,13 @@ void sendTouch(int x, int y, bool down) {
     if (g_emu) g_emu->updateTouchInput(x, y, down);
 }
 
-// Live state of the LCD electroluminescent backlight pin. The frontend
-// polls this so its on-screen backlight overlay tracks whatever EPOC is
-// doing (Fn+Space toggling, auto-off timeout, Control Panel slider).
-// Returns false on devices without a modelled backlight pin — see
-// EmuBase::getBacklight for the per-device coverage matrix.
-bool getBacklight() {
-    return g_emu && g_emu->getBacklight();
+// Live LCD backlight level, 0 (dark) to 100, read off the output the
+// running OS drives — so its own key handling and auto-off timer show
+// through. The frontend polls it to draw the lit panel. 0 on machines
+// without a backlight; see EmuBase's backlight section for which output
+// each machine uses.
+int getBacklightLevel() {
+    return g_emu ? g_emu->getBacklightLevel() : 0;
 }
 
 // Quarter-turns anticlockwise the panel image has to be shown at for the
@@ -905,7 +916,7 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("getDeviceInfo",            &getDeviceInfo);
     emscripten::function("sendKey",                  &sendKey);
     emscripten::function("sendTouch",                &sendTouch);
-    emscripten::function("getBacklight",             &getBacklight);
+    emscripten::function("getBacklightLevel",        &getBacklightLevel);
     emscripten::function("getScreenOrientation",     &getScreenOrientation);
     emscripten::function("isCpuCrashed",             &isCpuCrashed);
     emscripten::function("prepareCFImageUpload",     &prepareCFImageUpload);
@@ -994,5 +1005,9 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
         .field("deviceName",      &DeviceInfo::deviceName)
         .field("hasAudio",        &DeviceInfo::hasAudio)
         .field("hasMic",          &DeviceInfo::hasMic)
-        .field("audioSampleRate", &DeviceInfo::audioSampleRate);
+        .field("audioSampleRate", &DeviceInfo::audioSampleRate)
+        .field("hasBacklight",      &DeviceInfo::hasBacklight)
+        .field("backlightDimmable", &DeviceInfo::backlightDimmable)
+        .field("backlightModifier", &DeviceInfo::backlightModifier)
+        .field("backlightKey",      &DeviceInfo::backlightKey);
 }

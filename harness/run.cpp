@@ -655,6 +655,10 @@ int main(int argc, char **argv) {
     // app keys to verify nothing reports KErrCorrupt afterwards.
     struct KeyEvent { double atSec; int epocKey; int holdFrames; bool repeat = false; };
     std::vector<KeyEvent> keyEvents;
+    // --press-backlight: times at which to press the machine's own
+    // backlight key (EmuBase::getBacklightKey), resolved into keyEvents
+    // once the emulator exists.
+    std::vector<double> backlightPresses;
     // Scripted-tap sequence: same idea as keyEvents but for screen taps,
     // so you can do "open Sketch → draw → menu/up/enter" in a single
     // harness run instead of one-shot --tap-at.
@@ -837,6 +841,12 @@ int main(int argc, char **argv) {
             ev.epocKey = std::atoi(argv[++i]);
             ev.holdFrames = (i + 1 < argc && argv[i + 1][0] != '-') ? std::atoi(argv[++i]) : 8;
             keyEvents.push_back(ev);
+        }
+        // --press-backlight AT_SEC — press whatever key (or modifier+key
+        // chord) the device reports as its backlight key, e.g. Fn+Space on
+        // a 5mx or the HC120's own Backlight key.
+        else if (a == "--press-backlight" && i + 1 < argc) {
+            backlightPresses.push_back(std::atof(argv[++i]));
         }
         // --repeat-key AT_SEC EPOC_KEY [HOLD_FRAMES] — same as --press-key
         // but re-asserts the key-down on every frame of the hold, the way a
@@ -1033,6 +1043,21 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "Using profile: %s (%s)\n", profile->id, profile->displayName);
 
     EmuBase *emu = profile->createEmulator();
+    if (!backlightPresses.empty()) {
+        const EmuBase::BacklightKey bk = emu->getBacklightKey();
+        if (bk.key == 0) {
+            std::fprintf(stderr, "=== harness: --press-backlight: %s has no backlight key ===\n",
+                         profile->id);
+        } else {
+            for (double at : backlightPresses) {
+                // Hold the modifier across the key, as a hand would.
+                if (bk.modifier) keyEvents.push_back({ at, bk.modifier, 30 });
+                keyEvents.push_back({ at + 0.2, bk.key, 8 });
+            }
+            std::stable_sort(keyEvents.begin(), keyEvents.end(),
+                             [](const KeyEvent &x, const KeyEvent &y) { return x.atSec < y.atSec; });
+        }
+    }
     g_emu = emu;
     emu->setLogger([](const char *s) { emitLog(s); });
     emu->setLoggingEnabled(!quietLogs);
@@ -1312,6 +1337,8 @@ int main(int argc, char **argv) {
     // OR --serial-poll-until is set (so the user sees parsed-frame
     // logging alongside the raw bytes).
     bool serialDecodeFrames = (!serialAutoRules.empty()) || (serialPollUntil > 0.0);
+    int lastBacklightLevel = 0;
+    int backlightChanges = 0;
     struct ActiveKey { int epoc; int framesLeft; bool used; bool repeat; };
     std::vector<ActiveKey> activeKeys;
     auto pressKey = [&](int epoc, int holdFrames, bool repeat) {
@@ -1464,6 +1491,19 @@ int main(int argc, char **argv) {
                 emu->writeAudioInput(silence, 125);
             }
             emu->executeUntil(emu->currentCycles() + frameCycles);
+            // Report every change of the LCD backlight the running OS has
+            // switched, so tests can check that the machine's own backlight
+            // key chord (and its auto-off timer) drive it.
+            {
+                const int level = emu->getBacklightLevel();
+                if (level != lastBacklightLevel) {
+                    lastBacklightLevel = level;
+                    backlightChanges++;
+                    std::fprintf(stderr, "=== t=%.2fs backlight %s level %d ===\n",
+                                 (double)emu->currentCycles() / (double)clock,
+                                 level > 0 ? "ON" : "OFF", level);
+                }
+            }
             // After stepping the frame, drain whatever the device transmitted
             // on its UART so it shows up in --serial-capture and stderr,
             // and run auto-responder rules against any complete frames.
@@ -1879,7 +1919,9 @@ int main(int argc, char **argv) {
                      "\"unique_pcs\":%zu,\"pc_samples\":%llu,"
                      "\"traps\":%llu,\"cycles\":%llu,\"sim_seconds\":%.2f,"
                      "\"mdrive_label\":%s,\"mdrive_subdirs\":%d,\"mdrive_dirs\":\"%s\","
-                     "\"orientation\":%d,\"pass\":%s}\n",
+                     "\"orientation\":%d,\"has_backlight\":%s,\"backlight_level\":%d,"
+                     "\"backlight_changes\":%d,"
+                     "\"pass\":%s}\n",
                      prefix, profile->id, romPath, ls.variance, ls.uniqueValues, ls.mean,
                      uniquePcs, (unsigned long long)pcSamples,
                      (unsigned long long)g_trapCount,
@@ -1887,7 +1929,9 @@ int main(int argc, char **argv) {
                      (double)emu->currentCycles() / (double)clock,
                      mdriveInfo.labelFound ? "true" : "false",
                      mdriveInfo.subdirsFound, mdriveInfo.subdirList.c_str(),
-                     screenOrientation, allPass ? "true" : "false");
+                     screenOrientation, emu->hasBacklight() ? "true" : "false",
+                     emu->getBacklightLevel(),
+                     backlightChanges, allPass ? "true" : "false");
     };
     // Dump final SSD pack images (capturing any guest-side writes) so
     // tests can verify in-device file operations from the host.

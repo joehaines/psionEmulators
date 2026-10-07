@@ -44,6 +44,27 @@
   .text-gray-500\/70 { color: rgb(156 156 154 / 0.7); }
   .border-gray-200 { border-color: #333335; }
   .border-gray-300 { border-color: #3d3d3f; }
+  /* Native <select>s. Two separate ways they stayed white:
+     - the closed control: Safari (and WebKit-based shells) draw their own
+       native pop-up button, which needn't honour an author background.
+       Draw the control ourselves instead — no native appearance, our own
+       chevron, room on the right for it — so every engine shows the dark
+       surface the classes above ask for;
+     - the list it drops open, drawn from the <option>s' own colours —
+       transparent by default, so Chrome / Edge on Windows (and the
+       desktop app there) and Firefox open a white list under light text.
+       The options get the same surface as the dark controls. */
+  select {
+    color-scheme: dark;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23b4b4b2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 0.6rem auto;
+    padding-right: 1.6rem !important;
+  }
+  option, optgroup { background-color: #1a1a1c; color: #e6e6e3; }
   /* Charcoal flips light in dark mode, which breaks two pairings:
      charcoal-toned content on the yellow brand surfaces (the yellow
      stays yellow in both modes), and white text on (now-light)
@@ -85,18 +106,24 @@ canvas {
   }
 }
 
-/* "Lights out" mode — applied to <body> while the EL backlight overlay is
-   active on a backlit device (Fn+Space on 5/5mx/5mxPro, Psion+Space on 3mx).
+/* "Lights out" mode — applied to <body> (by useBacklight) while a
+   machine's EL backlight is lit — its own key or the Ctrl+Shift+L shortcut.
    The page background fades to near-black, panels go very dark, text drops
    to a muted grey, and the device skin photo is dimmed so the lit LCD
    stands out the way a real backlit screen does in a dark room.
-   Transitions are short enough to feel like a light switch but long enough
-   to read as deliberate. */
-body {
-  transition: background-color 0.35s ease;
-}
-.psion-skin {
-  transition: filter 0.35s ease;
+
+   The switch is one fade, not a dozen: useBacklight sets
+   .psion-lights-fading on <body> for the length of it, and everything on
+   the page — panels, text, borders, the skin photo, the glow and the
+   header bulb — moves over the same 400 ms (BACKLIGHT_FADE_MS in
+   lib/backlight.ts) on the same curve, while the LCD fades in step in the
+   blit path. Only for the switch: the class then goes, so no other
+   interaction inherits a slow transition. */
+body.psion-lights-fading,
+body.psion-lights-fading * {
+  transition-property: background-color, color, border-color, fill, stroke, filter, opacity, box-shadow !important;
+  transition-duration: 400ms !important;
+  transition-timing-function: ease-in-out !important;   /* ≈ the LCD's smoothstep */
 }
 body.psion-lights-out {
   background-color: #050505;
@@ -106,6 +133,15 @@ body.psion-lights-out .bg-psion-dark {
 }
 body.psion-lights-out .bg-psion-mid {
   background-color: #181818 !important;
+}
+/* Selects stay white in light mode's lights-out otherwise (their bg-white
+   isn't one of the surfaces above), and their open lists with them. */
+body.psion-lights-out select,
+body.psion-lights-out option,
+body.psion-lights-out optgroup {
+  color-scheme: dark;
+  background-color: #181818 !important;
+  color: #8a8a8a !important;
 }
 body.psion-lights-out .text-psion-charcoal,
 body.psion-lights-out .text-gray-400,

@@ -252,6 +252,14 @@ emulator's PsiWin client can't.
   `bash tests/integration/test-netpad-audio.sh`) to check the netpad's
   microphone and speaker paths against the register contract its own ROM
   drivers use.
+- **Backlight** — every machine that had one: Series 5 / 5mx / 5mx Pro,
+  MC218, Osaris, Geofox One, Revo (Conan) in blue, Series 7 / netBook
+  (brightness), Series 3mx,
+  Workabout / WorkaboutMX and HC120. The emulated OS switches it from the
+  machine's own key (Fn+Space, Psion+Space or a Backlight key of its own),
+  so its auto-off timer works too; the header bulb, the **Light** button and
+  **Ctrl+Shift+L** all press that key. See [docs/backlight.md](docs/backlight.md);
+  `bash tests/integration/test-backlight.sh` checks every machine.
 - **SSD packs** (SIBO) — the SSD dialog builds a FEFS Flash pack, fills it
   with host files and inserts it; packs mount read/write, so the Psion can
   save to them and format them. Files the machine writes appear in the

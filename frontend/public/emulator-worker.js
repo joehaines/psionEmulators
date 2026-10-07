@@ -205,12 +205,110 @@ function applyDeviceModePixels(buf) {
   }
 }
 
+// Lit EL backlight (mirrors buildBacklightLut / tintBacklitPixels /
+// blendBacklitPixels / BacklightFade in src/lib/backlight.ts — keep them in
+// step; the backlight unit test compares the two). Set by setBacklightTint,
+// which the UI calls the moment it starts the page's own fade, so the LCD
+// fades over the same BACKLIGHT_FADE_MS from the same moment.
+const LIT_INK = [0x1c, 0x24, 0x22];
+const BACKLIGHT_FADE_MS = 400;
+let backlightLut = null, backlightColour = null, backlightLit = false;
+let backlightMix = 0, backlightLast = 0;
+function buildBacklightLut(hex) {
+  const v = parseInt(String(hex).replace('#', ''), 16);
+  const el = [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff];
+  const lut = new Uint8Array(256 * 3);
+  for (let l = 0; l < 256; l++) {
+    const t = Math.min(1, Math.max(0, (l - 36) / (158 - 36)));
+    for (let c = 0; c < 3; c++) lut[l * 3 + c] = Math.round(LIT_INK[c] + (el[c] - LIT_INK[c]) * t);
+  }
+  return lut;
+}
+function tintBacklitPixels(buf, lut) {
+  for (let i = 0; i < buf.length; i += 4) {
+    const l = ((buf[i] * 77 + buf[i + 1] * 150 + buf[i + 2] * 29) >> 8) * 3;
+    buf[i] = lut[l]; buf[i + 1] = lut[l + 1]; buf[i + 2] = lut[l + 2];
+  }
+}
+function blendBacklitPixels(buf, lut, mix, deviceGrey, deviceAlpha) {
+  for (let i = 0; i < buf.length; i += 4) {
+    const lum = (buf[i] * 77 + buf[i + 1] * 150 + buf[i + 2] * 29) >> 8;
+    const l = lum * 3;
+    let r = buf[i], g = buf[i + 1], b = buf[i + 2];
+    const a = buf[i + 3];
+    if (deviceGrey && deviceAlpha) { r = g = b = deviceGrey[lum]; }
+    buf[i]     = r + (lut[l]     - r) * mix;
+    buf[i + 1] = g + (lut[l + 1] - g) * mix;
+    buf[i + 2] = b + (lut[l + 2] - b) * mix;
+    if (deviceGrey && deviceAlpha) buf[i + 3] = deviceAlpha[lum] + (a - deviceAlpha[lum]) * mix;
+  }
+}
+// One step of the LCD's fade, per blitted frame: 0..1, smoothstep-eased.
+function stepBacklightFade(now) {
+  const dt = backlightLast ? now - backlightLast : 0;
+  backlightLast = now;
+  backlightMix = Math.min(1, Math.max(0, backlightMix + (backlightLit ? dt : -dt) / BACKLIGHT_FADE_MS));
+  return backlightMix * backlightMix * (3 - 2 * backlightMix);
+}
+// Everything the frontend does to a frame between readLCD and the blit.
+// A lit EL panel is its own light source, so while it is lit it wins over
+// device mode's translucent rendering (which lets the photo's unlit LCD
+// show through) — otherwise the lit panel would be seen through a grey veil.
+// Partway through the fade the frame is a blend of the two.
+function postProcessLcd() {
+  const mix = backlightLut ? stepBacklightFade(performance.now()) : 0;
+  if (backlightLut && mix >= 1) tintBacklitPixels(pixelBuf, backlightLut);
+  else if (backlightLut && mix > 0)
+    blendBacklitPixels(pixelBuf, backlightLut, mix, deviceMode ? GREY : null, deviceMode ? ALPHA : null);
+  else if (deviceMode) applyDeviceModePixels(pixelBuf);
+}
+
 // ── IndexedDB (same store the main thread uses, so saves are interoperable) ──
 const IDB_NAME = 'psion-emu', IDB_STORE = 'state';
 // Must match STATE_SCHEMA_VERSION in src/hooks/useEmulator.ts (see the
 // history there): a heap saved with an older object layout restores with
 // every later field shifted, so a mismatch has to cold-boot instead.
 const STATE_SCHEMA_VERSION = 14;
+
+// The psion.wasm this worker runs, and its identity. A save is the module's
+// whole linear memory — vtables and function-table indices included — so it
+// only restores on the exact engine that wrote it; anything else wedges or
+// traps (src/lib/engineId.ts has the story). Set once at init. The module is
+// instantiated from these same bytes, so the identity stamped on a save is
+// the identity of the code that made it.
+let engineBinary = null;
+let ENGINE_ID = null;
+// Must match engineIdOf in src/lib/engineId.ts (workerRestore.test.mts checks).
+async function engineIdOf(bytes) {
+  const subtle = self.crypto && self.crypto.subtle;
+  if (subtle) {
+    const digest = new Uint8Array(await subtle.digest('SHA-256', bytes));
+    return Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  let a = 0x811c9dc5, b = 0x01000193 ^ 0x5bd1e995;
+  for (let i = 0; i < bytes.length; i++) {
+    a = Math.imul(a ^ bytes[i], 0x01000193);
+    b = Math.imul(b ^ bytes[i], 0x01000193);
+  }
+  return 'fnv:' + bytes.length.toString(16) + ':' + (a >>> 0).toString(16) + (b >>> 0).toString(16);
+}
+
+// Whether a stored state-<device> value may be written over this engine's
+// memory for `deviceId` on the ROM `romTag`. Logs the one refusal worth
+// knowing about when a session silently cold-boots: the wrong engine.
+function restorableSave(stored, deviceId, romTag) {
+  if (!stored || stored.version !== STATE_SCHEMA_VERSION || !stored.heap || !stored.byteLength) return false;
+  if (stored.deviceId && stored.deviceId !== deviceId) return false;
+  if ((stored.rom || '') !== romTag) return false;
+  if (!ENGINE_ID || stored.engine !== ENGINE_ID) {
+    postMessage({ type: 'log', err: false, text: 'saved session for ' + deviceId
+      + ' was made by a different engine build (' + (stored.engine || 'unrecorded')
+      + ', this is ' + ENGINE_ID + ') — cold booting instead' });
+    return false;
+  }
+  return true;
+}
+
 function openIDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1);
@@ -465,7 +563,7 @@ function tick() {
         lastBlitAt = performance.now();
         refreshLcdView();
         mod.readLCD(lcdPtr);
-        if (deviceMode) applyDeviceModePixels(pixelBuf);
+        postProcessLcd();
         ctx.putImageData(imageData, 0, 0);
       }
       stepErrors = 0;
@@ -521,7 +619,7 @@ function postStatus() {
     type: 'status',
     paused,
     simCycles: mod ? mod.getSimCycles() : 0,
-    backlight: (mod && mod.getBacklight) ? mod.getBacklight() : false,
+    backlightLevel: (mod && mod.getBacklightLevel) ? mod.getBacklightLevel() : 0,
     cfGap: (mod && mod.isCFPollGapActive) ? mod.isCFPollGapActive() : false,
     cardAttached: (mod && mod.isCFImageAttached) ? mod.isCFImageAttached() : false,
     // Quarter-turns anticlockwise the panel image has to be shown at —
@@ -723,9 +821,7 @@ const rpc = {
       let heapWritten = false;
       try {
         const stored = await idbGet('state-' + deviceId);
-        if (stored && stored.version === STATE_SCHEMA_VERSION && stored.heap && stored.byteLength
-            && (!stored.deviceId || stored.deviceId === deviceId)
-            && (stored.rom || '') === romTag) {
+        if (restorableSave(stored, deviceId, romTag)) {
           postLoadProgress(0.82, 'Restoring saved session…');
           const heap = await gunzip(stored.heap);
           if (heap.byteLength > 0 && growHeapToFit(heap.byteLength)) {
@@ -897,6 +993,17 @@ const rpc = {
   resume() { paused = false; postStatus(); return true; },
   reset() { paused = false; keyQueue = []; keyWait = 0; return true; },
   setDeviceMode({ on }) { deviceMode = !!on; return true; },
+  setBacklightTint({ colour, lit }) {
+    backlightLit = !!lit;
+    if ((colour || null) !== backlightColour) {
+      // A new panel (another machine, or none): no fade into it.
+      backlightColour = colour || null;
+      backlightLut = colour ? buildBacklightLut(colour) : null;
+      backlightMix = backlightLit ? 1 : 0;
+      backlightLast = 0;
+    }
+    return true;
+  },
   async attachCard({ bytes }) {
     const u8 = new Uint8Array(bytes);
     if (!growHeapToFit(u8.length + (1 << 20))) return false;
@@ -1130,7 +1237,7 @@ const rpc = {
       const raw = mod.HEAPU8.slice();
       const data = await gzip(raw);
       await idbPut('state-' + currentDeviceId, {
-        version: STATE_SCHEMA_VERSION, deviceId: currentDeviceId,
+        version: STATE_SCHEMA_VERSION, deviceId: currentDeviceId, engine: ENGINE_ID,
         heap: data, byteLength: raw.byteLength,
         ...(currentRomTag ? { rom: currentRomTag } : {}),
       });
@@ -1143,9 +1250,7 @@ const rpc = {
   async revertToSaved() {
     if (!mod || !currentDeviceId) return false;
     const stored = await idbGet('state-' + currentDeviceId);
-    if (!stored || stored.version !== STATE_SCHEMA_VERSION || !stored.heap || !stored.byteLength) return false;
-    if (stored.deviceId && stored.deviceId !== currentDeviceId) return false;
-    if ((stored.rom || '') !== currentRomTag) return false;
+    if (!restorableSave(stored, currentDeviceId, currentRomTag)) return false;
     const heap = await gunzip(stored.heap);
     if (heap.byteLength === 0) return false;
     const wasPaused = paused; paused = true;
@@ -1173,6 +1278,7 @@ let tickArmed = false;
 // memory is garbage and the only safe path forward is a clean instance.
 function createModule() {
   return self.createPsionModule({
+    ...(engineBinary ? { wasmBinary: engineBinary } : {}),
     print:    (t) => postMessage({ type: 'log', text: String(t) }),
     printErr: (t) => postMessage({ type: 'log', text: String(t), err: true }),
   });
@@ -1198,6 +1304,12 @@ onmessage = async (e) => {
       // on "Loading…". initError is handled by EmulatorWorkerClient.init().
       try {
         importScripts(baseUrl + 'psion.js');
+        // Fetched here rather than by psion.js so it can be fingerprinted;
+        // createModule hands these bytes to Emscripten as wasmBinary.
+        const resp = await fetch(baseUrl + 'psion.wasm');
+        if (!resp.ok) throw new Error('psion.wasm: HTTP ' + resp.status);
+        engineBinary = await resp.arrayBuffer();
+        ENGINE_ID = await engineIdOf(new Uint8Array(engineBinary));
         mod = await createModule();
       } catch (err) {
         postMessage({ type: 'initError',
@@ -1221,7 +1333,7 @@ onmessage = async (e) => {
           try {
             refreshLcdView();
             mod.readLCD(lcdPtr);
-            if (deviceMode) applyDeviceModePixels(pixelBuf);
+            postProcessLcd();
           } catch (_) { /* fall back to the last buffer */ }
           ctx.putImageData(imageData, 0, 0);
         }

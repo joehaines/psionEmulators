@@ -193,6 +193,19 @@ public:
     }
 
     int32_t     getClockSpeed() const override { return m_cfg.busClockHz; }
+
+    // HC120 backlight: bit 7 of A2Control3 (I/O 0x88). The ROM's backlight
+    // service (ROM 0xe013) sets and clears it through its Control3 shadow
+    // at [0x27fe], on the keypad's own Backlight key. No other ASIC2
+    // machine has a backlight service in its ROM.
+    bool hasBacklight() const override { return m_cfg.model == Model::HC120; }
+    int  getBacklightLevel() const override {
+        return (hasBacklight() && (asic2.control3() & 0x80)) ? 100 : 0;
+    }
+    BacklightKey getBacklightKey() const override {
+        return hasBacklight() ? BacklightKey{ 0, EStdKeyBacklightToggle }
+                              : BacklightKey{ 0, 0 };
+    }
     const char *getDeviceName() const override { return m_cfg.displayName; }
 
     int getDigitiserWidth()  const override { return m_cfg.lcdWidth; }

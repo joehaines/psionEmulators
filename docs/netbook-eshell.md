@@ -195,7 +195,10 @@ path the browser takes (`osCardSpec('netbook', 'eshell')`). It gates
 both boot fixes at once — the small image exercises the scaled
 completion gate, and the console only paints if the vector page
 survived. The console is two grey levels, so its variance settles around
-700 rather than the desktop's ~5000.
+270 rather than the desktop's ~5000. (It was ~700 before the panel
+modelled its backlight: ESHELL never programs the brightness register, so
+the lamp stays at the dim level the bootloader leaves — see
+[backlight.md](backlight.md).)
 
 `tests/integration/test-netbook-eshell-keyboard.sh` covers input, which
 no boot gate can see. It types `dir` + Enter at the prompt and requires

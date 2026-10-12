@@ -27,6 +27,8 @@ import psionLogoUrl from './assets/psion-logo.svg';
 import { trackDeviceLoad, startSession, endSession, fetchLeaderboard, type LeaderboardRow } from './lib/analytics';
 import { DEVICE_RELEASE_YEARS } from './lib/deviceMeta';
 import { romUrlFor, romStateTag } from './lib/romCatalog';
+import { has3DModel } from './lib/device3d';
+import { purgeAndReload } from './lib/staleCache';
 
 // Persisted device-mode preference. When on, photo-realistic device skins
 // from the `device-skins/` public folder are shown instead of the minimal
@@ -37,6 +39,11 @@ function loadDeviceMode(): boolean {
   if (typeof window === 'undefined') return true;
   return window.localStorage.getItem(DEVICE_MODE_KEY) !== '0';
 }
+
+// Persisted 3D-view preference (experimental). Off unless the user picked
+// it; only takes effect while Experimental features is on and the machine
+// on screen has a 3D model (lib/device3d).
+const VIEW_3D_KEY = 'psion-3d-view';
 
 // Persisted sizing-mode preference. Only 'device' / 'fill' round-trip
 // through localStorage; 'fullscreen' is a one-shot action triggered by
@@ -151,22 +158,6 @@ function sortProfiles(
 // from a low-prominence button in the header for side-by-side comparison.
 const MAME_CAPABLE_DEVICE_IDS = new Set(['series3a', 'pocketbk2']);
 
-// Some devices ship in two ROM revisions. The picker lists only the
-// default; a discreet header link — mirroring the MAME escape hatch above —
-// swaps to the alternate ROM (hidden from the picker) and back. Each entry
-// names the device to load and the label/title for the link shown while the
-// *other* ROM is running.
-//
-//   MC400    — v2.60F default, older v1.26F boot ROM behind the link.
-//   Conan    — the dumped 0.10(17) machine ROM by default, the earlier
-//              0.01(22) engineering image behind the link.
-const ALT_ROM_SWITCH: Record<string, { to: string; label: string; title: string }> = {
-  mc400:     { to: 'mc400v126', label: 'v1.26F', title: 'Load the older MC400 v1.26F boot ROM' },
-  mc400v126: { to: 'mc400',     label: 'v2.60F', title: 'Load the default MC400 v2.60F boot ROM' },
-  conan:     { to: 'conanv001', label: 'v0.01',  title: 'Load the older Conan v0.01 engineering ROM' },
-  conanv001: { to: 'conan',     label: 'v0.10',  title: 'Load the default Conan v0.10 machine ROM' },
-};
-
 const USAGE_HASH = '#/usage';
 // Standalone embed route: `#/embed/<deviceId>` renders the named device
 // in a chromeless full-viewport layout, suitable for iframing into a
@@ -280,6 +271,7 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   const mameDeviceId = mameDevice?.id ?? null;
 
   const [deviceMode, setDeviceMode] = useState<boolean>(loadDeviceMode);
+  const [view3d, setView3d] = useState<boolean>(() => loadBoolFlag(VIEW_3D_KEY));
   const [sizingMode, setSizingMode] = useState<SizingMode>(loadSizingMode);
   const [deviceScale, setDeviceScale] = useState<DeviceScale>(loadDeviceScale);
   // Largest actual-size scale the window can show for the device currently
@@ -404,9 +396,16 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   // useBacklight). Present only on machines that have one.
   const backlight = useBacklight(controls);
 
+  // The 3D view is experimental and only exists for machines with a model.
+  const view3dAvailable = experimentalFeatures && has3DModel(currentDeviceId);
+  const view3dActive = view3d && view3dAvailable;
+
   useEffect(() => {
     try { window.localStorage.setItem(DEVICE_MODE_KEY, deviceMode ? '1' : '0'); } catch {}
   }, [deviceMode]);
+  useEffect(() => {
+    try { window.localStorage.setItem(VIEW_3D_KEY, view3d ? '1' : '0'); } catch {}
+  }, [view3d]);
   useEffect(() => {
     try { window.localStorage.setItem(SIZING_MODE_KEY, sizingMode); } catch {}
   }, [sizingMode]);
@@ -440,11 +439,18 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
     }
   }, [currentDeviceId]);
 
-  const handlePickSizingMode = (mode: SizingMode) => setSizingMode(mode);
+  // Picking a 2D size from the 3D view leaves the 3D view: the sizing
+  // buttons only describe the flat views, so one that changed nothing on
+  // screen would read as broken.
+  const handlePickSizingMode = (mode: SizingMode) => {
+    setView3d(false);
+    setSizingMode(mode);
+  };
   // Picking a scale always implies device (pixel-perfect) mode — the chip
   // appears inside the actual-size button's flyout, so a click there is a
   // direct expression of "I want pixel-perfect at this zoom".
   const handlePickDeviceScale = (scale: DeviceScale) => {
+    setView3d(false);
     setDeviceScale(scale);
     setSizingMode('device');
   };
@@ -461,9 +467,10 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
   // The original registry order is preserved as the stable tiebreaker so
   // devices with the same year (or the same zero load count when the
   // leaderboard hasn't loaded yet) don't shuffle between renders.
-  // Hidden profiles (alternate-ROM variants like the older MC400 v1.26F)
-  // are dropped from the picker — they're still in mergedProfiles for
-  // label/ROM lookups and reachable via the header ROM-switch link.
+  // Hidden profiles (the old alternate-ROM ids, mc400v126 and conanv001)
+  // are dropped from the picker — their ROMs are now choices in Settings'
+  // ROM versions (lib/romCatalog.ts) — but stay in mergedProfiles so an
+  // old #/<id> link or remembered last device still resolves.
   const sortedProfiles = useMemo(
     () => sortProfiles(mergedProfiles.filter(p => !p.hiddenFromPicker), sortMode, leaderboard),
     [mergedProfiles, sortMode, leaderboard],
@@ -544,18 +551,6 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
     const profile = mergedProfiles.find(p => p.id === deviceId);
     if (!profile) return;
     void handleSelectDevice(deviceId, romUrlFor(profile, import.meta.env.BASE_URL));
-  };
-
-  // Swap the running MC400 between its two boot ROMs (v2.60F default ↔
-  // older v1.26F). Each ROM is a distinct device id, so this is just a
-  // normal device load — save states stay keyed per ROM revision.
-  const handleSwitchAltRom = () => {
-    if (!currentDeviceId) return;
-    const target = ALT_ROM_SWITCH[currentDeviceId];
-    if (!target) return;
-    const profile = mergedProfiles.find(p => p.id === target.to);
-    if (!profile) return;
-    void handleSelectDevice(target.to, romUrlFor(profile, import.meta.env.BASE_URL));
   };
 
   const handleSwitchToMame = () => {
@@ -702,29 +697,24 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
           </button>
         )}
 
-        {/* MC400 ROM-revision switch. The default device boots v2.60F;
-            this discreet link loads the older v1.26F boot ROM (and back),
-            without adding a second near-duplicate entry to the picker. */}
-        {!showHome && currentDeviceId && !mameDeviceId && ALT_ROM_SWITCH[currentDeviceId] && (
-          <button
-            type="button"
-            onClick={handleSwitchAltRom}
-            className="text-[10px] text-gray-500/40 hover:text-gray-400 transition-colors px-1"
-            title={ALT_ROM_SWITCH[currentDeviceId].title}
-          >
-            {ALT_ROM_SWITCH[currentDeviceId].label}
-          </button>
-        )}
-
         {/* Sizing-mode selector — only meaningful while a device is on
             screen (i.e. not in the MAME bundle, which is its own iframe). */}
         {!showHome && !mameDeviceId && state === 'running' && (
           <SizingControls
-            mode={sizingMode}
+            // No 2D size is in force while the 3D view is up.
+            mode={view3dActive ? null : sizingMode}
             scale={deviceScale}
             maxScale={maxDeviceScale}
-            deviceMode={deviceMode}
-            onToggleDeviceMode={() => setDeviceMode(v => !v)}
+            deviceMode={deviceMode && !view3dActive}
+            onToggleDeviceMode={() => {
+              // From the 3D view, the device-view button means "back to the
+              // photo", not "turn the photo off".
+              if (view3dActive) { setView3d(false); setDeviceMode(true); }
+              else setDeviceMode(v => !v);
+            }}
+            view3dAvailable={view3dAvailable}
+            view3d={view3dActive}
+            onToggleView3d={() => setView3d(v => !v)}
             onPickMode={handlePickSizingMode}
             onPickScale={handlePickDeviceScale}
             onEnterFullscreen={handleEnterFullscreen}
@@ -826,7 +816,7 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
                   </button>
                 )}
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => void purgeAndReload(import.meta.env.BASE_URL)}
                   className="text-xs text-gray-400 hover:text-psion-charcoal transition-colors"
                 >
                   Reload page
@@ -860,6 +850,7 @@ function EmulatorAppBody({ controls }: { controls: EmulatorControls }) {
                 lcdAccuracyMode={lcdAccuracyMode}
                 backlight={backlight}
                 deviceMode={deviceMode}
+                view3d={view3d}
                 onMaxDeviceScale={setMaxDeviceScale}
               />
             )}
@@ -1350,17 +1341,26 @@ function SizingControls({
   maxScale,
   deviceMode,
   onToggleDeviceMode,
+  view3dAvailable,
+  view3d,
+  onToggleView3d,
   onPickMode,
   onPickScale,
   onEnterFullscreen,
 }: {
-  mode: SizingMode;
+  // null while the 3D view is showing: none of the 2D sizes is lit then.
+  mode: SizingMode | null;
   scale: DeviceScale;
   // Largest scale this window can actually draw (see maxDeviceScale above).
   // Anything past it is offered greyed out rather than silently substituted.
   maxScale: number;
   deviceMode: boolean;
   onToggleDeviceMode: () => void;
+  // 3D device view — offered only behind Experimental features, and only
+  // for a machine that has a model.
+  view3dAvailable: boolean;
+  view3d: boolean;
+  onToggleView3d: () => void;
   onPickMode: (mode: SizingMode) => void;
   onPickScale: (scale: DeviceScale) => void;
   onEnterFullscreen: () => void;
@@ -1368,6 +1368,20 @@ function SizingControls({
   // Stroke-based SVGs so the icons inherit currentColor and stay legible
   // against both the active (yellow) and inactive (transparent) backgrounds.
   const iconClass = 'block';
+  // The device-view icon (also shown, smaller, on the 3D button).
+  const deviceIcon = (size: number) => (
+    <svg className={iconClass} width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {/* Clamshell palmtop body — landscape, mirrors the 5mx wireframe:
+          a wide LCD up top and a keyboard row along the bottom. */}
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      {/* LCD screen */}
+      <rect x="4.5" y="6" width="15" height="7" rx="0.5" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="1.2" />
+      {/* Keyboard — two rows of keys plus a spacebar */}
+      <line x1="5" y1="15.2" x2="19" y2="15.2" strokeWidth="1.3" strokeDasharray="1.3 1.1" />
+      <line x1="5" y1="17.4" x2="19" y2="17.4" strokeWidth="1.3" strokeDasharray="1.3 1.1" />
+    </svg>
+  );
   const baseBtn = 'inline-flex items-center justify-center w-7 h-7 rounded transition-colors';
   const activeBtn  = `${baseBtn} bg-psion-highlight text-psion-charcoal ring-1 ring-psion-accent`;
   const idleBtn    = `${baseBtn} text-psion-charcoal/60 hover:text-psion-charcoal hover:bg-psion-mid`;
@@ -1400,18 +1414,27 @@ function SizingControls({
         title={deviceMode ? 'Device mode on — click to hide device skin' : 'Device mode off — click to show device skin'}
         aria-pressed={deviceMode}
       >
-        <svg className={iconClass} width="16" height="16" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          {/* Clamshell palmtop body — landscape, mirrors the 5mx wireframe:
-              a wide LCD up top and a keyboard row along the bottom. */}
-          <rect x="2" y="4" width="20" height="16" rx="2" />
-          {/* LCD screen */}
-          <rect x="4.5" y="6" width="15" height="7" rx="0.5" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="1.2" />
-          {/* Keyboard — two rows of keys plus a spacebar */}
-          <line x1="5" y1="15.2" x2="19" y2="15.2" strokeWidth="1.3" strokeDasharray="1.3 1.1" />
-          <line x1="5" y1="17.4" x2="19" y2="17.4" strokeWidth="1.3" strokeDasharray="1.3 1.1" />
-        </svg>
+        {deviceIcon(16)}
       </button>
+
+      {/* 3D device view (experimental) — the red ring is the toolbar's
+          mark for an Experimental-features control. */}
+      {view3dAvailable && (
+        <button
+          type="button"
+          onClick={onToggleView3d}
+          className={`${(view3d ? activeBtn : idleBtn).replace('w-7 ', 'px-1 gap-0.5 ')} ring-1 ring-red-600/70`}
+          title={view3d
+            ? '3D device view on (experimental) — click to go back to the 2D view'
+            : '3D device view (experimental) — turn, zoom and open the machine'}
+          aria-pressed={view3d}
+        >
+          {/* The device-view icon, small, labelled 3D; the button widens
+              to fit the label. */}
+          {deviceIcon(11)}
+          <span className="text-[10px] font-bold leading-none tracking-tight">3D</span>
+        </button>
+      )}
 
       {/* Thin vertical divider between device-mode and sizing controls */}
       <span className="w-px h-4 bg-psion-accent/30 self-center mx-0.5" aria-hidden="true" />

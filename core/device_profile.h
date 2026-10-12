@@ -56,9 +56,10 @@ struct DeviceProfile {
     // Hide this profile from the frontend device picker. Used for
     // alternate-ROM variants of a device that already appears under its
     // main id (e.g. the older MC400 v1.26F ROM): the runtime can still
-    // create and name it — and the frontend reaches it via a discreet
-    // header link — but it doesn't clutter the device list with a near-
-    // duplicate entry.
+    // create and name it — the harness boots it by id, and an old
+    // frontend link to it still resolves — but it doesn't clutter the
+    // device list with a near-duplicate entry. The frontend offers the
+    // ROM itself as a choice under the main id (Settings → ROM versions).
     bool hiddenFromPicker = false;
     // True if the device has an MMC (MultiMediaCard) slot. Distinct from
     // hasCFSlot: the netpad's card is an MMC in SPI mode hanging off the

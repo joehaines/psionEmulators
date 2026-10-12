@@ -710,10 +710,11 @@ static const DeviceProfile kProfiles[] = {
         // in half the time. Same hardware and factory as the default
         // profile above — only the ROM image differs — so it shares
         // makeConan, the skin and the (absent) slot layout. Hidden from
-        // the picker (hiddenFromPicker = true): the frontend offers it via
-        // the same discreet header link the MC400's two ROMs use, rather
-        // than a second near-duplicate list entry, but it keeps its own id
-        // so save states and the device label stay distinct.
+        // the picker (hiddenFromPicker = true): the frontend offers the
+        // image as a ROM choice under "conan" in Settings → ROM versions
+        // (frontend/src/lib/romCatalog.ts), the way the MC400's two ROMs
+        // are offered, rather than a second near-duplicate list entry. The
+        // id stays for the harness and its golden, and for old links.
         //
         // It boots to an interactive EPOC R5 desktop, fully painted and
         // byte-stable from ~40 sim-seconds on (tests/golden/conanv001.pgm;
@@ -909,7 +910,7 @@ static const DeviceProfile kProfiles[] = {
         // keyboard. Auto-detect by ROM size (0x40000) — no other profile
         // ships a 256 KiB image in the SIBO family.  Defaults to the v2.60F
         // ROM; the older v1.26F ships as a hidden mc400v126 variant below,
-        // reachable from a header link in the frontend.  This entry is
+        // and the frontend offers it in Settings → ROM versions.  This entry is
         // registered first so the size-based auto-detect (any 256 KiB SIBO
         // image with no variant ID) resolves to the default device.
         "mc400",
@@ -928,10 +929,10 @@ static const DeviceProfile kProfiles[] = {
         // Older MC400 boot ROM (v1.26F).  Same hardware/factory as the
         // default mc400 above — only the ROM image differs — so it shares
         // makeMC400, the skin and the slot layout.  Hidden from the picker
-        // (hiddenFromPicker = true): the frontend offers it via a discreet
-        // header link rather than a second near-duplicate list entry, but
-        // it keeps its own id so save states and the device label stay
-        // distinct from the v2.60F default.
+        // (hiddenFromPicker = true): the frontend offers the image as a ROM
+        // choice under "mc400" in Settings → ROM versions rather than a
+        // second near-duplicate list entry.  The id stays for the harness
+        // and for old links.
         "mc400v126",
         "Psion MC400 (v1.26F)",
         "MC400/MC400_v1.26F_eng/MC400_V1.26F.bin",

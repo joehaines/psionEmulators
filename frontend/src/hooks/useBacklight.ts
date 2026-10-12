@@ -110,11 +110,9 @@ export function useBacklight(
   const on = available && level > 0;
 
   // Everything that changes with the light changes from here, on the same
-  // render and over the same BACKLIGHT_FADE_MS, so the switch reads as one
-  // light coming up rather than parts of the page jumping at different
-  // moments: the LCD (faded per frame in the blit path), the glow on the
-  // case and the header bulb (both transition off `on` in this render), and
-  // the page going "lights out".
+  // render: the machine's own light — the LCD (next blit) and the glow on
+  // the case — switches at once, as a real EL panel does, while the page
+  // going "lights out" and the header bulb ease over BACKLIGHT_FADE_MS.
   useEffect(() => {
     setBacklightTint(color ?? null, on);
   }, [color, on, setBacklightTint]);

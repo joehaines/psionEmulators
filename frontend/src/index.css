@@ -112,18 +112,22 @@ canvas {
    to a muted grey, and the device skin photo is dimmed so the lit LCD
    stands out the way a real backlit screen does in a dark room.
 
-   The switch is one fade, not a dozen: useBacklight sets
+   The page's switch is one fade, not a dozen: useBacklight sets
    .psion-lights-fading on <body> for the length of it, and everything on
-   the page — panels, text, borders, the skin photo, the glow and the
-   header bulb — moves over the same 400 ms (BACKLIGHT_FADE_MS in
-   lib/backlight.ts) on the same curve, while the LCD fades in step in the
-   blit path. Only for the switch: the class then goes, so no other
-   interaction inherits a slow transition. */
+   the page — panels, text, borders, the skin photo and the header bulb —
+   moves over the same 400 ms (BACKLIGHT_FADE_MS in lib/backlight.ts) on
+   the same curve. Only for the switch: the class then goes, so no other
+   interaction inherits a slow transition. The machine's own light — the
+   LCD and the glow on the case (.psion-el-glow) — switches at once, as a
+   real EL panel does. */
 body.psion-lights-fading,
 body.psion-lights-fading * {
   transition-property: background-color, color, border-color, fill, stroke, filter, opacity, box-shadow !important;
   transition-duration: 400ms !important;
-  transition-timing-function: ease-in-out !important;   /* ≈ the LCD's smoothstep */
+  transition-timing-function: ease-in-out !important;
+}
+body.psion-lights-fading .psion-el-glow {
+  transition: none !important;
 }
 body.psion-lights-out {
   background-color: #050505;

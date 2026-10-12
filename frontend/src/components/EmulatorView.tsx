@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PsionWebEmulator
 // Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react';
 import type { EmulatorControls } from '../hooks/useEmulator';
 import type { BacklightState } from '../hooks/useBacklight';
-import { BACKLIGHT_FADE_MS } from '../lib/backlight';
 import CFCardDialog from './CFCardDialog';
 import SSDDialog from './SSDDialog';
 import DatapakDialog from './DatapakDialog';
@@ -13,6 +12,8 @@ import ModemDialog from './ModemDialog';
 import InfraredDialog from './InfraredDialog';
 import PrinterDialog from './PrinterDialog';
 import MachineIdDialog from './MachineIdDialog';
+import PhotoKeys from './PhotoKeys';
+import { PHOTO_KEY_LAYOUTS } from '../lib/photoKeyLayouts';
 import {
   normaliseQuadrant, isQuarterTurn, rotatedFootprint, rotationStyle, localPointerPos,
 } from '../lib/screenRotation';
@@ -25,6 +26,10 @@ import {
 import { trackAppEvent } from '../lib/analytics';
 import { linkConSeq } from '../lib/deviceMeta';
 import { ALT_BOOTS, EASTER_EGGS_HASH, eggsForDevice } from '../lib/easterEggs';
+import { has3DModel, type PhotoScreenLayout } from '../lib/device3d';
+import type { Device3DHandle } from './Device3DView';
+// three.js and the models are a sizeable download only the 3D view needs.
+const Device3DView = lazy(() => import('./Device3DView'));
 // Re-exported so App.tsx (and anything else reaching for the header's
 // sizing vocabulary) keeps importing it from the view it belongs to.
 export type { SizingMode, DeviceScale } from '../lib/deviceSizing';
@@ -66,6 +71,11 @@ interface Props {
   // canvas and (for SIBO devices) the button-bar click zones correctly
   // within the photo.
   deviceMode?: boolean;
+  // 3D device view (experimental): the machine as a model you can turn,
+  // zoom and open, with the live screen on it. Only honoured while
+  // experimentalFeatures is on and for a device that has a model (see
+  // lib/device3d); otherwise the view falls back to deviceMode's.
+  view3d?: boolean;
   // Reports the largest actual-size scale this window can show for the
   // device currently on screen (0 when it can't manage even 1×). Only this
   // component knows the skin layout and the panel size the answer depends
@@ -881,6 +891,7 @@ export default function EmulatorView({
   backlight,
   chromeless = false,
   deviceMode = false,
+  view3d = false,
   onMaxDeviceScale,
   onContentAspect,
 }: Props) {
@@ -889,7 +900,10 @@ export default function EmulatorView({
     color: backlightColor, on: backlightOn, hint: backlightHint, toggle: toggleBacklight,
   } = backlight;
   const isColourDevice = COLOUR_SCREEN_DEVICES.has(controls.currentDeviceId ?? '');
-  controls.deviceModeRef.current = deviceMode && lcdAccuracyMode && !isColourDevice;
+  // The 3D view is the experimental-features-gated, model-backed subset of
+  // view3d requests; chromeless embeds never get it.
+  const show3d = view3d && experimentalFeatures && !chromeless && has3DModel(controls.currentDeviceId);
+  controls.deviceModeRef.current = (deviceMode || show3d) && lcdAccuracyMode && !isColourDevice;
   const {
     deviceInfo,
     canvasRef,
@@ -1030,6 +1044,7 @@ export default function EmulatorView({
   // cancel carries no button number to test.
   const geofoxMenuHeldRef = useRef(false);
   const skinImgRef      = useRef<HTMLImageElement>(null);
+  const device3dRef     = useRef<Device3DHandle>(null);
   const siboBarImgRef   = useRef<HTMLImageElement>(null);
   const [showLogs,    setShowLogs]    = useState(false);
   // "Include surround" — when true, the Screenshot button captures the
@@ -1143,9 +1158,14 @@ export default function EmulatorView({
   // guest's on/off state: nothing in the emulator models the lid switch,
   // and pressing EPOC's On/Off key on the machine's behalf could easily
   // disagree with what the OS actually did.
+  // The 3D view has a lid on every model, so it can always shut; the photo
+  // views only can where there's a picture of the machine shut.
   const lidSkin = currentDeviceId ? LID_CLOSED_SKINS[currentDeviceId] : undefined;
+  const hasLid = lidSkin !== undefined || show3d;
   const [lidClosed, setLidClosed] = useState(false);
-  const lidIsClosed = lidClosed && lidSkin !== undefined;
+  const lidIsClosed = lidClosed && hasLid;
+  // Whether the closed-case PHOTO is what's on screen (2D views only).
+  const photoLidClosed = lidIsClosed && lidSkin !== undefined && !show3d;
   // Switching machines opens the lid again — otherwise the next device
   // inherits a shut lid it has no artwork (and no button) for.
   useEffect(() => { setLidClosed(false); }, [currentDeviceId]);
@@ -1155,13 +1175,18 @@ export default function EmulatorView({
   const deviceSkinLayout: SkinLayout | undefined = deviceSkinPhotoFile
     ? DEVICE_SKIN_LAYOUTS[deviceSkinPhotoFile]
     : undefined;
+  // The keys printed on that photo, each one pressable (see PhotoKeys).
+  // Not while the lid is shut: the closed-case shot has no keys on it.
+  const photoKeyLayout = deviceSkinPhotoFile && !photoLidClosed
+    ? PHOTO_KEY_LAYOUTS[deviceSkinPhotoFile]
+    : undefined;
 
   const skinFile = deviceInfo ? getSkinFilename(deviceInfo.deviceName, currentDeviceId) : null;
   // Active skin: the closed-lid photo wins over everything while the lid is
   // shut (it is the only thing there is to see); otherwise the device-skin
   // photo takes precedence when device mode is on.
-  const activeSkinFile   = lidIsClosed ? lidSkin.file : (deviceSkinPhotoFile ?? skinFile);
-  const activeSkinFolder = lidIsClosed || deviceSkinPhotoFile ? 'device-skins' : 'skins';
+  const activeSkinFile   = photoLidClosed ? lidSkin.file : (deviceSkinPhotoFile ?? skinFile);
+  const activeSkinFolder = photoLidClosed || deviceSkinPhotoFile ? 'device-skins' : 'skins';
   // The netpad silkscreen column lives in `skins/` on its own — it is not
   // full-frame case artwork, so it can't go through activeSkinFile (which
   // stretches its image across the whole frame, and feeds LoadingOverlay).
@@ -1179,7 +1204,7 @@ export default function EmulatorView({
 
   // With the lid shut the frame is the closed-case photo instead, sized off
   // the open layout so the machine keeps the width it had a moment ago.
-  const skinLayout: SkinLayout = lidIsClosed && deviceInfo
+  const skinLayout: SkinLayout = photoLidClosed && deviceInfo
     ? { screenLeft: 0, screenTop: 0,
         ...lidClosedLayout(openSkinLayout, lidSkin, deviceInfo.lcdWidth, deviceInfo.lcdHeight) }
     : openSkinLayout;
@@ -1648,6 +1673,24 @@ export default function EmulatorView({
     </button>
   );
 
+  // Where the screen and the touch pad sit on the device photo, for the 3D
+  // model's face — the same numbers this view's own canvas and overlay use,
+  // so a tap lands on the same digitiser coordinate in both views.
+  const photoLayout3d = show3d
+    ? DEVICE_SKIN_LAYOUTS[getDeviceSkinPhotoFilename(currentDeviceId) ?? ''] : undefined;
+  const layout3d: PhotoScreenLayout | null = photoLayout3d ? {
+    screenLeft:   photoLayout3d.screenLeft,
+    screenTop:    photoLayout3d.screenTop,
+    screenWidth:  photoLayout3d.screenWidth,
+    screenHeight: photoLayout3d.screenHeight,
+    padLeft:      photoLayout3d.digitiserPadLeft  ?? photoLayout3d.screenLeft,
+    padTop:       photoLayout3d.digitiserPadTop   ?? photoLayout3d.screenTop,
+    padWidth:     photoLayout3d.digitiserPadWidth ?? photoLayout3d.screenWidth,
+    padHeight:    photoLayout3d.digitiserPadHeight ?? photoLayout3d.screenHeight,
+    digitiserWidth:  photoLayout3d.digitiserWidth  ?? deviceInfo.digitiserWidth,
+    digitiserHeight: photoLayout3d.digitiserHeight ?? deviceInfo.digitiserHeight,
+  } : null;
+
   return (
     <div
       ref={fsContainerRef}
@@ -1680,7 +1723,57 @@ export default function EmulatorView({
           Wrapped in a zero-gap flex container so the button bar sits flush
           against the bottom of the LCD frame on every SIBO machine. The
           outer container's gap-4 only kicks in for the next sibling. */}
-      <div ref={contentBoxRef} className="flex flex-col items-center flex-shrink-0">
+      {/* ── 3D device view ──
+          Takes the frame's place on the page. The frame below stays mounted
+          but out of sight: its <canvas> is the one the emulator paints (in
+          worker mode, an OffscreenCanvas placeholder that can only be
+          handed over once), and the 3D screen is copied from it every frame. */}
+      {show3d && layout3d && currentDeviceId && (
+        <div
+          // Fullscreen: laid over the whole screen rather than left in the
+          // column flow, where as a flex item it got only the height the
+          // controls below it left over — often none — and sat under the
+          // container's padding. The CSS fallback's ✕ Exit (z 60) stays on top.
+          className={inFullscreen ? 'fixed inset-0 z-[55]' : 'w-full max-w-[1400px] px-2 sm:px-4 flex-shrink-0'}
+        >
+          <Suspense fallback={
+            <div className="w-full flex items-center justify-center text-xs font-mono text-psion-charcoal/60"
+                 style={{ height: 'min(74vh, 880px, max(360px, 120vw))' }}>
+              Loading 3D view…
+            </div>
+          }>
+            <Device3DView
+              ref={device3dRef}
+              deviceId={currentDeviceId}
+              baseUrl={import.meta.env.BASE_URL}
+              layout={layout3d}
+              lcdWidth={lcdWidth}
+              lcdHeight={lcdHeight}
+              getLcdSource={() => canvasRef.current}
+              lidOpen={!lidIsClosed}
+              onToggleLid={() => setLidClosed(v => !v)}
+              backlightOn={backlightOn}
+              backlightColor={backlightColor}
+              paused={paused}
+              onPenDown={handlePointerDown}
+              onPenMove={handlePointerMove}
+              onPenUp={handlePointerUp}
+              onKey={sendEpocKey}
+              fill={inFullscreen}
+            />
+          </Suspense>
+        </div>
+      )}
+
+      <div
+        ref={contentBoxRef}
+        className="flex flex-col items-center flex-shrink-0"
+        aria-hidden={show3d || undefined}
+        style={show3d ? {
+          position: 'fixed', left: 0, top: 0, zIndex: -1,
+          visibility: 'hidden', pointerEvents: 'none',
+        } : undefined}
+      >
       {/* ── Device frame ──
           Sits inside a footprint box that carries the rotation: while the
           guest draws rotated (the netpad's Tools menu → "Switch
@@ -1760,14 +1853,15 @@ export default function EmulatorView({
             dark room looks like when the EL panel lights. EL machines only
             (color is unset for the Series 7 / netBook, whose core renders
             the lamp). */}
-        {/* Mounted whenever the machine has an EL panel and faded by
-            opacity, so the glow comes up and dies away with the LCD rather
-            than popping in. The halo is kept soft and close: it should
-            light the bezel, not wash out the keys below it. */}
+        {/* Mounted whenever the machine has an EL panel and switched by
+            opacity, at once with the LCD — an EL panel has no warm-up, and
+            .psion-el-glow keeps the page's lights-out fade off it. The halo
+            is kept soft and close: it should light the bezel, not wash out
+            the keys below it. */}
         {backlightColor && !lidIsClosed && (
           <div
             aria-hidden="true"
-            className="absolute pointer-events-none"
+            className="psion-el-glow absolute pointer-events-none"
             style={{
               left:   canvasLeft,
               top:    canvasTop,
@@ -1776,7 +1870,6 @@ export default function EmulatorView({
               backgroundColor: backlightColor,
               boxShadow: `0 0 ${canvasHeight * 0.35}px ${canvasHeight * 0.04}px ${backlightColor}b3`,
               opacity: backlightOn ? 1 : 0,
-              transition: `opacity ${BACKLIGHT_FADE_MS}ms ease-in-out`,
               zIndex: 5,
             }}
           />
@@ -2003,6 +2096,14 @@ export default function EmulatorView({
               />
             ))}
           </>
+        )}
+
+        {/* Every other key on the photo — the keyboard, keypads and case
+            buttons — as zones over the printed keys. Above the touch
+            overlay (z 20), which on a machine without a digitiser can
+            reach down over the top of the case. */}
+        {photoKeyLayout && (
+          <PhotoKeys layout={photoKeyLayout} width={cw} height={ch} sendKey={sendEpocKey} />
         )}
 
         {/* netpad silkscreen tap zones. Five equal bands down the icon
@@ -2344,7 +2445,7 @@ export default function EmulatorView({
 
         {/* Lid — only for a clamshell we have a closed-case shot of. The
             machine carries on running behind it; see the lid notes above. */}
-        {lidSkin && (
+        {hasLid && (
           <button
             onClick={() => setLidClosed(v => !v)}
             className={lidIsClosed ? btnActive : btn}
@@ -2718,8 +2819,8 @@ export default function EmulatorView({
                 return out;
               };
 
-              const downloadPng = (raw: HTMLCanvasElement) => {
-                const source = turned(raw);
+              const downloadPng = (raw: HTMLCanvasElement, asIs = false) => {
+                const source = asIs ? raw : turned(raw);
                 source.toBlob(blob => {
                   if (!blob) {
                     alert('Failed to capture screenshot.');
@@ -2736,6 +2837,14 @@ export default function EmulatorView({
                   URL.revokeObjectURL(url);
                 }, 'image/png');
               };
+
+              // 3D view with the surround: the picture on screen, from
+              // wherever the camera is now, rendered again at twice the
+              // resolution. It is already the right way up — no turning.
+              if (includeSurround && show3d) {
+                const shot = device3dRef.current?.capture(2);
+                if (shot) { downloadPng(shot, true); return; }
+              }
 
               // LCD-only — legacy path.
               if (!includeSurround) {
@@ -2825,7 +2934,9 @@ export default function EmulatorView({
               vertical centring still works. */}
           <label
             className="flex items-center gap-1 text-[10px] font-mono text-gray-500 select-none cursor-pointer"
-            title="Capture the device skin and button bar around the LCD too"
+            title={show3d
+              ? 'Capture the whole 3D view, from the current angle'
+              : 'Capture the device skin and button bar around the LCD too'}
           >
             <input
               type="checkbox"

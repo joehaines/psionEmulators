@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import type { DeviceProfile } from '../types/emulator';
 import { DEVICE_LOGO_MAP } from '../lib/deviceMeta';
 import { romUrlFor } from '../lib/romCatalog';
+import { purgeAndReload } from '../lib/staleCache';
 
 // Known brand prefixes, longest first so "Oregon Scientific" matches
 // before any single-word prefix could.
@@ -161,7 +162,7 @@ export default function DevicePanel({
                 <p className="text-red-600 font-mono text-xs">Device list failed to load.</p>
                 <p className="text-gray-500 font-mono text-[11px] break-words">{listError}</p>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => void purgeAndReload(baseUrl)}
                   className="self-start px-3 py-1 rounded bg-psion-highlight text-psion-charcoal font-mono text-xs hover:brightness-95 transition"
                 >
                   Reload

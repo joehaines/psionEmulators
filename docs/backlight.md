@@ -91,13 +91,12 @@ hardware has a backlight:
   the LCD — paper takes on the EL colour, ink stays dark — and a glow is
   cast onto the case. The page goes "lights out" around it (not in an
   embed, or the desktop app);
-- one fade for the whole switch. When the UI sees the machine's output
-  change it starts everything at once and over the same 400 ms
-  (`BACKLIGHT_FADE_MS`): the LCD blends between its unlit and lit renderings
-  frame by frame in the blit path (smoothstep), and the glow, the header
-  bulb and every page colour transition together (`.psion-lights-fading`,
-  ease-in-out) — rather than the LCD snapping on its own frame while the
-  chrome caught up at its own pace.
+- the machine's light switches at once, the page fades. An EL panel has no
+  warm-up, so the LCD (on the next blit) and the glow on the case
+  (`.psion-el-glow`, exempt from the page fade) switch instantly, as on the
+  real machines. The page going "lights out", the skin photo dimming and
+  the header bulb all ease together over 400 ms (`BACKLIGHT_FADE_MS`,
+  `.psion-lights-fading`).
 
 The EL colours (`lib/backlight.ts`) are eyeballed from photos of lit machines
 (the Conan's blue is set as a blue rather than matched to a photo);

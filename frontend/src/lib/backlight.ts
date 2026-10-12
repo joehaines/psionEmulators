@@ -85,53 +85,12 @@ export function tintBacklitPixels(buf: Uint8ClampedArray, lut: Uint8Array): void
   }
 }
 
-/**
- * Partway lit, for the fade: each pixel goes `mix` of the way from how the
- * panel looks unlit to how it looks lit. The unlit look is the frame as
- * the core drew it, or — given device mode's grey/alpha lookups — the
- * translucent rendering device mode would have blitted.
- */
-export function blendBacklitPixels(
-  buf: Uint8ClampedArray, lut: Uint8Array, mix: number,
-  deviceGrey: Uint8Array | null = null, deviceAlpha: Uint8Array | null = null,
-): void {
-  for (let i = 0; i < buf.length; i += 4) {
-    const lum = (buf[i] * 77 + buf[i + 1] * 150 + buf[i + 2] * 29) >> 8;
-    const l = lum * 3;
-    let r = buf[i], g = buf[i + 1], b = buf[i + 2];
-    const a = buf[i + 3];
-    if (deviceGrey && deviceAlpha) { r = g = b = deviceGrey[lum]; }
-    buf[i]     = r + (lut[l]     - r) * mix;
-    buf[i + 1] = g + (lut[l + 1] - g) * mix;
-    buf[i + 2] = b + (lut[l + 2] - b) * mix;
-    if (deviceGrey && deviceAlpha) buf[i + 3] = deviceAlpha[lum] + (a - deviceAlpha[lum]) * mix;
-  }
-}
-
-/** How long the backlight takes to come on or go out on screen. Everything
- *  that changes with it — the LCD, the glow on the case, the page going
- *  "lights out" and the header bulb — runs on this one duration, from the
- *  same moment. (index.css's .psion-lights-fading carries the same figure,
- *  and public/emulator-worker.js its own copy.) */
+/** How long the page takes to go "lights out" (and come back) when the
+ *  backlight switches — the page chrome, the skin photo and the header
+ *  bulb. The machine's own light — the LCD and the glow on the case —
+ *  switches at once, as an EL panel does. (index.css's
+ *  .psion-lights-fading carries the same figure.) */
 export const BACKLIGHT_FADE_MS = 400;
-
-/**
- * The LCD's share of the fade, stepped once per blitted frame. Returns how
- * lit the panel should be drawn, 0..1, eased (smoothstep) so it starts and
- * settles gently instead of moving in a straight line.
- */
-export class BacklightFade {
-  private mix = 0;
-  private last = 0;
-  step(lit: boolean, nowMs: number): number {
-    const dt = this.last ? nowMs - this.last : 0;
-    this.last = nowMs;
-    this.mix = Math.min(1, Math.max(0, this.mix + (lit ? dt : -dt) / BACKLIGHT_FADE_MS));
-    return this.mix * this.mix * (3 - 2 * this.mix);
-  }
-  /** Jump straight to a state — a new machine, or no EL panel at all. */
-  reset(lit = false): void { this.mix = lit ? 1 : 0; this.last = 0; }
-}
 
 /**
  * The host shortcut for the backlight: Ctrl+Shift+L, on every machine.

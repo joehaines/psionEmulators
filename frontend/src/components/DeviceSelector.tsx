@@ -6,6 +6,7 @@ import type { DeviceProfile } from '../types/emulator';
 import { loadPsionModule } from '../lib/wasmBridge';
 import DeviceCard from './DeviceCard';
 import { romUrlFor } from '../lib/romCatalog';
+import { purgeAndReload } from '../lib/staleCache';
 
 interface Props {
   onSelect: (romUrl: string) => void;
@@ -43,7 +44,7 @@ export default function DeviceSelector({ onSelect }: Props) {
             <p className="text-red-600 font-mono text-sm">Device list failed to load.</p>
             <p className="text-gray-500 font-mono text-xs break-words">{loadError}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => void purgeAndReload(import.meta.env.BASE_URL)}
               className="self-start px-4 py-1.5 rounded bg-psion-highlight text-psion-charcoal font-mono text-xs hover:brightness-95 transition"
             >
               Reload

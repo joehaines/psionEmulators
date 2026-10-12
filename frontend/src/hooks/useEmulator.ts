@@ -25,7 +25,7 @@ import {
 import { quiesceActiveSessions } from '../lib/plp/client-spec';
 import { romStateTag, romUrlFor, osImagePath, romLanguageNames, romHasLanguageChoice } from '../lib/romCatalog';
 import {
-  BacklightFade, blendBacklitPixels, buildBacklightLut, parseHexColour, tintBacklitPixels,
+  buildBacklightLut, parseHexColour, tintBacklitPixels,
 } from '../lib/backlight';
 
 export type EmulatorState = 'idle' | 'loading-wasm' | 'ready' | 'loading-rom' | 'running' | 'error';
@@ -210,14 +210,15 @@ function ssdTypeCode(bytes: Uint8Array, kind: PackKind | undefined): number {
 // The MC400 and MC200 both came with a ROM:: System Disk in Pack D (slot 3) —
 // the window server, shell, OPL and fonts that populate the lower app bar.
 // Returns the bundled image URL + pack kind, or null when the slot has no
-// factory default.
-function defaultSsdFor(deviceId: string, slot: number): { url: string; kind: PackKind } | null {
+// factory default. The MC400's disk is the v2.60F one, so it goes in only
+// on the default ROM (romTag ''); the older v1.26F boots with Pack D empty.
+function defaultSsdFor(deviceId: string, slot: number, romTag: string): { url: string; kind: PackKind } | null {
   if (deviceId === 'mc200' && slot === 3) {
     // Same Pack D arrangement as the MC400 — the MC200's own
     // factory System Disk, dumped.
     return { url: `${import.meta.env.BASE_URL}roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd`, kind: 'protected' };
   }
-  if (deviceId === 'mc400' && slot === 3) {
+  if (deviceId === 'mc400' && slot === 3 && romTag === '') {
     // Strapped write-protected, like the real ROM:: System Disk.
     return { url: `${import.meta.env.BASE_URL}roms/MC400/MC400_v2.60F_eng/MC400_V2.60F_system.ssd`, kind: 'protected' };
   }
@@ -813,9 +814,8 @@ export interface EmulatorControls {
   // 0 on machines without a backlight. See lib/backlight.ts.
   getBacklightLevel(): number;
   // The EL colour to light the LCD with (null: never — a machine with no
-  // EL panel), and whether it is lit now. The blit fades the LCD to that
-  // state over BACKLIGHT_FADE_MS, starting from the call — the same moment
-  // the rest of the page starts its own fade.
+  // EL panel), and whether it is lit now. The LCD switches on the next
+  // blit — no fade, as on the real panel.
   setBacklightTint(colour: string | null, lit: boolean): void;
   // Quarter-turns anticlockwise the emulated panel currently has to be
   // shown at. The netpad's "Switch orientation" (Tools menu) rotates the
@@ -1091,23 +1091,17 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   const stepErrorCountRef    = useRef(0);
   const deviceModeRef        = useRef(false);
   // Lit-EL state set by setBacklightTint: the lookup (null when the
-  // machine has no EL panel), whether it is lit, and the fade between.
+  // machine has no EL panel) and whether it is lit.
   const backlightLutRef      = useRef<{ colour: string; lut: Uint8Array } | null>(null);
   const backlightLitRef      = useRef(false);
-  const backlightFadeRef     = useRef(new BacklightFade());
   // Everything done to a frame between readLCD and the blit. A lit EL
   // panel is its own light source, so while it is lit it wins over device
   // mode's translucent rendering (which lets the photo's unlit LCD show
   // through) — otherwise the lit panel would be seen through a grey veil.
-  // Partway through the fade the frame is a blend of the two.
   const postProcessLcd = (buf: Uint8ClampedArray) => {
     const lit = backlightLutRef.current;
-    const mix = lit ? backlightFadeRef.current.step(backlightLitRef.current, performance.now()) : 0;
-    if (lit && mix >= 1) tintBacklitPixels(buf, lit.lut);
-    else if (lit && mix > 0) {
-      const dev = deviceModeRef.current;
-      blendBacklitPixels(buf, lit.lut, mix, dev ? DEVICE_GREY_LUT : null, dev ? DEVICE_ALPHA_LUT : null);
-    } else if (deviceModeRef.current) applyDeviceModePixels(buf);
+    if (lit && backlightLitRef.current) tintBacklitPixels(buf, lit.lut);
+    else if (deviceModeRef.current) applyDeviceModePixels(buf);
   };
   const logBufferRef         = useRef<string[]>([]);
   const audioEngineRef       = useRef<AudioEngine | null>(null);
@@ -2013,7 +2007,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
         // is otherwise empty. A user-inserted pack persists to IndexedDB and
         // takes precedence; ejecting clears the slot as usual.
         if (!saved || saved.byteLength === 0) {
-          const def = defaultSsdFor(deviceId, slot);
+          const def = defaultSsdFor(deviceId, slot, romTag);
           if (def) {
             saved = (await fetchDefaultSsd(def.url)) ?? null;
             savedKind = def.kind;
@@ -2144,9 +2138,7 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
   const setBacklightTint = useCallback((colour: string | null, lit: boolean) => {
     backlightLitRef.current = lit;
     if (colour === (backlightLutRef.current?.colour ?? null)) return;
-    // A new panel (another machine, or none): no fade into it.
     backlightLutRef.current = colour ? { colour, lut: buildBacklightLut(parseHexColour(colour)) } : null;
-    backlightFadeRef.current.reset(lit);
   }, []);
 
   // Orientation the guest is drawing at, in quarter-turns anticlockwise.

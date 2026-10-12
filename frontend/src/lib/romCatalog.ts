@@ -135,6 +135,13 @@ export const ROM_CATALOG: Record<string, DeviceRomSet> = {
       version: '0.24B', language: 'English', languages: [],
       note: 'A pre-release (beta) build. Boots to the Insert Startup SSD prompt; Menu opens the System screen.' },
   ] },
+  mc400: { kind: 'rom', options: [
+    { id: 'MC400_v2.60F_eng', path: 'MC400/MC400_v2.60F_eng/MC400_v2.60F.bin', size: 262144,
+      version: '2.60F', language: 'English' },
+    { id: 'MC400_v1.26F_eng', path: 'MC400/MC400_v1.26F_eng/MC400_V1.26F.bin', size: 262144,
+      version: '1.26F', language: 'English', languages: [],
+      note: 'The older boot ROM. Starts without the v2.60F System Disk in Pack D.' },
+  ] },
   series5: { kind: 'rom', options: [
     { id: 'S5_v1.01(145)_eng', path: 'Series5/S5_v1.01(145)_eng/S5_v1.01(145)_eng.bin', size: 6291456,
       version: '1.01(145)', language: 'English (UK)', languages: EN_UK_SCAN },
@@ -222,6 +229,13 @@ export const ROM_CATALOG: Record<string, DeviceRomSet> = {
       version: '1.06(401)', language: 'Dutch', languages: [] },
     { id: 'Revo_v1.08(14)_chitr', path: 'Revo/Revo_v1.08(14)_chitr/Revo_v1.08(14)_chitr.bin', size: 16777216,
       version: '1.08(14)', language: 'Chinese (Traditional)', languages: [] },
+  ] },
+  conan: { kind: 'rom', options: [
+    { id: 'Conan_v0.10(17)_eng', path: 'Conan/Conan_v0.10(17)_eng/conan_v0.10(17)_eng.IMG', size: 16777216,
+      version: '0.10(17)', language: 'English (UK)' },
+    { id: 'Conan_v0.01(22)_engbuild', path: 'Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img', size: 12263424,
+      version: '0.01(22)', language: 'English', languages: [],
+      note: "An earlier engineering build (EPOC R5). Paints the Revo's splash; its Agenda panics shortly after boot." },
   ] },
   netbook: { kind: 'os', options: [
     { id: 'netBook_v1.05(450)_patch_site_eng',

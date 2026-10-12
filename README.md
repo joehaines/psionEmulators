@@ -266,9 +266,9 @@ emulator's PsiWin client can't.
   dialog's listing while the pack is still inserted, and **download** takes
   any of them off the device (the whole pack image can be saved too). See
   [`docs/sibo-ssd-packs.md`](docs/sibo-ssd-packs.md).
-- **MC400 ROMs** — the MC400 defaults to the v2.60F boot ROM; a discreet
-  header link swaps to the older v1.26F ROM (and back) without leaving a
-  second entry in the device picker.
+- **MC400 ROMs** — the MC400 defaults to the v2.60F boot ROM; the older
+  v1.26F ROM is a choice in Settings → ROM versions, like every other
+  device's alternate ROMs, rather than a second entry in the device picker.
 - **MC200** — the MC400's smaller sibling: the same SIBO1 board and the same
   V2.12F boot ROM, with a 640×200 panel in place of the 640×400 one, a
   single-plate framebuffer and 128 KiB of RAM. It cold-boots with its own
@@ -343,8 +343,8 @@ emulator's PsiWin client can't.
   ROM's own, and the machine is an **EPOC R6** (Symbian OS 6.0) build.
   The earlier engineering image `roms/Conan/Conan_v0.01(22)_engbuild/s2_2201.engbuild.img` (EPOC R5,
   version 0.01(22), built 2001-05-12, 12 MB) is kept alongside it as
-  `conanv001`, reached by a discreet header link the way the MC400's two
-  ROMs are; it paints the *Revo's* splash rather than Conan's own.
+  `conanv001` and offered as a ROM choice for the Conan in Settings → ROM
+  versions; it paints the *Revo's* splash rather than Conan's own.
   It is the Revo's board: the images' HAL tables name the same parts —
   the `LAP 53` panel, `MLM 650` digitiser, `ARM 710T`, and the `REVO` /
   `REVO-PRO` device types, byte-for-byte the same run in both — and both

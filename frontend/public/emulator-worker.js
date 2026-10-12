@@ -205,15 +205,12 @@ function applyDeviceModePixels(buf) {
   }
 }
 
-// Lit EL backlight (mirrors buildBacklightLut / tintBacklitPixels /
-// blendBacklitPixels / BacklightFade in src/lib/backlight.ts — keep them in
-// step; the backlight unit test compares the two). Set by setBacklightTint,
-// which the UI calls the moment it starts the page's own fade, so the LCD
-// fades over the same BACKLIGHT_FADE_MS from the same moment.
+// Lit EL backlight (mirrors buildBacklightLut / tintBacklitPixels in
+// src/lib/backlight.ts — keep them in step; the backlight unit test
+// compares the two). Set by setBacklightTint; the LCD switches on the next
+// blit — no fade, as on the real panel.
 const LIT_INK = [0x1c, 0x24, 0x22];
-const BACKLIGHT_FADE_MS = 400;
 let backlightLut = null, backlightColour = null, backlightLit = false;
-let backlightMix = 0, backlightLast = 0;
 function buildBacklightLut(hex) {
   const v = parseInt(String(hex).replace('#', ''), 16);
   const el = [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff];
@@ -230,36 +227,12 @@ function tintBacklitPixels(buf, lut) {
     buf[i] = lut[l]; buf[i + 1] = lut[l + 1]; buf[i + 2] = lut[l + 2];
   }
 }
-function blendBacklitPixels(buf, lut, mix, deviceGrey, deviceAlpha) {
-  for (let i = 0; i < buf.length; i += 4) {
-    const lum = (buf[i] * 77 + buf[i + 1] * 150 + buf[i + 2] * 29) >> 8;
-    const l = lum * 3;
-    let r = buf[i], g = buf[i + 1], b = buf[i + 2];
-    const a = buf[i + 3];
-    if (deviceGrey && deviceAlpha) { r = g = b = deviceGrey[lum]; }
-    buf[i]     = r + (lut[l]     - r) * mix;
-    buf[i + 1] = g + (lut[l + 1] - g) * mix;
-    buf[i + 2] = b + (lut[l + 2] - b) * mix;
-    if (deviceGrey && deviceAlpha) buf[i + 3] = deviceAlpha[lum] + (a - deviceAlpha[lum]) * mix;
-  }
-}
-// One step of the LCD's fade, per blitted frame: 0..1, smoothstep-eased.
-function stepBacklightFade(now) {
-  const dt = backlightLast ? now - backlightLast : 0;
-  backlightLast = now;
-  backlightMix = Math.min(1, Math.max(0, backlightMix + (backlightLit ? dt : -dt) / BACKLIGHT_FADE_MS));
-  return backlightMix * backlightMix * (3 - 2 * backlightMix);
-}
 // Everything the frontend does to a frame between readLCD and the blit.
 // A lit EL panel is its own light source, so while it is lit it wins over
 // device mode's translucent rendering (which lets the photo's unlit LCD
 // show through) — otherwise the lit panel would be seen through a grey veil.
-// Partway through the fade the frame is a blend of the two.
 function postProcessLcd() {
-  const mix = backlightLut ? stepBacklightFade(performance.now()) : 0;
-  if (backlightLut && mix >= 1) tintBacklitPixels(pixelBuf, backlightLut);
-  else if (backlightLut && mix > 0)
-    blendBacklitPixels(pixelBuf, backlightLut, mix, deviceMode ? GREY : null, deviceMode ? ALPHA : null);
+  if (backlightLut && backlightLit) tintBacklitPixels(pixelBuf, backlightLut);
   else if (deviceMode) applyDeviceModePixels(pixelBuf);
 }
 
@@ -347,14 +320,15 @@ async function idbDelete(key) {
 // The MC400 and MC200 both came with a ROM:: System Disk in Pack D (slot 3) —
 // the window server, shell, OPL and fonts that populate the lower app bar.
 // Returns the bundled image URL + pack kind, or null when the slot has no
-// factory default.
-function defaultSsdFor(deviceId, slot) {
+// factory default. The MC400's disk is the v2.60F one, so it goes in only
+// on the default ROM (romTag ''); the older v1.26F boots with Pack D empty.
+function defaultSsdFor(deviceId, slot, romTag) {
   if (deviceId === 'mc200' && slot === 3) {
     // Same Pack D arrangement as the MC400 — the MC200's own
     // factory System Disk, dumped.
     return { url: 'roms/MC200/MC200_v2.12F_eng/MC200_V2.12F_system.ssd', kind: 'protected' };
   }
-  if (deviceId === 'mc400' && slot === 3) {
+  if (deviceId === 'mc400' && slot === 3 && romTag === '') {
     // Strapped write-protected, like the real ROM:: System Disk.
     return { url: 'roms/MC400/MC400_v2.60F_eng/MC400_V2.60F_system.ssd', kind: 'protected' };
   }
@@ -904,7 +878,7 @@ const rpc = {
         // is otherwise empty. A user-inserted pack persists to IndexedDB and
         // takes precedence; ejecting clears the slot as usual.
         if (!img || !img.byteLength) {
-          const def = defaultSsdFor(deviceId, slot);
+          const def = defaultSsdFor(deviceId, slot, romTag);
           if (def) { img = await fetchDefaultSsd(def.url); kind = def.kind; }
         }
         if (!img || !img.byteLength) continue;
@@ -996,11 +970,8 @@ const rpc = {
   setBacklightTint({ colour, lit }) {
     backlightLit = !!lit;
     if ((colour || null) !== backlightColour) {
-      // A new panel (another machine, or none): no fade into it.
       backlightColour = colour || null;
       backlightLut = colour ? buildBacklightLut(colour) : null;
-      backlightMix = backlightLit ? 1 : 0;
-      backlightLast = 0;
     }
     return true;
   },

@@ -156,7 +156,7 @@ export class EmulatorWorkerClient {
   reset(): Promise<boolean> { return this.call('reset'); }
   setDeviceMode(on: boolean): Promise<boolean> { return this.call('setDeviceMode', { on }); }
   /** The EL colour the worker lights the LCD with (null: never — no EL
-   *  panel), and whether it is lit; the worker fades the LCD to match. */
+   *  panel), and whether it is lit; the worker lights the LCD on its next blit. */
   setBacklightTint(colour: string | null, lit: boolean): Promise<boolean> {
     return this.call('setBacklightTint', { colour, lit });
   }

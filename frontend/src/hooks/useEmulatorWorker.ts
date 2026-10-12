@@ -25,6 +25,7 @@ import { quiesceActiveSessions } from '../lib/plp/client-spec';
 import { trackDeviceLoad, trackFeature, startSession, endSession } from '../lib/analytics';
 import type { PackKind } from '../lib/fefs';
 import { romStateTag, romUrlFor, romLanguageNames } from '../lib/romCatalog';
+import { recoverFromStaleCache, markLoadHealthy } from '../lib/staleCache';
 import { osCardSpec, buildOsCardImage, collectStatesBundle, applyStatesBundle, listSavedDevices, triggerDownload, loadStoredMachineId, storeMachineId, loadStoredLanguage, storeLanguage } from './useEmulator';
 import type { EmulatorControls, EmulatorState, UseEmulatorOptions } from './useEmulator';
 
@@ -187,13 +188,22 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
       // here IS the "side menu lists no devices" bug. Retry once (a transient
       // worker hiccup), then surface the error so the user isn't staring at
       // an empty panel stuck on "Loading…" with no explanation.
+      // A failure that survives the retry is most often a browser still
+      // holding an older deploy's psion.js (see lib/staleCache.ts): purge
+      // the caches and reload once, keeping "Loading…" up meanwhile.
       let profs: DeviceProfile[] = [];
       try {
         profs = (await client.getProfiles()) as DeviceProfile[];
       } catch {
         try { profs = (await client.getProfiles()) as DeviceProfile[]; }
-        catch (err) { setError(`Device list failed to load: ${String(err)}`); }
+        catch (err) {
+          // (A cancelled effect's worker is being torn down — not a cache problem.)
+          if (cancelled) return;
+          if (await recoverFromStaleCache(base, String(err))) return;
+          setError(`Device list failed to load: ${String(err)}`);
+        }
       }
+      if (profs.length) markLoadHealthy();
       setProfiles(profs);
       void listSavedDevices().then(setSavedDevices);   // populate the saved-state list
       setState('ready');
@@ -202,7 +212,12 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
         const p = profs.find(x => x.id === lastId && x.status === 'supported');
         if (p) void doLoad(lastId, romUrlFor(p, base));
       }
-    }).catch(err => { setError(String(err)); setState('error'); });
+    }).catch(async err => {
+      // The engine itself failed to load in the worker — the same stale-cache
+      // suspect as above.
+      if (!cancelled && await recoverFromStaleCache(base, String(err))) return;
+      setError(String(err)); setState('error');
+    });
     return () => {
       cancelled = true; setSerialPumpForward(null); setSimKeepAliveForward(null);
       clientRef.current = null;

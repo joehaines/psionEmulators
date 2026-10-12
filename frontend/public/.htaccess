@@ -1,1 +1,13 @@
 AddType application/wasm .wasm
+
+# Files whose names don't change between deploys must be revalidated on every
+# use, or a browser falls back to heuristic caching (a fraction of the file's
+# age) and can keep running the previous deploy's index.html or psion.js for
+# hours — the service worker doesn't cover a first visit or a browser without
+# one. "no-cache" still lets an unchanged file come back as a cheap 304.
+# Content-hashed files under assets/ never change, so they can be kept.
+<IfModule mod_headers.c>
+    <FilesMatch "^(index\.html|sw\.js|workbox-[^/]*\.js|psion\.js|psion\.wasm|emulator-worker\.js|manifest\.webmanifest)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>

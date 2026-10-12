@@ -3,42 +3,59 @@
 
 import type { PsionModule } from '../types/emulator';
 import { fetchEngine } from './engineId';
+import { recoverFromStaleCache, markLoadHealthy } from './staleCache';
 
 let modulePromise: Promise<PsionModule> | null = null;
 
 export async function loadPsionModule(): Promise<PsionModule> {
   if (!modulePromise) {
-    modulePromise = (async () => {
-      // psion.js is served as a static asset from public/
-      // It exports a factory function createPsionModule()
-      const script = document.createElement('script');
-      script.src = import.meta.env.BASE_URL + 'psion.js';
-      script.type = 'text/javascript';
-      await new Promise<void>((resolve, reject) => {
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load psion.js'));
-        document.head.appendChild(script);
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const factory = (window as any).createPsionModule;
-      if (typeof factory !== 'function') {
-        throw new Error('createPsionModule not found on window');
+    modulePromise = instantiatePsionModule().catch(async (err: unknown) => {
+      // A psion.js left over from an older deploy, run against this deploy's
+      // psion.wasm, fails here (see staleCache.ts). When that triggers a
+      // reload onto fresh files, stay pending — the UI keeps its loading
+      // state — until the page goes away.
+      if (await recoverFromStaleCache(import.meta.env.BASE_URL, String(err))) {
+        return new Promise<PsionModule>(() => {});
       }
-
-      // Instantiated from the bytes engineId fingerprinted, so a save is
-      // stamped with the identity of the code that actually ran.
-      const { bytes } = await fetchEngine();
-      const mod = await (factory({ wasmBinary: bytes }) as Promise<PsionModule>);
-      // Test hook: expose the module on window for the audio harness
-      // (scripts/test-audio-browser.mjs) so it can read codec counters
-      // without scraping the DOM. No-op for prod usage.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).__psionMod = mod;
-      return mod;
-    })();
+      throw err;
+    });
   }
   return modulePromise;
+}
+
+async function instantiatePsionModule(): Promise<PsionModule> {
+  // psion.js is served as a static asset from public/
+  // It exports a factory function createPsionModule()
+  const script = document.createElement('script');
+  script.src = import.meta.env.BASE_URL + 'psion.js';
+  script.type = 'text/javascript';
+  await new Promise<void>((resolve, reject) => {
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load psion.js'));
+    document.head.appendChild(script);
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const factory = (window as any).createPsionModule;
+  if (typeof factory !== 'function') {
+    throw new Error('createPsionModule not found on window');
+  }
+
+  // Instantiated from the bytes engineId fingerprinted, so a save is
+  // stamped with the identity of the code that actually ran.
+  const { bytes } = await fetchEngine();
+  const mod = await (factory({ wasmBinary: bytes }) as Promise<PsionModule>);
+  // Test hook: expose the module on window for the audio harness
+  // (scripts/test-audio-browser.mjs) so it can read codec counters
+  // without scraping the DOM. No-op for prod usage.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__psionMod = mod;
+  // The first string call is where a mismatched psion.js falls over;
+  // make it here, where the failure can be recovered from, rather than
+  // in whichever component happens to read the device list first.
+  mod.getAllDeviceProfilesJSON();
+  markLoadHealthy();
+  return mod;
 }
 
 // ── Host serial bridge helpers ───────────────────────────────────────

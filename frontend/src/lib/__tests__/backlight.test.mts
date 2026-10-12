@@ -24,7 +24,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import {
-  BACKLIGHT_FADE_MS, BacklightFade, blendBacklitPixels,
   buildBacklightLut, describeBacklightKey, elColourFor, isBacklightShortcut,
   parseHexColour, tintBacklitPixels,
 } from '../backlight.ts';
@@ -78,69 +77,38 @@ test('alpha is left alone', () => {
   assert.equal(buf[3], 0x40);
 });
 
-// The fade. Partway between unlit and lit the LCD is a blend of the two,
-// and it gets there over BACKLIGHT_FADE_MS on an eased curve.
+// The worker carries its own copy of the frame post-processing; lit, it
+// must tint exactly as the library does, and it switches at once — no
+// fade, as on a real EL panel.
 
-test('the fade blends from the unlit frame to the lit one', () => {
-  const lut = buildBacklightLut(parseHexColour('#bcd47a'));
-  const at = (mix: number) => {
-    const buf = new Uint8ClampedArray([...SIBO_PAPER, 0xFF]);
-    blendBacklitPixels(buf, lut, mix);
-    return [...buf];
-  };
-  assert.deepEqual(at(0), [...SIBO_PAPER, 0xFF]);
-  assert.deepEqual(at(1), lit([...SIBO_PAPER], '#bcd47a'));
-  const half = at(0.5);
-  for (let c = 0; c < 3; c++) {
-    const lo = Math.min(SIBO_PAPER[c], at(1)[c]), hi = Math.max(SIBO_PAPER[c], at(1)[c]);
-    assert.ok(half[c] >= lo && half[c] <= hi, `channel ${c} ${half[c]} not between ${lo} and ${hi}`);
-  }
-});
-
-test('the fade takes BACKLIGHT_FADE_MS, eases, and turns back mid-way', () => {
-  const f = new BacklightFade();
-  assert.equal(f.step(true, 1000), 0);                       // first frame: no time has passed
-  const quarter = f.step(true, 1000 + BACKLIGHT_FADE_MS / 4);
-  assert.ok(quarter > 0 && quarter < 0.25, `eased start, got ${quarter}`);
-  assert.equal(f.step(true, 1000 + BACKLIGHT_FADE_MS), 1);
-  assert.equal(f.step(true, 5000), 1);                        // stays lit
-  const back = f.step(false, 5000 + BACKLIGHT_FADE_MS / 2);   // going out
-  assert.ok(back > 0 && back < 1, `half-way out, got ${back}`);
-  const again = f.step(true, 5000 + BACKLIGHT_FADE_MS * 3 / 4);  // and back on, from where it was
-  assert.ok(again > back && again < 1, `turned back, got ${again}`);
-  f.reset(false);
-  assert.equal(f.step(true, 9000), 0);
-});
-
-test('the worker blends and fades the same way', () => {
+test('the worker lights the panel the same way, with no fade', () => {
   const src = readFileSync(fileURLToPath(new URL('../../../public/emulator-worker.js', import.meta.url)), 'utf8');
   const start = src.indexOf('const LIT_INK');
-  const end = src.indexOf('// Partway through the fade');
+  const end = src.indexOf('// ── IndexedDB');
   assert.ok(start > 0 && end > start, 'worker backlight block not found');
-  const ctx = vm.createContext({ Math });
+  const ctx = vm.createContext({});
   vm.runInContext(src.slice(start, end) + `
-    this.blend = blendBacklitPixels;
-    this.build = buildBacklightLut;
-    this.fade = (lit, now) => { backlightLit = lit; return stepBacklightFade(now); };`, ctx);
-  const w = ctx as unknown as {
-    blend: (b: Uint8ClampedArray, l: Uint8Array, m: number, g: Uint8Array | null, a: Uint8Array | null) => void;
-    build: (h: string) => Uint8Array;
-    fade: (lit: boolean, now: number) => number;
-  };
-  const grey = new Uint8Array(256).map((_, i) => Math.round(0x33 * i / 255));
-  const alpha = new Uint8Array(256).map((_, i) => Math.round(0xFF - (0xFF - 0x05) * i / 255));
+    var pixelBuf, deviceMode = false;
+    function applyDeviceModePixels(buf) { for (let i = 3; i < buf.length; i += 4) buf[i] = 0x11; }
+    this.run = (buf, colour, lit, dev) => {
+      pixelBuf = buf; deviceMode = dev;
+      backlightLut = colour ? buildBacklightLut(colour) : null; backlightLit = lit;
+      postProcessLcd();
+    };`, ctx);
+  const w = ctx as unknown as { run: (b: Uint8ClampedArray, c: string | null, lit: boolean, dev: boolean) => void };
   const px = [...SIBO_PAPER, 0xFF, ...SIBO_GREY, 0xFF, ...SIBO_INK, 0xFF, ...EPOC_PAPER, 0xFF];
-  for (const mix of [0.2, 0.5, 0.9]) {
-    for (const dev of [false, true]) {
-      const a = new Uint8ClampedArray(px), b = new Uint8ClampedArray(px);
-      blendBacklitPixels(a, buildBacklightLut(parseHexColour('#8cc4f2')), mix, dev ? grey : null, dev ? alpha : null);
-      w.blend(b, w.build('#8cc4f2'), mix, dev ? grey : null, dev ? alpha : null);
-      assert.deepEqual([...b], [...a], `mix ${mix}${dev ? ' device mode' : ''}`);
-    }
+  for (const dev of [false, true]) {
+    // Lit: fully tinted on the very first frame, device mode or not.
+    const a = new Uint8ClampedArray(px), b = new Uint8ClampedArray(px);
+    tintBacklitPixels(a, buildBacklightLut(parseHexColour('#8cc4f2')));
+    w.run(b, '#8cc4f2', true, dev);
+    assert.deepEqual([...b], [...a], `lit${dev ? ' device mode' : ''}`);
+    // Off: straight back to the unlit rendering on the very next frame.
+    const c = new Uint8ClampedArray(px);
+    w.run(c, '#8cc4f2', false, dev);
+    if (dev) assert.ok([...c].filter((_, i) => i % 4 === 3).every(v => v === 0x11), 'device mode, off');
+    else assert.deepEqual([...c], px, 'off');
   }
-  const f = new BacklightFade();
-  for (const [lit, t] of [[true, 100], [true, 180], [true, 333], [false, 400], [false, 650], [true, 700], [true, 2000]] as const)
-    assert.equal(w.fade(lit, t), f.step(lit, t), `fade at ${t} ms`);
 });
 
 test('the worker builds the same lit-panel lookup', () => {

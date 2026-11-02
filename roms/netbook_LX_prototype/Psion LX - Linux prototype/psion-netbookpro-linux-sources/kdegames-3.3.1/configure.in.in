@@ -1,0 +1,15 @@
+#MIN_CONFIG
+AC_CHECK_RANDOM
+AC_CHECK_USLEEP
+CXXFLAGS="$CXXFLAGS $KDE_DEFAULT_CXXFLAGS"
+
+KDE_INIT_DOXYGEN([The KDE Games API Reference], [Version $VERSION])
+
+# Allow for stand-alone releases of applications with cvs2pack
+if test -d $srcdir/libkdegames ; then
+	AC_SUBST(LIB_KDEGAMES, "\$(top_builddir)/libkdegames/libkdegames.la")
+	AC_SUBST(LIB_KDEGAMES_DEP, '$(LIB_KDEGAMES)')
+else
+	AC_SUBST(LIB_KDEGAMES, "-lkdegames")
+	AC_SUBST(LIB_KDEGAMES_DEP, "")
+fi

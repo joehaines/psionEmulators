@@ -1,0 +1,28 @@
+PR = "r3"
+S = "${WORKDIR}/gnumeric-${PV}"
+DEPENDS = "libgsf gtk+ libxml2 libglade libart-lgpl intltool-native libgnomecanvas libgnomeprint libgnomeprintui psion-help"
+RRECOMMENDS = "help-gnumeric"
+DESCRIPTION = "Gnumeric spreadsheet for GNOME"
+
+inherit gnome flow-lossage
+
+SRC_URI += "file://psion.patch;patch=1;pnum=0 \
+	   file://desktop-nobble.patch;patch=1 \
+	   file://ACLOCAL-fix.patch;patch=1;pnum=0 \
+	   file://remove-ssconvert.patch;patch=1;pnum=0 \
+	   file://gnumeric-pixbufs-create.patch;patch=1;pnum=0 \
+	   file://fixed-toolbar.patch;patch=1 \
+	   file://sheet.png"
+	    
+#	   file://motion-cursor-compress.patch;patch=1;pnum=0 \
+	
+
+python populate_packages_prepend () {
+	gnumeric_libdir = oe.data.expand('${libdir}/gnumeric/${PV}-psion/plugins', d)
+
+	do_split_packages(d, gnumeric_libdir, '(.*)', 'gnumeric-plugin-%s', 'Gnumeric plugin for %s', allow_dirs=True)
+}
+
+do_compile_prepend() { 
+        mv -f ${S}/../sheet.png ${S}/icons/gnome-gnumeric.png
+}

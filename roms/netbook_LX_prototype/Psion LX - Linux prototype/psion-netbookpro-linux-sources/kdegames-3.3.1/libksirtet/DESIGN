@@ -1,0 +1,57 @@
+'lo, time to explain how some things are designed in the generic class
+of these games (ksirtet, kfouleggs and klickety)
+
+NB: You should read this file with a fixed font editor ...
+
+the following set of functions is implemented in the hierarchy of classes :
+GenericTetris -> BaseBoard -> Board -> specific Board class for each game
+
+===============================================================================
+action 'Piece Drop Down' activated
+ |
+pieceDropped()           <-|
+ |                         |
+oneLineDown() -> by timer -|
+
+===============================================================================
+if oneLineDown() make the piece touch the ground
+ |
+pieceDropped()           
+ |                         
+_beforeGlue()            <-|
+ |                         |
+beforeGlue()  -> by timer -|    // here is implemented the bump effect
+ | (when done)
+gluePiece()
+ |
+_afterGlue()             <-|
+ |                         |
+afterGlue()   -> by timer -|    // here kfouleggs remove holes
+ | (when done)
+needRemoving ? no -> _afterAfterRemove()
+ |
+_beforeRemove()           <-|
+ |                          |
+beforeRemove() -> by timer -|   // here blocks to be removed are highlighted
+ | (when done)
+remove()
+ |
+_afterRemove()           <-|
+ |                         |
+afterRemove() -> by timer -|    // here is animated the fall of piece in
+ |                              // the holes leaved by removed blocks
+ | if needs removing again -> _beforeRemove()
+ |
+_afterAfterRemove() ? no gift pending -> afterAfterRemove()
+ |
+putGift()
+ |
+_afterGift()           <-|
+ |                       |
+afterGift() -> by timer -|  // here kfouleggs make the gift block to land
+ |
+_afterAfterRemove()
+ |
+afterAfterRemove() ? gameOver -> gameOver()
+ |
+newPiece()

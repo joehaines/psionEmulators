@@ -1,0 +1,41 @@
+--- gtk+-2.4.13/gtk/gtkfilesel.c~	Wed Jun  2 18:47:39 2004
++++ gtk+-2.4.13/gtk/gtkfilesel.c	Wed Oct 20 23:05:04 2004
+@@ -2621,37 +2621,7 @@
+ static gchar *
+ get_current_dir_utf8 (void)
+ {
+-  gchar *dir = g_get_current_dir ();
+-  gchar *dir_utf8 = NULL;
+-
+-  while (TRUE)
+-    {
+-      gchar *last_slash;
+-
+-      dir_utf8 = g_filename_to_utf8 (dir, -1, NULL, NULL, NULL);
+-      if (dir_utf8)
+-	break;
+-
+-      last_slash = strrchr (dir, G_DIR_SEPARATOR);
+-      if (!last_slash)		/* g_get_current_dir() wasn't absolute! */
+-	break;
+-
+-      if (last_slash + 1 == g_path_skip_root (dir)) /* Parent directory is a root directory */
+-	{
+-	  if (last_slash[1] == '\0') /* Root misencoded! */
+-	    break;
+-	  else
+-	    last_slash[1] = '\0';
+-	}
+-      else
+-	last_slash[0] = '\0';
+-      
+-      g_assert (last_slash);
+-    }
+-
+-  g_free (dir);
+-  
+-  return dir_utf8 ? dir_utf8 : g_strdup (".");
++  return g_strdup_printf ("%s/My Documents", g_get_home_dir ());
+ }
+ 
+ static CompletionState*

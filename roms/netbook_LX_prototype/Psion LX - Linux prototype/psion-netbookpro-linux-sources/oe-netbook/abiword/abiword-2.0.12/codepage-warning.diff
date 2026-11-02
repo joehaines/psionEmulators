@@ -1,0 +1,76 @@
+--- ../wv/text.c	2004-09-12 09:43:26.000000000 +1000
++++ ../wv/text.c	2004-10-08 21:08:35.808033168 +1000
+@@ -625,6 +625,9 @@
+     return ret;
+ }
+ 
++/*
++ * Changed return value to 0 on error for netbook - MES 8/10/2004.
++ */
+ U16
+ wvHandleCodePage (U16 eachchar, U16 lid)
+ {
+@@ -675,7 +678,8 @@
+ 	  wvError (
+ 		   ("iconv_open fail: %d, cannot convert %s to unicode\n",
+ 		    errno, codepage));
+-	  return ('?');
++
++	  return 0; /* was ('?') */
+       }
+ 
+     ibuflen = obuflen = 2;
+--- src/wp/impexp/xp/ie_imp_MsWord_97.h	2004-09-12 09:42:44.000000000 +1000
++++ src/wp/impexp/xp/ie_imp_MsWord_97.h	2004-10-08 23:35:26.048673008 +1000
+@@ -291,6 +291,7 @@
+ 	UT_sint32    m_iLeft;
+ 	UT_sint32    m_iRight;
+ 	UT_sint32    m_iLeftCellPos;
++	bool         m_bCodePageWarning;
+ };
+ 
+ #endif /* IE_IMP_MSWORD_H */
+--- src/wp/impexp/xp/ie_imp_MsWord_97.cpp	2004-09-12 09:42:44.000000000 +1000
++++ src/wp/impexp/xp/ie_imp_MsWord_97.cpp	2004-10-09 00:02:35.921894616 +1000
+@@ -838,7 +838,8 @@
+ 	m_dim(DIM_IN),
+ 	m_iLeft(0),
+ 	m_iRight(0),
+-	m_iLeftCellPos(0)
++	m_iLeftCellPos(0),
++	m_bCodePageWarning(false)
+ {
+   for(UT_uint32 i = 0; i < 9; i++)
+ 	  m_iListIdIncrement[i] = 0;
+@@ -1570,11 +1571,30 @@
+ 
+ 	if(_insertNoteIfAppropriate(ps->currentcp,eachchar))
+ 		return 0;
+-
++	xxx_UT_DEBUGMSG(("Code Page %s \n",wvLIDToCodePageConverter (lid)));
+ 	// convert incoming character to unicode
+ 	if (chartype)
+ 		eachchar = wvHandleCodePage(eachchar, lid);
+-
++	if(eachchar == 0)
++	{
++//
++// MISSING Code Page! Warn user!
++//
++		if(!m_bCodePageWarning)
++		{
++			XAP_Frame * pFrame = XAP_App::getApp()->getLastFocussedFrame();
++			UT_UTF8String sCode = wvLIDToCodePageConverter (lid);
++			UT_UTF8String sWarning = "This document contains characters which are not currently supported. You can download the software needed to read it from \n http://www.netbook.com \n";
++			sWarning += "Download the codepage named: \n \n";
++			sWarning += sCode;
++			sWarning += "\n \n from this site";
++			m_bCodePageWarning = true;
++			pFrame->showMessageBox(sWarning.utf8_str(),
++								   XAP_Dialog_MessageBox::b_O,
++								   XAP_Dialog_MessageBox::a_OK);
++		}
++		eachchar = static_cast<U16>('?');
++	}
+ 	switch (eachchar)
+ 	{

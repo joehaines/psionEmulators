@@ -1,0 +1,23 @@
+
+# The following is to check for a currently running instance.
+# This is taken almost verbatim from the Mozilla RPM package's launch script.
+MOZ_CLIENT_PROGRAM=$dist_bin/mozilla-xremote-client
+check_running() {
+    firefox -a firefox -remote 'ping()' 2>/dev/null >/dev/null
+    RETURN_VAL=$?
+    if [ $RETURN_VAL -eq 0 ]; then
+        echo 1
+        return 1
+    else
+        echo 0
+        return 0
+    fi
+}
+                                                                                   
+ALREADY_RUNNING=`check_running`
+
+if [ $ALREADY_RUNNING -eq 1 ]; then
+   exec firefox -a firefox -remote "openurl($1,new-tab)"& 2>/dev/null >/dev/null
+else
+   exec firefox $1 & 2>/dev/null >/dev/null
+fi

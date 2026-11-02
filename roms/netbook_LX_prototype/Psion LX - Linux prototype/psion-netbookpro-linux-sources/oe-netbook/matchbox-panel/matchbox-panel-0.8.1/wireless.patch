@@ -1,0 +1,88 @@
+--- matchbox-panel-0.8.1/applets/mb-applet-wireless.c	Fri Feb 13 13:50:36 2004
++++ matchbox-panel-0.8.1/applets/mb-applet-wireless.c	Wed Aug 11 18:08:00 2004
+@@ -52,7 +52,7 @@
+ #ifdef MB_HAVE_PNG
+ #define IMG_EXT "png"
+ #else
+-#define IMG_EXT "xpm"
++#error PNG support is required
+ #endif
+ 
+ static int LastImg = -1;
+@@ -60,23 +60,26 @@
+ enum {
+   MW_BROKE = 0,
+   MW_NO_LINK,
+-  MW_SIG_1_40,
++  MW_SIG_1_20,
++  MW_SIG_21_40,
+   MW_SIG_41_60,
+   MW_SIG_61_80,
+   MW_SIG_80_100,
+ };
+ 
+-#define  MW_BROKE_IMG      "broken-0."      IMG_EXT
+-#define  MW_NO_LINK_IMG    "no-link-0."     IMG_EXT
+-#define  MW_SIG_1_40_IMG   "signal-1-40."   IMG_EXT
+-#define  MW_SIG_41_60_IMG  "signal-41-60."  IMG_EXT
+-#define  MW_SIG_61_80_IMG  "signal-61-80."  IMG_EXT
+-#define  MW_SIG_80_100_IMG "signal-81-100." IMG_EXT
++#define  MW_BROKE_IMG      "wifi6." IMG_EXT
++#define  MW_NO_LINK_IMG    "wifi6." IMG_EXT
++#define  MW_SIG_1_20_IMG   "wifi5." IMG_EXT
++#define  MW_SIG_21_40_IMG  "wifi4." IMG_EXT
++#define  MW_SIG_41_60_IMG  "wifi3." IMG_EXT
++#define  MW_SIG_61_80_IMG  "wifi2." IMG_EXT
++#define  MW_SIG_80_100_IMG "wifi1." IMG_EXT
+ 
+ static char *ImgLookup[64] = {
+   MW_BROKE_IMG,      
+   MW_NO_LINK_IMG,    
+-  MW_SIG_1_40_IMG,   
++  MW_SIG_1_20_IMG,   
++  MW_SIG_21_40_IMG,
+   MW_SIG_41_60_IMG,  
+   MW_SIG_61_80_IMG,  
+   MW_SIG_80_100_IMG, 
+@@ -85,8 +88,8 @@
+ 
+ static char *ThemeName = NULL;
+ static MBPixbuf *pb;
+-static MBPixbufImage *Imgs[6] = { 0,0,0,0,0,0 }, 
+-  *ImgsScaled[6] = { 0,0,0,0,0,0 };
++static MBPixbufImage *Imgs[7] = { 0,0,0,0,0,0 }, 
++  *ImgsScaled[7] = { 0,0,0,0,0,0 };
+ static int CurImg = MW_BROKE;
+ 
+ struct {
+@@ -306,8 +309,10 @@
+       if (Mwd.mode)
+ 	{
+ 	  /* res->percent = (int)rint ((log (link) / log (92)) * 100.0); ? */
+-	  if (Mwd.link > 0 && Mwd.link < 41)
+-	    CurImg = MW_SIG_1_40;
++	  if (Mwd.link > 0 && Mwd.link < 21)
++	    CurImg = MW_SIG_1_20;
++	  else if (Mwd.link > 20 && Mwd.link < 41)
++	    CurImg = MW_SIG_21_40;
+ 	  else if (Mwd.link > 40 && Mwd.link < 61)
+ 	    CurImg = MW_SIG_41_60;
+ 	  else if (Mwd.link > 60 && Mwd.link < 81)
+@@ -348,7 +353,7 @@
+  int   i;
+  char *icon_path;
+ 
+-  for (i=0; i<6; i++)
++  for (i=0; i<7; i++)
+     {
+       if (Imgs[i] != NULL) mb_pixbuf_img_free(pb, Imgs[i]);
+       icon_path = mb_dot_desktop_icon_get_full_path (ThemeName, 
+@@ -405,7 +410,7 @@
+       mb_tray_app_request_size (app, scale_width, scale_height);
+     }
+ 
+-  for (i=0; i<6; i++)
++  for (i=0; i<7; i++)
+     {
+       if (ImgsScaled[i] != NULL) mb_pixbuf_img_free(pb, ImgsScaled[i]);
+       ImgsScaled[i] = mb_pixbuf_img_scale(pb, Imgs[i], 

@@ -77,6 +77,13 @@ jobs:
       # packaging step below so a compile error reads as a compile error
       # rather than as a failed electron-builder run.
 
+      # The Psion LX's factory NAND image is generated from the rootfs tree
+      # rather than committed (scripts/build-lx-nand.mts); electron-builder
+      # bundles it from roms/netbook_LX_prototype/LX_boot/.
+      - name: Build the Psion LX NAND image
+        shell: bash
+        run: node --experimental-strip-types scripts/build-lx-nand.mts
+
       - name: Build the renderer
         shell: bash
         run: cd frontend && npm run build:desktop

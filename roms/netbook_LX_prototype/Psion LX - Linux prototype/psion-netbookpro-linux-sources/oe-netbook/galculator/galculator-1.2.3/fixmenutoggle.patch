@@ -1,0 +1,68 @@
+--- galculator-1.2.3/src/callbacks.c	2004-05-23 15:10:55.000000000 +0200
++++ galculator-1.2.3-psion/src/callbacks.c	2004-08-24 14:46:29.000000000 +0200
+@@ -1503,4 +1503,21 @@
+ 	ui_formula_entry_state(FALSE);
+ }
+ 
++
++gboolean
++on_main_window_key_press_event (GtkWidget *widget, GdkEventKey *k, gpointer p)
++{
++	if ((k->keyval == GDK_m) && (k->state & GDK_CONTROL_MASK))
++    {
++		GtkWidget	*menu_item;
++		prefs.show_menu = !prefs.show_menu;
++		set_widget_visibility (main_window_xml, "menubar", prefs.show_menu);
++		/* in case this cb is called by the right button mouse click menu */
++		menu_item = glade_xml_get_widget (main_window_xml, "show_menubar1");
++		gtk_check_menu_item_set_active ((GtkCheckMenuItem *) menu_item, prefs.show_menu);
++		return TRUE;
++    }
++  return FALSE;
++}
++
+ /* END */
+--- galculator-1.2.3/src/callbacks.h	2004-03-14 20:01:26.000000000 +0100
++++ galculator-1.2.3-psion/src/callbacks.h	2004-08-24 14:44:49.000000000 +0200
+@@ -243,3 +243,6 @@
+ 
+ void user_function_list_selection_changed_cb (GtkTreeSelection *selection, 
+ 					gpointer data);
++
++gboolean
++on_main_window_key_press_event (GtkWidget *widget, GdkEventKey *k, gpointer p);
+--- galculator-1.2.3/ui/main_frame.glade	2004-05-22 18:54:44.000000000 +0200
++++ galculator-1.2.3-psion/ui/main_frame.glade	2004-08-24 14:37:37.000000000 +0200
+@@ -10,15 +10,23 @@
+   <property name="modal">False</property>
+   <property name="resizable">True</property>
+   <property name="destroy_with_parent">False</property>
++  <property name="decorated">True</property>
++  <property name="skip_taskbar_hint">False</property>
++  <property name="skip_pager_hint">False</property>
++  <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
++  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+   <accessibility>
+     <atkproperty name="AtkObject::accessible_description" translatable="yes">The main program window.</atkproperty>
+   </accessibility>
+   <signal name="destroy" handler="on_quit_activate" last_modification_time="Sat, 22 May 2004 16:54:39 GMT"/>
+   <signal name="check_resize" handler="on_main_window_check_resize" last_modification_time="Fri, 25 Jul 2003 18:49:40 GMT"/>
++  <signal name="key_press_event" handler="on_main_window_key_press_event" last_modification_time="Tue, 24 Aug 2004 12:08:26 GMT"/>
+ 
+   <child>
+     <widget class="GtkEventBox" id="main_eventbox">
+       <property name="visible">True</property>
++      <property name="visible_window">True</property>
++      <property name="above_child">False</property>
+       <signal name="button_press_event" handler="on_button_press_event" last_modification_time="Sun, 01 Feb 2004 15:11:31 GMT"/>
+ 
+       <child>
+@@ -502,6 +510,8 @@
+ 		      <property name="visible">True</property>
+ 		      <property name="can_focus">True</property>
+ 		      <property name="editable">False</property>
++		      <property name="overwrite">False</property>
++		      <property name="accepts_tab">True</property>
+ 		      <property name="justification">GTK_JUSTIFY_LEFT</property>
+ 		      <property name="wrap_mode">GTK_WRAP_WORD</property>
+ 		      <property name="cursor_visible">False</property>

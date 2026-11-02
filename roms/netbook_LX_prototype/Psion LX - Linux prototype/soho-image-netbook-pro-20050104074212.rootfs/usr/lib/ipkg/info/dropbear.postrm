@@ -1,0 +1,12 @@
+if [ -f "/etc/dropbear/dropbear_rsa_host_key" ]; then
+        rm /etc/dropbear/dropbear_rsa_host_key
+  fi
+  if [ -f "/etc/dropbear/dropbear_dss_host_key" ]; then
+        rm /etc/dropbear/dropbear_dss_host_key
+  fi
+if test "x$D" != "x"; then
+	D="-r $D"
+else
+	/etc/init.d/dropbear stop
+fi
+update-rc.d $D dropbear remove

@@ -1,0 +1,71 @@
+? .tm_project.cache
+? categories.patch
+? gpe_contacts.prj
+? gpe_contacts.pws
+Index: db.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/db.c,v
+retrieving revision 1.43
+diff -u -r1.43 db.c
+--- db.c	23 Aug 2004 12:56:54 -0000	1.43
++++ db.c	24 Aug 2004 20:53:55 -0000
+@@ -502,7 +502,7 @@
+ {
+   GSList *list = NULL;
+ 
+-  char *command, *tmp, *modifier;
++  char *command, *tmp = NULL, *modifier;
+   char *err;
+   int r, s, t;
+ 
+@@ -549,17 +549,17 @@
+       g_free (temp_char_up);
+ 
+       if (r != s-1)
+-	command = g_strdup_printf ("%s or", tmp);
++        command = g_strdup_printf ("%s or", tmp);
+       
+       cursym = g_utf8_next_char (cursym);
++      
+     }
+   
+   command = g_strdup_printf ("select urn, value from contacts "
+ 			     "where ((( tag = 'NAME') or ( tag = 'name')) and%s(%s)) "
+ 			     "order by value desc", modifier, tmp);
++  r = sqlite_exec (db, command, read_one_entry_alpha, &list, &err);
+   g_free (tmp);
+-  r = sqlite_exec (db, command,
+-		   read_one_entry_alpha, &list, &err);
+ 
+   if (r)
+     {
+Index: editing.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/editing.c,v
+retrieving revision 1.42
+diff -u -r1.42 editing.c
+--- editing.c	23 Aug 2004 12:56:54 -0000	1.42
++++ editing.c	24 Aug 2004 20:53:55 -0000
+@@ -512,7 +512,8 @@
+ void
+ edit_person (struct person *p)
+ {
+-  GtkWidget *w = edit_window ();
++  GtkWidget *catlabel, *w = edit_window ();
++  gchar *str;
+   
+   if (p)
+     {
+@@ -573,6 +574,12 @@
+             }
+         }
+       gtk_object_set_data (GTK_OBJECT (w), "person", p);
++        
++      /* display categories */  
++      str = build_categories_string (p);
++      catlabel = lookup_widget (w, "categories-label");
++      gtk_label_set_text (GTK_LABEL (catlabel), str);
++      g_free (str);
+     }
+   gtk_widget_show (w);
+ }

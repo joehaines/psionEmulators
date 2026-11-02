@@ -39,6 +39,11 @@ fi
 # paths keep working, the PWA service worker is dropped, and the output goes
 # straight into desktop/build/renderer.
 echo ""
+echo "--- Step 1b: Psion LX NAND image (generated, not committed) ---"
+[ -f "$REPO_ROOT/roms/netbook_LX_prototype/LX_boot/lx-nand.img.gz" ] || \
+    (cd "$REPO_ROOT" && node --experimental-strip-types scripts/build-lx-nand.mts)
+
+echo ""
 echo "--- Step 2: renderer ---"
 cd "$REPO_ROOT/frontend"
 [ -d node_modules ] || npm ci

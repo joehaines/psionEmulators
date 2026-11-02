@@ -1,0 +1,17 @@
+DESCRIPTION = "A client for the PPTP protocol"
+SECTION = "base"
+PRIORITY = "optional"
+LICENSE = "GPL"
+DEPENDS = "ppp"
+
+SRC_URI = "file://pptp-${PV}.tar.gz \
+           file://pptp-command \
+           file://options.pptp"
+
+
+do_install () {
+        install -d ${D}/${sbindir} ${D}/etc/ppp
+	install -m 0755 pptp ${D}/${sbindir}
+	install -m 0755 ${WORKDIR}/pptp-command ${D}/${sbindir}
+	install -m 0644 ${WORKDIR}/options.pptp ${D}/etc/ppp
+}

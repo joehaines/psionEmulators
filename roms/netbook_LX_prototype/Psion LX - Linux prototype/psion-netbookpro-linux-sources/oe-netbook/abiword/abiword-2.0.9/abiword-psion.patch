@@ -1,0 +1,2765 @@
+diff -ru ../../abiword-2.0.9.abicvs/abi/configure.ac ../abi/configure.ac
+--- ../../abiword-2.0.9.abicvs/abi/configure.ac	2004-07-14 19:33:07.000000000 +0100
++++ ../abi/configure.ac	2004-08-23 13:49:51.000000000 +0100
+@@ -112,7 +112,7 @@
+ 
+ ABI_DETECT_ICONV
+ 
+-ABIWORD_APP_NAME="AbiWord"
++ABIWORD_APP_NAME="Word"
+ AC_SUBST(ABIWORD_APP_NAME)
+ ABIWORD_APP_LIBDIR="AbiWord"
+ AC_SUBST(ABIWORD_APP_LIBDIR)
+diff -ru ../../abiword-2.0.9.abicvs/abi/configure.in ../abi/configure.in
+--- ../../abiword-2.0.9.abicvs/abi/configure.in	2004-07-14 19:33:07.000000000 +0100
++++ ../abi/configure.in	2004-08-23 13:49:51.000000000 +0100
+@@ -106,7 +106,7 @@
+ 
+ ABI_DETECT_ICONV
+ 
+-ABIWORD_APP_NAME="AbiWord"
++ABIWORD_APP_NAME="Word"
+ AC_SUBST(ABIWORD_APP_NAME)
+ ABIWORD_APP_LIBDIR="AbiWord"
+ AC_SUBST(ABIWORD_APP_LIBDIR)
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/ev/unix/ev_UnixMenu.cpp ../abi/src/af/ev/unix/ev_UnixMenu.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/ev/unix/ev_UnixMenu.cpp	2004-05-20 01:58:06.000000000 +0100
++++ ../abi/src/af/ev/unix/ev_UnixMenu.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -522,7 +522,7 @@
+ 		{AP_MENU_ID_FILE_PRINT_PREVIEW, GTK_STOCK_PRINT_PREVIEW},
+ 		{AP_MENU_ID_FILE_EXIT, GTK_STOCK_QUIT},
+ 		{AP_MENU_ID_FILE_REVERT, GTK_STOCK_REVERT_TO_SAVED},
+-
++		
+ 		{AP_MENU_ID_FILE_RECENT_1, GTK_STOCK_NEW},
+ 		{AP_MENU_ID_FILE_RECENT_2, GTK_STOCK_NEW},
+ 		{AP_MENU_ID_FILE_RECENT_3, GTK_STOCK_NEW},
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/ev/unix/ev_UnixToolbar.h ../abi/src/af/ev/unix/ev_UnixToolbar.h
+--- ../../abiword-2.0.9.abicvs/abi/src/af/ev/unix/ev_UnixToolbar.h	2003-03-06 22:17:38.000000000 +0000
++++ ../abi/src/af/ev/unix/ev_UnixToolbar.h	2004-08-26 14:58:18.000000000 +0100
+@@ -80,12 +80,3 @@
+ };
+ 
+ #endif /* EV_UNIXTOOLBAR_H */
+-
+-
+-
+-
+-
+-
+-
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/ev/xp/ev_EditBinding.cpp ../abi/src/af/ev/xp/ev_EditBinding.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/ev/xp/ev_EditBinding.cpp	2003-08-16 16:39:54.000000000 +0100
++++ ../abi/src/af/ev/xp/ev_EditBinding.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -23,6 +23,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <ctype.h>
+ 
+ #include "ut_assert.h"
+ #include "ut_debugmsg.h"
+@@ -404,7 +405,10 @@
+ 	// translate into displayable string
+ 	static char buf[128];
+ 	memset(buf,0,NrElements(buf));
+-
++	
++	if((i-1) >= 'A' && (i-1) <='Z')
++		ems|=EV_EMS_SHIFT;
++	
+ 	if (ems&EV_EMS_CONTROL)
+ 		strcat(buf, "Ctrl+");
+ 
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/ev/xp/ev_EditMethod.cpp ../abi/src/af/ev/xp/ev_EditMethod.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/ev/xp/ev_EditMethod.cpp	2003-03-15 01:56:18.000000000 +0000
++++ ../abi/src/af/ev/xp/ev_EditMethod.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -364,5 +364,3 @@
+ {
+   return ev_EditMethod_lookup ( methodName.c_str() ) ;
+ }
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/ev/xp/ev_Toolbar_Actions.h ../abi/src/af/ev/xp/ev_Toolbar_Actions.h
+--- ../../abiword-2.0.9.abicvs/abi/src/af/ev/xp/ev_Toolbar_Actions.h	2001-09-28 21:56:18.000000000 +0100
++++ ../abi/src/af/ev/xp/ev_Toolbar_Actions.h	2004-08-25 16:14:03.000000000 +0100
+@@ -73,9 +73,9 @@
+ 	EV_TBIT_DropDown		= 5,			/* list box w/no text entry */
+ 	EV_TBIT_ComboBox		= 6,			/* list box w/ text entry */
+ 	EV_TBIT_StaticLabel		= 7,			/* a static control */
+-	EV_TBIT_Spacer			= 8,				/* for extra space between buttons */
+-	EV_TBIT_ColorFore               = 9,                    /* control to set the foreground color */
+-	EV_TBIT_ColorBack               = 10                    /* control to set the background color */
++	EV_TBIT_Spacer			= 8,			/* for extra space between buttons */
++	EV_TBIT_ColorFore       = 9,            /* control to set the foreground color */
++	EV_TBIT_ColorBack       = 10            /* control to set the background color */
+ 
+ } EV_Toolbar_ItemType;
+ 
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/gr/unix/gr_UnixGraphics.cpp ../abi/src/af/gr/unix/gr_UnixGraphics.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/gr/unix/gr_UnixGraphics.cpp	2004-03-24 14:02:05.000000000 +0000
++++ ../abi/src/af/gr/unix/gr_UnixGraphics.cpp	2004-08-27 11:44:46.000000000 +0100
+@@ -1014,7 +1014,8 @@
+ 		GtkStyle *tempStyle = gtk_style_new();
+ 		const char *guiFontName = pango_font_description_get_family(tempStyle->font_desc);
+ 		if (!guiFontName)
+-			guiFontName = "Times New Roman";
++//			guiFontName = "Times New Roman";
++			guiFontName = "Thorndale AMT";
+ 		XAP_UnixFont * font = static_cast<XAP_UnixFont *>(m_pFontManager->searchFont(guiFontName)); // this operation should never fail
+ 		g_object_unref(G_OBJECT(tempStyle));
+ 		UT_ASSERT(font);
+@@ -1304,6 +1305,7 @@
+ 	{
+ 		gdk_window_scroll(m_pWin,ddx,ddy);
+ 	}
++	setExposePending(true); // PSION-ABL AbiBug #7148 Backport.
+ #else
+ 	GdkRectangle  xRect;
+ 	GdkRectangle  yRect;
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_map.h ../abi/src/af/util/xp/ut_map.h
+--- ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_map.h	2002-08-15 14:14:56.000000000 +0100
++++ ../abi/src/af/util/xp/ut_map.h	2004-08-24 18:41:13.000000000 +0100
+@@ -61,7 +61,8 @@
+ #ifdef DEBUG
+ 	void print() const { m_rbtree.print(); }
+ 	// This method should be const.  See UT_RBTree::checkInvariants comment
+-	bool checkInvariants() { return m_rbtree.checkInvariants(); }
++	// PSION-ABL problem with this when trying to compile for Arm
++	// bool checkInvariants() { return m_rbtree.checkInvariants(); }
+ #endif
+ 
+ private:
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_rbtree.cpp ../abi/src/af/util/xp/ut_rbtree.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_rbtree.cpp	2001-07-20 01:12:41.000000000 +0100
++++ ../abi/src/af/util/xp/ut_rbtree.cpp	2004-08-24 19:02:07.000000000 +0100
+@@ -635,6 +635,7 @@
+ 	return retval;
+ }
+ 
++/* PSION-ABL problem with this when trying to compile for Arm
+ bool
+ UT_RBTree::checkInvariants()
+ {
+@@ -657,6 +658,7 @@
+ 	
+ 	return true;
+ }
++*/
+ #endif
+ 
+ UT_RBTree::Node*
+@@ -680,4 +682,3 @@
+ {
+ 	return (strcmp(static_cast<const char*> (x), static_cast<const char*> (y)) == 0);
+ }
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_set.h ../abi/src/af/util/xp/ut_set.h
+--- ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_set.h	2002-08-15 14:15:03.000000000 +0100
++++ ../abi/src/af/util/xp/ut_set.h	2004-08-24 18:41:13.000000000 +0100
+@@ -54,7 +54,8 @@
+ #ifdef DEBUG
+ 	void print() const { m_rbtree.print(); }
+ 	// This method should be const.  See UT_RBTree::checkInvariants comment
+-	bool checkInvariants() { return m_rbtree.checkInvariants(); }
++	// PSION-ABL problem with this when trying to compile for Arm
++	// bool checkInvariants() { return m_rbtree.checkInvariants(); }
+ #endif
+ 
+ private:
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_xml_libxml2.cpp ../abi/src/af/util/xp/ut_xml_libxml2.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/util/xp/ut_xml_libxml2.cpp	2003-08-05 20:53:04.000000000 +0100
++++ ../abi/src/af/util/xp/ut_xml_libxml2.cpp	2004-08-24 19:48:22.000000000 +0100
+@@ -182,7 +182,7 @@
+ 			
+ 			if (xmlParseChunk (ctxt, buffer, static_cast<int>(length), 0))
+ 			{
+-				UT_DEBUGMSG (("Error parsing '%s' (Line: %d, Column: %d)\n", szFilename, getLineNumber(ctxt), getColumnNumber(ctxt)));
++//	PSION-ABL			UT_DEBUGMSG (("Error parsing '%s' (Line: %d, Column: %d)\n", szFilename, getLineNumber(ctxt), getColumnNumber(ctxt)));
+ 				ret = UT_IE_IMPORTERROR;
+ 				break;
+ 			}
+@@ -192,7 +192,7 @@
+ 			{
+ 				if (xmlParseChunk (ctxt, "", 0, 1))
+ 				{
+-					UT_DEBUGMSG (("Error parsing '%s' (Line: %d, Column: %d)\n", szFilename, getLineNumber(ctxt), getColumnNumber(ctxt)));
++//	PSION-ABL			UT_DEBUGMSG (("Error parsing '%s' (Line: %d, Column: %d)\n", szFilename, getLineNumber(ctxt), getColumnNumber(ctxt)));
+ 					ret = UT_IE_IMPORTERROR;
+ 				}
+ 			}
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/gnome/xap_UnixGnomeDlg_About.cpp ../abi/src/af/xap/unix/gnome/xap_UnixGnomeDlg_About.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/gnome/xap_UnixGnomeDlg_About.cpp	2004-04-28 10:51:11.000000000 +0100
++++ ../abi/src/af/xap/unix/gnome/xap_UnixGnomeDlg_About.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -83,4 +83,3 @@
+   abiSetupModelessDialog (GTK_DIALOG(mainWindow), pFrame, this, GTK_RESPONSE_CLOSE, false);
+   gtk_widget_show (mainWindow);
+ }
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixDlg_About.cpp ../abi/src/af/xap/unix/xap_UnixDlg_About.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixDlg_About.cpp	2003-07-24 23:14:11.000000000 +0100
++++ ../abi/src/af/xap/unix/xap_UnixDlg_About.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -150,9 +150,12 @@
+ 	
+ 	abiDialogSetTitle(window, XAP_ABOUT_TITLE, m_pApp->getApplicationName());
+ 	
+-	UT_String title = UT_String_sprintf("%s %s", m_pApp->getApplicationName(), XAP_App::s_szBuild_Version);
++	UT_String title = UT_String_sprintf("%s %s", "AbiWord", XAP_App::s_szBuild_Version);
+ 	setLabelMarkup(glade_xml_get_widget(xml, "lbTitle"), title.c_str());
+ 	
++	//UT_String description = UT_String_sprintf(XAP_ABOUT_APP_VERSION_DESCRIPTION"%s %s", "AbiWord", XAP_App::s_szBuild_Version);
++	setLabelMarkup(glade_xml_get_widget(xml, "lbDesc"), XAP_ABOUT_APP_VERSION_DESCRIPTION);//description.c_str());
++	
+ 	UT_String license = UT_String_sprintf(XAP_ABOUT_GPL_LONG_LINE_BROKEN, m_pApp->getApplicationName());
+ 	setLabelMarkup(glade_xml_get_widget(xml, "lbLicense"), license.c_str());
+ 	
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixDlg_About.glade ../abi/src/af/xap/unix/xap_UnixDlg_About.glade
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixDlg_About.glade	2003-04-24 01:23:45.000000000 +0100
++++ ../abi/src/af/xap/unix/xap_UnixDlg_About.glade	2004-08-23 13:49:51.000000000 +0100
+@@ -11,6 +11,11 @@
+   <property name="modal">True</property>
+   <property name="resizable">True</property>
+   <property name="destroy_with_parent">False</property>
++  <property name="decorated">True</property>
++  <property name="skip_taskbar_hint">False</property>
++  <property name="skip_pager_hint">False</property>
++  <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
++  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+   <property name="has_separator">True</property>
+ 
+   <child internal-child="vbox">
+@@ -32,6 +37,7 @@
+ 	      <property name="label" translatable="yes">http://www.abisource.com</property>
+ 	      <property name="use_underline">True</property>
+ 	      <property name="relief">GTK_RELIEF_NORMAL</property>
++	      <property name="focus_on_click">True</property>
+ 	      <property name="response_id">1</property>
+ 	    </widget>
+ 	  </child>
+@@ -44,6 +50,7 @@
+ 	      <property name="label">gtk-ok</property>
+ 	      <property name="use_stock">True</property>
+ 	      <property name="relief">GTK_RELIEF_NORMAL</property>
++	      <property name="focus_on_click">True</property>
+ 	      <property name="response_id">0</property>
+ 	    </widget>
+ 	  </child>
+@@ -59,20 +66,20 @@
+       <child>
+ 	<widget class="GtkTable" id="table1">
+ 	  <property name="visible">True</property>
+-	  <property name="n_rows">4</property>
++	  <property name="n_rows">5</property>
+ 	  <property name="n_columns">1</property>
+ 	  <property name="homogeneous">False</property>
+ 	  <property name="row_spacing">0</property>
+ 	  <property name="column_spacing">0</property>
+ 
+ 	  <child>
+-	    <widget class="GtkLabel" id="lbLicense">
++	    <widget class="GtkLabel" id="lbTitle">
+ 	      <property name="visible">True</property>
+-	      <property name="label" translatable="yes">&lt;span size=&quot;smaller&quot;&gt;%s&lt;/span&gt;</property>
++	      <property name="label" translatable="yes">&lt;span weight=&quot;ultrabold&quot; size=&quot;xx-large&quot;&gt;%s&lt;/span&gt;</property>
+ 	      <property name="use_underline">False</property>
+ 	      <property name="use_markup">True</property>
+-	      <property name="justify">GTK_JUSTIFY_CENTER</property>
+-	      <property name="wrap">True</property>
++	      <property name="justify">GTK_JUSTIFY_LEFT</property>
++	      <property name="wrap">False</property>
+ 	      <property name="selectable">False</property>
+ 	      <property name="xalign">0.5</property>
+ 	      <property name="yalign">0.5</property>
+@@ -82,8 +89,25 @@
+ 	    <packing>
+ 	      <property name="left_attach">0</property>
+ 	      <property name="right_attach">1</property>
+-	      <property name="top_attach">2</property>
+-	      <property name="bottom_attach">3</property>
++	      <property name="top_attach">1</property>
++	      <property name="bottom_attach">2</property>
++	      <property name="y_padding">12</property>
++	      <property name="y_options"></property>
++	    </packing>
++	  </child>
++
++	  <child>
++	    <widget class="GtkDrawingArea" id="daLogo">
++	      <property name="width_request">48</property>
++	      <property name="height_request">0</property>
++	      <property name="visible">True</property>
++	    </widget>
++	    <packing>
++	      <property name="left_attach">0</property>
++	      <property name="right_attach">1</property>
++	      <property name="top_attach">0</property>
++	      <property name="bottom_attach">1</property>
++	      <property name="x_options"></property>
+ 	      <property name="y_options"></property>
+ 	    </packing>
+ 	  </child>
+@@ -105,21 +129,21 @@
+ 	    <packing>
+ 	      <property name="left_attach">0</property>
+ 	      <property name="right_attach">1</property>
+-	      <property name="top_attach">3</property>
+-	      <property name="bottom_attach">4</property>
++	      <property name="top_attach">4</property>
++	      <property name="bottom_attach">5</property>
+ 	      <property name="y_padding">12</property>
+ 	      <property name="y_options"></property>
+ 	    </packing>
+ 	  </child>
+ 
+ 	  <child>
+-	    <widget class="GtkLabel" id="lbTitle">
++	    <widget class="GtkLabel" id="lbLicense">
+ 	      <property name="visible">True</property>
+-	      <property name="label" translatable="yes">&lt;span weight=&quot;ultrabold&quot; size=&quot;xx-large&quot;&gt;%s&lt;/span&gt;</property>
++	      <property name="label" translatable="yes">&lt;span size=&quot;smaller&quot;&gt;%s&lt;/span&gt;</property>
+ 	      <property name="use_underline">False</property>
+ 	      <property name="use_markup">True</property>
+-	      <property name="justify">GTK_JUSTIFY_LEFT</property>
+-	      <property name="wrap">False</property>
++	      <property name="justify">GTK_JUSTIFY_CENTER</property>
++	      <property name="wrap">True</property>
+ 	      <property name="selectable">False</property>
+ 	      <property name="xalign">0.5</property>
+ 	      <property name="yalign">0.5</property>
+@@ -129,25 +153,32 @@
+ 	    <packing>
+ 	      <property name="left_attach">0</property>
+ 	      <property name="right_attach">1</property>
+-	      <property name="top_attach">1</property>
+-	      <property name="bottom_attach">2</property>
+-	      <property name="y_padding">12</property>
++	      <property name="top_attach">3</property>
++	      <property name="bottom_attach">4</property>
+ 	      <property name="y_options"></property>
+ 	    </packing>
+ 	  </child>
+ 
+ 	  <child>
+-	    <widget class="GtkDrawingArea" id="daLogo">
+-	      <property name="width_request">48</property>
+-	      <property name="height_request">0</property>
++	    <widget class="GtkLabel" id="lbDesc">
+ 	      <property name="visible">True</property>
++	      <property name="label" translatable="yes">&lt;span size=&quot;large&quot;&gt;%s&lt;/span&gt;</property>
++	      <property name="use_underline">False</property>
++	      <property name="use_markup">True</property>
++	      <property name="justify">GTK_JUSTIFY_CENTER</property>
++	      <property name="wrap">True</property>
++	      <property name="selectable">False</property>
++	      <property name="xalign">0.5</property>
++	      <property name="yalign">0.5</property>
++	      <property name="xpad">0</property>
++	      <property name="ypad">0</property>
+ 	    </widget>
+ 	    <packing>
+ 	      <property name="left_attach">0</property>
+ 	      <property name="right_attach">1</property>
+-	      <property name="top_attach">0</property>
+-	      <property name="bottom_attach">1</property>
+-	      <property name="x_options"></property>
++	      <property name="top_attach">2</property>
++	      <property name="bottom_attach">3</property>
++	      <property name="y_padding">10</property>
+ 	      <property name="y_options"></property>
+ 	    </packing>
+ 	  </child>
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixDlg_FontChooser.cpp ../abi/src/af/xap/unix/xap_UnixDlg_FontChooser.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixDlg_FontChooser.cpp	2003-09-30 13:29:22.000000000 +0100
++++ ../abi/src/af/xap/unix/xap_UnixDlg_FontChooser.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -868,7 +868,10 @@
+ 	foundAt = searchCList(GTK_CLIST(m_fontList), const_cast<char *>(getVal("font-family")));
+ 
+ 	if (foundAt >= 0)
++	{
+ 		gtk_clist_select_row(GTK_CLIST(m_fontList), foundAt, 0);
++		gtk_clist_moveto(GTK_CLIST(m_fontList), foundAt, 0, 0, 0);
++	}
+ 
+ 	// this is pretty messy
+ 	listStyle st = LIST_STYLE_NORMAL;
+@@ -1014,8 +1017,3 @@
+ 	else
+ 		event_previewClear();
+ }
+-
+-
+-
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixFont.cpp ../abi/src/af/xap/unix/xap_UnixFont.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixFont.cpp	2004-03-24 14:02:19.000000000 +0000
++++ ../abi/src/af/xap/unix/xap_UnixFont.cpp	2004-08-24 16:41:12.000000000 +0100
+@@ -281,6 +281,7 @@
+ 	if (stFontFile > 4)
+ 	{
+ 		if (!UT_stricmp(m_fontfile + stFontFile - 4, ".ttf") || 
++			!UT_stricmp(m_fontfile + stFontFile - 4, ".otf") ||
+ 			!UT_stricmp(m_fontfile + stFontFile - 5, ".font"))
+ 			m_fontType = FONT_TYPE_TTF;
+ 		else if (!UT_stricmp(m_fontfile + stFontFile - 4, ".pfa"))
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixFrameImpl.cpp ../abi/src/af/xap/unix/xap_UnixFrameImpl.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/unix/xap_UnixFrameImpl.cpp	2004-02-15 21:48:32.000000000 +0000
++++ ../abi/src/af/xap/unix/xap_UnixFrameImpl.cpp	2004-08-27 12:14:20.000000000 +0100
+@@ -764,7 +764,7 @@
+ 		rClip.top = pGr->tlu(pExposeEvent->area.y);
+ 		rClip.width = pGr->tlu(pExposeEvent->area.width);
+ 		rClip.height = pGr->tlu(pExposeEvent->area.height);
+-
++		pGr->setExposePending(false); // PSION-ABL AbiBug #7148 Backport.
+ 		pView->draw(&rClip);
+ 	}
+ 	return FALSE;
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Dlg_About.h ../abi/src/af/xap/xp/xap_Dlg_About.h
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Dlg_About.h	2004-04-28 10:51:12.000000000 +0100
++++ ../abi/src/af/xap/xp/xap_Dlg_About.h	2004-08-23 13:49:51.000000000 +0100
+@@ -33,7 +33,8 @@
+ #define XAP_ABOUT_VERSION "Version: %s"
+ #define XAP_ABOUT_BUILD "Build options: %s"
+ #define XAP_ABOUT_URL "For more information: http://www.abisource.com/"
+-#define XAP_ABOUT_GPL_LONG "AbiWord and AbiSource are trademarks of AbiSource, Inc.\r\n\r\n%s is free software; you can redistribute it and/or \
++#define XAP_ABOUT_GPL_LONG "AbiWord and AbiSource are trademarks of AbiSource, Inc.\r\n \ PSION and the PSION Logo are trademarks of PSION PLC.\r\n\
++\r\n%s is free software; you can redistribute it and/or \
+ modify it under the terms of the GNU General Public License \
+ as published by the Free Software Foundation; either version 2 \
+ of the License, or (at your option) any later version.\r\n\r\n\
+@@ -42,7 +43,10 @@
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the \
+ GNU General Public License for more details."
+ 
+-#define XAP_ABOUT_GPL_LONG_LINE_BROKEN "AbiWord and AbiSource are trademarks of\nAbiSource, Inc.\n\n%s is free software; you can redistribute it\n \
++#define XAP_ABOUT_APP_VERSION_DESCRIPTION "The Word Processor on your Psion"
++
++#define XAP_ABOUT_GPL_LONG_LINE_BROKEN "AbiWord and AbiSource are trademarks of\nAbiSource, Inc.\n\nPSION and the PSION Logo are trademarks of PSION PLC.\n\
++\n\%s is free software; you can redistribute it\n \
+ and/or modify it under the terms of the GNU General\n \
+ Public License as published by the Free Software\n \
+ Foundation; either version 2 of the License, or (at your\n \
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Dlg_FontChooser.cpp ../abi/src/af/xap/xp/xap_Dlg_FontChooser.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Dlg_FontChooser.cpp	2003-08-11 20:50:26.000000000 +0100
++++ ../abi/src/af/xap/xp/xap_Dlg_FontChooser.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -611,7 +611,8 @@
+ 	const char* pszStretch	= getVal("font-stretch");
+ 	const char* pszSize		= getVal("font-size");
+ 	if(!pszFamily)
+-		pszFamily = "Times New Roman";
++//		pszFamily = "Times New Roman";
++		pszFamily = "Thorndale AMT";
+ 
+ 	if(!pszStyle)
+ 		pszStyle = "normal";
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Dlg_Zoom.cpp ../abi/src/af/xap/xp/xap_Dlg_Zoom.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Dlg_Zoom.cpp	2003-03-19 20:37:45.000000000 +0000
++++ ../abi/src/af/xap/xp/xap_Dlg_Zoom.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -143,7 +143,8 @@
+ 	UT_ASSERT(m_zoomPreview);
+ 	
+ 	m_zoomPreview->setWindowSize(width, height);
+-	m_zoomPreview->setString("10-pt Times New Roman");
++//	m_zoomPreview->setString("10-pt Times New Roman");
++	m_zoomPreview->setString("10-pt Thorndale AMT");
+ 	m_zoomPreview->setFont(XAP_Preview_Zoom::font_NORMAL);
+ 	m_zoomPreview->setZoomPercent(m_zoomPercent);
+ 
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Frame.cpp ../abi/src/af/xap/xp/xap_Frame.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Frame.cpp	2003-12-10 16:51:55.000000000 +0000
++++ ../abi/src/af/xap/xp/xap_Frame.cpp	2004-08-26 15:32:20.000000000 +0100
+@@ -697,7 +697,7 @@
+ 
+ bool XAP_Frame::repopulateCombos(void)
+ {
+-  //
++//
+ // Update the styles combo box.
+ //
+ 	EV_Toolbar * pTbar = NULL;
+@@ -706,7 +706,9 @@
+ 	{
+ 		pTbar = getToolbar(ibar++);
+ 		if(pTbar)
++		{
+ 			pTbar->repopulateStyles();
++		}
+ 	}
+ 	while(pTbar);
+ 	return true;
+@@ -1145,4 +1147,3 @@
+ 
+ 	return NULL;
+ }
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Prefs_SchemeIds.h ../abi/src/af/xap/xp/xap_Prefs_SchemeIds.h
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Prefs_SchemeIds.h	2003-08-11 20:50:27.000000000 +0100
++++ ../abi/src/af/xap/xp/xap_Prefs_SchemeIds.h	2004-08-23 13:49:51.000000000 +0100
+@@ -42,7 +42,7 @@
+ //////////////////////////////////////////////////////////////////////////////////////
+ 
+ #define XAP_PREF_KEY_ToolbarAppearance		"ToolbarAppearance"
+-#define XAP_PREF_DEFAULT_ToolbarAppearance	"icon"						/* {icon,text,both} */
++#define XAP_PREF_DEFAULT_ToolbarAppearance	"icon"//"both"//"icon"						/* {icon,text,both} */
+ 
+ #define XAP_PREF_KEY_RemapGlyphsDefault 			"RemapGlyphsDefault"
+  /* default replacement glyph for originals not mentioned in the table */
+@@ -52,7 +52,7 @@
+ /* smart quotes */
+ #define XAP_PREF_KEY_SmartQuotesEnable				"SmartQuotesEnable"
+ /* substitute curly smart quotes on the fly */
+-#define XAP_PREF_DEFAULT_SmartQuotesEnable			"0"
++#define XAP_PREF_DEFAULT_SmartQuotesEnable			"1"
+ 
+ #define XAP_PREF_KEY_UseSuffix						"UseSuffix"
+ /* append suffixes to saved files */
+@@ -123,7 +123,7 @@
+ #define XAP_PREF_DEFAULT_ColorForRevision10			"ff0000"
+ 
+ #define XAP_PREF_KEY_DefaultSaveDirectory "DefaultSaveDirectory"
+-#define XAP_PREF_DEFAULT_DefaultSaveDirectory "" /* empty for $PWD basically */
++#define XAP_PREF_DEFAULT_DefaultSaveDirectory "~/My\ Documents" /* empty for $PWD basically */
+ 
+ #define XAP_PREF_KEY_ZoomType		"ZoomType"
+ #define XAP_PREF_DEFAULT_ZoomType	"Width" /* 100, Width, Page */
+@@ -133,13 +133,13 @@
+ #define XAP_PREF_DEFAULT_ZoomPercentage	"100"
+ 
+ #define XAP_PREF_KEY_AllowCustomToolbars "AllowCustomToolbars"
+-#define XAP_PREF_DEFAULT_AllowCustomToolbars		 "0"
++#define XAP_PREF_DEFAULT_AllowCustomToolbars		 "0"//"0"
+ 
+ #define XAP_PREF_KEY_EnableSmoothScrolling  "EnableSmoothScrolling"
+-#define XAP_PREF_DEFAULT_EnableSmoothScrolling		 "1"
++#define XAP_PREF_DEFAULT_EnableSmoothScrolling		 "0"//"1"
+ 
+ #define XAP_PREF_KEY_HaveCustomToolbars "HaveCustomToolbars"
+-#define XAP_PREF_DEFAULT_HaveCustomToolbars		 "0"
++#define XAP_PREF_DEFAULT_HaveCustomToolbars		 "0"//"0"
+ 
+ #define XAP_PREF_KEY_AutoLoadPlugins				 "AutoLoadPlugins"
+ #define XAP_PREF_DEFAULT_AutoLoadPlugins			 "1"
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Preview_Zoom.cpp ../abi/src/af/xap/xp/xap_Preview_Zoom.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_Preview_Zoom.cpp	2003-03-19 20:37:46.000000000 +0000
++++ ../abi/src/af/xap/xp/xap_Preview_Zoom.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -81,7 +81,8 @@
+ 	{
+ 	case XAP_Preview_Zoom::font_NORMAL:
+ 		sprintf (fontString, "%dpt", (10 * m_zoomPercent / 100));
+-		found = m_gc->findFont("Times New Roman", "normal", "", "normal", "", fontString);
++		//found = m_gc->findFont("Times New Roman", "normal", "", "normal", "", fontString);
++		found = m_gc->findFont("Thorndale", "normal", "", "normal", "", fontString);
+ 
+ 		if (found)
+ 		{
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_String_Id.h ../abi/src/af/xap/xp/xap_String_Id.h
+--- ../../abiword-2.0.9.abicvs/abi/src/af/xap/xp/xap_String_Id.h	2003-09-03 18:50:06.000000000 +0100
++++ ../abi/src/af/xap/xp/xap_String_Id.h	2004-08-23 13:49:51.000000000 +0100
+@@ -112,17 +112,17 @@
+ dcl(DLG_UFS_UnderlineCheck, 	"Underline")
+ dcl(DLG_UFS_OverlineCheck,		"Overline")
+ dcl(DLG_UFS_HiddenCheck,        "Hidden")	
+-dcl(DLG_UFS_TransparencyCheck,	"Set no Highlight Color")
+-dcl(DLG_UFS_FontTab,			"	Font   ")
+-dcl(DLG_UFS_ColorTab,			"Text Color")
+-dcl(DLG_UFS_BGColorTab, 		"HighLight Color")
++dcl(DLG_UFS_TransparencyCheck,	"Set no Highlight Colour")
++dcl(DLG_UFS_FontTab,			"Font")
++dcl(DLG_UFS_ColorTab,			"Text Colour")
++dcl(DLG_UFS_BGColorTab, 		"HighLight Colour")
+ dcl(DLG_UFS_StyleRegular,		"Regular")
+ dcl(DLG_UFS_StyleItalic,		"Italic")
+ dcl(DLG_UFS_StyleBold,			"Bold")
+ dcl(DLG_UFS_StyleBoldItalic,	"Bold Italic")
+ dcl(DLG_UFS_ToplineCheck,		"Topline")
+ dcl(DLG_UFS_BottomlineCheck,	"Bottomline")
+-dcl(DLG_UFS_ColorLabel, 		"Color:")
++dcl(DLG_UFS_ColorLabel, 		"Colour:")
+ dcl(DLG_UFS_ScriptLabel,		"Script:")
+ dcl(DLG_UFS_SampleFrameLabel,	"Sample")
+ dcl(DLG_UFS_SuperScript, 		"Superscript")
+@@ -187,7 +187,7 @@
+ dcl(DLG_UP_PrintIn, 					"Print in: ")
+ dcl(DLG_UP_BlackWhite,					"Black & White")
+ dcl(DLG_UP_Grayscale,					"Grayscale")
+-dcl(DLG_UP_Color,						"Color")
++dcl(DLG_UP_Color,						"Colour")
+ 
+ /* Insert Symbol dialog */
+ dcl(DLG_Insert_SymbolTitle, 			"Insert Symbol")
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/hello/ap/xp/ap_Prefs_SchemeIds.h ../abi/src/hello/ap/xp/ap_Prefs_SchemeIds.h
+--- ../../abiword-2.0.9.abicvs/abi/src/hello/ap/xp/ap_Prefs_SchemeIds.h	2002-10-29 19:45:54.000000000 +0000
++++ ../abi/src/hello/ap/xp/ap_Prefs_SchemeIds.h	2004-08-23 13:49:51.000000000 +0100
+@@ -36,7 +36,7 @@
+ //
+ // Note: These are in addition to the application-independent ones defined in
+ // abi/src/xap/xp/xap_Prefs_SchemeIds.h.
+-//////////////////////////////////////////////////////////////////////////////
++/////////////////////////////////////////////////////////////////////////1/////
+ 
+ #define AP_PREF_KEY_StringSet						"StringSet"
+ #define AP_PREF_DEFAULT_StringSet					"EnUS"						/* name of dialog/msgbox strings */
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/text/ptbl/xp/pp_Property.cpp ../abi/src/text/ptbl/xp/pp_Property.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/text/ptbl/xp/pp_Property.cpp	2003-07-24 23:14:32.000000000 +0100
++++ ../abi/src/text/ptbl/xp/pp_Property.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -84,7 +84,8 @@
+ 
+ 	{ "field-color",           "dcdcdc",          true,  NULL, PP_LEVEL_FIELD},
+ 	{ "field-font",	           "NULL",	          true,  NULL, PP_LEVEL_FIELD},
+-	{ "font-family",           "Times New Roman", true,  NULL, PP_LEVEL_CHAR},
++//	{ "font-family",           "Times New Roman", true,  NULL, PP_LEVEL_CHAR},
++	{ "font-family",           "Thorndale AMT", true,  NULL, PP_LEVEL_CHAR},
+ 	{ "font-size",	           "12pt",	          true,  NULL, PP_LEVEL_CHAR},	// MS word defaults to 10pt, but it just seems too small
+ 	{ "font-stretch",          "normal",          true,  NULL, PP_LEVEL_CHAR},
+ 	{ "font-style",	           "normal",          true,  NULL, PP_LEVEL_CHAR},
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Insert_DateTime.glade ../abi/src/wp/ap/unix/ap_UnixDialog_Insert_DateTime.glade
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Insert_DateTime.glade	2003-06-01 00:18:33.000000000 +0100
++++ ../abi/src/wp/ap/unix/ap_UnixDialog_Insert_DateTime.glade	2004-08-23 13:49:51.000000000 +0100
+@@ -10,10 +10,15 @@
+   <property name="visible">True</property>
+   <property name="title" translatable="yes">Insert Date and Time</property>
+   <property name="type">GTK_WINDOW_TOPLEVEL</property>
+-  <property name="window_position">GTK_WIN_POS_NONE</property>
++  <property name="window_position">GTK_WIN_POS_CENTER_ON_PARENT</property>
+   <property name="modal">True</property>
+   <property name="resizable">True</property>
+   <property name="destroy_with_parent">False</property>
++  <property name="decorated">True</property>
++  <property name="skip_taskbar_hint">False</property>
++  <property name="skip_pager_hint">False</property>
++  <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
++  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+   <property name="has_separator">False</property>
+ 
+   <child internal-child="vbox">
+@@ -35,6 +40,7 @@
+ 	      <property name="label">gtk-cancel</property>
+ 	      <property name="use_stock">True</property>
+ 	      <property name="relief">GTK_RELIEF_NORMAL</property>
++	      <property name="focus_on_click">True</property>
+ 	      <property name="response_id">-6</property>
+ 	    </widget>
+ 	  </child>
+@@ -48,6 +54,7 @@
+ 	      <property name="label" translatable="yes">_Insert</property>
+ 	      <property name="use_underline">True</property>
+ 	      <property name="relief">GTK_RELIEF_NORMAL</property>
++	      <property name="focus_on_click">True</property>
+ 	      <property name="response_id">1</property>
+ 	    </widget>
+ 	  </child>
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Replace.cpp ../abi/src/wp/ap/unix/ap_UnixDialog_Replace.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Replace.cpp	2003-09-30 13:29:59.000000000 +0100
++++ ../abi/src/wp/ap/unix/ap_UnixDialog_Replace.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -239,7 +239,11 @@
+ 
+ void AP_UnixDialog_Replace::event_MatchCaseToggled(void)
+ {
+-	setMatchCase(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(m_checkbuttonMatchCase)));
++	//ABL-PSION 16/08/2004 - PSIBUG#
++	bool caseSensitive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(m_checkbuttonMatchCase));
++	setMatchCase(caseSensitive);
++	gtk_combo_set_case_sensitive(GTK_COMBO(m_comboFind), caseSensitive);
++	gtk_combo_set_case_sensitive(GTK_COMBO(m_comboReplace), caseSensitive);
+ }
+ 
+ void AP_UnixDialog_Replace::event_WholeWordToggled(void)
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Replace.glade ../abi/src/wp/ap/unix/ap_UnixDialog_Replace.glade
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Replace.glade	2003-05-26 22:59:08.000000000 +0100
++++ ../abi/src/wp/ap/unix/ap_UnixDialog_Replace.glade	2004-08-23 13:49:51.000000000 +0100
+@@ -11,6 +11,11 @@
+   <property name="modal">False</property>
+   <property name="resizable">True</property>
+   <property name="destroy_with_parent">False</property>
++  <property name="decorated">True</property>
++  <property name="skip_taskbar_hint">False</property>
++  <property name="skip_pager_hint">False</property>
++  <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
++  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+   <property name="has_separator">True</property>
+ 
+   <child internal-child="vbox">
+@@ -32,6 +37,7 @@
+ 	      <property name="label">gtk-close</property>
+ 	      <property name="use_stock">True</property>
+ 	      <property name="relief">GTK_RELIEF_NORMAL</property>
++	      <property name="focus_on_click">True</property>
+ 	      <property name="response_id">-7</property>
+ 	    </widget>
+ 	  </child>
+@@ -215,6 +221,7 @@
+ 		      <property name="label" translatable="yes">Match case</property>
+ 		      <property name="use_underline">True</property>
+ 		      <property name="relief">GTK_RELIEF_NORMAL</property>
++		      <property name="focus_on_click">True</property>
+ 		      <property name="active">False</property>
+ 		      <property name="inconsistent">False</property>
+ 		      <property name="draw_indicator">True</property>
+@@ -229,10 +236,10 @@
+ 		  <child>
+ 		    <widget class="GtkCheckButton" id="chkWholeWord">
+ 		      <property name="visible">True</property>
+-		      <property name="can_focus">True</property>
+ 		      <property name="label" translatable="yes">Whole word</property>
+ 		      <property name="use_underline">True</property>
+ 		      <property name="relief">GTK_RELIEF_NORMAL</property>
++		      <property name="focus_on_click">False</property>
+ 		      <property name="active">False</property>
+ 		      <property name="inconsistent">False</property>
+ 		      <property name="draw_indicator">True</property>
+@@ -247,10 +254,10 @@
+ 		  <child>
+ 		    <widget class="GtkCheckButton" id="chkReverseFind">
+ 		      <property name="visible">True</property>
+-		      <property name="can_focus">True</property>
+ 		      <property name="label" translatable="yes">Reverse find</property>
+ 		      <property name="use_underline">True</property>
+ 		      <property name="relief">GTK_RELIEF_NORMAL</property>
++		      <property name="focus_on_click">False</property>
+ 		      <property name="active">False</property>
+ 		      <property name="inconsistent">False</property>
+ 		      <property name="draw_indicator">True</property>
+@@ -279,10 +286,12 @@
+ 		    <widget class="GtkButton" id="btnFind">
+ 		      <property name="visible">True</property>
+ 		      <property name="can_default">True</property>
++		      <property name="has_default">True</property>
+ 		      <property name="can_focus">True</property>
+ 		      <property name="label">gtk-find</property>
+ 		      <property name="use_stock">True</property>
+ 		      <property name="relief">GTK_RELIEF_NORMAL</property>
++		      <property name="focus_on_click">True</property>
+ 		    </widget>
+ 		  </child>
+ 
+@@ -294,6 +303,7 @@
+ 		      <property name="label">gtk-find-and-replace</property>
+ 		      <property name="use_stock">True</property>
+ 		      <property name="relief">GTK_RELIEF_NORMAL</property>
++		      <property name="focus_on_click">True</property>
+ 		    </widget>
+ 		  </child>
+ 
+@@ -303,6 +313,7 @@
+ 		      <property name="can_default">True</property>
+ 		      <property name="can_focus">True</property>
+ 		      <property name="relief">GTK_RELIEF_NORMAL</property>
++		      <property name="focus_on_click">True</property>
+ 
+ 		      <child>
+ 			<widget class="GtkAlignment" id="alignment1">
+@@ -311,6 +322,10 @@
+ 			  <property name="yalign">0.5</property>
+ 			  <property name="xscale">0</property>
+ 			  <property name="yscale">0</property>
++			  <property name="top_padding">0</property>
++			  <property name="bottom_padding">0</property>
++			  <property name="left_padding">0</property>
++			  <property name="right_padding">0</property>
+ 
+ 			  <child>
+ 			    <widget class="GtkHBox" id="hbox2">
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Styles.cpp ../abi/src/wp/ap/unix/ap_UnixDialog_Styles.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Styles.cpp	2003-12-29 21:55:28.000000000 +0000
++++ ../abi/src/wp/ap/unix/ap_UnixDialog_Styles.cpp	2004-08-24 16:32:54.000000000 +0100
+@@ -20,6 +20,11 @@
+ // for gtkclist and gtklist
+ #undef GTK_DISABLE_DEPRECATED
+ 
++// Preview in modify style dialog does not work so remove it.
++// It is fixed in latest (10/08/04) unstable AbiWord Code but can not be easily
++// back ported. - ABL
++//#define ABL_ENABLE_MODIFYSTYLE_PREVIEW
++
+ #include <stdlib.h>
+ 
+ #include "ut_string.h"
+@@ -40,8 +45,10 @@
+ #include "pd_Style.h"
+ #include "ut_string_class.h"
+ 
++#define STR_COMPARE UT_stricmp
++
+ // define to 0 to popup dialogs on top of each other, 1 to hide them
+-#define HIDE_MAIN_DIALOG 0
++#define HIDE_MAIN_DIALOG 1
+ 
+ XAP_Dialog * AP_UnixDialog_Styles::static_constructor(XAP_DialogFactory * pFactory,
+ 													   XAP_Dialog_Id id)
+@@ -294,6 +301,10 @@
+ 				 static_cast<UT_uint32>(m_wCharPreviewArea->allocation.width), 
+ 				 static_cast<UT_uint32>(m_wCharPreviewArea->allocation.height));
+ 
++// connect the select_row signal to the clist
++//	g_signal_connect (G_OBJECT (m_wclistStyles), "select_row",
++	//		  G_CALLBACK (s_clist_clicked), reinterpret_cast<gpointer>(this));
++
+ 	// Populate the window's data items
+ 	_populateWindowData();
+ 
+@@ -312,21 +323,63 @@
+ 	g_signal_connect (G_OBJECT (m_wclistStyles), "select_row",
+ 			  G_CALLBACK (s_clist_clicked), reinterpret_cast<gpointer>(this));
+ 	
+-	// main loop for the dialog
+-	while(true)
+-    {
+-	    if(abiRunModalDialog(GTK_DIALOG(m_windowMain), false) == BUTTON_APPLY)
++	if(m_ModType != SMD_ALL)
++	{
++#if HIDE_MAIN_DIALOG
++//
++// Hide the old window
++//
++    gtk_widget_hide(m_windowMain);
++#endif
++		switch(m_ModType)
+ 		{
+-			event_Apply();
+-		}
+-	    else
++			case SMD_PARAGRAPH:
++				ModifyParagraph();
++				break;
++			case SMD_FONT:
++				ModifyFont();
++				break;
++			case SMD_TABS:
++				ModifyTabs();
++				break;
++			case SMD_NUMBERING:
++				ModifyLists();
++				break;
++			case SMD_LANGUAGE:
++				ModifyLang();
++				break;
++			default:
++				UT_ASSERT(m_ModType);
++		};
++		
++#if HIDE_MAIN_DIALOG
++//
++// Show the old window
++//
++    gtk_widget_show(m_windowMain);
++#endif
++		applyModifiedStyleToDoc();
++		getDoc()->updateDocForStyleChange(getCurrentStyle(),true);
++		getDoc()->signalListeners(PD_SIGNAL_UPDATE_LAYOUT);
++		event_Apply();
++	}
++	else
++	{
++		// main loop for the dialog
++		while(true)
+ 		{
+-			event_Close();
++			if(abiRunModalDialog(GTK_DIALOG(m_windowMain), false) == BUTTON_APPLY)
++			{
++				event_Apply();
++			}
++			else
++			{
++				event_Close();
++			}
++			break ; // exit the loop
+ 		}
+-		break ; // exit the loop
+ 	}
+ 
+-
+ 	DELETEP (m_pParaPreviewWidget);
+ 	DELETEP (m_pCharPreviewWidget);
+ 	
+@@ -668,7 +721,7 @@
+ {
+ }
+ 
+-void AP_UnixDialog_Styles::_populateCList(void) const
++void AP_UnixDialog_Styles::_populateCList(void)// const
+ {
+ 	const PD_Style * pStyle;
+ 	const char * name = NULL;
+@@ -679,6 +732,19 @@
+ 	gtk_clist_freeze (GTK_CLIST (m_wclistStyles));
+ 	gtk_clist_clear (GTK_CLIST (m_wclistStyles));
+ 
++	UT_uint32 CurStyleIndex = 1;
++	/*UT_uint32*/ int StyleIndex=0;
++	const XML_Char *pCurStyle;
++	PD_Style * pSelStyle = NULL;
++	UT_DEBUGMSG(("about to get current style\n"));
++	getView()->getStyle(&pCurStyle);
++//	{
++	//	PD_Style * pSelStyle = NULL;
++	//	UT_DEBUGMSG(("about to get style name\n"));
++		//getLDoc()->getStyle(pCurStyle, &pSelStyle);
++	//}
++//	const char * szStyle = getCurrentStyle();
++	
+ 	for (UT_uint32 i = 0; i < nStyles; i++)
+ 	{
+ 	    const char * data[1];
+@@ -697,11 +763,27 @@
+ 			(m_whichType == USER_STYLES && pStyle->isUserDefined()))
+ 		{
+ 			gtk_clist_append (GTK_CLIST(m_wclistStyles), const_cast<gchar **>(reinterpret_cast<const gchar **>(&data[0])));
++			//UT_DEBUGMSG(("about to compare style [%s]=?[%s]\n",szStyle, name));
++		//	if(pStyle == pSelStyle)
++			UT_DEBUGMSG(("about to compare style [%s]=?[%s]\n",pCurStyle, name));
++			if(STR_COMPARE(pCurStyle, name)==0)
++			//if(STR_COMPARE(szStyle, name)==0)
++			{
++				CurStyleIndex = StyleIndex;
++				
++				m_whichRow = StyleIndex;
++				UT_DEBUGMSG(("Style Match !\n"));
++			}
++			StyleIndex++;
+ 		}
+ 	}
+-
++//UT_DEBUGMSG(("added font widths to cache for font with hashkey '%s'\n", pFont->hashKey().c_str()));
++UT_DEBUGMSG(("about to select style\n"));
+ 	gtk_clist_thaw (GTK_CLIST (m_wclistStyles));
+-	gtk_clist_select_row (GTK_CLIST (m_wclistStyles), 0, 0);
++	gtk_clist_select_row (GTK_CLIST (m_wclistStyles), CurStyleIndex, 0);
++	gtk_clist_moveto (GTK_CLIST (m_wclistStyles), CurStyleIndex, 0, 0, 0);
++//	event_ClistClicked((int)StyleIndex, 0);
++//	updateCurrentStyle();
+ }
+ 
+ void AP_UnixDialog_Styles::_populateWindowData(void)
+@@ -900,7 +982,7 @@
+ 						  (GtkAttachOptions) (0), 0, 0);
+ 		gtk_widget_set_size_request (styleTypeEntry, 158, -1);
+ 	}
+-
++#ifdef ABL_DISABLE_MODIFYSTYLE_PREVIEW
+ 	previewFrame = gtk_frame_new (pSS->getValueUTF8(AP_STRING_ID_DLG_Styles_ModifyPreview).utf8_str());
+ 	gtk_frame_set_shadow_type(GTK_FRAME(previewFrame), GTK_SHADOW_NONE);
+ 	gtk_widget_show (previewFrame);
+@@ -911,7 +993,7 @@
+ 	gtk_widget_show (modifyDrawingArea);
+ 	gtk_container_add (GTK_CONTAINER (previewFrame), modifyDrawingArea);
+ 	gtk_widget_set_size_request (modifyDrawingArea, -1, 120);
+-	
++#endif
+ 	GtkWidget * descriptionFrame = gtk_frame_new (pSS->getValueUTF8(AP_STRING_ID_DLG_Styles_ModifyDescription).utf8_str());
+ 	gtk_frame_set_shadow_type(GTK_FRAME(descriptionFrame), GTK_SHADOW_NONE);
+ 	gtk_widget_show (descriptionFrame);
+@@ -1261,6 +1343,7 @@
+ 	XAP_UnixApp * unixapp = static_cast<XAP_UnixApp *> (m_pApp);
+ 	UT_ASSERT(unixapp);
+ 
++#ifdef ABL_ENABLE_MODIFYSTYLE_PREVIEW
+ 	DELETEP (m_pAbiPreviewWidget);
+ 	m_pAbiPreviewWidget = new GR_UnixGraphics(m_wModifyDrawingArea->window, unixapp->getFontManager(), m_pApp);
+ 	
+@@ -1271,7 +1354,8 @@
+ 				static_cast<UT_uint32>(m_wModifyDrawingArea->allocation.height));
+ 	
+ 	_populateAbiPreview(isNew());
+-
++#endif
++	
+ 	switch(abiRunModalDialog(GTK_DIALOG(m_wModifyDialog), false))
+ 	  {
+ 	  case BUTTON_MODIFY_OK:
+@@ -1358,6 +1442,14 @@
+ 	setIsNew(false);
+ 	
+ 	modifyRunModal();
++
++#if HIDE_MAIN_DIALOG
++//
++// Reveal main window again
++//
++	gtk_widget_show( m_windowMain);
++#endif	
++	
+ 	if(m_answer == AP_Dialog_Styles::a_OK)
+ 	{
+ 		applyModifiedStyleToDoc();
+@@ -1374,12 +1466,7 @@
+ // Restore the values in the main dialog
+ //
+ 	
+-#if HIDE_MAIN_DIALOG
+-//
+-// Reveal main window again
+-//
+-	gtk_widget_show( m_windowMain);
+-#endif
++
+ }
+ 
+ void  AP_UnixDialog_Styles::setModifyDescription( const char * desc)
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Styles.h ../abi/src/wp/ap/unix/ap_UnixDialog_Styles.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/unix/ap_UnixDialog_Styles.h	2002-08-01 21:19:06.000000000 +0100
++++ ../abi/src/wp/ap/unix/ap_UnixDialog_Styles.h	2004-08-23 13:49:51.000000000 +0100
+@@ -103,7 +103,7 @@
+ 	virtual GtkWidget * _constructWindow(void);
+ 	GtkWidget * _constructWindowContents(GtkWidget * parent);
+ 	void				_populateWindowData(void);
+-	void                            _populateCList(void) const;
++	void                            _populateCList(void);// const;
+ 	void 				_storeWindowData(void) const;
+ 	void				_connectsignals(void) const;
+ 	virtual const char * getCurrentStyle (void) const;
+@@ -183,10 +183,3 @@
+ };
+ 
+ #endif /* AP_UnixDialog_Styles_H */
+-
+-
+-
+-
+-
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Dialog_Styles.cpp ../abi/src/wp/ap/xp/ap_Dialog_Styles.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Dialog_Styles.cpp	2004-06-03 09:13:01.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Dialog_Styles.cpp	2004-08-23 13:49:51.000000000 +0100
+@@ -49,6 +49,7 @@
+ 	: XAP_Dialog_NonPersistent(pDlgFactory,id, "interface/dialogstyles")
+ {
+ 
++	m_ModType = SMD_ALL;
+ 	m_answer = a_OK;
+ 	m_pParaPreview = NULL;
+ 	m_pCharPreview = NULL;
+@@ -1228,6 +1229,7 @@
+ 	UT_ASSERT(m_pAbiPreview);
+ }
+ 
++
+ /*!
+  * This is the FV_View pointer for our mini-abi in the second pane preview.
+  */
+@@ -1698,3 +1700,8 @@
+ 		}
+ 	}
+ }
++
++void AP_Dialog_Styles::SetModifyType(SytleModType type)
++{
++	m_ModType = type;
++}
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Dialog_Styles.h ../abi/src/wp/ap/xp/ap_Dialog_Styles.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Dialog_Styles.h	2004-06-03 09:13:01.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Dialog_Styles.h	2004-08-23 13:49:51.000000000 +0100
+@@ -31,6 +31,8 @@
+ #include "xap_Preview.h"
+ #include "ap_Preview_Paragraph.h"
+ 
++typedef enum SytleModType {SMD_ALL, SMD_PARAGRAPH, SMD_FONT, SMD_TABS, SMD_NUMBERING, SMD_LANGUAGE};
++
+ class AP_Dialog_Styles : public XAP_Dialog_NonPersistent
+ {
+  public:
+@@ -44,6 +46,7 @@
+ 
+ 	// wish that this could be protected
+ 	void _tabCallback(const char *, const char *);
++	void SetModifyType(SytleModType);
+ 
+  protected:
+ 	void event_paraPreviewUpdated (const XML_Char * pageLeftMargin,
+@@ -78,7 +81,7 @@
+ 	void ModifyParagraph(void);
+ 	void ModifyTabs(void);
+ 	void ModifyLang(void);
+-
++	
+ 	void updateCurrentStyle(void);
+     bool createNewStyle(const XML_Char * szName);
+ 	bool applyModifiedStyleToDoc(void);
+@@ -105,6 +108,7 @@
+ 	AP_Preview_Abi *	          m_pAbiPreview;
+ 	UT_Vector                     m_vecAllProps;
+ 	UT_Vector                     m_vecAllAttribs;
++	SytleModType				  m_ModType;
+ 
+ private:
+ 	XAP_Frame *                   m_pFrame;
+@@ -115,17 +119,7 @@
+ 	PT_DocPosition                m_posAfter;
+ 	UT_Vector                     m_vecCharProps;
+ 	UT_String                     m_ListProps[8];
++	
+ };
+ 
+ #endif /* AP_Dialog_Styles_H */
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_EditMethods.cpp ../abi/src/wp/ap/xp/ap_EditMethods.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_EditMethods.cpp	2004-07-11 22:47:02.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_EditMethods.cpp	2004-08-27 12:27:41.000000000 +0100
+@@ -162,7 +162,8 @@
+ 	static EV_EditMethod_Fn warpInsPtBOB;
+ 	static EV_EditMethod_Fn warpInsPtEOB;
+ 	static EV_EditMethod_Fn warpInsPtBOD;
+-	static EV_EditMethod_Fn warpInsPtEOD;
++	static EV_EditMethod_Fn warpInsPtEOD;;
++
+ 	static EV_EditMethod_Fn warpInsPtPrevPage;
+ 	static EV_EditMethod_Fn warpInsPtNextPage;
+ 	static EV_EditMethod_Fn warpInsPtPrevScreen;
+@@ -408,6 +409,11 @@
+ 	static EV_EditMethod_Fn style;
+ 	static EV_EditMethod_Fn dlgBackground;
+ 	static EV_EditMethod_Fn dlgStyle;
++	static EV_EditMethod_Fn dlgStyleParagraph;
++	static EV_EditMethod_Fn dlgStyleFont;
++	static EV_EditMethod_Fn dlgStyleTabs;
++	static EV_EditMethod_Fn dlgStyleNumbering;
++	static EV_EditMethod_Fn dlgStyleLanguage;
+ 	static EV_EditMethod_Fn dlgTabs;
+ 	static EV_EditMethod_Fn formatFootnotes;
+ 	static EV_EditMethod_Fn dlgToggleCase;
+@@ -732,6 +738,11 @@
+ 	EV_EditMethod(NF(dlgSpell), 			0,	""),
+ 	EV_EditMethod(NF(dlgSpellPrefs), 		0,	""),
+ 	EV_EditMethod(NF(dlgStyle), 			0,	""),
++	EV_EditMethod(NF(dlgStyleFont), 		0,	""),
++	EV_EditMethod(NF(dlgStyleLanguage), 	0,	""),
++	EV_EditMethod(NF(dlgStyleNumbering), 	0,	""),
++	EV_EditMethod(NF(dlgStyleParagraph), 	0,	""),
++	EV_EditMethod(NF(dlgStyleTabs), 		0,	""),
+ 	EV_EditMethod(NF(dlgTabs),				0,	""),
+ 	EV_EditMethod(NF(dlgToggleCase),		0,	""),
+ 	EV_EditMethod(NF(dlgWordCount), 		0,	""),
+@@ -3611,6 +3622,16 @@
+ {
+ 	CHECK_FRAME;
+ 	ABIWORD_VIEW;
++// PSION-ABL AbiBug #7148 Backport.
++//                                                                              
++// Finish handling current expose before doing the next movement                
++//                                                                              
++        GR_Graphics * pG = pView->getGraphics();                                
++        if(pG && pG->isExposePending())                                         
++        {                                                                       
++			return true;                                                    
++        }
++// PSION-ABL END.        
+ 	pView->warpInsPtNextPrevLine(false);
+ 	return true;
+ }
+@@ -3619,6 +3640,16 @@
+ {
+ 	CHECK_FRAME;
+ 	ABIWORD_VIEW;
++// PSION-ABL AbiBug #7148 Backport.
++//                                                                              
++// Finish handling current expose before doing the next movement                
++//                                                                              
++	GR_Graphics * pG = pView->getGraphics();                                
++	if(pG && pG->isExposePending())                                         
++	{                                                                       
++		return true;  
++	}
++// PSION-ABL END.
+ 	pView->warpInsPtNextPrevLine(true);
+ 	return true;
+ }
+@@ -9105,6 +9136,66 @@
+ 	return bOK;
+ }
+ 
++static bool s_doStylesModifyDlg(FV_View * pView, SytleModType type)
++{
++	XAP_Frame * pFrame = static_cast<XAP_Frame *>(pView->getParentData());
++	UT_ASSERT(pFrame);
++
++	pFrame->raise();
++
++	XAP_DialogFactory * pDialogFactory
++		= static_cast<XAP_DialogFactory *>(pFrame->getDialogFactory());
++
++	AP_Dialog_Styles * pDialog
++		= static_cast<AP_Dialog_Styles *>(pDialogFactory->requestDialog(AP_DIALOG_ID_STYLES));
++	UT_ASSERT(pDialog);
++	if (!pDialog)
++		return false;
++	if(pView->isHdrFtrEdit())
++	{
++		pView->clearHdrFtrEdit();
++		pView->warpInsPtToXY(0,0,false);
++	}
++
++	pDialog->SetModifyType(type);
++	pDialog->runModal(pFrame);
++
++//	AP_Dialog_Styles::tAnswer ans = pDialog->getAnswer();
++	bool bOK = true;
++//
++// update the combo box with the new styles.
++//
++	XAP_App * pApp = pFrame->getApp();
++	UT_ASSERT(pApp);
++	//
++	// Get all clones of this frame and set styles combo box
++	//
++	UT_Vector vClones;
++	if(pFrame->getViewNumber() > 0)
++	{
++		pApp->getClones(&vClones,pFrame);
++		for (UT_uint32 i = 0; i < vClones.getItemCount(); i++)
++		{
++			XAP_Frame * f = static_cast<XAP_Frame *>(vClones.getNthItem(i));
++			f->repopulateCombos();
++		}
++	}
++	else
++	{
++		pFrame->repopulateCombos();
++	}
++//
++// Now update all views on the document. Do this always to be safe.
++//
++	{
++		PD_Document * pDoc = pView->getLayout()->getDocument();
++		pDoc->signalListeners(PD_SIGNAL_UPDATE_LAYOUT);
++	}
++
++	pDialogFactory->releaseDialog(pDialog);
++	return bOK;
++}
++
+ Defun1(formatFootnotes)
+ {
+ 	CHECK_FRAME;
+@@ -9154,6 +9245,7 @@
+ #endif
+ 	return true;
+ }
++
+ Defun1(dlgStyle)
+ {
+ 	CHECK_FRAME;
+@@ -9164,6 +9256,56 @@
+ 	return s_doStylesDlg(pView);
+ }
+ 
++Defun1(dlgStyleParagraph)
++{
++	CHECK_FRAME;
++	XAP_Frame * pFrame = static_cast<XAP_Frame *> ( pAV_View->getParentData());
++	UT_ASSERT(pFrame);
++	ABIWORD_VIEW;
++
++	return s_doStylesModifyDlg(pView, SMD_PARAGRAPH);
++}
++
++Defun1(dlgStyleFont)
++{
++	CHECK_FRAME;
++	XAP_Frame * pFrame = static_cast<XAP_Frame *> ( pAV_View->getParentData());
++	UT_ASSERT(pFrame);
++	ABIWORD_VIEW;
++
++	return s_doStylesModifyDlg(pView, SMD_FONT);
++}
++
++Defun1(dlgStyleTabs)
++{
++	CHECK_FRAME;
++	XAP_Frame * pFrame = static_cast<XAP_Frame *> ( pAV_View->getParentData());
++	UT_ASSERT(pFrame);
++	ABIWORD_VIEW;
++
++	return s_doStylesModifyDlg(pView, SMD_TABS);
++}
++
++Defun1(dlgStyleNumbering)
++{
++	CHECK_FRAME;
++	XAP_Frame * pFrame = static_cast<XAP_Frame *> ( pAV_View->getParentData());
++	UT_ASSERT(pFrame);
++	ABIWORD_VIEW;
++
++	return s_doStylesModifyDlg(pView, SMD_NUMBERING);
++}
++
++Defun1(dlgStyleLanguage)
++{
++	CHECK_FRAME;
++	XAP_Frame * pFrame = static_cast<XAP_Frame *> ( pAV_View->getParentData());
++	UT_ASSERT(pFrame);
++	ABIWORD_VIEW;
++
++	return s_doStylesModifyDlg(pView, SMD_LANGUAGE);
++}
++
+ Defun1(dlgTabs)
+ {
+ 	CHECK_FRAME;
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_EditMethods.h ../abi/src/wp/ap/xp/ap_EditMethods.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_EditMethods.h	2002-08-02 06:38:58.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_EditMethods.h	2004-08-23 13:49:52.000000000 +0100
+@@ -22,6 +22,7 @@
+ 
+ #include "fv_View.h"
+ 
++
+ UT_Error fileOpen(XAP_Frame * pFrame, const char * pNewFile, IEFileType ieft);
+ 
+ // defined in ap_editmethods.cpp
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_LB_Default.cpp ../abi/src/wp/ap/xp/ap_LB_Default.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_LB_Default.cpp	2003-12-15 15:35:32.000000000 +0000
++++ ../abi/src/wp/ap/xp/ap_LB_Default.cpp	2004-08-25 14:43:12.000000000 +0100
+@@ -245,7 +245,7 @@
+ {
+ //	{nvk,				{ none,					_S,					_C,				_S_C,
+ //  					  _A,					_A_S,				_A_C,			_A_C_S				}},
+-	{EV_NVK_BACKSPACE,	{ "delLeft", 			"delLeft",			"delBOW",		"",
++	{EV_NVK_BACKSPACE,	{ "delLeft", 			"delRight",			"delBOW",		"",
+ 						  "",					"",					"",				""					}},
+ 	{EV_NVK_SPACE,		{ "insertSpace",		"insertSpace",		"togglePlain",	"insertNBSpace",
+ 						  "insertNBZWSpace",	"insertZWJoiner",					"",				""					}},
+@@ -383,7 +383,7 @@
+ 	{0x2a, /* *      */ { "insertData",			"viewPara",			"",				""					}},
+ 	{0x2b, /* +      */ { "insertData",			"",					"",				""					}},
+ 	{0x2c, /* ,      */ { "insertData",			"",					"",				""					}},
+-	{0x2d, /* -      */ { "insertData",			"toggleSub",		"zoomOut",		""					}},
++	{0x2d, /* -      */ { "insertData",			"toggleSub",		"",		""					}},
+ 	{0x2e, /* .      */ { "insertData",			"pasteSpecial",		"",				""					}},
+ 	{0x2f, /* /      */ { "insertData",			"",					"",				""					}},
+ 	{0x30, /* 0      */ { "insertData",			"",					DO_NOT_USE,		""					}},
+@@ -399,33 +399,33 @@
+ 	{0x3a, /* :      */ { "insertData",			"",					"",				""					}},
+ 	{0x3b, /* ;      */ { "insertData",			"",					"",				""					}},
+ 	{0x3c, /* <      */ { "insertData",			"fontSizeIncrease",	"",				"insertRLM"			}},
+-	{0x3d, /* =      */ { "insertData",			"toggleSuper",		"zoomIn",		""					}},
++	{0x3d, /* =      */ { "insertData",			"toggleSuper",		"",				""					}},
+ 	{0x3e, /* >      */ { "insertData",			"fontSizeDecrease",	"",				"insertLRM"			}},
+ 	{0x3f, /* ?      */ { "insertData",			"",					"",				""					}},
+ 	{0x40, /* @      */ { "insertData",			"",					"",				""					}},
+ 	{0x41, /* A      */ { "insertData",			"selectAll",		DO_NOT_USE,		""					}},
+-	{0x42, /* B      */ { "insertData",			"toggleBold",		DO_NOT_USE,		""					}},
+-	{0x43, /* C      */ { "insertData",			"copy",				DO_NOT_USE,		""					}},
++	{0x42, /* B      */ { "insertData",			"",					DO_NOT_USE,		""					}},
++	{0x43, /* C      */ { "insertData",			"",					DO_NOT_USE,		""					}},
+ 	{0x44, /* D      */ { "insertData",			"dlgFont",			DO_NOT_USE,		""					}},
+-	{0x45, /* E      */ { "insertData",			"alignCenter",		DO_NOT_USE,		""					}},
+-	{0x46, /* F      */ { "insertData",			"find",				DO_NOT_USE,		""					}},
++	{0x45, /* E      */ { "insertData",			"",					DO_NOT_USE,		""					}},
++	{0x46, /* F      */ { "insertData",			"",					DO_NOT_USE,		""					}},
+ 	{0x47, /* G      */ { "insertData",			"go",				DO_NOT_USE,		""					}},
+ 	{0x48, /* H      */ { "insertData",			"replace",			DO_NOT_USE,		""					}},
+ 	{0x49, /* I      */ { "insertData",			"toggleItalic",		DO_NOT_USE,		""					}},
+ 	{0x4a, /* J      */ { "insertData",			"alignJustify",		DO_NOT_USE,		""					}},
+ 	{0x4b, /* K      */ { "insertData",			"toggleStrike",		DO_NOT_USE,		""					}},
+ 	{0x4c, /* L      */ { "insertData",			"alignLeft",		DO_NOT_USE,		""					}},
+-	{0x4d, /* M      */ { "insertData",			"insSymbol",		DO_NOT_USE,		""					}},
+-	{0x4e, /* N      */ { "insertData",			"toolbarNew",		DO_NOT_USE,		""					}},
+-	{0x4f, /* O      */ { "insertData",			"fileOpen",			DO_NOT_USE,		""					}},
+-	{0x50, /* P      */ { "insertData",			"print",			DO_NOT_USE,		""					}},
+-	{0x51, /* Q      */ { "insertData",			"querySaveAndExit",	DO_NOT_USE,		""					}},
++	{0x4d, /* M      */ { "insertData",			"zoomIn",			DO_NOT_USE,		""					}},
++	{0x4e, /* N      */ { "insertData",			"",					DO_NOT_USE,		""					}},
++	{0x4f, /* O      */ { "insertData",			"",					DO_NOT_USE,		""					}},
++	{0x50, /* P      */ { "insertData",			"",					DO_NOT_USE,		""					}},
++	{0x51, /* Q      */ { "insertData",			"",					DO_NOT_USE,		""					}},
+ 	{0x52, /* R      */ { "insertData",			"alignRight",		DO_NOT_USE,		""					}},
+-	{0x53, /* S      */ { "insertData",			"fileSave",			DO_NOT_USE,		""					}},
++	{0x53, /* S      */ { "insertData",			"",					DO_NOT_USE,		""					}},
+ 	{0x54, /* T      */ { "insertData",			"toggleOline",		DO_NOT_USE,		""					}},
+ 	{0x55, /* U      */ { "insertData",			"toggleUline",		DO_NOT_USE,		""					}},
+ 	{0x56, /* V      */ { "insertData",			"paste",			DO_NOT_USE,		""					}},
+-	{0x57, /* W      */ { "insertData",			"closeWindow",		DO_NOT_USE,		""					}},
++	{0x57, /* W      */ { "insertData",			"",					DO_NOT_USE,		""					}},
+ 	{0x58, /* X      */ { "insertData",			"cut",				DO_NOT_USE,		""					}},
+ 	{0x59, /* Y      */ { "insertData",			"redo",				DO_NOT_USE,		""					}},
+ 	{0x5a, /* Z      */ { "insertData",			"undo",				DO_NOT_USE,		""					}},
+@@ -439,7 +439,7 @@
+ 	{0x62, /* b      */ { "insertData",			"toggleBold",		DO_NOT_USE,		""					}},
+ 	{0x63, /* c      */ { "insertData",			"copy",				DO_NOT_USE,		""					}},
+ 	{0x64, /* d      */ { "insertData",			"dlgFont",			DO_NOT_USE,		""					}},
+-	{0x65, /* e      */ { "insertData",			"alignCenter",		DO_NOT_USE,		""					}},
++	{0x65, /* e      */ { "insertData",			"closeWindow",		DO_NOT_USE,		""					}},
+ 	{0x66, /* f      */ { "insertData",			"find",				DO_NOT_USE,		""					}},
+ 	{0x67, /* g      */ { "insertData",			"go",				DO_NOT_USE,		""					}},
+ 	{0x68, /* h      */ { "insertData",			"replace",			DO_NOT_USE,		""					}},
+@@ -447,8 +447,8 @@
+ 	{0x6a, /* j      */ { "insertData",			"alignJustify",		DO_NOT_USE,		""					}},
+ 	{0x6b, /* k      */ { "insertData",			"toggleStrike",		DO_NOT_USE,		""					}},
+ 	{0x6c, /* l      */ { "insertData",			"alignLeft",		DO_NOT_USE,		""					}},
+-	{0x6d, /* m      */ { "insertData",			"insSymbol",		DO_NOT_USE,		""					}},
+-	{0x6e, /* n      */ { "insertData",			"toolbarNew",		DO_NOT_USE,		""					}},
++	{0x6d, /* m      */ { "insertData",			"zoomOut",			DO_NOT_USE,		""					}},
++	{0x6e, /* n      */ { "insertData",			"fileNew",			DO_NOT_USE,		""					}},
+ 	{0x6f, /* o      */ { "insertData",			"fileOpen",			DO_NOT_USE,		""					}},
+ 	{0x70, /* p      */ { "insertData",			"print",			DO_NOT_USE,		""					}},
+ 	{0x71, /* q      */ { "insertData",			"querySaveAndExit",	DO_NOT_USE,		""					}},
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_ActionSet.cpp ../abi/src/wp/ap/xp/ap_Menu_ActionSet.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_ActionSet.cpp	2004-06-08 15:54:54.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Menu_ActionSet.cpp	2004-08-23 19:52:33.000000000 +0100
+@@ -94,6 +94,8 @@
+ 	_s(AP_MENU_ID_FILE_REVERT, 0,0,0,0, "fileRevert", ap_GetState_Changes, NULL);
+ 	_s(AP_MENU_ID_FILE_EXIT,		0,0,0,0,	"querySaveAndExit",	NULL,					NULL);
+ 	_s(AP_MENU_ID_OPEN_TEMPLATE, 0,1,0,0, "openTemplate", NULL, NULL);
++	_s(AP_MENU_ID_FILE_MORE,	1,0,0,0,	NULL, NULL, NULL);
++	
+ 
+ 	_s(AP_MENU_ID_EDIT,				1,0,0,0,	NULL,				NULL,					NULL);
+ 	_s(AP_MENU_ID_EDIT_UNDO,		0,0,0,0,	"undo",				ap_GetState_Changes,	NULL);
+@@ -123,19 +125,22 @@
+ 	_s(AP_MENU_ID_VIEW_TB_4,		0,0,1,0,	"viewTB4",			ap_GetState_View,		ap_GetLabel_Toolbar);
+ 	_s(AP_MENU_ID_VIEW_LOCK_TB_LAYOUT, 0,0,1,0,	"lockToolbarLayout", ap_GetState_View,			NULL);
+ 	_s(AP_MENU_ID_VIEW_DEFAULT_TB_LAYOUT, 0,0,0,0,	"defaultToolbarLayout", ap_GetState_View,		NULL);
+-	_s(AP_MENU_ID_VIEW_RULER,	0,0,1,0,	"viewRuler",		ap_GetState_View,		NULL);
+-	_s(AP_MENU_ID_VIEW_STATUSBAR,	0,0,1,0,	"viewStatus",		ap_GetState_View,		NULL);
+-	_s(AP_MENU_ID_VIEW_LOCKSTYLES,	0,0,1,0,	"viewLockStyles",   ap_GetState_View,		NULL);
+-	_s(AP_MENU_ID_VIEW_SHOWPARA,	0,0,1,0,	"viewPara",			ap_GetState_View,		NULL);
+-	_s(AP_MENU_ID_VIEW_FULLSCREEN, 0,0,1,0, "viewFullScreen", ap_GetState_View, NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM_MENU, 1,0,0,0, NULL, NULL, NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM,		0,1,0,0,	"dlgZoom",			NULL,					NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM_200, 0,0,0,1, "zoom200", ap_GetState_Zoom, NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM_100, 0,0,0,1, "zoom100", ap_GetState_Zoom, NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM_75, 0,0,0,1, "zoom75", ap_GetState_Zoom, NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM_50, 0,0,0,1, "zoom50", ap_GetState_Zoom, NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM_WHOLE, 0,0,0,1, "zoomWhole", ap_GetState_Zoom, NULL);
+-	_s(AP_MENU_ID_VIEW_ZOOM_WIDTH, 0,0,0,1, "zoomWidth", ap_GetState_Zoom, NULL);
++	_s(AP_MENU_ID_VIEW_RULER,		0,0,1,0, "viewRuler",		ap_GetState_View,		NULL);
++	_s(AP_MENU_ID_VIEW_STATUSBAR,	0,0,1,0, "viewStatus",		ap_GetState_View,		NULL);
++	_s(AP_MENU_ID_VIEW_LOCKSTYLES,	0,0,1,0, "viewLockStyles",  ap_GetState_View,		NULL);
++	_s(AP_MENU_ID_VIEW_SHOWPARA,	0,0,1,0, "viewPara",		ap_GetState_View,		NULL);
++	_s(AP_MENU_ID_VIEW_FULLSCREEN, 	0,0,1,0, "viewFullScreen", ap_GetState_View, NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_MENU, 	1,0,0,0, NULL, 			NULL,	NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM,		0,1,0,0, "dlgZoom",		NULL,	NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_IN,		0,0,0,0, "zoomIn",		NULL,	NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_OUT,	0,0,0,0, "zoomOut",		NULL,	NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_200, 	0,0,0,1, "zoom200", 	ap_GetState_Zoom, NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_100, 	0,0,0,1, "zoom100", 	ap_GetState_Zoom, NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_75, 	0,0,0,1, "zoom75", 		ap_GetState_Zoom, NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_50, 	0,0,0,1, "zoom50", 		ap_GetState_Zoom, NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_WHOLE, 	0,0,0,1, "zoomWhole", 	ap_GetState_Zoom, NULL);
++	_s(AP_MENU_ID_VIEW_ZOOM_WIDTH, 	0,0,0,1, "zoomWidth", 	ap_GetState_Zoom, NULL);
++	_s(AP_MENU_ID_VIEW_MORE,		1,0,0,0,	NULL, NULL, NULL);
+ 
+ 	_s(AP_MENU_ID_INSERT,			1,0,0,0,	NULL,				NULL,					NULL);
+ 	_s(AP_MENU_ID_INSERT_BREAK,		0,1,0,0,	"insBreak",			ap_GetState_BreakOK,					NULL);
+@@ -163,6 +168,7 @@
+ 	_s(AP_MENU_ID_INSERT_DIRECTIONMARKER,  1,0,0,0, NULL, NULL, NULL);
+ 	_s(AP_MENU_ID_INSERT_DIRECTIONMARKER_LRM,0,0,0,0, "insertLRM", NULL, NULL);
+ 	_s(AP_MENU_ID_INSERT_DIRECTIONMARKER_RLM,0,0,0,0, "insertRLM", NULL, NULL);
++	_s(AP_MENU_ID_INSERT_MORE,	1,0,0,0,	NULL, NULL, NULL);
+ 	
+ 	_s(AP_MENU_ID_FORMAT,			1,0,0,0,	NULL,				NULL,					NULL);
+ 	_s(AP_MENU_ID_FMT,			1,0,0,0,	NULL,				NULL,					NULL);
+@@ -177,8 +183,16 @@
+ 	_s(AP_MENU_ID_FMT_HDRFTR,     0,1,0,0, "dlgHdrFtr", NULL, NULL);
+ 	_s(AP_MENU_ID_FMT_FOOTNOTES,     0,1,0,0, "formatFootnotes", NULL, NULL);
+ 	_s(AP_MENU_ID_FMT_IMAGE, 0,1,0,0, "dlgFmtImage", NULL, NULL);
+-	_s(AP_MENU_ID_FMT_STYLE_DEFINE,		0,1,0,0,	"dlgStyle",			NULL,					NULL);
+-	_s(AP_MENU_ID_FMT_STYLE,		1,0,0,0,	NULL,			NULL,					NULL);
++	_s(AP_MENU_ID_FMT_STYLE_DEFINE,		0,1,0,0,	"dlgStyle",					NULL,	NULL);
++	_s(AP_MENU_ID_FMT_STYLE,			1,0,0,0,	NULL,						NULL,	NULL);
++// PSION-ABL Aug04 TBCL	_s(AP_MENU_ID_FMT_STYLE_MODIFY,		1,0,0,0,	NULL,	NULL,	ap_GetLabel_StyleModify);
++	_s(AP_MENU_ID_FMT_STYLE_MODIFY,		1,0,0,0,	NULL,						NULL,	NULL);
++	_s(AP_MENU_ID_FMT_STYLE_PARAGRAPH,	0,1,0,0, "dlgStyleParagraph", NULL, NULL);
++	_s(AP_MENU_ID_FMT_STYLE_FONT,		0,1,0,0, "dlgStyleFont", NULL, NULL);
++	_s(AP_MENU_ID_FMT_STYLE_TABS,		0,1,0,0, "dlgStyleTabs", NULL, NULL);
++	_s(AP_MENU_ID_FMT_STYLE_NUMBERING,	0,1,0,0, "dlgStyleNumbering", NULL, NULL);
++	_s(AP_MENU_ID_FMT_STYLE_LANGUAGE,	0,1,0,0, "dlgStyleLanguage", NULL, NULL);
++
+ 	_s(AP_MENU_ID_FMT_IMPORTSTYLES,		0,1,0,0,	"importStyles",	NULL,					NULL);
+ 	_s(AP_MENU_ID_FMT_TABS,			0,1,0,0,	"dlgTabs",			NULL,					NULL);
+ 	_s(AP_MENU_ID_FMT_BOLD,			0,0,1,0,	"toggleBold",		ap_GetState_CharFmt,	NULL);
+@@ -196,6 +210,8 @@
+ 	_s(AP_MENU_ID_FMT_DIRECTION_DD_RTL,0,0,1,0, "toggleDomDirection", ap_GetState_BlockFmt, NULL);
+ 	_s(AP_MENU_ID_FMT_DIRECTION_DO_LTR,0,0,1,0, "toggleDirOverrideLTR", ap_GetState_CharFmt, NULL);
+ 	_s(AP_MENU_ID_FMT_DIRECTION_DO_RTL,0,0,1,0, "toggleDirOverrideRTL", ap_GetState_CharFmt, NULL);
++	
++	_s(AP_MENU_ID_FMT_MORE,	1,0,0,0,	NULL, NULL, NULL);
+ 
+ 	_s(AP_MENU_ID_ALIGN,			1,0,0,0,	NULL,				ap_GetState_StylesLocked,	NULL);
+ 	_s(AP_MENU_ID_ALIGN_LEFT,		0,0,0,1,	"alignLeft",		ap_GetState_BlockFmt,	NULL);
+@@ -219,6 +235,8 @@
+ 	_s(AP_MENU_ID_TOOLS_REVISIONS_ACCEPT_REVISION, 0,0,0,0, "revisionAccept", ap_GetState_RevisionPresent,NULL);
+ 	_s(AP_MENU_ID_TOOLS_REVISIONS_REJECT_REVISION, 0,0,0,0, "revisionReject", ap_GetState_RevisionPresent,NULL);
+ 	
++	_s(AP_MENU_ID_TOOLS_MORE,	1,0,0,0,	NULL, NULL, NULL);
++	
+ 	_s(AP_MENU_ID_TABLE,1,0,0,0,NULL,NULL,NULL);
+ 	_s(AP_MENU_ID_TABLE_INSERT,1,0,0,0, NULL, ap_GetState_Changes, NULL);
+ 	_s(AP_MENU_ID_TABLE_INSERT_TABLE,0,1,0,0, "insertTable",ap_GetState_TableOK, NULL);
+@@ -283,6 +301,7 @@
+ 	_s(AP_MENU_ID_HELP_ABOUT_GNOMEOFFICE, 0,0,0,0, "helpAboutGnomeOffice", NULL, NULL);
+ 	_s(AP_MENU_ID_HELP_CREDITS, 0,0,0,0, "helpCredits", NULL, NULL);
+ 	_s(AP_MENU_ID_HELP_REPORT_BUG, 0,0,0,0, "helpReportBug", NULL, NULL);
++	_s(AP_MENU_ID_HELP_MORE,	1,0,0,0,	NULL, NULL, NULL);
+ 
+ 	_s(AP_MENU_ID_SPELL_SUGGEST_1,	0,0,0,0,	"spellSuggest_1",	ap_GetState_Suggest,	ap_GetLabel_Suggest);
+ 	_s(AP_MENU_ID_SPELL_SUGGEST_2,	0,0,0,0,	"spellSuggest_2",	ap_GetState_Suggest,	ap_GetLabel_Suggest);
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Functions.cpp ../abi/src/wp/ap/xp/ap_Menu_Functions.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Functions.cpp	2004-06-08 15:54:54.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Menu_Functions.cpp	2004-08-23 19:52:33.000000000 +0100
+@@ -561,6 +561,35 @@
+ 	return NULL;
+ }
+ 
++Defun_EV_GetMenuItemComputedLabel_Fn(ap_GetLabel_StyleModify)
++{
++	// PSION-ABL UI Customisation Aug 2004.
++	// PSION-ABL Note: AbiWord does not yet update correctly in order to use this code correctly
++	// PSION-ABL       However, this code works correctly.
++	// Compute the menu label for the 'Format > All '<stylename>' paragraphs' item.
++
++	XAP_App * pApp = XAP_App::getApp();
++	UT_return_val_if_fail (pApp && pLabel, NULL);
++	XAP_Frame * frame = pApp->getLastFocussedFrame();
++
++	AV_View * pAV_View = frame->getCurrentView();
++	UT_return_val_if_fail(pAV_View, NULL);
++	ABIWORD_VIEW;
++	UT_return_val_if_fail(pView, NULL);
++	UT_ASSERT(id == AP_MENU_ID_FMT_STYLE_MODIFY);
++
++	const char * szFormat = pLabel->getMenuLabel();
++	static char buf[128];
++
++	const XML_Char *pCurStyle;
++	pView->getStyle(&pCurStyle);
++	sprintf(buf,szFormat,pCurStyle);
++	
++
++	return buf;
++}
++
++
+ /****************************************************************/
+ /****************************************************************/
+ 
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Functions.h ../abi/src/wp/ap/xp/ap_Menu_Functions.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Functions.h	2004-06-08 15:54:54.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Menu_Functions.h	2004-08-23 19:04:22.000000000 +0100
+@@ -70,5 +70,6 @@
+ Defun_EV_GetMenuItemComputedLabel_Fn(ap_GetLabel_Index);
+ Defun_EV_GetMenuItemComputedLabel_Fn(ap_GetLabel_Suggest);
+ Defun_EV_GetMenuItemComputedLabel_Fn(ap_GetLabel_Autotext);
++Defun_EV_GetMenuItemComputedLabel_Fn(ap_GetLabel_StyleModify);
+ 
+ #endif /* AP_MENU_FUNCTIONS_H */
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Id_List.h ../abi/src/wp/ap/xp/ap_Menu_Id_List.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Id_List.h	2003-12-15 10:01:50.000000000 +0000
++++ ../abi/src/wp/ap/xp/ap_Menu_Id_List.h	2004-08-23 13:49:52.000000000 +0100
+@@ -65,6 +65,7 @@
+ menuitem(FILE_RECENT_9)
+ menuitem(FILE_REVERT)
+ menuitem(FILE_EXIT)
++menuitem(FILE_MORE)
+ 
+ menuitem(OPEN_TEMPLATE)
+ 
+@@ -98,9 +99,12 @@
+ menuitem(VIEW_SHOWPARA)
+ menuitem(VIEW_LOCKSTYLES)
+ menuitem(VIEW_HEADFOOT) // This has been removed.
++menuitem(VIEW_MORE)
+ 
+ menuitem(VIEW_ZOOM_MENU)
+ menuitem(VIEW_ZOOM)
++menuitem(VIEW_ZOOM_IN)
++menuitem(VIEW_ZOOM_OUT)
+ menuitem(VIEW_ZOOM_200)
+ menuitem(VIEW_ZOOM_100)
+ menuitem(VIEW_ZOOM_75)
+@@ -133,6 +137,7 @@
+ menuitem(INSERT_DIRECTIONMARKER)	
+ menuitem(INSERT_DIRECTIONMARKER_LRM)	
+ menuitem(INSERT_DIRECTIONMARKER_RLM)	
++menuitem(INSERT_MORE)
+ 
+ menuitem(FORMAT)
+ menuitem(FMT_FONT)
+@@ -149,6 +154,12 @@
+ menuitem(FMT_LANGUAGE)
+ menuitem(FMT_IMAGE)
+ menuitem(FMT_STYLE)
++menuitem(FMT_STYLE_MODIFY)
++menuitem(FMT_STYLE_PARAGRAPH)
++menuitem(FMT_STYLE_FONT)
++menuitem(FMT_STYLE_TABS)
++menuitem(FMT_STYLE_NUMBERING)
++menuitem(FMT_STYLE_LANGUAGE)
+ menuitem(FMT_STYLE_DEFINE)
+ menuitem(FMT_IMPORTSTYLES)
+ 
+@@ -166,6 +177,7 @@
+ menuitem(FMT_DIRECTION_DD_RTL)
+ menuitem(FMT_DIRECTION_DO_LTR)
+ menuitem(FMT_DIRECTION_DO_RTL)
++menuitem(FMT_MORE)
+ 
+ menuitem(TOOLS)
+ menuitem(TOOLS_SPELLING)
+@@ -183,6 +195,7 @@
+ menuitem(TOOLS_REVISIONS_SET_VIEW_LEVEL)
+ menuitem(TOOLS_REVISIONS_ACCEPT_REVISION)
+ menuitem(TOOLS_REVISIONS_REJECT_REVISION)
++menuitem(TOOLS_MORE)
+ menuitem(CONTEXT_REVISIONS_ACCEPT_REVISION)
+ menuitem(CONTEXT_REVISIONS_REJECT_REVISION)
+ menuitem(ALIGN)
+@@ -254,6 +267,7 @@
+ menuitem(HELP_ABOUT_GNU)
+ menuitem(HELP_ABOUT_GNOMEOFFICE)
+ menuitem(HELP_REPORT_BUG)
++menuitem(HELP_MORE)
+ 
+ menuitem(SPELL_SUGGEST_1)		// _suggest_1 thru _suggest_9 must be contiguous
+ menuitem(SPELL_SUGGEST_2)
+@@ -321,5 +335,3 @@
+ menuitem(AUTOTEXT_EMAIL_6)
+ 
+ /**** Add Menu Items here ****/
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Layouts_MainMenu.h ../abi/src/wp/ap/xp/ap_Menu_Layouts_MainMenu.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Menu_Layouts_MainMenu.h	2003-12-15 10:01:51.000000000 +0000
++++ ../abi/src/wp/ap/xp/ap_Menu_Layouts_MainMenu.h	2004-08-23 13:49:52.000000000 +0100
+@@ -25,18 +25,29 @@
+ ******************************************************************
+ *****************************************************************/
+ 
++/*#ifndef _ABL_LAYOUT_
++#define _ABL_LAYOUT_
++#endif*/
++
++
+ BeginLayout(Main,0)
+ 
+ 	BeginSubMenu(AP_MENU_ID_FILE)
+-		MenuItem(AP_MENU_ID_FILE_NEW)
+-		MenuItem(AP_MENU_ID_FILE_OPEN)
+-		MenuItem(AP_MENU_ID_FILE_SAVE)
+-		MenuItem(AP_MENU_ID_FILE_SAVEAS)
+-//		MenuItem(AP_MENU_ID_FILE_SAVE_TEMPLATE)
+-		Separator()
+-		MenuItem(AP_MENU_ID_FILE_IMPORT)
+-		MenuItem(AP_MENU_ID_FILE_EXPORT)
+-		MenuItem(AP_MENU_ID_FILE_REVERT)
++#ifdef _ABL_LAYOUT_
++		BeginSubMenu(AP_MENU_ID_WINDOW)
++			MenuItem(AP_MENU_ID_WINDOW_NEW)
++			Separator()
++			MenuItem(AP_MENU_ID_WINDOW_1)
++			MenuItem(AP_MENU_ID_WINDOW_2)
++			MenuItem(AP_MENU_ID_WINDOW_3)
++			MenuItem(AP_MENU_ID_WINDOW_4)
++			MenuItem(AP_MENU_ID_WINDOW_5)
++			MenuItem(AP_MENU_ID_WINDOW_6)
++			MenuItem(AP_MENU_ID_WINDOW_7)
++			MenuItem(AP_MENU_ID_WINDOW_8)
++			MenuItem(AP_MENU_ID_WINDOW_9)
++			MenuItem(AP_MENU_ID_WINDOW_MORE)
++		EndSubMenu() // WINDOW
+ 
+ 		BeginSubMenu(AP_MENU_ID_FILE_RECENT)
+ 			MenuItem(AP_MENU_ID_FILE_RECENT_1)
+@@ -48,17 +59,50 @@
+ 			MenuItem(AP_MENU_ID_FILE_RECENT_7)
+ 			MenuItem(AP_MENU_ID_FILE_RECENT_8)
+ 			MenuItem(AP_MENU_ID_FILE_RECENT_9)
+-		EndSubMenu()
++		EndSubMenu() // RECENT
++#endif
++		MenuItem(AP_MENU_ID_FILE_NEW)
++		MenuItem(AP_MENU_ID_FILE_OPEN)
+ 
++	//	MenuItem(AP_MENU_ID_FILE_NEW) //  Al: should be new from template
++		MenuItem(AP_MENU_ID_FILE_CLOSE)
++		Separator()
++		MenuItem(AP_MENU_ID_FILE_SAVE)
++		MenuItem(AP_MENU_ID_FILE_SAVEAS)
++//		MenuItem(AP_MENU_ID_FILE_SAVE_TEMPLATE)
+ 		Separator()
+-		MenuItem(AP_MENU_ID_FILE_PROPERTIES)
+ 		MenuItem(AP_MENU_ID_FILE_PAGESETUP)
+ #if defined(HAVE_GNOME)
+ 		MenuItem(AP_MENU_ID_FILE_PRINT_PREVIEW)
+ #endif
+ 		MenuItem(AP_MENU_ID_FILE_PRINT)
+ 		Separator()
+-		MenuItem(AP_MENU_ID_FILE_CLOSE)
++		BeginSubMenu(AP_MENU_ID_FILE_MORE) 
++			MenuItem(AP_MENU_ID_FILE_IMPORT)
++			MenuItem(AP_MENU_ID_FILE_EXPORT)
++			MenuItem(AP_MENU_ID_FILE_REVERT)
++			MenuItem(AP_MENU_ID_FILE_PROPERTIES)
++		EndSubMenu()
++		
++		Separator()
++#ifndef _ABL_LAYOUT_
++			MenuItem(AP_MENU_ID_FILE_RECENT_1)
++			MenuItem(AP_MENU_ID_FILE_RECENT_2)
++			MenuItem(AP_MENU_ID_FILE_RECENT_3)
++			MenuItem(AP_MENU_ID_FILE_RECENT_4)
++			MenuItem(AP_MENU_ID_FILE_RECENT_5)
++			MenuItem(AP_MENU_ID_FILE_RECENT_6)
++			MenuItem(AP_MENU_ID_FILE_RECENT_7)
++			MenuItem(AP_MENU_ID_FILE_RECENT_8)
++			MenuItem(AP_MENU_ID_FILE_RECENT_9)
++#endif
++		Separator()
++//		MenuItem(AP_MENU_ID_FILE_PROPERTIES)
++//		MenuItem(AP_MENU_ID_FILE_PAGESETUP)
++
++//		MenuItem(AP_MENU_ID_FILE_PRINT)
++//		Separator()
++		//MenuItem(AP_MENU_ID_FILE_CLOSE)
+ 		MenuItem(AP_MENU_ID_FILE_EXIT)
+ 	EndSubMenu()
+ 
+@@ -71,7 +115,7 @@
+ 		MenuItem(AP_MENU_ID_EDIT_PASTE)
+ 		MenuItem(AP_MENU_ID_EDIT_PASTE_SPECIAL)
+ 		Separator()
+-		MenuItem(AP_MENU_ID_EDIT_CLEAR)
++	//	MenuItem(AP_MENU_ID_EDIT_CLEAR)
+ 		MenuItem(AP_MENU_ID_EDIT_SELECTALL)
+ 		Separator()
+ 		MenuItem(AP_MENU_ID_EDIT_FIND)
+@@ -81,127 +125,62 @@
+ 
+ 	BeginSubMenu(AP_MENU_ID_VIEW)
+ 		MenuItem(AP_MENU_ID_VIEW_NORMAL)
+-		MenuItem(AP_MENU_ID_VIEW_WEB)
+ 		MenuItem(AP_MENU_ID_VIEW_PRINT)
+-		MenuItem(AP_MENU_ID_WEB_WEBPREVIEW)
+ 		Separator()
+ 
+ 		BeginSubMenu(AP_MENU_ID_VIEW_TOOLBARS)
+ 			MenuItem(AP_MENU_ID_VIEW_TB_1)
+ 			MenuItem(AP_MENU_ID_VIEW_TB_2)
+ 			MenuItem(AP_MENU_ID_VIEW_TB_3)
+-			MenuItem(AP_MENU_ID_VIEW_TB_4)			
++			MenuItem(AP_MENU_ID_VIEW_TB_4)
++		Separator()			
+ // Currently we only can change toolbars in UNIX builds
+ #ifdef XP_UNIX_TARGET_GTK
+-			Separator()
++//			Separator()
+ 			MenuItem(AP_MENU_ID_VIEW_LOCK_TB_LAYOUT)
+ 			MenuItem(AP_MENU_ID_VIEW_DEFAULT_TB_LAYOUT)
+ #endif
+ 		EndSubMenu()
+-
+-		MenuItem(AP_MENU_ID_VIEW_RULER)
+-		MenuItem(AP_MENU_ID_VIEW_STATUSBAR)
+-		Separator()
+-		MenuItem(AP_MENU_ID_VIEW_LOCKSTYLES)
+-		MenuItem(AP_MENU_ID_VIEW_SHOWPARA)
+-		Separator()
+-		MenuItem(AP_MENU_ID_VIEW_FULLSCREEN)
+-
++		
+ 		BeginSubMenu(AP_MENU_ID_VIEW_ZOOM_MENU)
+-			MenuItem(AP_MENU_ID_VIEW_ZOOM)
++			MenuItem(AP_MENU_ID_VIEW_ZOOM_IN)
++			MenuItem(AP_MENU_ID_VIEW_ZOOM_OUT)
+ 			MenuItem(AP_MENU_ID_VIEW_ZOOM_WIDTH)
+ 			MenuItem(AP_MENU_ID_VIEW_ZOOM_WHOLE)
+ 			MenuItem(AP_MENU_ID_VIEW_ZOOM_200)
+ 			MenuItem(AP_MENU_ID_VIEW_ZOOM_100)
+ 			MenuItem(AP_MENU_ID_VIEW_ZOOM_75)
+ 			MenuItem(AP_MENU_ID_VIEW_ZOOM_50)
++			MenuItem(AP_MENU_ID_VIEW_ZOOM)
+ 		EndSubMenu()
+-
+-	EndSubMenu()
++		MenuItem(AP_MENU_ID_VIEW_FULLSCREEN)
++//		Separator()	
++//		MenuItem(AP_MENU_ID_VIEW_HEADFOOT)
++		Separator()
++		BeginSubMenu(AP_MENU_ID_VIEW_MORE)
++			MenuItem(AP_MENU_ID_VIEW_WEB)
++			MenuItem(AP_MENU_ID_WEB_WEBPREVIEW)
++			Separator()	
++			MenuItem(AP_MENU_ID_VIEW_RULER)
++			MenuItem(AP_MENU_ID_VIEW_STATUSBAR)
++			MenuItem(AP_MENU_ID_VIEW_LOCKSTYLES)
++			Separator()
++			MenuItem(AP_MENU_ID_VIEW_SHOWPARA)
++		EndSubMenu() // VIEW-MORE
++	EndSubMenu() // VIEW
+ 
+ 	BeginSubMenu(AP_MENU_ID_INSERT)
+ 		MenuItem(AP_MENU_ID_INSERT_BREAK)
+ 		MenuItem(AP_MENU_ID_INSERT_PAGENO)
+ 		MenuItem(AP_MENU_ID_INSERT_DATETIME)
+-		MenuItem(AP_MENU_ID_INSERT_FIELD)
+-		MenuItem(AP_MENU_ID_INSERT_MAILMERGE)
+ 		MenuItem(AP_MENU_ID_INSERT_SYMBOL)
+-
+-		/* the autotext submenus */
+-
+-		BeginSubMenu(AP_MENU_ID_INSERT_AUTOTEXT)
+-
+-			BeginSubMenu(AP_MENU_ID_AUTOTEXT_ATTN)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_ATTN_1)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_ATTN_2)
+-			EndSubMenu()
+-
+-			BeginSubMenu(AP_MENU_ID_AUTOTEXT_CLOSING)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_1)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_2)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_3)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_4)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_5)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_6)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_7)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_8)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_9)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_10)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_11)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_12)
+-			EndSubMenu()
+-
+-			BeginSubMenu(AP_MENU_ID_AUTOTEXT_MAIL)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_1)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_2)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_3)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_4)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_5)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_6)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_7)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_8)
+-			EndSubMenu()
+-
+-			BeginSubMenu(AP_MENU_ID_AUTOTEXT_REFERENCE)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_REFERENCE_1)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_REFERENCE_2)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_REFERENCE_3)
+-			EndSubMenu()
+-
+-			BeginSubMenu(AP_MENU_ID_AUTOTEXT_SALUTATION)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_1)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_2)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_3)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_4)
+-			EndSubMenu()
+-
+-			BeginSubMenu(AP_MENU_ID_AUTOTEXT_EMAIL)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_1)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_2)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_3)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_4)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_5)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_6)
+-			EndSubMenu()
+-
+-			BeginSubMenu(AP_MENU_ID_AUTOTEXT_SUBJECT)
+-				MenuItem(AP_MENU_ID_AUTOTEXT_SUBJECT_1)
+-			EndSubMenu()
+-
+-		EndSubMenu()
+-
+ 		Separator()
+ 		MenuItem(AP_MENU_ID_INSERT_INSERTHEADER)
+ 		MenuItem(AP_MENU_ID_INSERT_INSERTFOOTER)
+-		MenuItem(AP_MENU_ID_INSERT_FILE)
+-		MenuItem(AP_MENU_ID_INSERT_BOOKMARK)
+-		MenuItem(AP_MENU_ID_INSERT_HYPERLINK)
+ 		MenuItem(AP_MENU_ID_INSERT_FOOTNOTE)
+-		MenuItem(AP_MENU_ID_INSERT_ENDNOTE)
+-
+-#ifdef HAVE_GNOME
+ 		Separator()
+-
++		
++#ifdef HAVE_GNOME
+ 		BeginSubMenu(AP_MENU_ID_INSERT_PICTURE)
+ 			MenuItem(AP_MENU_ID_INSERT_CLIPART)
+ 			MenuItem(AP_MENU_ID_INSERT_GRAPHIC)
+@@ -209,37 +188,118 @@
+ #else
+ 		MenuItem(AP_MENU_ID_INSERT_PICTURE)
+ #endif
+-		BeginSubMenu(AP_MENU_ID_INSERT_DIRECTIONMARKER)
+- 	        MenuItem(AP_MENU_ID_INSERT_DIRECTIONMARKER_LRM)
+-	        MenuItem(AP_MENU_ID_INSERT_DIRECTIONMARKER_RLM)
+-	    EndSubMenu()
++		MenuItem(AP_MENU_ID_INSERT_FILE)
++		MenuItem(AP_MENU_ID_INSERT_BOOKMARK)
++		MenuItem(AP_MENU_ID_INSERT_HYPERLINK)
++		Separator()
++		BeginSubMenu(AP_MENU_ID_INSERT_MORE)
++			/* the autotext submenus */
++			BeginSubMenu(AP_MENU_ID_INSERT_AUTOTEXT)
++				BeginSubMenu(AP_MENU_ID_AUTOTEXT_ATTN)
++					MenuItem(AP_MENU_ID_AUTOTEXT_ATTN_1)
++					MenuItem(AP_MENU_ID_AUTOTEXT_ATTN_2)
++				EndSubMenu()
++	
++				BeginSubMenu(AP_MENU_ID_AUTOTEXT_CLOSING)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_1)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_2)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_3)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_4)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_5)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_6)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_7)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_8)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_9)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_10)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_11)
++					MenuItem(AP_MENU_ID_AUTOTEXT_CLOSING_12)
++				EndSubMenu()
++	
++				BeginSubMenu(AP_MENU_ID_AUTOTEXT_MAIL)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_1)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_2)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_3)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_4)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_5)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_6)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_7)
++					MenuItem(AP_MENU_ID_AUTOTEXT_MAIL_8)
++				EndSubMenu()
++	
++				BeginSubMenu(AP_MENU_ID_AUTOTEXT_REFERENCE)
++					MenuItem(AP_MENU_ID_AUTOTEXT_REFERENCE_1)
++					MenuItem(AP_MENU_ID_AUTOTEXT_REFERENCE_2)
++					MenuItem(AP_MENU_ID_AUTOTEXT_REFERENCE_3)
++				EndSubMenu()
++	
++				BeginSubMenu(AP_MENU_ID_AUTOTEXT_SALUTATION)
++					MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_1)
++					MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_2)
++					MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_3)
++					MenuItem(AP_MENU_ID_AUTOTEXT_SALUTATION_4)
++				EndSubMenu()
++	
++				BeginSubMenu(AP_MENU_ID_AUTOTEXT_EMAIL)
++					MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_1)
++					MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_2)
++					MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_3)
++					MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_4)
++					MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_5)
++					MenuItem(AP_MENU_ID_AUTOTEXT_EMAIL_6)
++				EndSubMenu()
++	
++				BeginSubMenu(AP_MENU_ID_AUTOTEXT_SUBJECT)
++					MenuItem(AP_MENU_ID_AUTOTEXT_SUBJECT_1)
++				EndSubMenu()
++			EndSubMenu() // AUTOTEXT
++			MenuItem(AP_MENU_ID_INSERT_FIELD)
++			MenuItem(AP_MENU_ID_INSERT_MAILMERGE)
++	
++			//Separator()
++			MenuItem(AP_MENU_ID_INSERT_ENDNOTE)
++			
++		
++			BeginSubMenu(AP_MENU_ID_INSERT_DIRECTIONMARKER)
++				MenuItem(AP_MENU_ID_INSERT_DIRECTIONMARKER_LRM)
++				MenuItem(AP_MENU_ID_INSERT_DIRECTIONMARKER_RLM)
++			EndSubMenu()
++		EndSubMenu() // MORE
+ 
+ 	EndSubMenu()
+ 
+ 	BeginSubMenu(AP_MENU_ID_FORMAT)
+-		MenuItem(AP_MENU_ID_FMT_FONT)
+-		MenuItem(AP_MENU_ID_FMT_PARAGRAPH)
+-		MenuItem(AP_MENU_ID_FMT_BULLETS)
+-		MenuItem(AP_MENU_ID_FMT_DOCUMENT)
++	MenuItem(AP_MENU_ID_FMT_FONT)
++	MenuItem(AP_MENU_ID_FMT_PARAGRAPH)
++	MenuItem(AP_MENU_ID_FMT_BULLETS)
+ #if 0 // someone code and turn this back on
+-		MenuItem(AP_MENU_ID_FMT_BORDERS)
++	MenuItem(AP_MENU_ID_FMT_BORDERS)
+ #endif
+-		Separator()
+-		MenuItem(AP_MENU_ID_FMT_COLUMNS)
+-		MenuItem(AP_MENU_ID_FMT_TABS)
++	MenuItem(AP_MENU_ID_FMT_TABS)
++	Separator()
++
++	BeginSubMenu(AP_MENU_ID_FMT_STYLE_MODIFY)
++		MenuItem(AP_MENU_ID_FMT_STYLE_PARAGRAPH)
++		MenuItem(AP_MENU_ID_FMT_STYLE_FONT)
++		MenuItem(AP_MENU_ID_FMT_STYLE_TABS)
++		MenuItem(AP_MENU_ID_FMT_STYLE_NUMBERING)
++		MenuItem(AP_MENU_ID_FMT_STYLE_LANGUAGE)
++	EndSubMenu()
++	
++	Separator()
++	MenuItem(AP_MENU_ID_FMT_COLUMNS)
++	Separator()
++	MenuItem(AP_MENU_ID_FMT_TOGGLECASE)
++	BeginSubMenu(AP_MENU_ID_FMT_STYLE)
++		MenuItem(AP_MENU_ID_FMT_STYLE_DEFINE)
++		MenuItem(AP_MENU_ID_FMT_IMPORTSTYLES)
++	EndSubMenu()
++	MenuItem(AP_MENU_ID_FMT_BACKGROUND)
++	Separator()
++	
++	BeginSubMenu(AP_MENU_ID_FMT_MORE)
+ 		MenuItem(AP_MENU_ID_FMT_HDRFTR)
+ 		MenuItem(AP_MENU_ID_FMT_FOOTNOTES)
+-		Separator()
+-		MenuItem(AP_MENU_ID_FMT_TOGGLECASE)
+-		Separator()
+-
+-		BeginSubMenu(AP_MENU_ID_ALIGN)
+-			MenuItem(AP_MENU_ID_ALIGN_LEFT)
+-			MenuItem(AP_MENU_ID_ALIGN_CENTER)
+-			MenuItem(AP_MENU_ID_ALIGN_RIGHT)
+-			MenuItem(AP_MENU_ID_ALIGN_JUSTIFY)
+-		EndSubMenu()
+-
++	/*
+ 		BeginSubMenu(AP_MENU_ID_FMT)
+ 			MenuItem(AP_MENU_ID_FMT_BOLD)
+ 			MenuItem(AP_MENU_ID_FMT_ITALIC)
+@@ -251,21 +311,35 @@
+ 			MenuItem(AP_MENU_ID_FMT_SUPERSCRIPT)
+ 			MenuItem(AP_MENU_ID_FMT_SUBSCRIPT)
+ 		EndSubMenu()
++		MenuItem(AP_MENU_ID_FMT_DOCUMENT)
++		
++	
++		Separator()
++//	
++		
++		Separator()
++		
++		Separator()
+ 
+-		BeginSubMenu(AP_MENU_ID_FMT_STYLE)
+-			MenuItem(AP_MENU_ID_FMT_STYLE_DEFINE)
+-			MenuItem(AP_MENU_ID_FMT_IMPORTSTYLES)
++		BeginSubMenu(AP_MENU_ID_ALIGN)
++			MenuItem(AP_MENU_ID_ALIGN_LEFT)
++			MenuItem(AP_MENU_ID_ALIGN_CENTER)
++			MenuItem(AP_MENU_ID_ALIGN_RIGHT)
++			MenuItem(AP_MENU_ID_ALIGN_JUSTIFY)
+ 		EndSubMenu()
++
+ 		Separator()
+ 		MenuItem(AP_MENU_ID_EDIT_REMOVEHEADER)
+ 		MenuItem(AP_MENU_ID_EDIT_REMOVEFOOTER)
+-		MenuItem(AP_MENU_ID_FMT_BACKGROUND)
++		
+ 
+ 		BeginSubMenu(AP_MENU_ID_FMT_DIRECTION)
+ 	        	MenuItem(AP_MENU_ID_FMT_DIRECTION_DD_RTL)
+ 	        	MenuItem(AP_MENU_ID_FMT_DIRECTION_DO_LTR)
+         		MenuItem(AP_MENU_ID_FMT_DIRECTION_DO_RTL)
+ 	    	EndSubMenu()
++			*/
++		EndSubMenu() // More
+ 	EndSubMenu()
+ 
+ 	BeginSubMenu(AP_MENU_ID_TOOLS)
+@@ -273,10 +347,10 @@
+ 		BeginSubMenu(AP_MENU_ID_TOOLS_SPELLING)
+ 			MenuItem(AP_MENU_ID_TOOLS_SPELL)
+ 			MenuItem(AP_MENU_ID_TOOLS_AUTOSPELL)
++			MenuItem(AP_MENU_ID_FMT_LANGUAGE)
+ 			MenuItem(AP_MENU_ID_TOOLS_SPELLPREFS)
+ 		EndSubMenu()
+ 
+-		MenuItem(AP_MENU_ID_FMT_LANGUAGE)
+ 		MenuItem(AP_MENU_ID_TOOLS_WORDCOUNT)
+ 
+ 		BeginSubMenu(AP_MENU_ID_TOOLS_REVISIONS)
+@@ -285,12 +359,13 @@
+ 			MenuItem(AP_MENU_ID_TOOLS_REVISIONS_REJECT_REVISION)
+ 			MenuItem(AP_MENU_ID_TOOLS_REVISIONS_SET_VIEW_LEVEL)
+ 		EndSubMenu()
+-
+-		MenuItem(AP_MENU_ID_TOOLS_PLUGINS)
+-		MenuItem(AP_MENU_ID_TOOLS_SCRIPTS)
+-		MenuItem(AP_MENU_ID_TOOLS_MAILMERGE)
+-		Separator()
+ 		MenuItem(AP_MENU_ID_TOOLS_OPTIONS)
++		BeginSubMenu(AP_MENU_ID_TOOLS_MORE)
++			MenuItem(AP_MENU_ID_TOOLS_PLUGINS)
++			MenuItem(AP_MENU_ID_TOOLS_SCRIPTS)
++			MenuItem(AP_MENU_ID_TOOLS_MAILMERGE)
++		EndSubMenu()
++		//Separator()
+ 	EndSubMenu()
+ 
+ 	BeginSubMenu(AP_MENU_ID_TABLE)
+@@ -343,25 +418,35 @@
+ #endif
+ 	EndSubMenu()
+ 
+-	BeginSubMenu(AP_MENU_ID_WINDOW)
+-		MenuItem(AP_MENU_ID_WINDOW_NEW)
+-		Separator()
+-		MenuItem(AP_MENU_ID_WINDOW_1)
+-		MenuItem(AP_MENU_ID_WINDOW_2)
+-		MenuItem(AP_MENU_ID_WINDOW_3)
+-		MenuItem(AP_MENU_ID_WINDOW_4)
+-		MenuItem(AP_MENU_ID_WINDOW_5)
+-		MenuItem(AP_MENU_ID_WINDOW_6)
+-		MenuItem(AP_MENU_ID_WINDOW_7)
+-		MenuItem(AP_MENU_ID_WINDOW_8)
+-		MenuItem(AP_MENU_ID_WINDOW_9)
+-		MenuItem(AP_MENU_ID_WINDOW_MORE)
+-	EndSubMenu()
++#ifndef _ABL_LAYOUT_
++		BeginSubMenu(AP_MENU_ID_WINDOW)
++	//		MenuItem(AP_MENU_ID_WINDOW_NEW)
++		//	Separator()
++			MenuItem(AP_MENU_ID_WINDOW_1)
++			MenuItem(AP_MENU_ID_WINDOW_2)
++			MenuItem(AP_MENU_ID_WINDOW_3)
++			MenuItem(AP_MENU_ID_WINDOW_4)
++			MenuItem(AP_MENU_ID_WINDOW_5)
++			MenuItem(AP_MENU_ID_WINDOW_6)
++			MenuItem(AP_MENU_ID_WINDOW_7)
++			MenuItem(AP_MENU_ID_WINDOW_8)
++			MenuItem(AP_MENU_ID_WINDOW_9)
++			MenuItem(AP_MENU_ID_WINDOW_MORE)
++		EndSubMenu() // WINDOW
++#endif
++
+ 
+ 	BeginSubMenu(AP_MENU_ID_HELP)
+ 		MenuItem(AP_MENU_ID_HELP_CONTENTS)
+ 		MenuItem(AP_MENU_ID_HELP_INDEX)
+-		MenuItem(AP_MENU_ID_HELP_SEARCH)
++		Separator()
++		MenuItem(AP_MENU_ID_HELP_ABOUT)
++		Separator()
++		BeginSubMenu(AP_MENU_ID_HELP_MORE)
++			MenuItem(AP_MENU_ID_HELP_ABOUTOS)
++			MenuItem(AP_MENU_ID_HELP_CREDITS)
++		EndSubMenu()
++		/*MenuItem(AP_MENU_ID_HELP_SEARCH)
+ 		MenuItem(AP_MENU_ID_HELP_CHECKVER)
+ 		MenuItem(AP_MENU_ID_HELP_REPORT_BUG)
+ 		Separator()
+@@ -374,8 +459,8 @@
+ #ifndef HAVE_GNOME
+ 		MenuItem(AP_MENU_ID_HELP_CREDITS)
+ 		Separator()
+-#endif
+-		MenuItem(AP_MENU_ID_HELP_ABOUT)
++#endif*/
++		
+ 	EndSubMenu()
+ 
+ EndLayout()
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Prefs_SchemeIds.h ../abi/src/wp/ap/xp/ap_Prefs_SchemeIds.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Prefs_SchemeIds.h	2003-07-24 23:14:48.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Prefs_SchemeIds.h	2004-08-23 13:49:52.000000000 +0100
+@@ -68,7 +68,7 @@
+ #define AP_PREF_DEFAULT_OptionsTabNumber			"0"							/* options dialog */
+ 
+ #define AP_PREF_KEY_RulerUnits						"RulerUnits"				/* value in UT_dimensionName() */
+-#define AP_PREF_DEFAULT_RulerUnits					"in"
++#define AP_PREF_DEFAULT_RulerUnits					"cm" //"in"
+ 
+ #define AP_PREF_KEY_RulerVisible					"RulerVisible"				/* are the rulers visible? {0,1} */
+ #define AP_PREF_DEFAULT_RulerVisible				"1"
+@@ -90,7 +90,7 @@
+ 
+ 
+ #define AP_PREF_KEY_StringSet						"StringSet"					/* name of dialog/msgbox strings */
+-#define AP_PREF_DEFAULT_StringSet					"en-US"
++#define AP_PREF_DEFAULT_StringSet					"en-GB" //"en-US"
+ 
+ #define AP_PREF_KEY_KeyBindings						"KeyBindings"
+ #define AP_PREF_DEFAULT_KeyBindings					"default"					/* value in ap_LoadBindings.cpp */
+@@ -118,7 +118,7 @@
+ #define AP_PREF_DEFAULT_StringSetDirectory			"strings"					/* if relative, use prefix "getAbiSuiteAppDir()" */
+ 
+ #define AP_PREF_KEY_LayoutMode                     "layoutMode"
+-#define AP_PREF_DEFAULT_LayoutMode                 "1" /* 1=print, 2=normal, 3=web */
++#define AP_PREF_DEFAULT_LayoutMode                 "2"//"1" /* 1=print, 2=normal, 3=web */
+ 
+ #define AP_PREF_KEY_AlwaysPromptEncoding			"AlwaysPromptEncoding"		/* if true, always show encoding dialog when importing/exporting text */
+ #define AP_PREF_DEFAULT_AlwaysPromptEncoding		"0"
+@@ -131,10 +131,10 @@
+ #endif
+ 
+ #define AP_PREF_KEY_ShowSplash     "ShowSplash"
+-#define AP_PREF_DEFAULT_ShowSplash "1"
++#define AP_PREF_DEFAULT_ShowSplash "0"//"1"
+ 
+ #define AP_PREF_KEY_DefaultSaveFormat "DefaultSaveFormat"
+-#define AP_PREF_DEFAULT_DefaultSaveFormat ".abw"
++#define AP_PREF_DEFAULT_DefaultSaveFormat ".doc"//".abw"
+ #define AP_PREF_KEY_CloseOnLastDoc "CloseOnLastDoc"
+ #define AP_PREF_DEFAULT_CloseOnLastDoc "0"
+ 
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_String_Id.h ../abi/src/wp/ap/xp/ap_String_Id.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_String_Id.h	2004-04-12 10:51:17.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_String_Id.h	2004-08-23 19:50:07.000000000 +0100
+@@ -187,8 +187,8 @@
+ dcl(DLG_Styles_LBL_InUse,		"In Use")
+ dcl(DLG_Styles_LBL_All, 		"All")
+ dcl(DLG_Styles_LBL_UserDefined, "User-defined styles")
+-dcl(DLG_Styles_LBL_TxtMsg,		"What Hath God Wrought")
+-dcl(DLG_Styles_ModifyTitle, 	"Modify Styles")
++dcl(DLG_Styles_LBL_TxtMsg,		"Lorem ipsum dolor sit amet, consectetaur adipisicing...")//What Hath God Wrought")
++dcl(DLG_Styles_ModifyTitle, 	"Modify Style")
+ dcl(DLG_Styles_ModifyName,		"Style Name:")
+ dcl(DLG_Styles_ModifyBasedOn,	"Based On:")
+ dcl(DLG_Styles_ModifyFollowing, "Style for following paragraph")
+@@ -750,14 +750,14 @@
+ dcl(MENU_LABEL_FILE_SAVEAS,"Save &As")
+ dcl(MENU_LABEL_FILE_SAVE_TEMPLATE, "Save &Template")
+ dcl(MENU_LABEL_FILE_SAVEIMAGE,"&Save Image As")
+-dcl(MENU_LABEL_FILE_IMPORT,"Op&en Copy")
+-dcl(MENU_LABEL_FILE_EXPORT,"Sav&e Copy")
++dcl(MENU_LABEL_FILE_IMPORT,"&Import")
++dcl(MENU_LABEL_FILE_EXPORT,"&Export")
+ dcl(MENU_LABEL_FILE_PROPERTIES, "P&roperties")
+ dcl(MENU_LABEL_FILE_PAGESETUP,"Page Set&up")
+ dcl(MENU_LABEL_FILE_PRINT,"&Print")
+ dcl(MENU_LABEL_FILE_PRINT_DIRECTLY,"Print &directly")
+ dcl(MENU_LABEL_FILE_PRINT_PREVIEW,"Print P&review")
+-dcl(MENU_LABEL_FILE_RECENT, "Recent &Files")
++dcl(MENU_LABEL_FILE_RECENT, "&Recently Opened")
+ dcl(MENU_LABEL_FILE_RECENT_1,"&1 %s")
+ dcl(MENU_LABEL_FILE_RECENT_2,"&2 %s")
+ dcl(MENU_LABEL_FILE_RECENT_3,"&3 %s")
+@@ -768,7 +768,8 @@
+ dcl(MENU_LABEL_FILE_RECENT_8,"&8 %s")
+ dcl(MENU_LABEL_FILE_RECENT_9,"&9 %s")
+ dcl(MENU_LABEL_FILE_REVERT,"Re&vert")
+-dcl(MENU_LABEL_FILE_EXIT,"&Quit")
++dcl(MENU_LABEL_FILE_EXIT,"&Exit")
++dcl(MENU_LABEL_FILE_MORE,"&More")
+ dcl(MENU_LABEL_EDIT,"&Edit")
+ dcl(MENU_LABEL_EDIT_UNDO,"&Undo")
+ dcl(MENU_LABEL_EDIT_REDO,"&Redo")
+@@ -781,8 +782,8 @@
+ dcl(MENU_LABEL_EDIT_FIND,"&Find")
+ dcl(MENU_LABEL_EDIT_REPLACE,"R&eplace")
+ dcl(MENU_LABEL_EDIT_GOTO,"&Go To")
+-dcl(MENU_LABEL_INSERT_INSERTHEADER,"Insert Header")
+-dcl(MENU_LABEL_INSERT_INSERTFOOTER,"Insert Footer")
++dcl(MENU_LABEL_INSERT_INSERTHEADER,"Header")
++dcl(MENU_LABEL_INSERT_INSERTFOOTER,"Footer")
+ dcl(MENU_LABEL_EDIT_EDITHEADER,"Edit Header")
+ dcl(MENU_LABEL_EDIT_EDITFOOTER,"Edit Footer")
+ dcl(MENU_LABEL_EDIT_REMOVEHEADER,"Remove Header")
+@@ -790,7 +791,7 @@
+ dcl(MENU_LABEL_VIEW,"&View")
+ dcl(MENU_LABEL_VIEW_NORMAL,"&Normal Layout")
+ dcl(MENU_LABEL_VIEW_WEB,"&Web Layout")
+-dcl(MENU_LABEL_VIEW_PRINT,"&Print Layout")
++dcl(MENU_LABEL_VIEW_PRINT,"&Page Layout")
+ dcl(MENU_LABEL_VIEW_TOOLBARS,"&Toolbars")
+ dcl(MENU_LABEL_VIEW_TB_1,"&1 %s")
+ dcl(MENU_LABEL_VIEW_TB_2,"&2 %s")
+@@ -805,20 +806,23 @@
+ dcl(MENU_LABEL_VIEW_HEADFOOT,"&Header and Footer")
+ dcl(MENU_LABEL_VIEW_FULLSCREEN,"F&ull Screen")
+ dcl(MENU_LABEL_VIEW_ZOOM_MENU,"&Zoom")
+-dcl(MENU_LABEL_VIEW_ZOOM,"&Zoom")
++dcl(MENU_LABEL_VIEW_ZOOM,"&Zoom to")
++dcl(MENU_LABEL_VIEW_ZOOM_IN,"Zoom &in")
++dcl(MENU_LABEL_VIEW_ZOOM_OUT,"Zoom &out")
+ dcl(MENU_LABEL_VIEW_ZOOM_200,"Zoom to &200%")
+ dcl(MENU_LABEL_VIEW_ZOOM_100,"Zoom to &100%")
+ dcl(MENU_LABEL_VIEW_ZOOM_75,"Zoom to &75%")
+ dcl(MENU_LABEL_VIEW_ZOOM_50,"Zoom to &50%")
+ dcl(MENU_LABEL_VIEW_ZOOM_WIDTH,"&Page Width")
+ dcl(MENU_LABEL_VIEW_ZOOM_WHOLE,"&Whole Page")
++dcl(MENU_LABEL_VIEW_MORE,"&More")
+ dcl(MENU_LABEL_INSERT,"&Insert")
+ dcl(MENU_LABEL_INSERT_BREAK,"&Break")
+ dcl(MENU_LABEL_INSERT_PAGENO,"Page N&umbers")
+ dcl(MENU_LABEL_INSERT_DATETIME,"Date and &Time")
+ dcl(MENU_LABEL_INSERT_MAILMERGE, "&Mail Merge Field")
+ dcl(MENU_LABEL_INSERT_FIELD,"&Field")
+-dcl(MENU_LABEL_INSERT_FILE,"&Insert File")
++dcl(MENU_LABEL_INSERT_FILE,"&File")
+ dcl(MENU_LABEL_INSERT_SYMBOL,"Sy&mbol")
+ dcl(MENU_LABEL_INSERT_ENDNOTE,"&Endnote")
+ dcl(MENU_LABEL_INSERT_FOOTNOTE,"Foot&note")
+@@ -831,11 +835,12 @@
+ dcl(MENU_LABEL_INSERT_DIRECTIONMARKER, "&Direction Marker")
+ dcl(MENU_LABEL_INSERT_DIRECTIONMARKER_LRM, "&LRM")
+ dcl(MENU_LABEL_INSERT_DIRECTIONMARKER_RLM, "&RLM")
++dcl(MENU_LABEL_INSERT_MORE, "More")
+ dcl(MENU_LABEL_FORMAT,"F&ormat")
+ dcl(MENU_LABEL_FMT, "Te&xt Formatting")
+ dcl(MENU_LABEL_FMT_LANGUAGE,"Set &Language")
+ dcl(MENU_LABEL_FMT_FONT,"&Font")
+-dcl(MENU_LABEL_FMT_PARAGRAPH,"&Paragraph")
++dcl(MENU_LABEL_FMT_PARAGRAPH,"&Indents and Spacing")
+ dcl(MENU_LABEL_FMT_BULLETS,"Bullets and &Numbering")
+ dcl(MENU_LABEL_FMT_DOCUMENT,"&Document")
+ dcl(MENU_LABEL_FMT_BORDERS,"Borders and Shading")
+@@ -843,8 +848,15 @@
+ dcl(MENU_LABEL_FMT_FOOTNOTES,"Footnotes and Endnotes")
+ dcl(MENU_LABEL_FMT_COLUMNS,"&Columns")
+ dcl(MENU_LABEL_FMT_TOGGLECASE,"C&hange Case")
+-dcl(MENU_LABEL_FMT_BACKGROUND,"Page C&olor")
++dcl(MENU_LABEL_FMT_BACKGROUND,"&Background")
+ dcl(MENU_LABEL_FMT_STYLE,"St&yle")
++//dcl(MENU_LABEL_FMT_STYLE_MODIFY,"&All '%s' paragraphs")
++dcl(MENU_LABEL_FMT_STYLE_MODIFY,"&All Paragraphs of Current Style")
++dcl(MENU_LABEL_FMT_STYLE_PARAGRAPH,"&Indents and Spacing")
++dcl(MENU_LABEL_FMT_STYLE_FONT,"&Font")
++dcl(MENU_LABEL_FMT_STYLE_TABS,"&Tabs")
++dcl(MENU_LABEL_FMT_STYLE_NUMBERING,"&Numbering")
++dcl(MENU_LABEL_FMT_STYLE_LANGUAGE,"&Language")
+ dcl(MENU_LABEL_FMT_STYLE_DEFINE, "&Create and Modify")
+ dcl(MENU_LABEL_FMT_IMPORTSTYLES,"&Import Styles")
+ dcl(MENU_LABEL_FMT_TABS,"&Tabs")
+@@ -861,6 +873,7 @@
+ dcl(MENU_LABEL_FMT_DIRECTION_DD_RTL, "RTL &Paragraph")
+ dcl(MENU_LABEL_FMT_DIRECTION_DO_LTR, "&Left-to-right text")
+ dcl(MENU_LABEL_FMT_DIRECTION_DO_RTL, "&Right-to-left text")
++dcl(MENU_LABEL_FMT_MORE, "&More")
+ dcl(MENU_LABEL_TOOLS,"&Tools")
+ dcl(MENU_LABEL_TOOLS_SPELLING,"&Spelling")
+ dcl(MENU_LABEL_TOOLS_SPELL,"Check &Spelling")
+@@ -877,6 +890,7 @@
+ dcl(MENU_LABEL_TOOLS_REVISIONS_SET_VIEW_LEVEL,"&Select revision")
+ dcl(MENU_LABEL_TOOLS_REVISIONS_ACCEPT_REVISION,"&Accept revision")
+ dcl(MENU_LABEL_TOOLS_REVISIONS_REJECT_REVISION,"&Reject revision")
++dcl(MENU_LABEL_TOOLS_MORE, "&More")
+ dcl(MENU_LABEL_TABLE, "T&able")
+ dcl(MENU_LABEL_TABLE_INSERT, "&Insert")
+ dcl(MENU_LABEL_TABLE_INSERT_TABLE, "&Table")
+@@ -918,9 +932,10 @@
+ dcl(MENU_LABEL_ALIGN_CENTER,"&Center")
+ dcl(MENU_LABEL_ALIGN_RIGHT,"&Right")
+ dcl(MENU_LABEL_ALIGN_JUSTIFY,"&Justify")
+-dcl(MENU_LABEL_WEB_WEBPREVIEW,"&As web page")
++dcl(MENU_LABEL_WEB_WEBPREVIEW,"&Preview Web page")
+ dcl(MENU_LABEL_WEB_SAVEASWEB,"&Save web page")
+-dcl(MENU_LABEL_WINDOW,"&Documents")
++//dcl(MENU_LABEL_WINDOW,"&Currently Open")
++dcl(MENU_LABEL_WINDOW,"&Window")
+ dcl(MENU_LABEL_WINDOW_NEW,"&New Window")
+ dcl(MENU_LABEL_WINDOW_1,"&1 %s")
+ dcl(MENU_LABEL_WINDOW_2,"&2 %s")
+@@ -931,11 +946,11 @@
+ dcl(MENU_LABEL_WINDOW_7,"&7 %s")
+ dcl(MENU_LABEL_WINDOW_8,"&8 %s")
+ dcl(MENU_LABEL_WINDOW_9,"&9 %s")
+-dcl(MENU_LABEL_WINDOW_MORE,"&More Documents")
++dcl(MENU_LABEL_WINDOW_MORE,"&More")
+ dcl(MENU_LABEL_HELP,"&Help")
+ dcl(MENU_LABEL_HELP_CREDITS,"C&redits")
+ dcl(MENU_LABEL_HELP_CONTENTS,"Help &Contents")
+-dcl(MENU_LABEL_HELP_INDEX,"Help &Introduction")
++dcl(MENU_LABEL_HELP_INDEX,"Help &Index")
+ dcl(MENU_LABEL_HELP_CHECKVER,"Check &Version")
+ dcl(MENU_LABEL_HELP_SEARCH,"&Search for Help")
+ dcl(MENU_LABEL_HELP_ABOUT,"&About %s")
+@@ -943,6 +958,7 @@
+ dcl(MENU_LABEL_HELP_ABOUT_GNU,"About &GNU Free Software")
+ dcl(MENU_LABEL_HELP_ABOUT_GNOMEOFFICE,"About G&NOME Office")
+ dcl(MENU_LABEL_HELP_REPORT_BUG, "Report a &Bug")
++dcl(MENU_LABEL_HELP_MORE, "&More")
+ dcl(MENU_LABEL_SPELL_SUGGEST_1,"%s")
+ dcl(MENU_LABEL_SPELL_SUGGEST_2,"%s")
+ dcl(MENU_LABEL_SPELL_SUGGEST_3,"%s")
+@@ -999,6 +1015,7 @@
+ dcl(MENU_LABEL_AUTOTEXT_EMAIL_5,"%s")
+ dcl(MENU_LABEL_AUTOTEXT_EMAIL_6,"%s")
+ dcl(MENU_LABEL_FMT_IMAGE, "Resize &Image")
++dcl(MENU_LABEL_MORE, "More")
+ 
+ dcl(MENU_STATUSLINE__BOGUS1__," ")
+ dcl(MENU_STATUSLINE__BOGUS2__," ")
+@@ -1030,6 +1047,7 @@
+ dcl(MENU_STATUSLINE_FILE_RECENT_9,"Open this document")
+ dcl(MENU_STATUSLINE_FILE_REVERT,"Revert the document to the last saved state")
+ dcl(MENU_STATUSLINE_FILE_EXIT,"Close all windows in the application and exit")
++dcl(MENU_STATUSLINE_FILE_MORE,"Additional menu items")
+ dcl(MENU_STATUSLINE_EDIT," ")
+ dcl(MENU_STATUSLINE_EDIT_UNDO,"Undo editing")
+ dcl(MENU_STATUSLINE_EDIT_REDO,"Redo previously undone editing")
+@@ -1065,12 +1083,15 @@
+ dcl(MENU_STATUSLINE_VIEW_FULLSCREEN,"View the document in full screen mode")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM_MENU,"Reduce or enlarge the document display")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM,"Reduce or enlarge the document display")
++dcl(MENU_STATUSLINE_VIEW_ZOOM_IN,"Enlarge the document display")
++dcl(MENU_STATUSLINE_VIEW_ZOOM_OUT,"Reduce the document display")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM_200,"Zoom to 200%")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM_100,"Zoom to 100%")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM_75,"Zoom to 75%")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM_50,"Zoom to 50%")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM_WIDTH,"Zoom to page width")
+ dcl(MENU_STATUSLINE_VIEW_ZOOM_WHOLE,"Zoom to whole page")
++dcl(MENU_STATUSLINE_VIEW_MORE,"Additional menu items")
+ dcl(MENU_STATUSLINE_INSERT," ")
+ dcl(MENU_STATUSLINE_INSERT_BREAK,"Insert a page, column, or section break")
+ dcl(MENU_STATUSLINE_INSERT_PAGENO,"Insert an automatically-updated page number")
+@@ -1092,6 +1113,7 @@
+ dcl(MENU_STATUSLINE_INSERT_DIRECTIONMARKER, "Insert Unicode direction marker into the document")
+ dcl(MENU_STATUSLINE_INSERT_DIRECTIONMARKER_LRM, "Insert left-to-right direction marker (LRM)")
+ dcl(MENU_STATUSLINE_INSERT_DIRECTIONMARKER_RLM, "Insert right-to-left direction marker (RLM)")
++dcl(MENU_STATUSLINE_INSERT_MORE, "Additional Menu Items")
+ 
+ dcl(MENU_STATUSLINE_FORMAT," ")
+ dcl(MENU_STATUSLINE_FMT, " ")
+@@ -1107,6 +1129,12 @@
+ dcl(MENU_STATUSLINE_FMT_TOGGLECASE,"Change the case of the selected text")
+ dcl(MENU_STATUSLINE_FMT_BACKGROUND,"Change your document's page color")
+ dcl(MENU_STATUSLINE_FMT_STYLE,"Define or apply style for the selection")
++dcl(MENU_STATUSLINE_FMT_STYLE_MODIFY,"Modify style used in current selection")
++dcl(MENU_STATUSLINE_FMT_STYLE_PARAGRAPH,"Modify paragraph settings used in current style")
++dcl(MENU_STATUSLINE_FMT_STYLE_FONT,"Change font used in current style")
++dcl(MENU_STATUSLINE_FMT_STYLE_TABS,"Modify tab settings used in current style")
++dcl(MENU_STATUSLINE_FMT_STYLE_NUMBERING,"Modify numbering used in current style")
++dcl(MENU_STATUSLINE_FMT_STYLE_LANGUAGE,"Change Language of current style")
+ dcl(MENU_STATUSLINE_FMT_STYLE_DEFINE, "Define or apply style for the selection")
+ dcl(MENU_STATUSLINE_FMT_IMPORTSTYLES,"Import style definitions from a document")
+ dcl(MENU_STATUSLINE_FMT_TABS,"Set tab stops")
+@@ -1123,6 +1151,7 @@
+ dcl(MENU_STATUSLINE_FMT_DIRECTION_DD_RTL, "Set dominant direction of paragraph to RTL")
+ dcl(MENU_STATUSLINE_FMT_DIRECTION_DO_LTR, "Force left-to-right direction of text")
+ dcl(MENU_STATUSLINE_FMT_DIRECTION_DO_RTL, "Force right-to-left direction of text")
++dcl(MENU_STATUSLINE_FMT_MORE, "More formatting options")
+ dcl(MENU_STATUSLINE_TOOLS," "	)
+ dcl(MENU_STATUSLINE_TOOLS_SPELLING," ")
+ dcl(MENU_STATUSLINE_TOOLS_SPELL,"Check the document for incorrect spelling")
+@@ -1139,6 +1168,7 @@
+ dcl(MENU_STATUSLINE_TOOLS_REVISIONS_MARK,"Mark changes as you type")
+ dcl(MENU_STATUSLINE_TOOLS_REVISIONS_ACCEPT_REVISION,"Accept the suggested change")
+ dcl(MENU_STATUSLINE_TOOLS_REVISIONS_REJECT_REVISION,"Remove the suggested change")
++dcl(MENU_STATUSLINE_TOOLS_MORE,"More tools")
+ dcl(MENU_STATUSLINE_TABLE, "Table")
+ dcl(MENU_STATUSLINE_TABLE_INSERT, "Insert")
+ dcl(MENU_STATUSLINE_TABLE_INSERT_TABLE, "Insert Table")
+@@ -1203,6 +1233,7 @@
+ dcl(MENU_STATUSLINE_HELP_ABOUT_GNU,"About the GNU project")
+ dcl(MENU_STATUSLINE_HELP_ABOUT_GNOMEOFFICE,"About the GNOME Office project")
+ dcl(MENU_STATUSLINE_HELP_REPORT_BUG, "Report a bug and help AbiWord become a better product")
++dcl(MENU_STATUSLINE_HELP_MORE, "More options")
+ dcl(MENU_STATUSLINE_SPELL_SUGGEST_1,"Change to this suggested spelling")
+ dcl(MENU_STATUSLINE_SPELL_SUGGEST_2,"Change to this suggested spelling")
+ dcl(MENU_STATUSLINE_SPELL_SUGGEST_3,"Change to this suggested spelling")
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_TB_Layouts_FileEditOps.h ../abi/src/wp/ap/xp/ap_TB_Layouts_FileEditOps.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_TB_Layouts_FileEditOps.h	2003-12-15 10:01:52.000000000 +0000
++++ ../abi/src/wp/ap/xp/ap_TB_Layouts_FileEditOps.h	2004-08-27 12:31:48.000000000 +0100
+@@ -30,7 +30,7 @@
+ 	ToolbarItem(AP_TOOLBAR_ID_FILE_NEW)
+ 	ToolbarItem(AP_TOOLBAR_ID_FILE_OPEN)
+ 	ToolbarItem(AP_TOOLBAR_ID_FILE_SAVE)
+-	ToolbarItem(AP_TOOLBAR_ID_FILE_SAVEAS)
++	//ToolbarItem(AP_TOOLBAR_ID_FILE_SAVEAS)
+ 
+ 	Spacer()
+ 	ToolbarItem(AP_TOOLBAR_ID_FILE_PRINT)
+@@ -38,25 +38,28 @@
+ 	ToolbarItem(AP_TOOLBAR_ID_FILE_PRINT_PREVIEW)
+ #endif
+ 	ToolbarItem(AP_TOOLBAR_ID_SPELLCHECK)
+-
+ 	Spacer()
++	
+ 	ToolbarItem(AP_TOOLBAR_ID_EDIT_CUT)
+ 	ToolbarItem(AP_TOOLBAR_ID_EDIT_COPY)
+ 	ToolbarItem(AP_TOOLBAR_ID_EDIT_PASTE)
+-        ToolbarItem(AP_TOOLBAR_ID_FMTPAINTER)
++   
++   //ToolbarItem(AP_TOOLBAR_ID_FMTPAINTER)
+ 
+ 	Spacer()
+ 	ToolbarItem(AP_TOOLBAR_ID_EDIT_UNDO)
+ 	ToolbarItem(AP_TOOLBAR_ID_EDIT_REDO)
+ 
+-	Spacer()
+-	ToolbarItem(AP_TOOLBAR_ID_1COLUMN)
+-	ToolbarItem(AP_TOOLBAR_ID_2COLUMN)
+-	ToolbarItem(AP_TOOLBAR_ID_3COLUMN)
++//	Spacer()
++//	ToolbarItem(AP_TOOLBAR_ID_1COLUMN)
++//	ToolbarItem(AP_TOOLBAR_ID_2COLUMN)
++//	ToolbarItem(AP_TOOLBAR_ID_3COLUMN)
+ 
+ 	Spacer()
+ 	ToolbarItem(AP_TOOLBAR_ID_IMG)
+-	ToolbarItem(AP_TOOLBAR_ID_VIEW_SHOWPARA)
++	ToolbarItem(AP_TOOLBAR_ID_INSERT_TABLE)
++//	ToolbarItem(AP_TOOLBAR_ID_VIEW_SHOWPARA)
+ 	ToolbarItem(AP_TOOLBAR_ID_ZOOM)
++	Spacer()
+ 	ToolbarItem(AP_TOOLBAR_ID_HELP)
+ EndLayout()
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Toolbar_ActionSet.cpp ../abi/src/wp/ap/xp/ap_Toolbar_ActionSet.cpp
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Toolbar_ActionSet.cpp	2004-06-08 15:54:54.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Toolbar_ActionSet.cpp	2004-08-26 13:12:25.000000000 +0100
+@@ -70,7 +70,7 @@
+ 
+ 	_s(AP_TOOLBAR_ID__BOGUS1__,		EV_TBIT_BOGUS,			NULL,			0,					NULL);
+ 
+-	_s(AP_TOOLBAR_ID_FILE_NEW,		EV_TBIT_PushButton,		"toolbarNew",		AV_CHG_NONE,		NULL);
++	_s(AP_TOOLBAR_ID_FILE_NEW,		EV_TBIT_PushButton,		"toolbarNew",	AV_CHG_NONE,		NULL);
+ 	_s(AP_TOOLBAR_ID_FILE_OPEN,		EV_TBIT_PushButton,		"fileOpen",		AV_CHG_NONE,		NULL);
+ 	_s(AP_TOOLBAR_ID_FILE_SAVE,		EV_TBIT_PushButton,		"fileSave",		AV_CHG_ALL,		ap_ToolbarGetState_Changes);
+ 	_s(AP_TOOLBAR_ID_FILE_SAVEAS,	EV_TBIT_PushButton,		"fileSaveAs",	AV_CHG_NONE,		NULL);
+@@ -165,5 +165,3 @@
+ 
+ 	return pActionSet;
+ }
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Toolbar_Layouts_All.h ../abi/src/wp/ap/xp/ap_Toolbar_Layouts_All.h
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/ap/xp/ap_Toolbar_Layouts_All.h	2002-09-21 03:53:38.000000000 +0100
++++ ../abi/src/wp/ap/xp/ap_Toolbar_Layouts_All.h	2004-08-23 13:49:52.000000000 +0100
+@@ -31,7 +31,3 @@
+ #include "ap_TB_Layouts_FormatOps.h"
+ #include "ap_TB_Layouts_TableOps.h"
+ #include "ap_TB_Layouts_ExtraOps.h"
+-
+-
+-
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/src/wp/main/cocoa/bundle/Info.plist ../abi/src/wp/main/cocoa/bundle/Info.plist
+--- ../../abiword-2.0.9.abicvs/abi/src/wp/main/cocoa/bundle/Info.plist	2003-07-20 13:22:50.000000000 +0100
++++ ../abi/src/wp/main/cocoa/bundle/Info.plist	2004-08-23 18:46:16.000000000 +0100
+@@ -69,6 +69,6 @@
+ 	<key>CFBundleSignature</key>
+ 	<string>AbiW</string>
+ 	<key>CFBundleVersion</key>
+-	<string>1.99.2</string>
++	<string>2.0.9</string>
+ </dict>
+ </plist>
+diff -ru ../../abiword-2.0.9.abicvs/abi/user/wp/strings/en-GB.strings ../abi/user/wp/strings/en-GB.strings
+--- ../../abiword-2.0.9.abicvs/abi/user/wp/strings/en-GB.strings	2003-06-07 04:12:59.000000000 +0100
++++ ../abi/user/wp/strings/en-GB.strings	2004-08-23 13:49:52.000000000 +0100
+@@ -80,6 +80,7 @@
+ MENU_LABEL_FILE_RECENT_8="&amp;8 %s"
+ MENU_LABEL_FILE_RECENT_9="&amp;9 %s"
+ MENU_LABEL_FILE_EXIT="E&amp;xit"
++MENU_LABEL_FILE_MORE="&amp;More"
+ MENU_LABEL_EDIT="&amp;Edit"
+ MENU_LABEL_EDIT_UNDO="&amp;Undo"
+ MENU_LABEL_EDIT_REDO="&amp;Redo"
+@@ -96,7 +97,7 @@
+ MENU_LABEL_VIEW="&amp;View"
+ MENU_LABEL_VIEW_NORMAL="&amp;Normal"
+ MENU_LABEL_VIEW_WEB="&amp;Web Layout"
+-MENU_LABEL_VIEW_PRINT="&amp;Print Layout"
++MENU_LABEL_VIEW_PRINT="&amp;Page Layout"
+ MENU_LABEL_VIEW_TOOLBARS="&amp;Toolbars"
+ MENU_LABEL_VIEW_TB_STD="&amp;Standard"
+ MENU_LABEL_VIEW_TB_FORMAT="&amp;Formatting"
+@@ -107,6 +108,7 @@
+ MENU_LABEL_VIEW_HEADFOOT="&amp;Header and Footer"
+ MENU_LABEL_VIEW_FULLSCREEN="F&amp;ull Screen"
+ MENU_LABEL_VIEW_ZOOM="&amp;Zoom"
++MENU_LABEL_VIEW_MORE="&amp;More"
+ MENU_LABEL_INSERT="&amp;Insert"
+ MENU_LABEL_INSERT_BREAK="&amp;Break"
+ MENU_LABEL_INSERT_PAGENO="Page N&amp;umbers"
+@@ -115,6 +117,7 @@
+ MENU_LABEL_INSERT_SYMBOL="Sy&amp;mbol"
+ MENU_LABEL_INSERT_PICTURE="&amp;Picture"
+ MENU_LABEL_INSERT_GRAPHIC="&amp;From File"
++MENU_LABEL_INSERT_MORE="&amp;More"
+ MENU_LABEL_FORMAT="F&amp;ormat"
+ MENU_LABEL_FMT_LANGUAGE="&amp;Language"
+ MENU_LABEL_FMT_FONT="&amp;Font"
+@@ -126,6 +129,11 @@
+ MENU_LABEL_FMT_TOGGLECASE="C&amp;hange Case"
+ MENU_LABEL_FMT_BACKGROUND="Back&amp;ground"
+ MENU_LABEL_FMT_STYLE="St&amp;yle"
++MENU_LABEL_FMT_STYLE_PARAGRAPH="Indents and Spacing"
++MENU_LABEL_FMT_STYLE_FONT="Font"
++MENU_LABEL_FMT_STYLE_TABS="Tabs"
++MENU_LABEL_FMT_STYLE_NUMBERING="Numbering"
++MENU_LABEL_FMT_STYLE_LANGUAGE="Language"
+ MENU_LABEL_FMT_TABS="&amp;Tabs"
+ MENU_LABEL_FMT_BOLD="&amp;Bold"
+ MENU_LABEL_FMT_ITALIC="&amp;Italic"
+@@ -136,6 +144,7 @@
+ MENU_LABEL_FMT_BOTTOMLINE="Bottomline"
+ MENU_LABEL_FMT_SUPERSCRIPT="Supe&amp;rscript"
+ MENU_LABEL_FMT_SUBSCRIPT="&amp;Subscript"
++MENU_LABEL_FMT_MORE="&amp;More"
+ MENU_LABEL_TOOLS="&amp;Tools"
+ MENU_LABEL_TOOLS_SPELLING="&amp;Spelling"
+ MENU_LABEL_TOOLS_SPELL="Spe&amp;lling"
+@@ -213,6 +222,7 @@
+ MENU_STATUSLINE_FILE_RECENT_8="Open this document"
+ MENU_STATUSLINE_FILE_RECENT_9="Open this document"
+ MENU_STATUSLINE_FILE_EXIT="Close all windows in the application and exit"
++MENU_STATUSLINE_FILE_MORE="Additional menu items"
+ MENU_STATUSLINE_EDIT=" "
+ MENU_STATUSLINE_EDIT_UNDO="Undo editing"
+ MENU_STATUSLINE_EDIT_REDO="Redo previously undone editing"
+@@ -240,6 +250,7 @@
+ MENU_STATUSLINE_VIEW_HEADFOOT="Edit text at the top or bottom of every page"
+ MENU_STATUSLINE_VIEW_FULLSCREEN="View the document in full screen mode"
+ MENU_STATUSLINE_VIEW_ZOOM="Reduce or enlarge the document display"
++MENU_STATUSLINE_VIEW_MORE="Additional menu items"
+ MENU_STATUSLINE_INSERT=" "
+ MENU_STATUSLINE_INSERT_BREAK="Insert a page, column, or section break"
+ MENU_STATUSLINE_INSERT_PAGENO="Insert an automatically-updated page number"
+@@ -248,6 +259,7 @@
+ MENU_STATUSLINE_INSERT_SYMBOL="Insert a symbol or other special character"
+ MENU_STATUSLINE_INSERT_PICTURE="Insert a picture"
+ MENU_STATUSLINE_INSERT_GRAPHIC="Insert an existing picture from another file"
++MENU_STATUSLINE-INSERT_MORE="Additional Menu items"
+ MENU_STATUSLINE_FORMAT=" "
+ MENU_STATUSLINE_FMT_LANGUAGE="Change the language of the selected text"
+ MENU_STATUSLINE_FMT_FONT="Change the font of the selected text"
+@@ -259,6 +271,11 @@
+ MENU_STATUSLINE_FMT_TOGGLECASE="Change the case of the selected text"
+ MENU_STATUSLINE_FMT_BACKGROUND="Change your document's background colour"
+ MENU_STATUSLINE_FMT_STYLE="Define or apply style for the selection"
++MENU_STATUSLINE_FMT_STYLE_PARAGRAPH="Adjust indents and spacing for selected style"
++MENU_STATUSLINE_FMT_STYLE_FONT="Adjust font used in selected style"
++MENU_STATUSLINE_FMT_STYLE_TABS="Adjust Tab settings for selected style"
++MENU_STATUSLINE_FMT_STYLE_NUMBERING="Adjust numbering used in selected style"
++MENU_STATUSLINE_FMT_STYLE_LANGUAGE="Select the language of the selected style"
+ MENU_STATUSLINE_FMT_TABS="Set tab stops"
+ MENU_STATUSLINE_FMT_BOLD="Make the selection bold (toggle)"
+ MENU_STATUSLINE_FMT_ITALIC="Make the selection italic (toggle)"
+@@ -269,6 +286,7 @@
+ MENU_STATUSLINE_FMT_BOTTOMLINE="Line below the selection (toggle)"
+ MENU_STATUSLINE_FMT_SUPERSCRIPT="Make the selection superscript (toggle)"
+ MENU_STATUSLINE_FMT_SUBSCRIPT="Make the selection subscript (toggle)"
++MENU_STATUSLINE_FMT_MORE="More formatting options"
+ MENU_STATUSLINE_TOOLS=" "
+ MENU_STATUSLINE_TOOLS_SPELLING=" "
+ MENU_STATUSLINE_TOOLS_SPELL="Check the document for incorrect spelling"
+@@ -478,4 +496,3 @@
+ />
+ 
+ </AbiStrings>
+-
+diff -ru ../../abiword-2.0.9.abicvs/abi/user/wp/strings/en-IE.strings ../abi/user/wp/strings/en-IE.strings
+--- ../../abiword-2.0.9.abicvs/abi/user/wp/strings/en-IE.strings	2003-06-07 04:13:00.000000000 +0100
++++ ../abi/user/wp/strings/en-IE.strings	2004-08-23 13:49:52.000000000 +0100
+@@ -71,6 +71,7 @@
+ MENU_LABEL_FILE_RECENT_8="&amp;8 %s"
+ MENU_LABEL_FILE_RECENT_9="&amp;9 %s"
+ MENU_LABEL_FILE_EXIT="E&amp;xit"
++MENU_LABEL_FILE_MORE="&amp;More"
+ MENU_LABEL_EDIT="&amp;Edit"
+ MENU_LABEL_EDIT_UNDO="&amp;Undo"
+ MENU_LABEL_EDIT_REDO="&amp;Redo"
+@@ -87,7 +88,7 @@
+ MENU_LABEL_VIEW="&amp;View"
+ MENU_LABEL_VIEW_NORMAL="&amp;Normal"
+ MENU_LABEL_VIEW_WEB="&amp;Web Layout"
+-MENU_LABEL_VIEW_PRINT="&amp;Print Layout"
++MENU_LABEL_VIEW_PRINT="&amp;Page Layout"
+ MENU_LABEL_VIEW_TOOLBARS="&amp;Toolbars"
+ MENU_LABEL_VIEW_TB_STD="&amp;Standard"
+ MENU_LABEL_VIEW_TB_FORMAT="&amp;Formatting"
+@@ -98,6 +99,7 @@
+ MENU_LABEL_VIEW_HEADFOOT="&amp;Header and Footer"
+ MENU_LABEL_VIEW_FULLSCREEN="F&amp;ull Screen"
+ MENU_LABEL_VIEW_ZOOM="&amp;Zoom"
++MENU_LABEL_VIEW_MORE="&amp;More"
+ MENU_LABEL_INSERT="&amp;Insert"
+ MENU_LABEL_INSERT_BREAK="&amp;Break"
+ MENU_LABEL_INSERT_PAGENO="Page N&amp;umbers"
+@@ -106,6 +108,7 @@
+ MENU_LABEL_INSERT_SYMBOL="Sy&amp;mbol"
+ MENU_LABEL_INSERT_PICTURE="&amp;Picture"
+ MENU_LABEL_INSERT_GRAPHIC="&amp;From File"
++MENU_LABEL_INSERT_MORE="&amp;More"
+ MENU_LABEL_FORMAT="F&amp;ormat"
+ MENU_LABEL_FMT_LANGUAGE="&amp;Language"
+ MENU_LABEL_FMT_FONT="&amp;Font"
+@@ -127,6 +130,7 @@
+ MENU_LABEL_FMT_BOTTOMLINE="Bottomline"
+ MENU_LABEL_FMT_SUPERSCRIPT="Supe&amp;rscript"
+ MENU_LABEL_FMT_SUBSCRIPT="&amp;Subscript"
++MENU_LABEL_FMT_MORE="&amp;More"
+ MENU_LABEL_TOOLS="&amp;Tools"
+ MENU_LABEL_TOOLS_SPELLING="&amp;Spelling"
+ MENU_LABEL_TOOLS_SPELL="Spe&amp;lling"
+@@ -204,6 +208,7 @@
+ MENU_STATUSLINE_FILE_RECENT_8="Open this document"
+ MENU_STATUSLINE_FILE_RECENT_9="Open this document"
+ MENU_STATUSLINE_FILE_EXIT="Close all windows in the application and exit"
++MENU_STATUSLINE_FILE_MORE="Additional menu items"
+ MENU_STATUSLINE_EDIT=" "
+ MENU_STATUSLINE_EDIT_UNDO="Undo editing"
+ MENU_STATUSLINE_EDIT_REDO="Redo previously undone editing"
+@@ -231,6 +236,7 @@
+ MENU_STATUSLINE_VIEW_HEADFOOT="Edit text at the top or bottom of every page"
+ MENU_STATUSLINE_VIEW_FULLSCREEN="View the document in full screen mode"
+ MENU_STATUSLINE_VIEW_ZOOM="Reduce or enlarge the document display"
++MENU_STATUSLINE_VIEW_MORE="Additional menu items"
+ MENU_STATUSLINE_INSERT=" "
+ MENU_STATUSLINE_INSERT_BREAK="Insert a page, column, or section break"
+ MENU_STATUSLINE_INSERT_PAGENO="Insert an automatically-updated page number"
+@@ -239,6 +245,7 @@
+ MENU_STATUSLINE_INSERT_SYMBOL="Insert a symbol or other special character"
+ MENU_STATUSLINE_INSERT_PICTURE="Insert a picture"
+ MENU_STATUSLINE_INSERT_GRAPHIC="Insert an existing picture from another file"
++MENU_STATUSLINE_INSERT_MORE="Additional menu items"
+ MENU_STATUSLINE_FORMAT=" "
+ MENU_STATUSLINE_FMT_LANGUAGE="Change the language of the selected text"
+ MENU_STATUSLINE_FMT_FONT="Change the font of the selected text"
+@@ -260,6 +267,7 @@
+ MENU_STATUSLINE_FMT_BOTTOMLINE="Line below the selection (toggle)"
+ MENU_STATUSLINE_FMT_SUPERSCRIPT="Make the selection superscript (toggle)"
+ MENU_STATUSLINE_FMT_SUBSCRIPT="Make the selection subscript (toggle)"
++MENU_STATUSLINE_FMT_MORE="More Formatting options"
+ MENU_STATUSLINE_TOOLS=" "
+ MENU_STATUSLINE_TOOLS_SPELLING=" "
+ MENU_STATUSLINE_TOOLS_SPELL="Check the document for incorrect spelling"
+@@ -469,4 +477,3 @@
+ />
+ 
+ </AbiStrings>
+-
+diff -ru ../../abiword-2.0.9.abicvs/abidistfiles/templates/normal.awt-en_GB ../abidistfiles/templates/normal.awt-en_GB
+--- ../../abiword-2.0.9.abicvs/abidistfiles/templates/normal.awt-en_GB	2003-05-26 02:56:06.000000000 +0100
++++ ../abidistfiles/templates/normal.awt-en_GB	2004-08-27 18:43:37.000000000 +0100
+@@ -1,18 +1,23 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE abiword PUBLIC "-//ABISOURCE//DTD AWML 1.0 Strict//EN" "http://www.abisource.com/awml.dtd">
+-<abiword template="false" styles="unlocked" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:svg="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" fileformat="1.1" xmlns:math="http://www.w3.org/1998/Math/MathML" xmlns:awml="http://www.abisource.com/awml.dtd" xmlns="http://www.abisource.com/awml.dtd" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.9.1" xml:space="preserve" props="lang:en-GB; dom-dir:ltr">
+-<!-- =====================================================================  -->
+-<!-- This file is an AbiWord document.                                      -->
+-<!-- AbiWord is a free, Open Source word processor.                         -->
+-<!-- More information about AbiWord is available at http://www.abisource.com     -->
+-<!-- You should not edit this file by hand.                                 -->
+-<!-- =====================================================================  -->
++<abiword template="false" styles="unlocked" version="2.0.9" xmlns:math="http://www.w3.org/1998/Math/MathML" xmlns:dc="http://purl.org/dc/elements/1.1/" fileformat="1.1" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:svg="http://www.w3.org/2000/svg" xmlns:awml="http://www.abisource.com/awml.dtd" xmlns="http://www.abisource.com/awml.dtd" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" props="lang:en-GB; dom-dir:ltr">
++<!-- ======================================================================== -->
++<!-- This file is an AbiWord document.                                        -->
++<!-- AbiWord is a free, Open Source word processor.                           -->
++<!-- More information about AbiWord is available at http://www.abisource.com/ -->
++<!-- You should not edit this file by hand.                                   -->
++<!-- ======================================================================== -->
+ 
++<metadata>
++<m key="dc.format">application/x-abiword</m>
++<m key="abiword.generator">AbiWord</m>
++<m key="abiword.date_last_changed">Fri Aug 27 18:43:37 2004</m>
++</metadata>
+ <styles>
+-<s type="P" name="Normal" basedon="" followedby="Current Settings" props="font-family:Times New Roman; margin-top:0pt; font-variant:normal; margin-left:0pt; text-indent:0in; widows:2; font-style:normal; font-weight:normal; text-decoration:none; lang:en-GB; dom-dir:ltr; color:000000; line-height:1.0; text-align:left; margin-bottom:0pt; text-position:normal; margin-right:0pt; bgcolor:transparent; font-size:12pt; font-stretch:normal"/>
++<s followedby="Current Settings" name="Normal" type="P" props="font-weight:normal; font-family:Thorndale AMT; margin-top:0pt; font-style:normal; margin-left:0pt; lang:en-GB; dom-dir:ltr; font-variant:normal; text-indent:0in; margin-bottom:0pt; text-decoration:none; bgcolor:transparent; margin-right:0pt; color:000000; font-size:12pt; line-height:1.0; text-align:left; widows:2; font-stretch:normal"/>
+ </styles>
+ <pagesize pagetype="A4" orientation="portrait" width="210.000000" height="297.000000" units="mm" page-scale="1.000000"/>
+-<section props="page-margin-right:1.0000in; page-margin-footer:0.5000in; page-margin-header:0.5000in; page-margin-left:1.0000in; page-margin-top:1.0000in; page-margin-bottom:1.0000in">
++<section props="page-margin-footer:0.5000in; page-margin-header:0.5000in; page-margin-right:1.0000in; page-margin-left:1.0000in; page-margin-top:1.0000in; page-margin-bottom:1.0000in">
+ <p style="Normal"></p>
+ </section>
+ </abiword>
+

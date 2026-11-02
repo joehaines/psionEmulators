@@ -1,0 +1,37 @@
+SRC_URI = "${PDCVS};module=linux-2.4.26;method=ext"
+S = "${WORKDIR}/linux-2.4.26"
+
+KERNEL_VERSION = "2.4.26"
+
+inherit kernel
+
+PACKAGES = ""
+
+do_configure() {
+	cd ${S}/include
+	ln -s asm-arm asm
+	cd asm
+	ln -s arch-pxa arch
+	ln -s proc-armv proc
+}
+
+do_stage() {
+        install -d ${STAGING_KERNEL_DIR}/include/{asm,asm-generic,linux,net,pcmcia}
+        cp -fR include/linux/* ${STAGING_KERNEL_DIR}/include/linux/
+        cp -fR include/asm/* ${STAGING_KERNEL_DIR}/include/asm/
+        cp -fR include/asm-generic/* ${STAGING_KERNEL_DIR}/include/asm-generic/
+        cp -fR include/net/* ${STAGING_KERNEL_DIR}/include/net/
+        cp -fR include/pcmcia/* ${STAGING_KERNEL_DIR}/include/pcmcia/
+        echo "${KERNEL_VERSION}" >${STAGING_KERNEL_DIR}/kernel-version
+        echo "${KERNEL_VERSION}" >${STAGING_KERNEL_DIR}/kernel-abiversion
+	touch ${STAGING_KERNEL_DIR}/kernel-ccsuffix
+	touch ${STAGING_KERNEL_DIR}/kernel-ldsuffix
+}
+
+do_compile() {
+	:
+}
+
+do_install() {
+	:
+}

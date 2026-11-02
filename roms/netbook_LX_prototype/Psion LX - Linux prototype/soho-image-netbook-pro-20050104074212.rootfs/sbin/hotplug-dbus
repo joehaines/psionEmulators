@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# Broadcast hotplug events on D-BUS and then call the appropriate agent
+
+OBJECT="/org/handhelds/gpe/hotplug"
+MESSAGE="org.handhelds.gpe.hotplug.HotplugEvent"
+
+invoke_dbus () 
+{
+  cmd="dbus-send --system $OBJECT $MESSAGE"
+  while [ $# -gt 0 ]; do
+    cmd="$cmd :$1"
+    shift
+  done
+  eval $cmd
+}
+
+case $1 in
+net)
+	invoke_dbus net $ACTION $INTERFACE
+	;;
+bluetooth)
+	invoke_dbus bluetooth $ACTION $DEVICE
+	;;
+*)
+	invoke_dbus $*
+	;;
+esac

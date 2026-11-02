@@ -1,0 +1,1140 @@
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/param.h>
+#include <sys/wait.h>
+#include <gtk/gtk.h>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <gdk/gdkkeysyms.h>
+#include "gtk_mountdlg.h"
+#include "smbif.h"
+#include "preferences.h"
+#include "utility.h"
+#include "data.h"
+#include "gtk_mountdlg.h"
+
+typedef enum {
+        UMOUNT_SMBUSERRTRY,
+        UMOUNT_SMBSUTRY,
+        UMOUNT_MOUNTTRY
+} smbumountTag;
+
+
+static GtkWidget *mount_dlg=NULL, *filew=NULL;
+
+static GtkWidget *mount_pointentry,*serviceentry,
+                 *smbuserentry,*smbpasswdentry,*supasswdentry,
+                 *filemodeentry,*dirmodeentry, *run_fm_checkbox,
+                 *sumountcheckbox,*sucachepwdcheckbox,*cbuid,*cbgid;
+static GtkWidget *mount_button;
+                 
+static char mount_point[PATH_LEN+1]="/mnt/";
+static char ipaddrstr[MASTER_LEN+1];
+static char groupname[MASTER_LEN+1];
+static char supasswd[MASTER_LEN+1]="";
+static int  sumount=FALSE;
+static int  cachesupwd=FALSE;
+#define max_client_name_length 16 /* from <linux/smb_mount.h> */
+static char  clientname[MAXHOSTNAMELEN+1]="";
+static uid_t mntuid;
+static gid_t mntgid;
+static mode_t filemode,dirmode;
+
+
+void smb_mount_dialog_init(void) /*do some initialisation*/
+{
+  struct passwd *pwd;
+  char chrclientlen,*dotindex;
+
+  mntuid=getuid();
+  pwd=getpwuid(mntuid);
+  if (pwd)
+  {
+    mount_point[PATH_LEN-1]=0;
+    if(!*pref_get_root_mnt_dir()) 
+      strncpy(mount_point,pwd->pw_dir,PATH_LEN-1);
+    else
+      strncpy(mount_point,pref_get_root_mnt_dir(),PATH_LEN-1);      
+  }
+  mntgid=getgid();
+  filemode=644;
+  dirmode=755;
+
+  memset(clientname,'\0',MAXHOSTNAMELEN+1);
+  gethostname(clientname,MAXHOSTNAMELEN);
+  if (strlen(clientname)>max_client_name_length)
+  { /*hostname too long for clientname, cut it!*/
+    chrclientlen=clientname[max_client_name_length];
+    clientname[max_client_name_length]='\0';
+    if (chrclientlen!='.')
+    {
+      dotindex=rindex(clientname,'.');
+      if (dotindex && dotindex-clientname>3) 
+        *dotindex='\0';
+    }
+  }
+}
+
+
+
+static void mount_dlg_destroy(GtkWidget *widget, GList **data)
+{
+  GList *list;
+
+  list=data[0];
+  while(list)   /*free the cbiditems*/
+  {
+   g_free(list->data);
+   list=list->next;
+  }
+  list=data[1];
+  while(list)
+  {
+   g_free(list->data);
+   list=list->next;
+  }
+  if (filew) gtk_widget_destroy(filew);
+  mount_dlg=NULL;
+}
+
+static char root_mkdir_ok(gchar *full_path);
+
+
+static char make_mount_point_part(char *mount_point_part)
+{
+  gchar *errorstr;
+  if (GTK_TOGGLE_BUTTON(sumountcheckbox)->active)
+    return (root_mkdir_ok(mount_point_part));   
+  if (!mkdir(mount_point_part,0755))
+    return(TRUE);
+  else
+  {
+    errorstr=g_strdup_printf(_("Error creating %s:\n%s"),mount_point_part,strerror(errno));
+    message_box(errorstr,NULL,NULL);
+    g_free(errorstr);
+    return(FALSE);
+  }
+}
+
+
+static char check_create_mount_point(char *mount_point)
+{
+  gchar *mount_;
+  char *slashi;
+  char ok=TRUE;
+  struct stat fstat;
+  gchar *errorstr;
+
+  if (!*mount_point || mount_point[strlen(mount_point)-1]!='/') 
+    mount_=g_strconcat(mount_point,"/",NULL);
+  else
+    mount_=g_strdup(mount_point);
+  slashi=mount_;
+  while((slashi=index(slashi,'/')))
+  {
+    *slashi=0;
+    if (*mount_) 
+    { 
+      if (!stat(mount_,&fstat))
+      { 
+        if (!S_ISDIR(fstat.st_mode))
+        {
+         ok=FALSE;
+         errorstr=g_strdup_printf(_("%s\nexists but is not a directory!"),mount_);
+         message_box(errorstr,NULL,NULL);
+         g_free(errorstr);
+         break;
+        }
+      }
+      else
+      {
+       if (!(ok=make_mount_point_part(mount_)))break;
+      } 
+    } 
+    *slashi='/';slashi++;
+  }
+  g_free(mount_);
+  return(ok);
+}
+
+
+static gint mount_ok_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  char *supwd;
+  int port = -1;
+  mount_point[PATH_LEN]=0;
+  strncpy(mount_point,gtk_entry_get_text(GTK_ENTRY (mount_pointentry)),PATH_LEN-1);
+  if (!check_create_mount_point(mount_point))
+  {
+    return(TRUE);
+  }
+  if(*mount_point && mount_point[strlen(mount_point)-1]!='/') strcat(mount_point,"/");
+    string_ncopy(globals.browse_user,gtk_entry_get_text(GTK_ENTRY (smbuserentry)),USER_LEN);
+  string_ncopy(globals.browse_password,gtk_entry_get_text(GTK_ENTRY (smbpasswdentry)),PASSWORD_LEN);
+  filemode=atoi(gtk_entry_get_text(GTK_ENTRY (filemodeentry)));
+  if (filemode>7777) filemode=7777;/*crude*/
+  /*allow 7777 because Win95 bugfix options are controlled with it (Kernel 2.2)*/
+  dirmode=atoi(gtk_entry_get_text(GTK_ENTRY (dirmodeentry)));
+  if (dirmode>777) dirmode=777;
+  mntuid=atoi(gtk_entry_get_text(GTK_ENTRY (GTK_COMBO(cbuid)->entry)));
+  mntgid=atoi(gtk_entry_get_text(GTK_ENTRY (GTK_COMBO(cbgid)->entry)));
+  if (GTK_TOGGLE_BUTTON(sumountcheckbox)->active)
+    supwd=gtk_entry_get_text(GTK_ENTRY (supasswdentry)); else supwd=NULL;
+  
+  strcpy(supasswd,gtk_entry_get_text(GTK_ENTRY (supasswdentry)));
+  sumount=GTK_TOGGLE_BUTTON(sumountcheckbox)->active;
+  cachesupwd=GTK_TOGGLE_BUTTON(sucachepwdcheckbox)->active;
+
+  if ( pref.v.use_smb_port )
+  {
+    port = pref.v.smb_port;
+  }
+  smbmount(gtk_entry_get_text(GTK_ENTRY (serviceentry)),mount_point,clientname,
+           ipaddrstr,groupname,globals.browse_user,globals.browse_password,/*smbuser,smbpasswd,*/
+           mntuid,mntgid,filemode,dirmode,port,supwd);
+  gtk_widget_destroy(mount_dlg);
+  return(TRUE);
+}
+
+static void file_selection_ok (GtkWidget *w, GtkFileSelection *fs)
+{
+    gtk_entry_set_text (GTK_ENTRY (mount_pointentry),
+      gtk_file_selection_get_filename (GTK_FILE_SELECTION (fs)));
+    gtk_widget_destroy (GTK_WIDGET (fs));
+}
+
+
+static void
+root_file_selection_fileop_destroy (GtkWidget *widget, gpointer data)
+{
+  GtkFileSelection *fs = data;
+
+  g_return_if_fail (fs != NULL);
+  g_return_if_fail (GTK_IS_FILE_SELECTION (fs));
+  
+  fs->fileop_dialog = NULL;
+}
+
+#define MAXMKDIRCOMMANDL 300
+static char root_mkdir_ok(gchar *full_path)
+{
+ char result_ok=TRUE;
+ char notfound[]="su not found\n";
+ char suprompt[] = "Passw";
+ int fdstdin[2];
+ int fdstdout[2];  
+ int fdstderr[2];  
+ int  pipe2_nok,pipe3_nok=1;
+ pid_t childpid;
+ char commandstr[MAXMKDIRCOMMANDL+4],*colonpos;
+ char *argv[4],*supasswd;
+ int linepos,linenum,linec;   
+ static char linebuf[MAXSMBLINEL+1];
+ GSList *strlist=NULL;
+ strcpy(linebuf,"pipe,fork error");
+ if (pipe(fdstdin))
+   {
+    message_box(_("root_mkdir pipe fdstdin error"),NULL,NULL);
+    return(FALSE);   
+   }
+
+  /* do a
+   * su '-c any_command'
+   * instead of
+   * su -c any_command */
+     
+ strcpy(commandstr, "-c");
+ 
+ argv[0]="su";
+ //argv[1]="-c";
+ argv[1]=commandstr;
+ argv[2]=NULL;
+ sprintf(commandstr,"%s mkdir %s", commandstr, escape_str(full_path,&strlist));
+ slist_free_with_data(&strlist);
+  if((pipe2_nok=pipe(fdstdout))|| (pipe3_nok=pipe(fdstderr))||
+        (childpid =fork())== -1)   
+   {
+    close(fdstdin[0]);close(fdstdin[1]);
+    if (!pipe2_nok) 
+      {close(fdstdout[0]);close(fdstdout[1]);}
+    if (!pipe3_nok)
+      {close(fdstderr[0]);close(fdstderr[1]);}
+    message_box(_("root_mkdir pipe,fork error\n"),NULL,NULL);
+    return(FALSE);   
+   } 
+  if (!childpid)
+  {
+   close(fdstdout[0]);   
+   close(fdstderr[0]);   
+   dup2(fdstdout[1],STDOUT_FILENO); 
+   dup2(fdstderr[1],STDERR_FILENO); 
+   close(fdstdin[1]);   
+   dup2(fdstdin[0],STDIN_FILENO); 
+   execvp("su",argv);
+   write(STDERR_FILENO,notfound,sizeof(notfound)-1); 
+   _exit(0);
+  }
+  else
+  {
+   close(fdstdout[1]); 
+  close(fdstderr[1]); 
+  close(fdstdin[0]);
+  supasswd=gtk_entry_get_text(GTK_ENTRY (supasswdentry));
+  write(fdstdin[1], supasswd, strlen(supasswd));
+  write(fdstdin[1], "\n",1);
+  close(fdstdin[1]);
+  linepos=0;
+  linenum=0;
+  do
+   {
+    result_ok=TRUE;
+    if (fdread_line_ok(fdstderr[0],&linec,&linepos,linebuf))
+    {
+    linenum++;
+    if(linenum>1 || strncmp(linebuf,suprompt,sizeof(suprompt)-1)||(linepos>11))
+     {
+      if (!strncmp(linebuf,suprompt,sizeof(suprompt)-1))
+      {
+       if ((colonpos=index(linebuf,':')))
+         memmove(linebuf,colonpos+1,linepos-(colonpos-linebuf));
+      }
+      result_ok=FALSE;
+      linec=EOF;
+     } 
+    linepos=0;
+    }
+   }while(linec!=EOF);
+  close(fdstderr[0]);
+  close(fdstdout[0]);
+/*  kill(childpid,SIGINT); */
+     waitpid(childpid,NULL,0);
+  if (!result_ok) message_box(linebuf,NULL,NULL);
+  return (result_ok);
+  }                          
+}
+
+
+
+
+static void
+root_file_selection_create_dir_confirmed (GtkWidget *widget, gpointer data)
+{
+  GtkFileSelection *fs = data;
+  gchar *dirname;
+  gchar *full_path;
+
+  g_return_if_fail (fs != NULL);
+  g_return_if_fail (GTK_IS_FILE_SELECTION (fs));
+
+  dirname = gtk_entry_get_text (GTK_ENTRY (fs->fileop_entry));
+  if (dirname[0]=='/') full_path=g_strdup(dirname);
+  else
+   full_path = g_strconcat (gtk_file_selection_get_filename (GTK_FILE_SELECTION (fs)),dirname, NULL);
+/*  g_print ("full_path=%s\n", full_path); */
+  if (root_mkdir_ok(full_path)){
+    gtk_entry_set_text (GTK_ENTRY (mount_pointentry),full_path);
+    gtk_widget_destroy (GTK_WIDGET (fs));
+  }
+  else 
+    gtk_widget_destroy (fs->fileop_dialog);
+  g_free (full_path);   
+
+}
+  
+
+static void
+root_file_selection_create_dir (GtkWidget *widget, gpointer data)
+{
+  GtkFileSelection *fs = data;
+  GtkWidget *label;
+  GtkWidget *dialog;
+  GtkWidget *vbox;
+  GtkWidget *button;
+
+  g_return_if_fail (fs != NULL);
+  g_return_if_fail (GTK_IS_FILE_SELECTION (fs));
+  if (fs->fileop_dialog)
+	  return;
+  
+  /* main dialog */
+  fs->fileop_dialog = dialog = gtk_dialog_new ();
+  gtk_signal_connect (GTK_OBJECT (dialog), "destroy",
+		      (GtkSignalFunc) root_file_selection_fileop_destroy, 
+		      (gpointer) fs);
+  gtk_window_set_title (GTK_WINDOW (dialog), _("Create Dir as root"));
+  gtk_window_set_position (GTK_WINDOW (dialog), GTK_WIN_POS_MOUSE);
+
+  /* If file dialog is grabbed, grab option dialog */
+  /* When option dialog is closed, file dialog will be grabbed again */
+  if (GTK_WINDOW(fs)->modal)
+      gtk_window_set_modal (GTK_WINDOW(dialog), TRUE);
+
+  vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_set_border_width(GTK_CONTAINER(vbox), 8);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), vbox,
+		     FALSE, FALSE, 0);
+  gtk_widget_show(vbox);
+  
+  label = gtk_label_new(_("Directory name:"));
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+  gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 5);
+  gtk_widget_show(label);
+
+  /*  The directory entry widget  */
+  fs->fileop_entry = gtk_entry_new ();
+  gtk_box_pack_start (GTK_BOX (vbox), fs->fileop_entry, 
+		      TRUE, TRUE, 5);
+  GTK_WIDGET_SET_FLAGS(fs->fileop_entry, GTK_CAN_DEFAULT);
+  gtk_widget_show (fs->fileop_entry);
+  
+  /* buttons */
+  button = gtk_button_new_with_label (_("Create"));
+  gtk_signal_connect (GTK_OBJECT (button), "clicked",
+		      (GtkSignalFunc) root_file_selection_create_dir_confirmed, 
+		      (gpointer) fs);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area),
+		     button, TRUE, TRUE, 0);
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_widget_show(button);
+  
+  button = gtk_button_new_with_label (_("Cancel"));
+  gtk_signal_connect_object (GTK_OBJECT (button), "clicked",
+			     (GtkSignalFunc) gtk_widget_destroy, 
+			     (gpointer) dialog);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area),
+		     button, TRUE, TRUE, 0);
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_widget_grab_default(button);
+  gtk_widget_show (button);
+
+  gtk_widget_show (dialog);
+}
+
+
+static void mount_point_select_button_callback (GtkWidget *widget, gpointer data)
+{
+ if (filew) return;
+ filew=gtk_file_selection_new (_("Select Mount Point"));
+
+/*  GTK_WIDGET_FLAGS((GTK_FILE_SELECTION(filew))->file_list)&=~GTK_VISIBLE; */
+  GTK_WIDGET_FLAGS(GTK_WIDGET((GTK_FILE_SELECTION(filew))->file_list)->parent)&=~GTK_VISIBLE;
+  GTK_WIDGET_FLAGS((GTK_FILE_SELECTION(filew))->fileop_ren_file)&=~GTK_VISIBLE;
+  GTK_WIDGET_FLAGS((GTK_FILE_SELECTION(filew))->fileop_del_file)&=~GTK_VISIBLE;
+ 
+  gtk_signal_connect(GTK_OBJECT(filew),"destroy",
+                             GTK_SIGNAL_FUNC(gtk_widget_destroyed),&filew);
+  gtk_signal_connect (GTK_OBJECT (GTK_FILE_SELECTION (filew)->ok_button),
+			  "clicked", GTK_SIGNAL_FUNC(file_selection_ok),filew);
+  if (GTK_TOGGLE_BUTTON(sumountcheckbox)->active){
+    gtk_signal_disconnect_by_data (GTK_OBJECT (GTK_FILE_SELECTION (filew)->fileop_c_dir),filew);
+    gtk_signal_connect (GTK_OBJECT (GTK_FILE_SELECTION (filew)->fileop_c_dir),
+			  "clicked", GTK_SIGNAL_FUNC(root_file_selection_create_dir),filew);
+  }
+  gtk_signal_connect_object (GTK_OBJECT (GTK_FILE_SELECTION (filew)->cancel_button),
+            "clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy),GTK_OBJECT (filew));
+  gtk_file_selection_set_filename (GTK_FILE_SELECTION(filew),mount_point);
+  gtk_widget_show (filew);
+}
+
+
+static void supwentry_toggle_sensitive(GtkWidget *checkbutton,GtkWidget *entry)
+{
+   gtk_widget_set_sensitive(entry,(GTK_TOGGLE_BUTTON(checkbutton)->active));
+   if (!GTK_TOGGLE_BUTTON(checkbutton)->active/*!GTK_TOGGLE_BUTTON(sucachepwdcheckbox)->active*/)
+   { 
+     gtk_entry_set_text (GTK_ENTRY (supasswdentry), "");
+   }
+   gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(sucachepwdcheckbox),cachesupwd);
+   gtk_widget_set_sensitive(sucachepwdcheckbox,GTK_TOGGLE_BUTTON(checkbutton)->active);
+}
+
+static void run_fm_toggled (GtkToggleButton *button)
+{
+  globals.do_file_manager = button->active;
+}
+
+static void smb_mount_key_press_callback (GtkWidget *widget, GdkEventKey *event)
+{
+  if ( event->keyval == GDK_Return )
+  {
+    if ( (GTK_WINDOW(mount_dlg))->default_widget == mount_button )
+      mount_ok_callback(mount_button, mount_dlg);
+  }
+}
+
+void smb_mount_dialog (char *servicename,char *ipaddr,char *group_name, unsigned char show_gui)
+{
+ GtkWidget *button,*hbox,*vbox,*label,
+           *frame, *table;
+ char idstr[100],*entrys,*myentry;
+ struct passwd *pwd;
+ struct group *grp;
+ static GList *cbiditems[2];
+  
+ if (mount_dlg) gtk_widget_destroy (mount_dlg);
+
+ mount_point[PATH_LEN-1]=0;
+ if (pref.v.root_mnt_enable)
+ {
+   string_ncopy(mount_point,pref_get_root_mnt_dir(),PATH_LEN-1);
+   if (*mount_point && mount_point[strlen(mount_point)-1]=='/' )
+     mount_point[strlen(mount_point)-1]=0;
+   string_ncat(mount_point,servicename+1,PATH_LEN-1);
+   /* if 'Replace spaces by underscores' */
+   if ( pref.v.replace_space_mount )
+     string_replace_char_by_char(mount_point, ' ', '_');
+ } /*else
+ {
+   strncpy(mount_point,root_mnt_dir,PATH_LEN-1);
+ }*/
+ if(mount_point[strlen(mount_point)-1]!='/') 
+   strcat(mount_point,"/");
+ 
+ cbiditems[0]=NULL;cbiditems[1]=NULL;
+ ipaddrstr[MASTER_LEN]=0;
+ strncpy(ipaddrstr,ipaddr,MASTER_LEN);
+ groupname[MASTER_LEN]=0;
+ strncpy(groupname,group_name,MASTER_LEN);
+  mount_dlg = gtk_dialog_new();
+/*   gtk_window_set_wmclass(GTK_WINDOW(mount_dlg), "mountdlg", "LinNeighborhood"); */
+   gtk_window_set_policy(GTK_WINDOW(mount_dlg), FALSE, FALSE, FALSE);
+   gtk_window_set_title(GTK_WINDOW(mount_dlg), _("Mount Dialog"));
+   
+/*   gtk_widget_set_usize(mount_dlg, 120, 120); */
+/*   gtk_signal_connect (GTK_OBJECT (mount_dlg), "destroy",
+			  GTK_SIGNAL_FUNC(gtk_widget_destroyed),
+			  &mount_dlg);
+*/
+   gtk_signal_connect(GTK_OBJECT(mount_dlg),"destroy",
+                             GTK_SIGNAL_FUNC(mount_dlg_destroy),cbiditems);
+   gtk_container_border_width (GTK_CONTAINER (mount_dlg), 5);
+   
+   table = gtk_table_new(2, 3, FALSE);
+   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(mount_dlg)->vbox),
+                    	table, TRUE, TRUE, 1);
+   gtk_table_set_col_spacing(GTK_TABLE(table), 0, 5);
+   gtk_widget_show(table);
+   
+   /*servicename*/
+   label=gtk_label_new(_("Service:"));
+   gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT);
+   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+   gtk_widget_show(label);
+   
+   serviceentry= gtk_entry_new_with_max_length (PATH_LEN);
+   gtk_entry_set_text (GTK_ENTRY (serviceentry), servicename);
+/*   gtk_entry_set_editable(GTK_ENTRY (serviceentry),FALSE);*/
+   gtk_table_attach_defaults(GTK_TABLE(table), serviceentry, 1, 3, 0, 1);
+   gtk_widget_show (serviceentry);
+
+   /*mount point*/
+   label=gtk_label_new(_("Mount Point:"));
+   gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT);
+   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+   gtk_widget_show(label);
+   
+   mount_pointentry= gtk_entry_new_with_max_length (PATH_LEN);
+   gtk_entry_set_text (GTK_ENTRY (mount_pointentry),mount_point);
+/*   gtk_editable_select_region (GTK_EDITABLE (mount_pointentry), 0, -1); */
+   gtk_table_attach_defaults(GTK_TABLE(table), mount_pointentry, 1, 2, 1, 2);
+   gtk_widget_show (mount_pointentry);
+   
+   button = gtk_button_new_with_label(" / ");
+   gtk_table_attach(GTK_TABLE(table), button, 2, 3, 1, 2,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL, 0, 0);
+   gtk_widget_show (button);
+   
+   gtk_signal_connect (GTK_OBJECT (button),"clicked",
+               GTK_SIGNAL_FUNC(mount_point_select_button_callback ),mount_dlg);
+   /*uid gid*/
+   hbox=gtk_hbox_new(FALSE,5);
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (mount_dlg)->vbox),
+                    	hbox, TRUE, TRUE, 1);
+   gtk_widget_show(hbox);
+
+   label=gtk_label_new(_("UID"));
+   gtk_box_pack_start(GTK_BOX (hbox),label, FALSE, TRUE, 0);
+/*   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT); */
+   gtk_widget_show(label);
+   myentry=NULL;
+   setpwent();
+   while ((pwd=getpwent()))
+   {
+    sprintf(idstr,"%d %s",pwd->pw_uid,pwd->pw_name);
+    entrys=g_malloc(strlen(idstr)+1);
+    if (mntuid==pwd->pw_uid) myentry=entrys;
+    strcpy(entrys,idstr);
+    cbiditems[0] = g_list_append(cbiditems[0], entrys);
+   }
+   endpwent();
+   if (!cbiditems[0])  /*No user entry found */
+   {
+    sprintf(idstr,_("%d unknown"),mntuid);
+    entrys=g_malloc(strlen(idstr)+1);
+    strcpy(entrys,idstr);
+    cbiditems[0] = g_list_append(cbiditems[0], entrys);
+   }
+   if (!myentry) myentry=cbiditems[0]->data;
+   cbuid = gtk_combo_new ();
+   gtk_combo_set_popdown_strings (GTK_COMBO (cbuid), cbiditems[0]);
+   gtk_widget_set_usize(GTK_COMBO(cbuid)->entry,90,-1);
+   gtk_entry_set_text (GTK_ENTRY (GTK_COMBO(cbuid)->entry),myentry);
+/*      gtk_editable_select_region (GTK_EDITABLE (GTK_COMBO(cb)->entry), 0, -1); */
+   gtk_entry_set_editable(GTK_ENTRY((GTK_COMBO(cbuid)->entry)),FALSE);				  
+   gtk_box_pack_start (GTK_BOX (hbox), cbuid, TRUE, TRUE, 0);
+   gtk_widget_show (cbuid);
+
+   label=gtk_label_new(_("GID"));
+   gtk_box_pack_start(GTK_BOX (hbox),label, FALSE, TRUE, 0);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_RIGHT);
+   gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+   gtk_widget_show(label);
+   myentry=NULL;
+   setgrent();
+   while ((grp=getgrent()))
+   {
+    sprintf(idstr,"%d %s",grp->gr_gid,grp->gr_name);
+    entrys=g_malloc(strlen(idstr)+1);
+    if (mntgid==grp->gr_gid) myentry=entrys;
+    strcpy(entrys,idstr);
+    cbiditems[1] = g_list_append(cbiditems[1], entrys);
+   }
+   endgrent();
+   if (!cbiditems[1])  /*No group entry found */
+   {
+    sprintf(idstr,_("%d unknown"),mntgid);
+    entrys=g_malloc(strlen(idstr)+1);
+    strcpy(entrys,idstr);
+    cbiditems[1] = g_list_append(cbiditems[1], entrys);
+   }
+   if (!myentry) myentry=cbiditems[1]->data;
+   cbgid = gtk_combo_new ();
+   gtk_widget_set_usize(GTK_COMBO(cbgid)->entry,90,-1);
+   gtk_combo_set_popdown_strings (GTK_COMBO (cbgid), cbiditems[1]);
+   gtk_entry_set_text (GTK_ENTRY (GTK_COMBO(cbgid)->entry),myentry);
+/*      gtk_editable_select_region (GTK_EDITABLE (GTK_COMBO(cb)->entry), 0, -1); */
+   gtk_entry_set_editable(GTK_ENTRY((GTK_COMBO(cbgid)->entry)),FALSE);				  
+   gtk_box_pack_start (GTK_BOX (hbox), cbgid, TRUE, TRUE, 0);
+   gtk_widget_show (cbgid);
+
+   /*filemode dirmode*/ 
+   hbox=gtk_hbox_new(FALSE,5);
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (mount_dlg)->vbox),
+                    	hbox, TRUE, TRUE, 1);
+   gtk_widget_show(hbox);
+   
+   label=gtk_label_new(_("File Mode:"));
+   gtk_box_pack_start(GTK_BOX (hbox),label, FALSE, TRUE, 0);
+/*   gtk_widget_set_usize(label,100,-1);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT); */
+   gtk_widget_show(label);
+   
+   filemodeentry=  gtk_entry_new_with_max_length(4);
+   gtk_widget_set_usize(filemodeentry,40,-1);
+   sprintf(idstr,"%d",filemode);
+   gtk_entry_set_text (GTK_ENTRY (filemodeentry),idstr);
+   gtk_box_pack_start (GTK_BOX (hbox), filemodeentry, FALSE, TRUE, 0);
+   gtk_widget_show (filemodeentry);
+
+   label=gtk_label_new(_("Dir Mode:"));
+   gtk_box_pack_start(GTK_BOX (hbox),label, TRUE, TRUE, 0);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_RIGHT);
+   gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+   gtk_widget_show(label);
+   
+   dirmodeentry=  gtk_entry_new_with_max_length(3);
+   gtk_widget_set_usize(dirmodeentry,40,-1);
+   sprintf(idstr,"%d",dirmode);
+   gtk_entry_set_text (GTK_ENTRY (dirmodeentry),idstr);
+   gtk_box_pack_start (GTK_BOX (hbox), dirmodeentry, FALSE, TRUE, 0);
+   gtk_widget_show (dirmodeentry);
+
+   table = gtk_table_new(2, 2, FALSE);
+   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(mount_dlg)->vbox),
+                    	table, TRUE, TRUE, 1);
+   gtk_table_set_col_spacing(GTK_TABLE(table), 0, 5);
+   gtk_widget_show(table);
+
+   /*smb user*/
+   
+   label=gtk_label_new(_("SMB User:"));
+   gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_RIGHT);
+   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+   gtk_widget_show(label);
+   
+   smbuserentry= gtk_entry_new_with_max_length(MASTER_LEN);
+   gtk_entry_set_text (GTK_ENTRY (smbuserentry), globals.browse_user);
+/*   gtk_entry_set_text (GTK_ENTRY (smbuserentry), smbuser); */
+   gtk_signal_connect_object(GTK_OBJECT(smbuserentry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(smb_mount_key_press_callback), NULL);
+   gtk_table_attach_defaults(GTK_TABLE(table), smbuserentry, 1, 2, 0, 1);
+   gtk_widget_show (smbuserentry);
+   
+   /*smb password*/
+   label=gtk_label_new(_("SMB Password:"));
+   gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT);
+   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+   gtk_widget_show(label);
+   
+   smbpasswdentry= gtk_entry_new_with_max_length(MASTER_LEN);
+   gtk_entry_set_visibility(GTK_ENTRY(smbpasswdentry), 0);	
+   gtk_entry_set_text (GTK_ENTRY (smbpasswdentry),globals.browse_password);
+   gtk_signal_connect_object(GTK_OBJECT(smbpasswdentry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(smb_mount_key_press_callback), NULL);
+   gtk_table_attach_defaults(GTK_TABLE(table), smbpasswdentry, 1, 2, 1, 2);
+   gtk_widget_show (smbpasswdentry);
+   
+   run_fm_checkbox = gtk_check_button_new_with_label(_("Run File Manager after Mounting"));
+   globals.do_file_manager = pref.v.run_file_manager;
+   gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(run_fm_checkbox), globals.do_file_manager);
+   gtk_signal_connect(GTK_OBJECT(run_fm_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(run_fm_toggled), NULL);
+   gtk_box_pack_start(GTK_BOX(GTK_DIALOG (mount_dlg)->vbox),
+                    run_fm_checkbox, TRUE, TRUE, 0);
+   gtk_widget_show(run_fm_checkbox);
+    
+   /*root password */
+   frame = gtk_frame_new(_("Mount as Root"));
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (mount_dlg)->vbox), frame, TRUE, TRUE, 5);
+   gtk_widget_show(frame);   
+   
+   vbox=gtk_vbox_new(FALSE,0);
+   gtk_container_border_width(GTK_CONTAINER(vbox), 3);
+   gtk_container_add(GTK_CONTAINER(frame),vbox);
+   gtk_widget_show(vbox);
+
+   hbox=gtk_hbox_new(FALSE,0);
+/*   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (mount_dlg)->vbox),
+                    	hbox, TRUE, TRUE, 5);
+   gtk_container_border_width(GTK_CONTAINER(hbox), 3);
+   gtk_container_add(GTK_CONTAINER(frame),hbox); */
+   gtk_box_pack_start(GTK_BOX (vbox),hbox, TRUE, TRUE, 0);
+   gtk_widget_show(hbox);
+
+   sumountcheckbox = gtk_check_button_new_with_label(_("OK"));
+/*   gtk_widget_set_usize(sumountcheckbox,120,-1); */
+   if (geteuid()==0) /*No root password if you are root*/
+     gtk_widget_set_sensitive(sumountcheckbox,FALSE);
+   gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(sumountcheckbox),cachesupwd & sumount);
+   gtk_box_pack_start (GTK_BOX (hbox), sumountcheckbox, FALSE, TRUE, 0);
+   gtk_widget_show (sumountcheckbox);
+
+   label=gtk_label_new(_("Password:"));
+   gtk_box_pack_start(GTK_BOX (hbox),label, FALSE, TRUE, 0);
+/*   gtk_widget_set_usize(label,100,-1); */
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT);
+   gtk_widget_show(label);
+
+   supasswdentry= gtk_entry_new_with_max_length(MASTER_LEN);
+   gtk_entry_set_visibility(GTK_ENTRY(supasswdentry), 0);
+
+   if (sumount && cachesupwd)
+     gtk_entry_set_text (GTK_ENTRY (supasswdentry), supasswd);
+   else
+     gtk_entry_set_text (GTK_ENTRY (supasswdentry), "");
+  
+   gtk_widget_set_sensitive(supasswdentry,sumount&cachesupwd);
+   gtk_signal_connect_object(GTK_OBJECT(supasswdentry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(smb_mount_key_press_callback), NULL);
+   gtk_box_pack_start (GTK_BOX (hbox), supasswdentry, TRUE, TRUE, 5);
+   gtk_widget_show (supasswdentry);
+   gtk_signal_connect (GTK_OBJECT(sumountcheckbox), "toggled",
+                GTK_SIGNAL_FUNC(supwentry_toggle_sensitive),supasswdentry);
+
+   hbox=gtk_hbox_new(FALSE,0);
+   gtk_box_pack_start(GTK_BOX (vbox),hbox, TRUE, TRUE, 0);
+   gtk_widget_show(hbox);
+
+   sucachepwdcheckbox = gtk_check_button_new_with_label(_("Cache Root Password"));
+
+/*   gtk_widget_set_usize(sumountcheckbox,120,-1); */
+   if (geteuid()==0) 
+     gtk_widget_set_sensitive(sumountcheckbox,FALSE);
+   gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(sucachepwdcheckbox),cachesupwd &sumount);
+   gtk_widget_set_sensitive(sucachepwdcheckbox,sumount);
+   gtk_box_pack_start (GTK_BOX (hbox), sucachepwdcheckbox, FALSE, TRUE, 0);
+   gtk_widget_show (sucachepwdcheckbox);
+
+   /*-action_area*/
+   mount_button = gtk_button_new_with_label(_("Mount"));
+   GTK_WIDGET_SET_FLAGS(mount_button, GTK_CAN_DEFAULT);
+   gtk_signal_connect(GTK_OBJECT(mount_button), "clicked",
+                  	GTK_SIGNAL_FUNC(mount_ok_callback), GTK_OBJECT(mount_dlg));
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (mount_dlg)->action_area),
+                    	mount_button, TRUE, TRUE, 0);
+   gtk_widget_grab_default(mount_button);
+   gtk_widget_show(mount_button);
+
+   button = gtk_button_new_with_label(_("Cancel"));
+   GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+   gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(mount_dlg));
+
+			
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (mount_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+   gtk_widget_show(button);
+
+   if (!(globals.linux_version == LINUX_2_0) && (pref.v.smbmount_version==SMBMOUNT_205))
+   {
+      gtk_widget_set_sensitive(filemodeentry,FALSE);
+      gtk_widget_set_sensitive(dirmodeentry,FALSE);
+      gtk_widget_set_sensitive(cbgid,FALSE);
+      gtk_widget_set_sensitive(cbuid,FALSE);
+   }     
+
+   if ( show_gui )
+   {
+     /* show dialog -> normal mount use */
+     gtk_widget_show (mount_dlg);
+     gtk_widget_grab_focus(smbuserentry);
+   }
+   else
+   {
+     /* execute mount action immediately */
+     mount_ok_callback(mount_button, mount_dlg);
+   }
+}
+
+
+typedef struct _MessageBox MessageBox;  /*Stolen from the Gimp*/
+
+struct _MessageBox
+{
+  GtkWidget  *mbox;
+  GtkCallback callback;
+  gpointer    data;
+};
+
+static void message_box_close_callback (GtkWidget *, gpointer);
+static gint message_box_delete_callback (GtkWidget *, GdkEvent *, gpointer);
+
+GtkWidget *
+message_box (char        *message,
+	     GtkCallback  callback,
+	     gpointer     data)
+{
+  MessageBox *msg_box;
+  GtkWidget *mbox;
+  GtkWidget *vbox;
+  GtkWidget *label_vbox;
+  GtkWidget *label;
+  GtkWidget *button;
+  char *str, *orig;
+
+  if (message)
+    message = orig = g_strdup (message);
+  else
+    return NULL;
+
+  msg_box = (MessageBox *) g_malloc (sizeof (MessageBox));
+
+  mbox = gtk_dialog_new ();
+  gtk_window_set_wmclass(GTK_WINDOW(mbox), "err_message", "LinNeighborhood");
+  gtk_window_set_title (GTK_WINDOW (mbox), _("Error Message"));
+  gtk_window_position (GTK_WINDOW (mbox), GTK_WIN_POS_MOUSE);
+  gtk_container_border_width (GTK_CONTAINER (GTK_DIALOG (mbox)->action_area), 2);
+  gtk_signal_connect (GTK_OBJECT (mbox), "delete_event",
+		      GTK_SIGNAL_FUNC (message_box_delete_callback),
+		      msg_box);
+
+  button = gtk_button_new_with_label (_("OK"));
+  GTK_WIDGET_SET_FLAGS (button, GTK_CAN_DEFAULT);
+  gtk_signal_connect (GTK_OBJECT (button), "clicked",
+                      (GtkSignalFunc) message_box_close_callback,
+                      msg_box);
+  gtk_box_pack_start (GTK_BOX (GTK_DIALOG (mbox)->action_area), button, TRUE, TRUE, 0);
+  gtk_widget_grab_default (button);
+  gtk_widget_show (button);
+
+  vbox = gtk_vbox_new (FALSE, 1);
+  gtk_container_border_width (GTK_CONTAINER (vbox), 1);
+  gtk_container_add (GTK_CONTAINER (GTK_DIALOG (mbox)->vbox), vbox);
+  gtk_widget_show (vbox);
+
+  label_vbox = gtk_vbox_new (FALSE, 1);
+  gtk_box_pack_start (GTK_BOX (vbox), label_vbox, TRUE, FALSE, 0);
+  gtk_widget_show (label_vbox);
+
+  str = message;
+  while (*str != '\0')
+    {
+      if (*str == '\n')
+	{
+	  *str = '\0';
+	  label = gtk_label_new (message);
+	  gtk_box_pack_start (GTK_BOX (label_vbox), label, TRUE, FALSE, 0);
+	  gtk_widget_show (label);
+	  message = str + 1;
+	}
+      str++;
+    }
+
+  if (*message != '\0')
+    {
+      label = gtk_label_new (message);
+      gtk_box_pack_start (GTK_BOX (label_vbox), label, TRUE, FALSE, 0);
+      gtk_widget_show (label);
+    }
+
+  g_free (orig);
+
+  msg_box->mbox = mbox;
+  msg_box->callback = callback;
+  msg_box->data = data;
+
+  gtk_widget_show (mbox);
+
+  return mbox;
+}
+
+static gint
+message_box_delete_callback (GtkWidget *w, GdkEvent *e, gpointer client_data)
+{
+  message_box_close_callback (w, client_data);
+
+  return TRUE;
+}
+
+
+static void
+message_box_close_callback (GtkWidget *w,
+			    gpointer   client_data)
+{
+  MessageBox *msg_box;
+  msg_box = (MessageBox *) client_data;
+  /*  If there is a valid callback, invoke it  */
+  if (msg_box->callback)
+    (* msg_box->callback) (w, msg_box->data);
+  /*  Destroy the box  */
+  gtk_widget_destroy (msg_box->mbox);
+  g_free (msg_box);
+}
+
+
+//static void smb_umount_root_dialog (char *errstr);
+
+static gint umount_ok_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+// smbumount(umount_point,gtk_entry_get_text(GTK_ENTRY (usupasswdentry)),1,UMOUNT_SMBSUTRY);
+ smbumount(gtk_object_get_data(GTK_OBJECT(dlg),"mountpoint"),gtk_entry_get_text(GTK_ENTRY(gtk_object_get_user_data(GTK_OBJECT(dlg)))),0,UMOUNT_MOUNTTRY);
+ gtk_widget_destroy(dlg);
+ return(TRUE);
+}
+
+static gint umount_umount_ok_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+ smbumount(gtk_object_get_data(GTK_OBJECT(dlg),"mountpoint"),gtk_entry_get_text(GTK_ENTRY(gtk_object_get_user_data(GTK_OBJECT(dlg)))),0,UMOUNT_MOUNTTRY);
+ gtk_widget_destroy(dlg);
+ return(TRUE);
+}
+
+static void smb_umount_root_dialog_destroy(GtkWidget *widget, gpointer data)
+{
+  g_free(gtk_object_get_data(GTK_OBJECT(widget),"mountpoint"));
+  gtk_widget_destroy (widget);
+}
+
+
+
+
+static void smb_umount_key_press_callback (GtkWidget *dlg, GdkEventKey *event, GtkWidget *widget)
+{
+GtkWidget *button; 
+ if ( event->keyval == GDK_Return )
+  {
+   button=gtk_object_get_data(GTK_OBJECT(dlg),"button");
+   if ( (GTK_WINDOW(dlg))->default_widget == button )
+      gtk_signal_emit_by_name (GTK_OBJECT (button), "clicked");
+  }
+}
+
+
+static void smb_umount_root_dialog (char smb,char *errstr,char *mountpoint)
+{
+ GtkWidget *button,*hbox,*label;
+  GtkWidget *umount_dlg, *usupasswdentry;
+
+   umount_dlg = gtk_dialog_new();
+   gtk_object_set_data (GTK_OBJECT(umount_dlg),"mountpoint",mountpoint);
+    
+/*   gtk_window_set_wmclass(GTK_WINDOW(umount_dlg), "umountdlg", "LinNeighborhood"); */
+   gtk_window_set_policy(GTK_WINDOW(umount_dlg), FALSE, FALSE, FALSE);
+   gtk_window_set_title(GTK_WINDOW(umount_dlg),smb ? _("Umount as Root"):_("Umount with umount as Root") );
+   
+/*   gtk_widget_set_usize(umount_dlg, 120, 120); */
+
+   gtk_signal_connect (GTK_OBJECT (umount_dlg), "destroy",
+			  GTK_SIGNAL_FUNC(smb_umount_root_dialog_destroy),
+			  NULL);
+
+   gtk_container_border_width (GTK_CONTAINER (umount_dlg), 5);
+   
+   /*Errorstr*/   
+   label=gtk_label_new(errstr);
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (umount_dlg)->vbox),
+                    	label, TRUE, TRUE, 5);
+/*   gtk_widget_set_usize(label,70,-1);
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT); */
+   gtk_widget_show(label);
+
+   /*Root passwd*/
+   hbox=gtk_hbox_new(FALSE,5);
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (umount_dlg)->vbox),
+                    	hbox, TRUE, FALSE, 5);
+   gtk_widget_show(hbox);
+   
+   label=gtk_label_new(_("Root Password:"));
+   gtk_box_pack_start(GTK_BOX (hbox),label, FALSE, TRUE, 0);
+/*   gtk_widget_set_usize(label,100,-1); */
+   gtk_label_set_justify(GTK_LABEL(label),GTK_JUSTIFY_LEFT);
+   gtk_widget_show(label);
+   
+   usupasswdentry= gtk_entry_new_with_max_length(MASTER_LEN);
+   gtk_entry_set_visibility(GTK_ENTRY(usupasswdentry), 0);
+   gtk_entry_set_text (GTK_ENTRY (usupasswdentry), "");
+   gtk_box_pack_start (GTK_BOX (hbox), usupasswdentry, TRUE, TRUE, 0);
+   gtk_widget_show (usupasswdentry);
+   gtk_object_set_user_data (GTK_OBJECT(umount_dlg), usupasswdentry);
+   gtk_signal_connect_object(GTK_OBJECT(usupasswdentry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(smb_umount_key_press_callback), GTK_OBJECT(umount_dlg));
+    
+   /*-action_area*/
+   button = gtk_button_new_with_label(_("Umount"));
+   GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+   gtk_signal_connect(GTK_OBJECT(button), "clicked",smb?GTK_SIGNAL_FUNC(umount_ok_callback):
+                   GTK_SIGNAL_FUNC(umount_umount_ok_callback), GTK_OBJECT(umount_dlg));
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (umount_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+   gtk_widget_grab_default(button);
+   gtk_widget_show(button);
+   gtk_object_set_data (GTK_OBJECT(umount_dlg),"button",button);
+
+   button = gtk_button_new_with_label(_("Cancel"));
+   GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+   gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(umount_dlg));
+
+   gtk_box_pack_start(GTK_BOX (GTK_DIALOG (umount_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+   gtk_widget_show(button);
+   gtk_widget_grab_focus(usupasswdentry);
+   gtk_widget_show(umount_dlg);
+
+}
+
+
+void smb_umount_dialog (char *mount_point)
+{
+  smbumount(mount_point,NULL,1,UMOUNT_SMBUSERRTRY);
+}
+
+
+void gtk_smbumount_done(char *mount_point,char *errstr,smbmountStateType smbmountState,int tag)
+{
+  gchar* umount_point;
+
+  if (smbmountState==MOUNT_STATE_OK)
+  {
+    data_mem_mount_delete(mount_point);
+    data_mount_delete(mount_point);
+  } 
+  else
+  {
+   switch (tag)
+   {
+     case UMOUNT_SMBUSERRTRY:
+       if (strstr(errstr,"not allowed to umount"))
+       {
+         if (cachesupwd)
+           smbumount(mount_point,supasswd,1,UMOUNT_SMBSUTRY);
+         else
+         {
+           umount_point=g_strndup(mount_point,PATH_LEN);
+           smb_umount_root_dialog(1,errstr,umount_point);
+         }
+       }
+       else if (strstr(errstr,"Could not open"))
+       {
+         if (getuid()==0)
+           smbumount(mount_point,NULL,0,UMOUNT_MOUNTTRY);
+         else if(cachesupwd)
+         {
+           smbumount(mount_point,supasswd,0,UMOUNT_MOUNTTRY);
+         }
+         else 
+         {
+           umount_point=g_strndup(mount_point,PATH_LEN);
+           smb_umount_root_dialog(0,errstr,umount_point);
+         }
+       }
+       else
+         message_box(errstr,NULL,NULL);
+       break;
+     case UMOUNT_SMBSUTRY:
+       if (!strncmp(errstr,"su:",3))
+       {
+         umount_point=g_strndup(mount_point,PATH_LEN);
+         smb_umount_root_dialog(1,errstr,umount_point);
+       }
+       else if (strstr(errstr,"Could not open"))
+       {
+         if (getuid()==0)
+           smbumount(mount_point,NULL,0,UMOUNT_MOUNTTRY);
+         else if(cachesupwd)
+         {
+           smbumount(mount_point,supasswd,0,UMOUNT_MOUNTTRY);
+         }
+         else 
+         {
+           umount_point=g_strndup(mount_point,PATH_LEN);
+           smb_umount_root_dialog(0,errstr,umount_point);
+         }
+       }
+       else 
+         message_box(errstr,NULL,NULL);
+       break;
+     case UMOUNT_MOUNTTRY:
+       if (!strncmp(errstr,"su:",3))
+       {
+         umount_point=g_strndup(mount_point,PATH_LEN);
+         smb_umount_root_dialog(0,errstr,umount_point);
+       }
+       else 
+         message_box(errstr,NULL,NULL);
+       break;
+   }
+  }
+}
+

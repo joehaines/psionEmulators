@@ -1,0 +1,1827 @@
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+#include <limits.h>
+#include <string.h>
+#include <sys/file.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <pwd.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/utsname.h>
+#include "data.h"
+#include "utility.h"
+#include "samba.h"
+
+
+#define LVERSION(major,minor,patch) (((((major)<<8)+(minor))<<8)+(patch))
+
+
+/* ------------------------------------------------------------------------- */
+
+/* global structures for the application */
+
+global_struct globals;               /* global variables */
+pref_struct pref;                    /* global preferences */
+size_struct size;                    /* window geometry */
+startup_struct startup;              /* startup parameters */
+
+/* ------------------------------------------------------------------------------------- */
+
+/* imports the lmhost file */
+
+unsigned char load_lmhosts_file (char *file)
+{
+  FILE *fp;
+  pstring name;
+  int name_type;
+  struct in_addr ipaddr;
+  char *ip;
+  
+  fp = startlmhosts(file);
+  if ( !fp )
+    return 0;
+  
+  while ( getlmhostsent(fp, name, &name_type, &ipaddr) )
+  {
+    ip = inet_ntoa(ipaddr);
+    data_hosts_add(name, "", ip, host_local);
+  }
+  
+  endlmhosts(fp);
+  
+  return 1;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static GSList *memorize_mainlist = (GSList*)NULL;
+
+static GSList* search_memorize_mountstring (char *mountpoint)
+{
+  unsigned char found = 0;
+  unsigned int number = 0;
+  GSList *mainlist, *sublist;
+  char *share;
+
+  mainlist = memorize_mainlist;
+  while ( mainlist ) {
+    number++;
+    sublist = (GSList*)(mainlist->data);
+    share = (char*)(sublist->data);
+    if ( share ) {
+      if ( (mountpoint == NULL) || (!strcmp(share, mountpoint)) ) {
+        found = 1;
+        break;
+      }
+    }
+    mainlist = mainlist->next; 
+  }
+  
+  if ( found )
+    return mainlist;
+  else
+    return (GSList*)NULL;
+}
+
+void add_memorize_mountstring (char *mountpoint, char **arglist)
+{
+  GSList *newlist = (GSList*)NULL;
+  char *arg;
+  int len;
+  
+  if ( pref.v.memorize_mounts )
+  {
+    if ( search_memorize_mountstring(mountpoint) == NULL ) {
+
+      len = strlen(mountpoint) + 1;
+      arg = (char*)(g_malloc(len));
+      strcpy(arg, mountpoint);
+      newlist = g_slist_append(newlist, arg);
+
+      while ( *arglist != NULL ) {
+        len = strlen(*arglist) + 1;
+        arg = (char*)(g_malloc(len));
+        strcpy(arg, *arglist);
+        newlist = g_slist_append(newlist, arg);
+        arglist++;
+      }
+      
+      memorize_mainlist = g_slist_append(memorize_mainlist, newlist);
+      
+    }
+  }
+}
+
+/* return 1 -> an entry was deleted */
+unsigned char remove_memorize_mountstring (char *mountpoint)
+{
+  GSList *list;
+  GSList *listdata;
+  list = search_memorize_mountstring(mountpoint);
+  if ( list != NULL ) {
+    listdata = (GSList*)(list->data);
+    slist_free_with_data(&listdata);
+    memorize_mainlist=g_slist_remove(memorize_mainlist, list->data);
+    return 1;
+  }
+  return 0;
+}
+
+void delete_memorize_mountstring ()
+{
+  while ( remove_memorize_mountstring((char*)NULL) );
+  g_slist_free(memorize_mainlist);
+  memorize_mainlist = (GSList*)NULL;
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+/* extracts the token and its value from a line */
+static void extract_token_value (char *line, char **token, char **value)
+{
+  char *equal;
+  
+  *token = (char*)NULL;
+  *value = (char*)NULL;
+  
+  equal = read_until_char(line, '=');
+
+  if ( *equal )
+  {
+    *equal = 0;
+
+    *token = line;
+    *value = equal;
+    (*value)++;
+    string_trim(token);
+    string_trim(value);
+  }
+}
+
+/* reads a complete line until <eol> and copies it
+   return value: 1 = copying successful, 0 = end of string */
+   
+static unsigned char get_line (char **mem, char *line, int maxlen)
+{
+  char *token;
+  char temp;
+  
+  token = *mem;
+  /* -- end of string ? -- */
+  if ( !(*token) )
+    return 0;
+  
+  token = read_until_char(token, '\n');
+  
+  if ( *token )
+  {
+    /* '\n' found */
+    token++;
+    temp = *token;
+    *token = 0;
+    string_ncopy(line, *mem, maxlen);
+    *token = temp;
+  }
+  else
+  {
+    /* end of string found */
+    string_ncopy(line, *mem, maxlen);
+  }
+  /* update memory location */
+  *mem = token;
+  
+  return 1;
+}
+
+/* ------------------------------------------------------------------------ */
+
+static char yes_statement[] = "yes";
+static char no_statement[] = "no";
+
+static void token_write_boolean (unsigned char do_write, unsigned char value, char *token, FILE *fd)
+{
+  static char line[MAX_LINE_LEN+1];
+  
+  if ( do_write == YES )
+  {
+    strcpy(line, " ");
+    string_ncat(line, token, MAX_LINE_LEN);
+    string_ncat(line, " = ", MAX_LINE_LEN);
+    if   ( value == YES ) string_ncat(line, yes_statement, MAX_LINE_LEN);
+    else                  string_ncat(line, no_statement, MAX_LINE_LEN);
+    string_ncat(line, "\n", MAX_LINE_LEN);
+    fwrite(line, 1, strlen(line), fd);
+  }
+}
+
+static void token_write_integer (unsigned char do_write, int value, char *token, FILE *fd)
+{
+  static char line[MAX_LINE_LEN+1];
+  
+  if ( do_write == YES )
+  {
+    if ( strlen(token) < (MAX_LINE_LEN - 30) )
+    {
+      sprintf(line, " %s = %i\n", token, value);
+      fwrite(line, 1, strlen(line), fd);
+    }
+  }
+}
+
+static void token_write_string (unsigned char do_write, char *str, char *token, FILE *fd)
+{
+  static char line[MAX_LINE_LEN+1];
+  
+  if ( do_write == YES )
+  {
+    strcpy(line, " ");
+    string_ncat(line, token, MAX_LINE_LEN);
+    string_ncat(line, " = ", MAX_LINE_LEN);
+    if ( !is_empty_string(str) )
+    {
+      string_ncat(line, str, MAX_LINE_LEN);
+      string_ncat(line, "\n", MAX_LINE_LEN);
+      fwrite(line, 1, strlen(line), fd);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+
+typedef unsigned char (*file_enumerate_prefs_callback)(char *token, char *value, gpointer data);
+
+static void file_enumerate_prefs (char *file, file_enumerate_prefs_callback callback, gpointer data)
+{
+  FILE *fd = (FILE*)NULL;
+  size_t len;
+  unsigned char *mem;
+  char *ptext;
+  char line[MAX_LINE_LEN+1];
+  char *token;
+  char *value;
+  
+  fd = fopen(file, "rt");
+  if ( !fd )
+    return;
+  
+  fseek(fd, 0, SEEK_END);
+  len = ftell(fd);
+  rewind(fd);
+    
+  /* avoid too much buffer allocation */
+  if ( len > MAX_FILE_LEN )
+    len = MAX_FILE_LEN;
+
+  if ( len > 0 )
+  {
+    mem = (unsigned char*)g_malloc(len + 1);
+
+    if ( mem != NULL )
+    {
+      /* load complete file into memory */
+      len = fread(mem, 1, len, fd);
+      mem[len] = 0;
+      /* close file */
+      fclose(fd);
+
+      ptext = (char*)mem;
+
+      /*get_mounted_shares(&mounted_share_list);*/
+
+      while ( get_line(&ptext, line, MAX_LINE_LEN) )
+      {
+        extract_token_value(line, &token, &value);
+       
+        if ( token != NULL )
+        {
+          if ( callback(token, value, data) )
+            break;
+        }
+      }
+      g_free(mem);
+    }
+    else
+    {
+      fclose(fd);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+
+/* set the preferences struct to default values */
+static void preferences_to_default (pref_struct *pref)
+{
+  strcpy(pref->v.workgroup,"-");
+  strcpy(pref->v.master,cempty);
+  strcpy(pref->v.wins_server,cempty);
+  pref->v.master_browser_scan = NO;
+  pref->v.wins_server_scan = NO;
+  pref->v.use_group_browse = YES;
+  pref->v.use_group_mount = YES;
+  pref->v.quick_browse = NO;
+  pref->v.groups_scan_user = NO;
+  pref->v.machines_scan_user = NO;
+  pref->v.shares_scan_user = NO;
+  pref->v.password_once = NO;
+  pref->v.mount_retrigger_enable = YES;
+  pref->v.run_file_manager = NO;
+  pref->v.startup_browse = YES;
+  pref->v.memorize_mounts = NO;
+  pref->v.root_mnt_enable = YES;
+  pref->v.save_default_password = NO;
+  pref->v.delete_mountpoints = NO;
+  pref->v.replace_space_mount = NO;
+  pref->v.mount_default_no_dialog = NO;
+  pref->v.use_smb_port = NO;
+  pref->v.smb_port = 139;
+  pref->v.smbmount_version = SMBMOUNT_206;
+  string_ncopy(pref->v.root_mnt_dir, globals.home_dir, PATH_LEN); /* default root mount directory */
+  string_ncat(pref->v.root_mnt_dir, "mnt/", PATH_LEN);
+  strcpy(pref->v.filemanager_exe, "xterm -e mc $MOUNTPOINT");
+  strcpy(pref->v.smbclient_exe, "smbclient");
+  strcpy(pref->v.nmblookup_exe, "nmblookup");
+  strcpy(pref->v.smbmount_exe, "smbmount");
+  strcpy(pref->v.smbumount_exe, "smbumount");
+  pref->v.smbclient_arg[0] = 0;
+  pref->v.nmblookup_arg[0] = 0;
+  pref->v.smbmount_arg[0] = 0;
+  pref->v.smbumount_arg[0] = 0;
+  pref->v.default_user[0] = 0;
+
+  memset(&(pref->b), 0, sizeof(pref_bool_struct));
+}
+
+#define TOKEN_PREF_NUM      35
+
+static char *token_pref_names[TOKEN_PREF_NUM] = {
+        "quick_browse",                    /* 0 */
+        "share_scan_as_user",              /* 1 */
+        "workgroup",                       /* 2 */
+        "master_browser",                  /* 3 */
+        "master_browser_scan",             /* 4 */
+        "wins_server",                     /* 5 */
+        "wins_server_scan",                /* 6 */
+        "use_group_mount",                 /* 7 */
+        "path_smbclient",                  /* 8 */
+        "path_nmblookup",                  /* 9 */
+        "path_smbmount",                   /* 10 */
+        "path_smbumount",                  /* 11 */
+        "startup_browse",                  /* 12 */
+        "root_mnt_enable",                 /* 13 */
+        "root_mnt_directory",              /* 14 */
+        "memorize_mount",                  /* 15 */
+        "run_file_manager",                /* 16 */
+        "file_manager",                    /* 17 */
+        "scan_password_once",              /* 18 */
+        "machines_scan_as_user",           /* 19 */
+        "groups_scan_as_user",             /* 20 */
+        "smbmount_version",                /* 21 */
+        "use_group_browse",                /* 22 */
+        "mount_retrigger",                 /* 23 */
+        "save_default_password",           /* 24 */
+        "default_user",                    /* 25 */
+        "delete_mountpoints",              /* 26 */
+        "replace_space_mount",             /* 27 */
+        "mount_default_no_dialog",         /* 28 */
+        "use_smb_port",                    /* 29 */
+        "smb_port",                        /* 30 */
+        "smbclient_arg",                   /* 31 */
+        "nmblookup_arg",                   /* 32 */
+        "smbmount_arg",                    /* 33 */
+        "smbumount_arg",                   /* 34 */
+};
+
+static unsigned char preferences_enumerate_callback (char *token, char *value, gpointer data)
+{
+  int i;
+  int ivalue;
+  char *ptemp;
+  pref_struct *pref;
+
+  pref = (pref_struct*)data;
+  if ( pref == NULL )
+    return 0;
+  
+  for ( i = 0; i < TOKEN_PREF_NUM; i++ )
+  {
+    if ( !strcmp(token, token_pref_names[i]) )
+    {
+      switch ( i )
+      {
+        /* quick_browse */
+        case 0:
+            pref->v.quick_browse = !strcmp(value, yes_statement);
+            pref->b.quick_browse = YES;
+            break;
+        /* share_scan_as_user */
+        case 1:
+            pref->v.shares_scan_user = !strcmp(value, yes_statement);
+            pref->b.shares_scan_user = YES;
+            break;
+        /* workgroup */
+        case 2:
+            string_ncopy(pref->v.workgroup, value, MAXGROUPNAMEL);
+            pref->b.workgroup = YES;
+            break;
+        /* master_browser */
+        case 3:
+            string_ncopy(pref->v.master, value, MAXMACHNAMEL);
+            pref->b.master = YES;
+            break;
+        /* master_browser_scan */
+        case 4:
+            pref->v.master_browser_scan = !strcmp(value, yes_statement);
+            pref->b.master_browser_scan = YES;
+            break;
+        /* wins_server */
+        case 5:
+            string_ncopy(pref->v.wins_server, value, MAXMACHNAMEL);
+            pref->b.wins_server = YES;
+            break;
+        /* wins_server_scan */
+        case 6:
+            pref->v.wins_server_scan = !strcmp(value, yes_statement);
+            pref->b.wins_server_scan = YES;
+            break;
+        /* use_group_mount */
+        case 7:
+            pref->v.use_group_mount = !strcmp(value, yes_statement);
+            pref->b.use_group_mount = YES;
+            break;
+        /* path_smbclient */
+        case 8:
+            string_ncopy(pref->v.smbclient_exe, value, PATH_LEN);
+            pref->b.smbclient_exe = YES;
+            break;
+        /* path_nmblookup */
+        case 9:
+            string_ncopy(pref->v.nmblookup_exe, value, PATH_LEN);
+            pref->b.nmblookup_exe = YES;
+            break;
+        /* path_smbmount */
+        case 10:
+            string_ncopy(pref->v.smbmount_exe, value, PATH_LEN);
+            pref->b.smbmount_exe = YES;
+            break;
+        /* path_smbumount */
+        case 11:
+            string_ncopy(pref->v.smbumount_exe, value, PATH_LEN);
+            pref->b.smbumount_exe = YES;
+            break;
+        /* startup browse */
+        case 12:
+            pref->v.startup_browse = !strcmp(value, yes_statement);
+            pref->b.startup_browse = YES;
+            break;
+        /* root_mnt_enable */
+        case 13:
+            pref->v.root_mnt_enable = strcmp(value, no_statement);
+            pref->b.root_mnt_enable = YES;
+            break;
+        /* root_mnt_directory */
+        case 14:
+            string_ncopy(pref->v.root_mnt_dir, value, PATH_LEN);
+            pref->b.root_mnt_dir = YES;
+            break;
+        /* memorize_mounts */
+        case 15:
+            pref->v.memorize_mounts = !strcmp(value, yes_statement);
+            pref->b.memorize_mounts = YES;
+            break;
+        /* run_file_manager */
+        case 16:
+            pref->v.run_file_manager = !strcmp(value, yes_statement);
+            pref->b.run_file_manager = YES;
+            break;
+        /* file_manager */
+        case 17:
+            string_ncopy(pref->v.filemanager_exe, value, PATH_LEN);
+            pref->b.filemanager_exe = YES;
+            break;
+        /* scan_password_once */
+        case 18:
+            pref->v.password_once = !strcmp(value, yes_statement);
+            pref->b.password_once = YES;
+            break;
+        /* machines_scan_as_user */
+        case 19:
+            pref->v.machines_scan_user = !strcmp(value, yes_statement);
+            pref->b.machines_scan_user = YES;
+            break;
+        /* groups_scan_as_user */
+        case 20:
+            pref->v.groups_scan_user = !strcmp(value, yes_statement);
+            pref->b.groups_scan_user = YES;
+            break;
+        /* smbmount_version */
+        case 21:
+            ivalue = (int)(strtol(value, &ptemp, 10));
+            if ( *ptemp == 0 )
+            {
+              switch ( ivalue )
+              {
+                case SMBMOUNT_204:
+                case SMBMOUNT_205:
+                case SMBMOUNT_206:
+                    pref->v.smbmount_version = (SMBMOUNT)ivalue;
+                    pref->b.smbmount_version = YES;
+                    break;
+              }
+            }
+            break;
+        /* use_group_browse */
+        case 22:
+            pref->v.use_group_browse = !strcmp(value, yes_statement);
+            pref->b.use_group_browse = YES;
+            break;
+        /* mount_retrigger */
+        case 23:
+            pref->v.mount_retrigger_enable = strcmp(value, no_statement);
+            pref->b.mount_retrigger_enable = YES;
+            break;
+        /* save_default_password */
+        case 24:
+            pref->v.save_default_password = strcmp(value, no_statement);
+            pref->b.save_default_password = YES;
+            break;
+        /* default_user */
+        case 25:
+            string_ncopy(pref->v.default_user, value, USER_LEN);
+            string_ncopy(globals.browse_user, pref->v.default_user, USER_LEN);
+            pref->b.default_user = YES;
+            break;
+        /* delete_mountpoints */
+        case 26:
+            pref->v.delete_mountpoints = !strcmp(value, yes_statement);
+            pref->b.delete_mountpoints = YES;
+            break;
+        /* replace_space_mount */
+        case 27:
+            pref->v.replace_space_mount = !strcmp(value, yes_statement);
+            pref->b.replace_space_mount = YES;
+            break;
+        /* mount_default_no_dialog */
+        case 28:
+            pref->v.mount_default_no_dialog = !strcmp(value, yes_statement);
+            pref->b.mount_default_no_dialog = YES;
+            break;
+        /* use_smb_port */
+        case 29:
+            pref->v.use_smb_port = !strcmp(value, yes_statement);
+            pref->b.use_smb_port = YES;
+            break;
+        /* smb_port */
+        case 30:
+            ivalue = (int)(strtol(value, &ptemp, 10));
+            if ( *ptemp == 0 )
+            {
+              if ( (ivalue > 0) && (ivalue < 65536) )
+              {
+                pref->v.smb_port = ivalue;
+                pref->b.smb_port = YES;
+              }
+            }
+            break;
+        /* smbclient_arg */
+        case 31:
+            string_ncopy(pref->v.smbclient_arg, value, ARG_LEN);
+            pref->b.smbclient_arg = YES;
+            break;
+        /* nmblookup_arg */
+        case 32:
+            string_ncopy(pref->v.nmblookup_arg, value, ARG_LEN);
+            pref->b.nmblookup_arg = YES;
+            break;
+        /* smbmount_arg */
+        case 33:
+            string_ncopy(pref->v.smbmount_arg, value, ARG_LEN);
+            pref->b.smbmount_arg = YES;
+            break;
+        /* smbumount_arg */
+        case 34:
+            string_ncopy(pref->v.smbumount_arg, value, ARG_LEN);
+            pref->b.smbumount_arg = YES;
+            break;
+      }
+      break;
+    }
+  }
+  
+  return 0;
+}
+
+/* not needed, workgroup preset to "-" */
+
+/*static unsigned char preferences_smb_conf_callback (char *token, char *value, gpointer data)
+{
+  pref_struct *pref;
+
+  pref = (pref_struct*)data;
+  if ( pref == NULL )
+    return 0;*/
+  
+  /* workgroup token from smb.conf ? */
+/*  if ( !strcmp(token, "workgroup") )
+  {
+    string_ncopy(pref->v.workgroup, value, MAXGROUPNAMEL);
+    pref->b.workgroup = YES;
+    return 1;
+  }
+  
+  return 0;
+}*/
+
+static void preferences_load_from_file (char *file, pref_struct *pref)
+{
+  file_enumerate_prefs(file, preferences_enumerate_callback, pref);
+}
+
+/* not needed, workgroup preset to "-" */
+
+/*static void preferences_load_smb_conf (char *file, pref_struct *pref)
+{
+  file_enumerate_prefs(file, preferences_smb_conf_callback, pref);
+}*/
+
+void preferences_save (pref_struct *pref)
+{
+  FILE *fd;
+  char line[PATH_LEN+1];
+  char temp[32];
+
+  string_ncopy(line, globals.home_dir, PATH_LEN);
+  string_ncat(line, LOCAL_PATH, PATH_LEN);
+  path_check_create(line, 0755);
+
+  string_ncat(line, PREF_FILE, PATH_LEN);
+  
+  fd = fopen(line, "w+");
+
+  if ( !fd )
+  {
+    g_print(_("cannot save configuration file in %s !\n"), line);
+    return;
+  }
+
+  /* save the preferences */
+  strcpy(line, "\n");
+  fwrite(line, 1, strlen(line), fd);
+
+  /* quick_browse */
+  token_write_boolean(pref->b.quick_browse, pref->v.quick_browse, token_pref_names[0], fd);
+  
+  /* share_scan_as_user */
+  token_write_boolean(pref->b.shares_scan_user, pref->v.shares_scan_user, token_pref_names[1], fd);
+  
+  /* workgroup */
+  token_write_string(pref->b.workgroup, pref->v.workgroup, token_pref_names[2], fd);
+  
+  /* master_browser */
+  token_write_string(pref->b.master, pref->v.master, token_pref_names[3], fd);
+  
+  /* master_browser_scan */
+  token_write_boolean(pref->b.master_browser_scan, pref->v.master_browser_scan, token_pref_names[4], fd);
+  
+  /* wins_server */
+  token_write_string(pref->b.wins_server, pref->v.wins_server, token_pref_names[5], fd);
+  
+  /* wins_server_scan */
+  token_write_boolean(pref->b.wins_server_scan, pref->v.wins_server_scan, token_pref_names[6], fd);
+  
+  /* use_group_mount */
+  token_write_boolean(pref->b.use_group_mount, pref->v.use_group_mount, token_pref_names[7], fd);
+  
+  /* path_smbclient */
+  token_write_string(pref->b.smbclient_exe, pref->v.smbclient_exe, token_pref_names[8], fd);
+  
+  /* path_nmblookup */
+  token_write_string(pref->b.nmblookup_exe, pref->v.nmblookup_exe, token_pref_names[9], fd);
+  
+  /* path_smbmount */
+  token_write_string(pref->b.smbmount_exe, pref->v.smbmount_exe, token_pref_names[10], fd);
+  
+  /* path_smbumount */
+  token_write_string(pref->b.smbumount_exe, pref->v.smbumount_exe, token_pref_names[11], fd);
+  
+  /* startup browse */
+  token_write_boolean(pref->b.startup_browse, pref->v.startup_browse, token_pref_names[12], fd);
+  
+  /* root_mnt_enable */
+  token_write_boolean(pref->b.root_mnt_enable, pref->v.root_mnt_enable, token_pref_names[13], fd);
+  
+  /* root_mnt_directory */
+  token_write_string(pref->b.root_mnt_dir, pref->v.root_mnt_dir, token_pref_names[14], fd);
+  
+  /* memorize_mounts */
+  token_write_boolean(pref->b.memorize_mounts, pref->v.memorize_mounts, token_pref_names[15], fd);
+  
+  /* run_file_manager */
+  token_write_boolean(pref->b.run_file_manager, pref->v.run_file_manager, token_pref_names[16], fd);
+  
+  /* file_manager */
+  token_write_string(pref->b.filemanager_exe, pref->v.filemanager_exe, token_pref_names[17], fd);
+  
+  /* scan_password_once */
+  token_write_boolean(pref->b.password_once, pref->v.password_once, token_pref_names[18], fd);
+  
+  /* machines_scan_as_user */
+  token_write_boolean(pref->b.machines_scan_user, pref->v.machines_scan_user, token_pref_names[19], fd);
+  
+  /* groups_scan_as_user */
+  token_write_boolean(pref->b.groups_scan_user, pref->v.groups_scan_user, token_pref_names[20], fd);
+  
+  /* smbmount_version */
+  if ( globals.linux_version >= LINUX_2_2 )
+  {
+    if ( pref->b.smbmount_version == YES )
+    {
+      strcpy(line, " ");
+      string_ncat(line, token_pref_names[21], PATH_LEN);
+      string_ncat(line, " = ", PATH_LEN);
+      sprintf(temp,"%i\n", pref->v.smbmount_version);
+      string_ncat(line, temp, PATH_LEN);
+      fwrite(line, 1, strlen(line), fd);
+    }
+  }
+  
+  /* use_group_browse */
+  token_write_boolean(pref->b.use_group_browse, pref->v.use_group_browse, token_pref_names[22], fd);
+  
+  /* mount_retrigger */
+  token_write_boolean(pref->b.mount_retrigger_enable, pref->v.mount_retrigger_enable, token_pref_names[23], fd);
+  
+  /* save_default_password */
+  token_write_boolean(pref->b.save_default_password, pref->v.save_default_password, token_pref_names[24], fd);
+  
+  /* default_user */
+  token_write_string(pref->b.default_user, pref->v.default_user, token_pref_names[25], fd);
+  
+  /* delete_mountpoints */
+  token_write_boolean(pref->b.delete_mountpoints, pref->v.delete_mountpoints, token_pref_names[26], fd);
+  
+  /* replace_space_mount */
+  token_write_boolean(pref->b.replace_space_mount, pref->v.replace_space_mount, token_pref_names[27], fd);
+  
+  /* mount_default_no_dialog */
+  token_write_boolean(pref->b.mount_default_no_dialog, pref->v.mount_default_no_dialog, token_pref_names[28], fd);
+  
+  /* use_smb_port */
+  token_write_boolean(pref->b.use_smb_port, pref->v.use_smb_port, token_pref_names[29], fd);
+  
+  /* smb_port */
+  token_write_integer(pref->b.smb_port, pref->v.smb_port, token_pref_names[30], fd);
+  
+  /* smbclient_arg */
+  token_write_string(pref->b.smbclient_arg, pref->v.smbclient_arg, token_pref_names[31], fd);
+  
+  /* nmblookup_arg */
+  token_write_string(pref->b.nmblookup_arg, pref->v.nmblookup_arg, token_pref_names[32], fd);
+  
+  /* smbmount_arg */
+  token_write_string(pref->b.smbmount_arg, pref->v.smbmount_arg, token_pref_names[33], fd);
+  
+  /* smbumount_arg */
+  token_write_string(pref->b.smbumount_arg, pref->v.smbumount_arg, token_pref_names[34], fd);
+  
+  fclose(fd);
+}
+
+void preferences_load (pref_struct *pref)
+{
+  char path[PATH_LEN+1];
+  unsigned char workgroup_loaded;
+
+  workgroup_loaded = 0;
+  
+  preferences_to_default(pref);
+  /* try to load global preferences */
+  string_ncopy(path, DATADIR GLOBAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, LIBDIR GLOBAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PREF_FILE, PATH_LEN);
+  preferences_load_from_file(path, pref);
+  if ( pref->b.workgroup )
+    workgroup_loaded = 1;
+  /* try to load local preferences */
+  string_ncopy(path, globals.home_dir, PATH_LEN);
+  string_ncat(path, LOCAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, globals.home_dir, PATH_LEN);
+    string_ncat(path, LOCAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PREF_FILE, PATH_LEN);
+  /* clear the flags to recognize local preferences */
+  memset(&(pref->b), 0, sizeof(pref_bool_struct));
+  preferences_load_from_file(path, pref);
+  if ( pref->b.workgroup )
+    workgroup_loaded = 1;
+  
+  /* new strategy: if workgroup not set, set it to "-" */
+  if ( !workgroup_loaded )
+  {
+    strcpy(pref->v.workgroup, "-");
+  }
+  
+  /* if workgroup not set, try to load smb.conf */
+  /*if ( !workgroup_loaded )
+  {
+    strcpy(path, "/etc/smb.conf");
+    preferences_load_smb_conf(path, pref);
+    if ( !(pref->b.workgroup) )
+    {
+      strcpy(path, "/usr/local/samba/lib/smb.conf");
+      preferences_load_smb_conf(path, pref);
+    }
+  }*/
+}
+
+/* ------------------------------------------------------------------------ */
+
+#define TOKEN_SIZE_NUM      8
+
+static char *token_size_names[TOKEN_SIZE_NUM] = {
+        "main_x",                          /* 0 */
+        "main_y",                          /* 1 */
+        "main_w",                          /* 2 */
+        "main_h",                          /* 3 */
+        "tree_comment_pos",                /* 4 */
+        "tree_mountpoint_pos",             /* 5 */
+        "mlist_height",                    /* 6 */
+        "mlist_mountpoint_pos",            /* 7 */
+};
+
+static void size_to_default (size_struct *size)
+{
+  size->main_x = MAIN_X_DEF;
+  size->main_y = MAIN_Y_DEF;
+  size->main_w = MAIN_W_DEF;
+  size->main_h = MAIN_H_DEF;
+  size->t_comment_pos = TREE_COMMENT_DEF;
+  size->t_mountpoint_pos = TREE_MOUNTPOINT_DEF;
+  size->m_list_h = MOUNT_LIST_H_DEF;
+  size->m_mpoint_pos = MOUNT_MPOINT_DEF;
+}
+
+static unsigned char size_enumerate_callback (char *token, char *value, gpointer data)
+{
+  int i;
+  size_struct *size;
+  int number;
+  
+  size = (size_struct*)data;
+  if ( size == NULL )
+    return 0;
+
+  for ( i = 0; i < TOKEN_SIZE_NUM; i++ )
+  {
+    if ( !strcmp(token, token_size_names[i]) )
+    {
+      number = atoi(value);
+
+      switch ( i )
+      {
+        /* main_x */
+        case 0:
+            if ( number < MAIN_X_MIN ) number = MAIN_X_MIN;
+            if ( number > MAIN_X_MAX ) number = MAIN_X_MAX;
+            size->main_x = number;
+            break;
+        /* main_y */
+        case 1:
+            if ( number < MAIN_Y_MIN ) number = MAIN_Y_MIN;
+            if ( number > MAIN_Y_MAX ) number = MAIN_Y_MAX;
+            size->main_y = number;
+            break;
+        /* main_w */
+        case 2:
+            if ( (number >= MAIN_W_MIN) && (number <= MAIN_W_MAX) )
+              size->main_w = number;
+            break;
+        /* main_h */
+        case 3:
+            if ( (number >= MAIN_H_MIN) && (number <= MAIN_H_MAX) )
+              size->main_h = number;
+            break;
+        /* tree_comment_pos */
+        case 4:
+            if ( number >= TREE_COMMENT_MIN )
+              size->t_comment_pos = number;
+            break;
+        /* tree_mountpoint_pos */
+        case 5:
+            if ( number >= TREE_MOUNTPOINT_MIN )
+              size->t_mountpoint_pos = number;
+            break;
+        /* mlist_height */
+        case 6:
+            if ( number >= MOUNT_LIST_H_MIN )
+              size->m_list_h = number;
+            break;
+        /* mlist_mountpoint_pos */
+        case 7:
+            if ( number >= MOUNT_MPOINT_MIN )
+              size->m_mpoint_pos = number;
+            break;
+      }
+      break;
+    }
+  }
+  
+  return 0;
+}
+
+static void size_load_from_file (char *file, size_struct *size)
+{
+  file_enumerate_prefs(file, size_enumerate_callback, size);
+}
+
+void size_load (size_struct *size)
+{
+  char path[PATH_LEN+1];
+
+  size_to_default(size);
+  /* try to load size information */
+  string_ncopy(path, globals.home_dir, PATH_LEN);
+  string_ncat(path, LOCAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, globals.home_dir, PATH_LEN);
+    string_ncat(path, LOCAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, SIZE_FILE, PATH_LEN);
+  size_load_from_file(path, size);
+}
+
+void size_save (size_struct *size)
+{
+  FILE *fd;
+  char line[PATH_LEN+1];
+  char temp[32];
+
+  string_ncopy(line, globals.home_dir, PATH_LEN);
+  string_ncat(line, LOCAL_PATH, PATH_LEN);
+  path_check_create(line, 0755);
+  
+  string_ncat(line, SIZE_FILE, PATH_LEN);
+
+  fd = fopen(line, "wt");
+
+  if ( !fd )
+  {
+    g_print(_("cannot save configuration file in %s !\n"), temp);
+    return;
+  }
+
+  strcpy(line, "\n");
+  fwrite(line, 1, strlen(line), fd);
+
+  /* --- save the preferences --- */
+
+  /* main_x */
+  token_write_integer(YES, size->main_x, token_size_names[0], fd);
+  
+  /* main_y */
+  token_write_integer(YES, size->main_y, token_size_names[1], fd);
+  
+  /* main_w */
+  token_write_integer(YES, size->main_w, token_size_names[2], fd);
+  
+  /* main_h */
+  token_write_integer(YES, size->main_h, token_size_names[3], fd);
+  
+  /* tree_comment_pos */
+  token_write_integer(YES, size->t_comment_pos, token_size_names[4], fd);
+  
+  /* tree_mountpoint_pos */
+  token_write_integer(YES, size->t_mountpoint_pos, token_size_names[5], fd);
+  
+  /* mlist_height */
+  token_write_integer(YES, size->m_list_h, token_size_names[6], fd);
+  
+  /* mlist_mountpoint_pos */
+  token_write_integer(YES, size->m_mpoint_pos, token_size_names[7], fd);
+  
+  fclose(fd);
+}
+
+/* ------------------------------------------------------------------------ */
+
+static char pref_host_token[] = "pref_host";
+static host_type hosttype = host_local;
+
+static unsigned char prefhost_enumerate_callback (char *token, char *value, gpointer data)
+{
+  char *name, *group, *ip;
+  
+  if ( !strcmp(token, pref_host_token) )
+  {
+    extract_prefhost(value, &name, &group, &ip);
+    data_hosts_add(name, group, ip, hosttype);
+  }
+  
+  return 0;
+}
+
+static void prefhost_load_from_file (char *file)
+{
+  file_enumerate_prefs(file, prefhost_enumerate_callback, NULL);
+}
+
+void prefhost_load (void)
+{
+  char path[PATH_LEN+1];
+
+  /* don't post every change */
+  notify_stop();
+  
+  /* try to load global preferred hosts */
+  string_ncopy(path, DATADIR GLOBAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, LIBDIR GLOBAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PREF_FILE, PATH_LEN);
+
+  hosttype = host_global;
+  prefhost_load_from_file(path);
+
+  /* try to load local preferred hosts */
+  string_ncopy(path, globals.home_dir, PATH_LEN);
+  string_ncat(path, LOCAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, globals.home_dir, PATH_LEN);
+    string_ncat(path, LOCAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, HOST_FILE, PATH_LEN);
+
+  hosttype = host_local;
+  prefhost_load_from_file(path);
+  
+  /* notify any gui's if listening */
+  notify_start();
+  notify_host_change();
+}
+
+static void prefhost_save_enumerate (host_struct *host, gpointer data)
+{
+  FILE *fd;
+  char str[MAXMACHNAMEL+MAXGROUPNAMEL+MAXIPL+20];
+  char *temp;
+  
+  fd = (FILE*)data;
+  if ( fd != NULL )
+  {
+    /* do not save hosts defined in global setup file (root's file) */
+    if ( (host != NULL) && (host->type != host_global) )
+    {
+      temp = str;
+      merge_prefhost(&temp, host->name, host->group, host->ipaddr, MAXMACHNAMEL+MAXGROUPNAMEL+MAXIPL+19);
+      token_write_string (YES, str, pref_host_token, fd);
+    }
+  }
+}
+
+void prefhost_save ()
+{
+  FILE *fd;
+  char line[PATH_LEN+1];
+
+  string_ncopy(line, globals.home_dir, PATH_LEN);
+  string_ncat(line, LOCAL_PATH, PATH_LEN);
+  if ( host_list_count() > 0 )
+    /* eventually create directory(ies) */
+    path_check_create(line, 0755);
+  string_ncat(line, HOST_FILE, PATH_LEN);
+
+  if ( !file_exist(line) )
+  {
+    if ( host_list_count() == 0 )
+    {
+      return;
+    }
+  }
+  
+  fd = fopen(line, "w+");
+  
+  if ( !fd )
+  {
+    g_print(_("cannot save hosts file in %s !\n"), line);
+    return;
+  }
+
+  if ( host_list_count() > 0 )
+  {
+    strcpy(line, "\n");
+    fwrite(line, 1, strlen(line), fd);
+
+    /* enumerate all stored preferred hosts */
+    host_list_enumerate(prefhost_save_enumerate, (gpointer)(fd));
+  }
+
+  fclose(fd);
+}
+
+/* ------------------------------------------------------------------------ */
+
+static char add_master_browser_token[] = "additional_master_browser";
+static master_browser_type masterbrowsertype = master_browser_local;
+
+static unsigned char add_master_enumerate_callback (char *token, char *value, gpointer data)
+{
+  if ( !strcmp(token, add_master_browser_token) )
+  {
+    data_master_add(value, masterbrowsertype);
+  }
+  return 0;
+}
+
+static void add_master_load_from_file (char *file)
+{
+  file_enumerate_prefs(file, add_master_enumerate_callback, NULL);
+}
+
+void add_master_load ()
+{
+  char path[PATH_LEN+1];
+
+  notify_stop();
+  
+  /* try to load global master browsers */
+  string_ncopy(path, DATADIR GLOBAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, LIBDIR GLOBAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PREF_FILE, PATH_LEN);
+
+  masterbrowsertype = master_browser_global;
+  add_master_load_from_file(path);
+
+  /* try to load local master browsers */
+  string_ncopy(path, globals.home_dir, PATH_LEN);
+  string_ncat(path, LOCAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, globals.home_dir, PATH_LEN);
+    string_ncat(path, LOCAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, MASTER_FILE, PATH_LEN);
+
+  masterbrowsertype = master_browser_local;
+  add_master_load_from_file(path);
+  
+  /* notify any gui's if listening */
+  notify_start();
+  notify_master_change();
+}
+
+static void add_master_save_enumerate (master_struct *master, gpointer data)
+{
+  FILE *fd;
+  
+  fd = (FILE*)data;
+  if ( fd != NULL )
+  {
+    /* don't save globally defined additional master browsers */
+    if ( (master != NULL) && (master->type != master_browser_global) )
+    {
+      token_write_string (YES, master->name, add_master_browser_token, fd);
+    }
+  }
+}
+
+void add_master_save ()
+{
+  FILE *fd;
+  char line[PATH_LEN+1];
+
+  string_ncopy(line, globals.home_dir, PATH_LEN);
+  string_ncat(line, LOCAL_PATH, PATH_LEN);
+  if ( master_list_count() > 0 )
+    /* eventually create directory(ies) */
+    path_check_create(line, 0755);
+  string_ncat(line, MASTER_FILE, PATH_LEN);
+
+  if ( !file_exist(line) )
+  {
+    if ( master_list_count() == 0 )
+    {
+      return;
+    }
+  }
+
+  fd = fopen(line, "w+");
+
+  if ( !fd )
+  {
+    g_print(_("cannot save master browsers file in %s !\n"), line);
+    return;
+  }
+
+  if ( master_list_count() > 0 )
+  {
+    /* save the master browsers */
+    strcpy(line, "\n");
+    fwrite(line, 1, strlen(line), fd);
+
+    /* enumerate all stored master browsers */
+    master_list_enumerate(add_master_save_enumerate, (gpointer)(fd));
+  }
+
+  fclose(fd);
+}
+
+/* ------------------------------------------------------------------------ */
+
+static char groupmaster_browser_token[] = "additional_group_master";
+static group_master_type groupmastertype = type_user_add_local;
+
+static unsigned char groupmaster_load_enumerate_callback (char *token, char *value, gpointer data)
+{
+  char *group, *name;
+
+  if ( !strcmp(token, groupmaster_browser_token) )
+  {
+    extract_groupmaster(value, &group, &name);
+    if ( !is_empty_string(group) )
+    {
+      if ( !is_empty_string(name) )
+      {
+        data_groupmaster_add(group, name, groupmastertype);
+      }
+    }
+  }
+  
+  return 0;
+}
+
+static void groupmaster_load_from_file (char *file)
+{
+  file_enumerate_prefs(file, groupmaster_load_enumerate_callback, NULL);
+}
+
+void groupmaster_load ()
+{
+  char path[PATH_LEN+1];
+
+  notify_stop();
+  
+  /* try to load global master browsers */
+  string_ncopy(path, DATADIR GLOBAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, LIBDIR GLOBAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PREF_FILE, PATH_LEN);
+
+  groupmastertype = type_user_add_global;
+  groupmaster_load_from_file(path);
+
+  /* try to load local master browsers */
+  string_ncopy(path, globals.home_dir, PATH_LEN);
+  string_ncat(path, LOCAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, globals.home_dir, PATH_LEN);
+    string_ncat(path, LOCAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, GROUPMASTER_FILE, PATH_LEN);
+
+  groupmastertype = type_user_add_local;
+  groupmaster_load_from_file(path);
+  
+  /* notify any gui's if listening */
+  notify_start();
+  notify_groupmaster_change();
+}
+
+static void groupmaster_save_enumerate (group_master_struct *master, gpointer data)
+{
+  FILE *fd;
+  char ctemp[MASTER_LEN+1];
+  char *ptemp;
+  
+  fd = (FILE*)data;
+  ptemp = ctemp;
+  if ( fd != NULL )
+  {
+    /* don't save globally defined additional master browsers */
+    if ( (master != NULL) && (master->type == type_user_add_local) )
+    {
+      merge_groupmaster(&ptemp, master, MASTER_LEN);
+      token_write_string (YES, ctemp, groupmaster_browser_token, fd);
+    }
+  }
+}
+
+void groupmaster_save ()
+{
+  FILE *fd;
+  char line[PATH_LEN+1];
+
+  string_ncopy(line, globals.home_dir, PATH_LEN);
+  string_ncat(line, LOCAL_PATH, PATH_LEN);
+  if ( groupmaster_list_count() > 0 )
+    /* eventually create directory(ies) */
+    path_check_create(line, 0755);
+  string_ncat(line, GROUPMASTER_FILE, PATH_LEN);
+
+  if ( !file_exist(line) )
+  {
+    if ( groupmaster_list_count() == 0 )
+    {
+      return;
+    }
+  }
+
+  fd = fopen(line, "w+");
+
+  if ( !fd )
+  {
+    g_print(_("cannot save group masters file in %s !\n"), line);
+    return;
+  }
+
+  if ( groupmaster_list_count() > 0 )
+  {
+    /* save the group masters */
+    strcpy(line, "\n");
+    fwrite(line, 1, strlen(line), fd);
+
+    /* enumerate all stored group masters */
+    groupmaster_list_enumerate(groupmaster_save_enumerate, (gpointer)(fd));
+  }
+
+  fclose(fd);
+}
+
+/* ------------------------------------------------------------------------ */
+
+static char mountpoint_token[] = "mount_point";
+
+static unsigned char mountpoint_enumerate_callback (char *token, char *value, gpointer data)
+{
+  GSList **mplist;
+  mem_mount_struct *mount;
+  /*char *service, *mountpoint;
+  char *machine, *share;*/
+  
+  mplist = (GSList**)data;
+  if ( mplist == NULL )
+    return 0;
+  
+  if ( !strcmp(token, mountpoint_token) )
+  {
+    /*extract_mount(value, &service, &mountpoint);*/
+    /*extract_smb_service(service, &machine, &share);*/
+    
+    mount = (mem_mount_struct*)g_malloc(sizeof(mem_mount_struct));
+    if ( mount != NULL )
+    {
+      extract_mount(value, mount);
+      *mplist = g_slist_append(*mplist, mount);
+    }
+  }
+  
+  return 0;
+}
+
+static void mountpoint_load_from_file (char *file, GSList **mplist)
+{
+  file_enumerate_prefs(file, mountpoint_enumerate_callback, mplist);
+}
+
+GSList *mountpoint_load ()
+{
+  char path[PATH_LEN+1];
+  GSList *mplist;
+
+  mplist = (GSList*)NULL;
+  
+  /* try to load global mountpoints */
+  /*string_ncopy(path, DATADIR GLOBAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {*/
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    /*string_ncopy(path, LIBDIR GLOBAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PREF_FILE, PATH_LEN);
+
+  mountpoint_load_from_file(path, &mplist);*/
+
+  /* try to load local mountpoints */
+  string_ncopy(path, globals.home_dir, PATH_LEN);
+  string_ncat(path, LOCAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, globals.home_dir, PATH_LEN);
+    string_ncat(path, LOCAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, MOUNTPOINT_FILE, PATH_LEN);
+
+  mountpoint_load_from_file(path, &mplist);
+  
+  return mplist;
+}
+
+static void mountpoint_save_enumerate (mem_mount_struct *mount, gpointer data)
+{
+  FILE *fd;
+  char str[MAXMACHNAMEL+MAXSHRNAMEL+PATH_LEN+20];
+  char *temp;
+  
+  fd = (FILE*)data;
+  if ( fd != NULL )
+  {
+    /* only mounts without root password - security */
+    if ( mount->type != mem_mount_root )
+    {
+      temp = str;
+      merge_mount(&temp, mount, MAXMACHNAMEL+MAXSHRNAMEL+PATH_LEN+19, 0);
+      token_write_string (YES, str, mountpoint_token, fd);
+    }
+  }
+}
+
+void mountpoint_save ()
+{
+  FILE *fd;
+  char line[PATH_LEN+1];
+
+  string_ncopy(line, globals.home_dir, PATH_LEN);
+  string_ncat(line, LOCAL_PATH, PATH_LEN);
+  if ( host_list_count() > 0 )
+    /* eventually create directory(ies) */
+    path_check_create(line, 0755);
+  string_ncat(line, MOUNTPOINT_FILE, PATH_LEN);
+
+  if ( !file_exist(line) )
+  {
+    if ( mem_mount_list_count() == 0 )
+    {
+      return;
+    }
+  }
+  
+  fd = fopen(line, "w+");
+  
+  if ( !fd )
+  {
+    g_print(_("cannot save mountpoints file in %s !\n"), line);
+    return;
+  }
+
+  chmod(line, S_IRUSR | S_IWUSR);
+
+  if ( mem_mount_list_count() > 0 )
+  {
+    strcpy(line, "\n");
+    fwrite(line, 1, strlen(line), fd);
+
+    /* enumerate all stored mountpoints */
+    mem_mount_list_enumerate(mountpoint_save_enumerate, (gpointer)(fd));
+  }
+
+  fclose(fd);
+}
+
+/* ------------------------------------------------------------------------ */
+
+static char password_token[] = "default_password";
+
+static unsigned char password_enumerate_callback (char *token, char *value, gpointer data)
+{
+  if ( !strcmp(token, password_token) )
+  {
+    string_ncopy(globals.default_password, value, PASSWORD_LEN);
+    string_ncopy(globals.browse_password, value, PASSWORD_LEN);
+    globals.is_password = 1;
+  }
+  
+  return 0;
+}
+
+static void password_load_from_file (char *file)
+{
+  file_enumerate_prefs(file, password_enumerate_callback, NULL);
+}
+
+void password_load ()
+{
+  char path[PATH_LEN+1];
+
+  /* try to load global password */
+  string_ncopy(path, DATADIR GLOBAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, LIBDIR GLOBAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PASSWORD_FILE, PATH_LEN);
+
+  password_load_from_file(path);
+
+  /* try to load local mountpoints */
+  string_ncopy(path, globals.home_dir, PATH_LEN);
+  string_ncat(path, LOCAL_PATH, PATH_LEN);
+  if ( !path_exist(path) )
+  {
+    /* path has changed since 0.6.5, try to load the old one to be compatible */
+    string_ncopy(path, globals.home_dir, PATH_LEN);
+    string_ncat(path, LOCAL_PATH_DPCTD, PATH_LEN);
+  }
+  string_ncat(path, PASSWORD_FILE, PATH_LEN);
+
+  password_load_from_file(path);
+}
+
+void password_save ()
+{
+  FILE *fd;
+  char line[PATH_LEN+1];
+
+  string_ncopy(line, globals.home_dir, PATH_LEN);
+  string_ncat(line, LOCAL_PATH, PATH_LEN);
+  if ( (pref.b.save_default_password == YES) && (pref.v.save_default_password == YES) )
+    /* eventually create directory(ies) */
+    path_check_create(line, 0755);
+  string_ncat(line, PASSWORD_FILE, PATH_LEN);
+
+  if ( !file_exist(line) )
+  {
+    if ( pref.v.save_default_password == NO )
+    {
+      return;
+    }
+  }
+  
+  fd = fopen(line, "w+");
+  
+  if ( !fd )
+  {
+    g_print(_("cannot save password file in %s !\n"), line);
+    return;
+  }
+
+  chmod(line, S_IRUSR | S_IWUSR);
+
+  if ( (pref.b.save_default_password) && (pref.v.save_default_password) )
+  {
+    strcpy(line, "\n");
+    fwrite(line, 1, strlen(line), fd);
+
+    /* default_password */
+    token_write_string(YES, globals.default_password, password_token, fd);
+  }
+
+  fclose(fd);
+}
+
+/* ------------------------------------------------------------------------ */
+
+/*
+  command line parameters:
+      -h --help
+      -m --mountshares
+      -v --version
+      -i --iconify
+      -n --networkimage [file]
+      -u --user [username]
+      -p --password [userpassword]
+      -j --job [number]
+*/
+
+static void startup_to_default (startup_struct *startup)
+{
+  startup->v.show_help = NO;
+  startup->v.restore_shares = NO;
+  startup->v.print_version = NO;
+  startup->v.start_iconify = NO;
+  startup->v.network_image = NO;
+  string_ncopy(startup->v.netimage_file, globals.home_dir, PATH_LEN);
+  string_ncat(startup->v.netimage_file, "networkimage", PATH_LEN);
+  startup->v.is_user = NO;
+  startup->v.is_password = NO;
+  string_ncopy(startup->v.user, globals.user, USER_LEN);
+  string_ncopy(startup->v.password, cempty, PASSWORD_LEN);
+  startup->v.job = MAX_BROWSE_JOBS;
+  
+  memset(&(startup->b), 0, sizeof(startup_bool_struct));
+}
+
+/* checks if the following parameter is an argument
+   of a command line parameter. if yes, store it in 'variable' */
+static unsigned char startup_fetch_argument (char *param, char *variable, int max_len)
+{
+  if ( (param != NULL) && (*param != '-') )
+  {
+    string_ncopy(variable, param, max_len);
+    return 1;
+  }
+  else
+    return 0;
+}
+
+void startup_parse_command_line (int argc, char *argv[], startup_struct *startup)
+{
+  int argcount;
+  char *pargv;
+  char temp[USER_LEN + PASSWORD_LEN + 2];
+  char *ptemp;
+  int i;
+
+  argcount = 1;
+    
+  while ( argcount < argc )
+  {
+    pargv = argv[argcount];
+    if ( *pargv == '-' )
+    {
+      pargv++;
+
+      if ( !strcmp(pargv, "h") || !strcmp(pargv, "-help") )
+      {
+        startup->b.show_help = YES;
+        startup->v.show_help = YES;
+      }
+      if ( !strcmp(pargv, "m") || !strcmp(pargv, "-mountshares") )
+      {
+        startup->b.restore_shares = YES;
+        startup->v.restore_shares = YES;
+      }
+      if ( !strcmp(pargv, "v") || !strcmp(pargv, "-version") )
+      {
+        startup->b.print_version = YES;
+        startup->v.print_version = YES;
+      }
+      if ( !strcmp(pargv, "i") || !strcmp(pargv, "-iconify") )
+      {
+        startup->b.start_iconify = YES;
+        startup->v.start_iconify = YES;
+      }
+      if ( !strcmp(pargv, "n") || !strcmp(pargv, "-networkimage") )
+      {
+        startup->b.network_image = YES;
+        startup->v.network_image = YES;
+        if ( startup_fetch_argument(argv[argcount+1], startup->v.netimage_file, PATH_LEN) )
+        {
+          startup->b.netimage_file = YES;
+          argcount++;
+        }
+      }
+      if ( !strcmp(pargv, "u") || !strcmp(pargv, "-user") )
+      {
+        if ( startup_fetch_argument(argv[argcount+1], temp, USER_LEN + PASSWORD_LEN + 2) )
+        {
+          /* user + password like "mozart%requiem" ? */
+          ptemp = strchr(temp, '%');
+          if ( ptemp != NULL )
+          {
+            /* yes */
+            *ptemp = 0;
+            ptemp++;
+            if ( *ptemp != 0 )
+            {
+              string_ncopy(startup->v.password, ptemp, PASSWORD_LEN);
+              startup->b.is_password = YES;
+              startup->v.is_password = YES;
+              startup->b.password = YES;
+            }
+          }
+          string_ncopy(startup->v.user, temp, USER_LEN);
+          startup->b.is_user = YES;
+          startup->v.is_user = YES;
+          startup->b.user = YES;
+          argcount++;
+/*          if ( cl_password )
+          {
+            scan_as_user = 1;
+            groupscan_as_user = 1;
+            groupsscan_as_user = 1;
+          }*/
+        }
+      }
+      if ( !strcmp(pargv, "p") || !strcmp(pargv, "-password") )
+      {
+        if ( startup_fetch_argument(argv[argcount+1], startup->v.password, PASSWORD_LEN) )
+        {
+          startup->b.is_password = YES;
+          startup->v.is_password = YES;
+          startup->b.password = YES;
+          argcount++;
+/*          if ( cl_user )
+          {
+            scan_as_user = 1;
+            groupscan_as_user = 1;
+            groupsscan_as_user = 1;
+          }*/
+        }
+      }
+      if ( !strcmp(pargv, "j") || !strcmp(pargv, "-job") )
+      {
+        if ( startup_fetch_argument(argv[argcount+1], temp, 15) )
+        {
+          argcount++;
+          i = atoi(temp);
+          if ( i > 0 )
+            startup->b.job = YES;
+            startup->v.job = (unsigned int)i;
+        }
+      }
+    }
+    argcount++;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
+
+static void globals_to_default (void)
+{
+  globals.linux_version = LINUX_2_2;
+  globals.linux_major = 2;
+  globals.linux_minor = 2;
+  globals.linux_patch = 0;
+  globals.uid = 0;
+  globals.gid = 0;
+  globals.user[0] = 0;
+  strcpy(globals.home_dir, "/tmp/");
+  globals.domain_name[0] = 0;
+  globals.browse_user[0] = 0;
+  globals.browse_password[0] = 0;
+  globals.is_password = NO;
+  globals.default_password[0] = 0;
+}
+
+void globals_init (void)
+{
+  struct utsname uts;
+  struct passwd *pwd;
+  
+  globals_to_default();
+  
+  /* get system information */
+  if ( !uname(&uts) )
+  {
+    sscanf(uts.release, "%hd.%hd.%hd", &(globals.linux_major), &(globals.linux_minor), &(globals.linux_patch));
+    if ( LVERSION(globals.linux_major, globals.linux_minor, globals.linux_patch) < LVERSION(2,1,70) )
+    {
+      globals.linux_version = LINUX_2_0;
+    }
+  }
+  /* get user information */
+  pwd = getpwuid(getuid());
+  if ( pwd != NULL )
+  {
+    /* user name */
+    string_ncopy(globals.user, pwd->pw_name, ST_USER_LEN);
+    string_ncopy(globals.browse_user, pwd->pw_name, ST_USER_LEN);
+    /* home directory */
+    string_ncopy(globals.home_dir, pwd->pw_dir, PATH_LEN);
+    if ( globals.home_dir[strlen(globals.home_dir)-1] != '/' )
+    {
+      strncat(globals.home_dir, "/", PATH_LEN);
+    }
+    /* user ID */
+    globals.uid = pwd->pw_uid;
+    /* group ID */
+    globals.gid = pwd->pw_gid;
+  }
+  
+  startup_to_default(&startup);
+}
+
+/* ------------------------------------------------------------------------- */

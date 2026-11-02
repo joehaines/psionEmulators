@@ -1,0 +1,21 @@
+--- src/main_loop.c.orig	2004-08-11 18:52:39.000000000 +0200
++++ src/main_loop.c	2004-08-11 19:13:24.000000000 +0200
+@@ -114,8 +114,16 @@
+       g_free (statusbar_text);
+     }
+   else
+-    gtk_statusbar_push (GTK_STATUSBAR (gkdial->details_statusbar),
+-			gkdial->status_state_id, _("Dialing..."));
++    {
++      gchar *status_phone;
++      
++      status_phone = g_strdup_printf (_("Dialing %s"),  
++        gtk_editable_get_chars (GTK_EDITABLE (
++                                  GTK_COMBO (gkdial->main_combo)->entry), 0, -1));
++      gtk_statusbar_push (GTK_STATUSBAR (gkdial->details_statusbar),
++	  		  gkdial->status_state_id, status_phone);
++      g_free (status_phone);
++    }
+ 
+   if (gkdial->connected_to)
+     gkdial_details_set_title (gkdial, _("Connecting to: %s - GkDial"),

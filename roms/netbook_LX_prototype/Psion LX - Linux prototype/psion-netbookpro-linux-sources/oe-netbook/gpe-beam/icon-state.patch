@@ -1,0 +1,71 @@
+Index: main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-beam/main.c,v
+retrieving revision 1.22
+diff -r1.22 main.c
+673,680c673,683
+< 		if (strlen (nick))
+< 			nick[strlen (nick) - 1] = 0;
+< 		gtk_label_set_text (GTK_LABEL (lDevice), nick);
+< 		snprintf (nick, 32, "0x%8llx", saddr);
+< 		gtk_label_set_text (GTK_LABEL (lSaddr), nick);
+< 		ts = parse_hints (chint);
+< 		gtk_label_set_text (GTK_LABEL (lCHint), ts);
+< 		free (ts);
+---
+> 		if (control_window)
+> 		{
+> 			if (strlen (nick))
+> 				nick[strlen (nick) - 1] = 0;
+> 			gtk_label_set_text (GTK_LABEL (lDevice), nick);
+> 			snprintf (nick, 32, "0x%8llx", saddr);
+> 			gtk_label_set_text (GTK_LABEL (lSaddr), nick);
+> 			ts = parse_hints (chint);
+> 			gtk_label_set_text (GTK_LABEL (lCHint), ts);
+> 			free (ts);
+> 		}
+684,686c687,692
+< 		gtk_label_set_text (GTK_LABEL (lDevice), "");
+< 		gtk_label_set_text (GTK_LABEL (lSaddr), "");
+< 		gtk_label_set_text (GTK_LABEL (lCHint), "");
+---
+> 		if (control_window)
+> 		{
+> 			gtk_label_set_text (GTK_LABEL (lDevice), "");
+> 			gtk_label_set_text (GTK_LABEL (lSaddr), "");
+> 			gtk_label_set_text (GTK_LABEL (lCHint), "");
+> 		}
+690d695
+< 		set_image(0, 0);
+691a697
+> 		set_image(0, 0);
+703,708d708
+< 	/* stop updates from scanner */
+< 	if (timeout_id)
+< 	{
+< 		gtk_timeout_remove (timeout_id);
+< 		timeout_id = 0;
+< 	}
+865,867d864
+< 		timeout_id =
+< 			gtk_timeout_add (1000,
+< 					 (GtkFunction) get_irstatus, NULL);
+882,883c879,881
+< 		gtk_label_set_text (GTK_LABEL
+< 				    (lTStatus), _("IR transceiver on"));
+---
+> 		gtk_label_set_text (GTK_LABEL(lTStatus), _("IR transceiver on"));
+> 	timeout_id = gtk_timeout_add (1000,
+> 	                              (GtkFunction) get_irstatus, NULL);
+904,905c902,909
+< 		gtk_label_set_text (GTK_LABEL
+< 				    (lTStatus), _("IR transceiver off"));
+---
+> 		gtk_label_set_text (GTK_LABEL(lTStatus), 
+> 	                        _("IR transceiver off"));
+> 	/* stop updates from scanner */
+> 	if (timeout_id)
+> 	{
+> 		gtk_timeout_remove (timeout_id);
+> 		timeout_id = 0;
+> 	}

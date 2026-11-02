@@ -1,0 +1,22 @@
+inherit gpe
+
+DEPENDS = "gtk+ librsvg"
+MAINTAINER = "Phil Blundell <pb@handhelds.org>"
+SECTION = "gpe"
+PRIORITY = "optional"
+PR = "r2nb4"
+
+SRC_URI = "${GPE_MIRROR}/${PN}-${PV}.tar.gz \
+	file://errno.patch;patch=1;pnum=0 \
+	file://chvt.patch;patch=1 \
+	file://collie.patch;patch=1 \
+	file://splash_screen.png file://no-svg.patch;patch=1 \
+	file://init.patch;patch=1"
+
+FILES_${PN} += "${datadir}/gpe"
+
+do_install_append() {
+	install -m 0644 ${WORKDIR}/splash_screen.png ${D}${datadir}/gpe/splash.png
+	mv ${D}/etc/rcS.d/S00bootsplash ${D}/etc/rcS.d/S12bootsplash
+}
+

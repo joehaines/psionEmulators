@@ -1,0 +1,20 @@
+
+PR = "r3"
+
+inherit gpe pkgconfig
+
+DESCRIPTION = "A package manager GUI for GPE"
+DEPENDS = "libipkg libgpewidget"
+RDEPENDS = "gpe-icons"
+SECTION = "gpe"
+PRIORITY = "optional"
+
+SRC_URI = "http://gpe.handhelds.org/pub/projects/gpe/source/${PN}-${PV}.tar.gz \
+           file://interface-fix.patch;patch=1;pnum=0 \
+           file://suid.patch;patch=1;pnum=0"
+
+FILES_{PN} += "${datadir}"
+
+do_install_prepend () {
+  rm ${S}/gpe-packages.desktop
+}

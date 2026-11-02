@@ -1,0 +1,38 @@
+Index: list-ui.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/list-ui.c,v
+retrieving revision 1.49
+diff -u -r1.49 list-ui.c
+--- list-ui.c	11 Oct 2004 12:25:56 -0000	1.49
++++ list-ui.c	11 Oct 2004 12:59:44 -0000
+@@ -245,6 +245,12 @@
+   ia = (struct todo_item *)a;
+   ib = (struct todo_item *)b;
+ 
++  /* status */
++  if ((ia->state >= COMPLETED) && (ib->state < COMPLETED))
++      return 1;
++  if ((ib->state >= COMPLETED) && (ia->state < COMPLETED))
++      return -1;
++  
+   /* both due date: sort by date */
+   if (ia->time && ib->time)
+     {
+@@ -450,11 +456,14 @@
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_NEW,
+ 			    _("Tap here to add a new item."), NULL,
+ 			    G_CALLBACK (new_todo_item), NULL, -1);
+-
++                            
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_DELETE,
+-                            _("Delete completed items"), 
+-                            _("Tap here to delete completed items."),
++                            _("Tap here to delete completed items."), NULL,
+                             G_CALLBACK (delete_completed_items), NULL, -1);
++
++  gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_REFRESH,
++                            _("Refresh list sorting"), NULL,
++                            G_CALLBACK (refresh_items), NULL, -1);
+   /* New */
+   gtk_box_pack_start (GTK_BOX (hbox), toolbar, FALSE, FALSE, 0);
+ 

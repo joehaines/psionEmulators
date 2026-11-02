@@ -1,0 +1,31 @@
+Index: network.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/network.c,v
+retrieving revision 1.41
+diff -u -r1.41 network.c
+--- network.c	29 Oct 2004 14:54:58 -0000	1.41
++++ network.c	15 Nov 2004 17:11:03 -0000
+@@ -1334,14 +1334,15 @@
+ 			gint length;
+ 			GError *err = NULL;
+ 
+-			mkdir (g_strdup_printf
+-			       ("%s/.dillo", g_get_home_dir ()), S_IRWXU);
+-			g_file_get_contents ("/etc/dillorc", &content,
+-					     &length, &err);
+-			fnew = fopen (cfgfile, "w");
+-			fprintf (fnew, "%s", content);
+-			fclose (fnew);
+-			g_free (content);
++			mkdir (g_strdup_printf("%s/.dillo", g_get_home_dir ()), S_IRWXU);
++			if (g_file_get_contents ("/etc/dillorc", &content,
++				                     &length, &err))
++			{
++				fnew = fopen (cfgfile, "w");
++				fprintf (fnew, "%s", content);
++				fclose (fnew);
++				g_free (content);
++			}
+ 		}
+ 	}
+ 

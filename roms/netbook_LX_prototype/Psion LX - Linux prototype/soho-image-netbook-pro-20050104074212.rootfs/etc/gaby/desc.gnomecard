@@ -1,0 +1,58 @@
+# desc.gnomecard
+# Author: Frederic Peters <fpeters@tiscalinet.be>
+# Purpose: addressbook
+# Translations: Dutch, Finnish, French, German
+# Comment:
+#   It is a descfile sharing the same files as desc.gaby but providing a GUI
+#   copied from GnomeCard, from the gnome-pim package
+
+
+Begin tables
+	import AddressBook from gaby
+End
+
+Begin subtables
+	Phone Book:AddressBook
+		i18n_fr=Répertoire téléphonique
+		i18n_fi=Puhelinmuistio
+		i18n_de=Adreßbuch
+		i18n_sv=Telefonlista
+		only viewable as xlist.
+		with only the following fields
+			First Name:
+			Last Name:
+			Private Phone:Phone
+				i18n_fr=Téléphone
+				i18n_nl=Telefoon
+				i18n_de=Telefon
+				i18n_sv=Telefon
+	Address Book:AddressBook
+		i18n_fr=Carnet d'adresse
+		i18n_fi=Osoitemuistio
+		i18n_sv=Adressbok
+		only viewable as gnomecard, form, canvas.
+		with every fields.
+End
+
+Begin actions
+	gnome-pim_init
+		event = startup
+		gnomepim_init(AddressBook)
+End
+
+Begin locations
+	AddressBook
+		~/.gaby/
+End
+
+Begin misc
+	Main window
+		gnomecard:Address Book
+End
+
+Begin plugins_options
+	Canvas:Address Book (imported from gaby)
+	Form:Address Book
+		no toolbar
+End
+

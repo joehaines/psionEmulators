@@ -1,0 +1,18 @@
+PR = "r3nb4"
+
+inherit gpe
+
+DESCRIPTION = "GPE user login screen"
+SECTION = "gpe"
+PRIORITY = "optional"
+MAINTAINER = "Philip Blundell <pb@handhelds.org>"
+DEPENDS = "gtk+ libgpewidget gpe-ownerinfo"
+
+SRC_URI = "${GPE_MIRROR}/gpe-login-${PV}.tar.gz \
+           file://login-newpath.diff;patch=1;pnum=0 \
+           file://ownerinfo-hide.patch;patch=1;pnum=0 \
+           file://lock-off.patch;patch=1;pnum=0"
+
+do_install_append () {
+  rm ${D}/etc/X11/Xinit.d/99gpe-login
+}

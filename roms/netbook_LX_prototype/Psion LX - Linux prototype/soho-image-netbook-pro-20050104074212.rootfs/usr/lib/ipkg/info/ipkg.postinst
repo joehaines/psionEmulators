@@ -1,0 +1,9 @@
+#!/bin/sh
+if [ "x$D" != "x" ]; then
+	install -d /scratch/autobuild/daily/tmp/rootfs//etc/rcS.d
+	# this happens at S98 where our good 'ole packages script used to run
+	echo -e "#!/bin/sh\nipkg-cl configure\nrm -f \$0" > /scratch/autobuild/daily/tmp/rootfs//etc/rcS.d/S98configure
+	chmod 0755 /scratch/autobuild/daily/tmp/rootfs//etc/rcS.d/S98configure
+fi
+
+update-alternatives --install /usr/bin/ipkg ipkg /usr/bin/ipkg-cl 100

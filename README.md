@@ -11,6 +11,8 @@ architectures and fifteen years of devices. Play any of them in the browser at
 - **ARM710 (CL-PS7110 / Windermere) and StrongARM SA-1100** — the ARM-era
   machines: Series 5, 5mx, Revo, Series 7, netBook, and the licensed
   Geofox One.
+- **Intel XScale (PXA255)** — the Psion LX, Psion's Linux prototype on
+  netBook Pro hardware.
 
 Every CPU core, peripheral and OS path is emulated natively in C++, compiled to
 WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
@@ -44,6 +46,7 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | Series 5mx Pro | 2000 | ARM710 (Windermere) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Revo (Conan) | 2001 | ARM710 (Windermere) | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ❌ |
 | netpad | 2001 | StrongARM SA-1110 | ✅ | ✅ MMC | — | ⚠️ | ✅ | ✅ | ✅ | ✅ |
+| Psion LX (prototype) | 2005 | Intel XScale (PXA255) | ✅ | ❌ | — | ❌ | ❌ | ✅ | ❌ | ❌ |
 
 ✅ Supported · ⚠️ Partial / not fully booted · ❌ Not yet emulated · — Hardware not present · ❓ Hardware present, not yet verified.
 **CF** = removable storage card (CompactFlash, or MMC on the netpad).
@@ -70,6 +73,20 @@ emulator's PsiWin client can't.
   the two emulator-side bugs it found — both places where a workaround had
   bound itself to one particular OS build (its kernel-data layout, and its
   literal code addresses) rather than to the machine.
+- **Psion LX** — Psion Teklogix's 2004-05 Linux prototype on netBook Pro
+  hardware, on a core of its own: an Intel XScale (ARMv5TE, ARM and Thumb)
+  with the PXA255's peripherals, an Epson S1D13806 driving the 800×600 panel
+  (BitBLT engine included — the image's X server uses it), 64 MB of NAND,
+  the board's power controller and keyboard on I2C, and a WM9705 codec with
+  its touch digitiser. The prototype's own OS image boots exactly as the
+  netBook Pro bootloader handed it over — a 2.6.9 kernel whose initrd mounts
+  the OpenEmbedded root filesystem from the NAND — through to the GPE
+  desktop under its "PSION LX BETA" splash, where the stylus and keyboard
+  work and the image's applications (AbiWord, Gnumeric, Calendar, Contacts…)
+  run. The NAND image is built from the rootfs tree in `roms/` by
+  `scripts/build-lx-nand.mts`; the first boot runs the image's own package
+  configuration, as a freshly flashed LX did. See
+  [docs/psion-lx.md](docs/psion-lx.md).
 - **netpad** — the SA-1110 sibling of the netBook, booting its own EPOC R5 ROM
   to the netpad desktop on a 640×240 8 bpp colour panel (a 6×6×6 palette cube).
   Its board peripherals are emulated (bit-banged I2C board controller, nCS4
@@ -465,6 +482,7 @@ applib/     Source for the in-app software library (see applib/README.md)
 scripts/    Build / asset scripts, plus the public-mirror sync
 desktop/    Electron shell for the native Windows / macOS / Linux apps
 harness/    Native (non-WASM) host driver for the core
+firmware/   ESP32 builds of the core for real hardware (see firmware/siena-jc3248w535)
 tools/      Programs that run on the emulated machines (see tools/README.md)
 tests/      Boot validation, integration, unit tests (see tests/README.md)
 docs/       Per-device investigation notes

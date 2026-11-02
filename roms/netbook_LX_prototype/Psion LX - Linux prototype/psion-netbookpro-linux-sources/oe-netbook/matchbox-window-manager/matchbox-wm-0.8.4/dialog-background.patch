@@ -1,0 +1,26 @@
+--- matchbox-window-manager-0.8.4/src/dialog_client.c~	Tue Sep 28 11:17:28 2004
++++ matchbox-window-manager-0.8.4/src/dialog_client.c	Sat Nov 13 16:18:34 2004
+@@ -364,6 +364,15 @@
+ 
+      }
+    
++   c->background_window = XCreateSimpleWindow (c->wm->dpy, c->frame, 
++					       offset_west, offset_north,
++					       c->width, c->height,
++					       0, 
++					       attr.background_pixel,
++					       WhitePixel (c->wm->dpy, c->wm->screen));
++	
++   XMapWindow (c->wm->dpy, c->background_window);
++
+    XSetWindowBorderWidth(c->wm->dpy, c->window, 0);
+ 
+    XAddToSaveSet(c->wm->dpy, c->window);
+@@ -1053,6 +1062,7 @@
+ #endif 
+ 
+   base_client_destroy(c);
++  XDestroyWindow (c->wm->dpy, c->background_window);
+ 
+   /* We could be a dialog over a desktop, in which case we
+      need to give it back keyboard focus - this is a bit

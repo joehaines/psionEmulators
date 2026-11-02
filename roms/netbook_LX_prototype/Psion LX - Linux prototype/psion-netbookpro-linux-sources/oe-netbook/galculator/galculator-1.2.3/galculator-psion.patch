@@ -1,0 +1,626 @@
+diff -ur galculator-1.2.3/src/callbacks.c galculator-1.2.3-psion/src/callbacks.c
+--- galculator-1.2.3/src/callbacks.c	2004-05-23 15:10:55.000000000 +0200
++++ galculator-1.2.3-psion/src/callbacks.c	2004-10-29 12:53:21.000000000 +0200
+@@ -845,21 +845,6 @@
+ 	gtk_widget_destroy (font_dialog);
+ }
+ 
+-
+-void
+-on_show_menubar1_activate              (GtkMenuItem     *menuitem,
+-                                        gpointer         user_data)
+-{
+-	GtkWidget	*menu_item;
+-	
+-	prefs.show_menu = gtk_check_menu_item_get_active ((GtkCheckMenuItem *) menuitem);;
+-	set_widget_visibility (main_window_xml, "menubar", prefs.show_menu);
+-	/* in case this cb is called by the right button mouse click menu */
+-	menu_item = glade_xml_get_widget (main_window_xml, "show_menubar1");
+-	gtk_check_menu_item_set_active ((GtkCheckMenuItem *) menu_item, prefs.show_menu);
+-
+-}
+-
+ void
+ on_prefs_custom_button_font_toggled    (GtkToggleButton *togglebutton,
+                                         gpointer         user_data)
+@@ -919,12 +904,9 @@
+ void on_prefs_show_menu_toggled (GtkToggleButton *togglebutton, 
+ 					gpointer user_data)
+ {
+-	GtkCheckMenuItem		*show_menubar_item;
+-	
+-	prefs.show_menu = gtk_toggle_button_get_active (togglebutton);
++/*	prefs.show_menu = gtk_toggle_button_get_active (togglebutton);
+ 	set_widget_visibility (main_window_xml, "menubar", prefs.show_menu);
+-	show_menubar_item = (GtkCheckMenuItem *) glade_xml_get_widget (main_window_xml, "show_menubar1");
+-	gtk_check_menu_item_set_active (show_menubar_item, prefs.show_menu);
++*/	
+ }
+ 
+ void on_prefs_rem_display_toggled (GtkToggleButton *togglebutton, 
+@@ -1481,11 +1463,6 @@
+ 
+ gboolean on_button_press_event (GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+ {
+-	GtkWidget	*menu;
+-	
+-	if (event->button != 3) return FALSE;
+-	menu = ui_right_mouse_menu_create ();
+-	gtk_menu_popup ((GtkMenu *) menu, NULL, NULL, NULL, NULL, 3, event->time);
+ 	return FALSE;
+ }
+ 
+diff -ur galculator-1.2.3/src/callbacks.h galculator-1.2.3-psion/src/callbacks.h
+--- galculator-1.2.3/src/callbacks.h	2004-03-14 20:01:26.000000000 +0100
++++ galculator-1.2.3-psion/src/callbacks.h	2004-08-24 14:44:49.000000000 +0200
+@@ -243,3 +243,6 @@
+ 
+ void user_function_list_selection_changed_cb (GtkTreeSelection *selection, 
+ 					gpointer data);
++
++gboolean
++on_main_window_key_press_event (GtkWidget *widget, GdkEventKey *k, gpointer p);
+diff -ur galculator-1.2.3/src/config_file.c galculator-1.2.3-psion/src/config_file.c
+--- galculator-1.2.3/src/config_file.c	2004-03-20 17:38:38.000000000 +0100
++++ galculator-1.2.3-psion/src/config_file.c	2004-08-31 20:43:28.000000000 +0200
+@@ -79,7 +79,6 @@
+ 	{"remembered_valuey", &(prefs.rem_valuey), STRING, NULL, NULL},
+ 	{"remembered_valuez", &(prefs.rem_valuez), STRING, NULL, NULL},
+ 	{"remembered_valuet", &(prefs.rem_valuet), STRING, NULL, NULL},
+-/*40.*/	{"show_menu_bar", &(prefs.show_menu), BOOLEAN, "prefs_show_menu", set_checkbutton},
+ 	{NULL, NULL, 0, NULL, NULL}
+ };
+ static char *prefs_list_old_entries[3] = {"show_status_bar", "remembered_value", NULL};
+diff -ur galculator-1.2.3/src/general_functions.c galculator-1.2.3-psion/src/general_functions.c
+--- galculator-1.2.3/src/general_functions.c	2004-04-01 08:51:52.000000000 +0200
++++ galculator-1.2.3-psion/src/general_functions.c	2004-10-29 12:56:25.000000000 +0200
+@@ -308,16 +308,16 @@
+ 
+ void apply_preferences (s_preferences prefs)
+ {
+-	GtkWidget	*menu_item;
++	GtkWidget	*menu_item = NULL;
+ 	char		*button_font;
+ 
+ 	display_update_tags ();
+ 	display_set_bkg_color (prefs.bkg_color);
+ 	
+ 	set_widget_visibility (main_window_xml, "menubar", prefs.show_menu);
+-	menu_item = glade_xml_get_widget (main_window_xml, "show_menubar1");
++/*	menu_item = glade_xml_get_widget (main_window_xml, "show_menubar1");
+ 	gtk_check_menu_item_set_active ((GtkCheckMenuItem *) menu_item, prefs.show_menu);
+-
++*/
+ 	if (prefs.mode == BASIC_MODE) menu_item = 
+ 		glade_xml_get_widget (main_window_xml, "basic_mode");
+ 	else if (prefs.mode == SCIENTIFIC_MODE) menu_item = 
+diff -ur galculator-1.2.3/src/main.c galculator-1.2.3-psion/src/main.c
+--- galculator-1.2.3/src/main.c	2004-03-20 14:42:10.000000000 +0100
++++ galculator-1.2.3-psion/src/main.c	2004-10-29 12:39:18.000000000 +0200
+@@ -141,7 +141,7 @@
+ 	/* at first get the main frame */
+ 	
+ 	main_window = ui_main_window_create();
+-	gtk_window_set_title ((GtkWindow *)main_window, PACKAGE);
++	gtk_window_set_title ((GtkWindow *)main_window, _("Calculator"));
+ 
+ 	ui_main_window_buttons_create(prefs.mode);
+ 	
+diff -ur galculator-1.2.3/src/ui.c galculator-1.2.3-psion/src/ui.c
+--- galculator-1.2.3/src/ui.c	2004-05-22 19:18:37.000000000 +0200
++++ galculator-1.2.3-psion/src/ui.c	2004-10-29 12:46:48.000000000 +0200
+@@ -318,18 +318,18 @@
+ 	/* now create the new one at location */
+ 	switch(location) {
+ 		case DISPCTRL_BOTTOM:
+-			box = glade_xml_get_widget (main_window_xml, "window_vbox");
++			box = glade_xml_get_widget (main_window_xml, "display_hbox");
+ 			dispctrl_xml = glade_file_open (DISPCTRL_BOTTOM_GLADE_FILE, 
+ 				"table_dispctrl", TRUE);
+-			ui_pack_from_xml (box, 2, dispctrl_xml, "table_dispctrl", 
+-				"button_clr", TRUE, TRUE);
++			ui_pack_from_xml (box, 1, dispctrl_xml, "table_dispctrl", 
++				"button_clr", FALSE, TRUE);
+ 			break;
+ 		case DISPCTRL_RIGHT:
+ 			box = glade_xml_get_widget (main_window_xml, "display_hbox");
+ 			dispctrl_xml = glade_file_open (DISPCTRL_RIGHT_GLADE_FILE, 
+ 				"table_dispctrl", TRUE);
+ 			ui_pack_from_xml (box, 1, dispctrl_xml, "table_dispctrl",
+-				"button_clr", FALSE, FALSE);
++				"button_clr", FALSE, TRUE);
+ 			break;
+ 		case DISPCTRL_RIGHTV:
+ 			box = glade_xml_get_widget (main_window_xml, "display_hbox");
+@@ -372,9 +372,10 @@
+ 
+ void ui_main_window_buttons_create (int mode)
+ {
+-	GtkWidget	*box, *button;
++	GtkWidget	*box = NULL, *button;
+ 	struct lconv 	*locale_settings;
+ 	s_signal_cb	signal_cb;
++	GdkRectangle rect;
+ 	
+ 	if (mode == BASIC_MODE) {
+ 		button_box_xml = glade_file_open (BASIC_GLADE_FILE, "button_box", TRUE);
+@@ -410,6 +411,8 @@
+ 	gtk_widget_set_sensitive (button, memory.len > 0);
+ 	button = glade_xml_get_widget (button_box_xml, "button_Mplus");
+ 	gtk_widget_set_sensitive (button, memory.len > 0);
++	
++	gtk_widget_show_all(box);
+ }
+ 
+ /* set_table_child_callback. Function argument for set_all_*_buttons_property.
+@@ -573,6 +576,7 @@
+ 		}
+ 		gtk_widget_set_sensitive (current_button, 
+ 			(active_buttons[counter].mask & state) == state);
++		gtk_widget_show (current_button); 
+ 		counter++;
+ 	}
+ }
+@@ -581,13 +585,15 @@
+ {
+ 	/* just put one here and hide it afterwards. we need the button
+ 			for working key accelerators. */
+-	if (prefs.mode == BASIC_MODE) 
++/*	if (prefs.mode == BASIC_MODE) 
++	*/
+ 		ui_main_window_set_dispctrl (DISPCTRL_BOTTOM);
+-	else if (current_status.notation == CS_RPN)
++/*	else if (current_status.notation == CS_RPN)
+ 		ui_main_window_set_dispctrl (DISPCTRL_RIGHTV);
+ 	else ui_main_window_set_dispctrl (DISPCTRL_RIGHT);
+ 	set_widget_visibility (dispctrl_xml, "table_dispctrl", 
+ 		prefs.vis_dispctrl);
++	*/
+ }
+ 
+ /*
+@@ -774,20 +780,6 @@
+ 	return menu;
+ }
+ 
+-GtkWidget *ui_right_mouse_menu_create ()
+-{
+-	GtkWidget	*menu, *menu_item;
+-	
+-	menu = gtk_menu_new();
+-	
+-	menu_item = gtk_check_menu_item_new_with_mnemonic (_("Show _menu bar"));
+-	gtk_check_menu_item_set_active ((GtkCheckMenuItem *) menu_item, prefs.show_menu);
+-	gtk_menu_shell_append ((GtkMenuShell *) menu, menu_item);
+-	gtk_widget_show (menu_item);
+-	g_signal_connect (G_OBJECT (menu_item), "activate", (GCallback) on_show_menubar1_activate, NULL);
+-	
+-	return menu;
+-}
+ 
+ GtkWidget *ui_pref_dialog_create ()
+ {
+diff -ur galculator-1.2.3/ui/main_frame.glade galculator-1.2.3-psion/ui/main_frame.glade
+--- galculator-1.2.3/ui/main_frame.glade	2004-05-22 18:54:44.000000000 +0200
++++ galculator-1.2.3-psion/ui/main_frame.glade	2004-08-31 21:25:25.000000000 +0200
+@@ -10,6 +10,11 @@
+   <property name="modal">False</property>
+   <property name="resizable">True</property>
+   <property name="destroy_with_parent">False</property>
++  <property name="decorated">True</property>
++  <property name="skip_taskbar_hint">False</property>
++  <property name="skip_pager_hint">False</property>
++  <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
++  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+   <accessibility>
+     <atkproperty name="AtkObject::accessible_description" translatable="yes">The main program window.</atkproperty>
+   </accessibility>
+@@ -19,6 +24,8 @@
+   <child>
+     <widget class="GtkEventBox" id="main_eventbox">
+       <property name="visible">True</property>
++      <property name="visible_window">True</property>
++      <property name="above_child">False</property>
+       <signal name="button_press_event" handler="on_button_press_event" last_modification_time="Sun, 01 Feb 2004 15:11:31 GMT"/>
+ 
+       <child>
+@@ -261,23 +268,6 @@
+ 			  </child>
+ 			</widget>
+ 		      </child>
+-
+-		      <child>
+-			<widget class="GtkMenuItem" id="separator5">
+-			  <property name="visible">True</property>
+-			</widget>
+-		      </child>
+-
+-		      <child>
+-			<widget class="GtkCheckMenuItem" id="show_menubar1">
+-			  <property name="visible">True</property>
+-			  <property name="label" translatable="yes">Show _menu bar</property>
+-			  <property name="use_underline">True</property>
+-			  <property name="active">False</property>
+-			  <signal name="activate" handler="on_show_menubar1_activate" last_modification_time="Mon, 10 Mar 2003 17:04:28 GMT"/>
+-			  <accelerator key="M" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+-			</widget>
+-		      </child>
+ 		    </widget>
+ 		  </child>
+ 		</widget>
+@@ -502,6 +492,8 @@
+ 		      <property name="visible">True</property>
+ 		      <property name="can_focus">True</property>
+ 		      <property name="editable">False</property>
++		      <property name="overwrite">False</property>
++		      <property name="accepts_tab">True</property>
+ 		      <property name="justification">GTK_JUSTIFY_LEFT</property>
+ 		      <property name="wrap_mode">GTK_WRAP_WORD</property>
+ 		      <property name="cursor_visible">False</property>
+diff -ur galculator-1.2.3/ui/prefs.glade galculator-1.2.3-psion/ui/prefs.glade
+--- galculator-1.2.3/ui/prefs.glade	2004-03-14 20:44:06.000000000 +0100
++++ galculator-1.2.3-psion/ui/prefs.glade	2004-10-29 12:41:28.000000000 +0200
+@@ -10,6 +10,11 @@
+   <property name="modal">False</property>
+   <property name="resizable">True</property>
+   <property name="destroy_with_parent">False</property>
++  <property name="decorated">True</property>
++  <property name="skip_taskbar_hint">False</property>
++  <property name="skip_pager_hint">False</property>
++  <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
++  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+   <property name="has_separator">True</property>
+   <accessibility>
+     <atkproperty name="AtkObject::accessible_description" translatable="yes">A dialog that is used to change preferences settings.</atkproperty>
+@@ -41,6 +46,7 @@
+ 	      <property name="label">gtk-close</property>
+ 	      <property name="use_stock">True</property>
+ 	      <property name="relief">GTK_RELIEF_NORMAL</property>
++	      <property name="focus_on_click">True</property>
+ 	      <property name="response_id">-7</property>
+ 	      <accessibility>
+ 		<atkproperty name="AtkObject::accessible_description" translatable="yes">Closes the dialog.</atkproperty>
+@@ -170,6 +176,7 @@
+ 			      <property name="label" translatable="yes"></property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_result_font_clicked" last_modification_time="Sat, 22 Feb 2003 14:45:49 GMT"/>
+ 			    </widget>
+ 			    <packing>
+@@ -210,6 +217,7 @@
+ 			      <property name="visible">True</property>
+ 			      <property name="can_focus">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_inact_mod_color_clicked" last_modification_time="Sat, 22 Feb 2003 14:46:11 GMT"/>
+ 
+ 			      <child>
+@@ -297,6 +305,7 @@
+ 			      <property name="visible">True</property>
+ 			      <property name="can_focus">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_act_mod_color_clicked" last_modification_time="Sat, 22 Feb 2003 14:46:06 GMT"/>
+ 
+ 			      <child>
+@@ -384,6 +393,7 @@
+ 			      <property name="visible">True</property>
+ 			      <property name="can_focus">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_result_color_clicked" last_modification_time="Sat, 22 Feb 2003 14:45:53 GMT"/>
+ 
+ 			      <child>
+@@ -471,6 +481,7 @@
+ 			      <property name="visible">True</property>
+ 			      <property name="can_focus">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_bkg_color_clicked" last_modification_time="Mon, 23 Jun 2003 20:12:08 GMT"/>
+ 
+ 			      <child>
+@@ -560,6 +571,7 @@
+ 			      <property name="label" translatable="yes"></property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_mod_font_clicked" last_modification_time="Sat, 22 Feb 2003 14:46:00 GMT"/>
+ 			    </widget>
+ 			    <packing>
+@@ -699,6 +711,7 @@
+ 			      <property name="label" translatable="yes"></property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_stack_font_clicked" last_modification_time="Thu, 18 Sep 2003 19:13:10 GMT"/>
+ 			    </widget>
+ 			    <packing>
+@@ -740,6 +753,7 @@
+ 			      <property name="visible">True</property>
+ 			      <property name="can_focus">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <signal name="clicked" handler="on_prefs_stack_color_clicked" last_modification_time="Thu, 18 Sep 2003 19:13:02 GMT"/>
+ 
+ 			      <child>
+@@ -913,6 +927,7 @@
+ 			      <property name="label" translatable="yes">Angle base units</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -935,6 +950,7 @@
+ 			      <property name="label" translatable="yes">Notation</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -957,6 +973,7 @@
+ 			      <property name="label" translatable="yes">Arithmetic operation</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -979,6 +996,7 @@
+ 			      <property name="label" translatable="yes">Open brackets</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -1001,6 +1019,7 @@
+ 			      <property name="label" translatable="yes">Number base units</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -1136,6 +1155,7 @@
+ 			      <property name="label" translatable="yes">Use custom button font</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -1182,6 +1202,7 @@
+ 				  <property name="label" translatable="yes"></property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_button_font_clicked" last_modification_time="Sun, 20 Apr 2003 21:16:57 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -1624,7 +1645,7 @@
+ 				  <property name="max_length">0</property>
+ 				  <property name="text" translatable="yes"></property>
+ 				  <property name="has_frame">True</property>
+-				  <property name="invisible_char" translatable="yes">*</property>
++				  <property name="invisible_char">*</property>
+ 				  <property name="activates_default">False</property>
+ 				</widget>
+ 				<packing>
+@@ -1645,7 +1666,7 @@
+ 				  <property name="max_length">0</property>
+ 				  <property name="text" translatable="yes"></property>
+ 				  <property name="has_frame">True</property>
+-				  <property name="invisible_char" translatable="yes">*</property>
++				  <property name="invisible_char">*</property>
+ 				  <property name="activates_default">False</property>
+ 				</widget>
+ 				<packing>
+@@ -1666,7 +1687,7 @@
+ 				  <property name="max_length">0</property>
+ 				  <property name="text" translatable="yes"></property>
+ 				  <property name="has_frame">True</property>
+-				  <property name="invisible_char" translatable="yes">*</property>
++				  <property name="invisible_char">*</property>
+ 				  <property name="activates_default">False</property>
+ 				</widget>
+ 				<packing>
+@@ -1698,6 +1719,7 @@
+ 				  <property name="label" translatable="yes">Add</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_cadd_clicked" last_modification_time="Mon, 09 Jun 2003 23:00:21 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -1714,6 +1736,7 @@
+ 				  <property name="label" translatable="yes">Update</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_cupdate_clicked" last_modification_time="Mon, 09 Jun 2003 23:00:33 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -1730,6 +1753,7 @@
+ 				  <property name="label" translatable="yes">Delete</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_cdelete_clicked" last_modification_time="Mon, 09 Jun 2003 23:00:43 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -1746,6 +1770,7 @@
+ 				  <property name="label" translatable="yes">Clear</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_cclear_clicked" last_modification_time="Mon, 09 Jun 2003 23:01:02 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -1999,7 +2024,7 @@
+ 				  <property name="max_length">0</property>
+ 				  <property name="text" translatable="yes"></property>
+ 				  <property name="has_frame">True</property>
+-				  <property name="invisible_char" translatable="yes">*</property>
++				  <property name="invisible_char">*</property>
+ 				  <property name="activates_default">False</property>
+ 				</widget>
+ 				<packing>
+@@ -2020,7 +2045,7 @@
+ 				  <property name="max_length">0</property>
+ 				  <property name="text" translatable="yes"></property>
+ 				  <property name="has_frame">True</property>
+-				  <property name="invisible_char" translatable="yes">*</property>
++				  <property name="invisible_char">*</property>
+ 				  <property name="activates_default">False</property>
+ 				</widget>
+ 				<packing>
+@@ -2041,7 +2066,7 @@
+ 				  <property name="max_length">0</property>
+ 				  <property name="text" translatable="yes"></property>
+ 				  <property name="has_frame">True</property>
+-				  <property name="invisible_char" translatable="yes">*</property>
++				  <property name="invisible_char">*</property>
+ 				  <property name="activates_default">False</property>
+ 				</widget>
+ 				<packing>
+@@ -2073,6 +2098,7 @@
+ 				  <property name="label" translatable="yes">Add</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_ufadd_clicked" last_modification_time="Sun, 14 Mar 2004 19:09:38 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -2089,6 +2115,7 @@
+ 				  <property name="label" translatable="yes">Update</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_ufupdate_clicked" last_modification_time="Sun, 14 Mar 2004 19:09:44 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -2105,6 +2132,7 @@
+ 				  <property name="label" translatable="yes">Delete</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_ufdelete_clicked" last_modification_time="Sun, 14 Mar 2004 19:09:50 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -2121,6 +2149,7 @@
+ 				  <property name="label" translatable="yes">Clear</property>
+ 				  <property name="use_underline">True</property>
+ 				  <property name="relief">GTK_RELIEF_NORMAL</property>
++				  <property name="focus_on_click">True</property>
+ 				  <signal name="clicked" handler="on_prefs_ufclear_clicked" last_modification_time="Sun, 14 Mar 2004 19:09:57 GMT"/>
+ 				</widget>
+ 				<packing>
+@@ -2264,6 +2293,7 @@
+ 			      <property name="label" translatable="yes">signed</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -2416,6 +2446,7 @@
+ 			      <property name="label" translatable="yes">signed</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -2590,6 +2621,7 @@
+ 			      <property name="label" translatable="yes">fix length to a multiple of</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -2612,6 +2644,7 @@
+ 			      <property name="label" translatable="yes">signed</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -2793,6 +2826,7 @@
+ 			      <property name="label" translatable="yes">finite stack size (x, y, z, t)</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -2812,6 +2846,7 @@
+ 			      <property name="label" translatable="yes">infinite stack size</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -2916,6 +2951,7 @@
+ 			      <property name="label" translatable="yes">Remember display value on exit</property>
+ 			      <property name="use_underline">True</property>
+ 			      <property name="relief">GTK_RELIEF_NORMAL</property>
++			      <property name="focus_on_click">True</property>
+ 			      <property name="active">False</property>
+ 			      <property name="inconsistent">False</property>
+ 			      <property name="draw_indicator">True</property>
+@@ -2959,24 +2995,7 @@
+ 		  <property name="spacing">6</property>
+ 
+ 		  <child>
+-		    <widget class="GtkLabel" id="label38">
+-		      <property name="visible">True</property>
+-		      <property name="label" translatable="yes">&lt;b&gt;Visibility&lt;/b&gt;</property>
+-		      <property name="use_underline">False</property>
+-		      <property name="use_markup">True</property>
+-		      <property name="justify">GTK_JUSTIFY_LEFT</property>
+-		      <property name="wrap">False</property>
+-		      <property name="selectable">False</property>
+-		      <property name="xalign">0</property>
+-		      <property name="yalign">0.5</property>
+-		      <property name="xpad">0</property>
+-		      <property name="ypad">0</property>
+-		    </widget>
+-		    <packing>
+-		      <property name="padding">0</property>
+-		      <property name="expand">False</property>
+-		      <property name="fill">False</property>
+-		    </packing>
++		    <placeholder/>
+ 		  </child>
+ 
+ 		  <child>
+@@ -3007,22 +3026,7 @@
+ 		      </child>
+ 
+ 		      <child>
+-			<widget class="GtkCheckButton" id="prefs_show_menu">
+-			  <property name="visible">True</property>
+-			  <property name="can_focus">True</property>
+-			  <property name="label" translatable="yes">Show menu bar</property>
+-			  <property name="use_underline">True</property>
+-			  <property name="relief">GTK_RELIEF_NORMAL</property>
+-			  <property name="active">False</property>
+-			  <property name="inconsistent">False</property>
+-			  <property name="draw_indicator">True</property>
+-			  <signal name="toggled" handler="on_prefs_show_menu_toggled" last_modification_time="Mon, 12 May 2003 17:02:08 GMT"/>
+-			</widget>
+-			<packing>
+-			  <property name="padding">0</property>
+-			  <property name="expand">False</property>
+-			  <property name="fill">False</property>
+-			</packing>
++			<placeholder/>
+ 		      </child>
+ 		    </widget>
+ 		    <packing>

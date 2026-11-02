@@ -1,0 +1,30 @@
+#!/bin/sh
+
+USER=$1
+
+if [ -e /dev/sound/dsp ]; then
+chown $USER /dev/sound/dsp
+fi
+
+if [ -e /dev/sound/mixer ]; then
+chown $USER /dev/sound/mixer
+fi
+
+if [ -e /dev/touchscreen/0raw ]; then
+chown $USER /dev/touchscreen/0raw
+fi
+
+if [ -e /dev/touchscreen/0 ]; then
+chown $USER /dev/touchscreen/0
+fi
+
+if [ -e /dev/misc/buzzer ]; then
+chown $USER /dev/misc/buzzer
+fi
+
+mkdir -p /mnt/ramfs/home/$USER
+chown $USER /mnt/ramfs/home/$USER
+
+# this location MUST be consistent with HOME_VOLATILE in /etc/X11/Xsession
+ln -s /mnt/ramfs/home/$USER /home/$USER/ramdisk
+ln -s /home/$USER/ramdisk/.xsession-errors /home/$USER/.xsession-errors

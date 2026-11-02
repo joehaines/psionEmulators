@@ -1,0 +1,22 @@
+PR = "r3"
+
+inherit gnome
+
+SRC_URI += "file://makefile.patch;patch=1 \
+	    file://linguas.patch;patch=1 \
+	    file://schemas "
+
+
+DEPENDS = "gnome-vfs libbonobo"
+
+EXTRA_OECONF = "--disable-gtk-doc"
+
+do_stage() {
+	oe_libinstall -C libgnome -a -so libgnome-2 ${STAGING_LIBDIR}
+	gnome_stage_includes
+}
+
+
+do_configure_prepend() {
+        cp ${WORKDIR}/schemas/*.schemas schemas
+}

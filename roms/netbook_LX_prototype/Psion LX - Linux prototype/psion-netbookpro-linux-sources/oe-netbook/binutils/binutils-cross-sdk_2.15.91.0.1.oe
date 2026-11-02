@@ -1,0 +1,34 @@
+PR=r1
+
+include binutils_${PV}.oe
+inherit sdk
+
+DEPENDS += "flex-native bison-native"
+FILESDIR = "${@os.path.dirname(oe.data.getVar('FILE',d,1))}/binutils-${PV}"
+EXTRA_OECONF = "--with-sysroot=${prefix}/${TARGET_SYS} \
+		--disable-nls \
+		--program-prefix=${TARGET_PREFIX}"
+
+do_instal_append() {
+	:
+
+        # We don't really need these, so we'll remove them...
+        rm -rf ${D}/lib/ldscripts
+        rm -rf ${D}/share/info
+        rm -rf ${D}/share/locale
+        rm -rf ${D}/share/man
+        rmdir ${D}/share || :
+        rmdir ${D}/${libdir}/gcc-lib || :
+        rmdir ${D}/${libdir} || :
+        rmdir ${D}/${prefix} || :
+
+        # We want to move this into the target specific location
+        mkdir -p ${D}/${TARGET_SYS}/lib
+        mv -f ${D}/lib/libiberty.a ${D}/${TARGET_SYS}/lib
+        rmdir ${D}/lib || :
+}
+
+
+do_stage() {
+	:
+}

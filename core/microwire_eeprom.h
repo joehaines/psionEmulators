@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 
+#include "state_archive.h"
+
 // A 93C46-class Microwire serial EEPROM: 64 words of 16 bits, driven by
 // four wires — chip select (CS), clock (SK), data in (DI) and data out
 // (DO). The WorkaboutMX keeps its factory configuration in one, bit-banged
@@ -28,6 +30,10 @@
 // re-asserted after a write, which is all the ROM's busy poll waits for.
 class MicrowireEeprom {
 public:
+    void serializeState(StateArchive &a) {
+        a(m_words); a(m_state); a(m_cs); a(m_sk); a(m_do);
+        a(m_writeEnabled); a(m_writeAll); a(m_shift); a(m_bits); a(m_addr);
+    }
     static constexpr int kWords = 64;
 
     void load(const std::array<uint16_t, kWords> &words) { m_words = words; }

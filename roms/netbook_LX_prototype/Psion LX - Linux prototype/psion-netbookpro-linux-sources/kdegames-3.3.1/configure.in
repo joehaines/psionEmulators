@@ -1,0 +1,377 @@
+dnl =======================================================
+dnl FILE: ./admin/configure.in.min
+dnl =======================================================
+
+dnl    This file is part of the KDE libraries/packages
+dnl    Copyright (C) 2001 Stephan Kulow (coolo@kde.org)
+ 
+dnl    This file is free software; you can redistribute it and/or
+dnl    modify it under the terms of the GNU Library General Public
+dnl    License as published by the Free Software Foundation; either
+dnl    version 2 of the License, or (at your option) any later version.
+ 
+dnl    This library is distributed in the hope that it will be useful,
+dnl    but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+dnl    Library General Public License for more details.
+ 
+dnl    You should have received a copy of the GNU Library General Public License
+dnl    along with this library; see the file COPYING.LIB.  If not, write to
+dnl    the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+dnl    Boston, MA 02111-1307, USA.
+
+# Original Author was Kalle@kde.org
+# I lifted it in some mater. (Stephan Kulow)
+# I used much code from Janos Farkas
+
+dnl Process this file with autoconf to produce a configure script.
+
+AC_INIT(acinclude.m4) dnl a source file from your sub dir
+
+dnl This is so we can use kde-common
+AC_CONFIG_AUX_DIR(admin)
+
+dnl This ksh/zsh feature conflicts with `cd blah ; pwd`
+unset CDPATH
+
+dnl Checking host/target/build systems, for make, install etc.
+AC_CANONICAL_SYSTEM 
+dnl Perform program name transformation
+AC_ARG_PROGRAM
+
+dnl Automake doc recommends to do this only here. (Janos)
+AM_INIT_AUTOMAKE(kdegames, "3.3.1") dnl searches for some needed programs
+
+KDE_SET_PREFIX
+
+dnl generate the config header
+AM_CONFIG_HEADER(config.h) dnl at the distribution this done
+
+dnl Checks for programs.
+AC_CHECK_COMPILERS
+AC_ENABLE_SHARED(yes)
+AC_ENABLE_STATIC(no)
+KDE_PROG_LIBTOOL
+
+dnl for NLS support. Call them in this order!
+dnl WITH_NLS is for the po files
+AM_KDE_WITH_NLS
+
+dnl KDE_USE_QT
+AC_PATH_KDE
+dnl =======================================================
+dnl FILE: configure.in.in
+dnl =======================================================
+
+#MIN_CONFIG
+AC_CHECK_RANDOM
+AC_CHECK_USLEEP
+CXXFLAGS="$CXXFLAGS $KDE_DEFAULT_CXXFLAGS"
+
+KDE_INIT_DOXYGEN([The KDE Games API Reference], [Version $VERSION])
+
+# Allow for stand-alone releases of applications with cvs2pack
+if test -d $srcdir/libkdegames ; then
+	AC_SUBST(LIB_KDEGAMES, "\$(top_builddir)/libkdegames/libkdegames.la")
+	AC_SUBST(LIB_KDEGAMES_DEP, '$(LIB_KDEGAMES)')
+else
+	AC_SUBST(LIB_KDEGAMES, "-lkdegames")
+	AC_SUBST(LIB_KDEGAMES_DEP, "")
+fi
+dnl =======================================================
+dnl FILE: ./kasteroids/configure.in.in
+dnl =======================================================
+
+dnl KDE_CHECK_QWSPRITEFIELD(DO_NOT_COMPILE="$DO_NOT_COMPILE kasteroids")
+
+if test "x$build_arts" = "xno"; then
+  DO_NOT_COMPILE="$DO_NOT_COMPILE kasteroids"
+fi
+dnl =======================================================
+dnl FILE: ./kbattleship/configure.in.in
+dnl =======================================================
+
+
+AC_CHECK_HEADERS(sys/filio.h stropts.h)
+dnl =======================================================
+dnl FILE: ./kbounce/configure.in.in
+dnl =======================================================
+
+if test "x$build_arts" = "xno"; then
+  DO_NOT_COMPILE="$DO_NOT_COMPILE kbounce"
+fi
+dnl =======================================================
+dnl FILE: ./kolf/configure.in.in
+dnl =======================================================
+
+if test "x$build_arts" = "xno"; then
+  DO_NOT_COMPILE="$DO_NOT_COMPILE kolf"
+fi
+dnl =======================================================
+dnl FILE: ./ksirtet/configure.in.in
+dnl =======================================================
+
+AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/select.h sys/filio.h)
+
+dnl =======================================================
+dnl FILE: ./kspaceduel/configure.in.in
+dnl =======================================================
+
+dnl KDE_CHECK_QWSPRITEFIELD(DO_NOT_COMPILE="$DO_NOT_COMPILE kspaceduel")
+dnl =======================================================
+dnl FILE: ./libkdegames/configure.in.in
+dnl =======================================================
+
+dnl AB: checking for a system-wide highscore file. If "no" then the default
+dnl (just kapp->config()) is used. See KHighscore for details.
+
+AC_MSG_CHECKING(whether to use system-wide highscores)
+AC_ARG_ENABLE(highscore-dir,
+AC_HELP_STRING([--enable-highscore-dir=DIR], [system-wide highscore table @<:@default=no@:>@]), [use_highscore_dir=yes], [use_highscore_dir=no])
+
+if test "$use_highscore_dir" = "no"; then
+  AC_MSG_RESULT(no)
+  AC_SUBST(HIGHSCORE_DIRECTORY, "")
+else
+  AC_MSG_RESULT($enableval)
+  AC_DEFINE_UNQUOTED(HIGHSCORE_DIRECTORY, "$enableval", [The system-wide highscore directory])
+  AC_SUBST(HIGHSCORE_DIRECTORY, $enableval)
+fi
+dnl =======================================================
+dnl FILE: ./libksirtet/configure.in.in
+dnl =======================================================
+
+AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/select.h sys/filio.h)
+
+KDE_CREATE_SUBDIRSLIST
+AM_CONDITIONAL(libkdegames_SUBDIR_included, test "x$libkdegames_SUBDIR_included" = xyes)
+AM_CONDITIONAL(atlantik_SUBDIR_included, test "x$atlantik_SUBDIR_included" = xyes)
+AM_CONDITIONAL(doc_SUBDIR_included, test "x$doc_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kasteroids_SUBDIR_included, test "x$kasteroids_SUBDIR_included" = xyes)
+AM_CONDITIONAL(katomic_SUBDIR_included, test "x$katomic_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kbackgammon_SUBDIR_included, test "x$kbackgammon_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kbattleship_SUBDIR_included, test "x$kbattleship_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kblackbox_SUBDIR_included, test "x$kblackbox_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kbounce_SUBDIR_included, test "x$kbounce_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kenolaba_SUBDIR_included, test "x$kenolaba_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kgoldrunner_SUBDIR_included, test "x$kgoldrunner_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kjumpingcube_SUBDIR_included, test "x$kjumpingcube_SUBDIR_included" = xyes)
+AM_CONDITIONAL(klines_SUBDIR_included, test "x$klines_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kmahjongg_SUBDIR_included, test "x$kmahjongg_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kmines_SUBDIR_included, test "x$kmines_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kolf_SUBDIR_included, test "x$kolf_SUBDIR_included" = xyes)
+AM_CONDITIONAL(konquest_SUBDIR_included, test "x$konquest_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kpat_SUBDIR_included, test "x$kpat_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kpoker_SUBDIR_included, test "x$kpoker_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kreversi_SUBDIR_included, test "x$kreversi_SUBDIR_included" = xyes)
+AM_CONDITIONAL(ksame_SUBDIR_included, test "x$ksame_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kshisen_SUBDIR_included, test "x$kshisen_SUBDIR_included" = xyes)
+AM_CONDITIONAL(ksmiletris_SUBDIR_included, test "x$ksmiletris_SUBDIR_included" = xyes)
+AM_CONDITIONAL(ksnake_SUBDIR_included, test "x$ksnake_SUBDIR_included" = xyes)
+AM_CONDITIONAL(ksokoban_SUBDIR_included, test "x$ksokoban_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kspaceduel_SUBDIR_included, test "x$kspaceduel_SUBDIR_included" = xyes)
+AM_CONDITIONAL(ktron_SUBDIR_included, test "x$ktron_SUBDIR_included" = xyes)
+AM_CONDITIONAL(ktuberling_SUBDIR_included, test "x$ktuberling_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kwin4_SUBDIR_included, test "x$kwin4_SUBDIR_included" = xyes)
+AM_CONDITIONAL(libksirtet_SUBDIR_included, test "x$libksirtet_SUBDIR_included" = xyes)
+AM_CONDITIONAL(lskat_SUBDIR_included, test "x$lskat_SUBDIR_included" = xyes)
+AM_CONDITIONAL(klickety_SUBDIR_included, test "x$klickety_SUBDIR_included" = xyes)
+AM_CONDITIONAL(kfouleggs_SUBDIR_included, test "x$kfouleggs_SUBDIR_included" = xyes)
+AM_CONDITIONAL(ksirtet_SUBDIR_included, test "x$ksirtet_SUBDIR_included" = xyes)
+AC_CONFIG_FILES([ Makefile ])
+AC_CONFIG_FILES([ atlantik/Makefile ])
+AC_CONFIG_FILES([ atlantik/atlanticd/Makefile ])
+AC_CONFIG_FILES([ atlantik/client/Makefile ])
+AC_CONFIG_FILES([ atlantik/kio_atlantik/Makefile ])
+AC_CONFIG_FILES([ atlantik/libatlantic/Makefile ])
+AC_CONFIG_FILES([ atlantik/libatlantikclient/Makefile ])
+AC_CONFIG_FILES([ atlantik/libatlantikui/Makefile ])
+AC_CONFIG_FILES([ atlantik/pics/Makefile ])
+AC_CONFIG_FILES([ atlantik/pics/board/Makefile ])
+AC_CONFIG_FILES([ atlantik/pics/misc/Makefile ])
+AC_CONFIG_FILES([ atlantik/pics/toolbar/Makefile ])
+AC_CONFIG_FILES([ atlantik/themes/Makefile ])
+AC_CONFIG_FILES([ atlantik/themes/default/Makefile ])
+AC_CONFIG_FILES([ atlantik/themes/default/tokens/Makefile ])
+AC_CONFIG_FILES([ doc/Makefile ])
+AC_CONFIG_FILES([ doc/atlantik/Makefile ])
+AC_CONFIG_FILES([ doc/kasteroids/Makefile ])
+AC_CONFIG_FILES([ doc/katomic/Makefile ])
+AC_CONFIG_FILES([ doc/kbackgammon/Makefile ])
+AC_CONFIG_FILES([ doc/kbattleship/Makefile ])
+AC_CONFIG_FILES([ doc/kblackbox/Makefile ])
+AC_CONFIG_FILES([ doc/kbounce/Makefile ])
+AC_CONFIG_FILES([ doc/kenolaba/Makefile ])
+AC_CONFIG_FILES([ doc/kfouleggs/Makefile ])
+AC_CONFIG_FILES([ doc/kgoldrunner/Makefile ])
+AC_CONFIG_FILES([ doc/kjumpingcube/Makefile ])
+AC_CONFIG_FILES([ doc/klickety/Makefile ])
+AC_CONFIG_FILES([ doc/klines/Makefile ])
+AC_CONFIG_FILES([ doc/kmines/Makefile ])
+AC_CONFIG_FILES([ doc/kolf/Makefile ])
+AC_CONFIG_FILES([ doc/konquest/Makefile ])
+AC_CONFIG_FILES([ doc/kpat/Makefile ])
+AC_CONFIG_FILES([ doc/kpoker/Makefile ])
+AC_CONFIG_FILES([ doc/kreversi/Makefile ])
+AC_CONFIG_FILES([ doc/ksame/Makefile ])
+AC_CONFIG_FILES([ doc/kshisen/Makefile ])
+AC_CONFIG_FILES([ doc/ksirtet/Makefile ])
+AC_CONFIG_FILES([ doc/ksnake/Makefile ])
+AC_CONFIG_FILES([ doc/ksokoban/Makefile ])
+AC_CONFIG_FILES([ doc/kspaceduel/Makefile ])
+AC_CONFIG_FILES([ doc/ktron/Makefile ])
+AC_CONFIG_FILES([ doc/ktuberling/Makefile ])
+AC_CONFIG_FILES([ doc/kwin4/Makefile ])
+AC_CONFIG_FILES([ doc/lskat/Makefile ])
+AC_CONFIG_FILES([ kasteroids/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sounds/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/bits/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/exhaust/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/missile/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/powerups/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/rock1/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/rock2/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/rock3/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/shield/Makefile ])
+AC_CONFIG_FILES([ kasteroids/sprites/ship/Makefile ])
+AC_CONFIG_FILES([ katomic/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/engines/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/engines/fibs/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/engines/generic/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/engines/gnubg/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/engines/nextgen/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/engines/offline/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/icons/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/pics/Makefile ])
+AC_CONFIG_FILES([ kbackgammon/sounds/Makefile ])
+AC_CONFIG_FILES([ kbattleship/Makefile ])
+AC_CONFIG_FILES([ kbattleship/kbattleship/Makefile ])
+AC_CONFIG_FILES([ kbattleship/kbattleship/dialogs/Makefile ])
+AC_CONFIG_FILES([ kbattleship/kbattleship/pictures/Makefile ])
+AC_CONFIG_FILES([ kbattleship/kbattleship/sounds/Makefile ])
+AC_CONFIG_FILES([ kblackbox/Makefile ])
+AC_CONFIG_FILES([ kblackbox/pics/Makefile ])
+AC_CONFIG_FILES([ kbounce/Makefile ])
+AC_CONFIG_FILES([ kbounce/pics/Makefile ])
+AC_CONFIG_FILES([ kbounce/sounds/Makefile ])
+AC_CONFIG_FILES([ kenolaba/Makefile ])
+AC_CONFIG_FILES([ kenolaba/bitmaps/Makefile ])
+AC_CONFIG_FILES([ kenolaba/toolbar/Makefile ])
+AC_CONFIG_FILES([ kfouleggs/Makefile ])
+AC_CONFIG_FILES([ kfouleggs/pics/Makefile ])
+AC_CONFIG_FILES([ kgoldrunner/Makefile ])
+AC_CONFIG_FILES([ kgoldrunner/gamedata/Makefile ])
+AC_CONFIG_FILES([ kgoldrunner/src/Makefile ])
+AC_CONFIG_FILES([ kjumpingcube/Makefile ])
+AC_CONFIG_FILES([ klickety/Makefile ])
+AC_CONFIG_FILES([ klickety/pics/Makefile ])
+AC_CONFIG_FILES([ klines/Makefile ])
+AC_CONFIG_FILES([ kmahjongg/Makefile ])
+AC_CONFIG_FILES([ kmahjongg/pics/Makefile ])
+AC_CONFIG_FILES([ kmines/Makefile ])
+AC_CONFIG_FILES([ kmines/bitmaps/Makefile ])
+AC_CONFIG_FILES([ kmines/data/Makefile ])
+AC_CONFIG_FILES([ kmines/solver/Makefile ])
+AC_CONFIG_FILES([ kolf/Makefile ])
+AC_CONFIG_FILES([ kolf/courses/Makefile ])
+AC_CONFIG_FILES([ kolf/graphics/Makefile ])
+AC_CONFIG_FILES([ kolf/objects/Makefile ])
+AC_CONFIG_FILES([ kolf/objects/poolball/Makefile ])
+AC_CONFIG_FILES([ kolf/objects/test/Makefile ])
+AC_CONFIG_FILES([ kolf/pics/Makefile ])
+AC_CONFIG_FILES([ kolf/sounds/Makefile ])
+AC_CONFIG_FILES([ konquest/Makefile ])
+AC_CONFIG_FILES([ konquest/pics/Makefile ])
+AC_CONFIG_FILES([ kpat/Makefile ])
+AC_CONFIG_FILES([ kpat/freecell-solver/Makefile ])
+AC_CONFIG_FILES([ kpat/icons/Makefile ])
+AC_CONFIG_FILES([ kpoker/Makefile ])
+AC_CONFIG_FILES([ kpoker/sounds/Makefile ])
+AC_CONFIG_FILES([ kreversi/Makefile ])
+AC_CONFIG_FILES([ kreversi/icons/Makefile ])
+AC_CONFIG_FILES([ kreversi/pics/Makefile ])
+AC_CONFIG_FILES([ kreversi/pics/background/Makefile ])
+AC_CONFIG_FILES([ kreversi/sounds/Makefile ])
+AC_CONFIG_FILES([ ksame/Makefile ])
+AC_CONFIG_FILES([ kshisen/Makefile ])
+AC_CONFIG_FILES([ kshisen/pics/Makefile ])
+AC_CONFIG_FILES([ ksirtet/Makefile ])
+AC_CONFIG_FILES([ ksirtet/ksirtet/Makefile ])
+AC_CONFIG_FILES([ ksmiletris/Makefile ])
+AC_CONFIG_FILES([ ksmiletris/data/Makefile ])
+AC_CONFIG_FILES([ ksmiletris/wav/Makefile ])
+AC_CONFIG_FILES([ ksnake/Makefile ])
+AC_CONFIG_FILES([ ksnake/data/Makefile ])
+AC_CONFIG_FILES([ ksnake/data/backgrounds/Makefile ])
+AC_CONFIG_FILES([ ksnake/data/levels/Makefile ])
+AC_CONFIG_FILES([ ksnake/data/pixmaps/Makefile ])
+AC_CONFIG_FILES([ ksokoban/Makefile ])
+AC_CONFIG_FILES([ ksokoban/data/Makefile ])
+AC_CONFIG_FILES([ ksokoban/images/Makefile ])
+AC_CONFIG_FILES([ ksokoban/levels/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/pics/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/sprites/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/sprites/explosion/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/sprites/playerinfo/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/sprites/powerups/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/sprites/ship1/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/sprites/ship2/Makefile ])
+AC_CONFIG_FILES([ kspaceduel/sprites/sun/Makefile ])
+AC_CONFIG_FILES([ ktron/Makefile ])
+AC_CONFIG_FILES([ ktuberling/Makefile ])
+AC_CONFIG_FILES([ ktuberling/museum/Makefile ])
+AC_CONFIG_FILES([ ktuberling/pics/Makefile ])
+AC_CONFIG_FILES([ ktuberling/sounds/Makefile ])
+AC_CONFIG_FILES([ kwin4/Makefile ])
+AC_CONFIG_FILES([ kwin4/grafix/Makefile ])
+AC_CONFIG_FILES([ kwin4/kwin4/Makefile ])
+AC_CONFIG_FILES([ libkdegames/Makefile ])
+AC_CONFIG_FILES([ libkdegames/carddecks/Makefile ])
+AC_CONFIG_FILES([ libkdegames/highscore/Makefile ])
+AC_CONFIG_FILES([ libkdegames/kgame/Makefile ])
+AC_CONFIG_FILES([ libkdegames/kgame/dialogs/Makefile ])
+AC_CONFIG_FILES([ libkdegames/pics/Makefile ])
+AC_CONFIG_FILES([ libksirtet/Makefile ])
+AC_CONFIG_FILES([ libksirtet/base/Makefile ])
+AC_CONFIG_FILES([ libksirtet/common/Makefile ])
+AC_CONFIG_FILES([ libksirtet/lib/Makefile ])
+AC_CONFIG_FILES([ lskat/Makefile ])
+AC_CONFIG_FILES([ lskat/grafix/Makefile ])
+AC_CONFIG_FILES([ lskat/lskat/Makefile ])
+AC_CONFIG_FILES([ lskat/lskatproc/Makefile ])
+AC_CONFIG_FILES([ lskat/lskatproc/docs/Makefile ])
+AC_CONFIG_FILES([ lskat/lskatproc/docs/en/Makefile ])
+AC_OUTPUT
+# Check if KDE_SET_PREFIX was called, and --prefix was passed to configure
+if test -n "$kde_libs_prefix" -a -n "$given_prefix"; then
+  # And if so, warn when they don't match
+  if test "$kde_libs_prefix" != "$given_prefix"; then
+    # And if kde doesn't know about the prefix yet
+    echo ":"`kde-config --path exe`":" | grep ":$given_prefix/bin/:" 2>&1 >/dev/null
+    if test $? -ne 0; then
+      echo ""
+      echo "Warning: you chose to install this package in $given_prefix,"
+      echo "but KDE was found in $kde_libs_prefix."
+      echo "For this to work, you will need to tell KDE about the new prefix, by ensuring"
+      echo "that KDEDIRS contains it, e.g. export KDEDIRS=$given_prefix:$kde_libs_prefix"
+      echo "Then restart KDE."
+      echo ""
+    fi
+  fi
+fi
+
+if test "$all_tests" = "bad"; then
+  if test ! "$cache_file" = "/dev/null"; then
+    echo ""
+    echo "Please remove the file $cache_file after changing your setup"
+    echo "so that configure will find the changes next time."
+    echo ""
+  fi
+else
+  echo ""
+  echo "Good - your configure finished. Start make now"
+  echo ""
+fi

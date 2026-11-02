@@ -1,0 +1,21 @@
+--- minimix-0.4/minimix.c~	Tue Nov  9 22:03:36 2004
++++ minimix-0.4/minimix.c	Wed Nov 10 12:59:26 2004
+@@ -59,7 +59,8 @@
+   int value;
+   
+   value = gtk_adjustment_get_value (adj);
+-  
++  value |= (value << 8);	// apply to both channels
++ 
+   ioctl (mixerfd, SOUND_MIXER_WRITE_VOLUME, &value);
+ }
+ 
+@@ -70,6 +71,8 @@
+ 
+   if (ioctl (mixerfd, SOUND_MIXER_READ_VOLUME, &orig_vol) < 0)
+     return 0;
++
++  orig_vol &= 0x7f;
+ 
+   return orig_vol;
+ }

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+module_id() {
+    # Get model name
+    echo `grep "^Hardware" /proc/cpuinfo | sed -e "s/.*: *//" | tr a-z A-Z`
+}
+
+case `module_id` in
+	"HP IPAQ H3100" | "HP IPAQ H3800" )
+		ARGS="-rotate 90" ;;
+	"HP IPAQ H3600" | "HP IPAQ H3700" | "HP IPAQ H3900" | *COLLIE)
+		ARGS="-rotate 270" ;;
+	# H2200: works without rotation
+esac
+
+# the things we do for autoconf
+prefix=/usr
+exec_prefix=/usr
+exec /usr/libexec/xtscal.bin $ARGS $*

@@ -1,0 +1,46 @@
+Index: main_client.c
+===================================================================
+RCS file: /cvs/apps/matchbox/matchbox-window-manager/src/main_client.c,v
+retrieving revision 1.11
+diff -u -r1.11 main_client.c
+--- matchbox/src/main_client.c	21 Sep 2004 12:01:14 -0000	1.11
++++ matchbox/src/main_client.c	27 Oct 2004 22:45:08 -0000
+@@ -251,6 +251,15 @@
+ 		     frm_size + c->height + offset_south, 0,
+ 		     CopyFromParent, CopyFromParent, CopyFromParent,
+ 		     CWBackPixel|CWEventMask, &attr);
++
++    c->background_window = XCreateSimpleWindow (c->wm->dpy, c->frame, 
++						offset_west, frm_size,
++						c->width, c->height,
++						0, 
++						attr.background_pixel,
++						WhitePixel (c->wm->dpy, c->wm->screen));
++	
++   XMapWindow (c->wm->dpy, c->background_window);
+     
+    XSetWindowBorderWidth(c->wm->dpy, c->window, 0);
+    XAddToSaveSet(c->wm->dpy, c->window);
+@@ -728,6 +737,7 @@
+    }
+ 
+    base_client_destroy(c); 
++   XDestroyWindow (c->wm->dpy, c->background_window);
+ 
+    wm_activate_client(w->main_client);   
+ 
+Index: structs.h
+===================================================================
+RCS file: /cvs/apps/matchbox/matchbox-window-manager/src/structs.h,v
+retrieving revision 1.17
+diff -u -r1.17 structs.h
+--- matchbox/src/structs.h	24 Sep 2004 11:05:16 -0000	1.17
++++ matchbox/src/structs.h	27 Oct 2004 22:45:09 -0000
+@@ -352,6 +352,7 @@
+   /* Decoration etc */
+ 
+   Window	    frame, title_frame;
++  Window            background_window;
+ 
+ #ifdef STANDALONE
+   Pixmap            backing;

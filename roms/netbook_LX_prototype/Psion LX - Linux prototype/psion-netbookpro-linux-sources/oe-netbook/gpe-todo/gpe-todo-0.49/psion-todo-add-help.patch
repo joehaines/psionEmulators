@@ -1,0 +1,54 @@
+--- list-ui.orig	2004-10-21 15:20:28.000000000 +0200
++++ list-ui.c	2004-10-21 15:37:34.000000000 +0200
+@@ -15,6 +15,8 @@
+ 
+ #include <gtk/gtk.h>
+ 
++#include <gdk/gdkkeysyms.h>
++
+ #include <gpe/pixmaps.h>
+ #include <gpe/errorbox.h>
+ #include <gpe/render.h>
+@@ -38,6 +40,22 @@
+ extern GtkWidget *window;
+ 
+ static void
++show_help (void)
++{
++	system ("gpe-helpviewer /usr/share/help/todo/index.html");
++}
++
++static gboolean
++key_press (GtkWidget *window, GdkEventKey *event)
++{
++	if(event->keyval == GDK_F1)
++	{
++		show_help();
++	}
++	return FALSE;
++}
++
++static void
+ item_do_edit (void)
+ {
+   gtk_widget_show_all (edit_item (current_menu_item, -1, GTK_WINDOW(window)));
+@@ -479,10 +497,19 @@
+   toolbar = gtk_toolbar_new ();
+   gtk_toolbar_set_orientation (GTK_TOOLBAR (toolbar), GTK_ORIENTATION_HORIZONTAL);
+ 
++  gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_HELP,
++		  		_("Help"), _("Tap here to get help"),
++				G_CALLBACK (show_help), NULL, -1);
++
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
++  
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_QUIT,
+ 			    _("Quit"), _("Tap here to quit the program."),
+ 			    G_CALLBACK (gtk_main_quit), NULL, -1);
+ 
++  g_signal_connect (G_OBJECT(window), "key_press_event",
++		  			G_CALLBACK(key_press), NULL);
++  
+   /* Exit */
+   gtk_box_pack_end (GTK_BOX (hbox), toolbar, FALSE, FALSE, 0);
+ 

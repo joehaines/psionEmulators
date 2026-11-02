@@ -1,0 +1,22 @@
+inherit gpe
+
+DESCRIPTION = "GPE application launcher"
+DEPENDS = "libgpewidget libgpelaunch psion-tutorial gpe-helpviewer libtododb"
+RDEPENDS_${PN} = "gpe-helpviewer psion-tutorial"
+MAINTAINER = "Phil Blundell <pb@handhelds.org>"
+PR = "r0"
+PV = "56"
+
+FILES_${PN} += "${datadir}/gpe"
+
+SRC_URI = "${PDCVS};module=gpe/gpe-appmgr;method=ext;tag=GPE_APPMGR_${PV} \
+	file://Makefile.dpkg_ipkg \
+	file://Makefile.translation"
+S = "${WORKDIR}/gpe-appmgr"
+
+do_configure_append() {
+	install -d ${S}/build
+	install ${WORKDIR}/Makefile.dpkg_ipkg ${S}/build/
+	install ${WORKDIR}/Makefile.translation ${S}/build/
+}
+

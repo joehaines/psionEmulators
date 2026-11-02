@@ -1,0 +1,64 @@
+# ATA/IDE drive adapter configuration
+#
+# The address format is "scheme,socket,serial_no[,part]".
+#
+# For multi-partition devices, first return list of partitions in
+# $PARTS.  Then, we'll get called for each partition.
+#
+
+# Card eject policy options
+NO_CHECK=n
+NO_FUSER=y
+
+case "$ADDRESS" in
+*,0,*,1)
+    INFO="1st partition, CF card slot"
+    #DO_FSTAB="y";
+    #DO_FSCK="y" ;
+    DO_MOUNT="y"
+    #FSTYPE="msdos"
+    FSTYPE="auto"
+    OPTS="sync,noatime,noexec,nodev,fmask=0,dmask=0,uid=0,gid=0"
+    MOUNTPT="/media/cf"
+    LINK="/home/lx/My CF Card"
+    INVISLINK="/home/lx/.My CF Card"
+    ;;
+*,1,*,1)
+    INFO="1st partition, PC card setup"
+    #DO_FSTAB="y";
+    #DO_FSCK="y" ;
+    DO_MOUNT="y"
+    #FSTYPE="msdos"
+    FSTYPE="auto"
+    OPTS="sync,noatime,noexec,nodev,fmask=0,dmask=0,uid=0,gid=0"
+    MOUNTPT="/media/pc"
+    LINK="/home/lx/My PC Card"
+    INVISLINK="/home/lx/.My PC Card"
+    ;;
+#*,*,*,2)
+#    INFO="2nd partition, CF card setup"
+#    #DO_FSTAB="y";
+#    #DO_FSCK="y" ;
+#    DO_MOUNT="y"
+#    #FSTYPE="msdos"
+#    FSTYPE="auto"
+#    OPTS="sync,noatime"           
+#    MOUNTPT="/media/cf2"
+#    LINK="/home/lx/My CF Card2"
+#    INVISLINK="/home/lx/.My CF Card2"
+#    ;;
+*,*,*,4)
+    INFO="OO/Evolution IDE setup"
+    #DO_FSTAB="y";
+    DO_FSCK="n" ;
+    DO_MOUNT="y"
+    #FSTYPE="msdos"
+    #FSTYPE="auto"
+    OPTS=""
+    #MOUNTPT="/mnt/ide"
+    ;;
+*,*,*)
+    INFO="LX CF card general setup"                                     
+    PARTS="1 2 4"
+    ;;
+esac

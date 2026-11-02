@@ -59,13 +59,13 @@ inline uint32_t lin(uint16_t seg, uint16_t off) {
 }
 
 inline uint8_t fetch8(V30& c) {
-    uint8_t v = c.busRef().readMemByte(lin(c.sregs[1], c.ip));
+    uint8_t v = c.busRef().read8(lin(c.sregs[1], c.ip));
     c.ip = uint16_t(c.ip + 1);
     return v;
 }
 
 inline uint16_t fetch16(V30& c) {
-    uint16_t v = c.busRef().readMemWord(lin(c.sregs[1], c.ip));
+    uint16_t v = c.busRef().read16(lin(c.sregs[1], c.ip));
     c.ip = uint16_t(c.ip + 2);
     return v;
 }
@@ -142,18 +142,18 @@ inline Operand decodeModRM(V30& c, uint8_t mrm) {
 // Operand read/write (either register or memory path, size-dispatched)
 
 inline uint8_t readOp8(V30& c, const Operand& o) {
-    return o.isReg ? getReg8(c, o.regIdx) : c.busRef().readMemByte(o.linear);
+    return o.isReg ? getReg8(c, o.regIdx) : c.busRef().read8(o.linear);
 }
 inline uint16_t readOp16(V30& c, const Operand& o) {
-    return o.isReg ? getReg16(c, o.regIdx) : c.busRef().readMemWord(o.linear);
+    return o.isReg ? getReg16(c, o.regIdx) : c.busRef().read16(o.linear);
 }
 inline void writeOp8(V30& c, const Operand& o, uint8_t v) {
     if (o.isReg) setReg8(c, o.regIdx, v);
-    else c.busRef().writeMemByte(o.linear, v);
+    else c.busRef().write8(o.linear, v);
 }
 inline void writeOp16(V30& c, const Operand& o, uint16_t v) {
     if (o.isReg) setReg16(c, o.regIdx, v);
-    else c.busRef().writeMemWord(o.linear, v);
+    else c.busRef().write16(o.linear, v);
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -265,10 +265,10 @@ inline void loadPSW(V30& c, uint16_t p) {
 
 inline void push16(V30& c, uint16_t v) {
     c.regs.w[4] = uint16_t(c.regs.w[4] - 2);
-    c.busRef().writeMemWord(lin(c.sregs[2], c.regs.w[4]), v);
+    c.busRef().write16(lin(c.sregs[2], c.regs.w[4]), v);
 }
 inline uint16_t pop16(V30& c) {
-    uint16_t v = c.busRef().readMemWord(lin(c.sregs[2], c.regs.w[4]));
+    uint16_t v = c.busRef().read16(lin(c.sregs[2], c.regs.w[4]));
     c.regs.w[4] = uint16_t(c.regs.w[4] + 2);
     return v;
 }
@@ -307,11 +307,15 @@ inline bool condCC(V30& c, uint8_t cc) {
 // Per-category dispatch entry points. Each returns the cycle count for
 // the executed instruction, or -1 if the category does not handle this
 // opcode (caller should fall through to the next category / report
-// unimplemented).
+// unimplemented). kNotMine is the -1 of a dispatcher's top-level switch
+// default: it has no case for the opcode at all, which depends on the
+// opcode alone, so step() learns to skip it.
 
 namespace V30Detail {
-int64_t dispatchMov  (V30& c, uint8_t op);
-int64_t dispatchArith(V30& c, uint8_t op);
-int64_t dispatchCtrl (V30& c, uint8_t op);
-int64_t dispatchMisc (V30& c, uint8_t op);
+constexpr int32_t kNotMine = -3;
+
+int32_t dispatchMov  (V30& c, uint8_t op);
+int32_t dispatchArith(V30& c, uint8_t op);
+int32_t dispatchCtrl (V30& c, uint8_t op);
+int32_t dispatchMisc (V30& c, uint8_t op);
 }

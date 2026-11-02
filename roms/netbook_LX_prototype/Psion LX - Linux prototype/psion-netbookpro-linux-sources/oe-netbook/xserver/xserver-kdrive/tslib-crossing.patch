@@ -1,0 +1,29 @@
+--- xserver/hw/kdrive/linux/tslib.c.old	Thu Aug 26 23:11:12 2004
++++ xserver/hw/kdrive/linux/tslib.c	Thu Aug 26 23:13:21 2004
+@@ -59,6 +59,7 @@
+ #include <sys/ioctl.h>
+ #include <tslib.h>
+ 
++static int last_pressure = 0;
+ static long lastx = 0, lasty = 0;
+ static struct tsdev *tsDev = NULL;
+ 
+@@ -99,6 +100,9 @@
+ 	    	flags = KD_BUTTON_1;
+ 	    	x = event.x;
+ 	    	y = event.y;
++
++		if (last_pressure == 0)
++		  KdEnqueueMouseEvent(mi, KD_MOUSE_DELTA, x, y);
+ 	    } else {
+ 	    	flags = /* KD_BUTTON_1 |*/ KD_MOUSE_DELTA;
+ 	    	if ((lastx == 0) || (lasty == 0)) {
+@@ -120,6 +124,8 @@
+ 	}
+ 
+ 	KdEnqueueMouseEvent (mi, flags, x, y);
++
++	last_pressure = event.pressure;
+     }
+ }
+ 

@@ -1,0 +1,434 @@
+2004-03-06  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* properties.c: A simple adaption of jrb's iagno patch for fixing
+	bug #136236.
+
+2004-02-25  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* help/C/gataxx.xml: Update version to 2.6.
+
+2004-02-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.c (about_cb): translator_credits ->
+	translator-credits.
+
+2003-10-29  Callum McKenzie  <callum@localhost.localdomain>
+
+	* Makefile.am: Removed *_DISABLE_DEPRECATED.
+
+2003-10-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (install-data-local): Change the way gconf files are
+	installed. This should improve things for people building outside
+	the source tree. See bug #123192.
+
+2003-10-19  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* properties.c: Replace functions deprecated in GTK+2.4.
+
+2003-09-13  Steve Chaplin
+
+       * properties.c (fill_menu): g_free() unused memory.
+       * gataxx.c (gui_draw_selected): g_object_unref() object we have
+       finished using.
+
+Tue Aug  5 10:24:33 2003  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* properties.c (clamp_int): Suppress a compiler warning.
+
+2003-08-04  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* properties.c: Clean up the gataxx_gconf_get_* code to use the
+	gconf_client_get_* functions. Also do some range checking on
+	results from gconf.
+
+2003-08-03  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* properties.c: 
+	* gataxx.c: 
+	* Makefile.am (pixmapdir): Share pixmaps with iagno since they
+	are identical.
+
+2003-08-02  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* properties.c: Make sure that timers are removed so that we don't
+	get odd speed-up effects when we change animation modes.
+
+	* gataxx.h: 
+	* gataxx.c: The code was set for an 7x4 array of pixmaps,
+	unfortunately the pixmaps are in an 8x4 array ... Also simplified
+	the "partial" animation.
+
+	* help/C/gataxx.xml: Updated the documentation (including the
+	images).
+
+2003-07-22  William Jon McCann  <mccann@jhu.edu>
+
+	* properties.c (show_properties_dialog): Use mnemonic in preferences
+	notebook tab label for keyboard navigation.
+
+2003-07-10  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.c (create_window): Dropped the g from the window title.
+
+2003-07-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.desktop.in: Update name to fit HIG (bug 116916).
+
+2003-06-27  William Jon McCann  <mccann@jhu.edu>
+
+	* gataxx.h: Fixed off by one error in BOARDHEIGHT and BOARDWIDTH.
+
+2003-06-20  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.c: Only make the undo button sensitive when it has to
+	be.
+
+2003-06-18  William Jon McCann  <mccann@jhu.edu>
+
+	* properties.c: Included string.h.
+
+	* gataxx.c (main): Changed gtk_widget_set_uposition to
+	gtk_window_move.
+
+2003-06-17  William Jon McCann  <mccann@jhu.edu>
+
+	* gataxx.c: 
+	* gataxx.h:
+	* properties.c:
+	* properties.h:
+	* ataxx.c:
+	* ataxx.h: Fixed compiler warnings.
+
+2003-06-13  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.c (quit_game_cb): Removed the last "are you sure"
+	questions.
+	
+
+	* properties.c (show_properties_dialog): Correct the preferences title.
+
+2003-06-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.c: i18n fixes from Christian Neumair (bug #114875).
+
+2003-06-10  William Jon McCann  <mccann@jhu.edu>
+
+	* gataxx.c: Removed separators from status bar.
+
+	* properties.c (show_properties_dialog): HIG fixes.
+
+2003-06-09  William Jon McCann  <mccann@jhu.edu>
+
+	* gataxx.c: Removed separator from dialogs as in HIG.
+
+2003-06-05  William Jon McCann  <mccann@jhu.edu>
+
+	* Makefile.am (install-data-local): Only install schemas
+	if they are requested.
+
+2003-06-02  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.c: 
+	* gataxx.h (struct _MoveHistory): 
+	* ataxx.c: Changed the save structure from a static array to a
+	linked list. This allows an infinite number of moves rather than
+	the fixed number used before (the buffer had room for a reasonable,
+	but exhaustible, 500 entries, but then used a signed 8-bit
+	counter. SO after 128 turns the program crashed trying to access
+	turn -128. Fixes bug #113770.
+
+2003-06-01  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* properties.c:
+	* ataxx.c:
+	* gataxx.c: gtk_timeout* -> g_source*, plus cleanups to the same
+	code . Fixes bug #103280.
+
+2003-05-30  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (scoredir): Changed score directory to fix bug
+	#113968.
+
+2003-05-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gataxx.schemas.in: Well gataxx has been completely
+	non-functional for the last two months since Ross applied the
+	sanity checks. Unfortunately the gataxx schemas file wasn't sane.
+	Fixes bug #110813.
+
+2003-04-30  Abel Cheung  <maddog@linux.org.hk>
+
+	* ChangeLog: Convert to UTF-8.
+
+2003-03-07  Ross Burton  <ross@burtonini.com>
+
+	* gataxx.c: Add a GConf sanity check.
+
+2003-02-09  Ross Burton  <ross@burtonini.com>
+
+	* properties.c (load_properties): g_strdup() a literal string so
+	that g_free()ing it later doesn't crash.
+
+2002-12-17  Ross Burton  <ross@burtonini.com>
+
+	* Makefile.am (schema_in_files): Fix the GConf schema path.
+
+2002-11-29  Ross Burton  <ross@burtonini.com>
+
+	* Makefile.am (EXTRA_DIST): Put the source of the schemas in the
+	dist, not the generated files.
+
+2002-11-27  Ross Burton  <ross@burtonini.com>
+
+	* gataxx.c: s/Gnome/GNOME/, for #99683.
+
+2002-11-25  Ross Burton  <ross@burtonini.com>
+
+	* Makefile.am: Fixed the GConf install location, thanks to Loz
+	<gnome2@flower.powernet.co.uk>. Closes #99393.
+
+2002-11-18  Fernando Herrera <fherrera@onirica.com>
+
+	* gataxx.desktop.in: add X-GNOME-BUGZILLA stuff
+
+2002-11-19  Jeremy Browne  <jeremy@synonymous.ca>
+
+	* gataxx.c: Changes to quit / new game dialogs for consistency with
+	other parts of gnome-games package. (Bug #97321)
+
+2002-11-11  Tim Musson <trmusson@ihug.co.nz>
+
+	* properties.c: (show_properties_dialog): Multiple open properties
+	  dialogs no longer possible (fixes #97320 for gataxx).
+	  Replaced the OK button with a Close button (#97322).
+	* gataxx.c: (about_cb): gtk_window_present gives focus to dialog
+
+2002-08-18  Ross Burton  <ross@burtonini.com>
+
+	* gataxx.c (quit_game_cb): Make the Quit dialog conform to the
+	HIG. Patch from Samuel Stringham <sams@e-sa.com>, fixing #73031.
+
+2002-08-17  Juan Pablo Mendoza  <jpablo@gnome.org>
+
+        * sunmoon.png: New file by DarkAlloy.
+        * Makefile.am: Add sunmoon.png.
+
+2002-06-02  Ross Burton  <ross@burtonini.com>
+
+	* gataxx.c (load_pixmaps): Use the application pixmap path,
+	instead of the system. Causes gataxx to work when installed in a
+	different prefix to libgnome.
+	* properties.c (fill_menu): Ditto.
+
+2002-05-05  Chris Lyttle  <chris@wilddev.net>
+
+	* help/C/gataxx-C.omf: updated for new format of SK 0.3.8.
+	* help/C/Makefile.am: updated for new format of SK 0.3.8.
+
+2002-04-17  Bastien Nocera  <hadess@hadess.net>
+
+	* gataxx.desktop.in: rename gataxx to Gataxx in the desktop file
+	(Closes: #75952)
+
+2002-04-16  Bastien Nocera  <hadess@hadess.net>
+
+	* gataxx.schemas: added
+
+2002-04-15  Bastien Nocera  <hadess@hadess.net>
+
+	* Makefile.am:
+	* ataxx.c:
+	* gataxx.c: (black_level_cb), (white_level_cb), (about_cb),
+	(init_new_game), (key_changed_cb), (main):
+	* properties.c: (load_properties), (save_properties),
+	(apply_changes), (black_computer_level_select),
+	(white_computer_level_select), (quick_moves_select),
+	(flip_final_select), (animate_select), (apply_cb), (set_selection),
+	(show_properties_dialog), (gataxx_gconf_get_int),
+	(gataxx_gconf_get_bool), (gataxx_gconf_get_string),
+	(reload_properties):
+	* properties.h: port to gconf (patch by mark@sporkstorms.org (Mark
+	Stratman)), have a nice icon in the about box, more porting
+
+2002-04-15  Bastien Nocera  <hadess@hadess.net>
+
+	* gataxx.c: (save_state): remove nstr(), patch from
+	r_kinder@yahoo.com (Richard Kinder)
+
+2002-02-26  Juan Pablo Mendoza <jpablo@gnome.org>
+
+	* Makefile.am:
+	* gataxx.c:
+	* ataxx.c:
+	* properties.c:
+
+	Fix a pretty nasty bug, fix properties. Also applied patch from
+	Edgar Luna <kheb@gnulinux.org.mx> to port gattax to games clock.
+
+2002-02-17  Chris Lyttle  <chris@wilddev.net>
+
+	* help/C/gataxx.xml: alter headers to comply with new template
+	* help/C/legal.xml: new legal blurb
+	* help/C/Makefile.am: add legal.xml
+
+2002-02-14  Chris Lyttle    <chris@wilddev.net>
+
+	* help/C/Makefile.am : move to XML.
+
+2002-02-13  Aaron Weber  <aaron@ximian.com>
+
+	* help/C/gataxx-C.omf: move to XML.
+
+	* help/C/gataxx.xml: New file. Move to XML.
+
+	* help/C/gataxx.sgml: Deleted, to move to XML.
+	
+2002-02-02  Zbigniew Chyla  <cyba@gnome.pl>
+
+	* gataxx.c (about_cb): Don't try to translate empty string.
+
+2002-01-08  Josh Barrow  <drleary@mac.com>
+
+	* properties.c: (show_properties_dialog):
+	Let it know that it's parent is window and made it have 
+	no separator just above the buttons.
+
+2002-01-06  Josh Barrow  <drleary@mac.com>
+
+	* properties.c: (load_properties), (apply_changes),
+	(quick_moves_select), (flip_final_select), (fill_menu),
+	(show_properties_dialog):
+	First try at porting this to GTK_DIALOG.  No longer do 
+	I believe that buttonless dialogs are the way to go.
+	Also, some whitespace fixes and horrible coding style 
+	fixes.
+
+2002-01-02  Josh Barrow  <drleary@mac.com>
+
+	* properties.c: (fill_menu):
+	Change use of GtkSignalFunc to G_CALLBACK
+
+2001-12-31  Josh Barrow  <drleary@mac.com>
+
+	* gataxx.c: (set_bg_color): 
+	Fix compile time warning.
+
+	* properties.c: (save_properties), (apply_changes),
+	(black_computer_level_select), (white_computer_level_select),
+	(quick_moves_select), (flip_final_select), (animate_select),
+	(apply_cb), (fill_menu), (show_properties_dialog):
+	Simply the code a bit.
+
+2001-12-29  Josh Barrow  <drleary@mac.com>
+
+	* Makefile.am:
+	* clock.c: (update_clock):
+	* gataxx.c: (quit_game_cb), (about_cb), (expose_event),
+	(configure_event), (gui_draw_pixmap), (gui_draw_pixmap_buffer),
+	(load_pixmaps), (init_new_game), (create_window), (gui_status),
+	(set_bg_color), (main):
+	* properties.c: (black_computer_level_select),
+	(white_computer_level_select), (quick_moves_select),
+	(flip_final_select), (animate_select), (set_selection),
+	(fill_menu), (show_properties_dialog):
+
+	Made to compile and run with G_DISABLE_DEPRECATED,
+	GDK_DISABLE_DEPRECATEd, GTK_DISABLE_DEPRECATED, and 
+	GNOME_DISABLE_DEPRECATED.  Also rewrote the preferences 
+	dialog to make it instant apply. (The rewrite was initally
+	required becuase gnome_properties_dialog is deprecated)
+
+	This will most certainly make Greg happy.  ; D
+
+2001-12-19  Seth Nickell  <snickell@stanford.edu>
+
+	* Makefile.am:
+	* gataxx.desktop:
+
+	Install into the proper location and add a Categories
+	field.
+	
+2001-12-04  Duarte Loreto <happyguy_pt@hotmail.com>
+
+        * gataxx.desktop: Added Portuguese (pt) translation.
+
+2001-11-24  Kevin Vandersloot <kfv101@psu.edu>
+
+	* gattax.c, attax.c, properties.c, clock.c: bring back clock 
+	widget
+
+2001-07-27  Abel Cheung  <maddog@linux.org.hk>
+
+	* gataxx.desktop: Added traditional Chinese translation.
+
+2001-07-07  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* gataxx.c: Adios imlib.
+
+2001-07-05  Christian Rose  <menthos@menthos.com>
+
+	* gataxx.desktop: Modified Swedish entries.
+
+2001-06-27  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* gataxx.c: (main): Don't try to free the gnome_master_client to
+	  silent a gtk warning on exit.
+
+2001-06-20 Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* help/es/figures: Added the figures.
+
+2001-06-20  Carlos Perelló Marín <carlos@gnome-db.org>
+
+	* help/Makefile.am, help/es/*: Added Spanish trasnlation by
+	Gregorio Robles <grex@scouts-es.org>
+
+2001-06-07  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	Apply patch from drk@sgi.com. Bug #52641.
+
+	* ataxx.c (computer_move_3): Remove duplicate `;'
+	  (computer_move_1), (computer_move_2): Initialize num_maxes to 0. 
+	* properties.c (apply_changes): We need only [7][7] in pixmap, not
+	  [8][8].
+
+2000-10-21  Dan Mueth <d-mueth@uchicago.edu>
+
+	* help/C/Makefile.am: Added $(gataxx_help_DATA) to EXTRA_DIST
+	so that 'make dist' will run.
+
+2000-06-18  Chris Rogers <gandalf@darkcorner.net>
+
+	* added help files from Aaron Weber <aaron@helixcode.com>
+	  borrowed glade's setup to get it all working.
+
+2000-05-12  Andreas Hyden  <a.hyden@cyberpoint.se>
+
+	* ataxx.desktop: Added Swedish translation.
+
+2000-04-22  Ian Peters <itp@gnu.org>
+
+	* gataxx.c: Moved call to _push_[colormap|visual], added calls to
+	  _pop_[colormap|visual], to fix outstanding multi-depth issues
+
+2000-01-01	Chris Rogers <gandalf@darkcorner.net>
+	* gataxx.c:	Added Robert Mibus's (mibus@bigpond.com) patch to highlight 
+		possible moves
+
+1999-10-17  Martin Norbäck  <norpan@bigfoot.com>
+
+	* gataxx.c: Uncommented setting of gettext locale
+
+1999-04-14  Chris Rogers (gandalf@pobox.com)
+
+	* ataxx.c: Detect when players have won without filling the board.
+	   (thanks to Robert Brady <rwb197@ecs.soton.ac.uk> for noticing
+		the problem)
+	* ataxx.c: Commented out lots of debuging g_prints
+
+
+1999-04-05  Miguel de Icaza  <miguel@nuclecu.unam.mx>
+
+	* gataxx.c: Use the imlib visual here.
+

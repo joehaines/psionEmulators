@@ -1,0 +1,19 @@
+DESCRIPTION = "Open1x"
+PR = "r0"
+SRC_URI = "file://open1x-1.0.tar.gz \
+		file://wireless.h"
+DEPENDS = "openssl"
+
+inherit autotools
+
+EXTRA_OECONF = "--with-ossl-root=${STAGING_DIR}/${HOST_SYS}"
+
+do_configure_prepend () {
+	install -d ${STAGING_DIR}/${HOST_SYS}/kernel/include/linux
+	install -m 0644 ${WORKDIR}/wireless.h ${STAGING_DIR}/${HOST_SYS}/kernel/include/linux/wireless.h
+}
+
+do_install () {
+        install -d ${D}/${sbindir}
+	install -m 0755 src/xsupplicant ${D}/${sbindir}
+}

@@ -1,0 +1,80 @@
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+#ifndef _guiwrap_h_
+#define _guiwrap_h_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+#include <gtk/gtk.h>
+#include "define.h"
+
+/* ------------------------------------------------------------------------- */
+
+typedef enum _cursor_type {
+        cursor_normal,
+        cursor_watch
+} cursor_type;
+
+/* ------------------------------------------------------------------------- */
+
+/* timer interval function prototype */
+typedef void (*gui_timer_function) (gpointer data);
+
+/* add periodical timer */
+extern void gui_timer_start (guint32 interval, gui_timer_function callback,
+                                      gpointer data);
+/* remove periodical timer */
+extern void gui_timer_stop (void);
+/* mount dialog */
+extern void gui_mount_dialog (char *resource, char *ip, char *group, unsigned char show_gui);
+extern void gui_umount_dialog (char *mountpoint);
+extern void gui_mount_dialog_init(void); 
+extern void gui_smbumount_done(char *mount_point,char *errstr,char smbmountState,int tag);
+
+extern unsigned char gui_log_window_active (void);
+extern void gui_log_window_toggle (void);
+extern void gui_log_window_open (void);
+extern void gui_log_window_insert_string (char *str, unsigned char add_linefeed);
+
+extern void gui_set_cursor (cursor_type cursor);
+
+extern void gui_message_box (char *title, char *message);
+extern void gui_message_box2 (char *message);
+
+extern void gui_remove_entire_tree (void);
+
+extern void gui_share_window_clean (void);
+extern void gui_set_files (const char *group, const char *machine, const char *share, const char *path,
+                            GSList *files);
+
+/* ------------------------------------------------------------------------- */
+extern void gui_set_locale (void);
+extern void gui_init (int argc, char *argv[]);
+extern void gui_start (void);
+
+/* ------------------------------------------------------------------------- */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif   /* _guiwrap_h_ */

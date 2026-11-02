@@ -1,0 +1,459 @@
+LinNeighborhood - A Linux port of the Windows Network Neighborhood
+==================================================================
+
+This Software is distributed under the GNU General Public License - see the 
+accompanying COPYING file for more details.
+
+You can reach the authors at:
+Hans Schmid <schmidjo@bnro.de>
+Richard Stemmer <rstemmer@innternet.de>
+
+You can get the latest version at official LinNeighborhood web site:
+http://www.bnro.de/~schmidjo/
+
+Description
+===========
+LinNeighborhood is a Xwindow graphical port of Network Neighborhood, 
+running over Samba utilities and the Linux smbfs programs.
+It permits to browse an SMB (CIFS) network consisting of Samba, Windows 
+(WfWg, 95, 98, NT) and probably (not tested) OS/2, LanManager for DOS and 
+others. It also offers an interface to mount the found shares. Because the 
+smb-filesystem and smbmount utility is only available in Linux this is a 
+Linux only* program.
+*Stefan.Eilemann <Stefan.Eilemann@simpack.de> reported that it compiles and 
+works on irix (thanks for his patch).
+
+Requirements
+============
+See the INSTALL-file for the needed software to compile LinNeighborhood. 
+Also look into CONFIGURATION-file for configuration possibilities and path 
+descriptions. For running it you need:
+
+Installed Samba package, especially smbclient and nmblookup utility
+Samba is available at http://samba.org/samba/
+Use a recent version of Samba, we tested with 1.9.18 and 2.0.4...2.0.7, 
+especially look for supported name resolve order (only applies to very old 
+versions of Samba), because resolving is mostly done by broadcasts and this 
+must be supported if you need it in your network.
+
+Smbfs-Package smbfs-2.0.x.tgz with smbmount and smbumount utilities from 
+ftp://ftp.gwdg.de/pub/linux/misc/smbfs for Kernel-Versions < 2.1.70, for 
+higher versions you must use smbmount/smbumount from the Samba package. 
+Support for the changed command syntax is included in LinNeighborhood at 
+runtime, using the uname function call. This means you can use a program 
+that was compiled with 2.0 Kernel on a 2.2 machine and vice versa (if your 
+libraries are the same), but of course the correct smbmount/umount must be 
+installed. The command line syntax has changed from samba 2.0.4 to 2.0.5 to 
+>=2.0.6, you must configure this in the preferences.
+smbfs-2.0.x.tgz does not compile on glibc based Linux (problems with 
+include files), but there are patched versions available that work, e.g. 
+Redhat's smbfs-2.0.1-4.src.rpm package.
+
+
+Support for SMB file system must be compiled into your kernel to use 
+smbmount, please read the smbf-documentation in your kernel tree to see if 
+you should use CONFIG_SMB_WIN95 (dropped in recent 2.2 -kernels).
+
+The above stuff is included in most Linux distributions, so you normally 
+should have the programs.
+
+
+Running LinNeighborhood
+=========================
+
+Command Line Parameters
+-----------------------
+If Linneighborhood is started with one of the following parameters, it will 
+run without starting the GUI and do one of these actions:
+
+ -h {--help}          prints out the commmand line parameters
+.-v {--version}       prints out the program version
+ -m {--mountshares}   mounts the memorized shares without starting the GUI
+- i {--iconify}       start program iconified (minimized)
+- u {--user} [username]     does the network scan as user
+ -p {--password} [userpswd] does the user network scan with password
+ -j {--job} [number]        number of max simultaneous browse jobs
+
+Configuration
+-------------
+
+When running the program for the first time open the "Options/Preferences" 
+menu. Enter the following information in the scan page (if it has not been 
+preconfigured by your sysadmin):
+
+- Workgroup
+This is the group of your preferred master browser, not necessarily your 
+workgroup. This setting is mandatory.
+
+- Primary Master browser
+If you know a fixed master browser in your network you can enter it here. 
+LinNeighborhood will try to retrieve the workgroup list from this machine. 
+This will only work if it is permanently on and has a high os level (see 
+smb.conf.5), so it is probable that a NT or Samba server will always be a 
+master browser among Windows 95 machines if set accordingly. This also 
+means that windows 9x machines should only run one protocol (TCP/IP), 
+otherwise it is more likely that they become a master browser, see 
+BROWSING-Config.txt. You can always set a Samba server (this could be your 
+machine with running Samba) as your master browser, because it always 
+offers a small group list where it shows the master for its group. 
+LinNeighborhood evaluates this and asks the real master browser for the 
+group list in a second pass. Check the box to make this setting active. If 
+you have a WINS server, you can also use it as a master browser, but enter 
+its name and not the ip-address, and also its group and it must be 
+configured in smb.conf.
+
+- Additional Master Browsers
+If you press the "Edit Master Browser List" -Button you can add a list of 
+master browsers in your network, that you know. This should preferably be 
+machines that are permanently running and always have a groups -list, check 
+this with smbclient. These master browsers can even be in other network 
+segments, but you need name resolution (wins, hosts) of all computers for 
+this to work. Enter a name and not an ip-address if possible. When looking 
+for groups in your network, the master browsers are queried for groups 
+additional to the primary browsing scheme.
+
+Normally you will only have to enter the workgroup, and no master browser. 
+But there is a bug in WfWg, Win95 (with winsock Version 1, you can upgrade 
+to Version 2, look for ws2setup.exe at microsoft.com) and WinNT3.5 that 
+makes it impossible for normal users to get the name of the master browser 
+(node status query). See UNIX-SMB.txt and nmblookup.1 (only in Samba-2.0.x) 
+from Samba documentation for more details. Then it could be necessary to 
+use a configured master browser. It is also a good idea to enter a 
+workgroup where you know that none of the buggy windows machines could ever 
+be the master browser.
+We admit that this situation is not quite satisfying if you have many of 
+these buggy machines in your network and none of the above solutions works 
+for you. Then the only solution we see is to change the nmblookup call in 
+smbbrowse.c so that it binds to udp port 137 (-r option). But then root 
+privileges are needed to run the program and nmbd must not run, this is 
+mostly unacceptable. A smarter approach would be to have a root privileged 
+lookup daemon, queried by nmblookup, which can bind to this port and is 
+integrated in nmbd, but doing this is not within the scope of this work, 
+only the Samba maintainers can manage it (this is an item for the Samba 
+wish list).
+
+- always scan as user
+If the box is checked you will be prompted for user/password information 
+when you browse a host, and hosts are always browsed with user/password. 
+See the Browsing section ("scan as user") to decide if you need it. Yo can 
+configure what browses are done as user:
+
+- Groups scan as user
+A browse for groups is done as user if this is checked.
+
+- group scan as user
+A browse for hosts (query of group master broswer) is done as user if this 
+is checked.
+
+- ask user / password once
+All scans that are configured to be browsed with user/password are done 
+with the user/password information you enter at your first browse after 
+program startup, no additional queries are done. Use scan as user popup 
+menu if you want to change user/password information.
+
+- Use group name on browse
+If you set this option to on, the smbclient command is called with the -W 
+option when doing a browse for machines and shares, the group name where 
+the hosts are in is used. Otherwise the -W option is not used and smbclient 
+uses the group in smb.conf. This option is important if the computers you 
+browse insist on being in the correct domain. This is often the group you 
+are browsing, but it can also be the group you are in, if the administrator 
+uses trusted domains.
+
+- Use group name on mount
+If you set this option to on, the smbmount command uses the -D (for 2.0 
+Kernels) or -W option when mounting, the group name where the hosts are in 
+is used because this is sometimes necessary if you are in an other 
+workgroup and access is only given to computers in the same group. You can 
+turn it off, because older 2.0 kernels/smbfs packages break when it is on. 
+Also turn it off if the computers you browse insist on your computer to be 
+in the correct domain, taken from the smb.conf-file for the same reasons as 
+explained in 'Use group name on browse'.
+
+
+- Initial browse on startup
+
+If this is checked Linneighborhood will immediately do a groups browse 
+after startup. You may want to disable this if there are many groups in 
+your network and you only want to access your favorite hosts, you don't 
+have a browsing delay then.
+
+- Quick browse
+Normally, when you scan for groups only the groups are shown, information 
+about the hosts in the group is only available when you do a group scan. If 
+you check here, all groups are immediately scanned, and you see the 
+available hosts by clicking the '+'-sign.
+
+The Programs page:
+
+- smbclient
+Enter the location of the smbclient program, full path is required if it is 
+not in your path. Note that this program retrieves configuration 
+information from the smb.conf file, see the documentation to set it up 
+correctly. Important options are "name resolve order", "wins server", 
+"interfaces". Make smb.conf readable to users.
+
+- nmblookup
+Same as with smbclient. There is a bug in nmblookup (at least in 1.9.18 and 
+2.0.3) which disables the correct behavior when "debug level" or "log 
+level" in smb.conf is set to "0", so set it to "1" (or higher) or leave the 
+option away until this is fixed by the Samba people, the command line 
+option -d1 is useless. (Fixed in >=2.0.4!)
+
+-smbmount
+Enter the location of the smbmount program, with full path if necessary. 
+This program should be setuid root (smbmnt with >=2.1.70 kernel), so that 
+every user can mount shares, it should be safe to do so. If you use 
+smbmount from the samba package, SMBFS_DEBUG must not be defined (around 
+line 40 in smbmount.c, it is the default now), otherwise it does not close 
+the stdout pipe back to LinNeighborhood process, which LinNeighborhood 
+depends on. This will cause strange behavior, because the program will get 
+the mount callback when unmounting is done. (Also recommended for programs 
+like automount.). The smbmnt program (called by smbmount) must always be in 
+your path, it is not found in the same directory where smbmount is.
+
+-smbumount
+Same as with smbmount, also setuid root recommended.
+
+- smbmount Version
+Select your smbmount version here, if you are using a >=2.1.70 Kernel. This 
+is needed, because the command line syntax has changed dependant on the 
+version. We do not recommend to use Version 2.0.5, because it is less 
+stable than the previous one and has less mount options, but >=2.0.6 seems 
+to work fine again. Hope this list will not grow any more in the future.
+
+The Miscellaneous page:
+
+-Use 'RootMountDir/machine/share' as default mount point
+
+If this box is checked there will be a suggestion for the mount point in 
+the style 'RootMountDir/machine/share' for the mount point in the mount 
+dialog.
+
+-Root mount dir
+
+When opening the mount dialog this directory will be the base directory for 
+the mount point. Normally you will create a subdirectory from here for each 
+single share. You can use system environment variables here as explained in 
+CONFIGURATION.
+
+
+- Memorize Mounted Shares / Remount on next startup
+
+If you want LinNeighborhood to memorize the shares you mounted in this 
+session in order to remount them on next startup, check this option. 
+LinNeighborhood inserts all successful mounts in an internal database, it 
+also will remove them from this database when unmounting. This database is 
+stored in the ~/.linneighborhood/mountpoints file on program termination. 
+Be careful, any smb password you typed in during mount process will be 
+stored in this file in an unencrypted manner (file permission 0600). If you 
+don't want this, deactivate this feature.
+For security issues, any mount actions performed as root aren't stored
+in this database-file. That also means that you cannot use this feature
+with this kind of mount action.
+Command Parameter -m --mountshares:
+It's possible to start LinNeighborhood in order to remount all shares
+stored in ~/.linneighborhood/mountpoints without starting the GUI, e.g. on 
+system startup. Type 'LinNeighborhood -m' to do so.
+This function is internally done by storing the actual command line 
+parameters of smbmount in the configured version. If you change your 
+Version to an incompatible one (e.g. upgrade from Kernel 2.0 to 2.2), the 
+old memorized mounts will not work any more and are thrown out.
+
+- Save Default Password
+
+If checked, the default password you entered into the edit field is
+stored in ~/.linneighborhood/password with permission 0600 and will
+be reused in the next session. The password will be stored in a
+clear text file
+
+The Post Mount page:
+
+- Run File Manager after Mounting
+
+It's possible to start a file manager after a successful mount action. 
+Activate the "Run File Mananger after Mounting" checkbox in the 
+preferences' "Post Mount" tab to activate this feature. There are some 
+predefined command syntaxes for commonly used file managers in the combo 
+box. Select yours and press the arrow button to move it into the edit 
+field. The "$MOUNTPOINT" macro of the command syntax will be replaced with 
+the directory you mounted the share. Indeed it's possible to run any 
+command you type into the edit field. For example, if you want to start 
+your own file manager called 'MyFileManager' and this file manager does 
+accept an option like '-f /any/directory' to start on a certain directory, 
+insert the following into the edit field:
+'MyFileManager -f $MOUNTPOINT'
+If you have a file manager not predefined in the combobox, feel free to 
+send us the command syntax and we'll pick it up into the next release of 
+the software.
+
+Additional settings in Edit menu
+
+- Additional Master Browsers
+
+Same functionality as in Options/Preferences
+
+- Group masters
+
+You can add master browsers that you know to browse a group. The found 
+results (hosts) are added to the results found by the normal master 
+browser. It is important, that the group is correct here, because 
+Linneighborhood  can not always detect (with smbclient) if it is really a 
+master of that group and then you have hosts in the group that don't belong 
+to it. Only add computers here that improve the result, because it will 
+slow down browsing.
+
+
+Browsing
+--------
+
+When you start the program and everything is set up correctly it begins 
+with a "groups browse" (if the initial browse option is set) and you see 
+the groups in the network. This is internally done by searching a master 
+browser with nmblookup if none is configured (see preferences), following a 
+call of smbclient to get the workgroup list with groups and master 
+browsers. You can repeat this by double clicking or using the popup menus. 
+the differences between these is:
+
+double click: use browse method defined in preferences, scan as user or 
+              not.
+scan as user: ask for domain (if useful), user and password or give chance
+              to alter it if "ask user/password once" is selected in the
+              preferences
+rescan:       do a scan without use of user/password
+
+When groups are visible double click groups or use the "rescan group" menu 
+to see the hosts in the group. LinNeighborhood gets this information from 
+the master browser determined by the "groups browse". It is possible that 
+you don't get information here, because the master browser has changed or 
+shut down meanwhile. Then do a "rescan groups" again and hope the correct 
+master browser for the group is available now. There is a shortcut built in 
+that shows you at least the master browser when it gets an empty browse 
+list, then you get a "(master without browse list)" comment. Note that you 
+may not find all groups and hosts compared to a Windows machine. One reason 
+is that windows has another browsing strategy, it does not trust in master 
+browser's browse lists, it finds the group members with broadcasts and can 
+so compensate the unreliability of windows master browsers. But because of 
+the windows port 137 bug we had not very much success in doing this and 
+didn't implement it. Another common reason for not finding hosts is the use 
+of another protocol like NetBEUI, Samba can of course only access to hosts 
+running NetBIOS over TCP/IP.
+
+Double click the host or do "rescan machine" to see what shares are 
+available. This is normally done with the -U% option of smbclient, which 
+uses the guest account of a server. But some shares are only shown to the 
+owner, e.g. the home directory of a Samba user. If the server is in user 
+level security a password is necessary too. Then you must use "scan as 
+user". Be careful when browsing fails and you have entered a user/password 
+pair, check the information for correctness before you retry because 
+sometimes the Server is configured to lock you out when you try a wrong 
+password too often.
+
+The right popup menu 'show information' can show you some interesting 
+information about computers, which is available after browsing, i.e. Name, 
+Domain, OS, Server, IP-Address. This data is output by smbclient, note that 
+Windows 3.x and 9.x machines don't show Domain, OS and Server.
+
+You can stop all browsing actions if something hangs (hosts do not respond) 
+by pressing the stop button in the toolbar.
+
+Mounting shares
+---------------
+
+When you find the desired share you can mount it. You can only mount file 
+shares; printers are not supported by this application - you must set up 
+your printing system accordingly or print a single file with smbclient. You 
+will get the mount dialog if you right click "mount". The smbmount options 
+are reflected in this dialog, see smbmount.8 for details. Samba 2.05 
+smbmount does not support UID, GID, File Mode, Dir Mode options, so you 
+cannot use these options. Note that the file mode field in mount dialog is 
+4 digits long to enable Win95 mount options at runtime (with early 2.2 
+Kernel, see linux/Documentation/filesystems/smbfs.txt). The mount point can 
+be easily selected and created in a file select dialog. You can also create 
+a mount point with root permissions if you had checked "mount as root" 
+before you have pressed the file select button. If you have checked "Use 
+'RootMountDir/machine/share' as default mount point" there is a suggestion 
+for a mount point according to the server/share name and the "Root mount 
+dir". This mount point will be created if it does not exist, with root 
+permissions if "mount as root" is used. There is only one user/password 
+pair cached in the application for all "scan as user" and "mount" 
+operations. As normal user you can only mount to a directory that you own. 
+You can mount to any directory if you mount as root, then check the box and 
+enter the password. The root password is never cached. Smbmount from the 
+smbfs package does not support encrypted passwords (this is a restriction 
+of SMB file system driver in 2.0.x kernels). So you can only mount shares 
+if your server allows clear text passwords (most servers do, but it may be 
+disabled, ask your admin). If you set up Samba with encrypted passwords and 
+this is different from your normal user password you may be confused, 
+because newer smbclient versions support encrypted passwords and thus you 
+must use the encrypted password for browsing and the clear text password 
+for mounting.
+You can mount a share more than once to different mount points, use the 
+toolbar button or popup menu 'additional mount'. This is especially 
+intended for different users on one computer, who want to mount the same 
+share into their home directories.
+
+You can unmount shares accordingly, you will be prompted for the root 
+password if you are not the owner. The mount point directory will not be 
+deleted, you have to do this manually. You will also be prompted for the 
+root password if smbumount fails because of a "could not open device" 
+error. This mostly happens if network connection is broken after mounting 
+or the share had been deleted. Then you can try a regular "umount" as root, 
+which will remove the mount entry.
+
+The stop button in the toolbar stops pending mount actions too.
+
+Adding Hosts
+------------
+
+If, for any reason, a host is not found by browsing or you don't want to 
+search for it you can still connect to it. Use "add favorite host" to add 
+it to the browse list. This is done without checking if it is accessible. 
+You can also enter a group name, if you omit it no group is given as 
+argument to smbmount, but this does not always work. Some servers give 
+shares only to domain members what you fake when you enter a group (this is 
+M$ security). You can browse hosts and mount shares in the same way as with 
+the machines found by browsing.
+If you don't know the group or only have an IP-address instead of the name 
+use the 'Query' button. This will do a node status query, but as mentioned 
+earlier this does not always work with some M$ machines (port 137 problem). 
+If there are netbios aliases you will only get the first name here, perhaps 
+you will have to change it if the server has different behavior dependant 
+on the name.
+There is a point "edit machine" in the popup menu which allows you to edit 
+the information of already entered hosts, you can try a bit here if browse 
+problems encounter.
+Only name or IP-address are mandatory, but all information gives you the 
+best chance to access problematical hosts.
+
+
+All manually added hosts (and some other information like window sizes and 
+memorized shares) are stored automatically on program termination in the  
+.linneighborhood directory, which is located in your home directory. 
+Configuration data is also stored here, but only on request, see 
+configuration part and also read CONFIGURATION file.
+
+Other Menu Functions
+--------------------
+
+Import lmhosts File
+You can add your lmhosts file (or any other file in this format) to the 
+list of your favorite hosts. This is interesting for people having long 
+lmhosts files with machines they often access.
+
+Export mountscript
+You can write a script file with the smbmount commands needed for mounting 
+all shares that are presently mounted. Note that only user (not root) 
+mounts are honored and passwords are stored in clear text here, so be 
+careful with the script, for security reasons it has 700 permissions.
+
+Browse entire network
+Tries to browse a network completely with all groups, hosts and shares. If 
+you do this remember that this can produce a lot of network traffic and 
+browsing shares may be logged as not allowed access to computers by some 
+network administrators.
+
+Export network image
+This will write a structured list of all detected smb network resources 
+which are presently in your browse tree. You may want to use this 
+preferably after "Browse entire network".

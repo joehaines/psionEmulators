@@ -1,0 +1,81 @@
+--- src/selector-gui.c.orig	2004-10-27 01:08:38.000000000 +0200
++++ src/selector-gui.c	2004-10-27 01:13:50.000000000 +0200
+@@ -33,6 +33,7 @@
+ 
+ gboolean icons_mode;
+ 
++void show_help (void);
+ GtkWidget * build_selector_toolbar();
+ GtkWidget * build_scrollable_textlist();
+ GtkWidget * build_scrollable_iconlist();
+@@ -130,6 +131,13 @@
+ 
+   gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
+ 
++  pixmap = gtk_image_new_from_stock (GTK_STOCK_HELP, GTK_ICON_SIZE_SMALL_TOOLBAR);
++  button = gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Help"), _("Show help"), NULL,
++		  			pixmap,
++					GTK_SIGNAL_FUNC(show_help), NULL);
++  
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
++  
+   pixbuf = gpe_find_icon ("prefs");
+   pixmap = gtk_image_new_from_pixbuf (pixbuf);
+   button = gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Preferences"), _("Open preferences dialog"), NULL,
+--- src/sketchpad-cb.orig	2004-10-27 00:01:13.000000000 +0200
++++ src/sketchpad-cb.c	2004-10-27 00:02:18.000000000 +0200
+@@ -53,6 +53,12 @@
+   app_quit();
+ }
+ 
++void
++show_help (void)
++{
++	system ("gpe-helpviewer /usr/share/help/sketchbook/index.html");
++}
++
+ void on_window_size_allocate (GtkWidget     * widget,
+                               GtkAllocation * allocation,
+                               gpointer        dock){
+--- src/sketchpad-gui.c.orig	2004-10-26 23:36:29.000000000 +0200
++++ src/sketchpad-gui.c	2004-10-27 01:08:26.000000000 +0200
+@@ -38,6 +38,7 @@
+ GtkWidget * sketchpad_build_drawing_toolbar(GtkWidget * window);
+ GtkWidget * sketchpad_build_files_toolbar(GtkWidget * window);
+ void        sketchpad_fill_files_toolbar(GtkWidget * toolbar, GtkWidget * window);
++void		show_help(void);
+ GtkWidget * sketchpad_build_alternate_drawing_toolbar(GtkWidget * window);
+ GtkWidget * _files_popup_new (GtkWidget *parent_button);
+ GtkWidget * _brushes_popup_new (GtkWidget *parent_button);
+@@ -225,6 +226,14 @@
+ 
+   gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
+ 
++  pixmap = gtk_image_new_from_stock(GTK_STOCK_HELP,
++		  			GTK_ICON_SIZE_SMALL_TOOLBAR);
++  gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Help"),
++		  					_("Show help contents"), NULL,
++							pixmap, GTK_SIGNAL_FUNC(show_help), NULL);
++  
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
++  
+   pixbuf = gpe_find_icon ("list");
+   pixmap = gtk_image_new_from_pixbuf (pixbuf);
+   gtk_toolbar_append_item (GTK_TOOLBAR (toolbar),  _("Show list"), 
+@@ -574,6 +583,16 @@
+ 
+   gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
+ 
++  pixmap = gtk_image_new_from_stock(GTK_STOCK_HELP,
++		                      GTK_ICON_SIZE_SMALL_TOOLBAR);
++
++  gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Show help"),
++                           _("Show help contents"), NULL,
++                           pixmap, GTK_SIGNAL_FUNC(show_help), NULL);
++
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
++	
++  
+   pixbuf = gpe_find_icon ("list");
+   pixmap = gtk_image_new_from_pixbuf (pixbuf);
+   gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), NULL,

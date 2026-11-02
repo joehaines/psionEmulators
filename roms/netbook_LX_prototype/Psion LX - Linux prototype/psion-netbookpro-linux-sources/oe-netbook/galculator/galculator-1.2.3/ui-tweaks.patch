@@ -1,0 +1,193 @@
+diff -brBu galculator-1.2.3/src/callbacks.c galculator-1.2.3-psion/src/callbacks.c
+--- galculator-1.2.3/src/callbacks.c	2004-08-31 20:20:57.000000000 +0200
++++ galculator-1.2.3-psion/src/callbacks.c	2004-08-31 21:30:34.000000000 +0200
+@@ -845,21 +845,6 @@
+ 	gtk_widget_destroy (font_dialog);
+ }
+ 
+-
+-void
+-on_show_menubar1_activate              (GtkMenuItem     *menuitem,
+-                                        gpointer         user_data)
+-{
+-	GtkWidget	*menu_item;
+-	
+-	prefs.show_menu = gtk_check_menu_item_get_active ((GtkCheckMenuItem *) menuitem);;
+-	set_widget_visibility (main_window_xml, "menubar", prefs.show_menu);
+-	/* in case this cb is called by the right button mouse click menu */
+-	menu_item = glade_xml_get_widget (main_window_xml, "show_menubar1");
+-	gtk_check_menu_item_set_active ((GtkCheckMenuItem *) menu_item, prefs.show_menu);
+-
+-}
+-
+ void
+ on_prefs_custom_button_font_toggled    (GtkToggleButton *togglebutton,
+                                         gpointer         user_data)
+@@ -919,12 +904,8 @@
+ void on_prefs_show_menu_toggled (GtkToggleButton *togglebutton, 
+ 					gpointer user_data)
+ {
+-	GtkCheckMenuItem		*show_menubar_item;
+-	
+ 	prefs.show_menu = gtk_toggle_button_get_active (togglebutton);
+ 	set_widget_visibility (main_window_xml, "menubar", prefs.show_menu);
+-	show_menubar_item = (GtkCheckMenuItem *) glade_xml_get_widget (main_window_xml, "show_menubar1");
+-	gtk_check_menu_item_set_active (show_menubar_item, prefs.show_menu);
+ }
+ 
+ void on_prefs_rem_display_toggled (GtkToggleButton *togglebutton, 
+@@ -1481,11 +1462,6 @@
+ 
+ gboolean on_button_press_event (GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+ {
+-	GtkWidget	*menu;
+-	
+-	if (event->button != 3) return FALSE;
+-	menu = ui_right_mouse_menu_create ();
+-	gtk_menu_popup ((GtkMenu *) menu, NULL, NULL, NULL, NULL, 3, event->time);
+ 	return FALSE;
+ }
+ 
+diff -brBu galculator-1.2.3/src/callbacks.h galculator-1.2.3-psion/src/callbacks.h
+--- galculator-1.2.3/src/callbacks.h	2004-03-14 20:01:26.000000000 +0100
++++ galculator-1.2.3-psion/src/callbacks.h	2004-08-24 14:44:49.000000000 +0200
+@@ -243,3 +243,6 @@
+ 
+ void user_function_list_selection_changed_cb (GtkTreeSelection *selection, 
+ 					gpointer data);
++
++gboolean
++on_main_window_key_press_event (GtkWidget *widget, GdkEventKey *k, gpointer p);
+diff -brBu galculator-1.2.3/src/config_file.c galculator-1.2.3-psion/src/config_file.c
+--- galculator-1.2.3/src/config_file.c	2004-03-20 17:38:38.000000000 +0100
++++ galculator-1.2.3-psion/src/config_file.c	2004-08-31 20:43:28.000000000 +0200
+@@ -79,7 +79,6 @@
+ 	{"remembered_valuey", &(prefs.rem_valuey), STRING, NULL, NULL},
+ 	{"remembered_valuez", &(prefs.rem_valuez), STRING, NULL, NULL},
+ 	{"remembered_valuet", &(prefs.rem_valuet), STRING, NULL, NULL},
+-/*40.*/	{"show_menu_bar", &(prefs.show_menu), BOOLEAN, "prefs_show_menu", set_checkbutton},
+ 	{NULL, NULL, 0, NULL, NULL}
+ };
+ static char *prefs_list_old_entries[3] = {"show_status_bar", "remembered_value", NULL};
+diff -brBu galculator-1.2.3/src/ui.c galculator-1.2.3-psion/src/ui.c
+--- galculator-1.2.3/src/ui.c	2004-05-22 19:18:37.000000000 +0200
++++ galculator-1.2.3-psion/src/ui.c	2004-08-31 20:59:10.000000000 +0200
+@@ -318,18 +318,18 @@
+ 	/* now create the new one at location */
+ 	switch(location) {
+ 		case DISPCTRL_BOTTOM:
+-			box = glade_xml_get_widget (main_window_xml, "window_vbox");
++			box = glade_xml_get_widget (main_window_xml, "display_hbox");
+ 			dispctrl_xml = glade_file_open (DISPCTRL_BOTTOM_GLADE_FILE, 
+ 				"table_dispctrl", TRUE);
+-			ui_pack_from_xml (box, 2, dispctrl_xml, "table_dispctrl", 
+-				"button_clr", TRUE, TRUE);
++			ui_pack_from_xml (box, 1, dispctrl_xml, "table_dispctrl", 
++				"button_clr", FALSE, TRUE);
+ 			break;
+ 		case DISPCTRL_RIGHT:
+ 			box = glade_xml_get_widget (main_window_xml, "display_hbox");
+ 			dispctrl_xml = glade_file_open (DISPCTRL_RIGHT_GLADE_FILE, 
+ 				"table_dispctrl", TRUE);
+ 			ui_pack_from_xml (box, 1, dispctrl_xml, "table_dispctrl",
+-				"button_clr", FALSE, FALSE);
++				"button_clr", FALSE, TRUE);
+ 			break;
+ 		case DISPCTRL_RIGHTV:
+ 			box = glade_xml_get_widget (main_window_xml, "display_hbox");
+@@ -581,13 +581,15 @@
+ {
+ 	/* just put one here and hide it afterwards. we need the button
+ 			for working key accelerators. */
+-	if (prefs.mode == BASIC_MODE) 
++/*	if (prefs.mode == BASIC_MODE) 
++	*/
+ 		ui_main_window_set_dispctrl (DISPCTRL_BOTTOM);
+-	else if (current_status.notation == CS_RPN)
++/*	else if (current_status.notation == CS_RPN)
+ 		ui_main_window_set_dispctrl (DISPCTRL_RIGHTV);
+ 	else ui_main_window_set_dispctrl (DISPCTRL_RIGHT);
+ 	set_widget_visibility (dispctrl_xml, "table_dispctrl", 
+ 		prefs.vis_dispctrl);
++	*/
+ }
+ 
+ /*
+@@ -774,20 +776,6 @@
+ 	return menu;
+ }
+ 
+-GtkWidget *ui_right_mouse_menu_create ()
+-{
+-	GtkWidget	*menu, *menu_item;
+-	
+-	menu = gtk_menu_new();
+-	
+-	menu_item = gtk_check_menu_item_new_with_mnemonic (_("Show _menu bar"));
+-	gtk_check_menu_item_set_active ((GtkCheckMenuItem *) menu_item, prefs.show_menu);
+-	gtk_menu_shell_append ((GtkMenuShell *) menu, menu_item);
+-	gtk_widget_show (menu_item);
+-	g_signal_connect (G_OBJECT (menu_item), "activate", (GCallback) on_show_menubar1_activate, NULL);
+-	
+-	return menu;
+-}
+ 
+ GtkWidget *ui_pref_dialog_create ()
+ {
+diff -brBu galculator-1.2.3/ui/main_frame.glade galculator-1.2.3-psion/ui/main_frame.glade
+--- galculator-1.2.3/ui/main_frame.glade	2004-05-22 18:54:44.000000000 +0200
++++ galculator-1.2.3-psion/ui/main_frame.glade	2004-08-31 21:25:25.000000000 +0200
+@@ -10,6 +10,11 @@
+   <property name="modal">False</property>
+   <property name="resizable">True</property>
+   <property name="destroy_with_parent">False</property>
++  <property name="decorated">True</property>
++  <property name="skip_taskbar_hint">False</property>
++  <property name="skip_pager_hint">False</property>
++  <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
++  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+   <accessibility>
+     <atkproperty name="AtkObject::accessible_description" translatable="yes">The main program window.</atkproperty>
+   </accessibility>
+@@ -19,6 +24,8 @@
+   <child>
+     <widget class="GtkEventBox" id="main_eventbox">
+       <property name="visible">True</property>
++      <property name="visible_window">True</property>
++      <property name="above_child">False</property>
+       <signal name="button_press_event" handler="on_button_press_event" last_modification_time="Sun, 01 Feb 2004 15:11:31 GMT"/>
+ 
+       <child>
+@@ -261,23 +268,6 @@
+ 			  </child>
+ 			</widget>
+ 		      </child>
+-
+-		      <child>
+-			<widget class="GtkMenuItem" id="separator5">
+-			  <property name="visible">True</property>
+-			</widget>
+-		      </child>
+-
+-		      <child>
+-			<widget class="GtkCheckMenuItem" id="show_menubar1">
+-			  <property name="visible">True</property>
+-			  <property name="label" translatable="yes">Show _menu bar</property>
+-			  <property name="use_underline">True</property>
+-			  <property name="active">False</property>
+-			  <signal name="activate" handler="on_show_menubar1_activate" last_modification_time="Mon, 10 Mar 2003 17:04:28 GMT"/>
+-			  <accelerator key="M" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+-			</widget>
+-		      </child>
+ 		    </widget>
+ 		  </child>
+ 		</widget>
+@@ -502,6 +492,8 @@
+ 		      <property name="visible">True</property>
+ 		      <property name="can_focus">True</property>
+ 		      <property name="editable">False</property>
++		      <property name="overwrite">False</property>
++		      <property name="accepts_tab">True</property>
+ 		      <property name="justification">GTK_JUSTIFY_LEFT</property>
+ 		      <property name="wrap_mode">GTK_WRAP_WORD</property>
+ 		      <property name="cursor_visible">False</property>

@@ -1,0 +1,18 @@
+--- galculator-1.2.3/src/main.c~	Tue Nov  9 14:45:48 2004
++++ galculator-1.2.3/src/main.c	Tue Nov  9 15:01:58 2004
+@@ -148,6 +148,15 @@
+ 	main_window = ui_main_window_create();
+ 	gtk_window_set_title ((GtkWindow *)main_window, _("Calculator"));
+ 
++	{
++	  GError *error;
++	  GdkPixbuf *icon;
++
++	  icon = gdk_pixbuf_new_from_file("/usr/share/gpe/overrides/calculator.png", &error);
++
++	  if (icon) gtk_window_set_icon(main_window, icon);
++	}
++
+ 	ui_main_window_buttons_create(prefs.mode);
+ 	
+ 	/* usually, only Shift, CTRL and ALT modifiers are paid attention to by 

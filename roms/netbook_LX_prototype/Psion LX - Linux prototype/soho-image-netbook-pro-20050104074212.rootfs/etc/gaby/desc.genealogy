@@ -1,0 +1,125 @@
+# desc.genealogy
+# Author: Frederic Peters <fpeters@tiscalinet.be>
+# Purpose: genealogy program
+# Comment:
+#   Matti Koskimies thought it was possible to use Gaby as a geneology program;
+#   he may be right and this is the start.
+
+# I believe gaby may simply segfault if you try to use this file.
+# it is only intended for me to think about the Right Way to do it.
+
+Begin tables
+	Persons
+		Last name:
+			description=Last (born) name
+		Adopted last name:
+			description=typically trough marriage
+		First name:
+		Middle names:
+		Nickname:
+		Prefix name:
+			description=(Dr., Lord, King, etc.)
+		Suffix name:
+			description=(Jr., Sr., Esq., R.N., etc.)
+		Sex:string
+		Father:Record from Persons
+		Mother:Record from Persons
+		Profession:String
+		Birthdate:Date
+		Place of birth:
+		Date of death:Date
+		Place of death:
+		Burial place:
+		Source:
+			description=where you got the information
+		Last changes:date
+			description=date the record was last edited
+		Notes:Strings
+	Marriages
+		Husband:Record from Persons
+		Wife:Record from Persons
+		Date:Date
+		Place:
+		Divorce of end:Date
+End
+
+Begin locations
+	others
+		~/.gaby/
+End
+
+Begin subtables
+	Marriages:Marriages
+# we have to start with the Marriages subtable since it's used to produce
+# a list in the Persons subtable
+		viewable as form, xlist, list.
+		with only the following fields
+			Husband_{Last name, First name}:Husband
+			Wife_{Last name, First name}:Wife
+			Date:
+	Children:Persons
+		viewable as list.
+		with only the following fields
+			First name:
+			Last name:
+			Birthdate:
+			Sex:
+	Persons:Persons
+		viewable as form, xlist, list, genealogy.
+		with only the following fields
+			Last name:
+			Adopted last name:
+			First name:
+			Middle names:
+			Nickname:
+			Prefix name:
+			Suffix name:
+			Sex:
+			Father_{Last name, First name}:Father
+			Mother_{Last name, First name}:Mother
+			Profession:
+			Birthdate:
+			Place of birth:
+			Date of death:
+			Place of death:
+			Burial place:
+			List of Marriages:Marriages
+				where I am Husband
+# there is an implicit 'or' between those 2 conditions
+				where I am Wife
+			List of Children:Children
+				i18n_fr = Enfants
+				i18n_de = Kinder
+				where I am Father
+				where I am Mother
+			Source:
+			Last changes:
+			Notes:
+	Persons (short):Persons
+		viewable as form, xlist, list.
+		with only the following fields
+			Last name:
+			Adopted last name:
+			First name:
+			Middle names:
+			Nickname:
+			Prefix name:
+			Suffix name:
+			Sex:
+			Father_{Last name, First name}:Father
+			Mother_{Last name, First name}:Mother
+			Profession:
+			Birthdate:
+			Place of birth:
+			Date of death:
+			Place of death:
+			Burial place:
+			Source:
+			Notes:
+End
+
+Begin misc
+	Main window
+		form:Persons
+End
+

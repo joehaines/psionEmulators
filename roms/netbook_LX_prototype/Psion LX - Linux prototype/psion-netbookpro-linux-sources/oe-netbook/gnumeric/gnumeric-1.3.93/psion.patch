@@ -1,0 +1,1401 @@
+diff -rc gnumeric-1.3.93/configure.in psion_gnumeric/configure.in
+*** gnumeric-1.3.93/configure.in	2004-11-07 00:49:46.000000000 -0500
+--- psion_gnumeric/configure.in	2004-11-11 11:08:39.000000000 -0500
+***************
+*** 4,10 ****
+  m4_define([gnumeric_version_epoch], [1])
+  m4_define([gnumeric_version_major], [3])
+  m4_define([gnumeric_version_minor], [93])
+! m4_define([gnumeric_version_extra], [])
+  m4_define([gnumeric_full_version],
+      [gnumeric_version_epoch.gnumeric_version_major.gnumeric_version_minor()gnumeric_version_extra])
+  
+--- 4,10 ----
+  m4_define([gnumeric_version_epoch], [1])
+  m4_define([gnumeric_version_major], [3])
+  m4_define([gnumeric_version_minor], [93])
+! m4_define([gnumeric_version_extra], [-psion])
+  m4_define([gnumeric_full_version],
+      [gnumeric_version_epoch.gnumeric_version_major.gnumeric_version_minor()gnumeric_version_extra])
+  
+***************
+*** 188,194 ****
+  esac
+  AM_CONDITIONAL(WITH_WIN32, test x"$win32" = "xyes")
+  
+! GNUMERIC_PLUGIN_LDFLAGS="-avoid-version $(GNUMERIC_PLUGIN_LDFLAGS)"
+  AC_SUBST(GNUMERIC_PLUGIN_LDFLAGS)
+  
+  dnl disable for in stable release, re-enable for development series
+--- 188,194 ----
+  esac
+  AM_CONDITIONAL(WITH_WIN32, test x"$win32" = "xyes")
+  
+! GNUMERIC_PLUGIN_LDFLAGS="-avoid-version $GNUMERIC_PLUGIN_LDFLAGS"
+  AC_SUBST(GNUMERIC_PLUGIN_LDFLAGS)
+  
+  dnl disable for in stable release, re-enable for development series
+***************
+*** 216,222 ****
+  	dnl Special GConf section  (stolen from libgnome)
+  	dnl ==============================================
+  
+! 	AC_ARG_VAR(GCONFTOOL, [The gconftool-2 executable; comes with GConf.])
+  	AC_PATH_PROG(GCONFTOOL, gconftool-2)
+  	if test x"$GCONFTOOL" = x; then
+  		AC_MSG_ERROR([gconftool-2 executable not found in your path - should be installed with GConf])
+--- 216,222 ----
+  	dnl Special GConf section  (stolen from libgnome)
+  	dnl ==============================================
+  
+! 	AC_ARG_VAR(GCONFTOOL, [Absolute path of the gconftool-2 executable (part of GConf).])
+  	AC_PATH_PROG(GCONFTOOL, gconftool-2)
+  	if test x"$GCONFTOOL" = x; then
+  		AC_MSG_ERROR([gconftool-2 executable not found in your path - should be installed with GConf])
+***************
+*** 245,253 ****
+  dnl prep the pixmap generator
+  dnl ****************************
+  
+! AC_ARG_VAR(GLIB_GENMARSHAL, [The glib-genmarshal executable.])
+  AC_PATH_PROG(GLIB_GENMARSHAL, glib-genmarshal)
+! AC_ARG_VAR(GDK_PIXBUF_CSOURCE, [The gdk-pixbuf-csource executable.])
+  AC_PATH_PROG(GDK_PIXBUF_CSOURCE, gdk-pixbuf-csource)
+  
+  ## this should come after `AC_PROG_CC'
+--- 245,253 ----
+  dnl prep the pixmap generator
+  dnl ****************************
+  
+! AC_ARG_VAR(GLIB_GENMARSHAL, [Absolute path of the glib-genmarshal executable.])
+  AC_PATH_PROG(GLIB_GENMARSHAL, glib-genmarshal)
+! AC_ARG_VAR(GDK_PIXBUF_CSOURCE, [Absolute path of the gdk-pixbuf-csource executable.])
+  AC_PATH_PROG(GDK_PIXBUF_CSOURCE, gdk-pixbuf-csource)
+  
+  ## this should come after `AC_PROG_CC'
+***************
+*** 420,426 ****
+  	[--{with,without}-psiconv  Compile with Psiconv support or without it])
+  AC_ARG_VAR(PSICONV_CONFIG, [The psiconv-config executable.])
+  if test "x$with_psiconv" != xno; then
+!     AC_CHECK_PROG(PSICONV_CONFIG,psiconv-config)
+      if test x"$PSICONV_CONFIG" = x; then
+  	psiconv_msg="missing dependencies"
+      else
+--- 420,426 ----
+  	[--{with,without}-psiconv  Compile with Psiconv support or without it])
+  AC_ARG_VAR(PSICONV_CONFIG, [The psiconv-config executable.])
+  if test "x$with_psiconv" != xno; then
+!     AC_CHECK_PROG(PSICONV_CONFIG,psiconv-config,psiconv-config)
+      if test x"$PSICONV_CONFIG" = x; then
+  	psiconv_msg="missing dependencies"
+      else
+***************
+*** 705,711 ****
+  dnl * Check for Perl
+  dnl **************************************************
+  dnl
+! perl_msg=yes
+  AC_ARG_WITH(perl, [--{with,without}-perl   Compile the Perl plugin loader])
+  AC_ARG_VAR(PERL, [The Perl executable.])
+  if test "x$with_perl" != xno; then
+--- 705,711 ----
+  dnl * Check for Perl
+  dnl **************************************************
+  dnl
+! perl_msg=no
+  AC_ARG_WITH(perl, [--{with,without}-perl   Compile the Perl plugin loader])
+  AC_ARG_VAR(PERL, [The Perl executable.])
+  if test "x$with_perl" != xno; then
+***************
+*** 715,721 ****
+  	if $PERL -e 'eval { require ExtUtils::Embed }; if ($@) { exit(1); } else { exit(0); }'
+  	then
+  	    AC_MSG_RESULT($marker_ok)
+! 	    AC_CHECK_LIB(perl, perl_construct, [], [perl_msg="missing/invalid libperl"])
+  	else
+  	    AC_MSG_RESULT($marker_no)
+  	    perl_msg="Missing ExtUtils::Embed"
+--- 715,721 ----
+  	if $PERL -e 'eval { require ExtUtils::Embed }; if ($@) { exit(1); } else { exit(0); }'
+  	then
+  	    AC_MSG_RESULT($marker_ok)
+! 	    dnl AC_CHECK_LIB(perl, perl_construct, [], [perl_msg="missing/invalid libperl"])
+  	else
+  	    AC_MSG_RESULT($marker_no)
+  	    perl_msg="Missing ExtUtils::Embed"
+***************
+*** 724,730 ****
+  	perl_msg="could not find perl"
+      fi
+  else
+!     perl_msg="Disabled by request"
+  fi
+  
+  AM_CONDITIONAL(WITH_PERL, test "x$perl_msg" = xyes)
+--- 724,730 ----
+  	perl_msg="could not find perl"
+      fi
+  else
+!     perl_msg="Disabled by default"
+  fi
+  
+  AM_CONDITIONAL(WITH_PERL, test "x$perl_msg" = xyes)
+***************
+*** 789,795 ****
+  	PY_CFLAGS="-I$PY_PREFIX/include/python$PY_VERSION"
+  	[echo 'echo_python_libs:
+  	@echo $(MODLIBS) $(LIBS)' >confmake.tmp
+! 	PY_EXTRA_LIBS=`make -f confmake.tmp -f "$PY_EXEC_PREFIX/lib/python$PY_VERSION/config/Makefile"`
+  	rm -f confmake.tmp]
+      else
+  	AC_MSG_RESULT($marker_fail)
+--- 789,795 ----
+  	PY_CFLAGS="-I$PY_PREFIX/include/python$PY_VERSION"
+  	[echo 'echo_python_libs:
+  	@echo $(MODLIBS) $(LIBS)' >confmake.tmp
+! 	PY_EXTRA_LIBS=`make -s -f confmake.tmp -f "$PY_EXEC_PREFIX/lib/python$PY_VERSION/config/Makefile"`
+  	rm -f confmake.tmp]
+      else
+  	AC_MSG_RESULT($marker_fail)
+diff -rc gnumeric-1.3.93/plugins/excel/plugin.xml.in psion_gnumeric/plugins/excel/plugin.xml.in
+*** gnumeric-1.3.93/plugins/excel/plugin.xml.in	2004-09-21 00:37:14.000000000 -0400
+--- psion_gnumeric/plugins/excel/plugin.xml.in	2004-09-26 17:46:04.000000000 -0400
+***************
+*** 32,38 ****
+  			</information>
+  		</service>
+  		<service type="file_saver" id="excel_biff8" file_extension="xls"
+! 		         format_level="auto" overwrite_files="TRUE">
+  			<information>
+  				<_description>MS Excel (tm) 97/2000/XP</_description>
+  			</information>
+--- 32,38 ----
+  			</information>
+  		</service>
+  		<service type="file_saver" id="excel_biff8" file_extension="xls"
+! 		         format_level="auto" overwrite_files="TRUE" default_saver_priority="100">
+  			<information>
+  				<_description>MS Excel (tm) 97/2000/XP</_description>
+  			</information>
+diff -rc gnumeric-1.3.93/plugins/perl/perl.c psion_gnumeric/plugins/perl/perl.c
+*** gnumeric-1.3.93/plugins/perl/perl.c	2004-10-15 11:41:15.000000000 -0400
+--- psion_gnumeric/plugins/perl/perl.c	2004-11-11 11:08:42.000000000 -0500
+***************
+*** 10,16 ****
+  #define _perl_dirty dirty
+  #undef dirty
+  #include <glib.h>
+- #include <gnome.h>
+  #include "plugin.h"
+  #include "error-info.h"
+  #include "module-plugin-defs.h"
+--- 10,15 ----
+diff -rc gnumeric-1.3.93/plugins/xml_sax/xml-sax-read.c psion_gnumeric/plugins/xml_sax/xml-sax-read.c
+*** gnumeric-1.3.93/plugins/xml_sax/xml-sax-read.c	2004-10-16 23:01:29.000000000 -0400
+--- psion_gnumeric/plugins/xml_sax/xml-sax-read.c	2004-11-11 11:08:43.000000000 -0500
+***************
+*** 1350,1364 ****
+  }
+  
+  static void
+! xml_sax_orientation (GsfXMLIn *gsf_state, xmlChar const **attrs)
+  {
+  	XMLSaxParseState *state = (XMLSaxParseState *)gsf_state;
+  	char const *content = state->base.content->str;
+  
+! 	g_return_if_fail(state->sheet->print_info != NULL);
+! 	if (!strcmp(content, "portrait")) {
+  		print_info_set_orientation (state->sheet->print_info, PRINT_ORIENT_VERTICAL);
+! 	} else if (!strcmp(content, "landscape")) {
+  		print_info_set_orientation (state->sheet->print_info, PRINT_ORIENT_HORIZONTAL);
+  	} else {
+  		g_warning ("Invalid content for orientation");
+--- 1350,1366 ----
+  }
+  
+  static void
+! xml_sax_orientation (GsfXMLIn *gsf_state, G_GNUC_UNUSED GsfXMLBlob *blob)
+  {
+  	XMLSaxParseState *state = (XMLSaxParseState *)gsf_state;
+  	char const *content = state->base.content->str;
+  
+! 	g_return_if_fail (state->sheet != NULL);
+! 	g_return_if_fail (state->sheet->print_info != NULL);
+! 
+! 	if (!strcmp (content, "portrait")) {
+  		print_info_set_orientation (state->sheet->print_info, PRINT_ORIENT_VERTICAL);
+! 	} else if (!strcmp (content, "landscape")) {
+  		print_info_set_orientation (state->sheet->print_info, PRINT_ORIENT_HORIZONTAL);
+  	} else {
+  		g_warning ("Invalid content for orientation");
+***************
+*** 1366,1377 ****
+  }
+  
+  static void
+! xml_sax_paper (GsfXMLIn *gsf_state, xmlChar const **attrs)
+  {
+  	XMLSaxParseState *state = (XMLSaxParseState *)gsf_state;
+  	char const *content = state->base.content->str;
+  
+! 	g_return_if_fail(state->sheet->print_info != NULL);
+  
+  	print_info_set_paper (state->sheet->print_info, content);
+  }
+--- 1368,1380 ----
+  }
+  
+  static void
+! xml_sax_paper (GsfXMLIn *gsf_state, G_GNUC_UNUSED GsfXMLBlob *blob)
+  {
+  	XMLSaxParseState *state = (XMLSaxParseState *)gsf_state;
+  	char const *content = state->base.content->str;
+  
+! 	g_return_if_fail (state->sheet != NULL);
+! 	g_return_if_fail (state->sheet->print_info != NULL);
+  
+  	print_info_set_paper (state->sheet->print_info, content);
+  }
+***************
+*** 1397,1402 ****
+--- 1400,1406 ----
+  static GsfXMLInNode gnumeric_1_0_dtd[] = {
+  GSF_XML_IN_NODE_FULL (START, START, -1, NULL, FALSE, FALSE, TRUE, NULL, NULL, 0),
+  GSF_XML_IN_NODE_FULL (START, WB, GNM, "Workbook", FALSE, TRUE, FALSE, &xml_sax_wb, NULL, 0),
++   GSF_XML_IN_NODE (WB, WB_VERSION, GNM, "Version", FALSE, NULL, NULL),
+    GSF_XML_IN_NODE (WB, WB_ATTRIBUTES, GNM, "Attributes", FALSE, NULL, NULL),
+      GSF_XML_IN_NODE (WB_ATTRIBUTES, WB_ATTRIBUTE, GNM, "Attribute", FALSE, NULL, &xml_sax_finish_parse_wb_attr),
+        GSF_XML_IN_NODE_FULL (WB_ATTRIBUTE, WB_ATTRIBUTE_NAME, GNM, "name",   TRUE, FALSE, FALSE, NULL, &xml_sax_attr_elem, 0),
+***************
+*** 1452,1459 ****
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_HEADER,	    GNM, "Footer",	FALSE, NULL, NULL),
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_FOOTER,	    GNM, "Header",	FALSE, NULL, NULL),
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_ORDER,	    GNM, "order",	TRUE,  NULL, NULL),
+! 	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_PAPER,	    GNM, "paper",	TRUE,  &xml_sax_paper, NULL),
+! 	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_ORIENT,	    GNM, "orientation",	TRUE,  &xml_sax_orientation, NULL),
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_ONLY_STYLE, GNM, "even_if_only_styles", TRUE, NULL, NULL),
+  
+        GSF_XML_IN_NODE (SHEET, SHEET_STYLES, GNM, "Styles", FALSE, NULL, NULL),
+--- 1456,1463 ----
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_HEADER,	    GNM, "Footer",	FALSE, NULL, NULL),
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_FOOTER,	    GNM, "Header",	FALSE, NULL, NULL),
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_ORDER,	    GNM, "order",	TRUE,  NULL, NULL),
+! 	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_PAPER,	    GNM, "paper",	TRUE,  NULL, &xml_sax_paper),
+! 	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_ORIENT,	    GNM, "orientation",	TRUE,  NULL, &xml_sax_orientation),
+  	GSF_XML_IN_NODE (SHEET_PRINTINFO, PRINT_ONLY_STYLE, GNM, "even_if_only_styles", TRUE, NULL, NULL),
+  
+        GSF_XML_IN_NODE (SHEET, SHEET_STYLES, GNM, "Styles", FALSE, NULL, NULL),
+diff -rc gnumeric-1.3.93/README psion_gnumeric/README
+*** gnumeric-1.3.93/README	2004-08-19 10:19:14.000000000 -0400
+--- psion_gnumeric/README	2004-11-11 11:08:39.000000000 -0500
+***************
+*** 22,27 ****
+--- 22,28 ----
+  	libglade	>= 2.3.6	libglade2-dev
+  	intltool	>= 0.27.2	intltool
+  	gnome-xml   	>= 2.4.12	libxml2-dev
++ 	libgnomecanvas 	>= 2.0.0	libgnomecanvas-dev
+  	libart   	>= 2.3.11	libart-2.0-dev
+  	NOTE : gnome-xml is also known as libxml
+  
+***************
+*** 39,46 ****
+  	libgnomedb	>= 1.0.1	libgnomedb2-dev
+  
+  Currently disabled:
+! 	gb		== 0.0.17
+! 	guile		>= 1.5
+  
+  Mailing lists
+  -------------
+--- 40,46 ----
+  	libgnomedb	>= 1.0.1	libgnomedb2-dev
+  
+  Currently disabled:
+! 	guile		>= 1.5	(no maintainer)
+  
+  Mailing lists
+  -------------
+diff -rc gnumeric-1.3.93/schemas/gnumeric-dialogs.schemas.in psion_gnumeric/schemas/gnumeric-dialogs.schemas.in
+*** gnumeric-1.3.93/schemas/gnumeric-dialogs.schemas.in	2004-10-26 21:27:19.000000000 -0400
+--- psion_gnumeric/schemas/gnumeric-dialogs.schemas.in	2004-10-31 23:36:45.000000000 -0500
+***************
+*** 241,247 ****
+          <owner>Gnumeric</owner>
+          <type>string</type>
+          <locale name="C">
+! 	<default>Sans</default>
+          <short>Default header/footer font name</short>
+          <long>The default font name for headers and footers.</long>
+          </locale>
+--- 241,247 ----
+          <owner>Gnumeric</owner>
+          <type>string</type>
+          <locale name="C">
+! 	<default>Albany</default>
+          <short>Default header/footer font name</short>
+          <long>The default font name for headers and footers.</long>
+          </locale>
+diff -rc gnumeric-1.3.93/schemas/gnumeric-general.schemas.in psion_gnumeric/schemas/gnumeric-general.schemas.in
+*** gnumeric-1.3.93/schemas/gnumeric-general.schemas.in	2004-10-20 23:48:03.000000000 -0400
+--- psion_gnumeric/schemas/gnumeric-general.schemas.in	2004-10-31 23:36:45.000000000 -0500
+***************
+*** 74,80 ****
+          <owner>Gnumeric</owner>
+          <type>string</type>
+          <locale name="C">
+! 	<default>Sans</default>
+          <short>Default font name</short>
+          <long>The default font name for new workbooks.</long>
+          </locale>
+--- 74,80 ----
+          <owner>Gnumeric</owner>
+          <type>string</type>
+          <locale name="C">
+! 	<default>Albany</default>
+          <short>Default font name</short>
+          <long>The default font name for new workbooks.</long>
+          </locale>
+diff -rc gnumeric-1.3.93/src/dialogs/dialog-col-width.c psion_gnumeric/src/dialogs/dialog-col-width.c
+*** gnumeric-1.3.93/src/dialogs/dialog-col-width.c	2004-09-14 22:30:48.000000000 -0400
+--- psion_gnumeric/src/dialogs/dialog-col-width.c	2004-09-09 13:00:47.000000000 -0400
+***************
+*** 69,74 ****
+--- 69,76 ----
+  static void
+  dialog_col_width_button_sensitivity (ColWidthState *state)
+  {
++ 	gboolean changed_info = TRUE;
++ #if 0
+  	gnm_float value = gtk_spin_button_get_value (state->spin);
+  	gboolean use_default = gtk_toggle_button_get_active
+  		(GTK_TOGGLE_BUTTON (state->default_check));
+***************
+*** 82,87 ****
+--- 84,90 ----
+  				|| (use_default && !state->orig_is_default));
+  
+  	}
++ #endif
+  	gtk_widget_set_sensitive (state->ok_button, changed_info);
+  	gtk_widget_set_sensitive (state->apply_button, changed_info);
+  }
+diff -rc gnumeric-1.3.93/src/dialogs/dialog-preferences.c psion_gnumeric/src/dialogs/dialog-preferences.c
+*** gnumeric-1.3.93/src/dialogs/dialog-preferences.c	2004-11-06 23:02:03.000000000 -0500
+--- psion_gnumeric/src/dialogs/dialog-preferences.c	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 115,137 ****
+  }
+  
+  static void
+! dialog_pref_load_description_from_key (PrefState *state, char const *key)
+  {
+! 	char *long_desc = go_conf_get_long_desc (key);
+! 
+! 	g_return_if_fail (long_desc != NULL);
+  
+! 	gtk_text_buffer_set_text (
+! 		gtk_text_view_get_buffer (state->description), long_desc, -1);
+! 	g_free (long_desc);
+  }
+  
+  static void
+! dialog_pref_load_description (PrefState *state, char const *text)
+  {
+! 	GtkTextBuffer *buffer = gtk_text_view_get_buffer (state->description);
+  
+! 	gtk_text_buffer_set_text (buffer, text, -1);
+  }
+  
+  static void
+--- 115,138 ----
+  }
+  
+  static void
+! dialog_pref_load_description (PrefState *state, char const *text)
+  {
+! 	GtkTextBuffer *buffer = gtk_text_view_get_buffer (state->description);
+  
+! 	gtk_text_buffer_set_text (buffer, text, -1);
+  }
+  
+  static void
+! dialog_pref_load_description_from_key (PrefState *state, char const *key)
+  {
+! 	char *long_desc = go_conf_get_long_desc (key);
+  
+! 	if (long_desc == NULL)
+! 		dialog_pref_load_description (state, "");
+! 	else {
+! 		dialog_pref_load_description (state, long_desc);
+! 		g_free (long_desc);
+! 	}
+  }
+  
+  static void
+***************
+*** 180,191 ****
+  }
+  static void
+  bool_pref_create_widget (char const *key, GtkWidget *table, gint row, 
+! 			 gboolean_conf_setter_t setter)
+  {
+  	char *desc = go_conf_get_short_desc (key);
+  	GtkWidget *item = gtk_check_button_new_with_label (
+! 		desc ? desc : "schema missing");
+! 	g_free (desc);
+  
+  	bool_pref_conf_to_widget (key, GTK_TOGGLE_BUTTON (item));
+  	g_signal_connect (G_OBJECT (item),
+--- 181,195 ----
+  }
+  static void
+  bool_pref_create_widget (char const *key, GtkWidget *table, gint row, 
+! 			 gboolean_conf_setter_t setter, 
+! 			 char const *default_text)
+  {
+  	char *desc = go_conf_get_short_desc (key);
+  	GtkWidget *item = gtk_check_button_new_with_label (
+! 		(desc != NULL) ? desc : default_text);
+! 
+! 	if (desc != NULL)
+! 		g_free (desc);
+  
+  	bool_pref_conf_to_widget (key, GTK_TOGGLE_BUTTON (item));
+  	g_signal_connect (G_OBJECT (item),
+***************
+*** 220,230 ****
+  }
+  static void
+  int_pref_create_widget (char const *key, GtkWidget *table, gint row,
+! 			gint val, gint from, gint to, gint step, gint_conf_setter_t setter)
+  {
+  	char *desc = go_conf_get_short_desc (key);
+! 	GtkWidget *item = gtk_label_new (desc ? desc : "schema missing");
+! 	g_free (desc);
+  
+  	gtk_label_set_justify (GTK_LABEL (item), GTK_JUSTIFY_LEFT);
+  	gtk_misc_set_alignment (GTK_MISC (item), 0, 0);
+--- 224,238 ----
+  }
+  static void
+  int_pref_create_widget (char const *key, GtkWidget *table, gint row,
+! 			gint val, gint from, gint to, gint step, 
+! 			gint_conf_setter_t setter, char const *default_text)
+  {
+  	char *desc = go_conf_get_short_desc (key);
+! 	GtkWidget *item = gtk_label_new 
+! 		((desc != NULL) ? desc : default_text);
+! 
+! 	if (desc != NULL)
+! 		g_free (desc);
+  
+  	gtk_label_set_justify (GTK_LABEL (item), GTK_JUSTIFY_LEFT);
+  	gtk_misc_set_alignment (GTK_MISC (item), 0, 0);
+***************
+*** 263,279 ****
+  {
+  	double val_in_button = gtk_spin_button_get_value (button);
+  	double val_in_conf = go_conf_get_double (key);
+! 	if (abs (val_in_conf - val_in_button) > 1e-10) /* dead simple */
+  		gtk_spin_button_set_value (button, val_in_conf);
+  }
+  static void
+  double_pref_create_widget (char const *key, GtkWidget *table, gint row,
+! 			   gnm_float val, gnm_float from, gnm_float to, gnm_float step,
+! 			   gint digits, double_conf_setter_t setter)
+  {
+  	char *desc = go_conf_get_short_desc (key);
+! 	GtkWidget *item = gtk_label_new (desc ? desc : "schema missing");
+! 	g_free (desc);
+  
+  	gtk_label_set_justify (GTK_LABEL (item), GTK_JUSTIFY_LEFT);
+  	gtk_misc_set_alignment (GTK_MISC (item), 0, 0);
+--- 271,292 ----
+  {
+  	double val_in_button = gtk_spin_button_get_value (button);
+  	double val_in_conf = go_conf_get_double (key);
+! 
+! 	if (fabs (val_in_conf - val_in_button) > 1e-10) /* dead simple */
+  		gtk_spin_button_set_value (button, val_in_conf);
+  }
+  static void
+  double_pref_create_widget (char const *key, GtkWidget *table, gint row,
+! 			   gnm_float val, gnm_float from, gnm_float to, 
+! 			   gnm_float step,
+! 			   gint digits, double_conf_setter_t setter,
+! 			   char const *default_text)
+  {
+  	char *desc = go_conf_get_short_desc (key);
+! 	GtkWidget *item = gtk_label_new (desc ? desc : default_text);
+! 	
+! 	if (desc != NULL)
+! 		g_free (desc);
+  
+  	gtk_label_set_justify (GTK_LABEL (item), GTK_JUSTIFY_LEFT);
+  	gtk_misc_set_alignment (GTK_MISC (item), 0, 0);
+***************
+*** 452,464 ****
+  	gint row = 0;
+  
+  	int_pref_create_widget (GNM_CONF_UNDO_MAX_DESCRIPTOR_WIDTH,
+! 		page, row++, 5, 5, 200, 1, gnm_gconf_set_max_descriptor_width);
+  	int_pref_create_widget (GNM_CONF_UNDO_SIZE,
+! 		page, row++, 1000, 0, 30000, 100, gnm_gconf_set_undo_size);
+  	int_pref_create_widget (GNM_CONF_UNDO_MAXNUM,
+! 		page, row++, 20, 1, 200, 1, gnm_gconf_set_undo_max_number);
+  	bool_pref_create_widget (GNM_CONF_UNDO_SHOW_SHEET_NAME,
+! 		page, row++, gnm_gconf_set_show_sheet_name);
+  
+  	gtk_widget_show_all (page);
+  	return page;
+--- 465,485 ----
+  	gint row = 0;
+  
+  	int_pref_create_widget (GNM_CONF_UNDO_MAX_DESCRIPTOR_WIDTH,
+! 				page, row++, 5, 5, 200, 1, 
+! 				gnm_gconf_set_max_descriptor_width,
+! 				_("Length of Undo Descriptors"));
+  	int_pref_create_widget (GNM_CONF_UNDO_SIZE,
+! 				page, row++, 1000, 0, 30000, 100, 
+! 				gnm_gconf_set_undo_size,
+! 				_("Maximal Undo Size"));
+  	int_pref_create_widget (GNM_CONF_UNDO_MAXNUM,
+! 				page, row++, 20, 1, 200, 1, 
+! 				gnm_gconf_set_undo_max_number,
+! 				_("Number of Undo Items"));
+  	bool_pref_create_widget (GNM_CONF_UNDO_SHOW_SHEET_NAME,
+! 				 page, row++, 
+! 				 gnm_gconf_set_show_sheet_name,
+! 				_("Show Sheet Name in Undo List"));
+  
+  	gtk_widget_show_all (page);
+  	return page;
+***************
+*** 489,501 ****
+  	gint row = 0;
+  
+  	int_pref_create_widget (GNM_CONF_SORT_DIALOG_MAX_INITIAL,
+! 		page, row++, 10, 0, 50, 1, gnm_gconf_set_sort_dialog_max_initial);
+  	bool_pref_create_widget (GNM_CONF_SORT_DEFAULT_RETAIN_FORM,
+! 		page, row++, gnm_gconf_set_sort_retain_form);
+  	bool_pref_create_widget (GNM_CONF_SORT_DEFAULT_BY_CASE,
+! 		page, row++, gnm_gconf_set_sort_by_case);
+  	bool_pref_create_widget (GNM_CONF_SORT_DEFAULT_ASCENDING,
+! 		page, row++, gnm_gconf_set_sort_ascending);
+  
+  	gtk_widget_show_all (page);
+  	return page;
+--- 510,530 ----
+  	gint row = 0;
+  
+  	int_pref_create_widget (GNM_CONF_SORT_DIALOG_MAX_INITIAL,
+! 				page, row++, 10, 0, 50, 1, 
+! 				gnm_gconf_set_sort_dialog_max_initial,
+! 				_("Number of Automatic Clauses"));
+  	bool_pref_create_widget (GNM_CONF_SORT_DEFAULT_RETAIN_FORM,
+! 				 page, row++, 
+! 				 gnm_gconf_set_sort_retain_form,
+! 				 _("Sorting Preserves Formats"));
+  	bool_pref_create_widget (GNM_CONF_SORT_DEFAULT_BY_CASE,
+! 				 page, row++, 
+! 				 gnm_gconf_set_sort_by_case,
+! 				 _("Sorting is Case-Sensitive"));
+  	bool_pref_create_widget (GNM_CONF_SORT_DEFAULT_ASCENDING,
+! 				 page, row++, 
+! 				 gnm_gconf_set_sort_ascending,
+! 				 _("Sort Ascending"));
+  
+  	gtk_widget_show_all (page);
+  	return page;
+***************
+*** 526,542 ****
+  	gint row = 0;
+  
+  	double_pref_create_widget (GNM_CONF_GUI_WINDOW_Y,
+! 		page, row++, 0.75, 0.25, 1, 0.05, 2, gnm_gconf_set_gui_window_y);
+  	double_pref_create_widget (GNM_CONF_GUI_WINDOW_X,
+! 		page, row++, 0.75, 0.25, 1, 0.05, 2, gnm_gconf_set_gui_window_x);
+  	double_pref_create_widget (GNM_CONF_GUI_ZOOM,
+! 		page, row++, 1.00, 0.10, 5.00, 0.05, 2, gnm_gconf_set_gui_zoom);
+  	int_pref_create_widget (GNM_CONF_WORKBOOK_NSHEETS,
+! 		page, row++, 1, 1, 64, 1, gnm_gconf_set_workbook_nsheets);
+  	bool_pref_create_widget (GNM_CONF_GUI_ED_TRANSITION_KEYS,
+! 		page, row++, gnm_gconf_set_gui_transition_keys);
+  	bool_pref_create_widget (GNM_CONF_GUI_ED_LIVESCROLLING,
+! 		page, row++, gnm_gconf_set_gui_livescrolling);
+  
+  	gtk_widget_show_all (page);
+  	return page;
+--- 555,583 ----
+  	gint row = 0;
+  
+  	double_pref_create_widget (GNM_CONF_GUI_WINDOW_Y,
+! 				   page, row++, 0.75, 0.25, 1, 0.05, 2, 
+! 				   gnm_gconf_set_gui_window_y,
+! 				   _("Default Vertical Window Size"));
+  	double_pref_create_widget (GNM_CONF_GUI_WINDOW_X,
+! 				   page, row++, 0.75, 0.25, 1, 0.05, 2, 
+! 				   gnm_gconf_set_gui_window_x,
+! 				   _("Default Horizontal Window Size"));
+  	double_pref_create_widget (GNM_CONF_GUI_ZOOM,
+! 				   page, row++, 1.00, 0.10, 5.00, 0.05, 2, 
+! 				   gnm_gconf_set_gui_zoom,
+! 				   _("Default Zoom Factor"));
+  	int_pref_create_widget (GNM_CONF_WORKBOOK_NSHEETS,
+! 				page, row++, 1, 1, 64, 1, 
+! 				gnm_gconf_set_workbook_nsheets,
+! 				_("Default Number of Sheets"));
+  	bool_pref_create_widget (GNM_CONF_GUI_ED_TRANSITION_KEYS,
+! 				 page, row++, 
+! 				 gnm_gconf_set_gui_transition_keys,
+! 				 _("Transition Keys"));
+  	bool_pref_create_widget (GNM_CONF_GUI_ED_LIVESCROLLING,
+! 				 page, row++, 
+! 				 gnm_gconf_set_gui_livescrolling,
+! 				 _("Live Scrolling"));
+  
+  	gtk_widget_show_all (page);
+  	return page;
+***************
+*** 566,580 ****
+  	gint row = 0;
+  
+  	int_pref_create_widget (GNM_CONF_FILE_HISTORY_N,
+! 		page, row++, 4, 0, 40, 1, gnm_gconf_set_file_history_number);
+  	int_pref_create_widget (GNM_CONF_XML_COMPRESSION,
+! 		page, row++, 9, 0, 9, 1, gnm_gconf_set_xml_compression);
+  	bool_pref_create_widget (GNM_CONF_FILE_OVERWRITE_DEFAULT,
+! 		page, row++, gnm_gconf_set_file_overwrite);
+  	bool_pref_create_widget (GNM_CONF_FILE_SINGLE_SHEET_SAVE,
+! 		page, row++, gnm_gconf_set_file_single_sheet_save);
+  	bool_pref_create_widget (PLUGIN_GCONF_LATEX_USE_UTF8,
+! 		page, row++, gnm_gconf_set_latex_use_utf8);
+  
+  	gtk_widget_show_all (page);
+  	return page;
+--- 607,633 ----
+  	gint row = 0;
+  
+  	int_pref_create_widget (GNM_CONF_FILE_HISTORY_N,
+! 				page, row++, 4, 0, 40, 1, 
+! 				gnm_gconf_set_file_history_number,
+! 				_("Length of File History"));
+  	int_pref_create_widget (GNM_CONF_XML_COMPRESSION,
+! 				page, row++, 9, 0, 9, 1, 
+! 				gnm_gconf_set_xml_compression,
+! 				_("Default Compression Level For "
+! 				  "Gnumeric Files"));
+  	bool_pref_create_widget (GNM_CONF_FILE_OVERWRITE_DEFAULT,
+! 				 page, row++, 
+! 				 gnm_gconf_set_file_overwrite,
+! 				 _("Default To Overwriting Files"));
+  	bool_pref_create_widget (GNM_CONF_FILE_SINGLE_SHEET_SAVE,
+! 				 page, row++, 
+! 				 gnm_gconf_set_file_single_sheet_save,
+! 				 _("Warn When Exporting Into Single "
+! 				   "Sheet Format"));
+  	bool_pref_create_widget (PLUGIN_GCONF_LATEX_USE_UTF8,
+! 				 page, row++, 
+! 				 gnm_gconf_set_latex_use_utf8,
+! 				 _("Use UTF-8 in LaTeX Export"));
+  
+  	gtk_widget_show_all (page);
+  	return page;
+***************
+*** 604,612 ****
+  	gint row = 0;
+  
+  	double_pref_create_widget (GNM_CONF_GUI_RES_H, page, row++,
+! 				   96, 50, 250, 1, 1, gnm_gconf_set_gui_resolution_h);
+  	double_pref_create_widget (GNM_CONF_GUI_RES_V, page, row++,
+! 				   96, 50, 250, 1, 1, gnm_gconf_set_gui_resolution_v);
+  
+  	gtk_widget_show_all (page);
+  	return page;
+--- 657,669 ----
+  	gint row = 0;
+  
+  	double_pref_create_widget (GNM_CONF_GUI_RES_H, page, row++,
+! 				   96, 50, 250, 1, 1, 
+! 				   gnm_gconf_set_gui_resolution_h,
+! 				   _("Horizontal DPI"));
+  	double_pref_create_widget (GNM_CONF_GUI_RES_V, page, row++,
+! 				   96, 50, 250, 1, 1, 
+! 				   gnm_gconf_set_gui_resolution_v,
+! 				   _("Vertical DPI"));
+  
+  	gtk_widget_show_all (page);
+  	return page;
+***************
+*** 637,647 ****
+  	gint row = 0;
+  
+  	int_pref_create_widget (FUNCTION_SELECT_GCONF_NUM_OF_RECENT,
+! 		page, row++, 10, 0, 40, 1, gnm_gconf_set_num_recent_functions);
+  	bool_pref_create_widget (GNM_CONF_GUI_ED_AUTOCOMPLETE,
+! 		page, row++, gnm_gconf_set_autocomplete);
+  	bool_pref_create_widget (DIALOGS_GCONF_UNFOCUSED_RS,
+! 		page, row++, gnm_gconf_set_unfocused_rs);
+  	
+  	gtk_widget_show_all (page);
+  	return page;
+--- 694,711 ----
+  	gint row = 0;
+  
+  	int_pref_create_widget (FUNCTION_SELECT_GCONF_NUM_OF_RECENT,
+! 				page, row++, 10, 0, 40, 1, 
+! 				gnm_gconf_set_num_recent_functions,
+! 				_("Maximum Length of Recently "
+! 				  "Used Functions List"));
+  	bool_pref_create_widget (GNM_CONF_GUI_ED_AUTOCOMPLETE,
+! 				 page, row++, 
+! 				 gnm_gconf_set_autocomplete,
+! 				_("Autocomplete"));
+  	bool_pref_create_widget (DIALOGS_GCONF_UNFOCUSED_RS,
+! 				 page, row++, 
+! 				 gnm_gconf_set_unfocused_rs,
+! 				_("Allow Unfocused Range Selections"));
+  	
+  	gtk_widget_show_all (page);
+  	return page;
+***************
+*** 672,678 ****
+  	gint row = 0;
+  
+  	bool_pref_create_widget (GNM_CONF_CUTANDPASTE_PREFER_CLIPBOARD,
+! 		page, row++, gnm_gconf_set_prefer_clipboard);
+  	
+  	gtk_widget_show_all (page);
+  	return page;
+--- 736,744 ----
+  	gint row = 0;
+  
+  	bool_pref_create_widget (GNM_CONF_CUTANDPASTE_PREFER_CLIPBOARD,
+! 				 page, row++, 
+! 				 gnm_gconf_set_prefer_clipboard,
+! 				 _("Prefer CLIPBOARD over PRIMARY selection"));
+  	
+  	gtk_widget_show_all (page);
+  	return page;
+diff -rc gnumeric-1.3.93/src/dialogs/dialog-row-height.c psion_gnumeric/src/dialogs/dialog-row-height.c
+*** gnumeric-1.3.93/src/dialogs/dialog-row-height.c	2004-03-05 09:48:50.000000000 -0500
+--- psion_gnumeric/src/dialogs/dialog-row-height.c	2004-09-09 13:00:23.000000000 -0400
+***************
+*** 69,74 ****
+--- 69,76 ----
+  static void
+  dialog_row_height_button_sensitivity (RowHeightState *state)
+  {
++ 	gboolean changed_info = TRUE;
++ #if 0
+  	gnm_float value = gtk_spin_button_get_value (state->spin);
+  	gboolean use_default = gtk_toggle_button_get_active
+  		(GTK_TOGGLE_BUTTON (state->default_check));
+***************
+*** 82,87 ****
+--- 84,90 ----
+  				|| (use_default && !state->orig_is_default));
+  
+  	}
++ #endif
+  	gtk_widget_set_sensitive (state->ok_button, changed_info);
+  	gtk_widget_set_sensitive (state->apply_button, changed_info);
+  }
+diff -rc gnumeric-1.3.93/src/dialogs/dialog-workbook-attr.c psion_gnumeric/src/dialogs/dialog-workbook-attr.c
+*** gnumeric-1.3.93/src/dialogs/dialog-workbook-attr.c	2004-10-08 11:18:01.000000000 -0400
+--- psion_gnumeric/src/dialogs/dialog-workbook-attr.c	2004-10-08 22:34:21.000000000 -0400
+***************
+*** 106,116 ****
+  static void
+  cb_widget_changed (G_GNUC_UNUSED GtkWidget *widget, AttrState *state)
+  {
+! 	gboolean changed;
+  	int max_iterations;
+  	double iteration_tolerance;
+  
+  	get_entry_values (state, &max_iterations, &iteration_tolerance);
+  	changed =
+  		!((gtk_toggle_button_get_active (state->view.show_hsb) == state->old.show_hsb) &&
+  		  (gtk_toggle_button_get_active (state->view.show_vsb) == state->old.show_vsb) &&
+--- 106,117 ----
+  static void
+  cb_widget_changed (G_GNUC_UNUSED GtkWidget *widget, AttrState *state)
+  {
+! 	gboolean changed = TRUE;
+  	int max_iterations;
+  	double iteration_tolerance;
+  
+  	get_entry_values (state, &max_iterations, &iteration_tolerance);
++ #if 0
+  	changed =
+  		!((gtk_toggle_button_get_active (state->view.show_hsb) == state->old.show_hsb) &&
+  		  (gtk_toggle_button_get_active (state->view.show_vsb) == state->old.show_vsb) &&
+***************
+*** 121,126 ****
+--- 122,128 ----
+  		  (gtk_toggle_button_get_active (state->view.iteration_enabled) == state->old.iteration_enabled) &&
+  		  (max_iterations == state->old.max_iterations) &&
+  		  (iteration_tolerance == state->old.iteration_tolerance));
++ #endif
+  
+  	gtk_widget_set_sensitive (state->ok_button, changed);
+  	gtk_widget_set_sensitive (state->apply_button, changed);
+diff -rc gnumeric-1.3.93/src/dialogs/preferences.glade psion_gnumeric/src/dialogs/preferences.glade
+*** gnumeric-1.3.93/src/dialogs/preferences.glade	2004-02-09 14:52:25.000000000 -0500
+--- psion_gnumeric/src/dialogs/preferences.glade	2004-09-23 18:22:59.000000000 -0400
+***************
+*** 5,11 ****
+  
+  <widget class="GtkDialog" id="preferences">
+    <property name="border_width">6</property>
+!   <property name="title" translatable="yes">Gnumeric Preferences</property>
+    <property name="type">GTK_WINDOW_TOPLEVEL</property>
+    <property name="window_position">GTK_WIN_POS_NONE</property>
+    <property name="modal">False</property>
+--- 5,11 ----
+  
+  <widget class="GtkDialog" id="preferences">
+    <property name="border_width">6</property>
+!   <property name="title" translatable="yes">Preferences</property>
+    <property name="type">GTK_WINDOW_TOPLEVEL</property>
+    <property name="window_position">GTK_WIN_POS_NONE</property>
+    <property name="modal">False</property>
+diff -rc gnumeric-1.3.93/src/dialogs/workbook-attr.glade psion_gnumeric/src/dialogs/workbook-attr.glade
+*** gnumeric-1.3.93/src/dialogs/workbook-attr.glade	2003-04-23 15:37:13.000000000 -0400
+--- psion_gnumeric/src/dialogs/workbook-attr.glade	2004-09-23 18:22:39.000000000 -0400
+***************
+*** 4,10 ****
+  <glade-interface>
+  
+  <widget class="GtkDialog" id="WorkbookAttr">
+!   <property name="title" translatable="yes">Format Workbook</property>
+    <property name="type">GTK_WINDOW_TOPLEVEL</property>
+    <property name="window_position">GTK_WIN_POS_NONE</property>
+    <property name="modal">False</property>
+--- 4,10 ----
+  <glade-interface>
+  
+  <widget class="GtkDialog" id="WorkbookAttr">
+!   <property name="title" translatable="yes">Workbook Preferences</property>
+    <property name="type">GTK_WINDOW_TOPLEVEL</property>
+    <property name="window_position">GTK_WIN_POS_NONE</property>
+    <property name="modal">False</property>
+diff -rc gnumeric-1.3.93/src/gnumeric-gconf.c psion_gnumeric/src/gnumeric-gconf.c
+*** gnumeric-1.3.93/src/gnumeric-gconf.c	2004-11-06 23:02:03.000000000 -0500
+--- psion_gnumeric/src/gnumeric-gconf.c	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 203,223 ****
+  go_conf_get_short_desc (char const *key)
+  {
+  	GConfSchema *schema = get_schema (key);
+! 	char *desc = g_strdup ((schema == NULL) ? 
+! 			       "" : gconf_schema_get_short_desc (schema));
+! 	if (schema != NULL)
+  		gconf_schema_free (schema);
+! 	return desc;
+  }
+  char *
+  go_conf_get_long_desc  (char const *key)
+  {
+  	GConfSchema *schema = get_schema (key);
+! 	char *desc = g_strdup ((schema == NULL) ? 
+! 			       "" : gconf_schema_get_long_desc (schema));
+! 	if (schema != NULL)
+  		gconf_schema_free (schema);
+! 	return desc;
+  }
+  
+  GType
+--- 203,227 ----
+  go_conf_get_short_desc (char const *key)
+  {
+  	GConfSchema *schema = get_schema (key);
+! 
+! 	if (schema != NULL) {
+! 		char *desc = g_strdup (gconf_schema_get_short_desc (schema));
+  		gconf_schema_free (schema);
+! 		return desc;
+! 	}
+! 	return NULL;
+  }
+  char *
+  go_conf_get_long_desc  (char const *key)
+  {
+  	GConfSchema *schema = get_schema (key);
+! 
+! 	if (schema != NULL) {
+! 		char *desc =  g_strdup (gconf_schema_get_long_desc (schema));
+  		gconf_schema_free (schema);
+! 		return desc;
+! 	}
+! 	return NULL;
+  }
+  
+  GType
+***************
+*** 454,465 ****
+  char *
+  go_conf_get_short_desc (char const *key)
+  {
+! 	return g_strdup ("Dummy short");
+  }
+  char *
+  go_conf_get_long_desc  (char const *key)
+  {
+! 	return g_strdup ("Dummy long");
+  }
+  
+  GType
+--- 458,469 ----
+  char *
+  go_conf_get_short_desc (char const *key)
+  {
+! 	return NULL;
+  }
+  char *
+  go_conf_get_long_desc  (char const *key)
+  {
+! 	return NULL;
+  }
+  
+  GType
+diff -rc gnumeric-1.3.93/src/gnumeric.h psion_gnumeric/src/gnumeric.h
+*** gnumeric-1.3.93/src/gnumeric.h	2004-10-02 12:24:26.000000000 -0400
+--- psion_gnumeric/src/gnumeric.h	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 141,147 ****
+  	SPANCALC_SIMPLE 	= 0x0,	/* Just calc spans */
+  	SPANCALC_RESIZE		= 0x1,	/* Calculate sizes of all cells */
+  	SPANCALC_RE_RENDER	= 0x2,	/* Render and Size all cells */
+! 	SPANCALC_RENDER		= 0x4	/* Render and Size any unrendered cells */
+  } SpanCalcFlags;
+  
+  typedef enum {
+--- 141,148 ----
+  	SPANCALC_SIMPLE 	= 0x0,	/* Just calc spans */
+  	SPANCALC_RESIZE		= 0x1,	/* Calculate sizes of all cells */
+  	SPANCALC_RE_RENDER	= 0x2,	/* Render and Size all cells */
+! 	SPANCALC_RENDER		= 0x4,	/* Render and Size any unrendered cells */
+! 	SPANCALC_ROW_HEIGHT	= 0x8	/* Resize the row height */
+  } SpanCalcFlags;
+  
+  typedef enum {
+diff -rc gnumeric-1.3.93/src/history.c psion_gnumeric/src/history.c
+*** gnumeric-1.3.93/src/history.c	2004-06-20 22:21:24.000000000 -0400
+--- psion_gnumeric/src/history.c	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 24,32 ****
+  	int len;
+  
+  	basename = go_basename_from_uri (uri);
+  
+  	/* Remove .gnumeric, if present.  */
+! 	len = basename ? strlen (basename) : 0;
+  	if (len > 9 && strcmp (basename + len - 9, ".gnumeric") == 0)
+  		basename[len - 9] = 0;
+  
+--- 24,34 ----
+  	int len;
+  
+  	basename = go_basename_from_uri (uri);
++ 	if (basename == NULL)
++ 		basename = g_strdup ("(invalid file name)");
+  
+  	/* Remove .gnumeric, if present.  */
+! 	len = strlen (basename);
+  	if (len > 9 && strcmp (basename + len - 9, ".gnumeric") == 0)
+  		basename[len - 9] = 0;
+  
+diff -rc gnumeric-1.3.93/src/item-bar.c psion_gnumeric/src/item-bar.c
+*** gnumeric-1.3.93/src/item-bar.c	2004-10-18 11:38:12.000000000 -0400
+--- psion_gnumeric/src/item-bar.c	2004-10-31 23:36:45.000000000 -0500
+***************
+*** 704,714 ****
+  		}
+  
+  		if (cri->visible) {
+  			total += cri->size_pixels;
+  
+  			if (wbcg_edit_get_guru (ib->gcanvas->simple.scg->wbcg) == NULL &&
+  			    !wbcg_is_editing (ib->gcanvas->simple.scg->wbcg) &&
+! 			    (total - 4 < pos) && (pos < total + 4)) {
+  				if (the_total)
+  					*the_total = total;
+  				if (the_element)
+--- 704,715 ----
+  		}
+  
+  		if (cri->visible) {
++ 			int const threshold = ib->is_col_header ? 4 : 1;
+  			total += cri->size_pixels;
+  
+  			if (wbcg_edit_get_guru (ib->gcanvas->simple.scg->wbcg) == NULL &&
+  			    !wbcg_is_editing (ib->gcanvas->simple.scg->wbcg) &&
+! 			    (total - threshold < pos) && (pos < total + threshold)) {
+  				if (the_total)
+  					*the_total = total;
+  				if (the_element)
+diff -rc gnumeric-1.3.93/src/item-cursor.c psion_gnumeric/src/item-cursor.c
+*** gnumeric-1.3.93/src/item-cursor.c	2004-09-07 11:54:05.000000000 -0400
+--- psion_gnumeric/src/item-cursor.c	2004-09-09 13:23:26.000000000 -0400
+***************
+*** 583,595 ****
+  		? ic->canvas_item.y1 + AUTO_HANDLE_WIDTH
+  		: ic->canvas_item.y2 - AUTO_HANDLE_WIDTH;
+  
+! 	if ((y_test-AUTO_HANDLE_SPACE) <= y &&
+! 	    y <= (y_test+AUTO_HANDLE_SPACE)) {
+  		int const x_test = ic->auto_fill_handle_at_left
+  			? ic->canvas_item.x1 + AUTO_HANDLE_WIDTH
+  			: ic->canvas_item.x2 - AUTO_HANDLE_WIDTH;
+! 		return (x_test-AUTO_HANDLE_SPACE) <= x &&
+! 			x <= (x_test+AUTO_HANDLE_SPACE);
+  	 }
+  	return FALSE;
+  }
+--- 583,595 ----
+  		? ic->canvas_item.y1 + AUTO_HANDLE_WIDTH
+  		: ic->canvas_item.y2 - AUTO_HANDLE_WIDTH;
+  
+! 	if ((y_test-(AUTO_HANDLE_SPACE*2)) <= y &&
+! 	    y <= (y_test+(AUTO_HANDLE_SPACE*2))) {
+  		int const x_test = ic->auto_fill_handle_at_left
+  			? ic->canvas_item.x1 + AUTO_HANDLE_WIDTH
+  			: ic->canvas_item.x2 - AUTO_HANDLE_WIDTH;
+! 		return (x_test-(AUTO_HANDLE_SPACE*2)) <= x &&
+! 			x <= (x_test+(AUTO_HANDLE_SPACE*2));
+  	 }
+  	return FALSE;
+  }
+diff -rc gnumeric-1.3.93/src/Makefile.am psion_gnumeric/src/Makefile.am
+*** gnumeric-1.3.93/src/Makefile.am	2004-11-07 02:00:09.000000000 -0500
+--- psion_gnumeric/src/Makefile.am	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 385,391 ****
+  
+  # include conditional files to ensure everything gets distributed no matter
+  # what the build
+! EXTRA_DIST = GNOME_Gnumeric-gtk.xml.in				\
+  	    gnm-marshalers.list	                        	\
+  	    main-application.c 					\
+  	    main-component.c					\
+--- 385,391 ----
+  
+  # include conditional files to ensure everything gets distributed no matter
+  # what the build
+! EXTRA_DIST = GNOME_Gnumeric-psion.xml.in			\
+  	    gnm-marshalers.list	                        	\
+  	    main-application.c 					\
+  	    main-component.c					\
+***************
+*** 402,408 ****
+  #	$(INTLLIBS)
+  
+  gtkactiondir=$(gnumeric_datadir)
+! gtkaction_DATA = GNOME_Gnumeric-gtk.xml
+  
+  GNOME_Gnumeric-gtk.xml: GNOME_Gnumeric-gtk.xml.in
+  	sed -e 's/ _name *=/ name=/' <$<  >$@
+--- 402,408 ----
+  #	$(INTLLIBS)
+  
+  gtkactiondir=$(gnumeric_datadir)
+! gtkaction_DATA = GNOME_Gnumeric-psion.xml
+  
+  GNOME_Gnumeric-gtk.xml: GNOME_Gnumeric-gtk.xml.in
+  	sed -e 's/ _name *=/ name=/' <$<  >$@
+diff -rc gnumeric-1.3.93/src/sheet.c psion_gnumeric/src/sheet.c
+*** gnumeric-1.3.93/src/sheet.c	2004-10-16 23:01:29.000000000 -0400
+--- psion_gnumeric/src/sheet.c	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 429,435 ****
+  	sheet_style_apply_range (sheet, range, style);
+  	sheet_range_calc_spans (sheet, range, spanflags);
+  
+! 	if (spanflags != SPANCALC_SIMPLE)
+  		rows_height_update (sheet, range, TRUE);
+  
+  	sheet_redraw_range (sheet, range);
+--- 429,435 ----
+  	sheet_style_apply_range (sheet, range, style);
+  	sheet_range_calc_spans (sheet, range, spanflags);
+  
+! 	if ((spanflags & SPANCALC_ROW_HEIGHT))
+  		rows_height_update (sheet, range, TRUE);
+  
+  	sheet_redraw_range (sheet, range);
+diff -rc gnumeric-1.3.93/src/style.c psion_gnumeric/src/style.c
+*** gnumeric-1.3.93/src/style.c	2004-09-15 15:20:02.000000000 -0400
+--- psion_gnumeric/src/style.c	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 551,564 ****
+   * What changes are required after applying the supplied style.
+   */
+  SpanCalcFlags
+! required_updates_for_style (GnmStyle *style)
+  {
+! 	gboolean const size_change =
+! 	    (mstyle_is_element_set  (style, MSTYLE_FONT_NAME) ||
+! 	     mstyle_is_element_set  (style, MSTYLE_FONT_BOLD) ||
+! 	     mstyle_is_element_set  (style, MSTYLE_FONT_ITALIC) ||
+  	     mstyle_is_element_set  (style, MSTYLE_FONT_SIZE) ||
+! 	     mstyle_is_element_set  (style, MSTYLE_WRAP_TEXT));
+  	gboolean const format_change =
+  	    (mstyle_is_element_set (style, MSTYLE_FORMAT) ||
+  	     mstyle_is_element_set (style, MSTYLE_INDENT) ||
+--- 551,567 ----
+   * What changes are required after applying the supplied style.
+   */
+  SpanCalcFlags
+! required_updates_for_style (GnmStyle const *style)
+  {
+! 	SpanCalcFlags res = SPANCALC_SIMPLE;
+! 
+! 	gboolean const row_height =
+  	     mstyle_is_element_set  (style, MSTYLE_FONT_SIZE) ||
+! 	     mstyle_is_element_set  (style, MSTYLE_WRAP_TEXT);
+! 	gboolean const size_change = row_height ||
+! 	     mstyle_is_element_set  (style, MSTYLE_FONT_NAME) ||
+! 	     mstyle_is_element_set  (style, MSTYLE_FONT_BOLD) ||
+! 	     mstyle_is_element_set  (style, MSTYLE_FONT_ITALIC);
+  	gboolean const format_change =
+  	    (mstyle_is_element_set (style, MSTYLE_FORMAT) ||
+  	     mstyle_is_element_set (style, MSTYLE_INDENT) ||
+***************
+*** 568,576 ****
+  	     mstyle_is_element_set (style, MSTYLE_FONT_UNDERLINE) ||
+  	     mstyle_is_element_set (style, MSTYLE_COLOR_FORE));
+  
+! 	return (format_change|size_change)
+! 		? (SPANCALC_RE_RENDER|SPANCALC_RESIZE)
+! 		: SPANCALC_SIMPLE;
+  }
+  
+  /**
+--- 571,581 ----
+  	     mstyle_is_element_set (style, MSTYLE_FONT_UNDERLINE) ||
+  	     mstyle_is_element_set (style, MSTYLE_COLOR_FORE));
+  
+! 	if (row_height)
+! 		res |= SPANCALC_ROW_HEIGHT;
+! 	if (format_change || size_change)
+! 		res |= SPANCALC_RE_RENDER | SPANCALC_RESIZE;
+! 	return res;
+  }
+  
+  /**
+diff -rc gnumeric-1.3.93/src/style.h psion_gnumeric/src/style.h
+*** gnumeric-1.3.93/src/style.h	2004-03-27 23:58:27.000000000 -0500
+--- psion_gnumeric/src/style.h	2004-11-11 11:09:05.000000000 -0500
+***************
+*** 5,11 ****
+  #include <libgnomeprint/gnome-font.h>
+  #include "gnumeric.h"
+  
+! #define DEFAULT_FONT "Sans"
+  #define DEFAULT_SIZE 10.0
+  
+  /* Alignment definitions */
+--- 5,11 ----
+  #include <libgnomeprint/gnome-font.h>
+  #include "gnumeric.h"
+  
+! #define DEFAULT_FONT "Albany"
+  #define DEFAULT_SIZE 10.0
+  
+  /* Alignment definitions */
+***************
+*** 72,78 ****
+  guint          style_font_hash_func (gconstpointer v);
+  gint           style_font_equal (gconstpointer v, gconstpointer v2);
+  
+! SpanCalcFlags	 required_updates_for_style (GnmStyle *style);
+  StyleHAlignFlags style_default_halign (GnmStyle const *mstyle, GnmCell const *c);
+  
+  extern double gnumeric_default_font_width;
+--- 72,78 ----
+  guint          style_font_hash_func (gconstpointer v);
+  gint           style_font_equal (gconstpointer v, gconstpointer v2);
+  
+! SpanCalcFlags	 required_updates_for_style (GnmStyle const *style);
+  StyleHAlignFlags style_default_halign (GnmStyle const *mstyle, GnmCell const *c);
+  
+  extern double gnumeric_default_font_width;
+diff -rc gnumeric-1.3.93/src/wbcg-actions.c psion_gnumeric/src/wbcg-actions.c
+*** gnumeric-1.3.93/src/wbcg-actions.c	2004-10-16 23:01:29.000000000 -0400
+--- psion_gnumeric/src/wbcg-actions.c	2004-10-18 11:21:37.000000000 -0400
+***************
+*** 1441,1446 ****
+--- 1441,1447 ----
+  		{ "MenuViewToolbars",		NULL, N_("_Toolbars") },
+  	{ "MenuInsert",		NULL, N_("_Insert") },
+  		{ "MenuInsertNames",		NULL, N_("_Names") },
++ 		{ "MenuInsertDrawing",		NULL, N_("_Drawing") },
+  		{ "MenuInsertSpecial",		NULL, N_("S_pecial") },
+  	{ "MenuFormat",		NULL, N_("F_ormat") },
+  		{ "MenuFormatColumn",		NULL, N_("C_olumn") },
+***************
+*** 1552,1558 ****
+  		NULL, N_("Delete the column(s) containing the selected cells"),
+  		G_CALLBACK (cb_edit_delete_columns) },
+  	{ "EditDeleteCells", NULL, N_("C_ells..."),
+! 		  "<control>minus", N_("Delete the selected cells, shifting others into their place"),
+  		  G_CALLBACK (cb_edit_delete_cells) },
+  
+  
+--- 1553,1559 ----
+  		NULL, N_("Delete the column(s) containing the selected cells"),
+  		G_CALLBACK (cb_edit_delete_columns) },
+  	{ "EditDeleteCells", NULL, N_("C_ells..."),
+! 		  NULL, N_("Delete the selected cells, shifting others into their place"),
+  		  G_CALLBACK (cb_edit_delete_cells) },
+  
+  
+***************
+*** 1637,1647 ****
+  		G_CALLBACK (cb_edit_goto) },
+  
+  	{ "EditRecalc", NULL, N_("Recalculate"),
+! 		"F9", N_("Recalculate the spreadsheet"),
+  		G_CALLBACK (cb_edit_recalc) },
+  
+  /* View */
+! 	{ "ViewNew", NULL, N_("_New View..."),
+  		NULL, N_("Create a new view of the workbook"),
+  		G_CALLBACK (cb_view_new) },
+  	{ "ViewFreezeThawPanes", NULL, N_("_Freeze Panes"),
+--- 1638,1648 ----
+  		G_CALLBACK (cb_edit_goto) },
+  
+  	{ "EditRecalc", NULL, N_("Recalculate"),
+! 		"<alt>9", N_("Recalculate the spreadsheet"),
+  		G_CALLBACK (cb_edit_recalc) },
+  
+  /* View */
+! 	{ "ViewNew", NULL, N_("_New Window..."),
+  		NULL, N_("Create a new view of the workbook"),
+  		G_CALLBACK (cb_view_new) },
+  	{ "ViewFreezeThawPanes", NULL, N_("_Freeze Panes"),
+***************
+*** 1651,1665 ****
+  		NULL, N_("Zoom the spreadsheet in or out"),
+  		G_CALLBACK (cb_view_zoom) },
+  	{ "ViewZoomIn", GTK_STOCK_ZOOM_IN, N_("Zoom _In"),
+! 		NULL, N_("Increase the zoom to make things larger"),
+  		G_CALLBACK (cb_view_zoom_in) },
+  	{ "ViewZoomOut", GTK_STOCK_ZOOM_OUT, N_("Zoom _Out"),
+! 		NULL, N_("Decrease the zoom to make things smaller"),
+  		G_CALLBACK (cb_view_zoom_out) },
+  
+  /* Insert */
+  	{ "InsertCells", NULL, N_("C_ells..."),
+! 		"<control>plus", N_("Insert new cells"),
+  		G_CALLBACK (cb_insert_cells) },
+  	{ "InsertColumns", "Gnumeric_ColumnAdd", N_("_Columns"),
+  		NULL, N_("Insert new columns"),
+--- 1652,1666 ----
+  		NULL, N_("Zoom the spreadsheet in or out"),
+  		G_CALLBACK (cb_view_zoom) },
+  	{ "ViewZoomIn", GTK_STOCK_ZOOM_IN, N_("Zoom _In"),
+! 		"<control>plus", N_("Increase the zoom to make things larger"),
+  		G_CALLBACK (cb_view_zoom_in) },
+  	{ "ViewZoomOut", GTK_STOCK_ZOOM_OUT, N_("Zoom _Out"),
+! 		"<control>minus", N_("Decrease the zoom to make things smaller"),
+  		G_CALLBACK (cb_view_zoom_out) },
+  
+  /* Insert */
+  	{ "InsertCells", NULL, N_("C_ells..."),
+! 		NULL, N_("Insert new cells"),
+  		G_CALLBACK (cb_insert_cells) },
+  	{ "InsertColumns", "Gnumeric_ColumnAdd", N_("_Columns"),
+  		NULL, N_("Insert new columns"),
+***************
+*** 1693,1699 ****
+  
+  /* Insert -> Name */
+  	{ "EditNames", NULL, N_("_Define..."),
+! 		"<control>F3", N_("Edit sheet and workbook names"),
+  		G_CALLBACK (cb_define_name) },
+  #if 0
+  	GNOMEUIINFO_ITEM_NONE (N_("_Auto generate names..."),
+--- 1694,1700 ----
+  
+  /* Insert -> Name */
+  	{ "EditNames", NULL, N_("_Define..."),
+! 		"<alt>3", N_("Edit sheet and workbook names"),
+  		G_CALLBACK (cb_define_name) },
+  #if 0
+  	GNOMEUIINFO_ITEM_NONE (N_("_Auto generate names..."),
+***************
+*** 1705,1711 ****
+  	{ "FormatCells", NULL, N_("_Cells..."),
+  		"<control>1", N_("Modify the formatting of the selected cells"),
+  		G_CALLBACK (cb_format_cells) },
+! 	{ "FormatWorkbook", NULL, N_("_Workbook..."),
+  		NULL, N_("Modify the workbook attributes"),
+  		G_CALLBACK (cb_workbook_attr) },
+  	{ "FormatGnumeric", GTK_STOCK_PREFERENCES, N_("_Gnumeric..."),
+--- 1706,1712 ----
+  	{ "FormatCells", NULL, N_("_Cells..."),
+  		"<control>1", N_("Modify the formatting of the selected cells"),
+  		G_CALLBACK (cb_format_cells) },
+! 	{ "FormatWorkbook", NULL, N_("_Workbook Preferences..."),
+  		NULL, N_("Modify the workbook attributes"),
+  		G_CALLBACK (cb_workbook_attr) },
+  	{ "FormatGnumeric", GTK_STOCK_PREFERENCES, N_("_Gnumeric..."),
+***************
+*** 2100,2106 ****
+  	        G_CALLBACK (cb_view_statusbar), TRUE },
+  
+  	{ "ViewFullScreen", GTK_STOCK_ZOOM_FIT,
+! 		N_("F_ull Screen..."), "F11",
+  		N_("in or out"), G_CALLBACK (cb_view_fullscreen), FALSE }
+  };
+  
+--- 2101,2107 ----
+  	        G_CALLBACK (cb_view_statusbar), TRUE },
+  
+  	{ "ViewFullScreen", GTK_STOCK_ZOOM_FIT,
+! 		N_("F_ull Screen..."), "<alt>1",
+  		N_("in or out"), G_CALLBACK (cb_view_fullscreen), FALSE }
+  };
+  
+diff -rc gnumeric-1.3.93/src/wbc-gtk.c psion_gnumeric/src/wbc-gtk.c
+*** gnumeric-1.3.93/src/wbc-gtk.c	2004-10-29 13:55:50.000000000 -0400
+--- psion_gnumeric/src/wbc-gtk.c	2004-10-31 23:36:45.000000000 -0500
+***************
+*** 1082,1088 ****
+  	while (i-- > 1) {
+  		char *name = g_strdup_printf ("WindowListEntry%d", i);
+  		gtk_ui_manager_add_ui (gtk->ui, gtk->windows.merge_id,
+! 			"/menubar/View/Windows", 
+  			name, name, GTK_UI_MANAGER_AUTO, TRUE);
+  		g_free (name);
+  	}
+--- 1082,1088 ----
+  	while (i-- > 1) {
+  		char *name = g_strdup_printf ("WindowListEntry%d", i);
+  		gtk_ui_manager_add_ui (gtk->ui, gtk->windows.merge_id,
+! 			"/menubar/Windows", 
+  			name, name, GTK_UI_MANAGER_AUTO, TRUE);
+  		g_free (name);
+  	}
+***************
+*** 1397,1403 ****
+  	gtk_window_add_accel_group (wbcg->toplevel, 
+  		gtk_ui_manager_get_accel_group (gtk->ui));
+  	uifile = g_build_filename (gnm_sys_data_dir (NULL),
+! 				   "GNOME_Gnumeric-gtk.xml", NULL);
+  	if (!gtk_ui_manager_add_ui_from_file (gtk->ui, uifile, &error)) {
+  		g_message ("building menus failed: %s", error->message);
+  		g_error_free (error);
+--- 1397,1403 ----
+  	gtk_window_add_accel_group (wbcg->toplevel, 
+  		gtk_ui_manager_get_accel_group (gtk->ui));
+  	uifile = g_build_filename (gnm_sys_data_dir (NULL),
+! 				   "GNOME_Gnumeric-psion.xml", NULL);
+  	if (!gtk_ui_manager_add_ui_from_file (gtk->ui, uifile, &error)) {
+  		g_message ("building menus failed: %s", error->message);
+  		g_error_free (error);

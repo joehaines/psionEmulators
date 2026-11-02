@@ -1,0 +1,58 @@
+inherit gnome
+
+PR=r2
+SRC_URI = "cvs://anonymous@anoncvs.gnome.org/cvs/gnome;module=gaby;date=20041112 \
+	   file://gcc-fix.patch;patch=1 \
+	   file://Makefiles.patch;patch=1 \
+	   file://no-first-time.patch;patch=1 \
+	   file://compiler-flags.m4 \
+	   file://gaby.desktop "
+
+DEPENDS = "libgnome esound-gpe"
+DESCRIPTION = "Personal Database"
+MAINTAINER = "Peter Naulls <peter@chocky.org>"
+
+S = "${WORKDIR}/gaby"
+
+EXTRA_OECONF = "--disable-python --enable-gnome --disable-multimedia"
+
+inherit autotools
+
+do_configure_prepend() {
+        mkdir -p m4
+        cp ${WORKDIR}/compiler-flags.m4 m4/
+
+	# Because of --disable-nls passed by OE, these files are not generated
+	echo -e "all:\n\ninstall:\n\n" > po/Makefile.in.in
+	cp ${WORKDIR}/gaby.desktop .
+	ln -s gabybuilder.desktop.in gabybuilder.desktop
+
+	cp ${STAGING_DIR}/${BUILD_SYS}/share/automake-1.8/mkinstalldirs .
+}
+
+PLUGIN_DIRS = "actions formats view"
+
+
+do_install() {
+	mkdir -p ${D}/${bindir}
+	cp ${S}/src/.libs/gaby ${D}/${bindir}/gaby
+
+	for dir in ${PLUGIN_DIRS} ; do 
+	  mkdir -p ${D}/${libdir}/gaby/plug-ins/$dir
+	  plugins=$(find ${S}/plug-ins/$dir -type f | grep \.so)
+	  
+          for lib in $plugins ; do 
+	    cp $lib ${D}/${libdir}/gaby/plug-ins/$dir
+          done
+        done
+
+	mkdir -p ${D}/etc/gaby/
+	cp ${S}/data/desc.* ${D}/etc/gaby/
+	rm ${D}/etc/gaby/*.in
+
+	mkdir -p ${D}${datadir}/applications
+	cp ${WORKDIR}/gaby.desktop ${D}${datadir}/applications
+
+	mkdir -p ${D}${datadir}/pixmaps
+	cp ${S}/gnome-gaby.png ${D}${datadir}/pixmaps
+}

@@ -1,0 +1,256 @@
+Index: backend.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-shield/backend.c,v
+retrieving revision 1.10
+diff -u -r1.10 backend.c
+--- backend.c	21 Sep 2004 16:57:51 -0000	1.10
++++ backend.c	24 Oct 2004 22:40:37 -0000
+@@ -48,7 +48,7 @@
+ 
+ static void do_command (pkcommand_t command, rule_t rule);
+ static int wait_message ();
+-static void send_message (pkcontent_t ctype, rule_t *rule);
++static void send_message (pkcontent_t ctype, pkcommand_t cmd, rule_t *rule);
+ 
+ 
+ /* iptables control routines */
+@@ -129,11 +129,11 @@
+ 		if (ret >= 9)
+ 		{
+ 			rule_count++;
+-			rule_info = realloc(rule_info,rule_count*sizeof(rule_t));
+-			memset(&rule_info[rule_count-1],0,sizeof(rule_t));
+-			translate_name(arule.name,0);
++			rule_info = realloc(rule_info, rule_count * sizeof(rule_t));
++			memset(&rule_info[rule_count-1], 0, sizeof(rule_t));
++			translate_name(arule.name, 0);
+ 			rule_info[rule_count - 1] = arule;
+-			send_message(PK_RULE,&rule_info[rule_count-1]);
++			send_message(PK_RULE, CMD_NONE, &rule_info[rule_count-1]);
+ 		}
+ 	}
+ 	fclose(cfgfile);
+@@ -359,13 +359,14 @@
+ /* message send and receive */
+ 
+ static void
+-send_message (pkcontent_t ctype, rule_t *rule)
++send_message (pkcontent_t ctype, pkcommand_t cmd,rule_t *rule)
+ {
+ 	pkmessage_t msg;
+ 	
+ 	if (sock < 0) return; /* no connection active */
+ 	msg.type = PK_FRONT;
+ 	msg.ctype = ctype;
++	msg.content.tf.command = cmd;
+ 	if (rule) 
+ 		msg.content.tf.rule = *rule;
+ 	if (write (sock, (void *) &msg, sizeof (pkmessage_t)) < 0)
+@@ -490,12 +491,14 @@
+ 	break;
+ 	}
+ 	
+-	send_message(PK_FINISHED,NULL);
++	send_message(PK_FINISHED, CMD_NONE, NULL);
+ }
+ 
+-void
++gboolean
+ find_iptables ()
+ {
++	gchar *test;
++	
+ 	if (!access(IPTABLES_CMD1,X_OK))
+ 		IPTABLES_CMD = IPTABLES_CMD1;
+ 	else if (!access(IPTABLES_CMD2,X_OK))
+@@ -504,25 +507,31 @@
+ 		IPTABLES_CMD = IPTABLES_CMD3;
+ 	else if (!access(IPTABLES_CMD4,X_OK))
+ 		IPTABLES_CMD = IPTABLES_CMD4;
++	if (!IPTABLES_CMD)
++		return FALSE;
++	test = g_strdup_printf("%s -L", IPTABLES_CMD);
++	if (system(test) != EXIT_SUCCESS)
++	{
++		g_free(test);
++		return FALSE;
++	}
++	g_free(test);
++	return TRUE;
+ }
+ 
+ /* app mainloop */
+ 
+ int
+ suidloop (int csock)
+-{
+-	find_iptables();
+-	
+-	if (IPTABLES_CMD == NULL)
++{	
++	sock = csock;
++
++	if (!find_iptables())
+ 	{
+-		fprintf(stderr, "Iptables not found, exiting.\n");
+-		close (sock);
+-		unlink (PK_SOCKET);
+-		exit (2);
++		fprintf(stderr, "Iptables support not found, exiting.\n");
++		send_message(PK_STATUS, CMD_NO_IPTABLES, NULL);
+ 	}
+ 	
+-	sock = csock;
+-
+ 	while (wait_message ()) ;
+ 		
+ 	close (sock);
+Index: interface.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-shield/interface.c,v
+retrieving revision 1.9
+diff -u -r1.9 interface.c
+--- interface.c	21 Sep 2004 16:57:51 -0000	1.9
++++ interface.c	24 Oct 2004 22:40:37 -0000
+@@ -478,7 +478,6 @@
+ 	int i;
+ 	GtkTreeIter iter;
+ 
+-#warning improve this
+ 	gtk_tree_store_clear(GTK_TREE_STORE(store));
+ 	
+ 	for (i=0;i<rule_count;i++)
+@@ -586,6 +585,19 @@
+ 	gtk_main_quit();
+ }
+ 
++static void
++do_status(pkcommand_t cmd)
++{
++	if (cmd == CMD_NO_IPTABLES)
++		show_message(GTK_MESSAGE_WARNING, _("This system does not " \
++	                                        "support firewalling or you"\
++	                                        " don't have the right to "\
++	                                        "change firewall rules, this" \
++	                                        " application will exit now."));
++	do_shutdown();
++	gtk_main_quit();
++	exit(0);
++}
+ 
+ gboolean
+ get_pending_messages ()
+@@ -599,7 +611,8 @@
+ 		if ((pfd[0].revents & POLLERR) || (pfd[0].revents & POLLHUP))
+ 		{
+ 			perror ("ERR: connection lost: ");
+-			do_message_dlg(GTK_MESSAGE_ERROR,_("Backend failure, cannot continue."));
++			do_message_dlg(GTK_MESSAGE_ERROR,
++			               _("Backend failure, cannot continue."));
+ 			close(sock);
+ 			exit(1);
+ 		}
+@@ -607,7 +620,8 @@
+ 		{
+ 			perror ("ERR: receiving data packet");
+ 			close (sock);
+-			do_message_dlg(GTK_MESSAGE_ERROR,_("Communication error, cannot continue."));
++			do_message_dlg(GTK_MESSAGE_ERROR,
++			               _("Communication error, cannot continue."));
+ 			exit (1);
+ 		}
+ 		else
+@@ -622,9 +636,14 @@
+ 				do_end_command();
+ 				break;
+ 				case PK_RULE:
++#ifdef DEBUG				
+ 					printf("got rule\n");
++#endif				
+ 					do_rule_add(&msg.content.tf.rule);
+ 				break;
++				case PK_STATUS:
++					do_status(msg.content.tf.command);
++				break;
+ 			default:
+ 				break;
+ 			}
+Index: main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-shield/main.c,v
+retrieving revision 1.4
+diff -u -r1.4 main.c
+--- main.c	21 Jun 2004 08:54:53 -0000	1.4
++++ main.c	24 Oct 2004 22:40:37 -0000
+@@ -24,6 +24,7 @@
+ #include <errno.h>
+ #include <unistd.h>
+ 
++#include <gdk/gdk.h>
+ #include <libintl.h>
+ #define _(x) gettext(x)
+ 
+@@ -49,11 +50,18 @@
+ 	/* command line paramater tells us just to do setup and exit */
+ 	if (activate_rules)
+ 	{
+-		find_iptables();
+-	 	do_clear();
+-		do_load_rules();
+-		do_rules_apply();
+-		exit(0);
++		if (find_iptables())
++		{
++	 		do_clear();
++			do_load_rules();
++			do_rules_apply();
++			exit(0);
++		}
++		else
++		{
++			fprintf(stderr, "Iptables support not found, exiting.\n");
++			exit (2);
++		}
+ 	}
+ 	
+ 	/* fork frontend process */
+Index: backend.h
+===================================================================
+RCS file: /cvs/gpe/base/gpe-shield/backend.h,v
+retrieving revision 1.6
+diff -u -r1.6 backend.h
+--- backend.h	21 Sep 2004 16:57:51 -0000	1.6
++++ backend.h	24 Oct 2004 22:40:37 -0000
+@@ -68,7 +68,8 @@
+ 	CMD_SAVE,
+ 	CMD_CHANGE,
+ 	CMD_CFG_LOAD,
+-	CMD_CFG_DONTLOAD
++	CMD_CFG_DONTLOAD,
++	CMD_NO_IPTABLES
+ }
+ pkcommand_t;
+ 
+@@ -77,13 +78,14 @@
+ 	PK_STATUS,
+ 	PK_COMMAND,
+ 	PK_RULE,
+-	PK_FINISHED	
++	PK_FINISHED
+ }
+ pkcontent_t;
+ 
+ typedef struct
+ {
+ 	rule_t rule;
++	pkcommand_t command;
+ }
+ msg2front_t;
+ 
+@@ -114,5 +116,6 @@
+ extern void do_rules_apply();
+ extern int do_load_rules();
+ extern void do_clear();
++extern gboolean find_iptables ();
+ 
+ #endif

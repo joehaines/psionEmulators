@@ -1,0 +1,23 @@
+PR = "r5"
+DESCRIPTION = "GNOME manager for the CUPS printer system"
+
+inherit gnome
+
+SRC_URI = "http://ftp.gnome.org/pub/GNOME/sources/${PN}/${PV}/${PN}-${PV}.tar.bz2 \
+	file://gnome-cups-manager.desktop file://Printer.png \
+	file://gpe-su.patch;patch=1;pnum=1"
+	
+DEPENDS = "libbonoboui libgnomecanvas libgnomecups"
+
+FILES_${PN} += "/usr/share/icons/hicolor/48x48"
+
+EXTRA_AUTORECONF = "-I ${STAGING_DIR}/${HOST_SYS}/share/aclocal/gnome2-macros"
+EXTRA_OECONF = "--disable-schemas-install"
+
+do_install_append() {
+	install -d ${D}${datadir}/pixmaps
+	install ${WORKDIR}/Printer.png ${D}${datadir}/pixmaps/	
+	install -d ${D}${datadir}/applications
+	install ${WORKDIR}/gnome-cups-manager.desktop ${D}${datadir}/applications/
+}
+

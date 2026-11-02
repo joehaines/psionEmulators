@@ -1,0 +1,17 @@
+inherit gpe
+
+DESCRIPTION = "GPE to-do list"
+DEPENDS = "gtk+ libdisplaymigration libgpewidget libgpepimc libtododb"
+MAINTAINER = "Phil Blundell <pb@handhelds.org>"
+SECTION = "gpe"
+PRIORITY = "optional"
+
+SRC_URI = "http://gpe.handhelds.org/pub/projects/gpe/source/gpe-todo-${PV}.tar.gz \
+           file://todo-netbook.patch;patch=1;pnum=0 \
+           file://dot-box.png \
+           file://bar-box.png "
+
+do_configure_prepend() {
+ install -m644 ${FILESDIR}/dot-box.png ${S}/dot-box.png
+ install -m644 ${FILESDIR}/bar-box.png ${S}/bar-box.png
+}

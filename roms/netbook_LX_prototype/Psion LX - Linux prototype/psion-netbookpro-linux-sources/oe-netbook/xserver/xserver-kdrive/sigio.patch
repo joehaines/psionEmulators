@@ -1,0 +1,48 @@
+Index: kinput.c
+===================================================================
+RCS file: /cvs/xserver/xserver/hw/kdrive/src/kinput.c,v
+retrieving revision 1.41
+diff -u -r1.41 kinput.c
+--- xserver/hw/kdrive/src/kinput.c	20 Oct 2004 18:02:32 -0000	1.41
++++ xserver/hw/kdrive/src/kinput.c	24 Oct 2004 20:42:51 -0000
+@@ -270,13 +270,13 @@
+ {
+     int	i;
+ 
+-    KdBlockSigio ();
+-
+     for (i = 0; i < kdNumInputFds; i++)
+     {
++	KdBlockSigio ();
+ 	KdRemoveFd (kdInputFds[i].fd);
+ 	if (kdInputFds[i].disable)
+ 	    (*kdInputFds[i].disable) (kdInputFds[i].fd, kdInputFds[i].closure);
++	KdUnblockSigio ();
+     }
+     kdInputEnabled = FALSE;
+ }
+@@ -286,21 +286,21 @@
+ {
+     xEvent	xE;
+     int	i;
+-    
++
+     kdInputEnabled = TRUE;
+     for (i = 0; i < kdNumInputFds; i++)
+     {
++	KdBlockSigio ();
+ 	KdNonBlockFd (kdInputFds[i].fd);
+ 	if (kdInputFds[i].enable)
+ 	    kdInputFds[i].fd = (*kdInputFds[i].enable) (kdInputFds[i].fd, kdInputFds[i].closure);
+ 	KdAddFd (kdInputFds[i].fd);
++	KdUnblockSigio ();
+     }
+     
+     /* reset screen saver */
+     xE.u.keyButtonPointer.time = GetTimeInMillis ();
+     NoticeEventTime (&xE);
+-
+-    KdUnblockSigio ();
+ }
+ 
+ static int

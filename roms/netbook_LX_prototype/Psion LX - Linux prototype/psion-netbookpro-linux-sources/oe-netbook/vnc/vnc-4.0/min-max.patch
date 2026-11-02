@@ -1,0 +1,256 @@
+diff -ur vnc-4.0-unixsrc/rfb/Rect.h vnc-4.0-unixsrc-new/rfb/Rect.h
+--- vnc-4.0-unixsrc/rfb/Rect.h	Mon Jun 30 21:50:25 2003
++++ vnc-4.0-unixsrc-new/rfb/Rect.h	Wed Nov  3 11:12:34 2004
+@@ -21,13 +21,7 @@
+ #ifndef __RFB_RECT_INCLUDED__
+ #define __RFB_RECT_INCLUDED__
+ 
+-#ifndef max
+-#define max(a,b)            (((a) > (b)) ? (a) : (b))
+-#endif
+-
+-#ifndef min
+-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+-#endif
++#include <algorithm>
+ 
+ namespace rfb {
+ 
+@@ -70,20 +64,20 @@
+     }
+     inline Rect intersect(const Rect &r) const {
+       Rect result;
+-      result.tl.x = max(tl.x, r.tl.x);
+-      result.tl.y = max(tl.y, r.tl.y);
+-      result.br.x = max(min(br.x, r.br.x), result.tl.x);
+-      result.br.y = max(min(br.y, r.br.y), result.tl.y);
++      result.tl.x = std::max(tl.x, r.tl.x);
++      result.tl.y = std::max(tl.y, r.tl.y);
++      result.br.x = std::max(std::min(br.x, r.br.x), result.tl.x);
++      result.br.y = std::max(std::min(br.y, r.br.y), result.tl.y);
+       return result;
+     }
+     inline Rect union_boundary(const Rect &r) const {
+       if (r.is_empty()) return *this;
+       if (is_empty()) return r;
+       Rect result;
+-      result.tl.x = min(tl.x, r.tl.x);
+-      result.tl.y = min(tl.y, r.tl.y);
+-      result.br.x = max(br.x, r.br.x);
+-      result.br.y = max(br.y, r.br.y);
++      result.tl.x = std::min(tl.x, r.tl.x);
++      result.tl.y = std::min(tl.y, r.tl.y);
++      result.br.x = std::max(br.x, r.br.x);
++      result.br.y = std::max(br.y, r.br.y);
+       return result;
+     }
+     inline Rect translate(const Point &p) const {
+diff -ur vnc-4.0-unixsrc/rfb/util.h vnc-4.0-unixsrc-new/rfb/util.h
+--- vnc-4.0-unixsrc/rfb/util.h	Thu Mar 18 17:25:15 2004
++++ vnc-4.0-unixsrc-new/rfb/util.h	Wed Nov  3 11:13:21 2004
+@@ -74,15 +74,6 @@
+ // __RFB_UTIL_H__, so that you can always guarantee they will be defined if
+ // this file is the last #include before you use them.
+ 
+-#ifndef max
+-#define max(a,b)            (((a) > (b)) ? (a) : (b))
+-#endif
+-
+-#ifndef min
+-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+-#endif
+-
+-
+ // -=- PLATFORM SPECIFIC UTILITY FUNCTIONS/IMPLEMENTATIONS
+ #ifdef WIN32
+ #include "win32/util_win32.h"
+diff -ur vnc-4.0-unixsrc/rfb/zrleDecode.h vnc-4.0-unixsrc-new/rfb/zrleDecode.h
+--- vnc-4.0-unixsrc/rfb/zrleDecode.h	Thu Jul 31 19:03:38 2003
++++ vnc-4.0-unixsrc-new/rfb/zrleDecode.h	Wed Nov  3 11:02:22 2004
+@@ -61,11 +61,11 @@
+ 
+   for (t.tl.y = r.tl.y; t.tl.y < r.br.y; t.tl.y += 64) {
+ 
+-    t.br.y = min(r.br.y, t.tl.y + 64);
++    t.br.y = std::min(r.br.y, t.tl.y + 64);
+ 
+     for (t.tl.x = r.tl.x; t.tl.x < r.br.x; t.tl.x += 64) {
+ 
+-      t.br.x = min(r.br.x, t.tl.x + 64);
++      t.br.x = std::min(r.br.x, t.tl.x + 64);
+ 
+       int mode = zis->readU8();
+       bool rle = mode & 128;
+diff -ur vnc-4.0-unixsrc/rfb/zrleEncode.h vnc-4.0-unixsrc-new/rfb/zrleEncode.h
+--- vnc-4.0-unixsrc/rfb/zrleEncode.h	Fri Jun 11 16:13:52 2004
++++ vnc-4.0-unixsrc-new/rfb/zrleEncode.h	Wed Nov  3 11:01:43 2004
+@@ -130,7 +130,7 @@
+ 
+   for (t.tl.y = r.tl.y; t.tl.y < r.br.y; t.tl.y += 64) {
+ 
+-    t.br.y = min(r.br.y, t.tl.y + 64);
++    t.br.y = std::min(r.br.y, t.tl.y + 64);
+ 
+     if (os->length() + worstCaseLine > maxLen) {
+       if (t.tl.y == r.tl.y)
+@@ -143,7 +143,7 @@
+ 
+     for (t.tl.x = r.tl.x; t.tl.x < r.br.x; t.tl.x += 64) {
+ 
+-      t.br.x = min(r.br.x, t.tl.x + 64);
++      t.br.x = std::min(r.br.x, t.tl.x + 64);
+ 
+       GET_IMAGE_INTO_BUF(t,buf);
+ 
+diff -ur vnc-4.0-unixsrc/tx/TXButton.h vnc-4.0-unixsrc-new/tx/TXButton.h
+--- vnc-4.0-unixsrc/tx/TXButton.h	Tue Aug 12 16:03:51 2003
++++ vnc-4.0-unixsrc-new/tx/TXButton.h	Wed Nov  3 11:05:10 2004
+@@ -62,8 +62,8 @@
+     text.buf = rfb::strDup(text_);
+     int textWidth = XTextWidth(defaultFS, text.buf, strlen(text.buf));
+     int textHeight = (defaultFS->ascent + defaultFS->descent);
+-    int newWidth = max(width(), textWidth + xPad*2 + bevel*2);
+-    int newHeight = max(height(), textHeight + yPad*2 + bevel*2);
++    int newWidth = std::max(width(), textWidth + xPad*2 + bevel*2);
++    int newHeight = std::max(height(), textHeight + yPad*2 + bevel*2);
+     if (width() < newWidth || height() < newHeight) {
+       resize(newWidth, newHeight);
+     }
+diff -ur vnc-4.0-unixsrc/tx/TXCheckbox.h vnc-4.0-unixsrc-new/tx/TXCheckbox.h
+--- vnc-4.0-unixsrc/tx/TXCheckbox.h	Mon Jun  2 12:11:47 2003
++++ vnc-4.0-unixsrc-new/tx/TXCheckbox.h	Wed Nov  3 11:05:44 2004
+@@ -71,8 +71,8 @@
+     text = strdup(text_);
+     int textWidth = XTextWidth(defaultFS, text, strlen(text));
+     int textHeight = (defaultFS->ascent + defaultFS->descent);
+-    int newWidth = max(width(), textWidth + xPad*2 + boxPad*2 + boxSize);
+-    int newHeight = max(height(), textHeight + yPad*2);
++    int newWidth = std::max(width(), textWidth + xPad*2 + boxPad*2 + boxSize);
++    int newHeight = std::max(height(), textHeight + yPad*2);
+     if (width() < newWidth || height() < newHeight) {
+       resize(newWidth, newHeight);
+     }
+diff -ur vnc-4.0-unixsrc/tx/TXEntry.h vnc-4.0-unixsrc-new/tx/TXEntry.h
+--- vnc-4.0-unixsrc/tx/TXEntry.h	Fri Aug  8 18:51:56 2003
++++ vnc-4.0-unixsrc-new/tx/TXEntry.h	Wed Nov  3 11:05:29 2004
+@@ -58,7 +58,7 @@
+                  | ButtonPressMask);
+     text[0] = 0;
+     int textHeight = (defaultFS->ascent + defaultFS->descent);
+-    int newHeight = max(height(), textHeight + yPad*2 + bevel*2);
++    int newHeight = std::max(height(), textHeight + yPad*2 + bevel*2);
+     if (height() < newHeight) {
+       resize(width(), newHeight);
+     }
+diff -ur vnc-4.0-unixsrc/tx/TXImage.cxx vnc-4.0-unixsrc-new/tx/TXImage.cxx
+--- vnc-4.0-unixsrc/tx/TXImage.cxx	Thu Mar 18 17:25:19 2004
++++ vnc-4.0-unixsrc-new/tx/TXImage.cxx	Wed Nov  3 11:03:22 2004
+@@ -71,8 +71,8 @@
+   if (w == width() && h == height()) return;
+ 
+   int oldStrideBytes = getStride() * (format.bpp/8);
+-  int rowsToCopy = min(h, height());
+-  int bytesPerRow = min(w, width()) * (format.bpp/8);
++  int rowsToCopy = std::min(h, height());
++  int bytesPerRow = std::min(w, width()) * (format.bpp/8);
+   rdr::U8* oldData = 0;
+   bool allocData = false;
+ 
+diff -ur vnc-4.0-unixsrc/tx/TXLabel.h vnc-4.0-unixsrc-new/tx/TXLabel.h
+--- vnc-4.0-unixsrc/tx/TXLabel.h	Tue Aug 12 16:03:51 2003
++++ vnc-4.0-unixsrc-new/tx/TXLabel.h	Wed Nov  3 11:04:51 2004
+@@ -64,8 +64,8 @@
+     int textHeight = ((defaultFS->ascent + defaultFS->descent + lineSpacing)
+                       * lines);
+ 
+-    int newWidth = max(width(), textWidth + xPad*2);
+-    int newHeight = max(height(), textHeight + yPad*2);
++    int newWidth = std::max(width(), textWidth + xPad*2);
++    int newHeight = std::max(height(), textHeight + yPad*2);
+     if (width() < newWidth || height() < newHeight) {
+       resize(newWidth, newHeight);
+     }
+--- vnc-4.0-unixsrc/Xregion/Xregion.h~	Fri Mar 21 11:51:54 2003
++++ vnc-4.0-unixsrc/Xregion/Xregion.h	Wed Nov  3 18:56:18 2004
+@@ -61,14 +61,6 @@
+ #define Xfree free
+ #define Xrealloc realloc
+ 
+-#ifndef max
+-#define max(a,b)            (((a) > (b)) ? (a) : (b))
+-#endif
+-
+-#ifndef min
+-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+-#endif
+-
+ #define NeedFunctionPrototypes 1
+ 
+ // - Cribbed from Xlib.h
+--- vnc-4.0-unixsrc/rfb/ComparingUpdateTracker.cxx~	Wed Nov  3 19:02:46 2004
++++ vnc-4.0-unixsrc/rfb/ComparingUpdateTracker.cxx	Wed Nov  3 19:03:13 2004
+@@ -60,7 +60,7 @@
+     // since in effect the entire framebuffer has changed.
+     oldFb.setSize(fb->width(), fb->height());
+     for (int y=0; y<fb->height(); y+=BLOCK_SIZE) {
+-      Rect pos(0, y, fb->width(), min(fb->height(), y+BLOCK_SIZE));
++      Rect pos(0, y, fb->width(), std::min(fb->height(), y+BLOCK_SIZE));
+       int srcStride;
+       const rdr::U8* srcData = fb->getPixelsR(pos, &srcStride);
+       oldFb.imageRect(pos, srcData, srcStride);
+@@ -100,20 +100,20 @@
+   for (int blockTop = r.tl.y; blockTop < r.br.y; blockTop += BLOCK_SIZE)
+   {
+     // Get a strip of the source buffer
+-    Rect pos(r.tl.x, blockTop, r.br.x, min(r.br.y, blockTop+BLOCK_SIZE));
++    Rect pos(r.tl.x, blockTop, r.br.x, std::min(r.br.y, blockTop+BLOCK_SIZE));
+     int fbStride;
+     const rdr::U8* newBlockPtr = fb->getPixelsR(pos, &fbStride);
+     int newStrideBytes = fbStride * bytesPerPixel;
+ 
+     rdr::U8* oldBlockPtr = oldData;
+-    int blockBottom = min(blockTop+BLOCK_SIZE, r.br.y);
++    int blockBottom = std::min(blockTop+BLOCK_SIZE, r.br.y);
+ 
+     for (int blockLeft = r.tl.x; blockLeft < r.br.x; blockLeft += BLOCK_SIZE)
+     {
+       const rdr::U8* newPtr = newBlockPtr;
+       rdr::U8* oldPtr = oldBlockPtr;
+ 
+-      int blockRight = min(blockLeft+BLOCK_SIZE, r.br.x);
++      int blockRight = std::min(blockLeft+BLOCK_SIZE, r.br.x);
+       int blockWidthInBytes = (blockRight-blockLeft) * bytesPerPixel;
+ 
+       for (int y = blockTop; y < blockBottom; y++)
+--- vnc-4.0-unixsrc/rfb/hextileDecode.h~	Thu Jul 31 19:03:38 2003
++++ vnc-4.0-unixsrc/rfb/hextileDecode.h	Wed Nov  3 21:16:57 2004
+@@ -52,11 +52,11 @@
+ 
+   for (t.tl.y = r.tl.y; t.tl.y < r.br.y; t.tl.y += 16) {
+ 
+-    t.br.y = min(r.br.y, t.tl.y + 16);
++    t.br.y = std::min(r.br.y, t.tl.y + 16);
+ 
+     for (t.tl.x = r.tl.x; t.tl.x < r.br.x; t.tl.x += 16) {
+ 
+-      t.br.x = min(r.br.x, t.tl.x + 16);
++      t.br.x = std::min(r.br.x, t.tl.x + 16);
+ 
+       int tileType = is->readU8();
+ 
+--- vnc-4.0-unixsrc/rfb/hextileEncode.h~	Thu Jul 31 19:03:38 2003
++++ vnc-4.0-unixsrc/rfb/hextileEncode.h	Wed Nov  3 21:17:26 2004
+@@ -60,11 +60,11 @@
+ 
+   for (t.tl.y = r.tl.y; t.tl.y < r.br.y; t.tl.y += 16) {
+ 
+-    t.br.y = min(r.br.y, t.tl.y + 16);
++    t.br.y = std::min(r.br.y, t.tl.y + 16);
+ 
+     for (t.tl.x = r.tl.x; t.tl.x < r.br.x; t.tl.x += 16) {
+ 
+-      t.br.x = min(r.br.x, t.tl.x + 16);
++      t.br.x = std::min(r.br.x, t.tl.x + 16);
+ 
+       GET_IMAGE_INTO_BUF(t,buf);
+ 

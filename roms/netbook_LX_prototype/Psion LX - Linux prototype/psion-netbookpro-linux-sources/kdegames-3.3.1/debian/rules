@@ -1,0 +1,65 @@
+#! /usr/bin/make -f
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include debian/kde.mk
+include /usr/share/cdbs/1/rules/simple-patchsys.mk
+include /usr/share/cdbs/1/rules/utils.mk
+
+export kde_bindir = /usr/games
+
+DEB_KDE_CVS_MAKE := yes
+DEB_KDE_ENABLE_FINAL := yes
+DEB_KDE_APIDOX := yes
+
+DEB_CONFIGURE_EXTRA_FLAGS := --enable-shared --enable-static
+
+post-patches:: debian/stamp-libtool-update
+
+debian/stamp-libtool-update:
+	cp -f /usr/share/libtool/libtool.m4 admin/libtool.m4.in
+	cp -f /usr/share/libtool/ltmain.sh admin/ltmain.sh
+	touch debian/stamp-libtool-update
+
+common-build-arch:: debian/stamp-man-pages
+debian/stamp-man-pages:
+# Generate man pages for the games
+	for f in debian/man/*.man; do \
+		soelim -Idebian/man $$f \
+		 >debian/man/`basename $$f .man`.6; \
+	done
+	touch debian/stamp-man-pages
+
+binary-post-install/%::
+# Put full paths to games into desktop files
+	if [ -d debian/$*/usr/share/applications/kde ]; then \
+		find debian/$*/usr/share/applications/kde -name \*.desktop -print | \
+		xargs --no-run-if-empty perl -pi -e 's:^Exec=:Exec=/usr/games/:'; \
+	fi
+
+binary-install/libkdegames-dev::
+# One doc file has to be renamed because there are 2 TODO files
+# in libkdegames-dev.
+	install -d -m 755 debian/libkdegames-dev/usr/share/doc/libkdegames-dev
+	install -m 644 libkdegames/kgame/TODO \
+		debian/libkdegames-dev/usr/share/doc/libkdegames-dev/TODO.kgame
+
+clean::
+	rm -f debian/man/*.6
+	rm -f debian/stamp-libtool-update debian/stamp-man-pages
+	rm -f admin/libtool.m4.in admin/ltmain.sh
+	rm -f Makefile.cvs
+
+DEB_INSTALL_DOCS_ALL :=
+
+DEB_INSTALL_CHANGELOGS_ALL = $(shell for f in ChangeLog CHANGELOG CHANGES; do if test -s $(cdbs_curpkg)/$$f; then echo $(cdbs_curpkg)/$$f; break; fi; done)
+
+DEB_INSTALL_CHANGELOGS_kdegames := ChangeLog
+
+DEB_DH_MAKESHLIBS_ARGS_libkdegames1 := -V'libkdegames1 (>= 4:3.3.0)'
+DEB_DH_MAKESHLIBS_ARGS_atlantik := -V
+DEB_DH_MAKESHLIBS_ARGS_kolf := -V
+
+DEB_SHLIBDEPS_INCLUDE := \
+	debian/libkdegames1/usr/lib \
+	debian/atlantik/usr/lib \
+	debian/kolf/usr/lib

@@ -1,0 +1,265 @@
+--- matchbox-panel-0.8.1/applets/mb-applet-battery.c~battery-monitor.patch	Wed Feb 25 22:58:09 2004
++++ matchbox-panel-0.8.1/applets/mb-applet-battery.c	Thu Aug 26 21:59:53 2004
+@@ -71,12 +71,8 @@
+ #define AC_LINE_STATUS_ON 1
+ #endif
+ 
+-#ifdef MB_HAVE_PNG
+-#define MINIAPM_IMG     "miniapm.png"
+-#define MINIAPM_PWR_IMG "miniapm-power.png"
+-#else
+-#define MINIAPM_IMG     "miniapm.xpm"
+-#define MINIAPM_PWR_IMG "miniapm-power.xpm"
++#ifndef MB_HAVE_PNG
++#error PNG is required
+ #endif
+ 
+ #define CONTEXT_APP        "/usr/bin/gpe-info"
+@@ -85,15 +81,17 @@
+ 
+ #define CHECK_TIME_SLICE  2 	/* 2 seconds between battery checks */
+ 
++#define NR_IMAGES 10
++
+ static int apm_vals[3];
+ static MBPixbuf *pb;
+-static MBPixbufImage *img_icon = NULL, *img_icon_scaled = NULL,
+-  *img_icon_pwr = NULL, *img_icon_pwr_scaled = NULL; 
+-
++static MBPixbufImage *images[NR_IMAGES];
+ 
+ static int time_left_alerts[] = { 0, 2, 5, 10, 20 }; /* times to alert on */
+ static int time_left_idx = 4;
+ 
++static int window_h, window_w;
++
+ static Bool ac_power = False;
+ 
+ static char* ThemeName = NULL;
+@@ -148,6 +146,8 @@
+   values[TIME_LEFT] = info.battery_time;
+   values[PERCENTAGE] = info.battery_percentage;
+   values[AC_POWER] = info.ac_line_status;
++  if (!info.using_minutes)
++    values[TIME_LEFT] /= 60;
+ 
+   return 1;
+ }
+@@ -200,17 +200,10 @@
+ void
+ paint_callback (MBTrayApp *app, Drawable drw )
+ {
+-
+-
+-  int      power_pixels = 0;
+-  unsigned char r = 0, g = 0, b = 0;
+   int      x, y;
+-  int      bar_width, bar_height, bar_x, bar_y;
+ 
+   MBPixbufImage *img_backing = NULL;
+-  
+-
+-
++  MBPixbufImage *img = NULL;
+ 
+   while (!read_apm(apm_vals))
+     usleep(50000L);
+@@ -219,59 +212,32 @@
+     return;
+ 
+   img_backing = mb_tray_app_get_background (app, pb);
+-
+-  /* we assume width = height */
+-  bar_width  = (mb_pixbuf_img_get_width(img_backing)/16) * 10;
+-  bar_height = (mb_pixbuf_img_get_width(img_backing)/16) * 2;
+-  bar_y      = (mb_pixbuf_img_get_width(img_backing)/4)*3;
+-  bar_x      = (mb_pixbuf_img_get_width(img_backing)/4) - (mb_pixbuf_img_get_width(img_backing)/16);
+-
+-  /*
+-  printf("bar: %ix%i +%i+%i (%i)\n", bar_width, bar_height, bar_x, bar_y, mb_pixbuf_img_get_width(img_backing) );
+-  */  
+-
+-  if (apm_vals[PERCENTAGE] <= 0 || apm_vals[PERCENTAGE] > 99)
+-    { 
+-      r = 0x66; g = 0xff; b = 0x33; ac_power = True; 
+-      apm_vals[PERCENTAGE] = -1;
+-    }
+-  else if (apm_vals[PERCENTAGE] <= 25)
+-    { r = 0xff; g = 0; b = 0; }
+-  else if (apm_vals[PERCENTAGE] <= 50)
+-    { r = 0xff; g = 0x99; b = 0x33; }
+-  else if (apm_vals[PERCENTAGE] <= 100)
+-    { r = 0x66; g = 0xff; b = 0x33; }
+-
+-  if (apm_vals[AC_POWER] == AC_LINE_STATUS_ON) 
+-    ac_power = True;
+-  else 
+-    ac_power = False;
+-
+-  if (ac_power)
+-    mb_pixbuf_img_composite(pb, img_backing, img_icon_pwr_scaled, 0, 0);
++  
++  if (apm_vals[AC_POWER] == AC_LINE_STATUS_ON)
++    { img = images[9]; }
++  else if (apm_vals[PERCENTAGE] <= 5)
++    { img = images[0]; }
++  else if (apm_vals[PERCENTAGE] <= 18)
++    { img = images[1]; }
++  else if (apm_vals[PERCENTAGE] <= 30)
++    { img = images[2]; }
++  else if (apm_vals[PERCENTAGE] <= 43)
++    { img = images[3]; }
++  else if (apm_vals[PERCENTAGE] <= 56)
++    { img = images[4]; }
++  else if (apm_vals[PERCENTAGE] <= 68)
++    { img = images[5]; }
++  else if (apm_vals[PERCENTAGE] <= 81)
++    { img = images[6]; }
++  else if (apm_vals[PERCENTAGE] <= 94)
++    { img = images[7]; }
+   else
+-    mb_pixbuf_img_composite(pb, img_backing, img_icon_scaled, 0, 0);
++    { img = images[8]; }
+ 
+-  /* Clear out bar first */
+-  for ( y = bar_y; y < bar_y + bar_height; y++) 
+-    for ( x = bar_x; x < bar_x + bar_width; x++)
+-      if (ac_power)
+-	{
+-	  mb_pixbuf_img_plot_pixel(pb, img_backing, x, y, 0xff, 0xff, 0);
+-	}
+-      else
+-	{
+-	  mb_pixbuf_img_plot_pixel(pb, img_backing, x, y, 0, 0, 0);
+-	}
++  x = (window_w - mb_pixbuf_img_get_width (img)) / 2;
++  y = (window_h - mb_pixbuf_img_get_height (img)) / 2;
+ 
+-  if (apm_vals[PERCENTAGE] > 0)
+-    { 
+-      power_pixels = (apm_vals[PERCENTAGE] * ( bar_width) )/ 100 ;
+-
+-      for ( y = bar_y; y < bar_y + bar_height; y++) 
+-	for ( x = bar_x; x < bar_x + power_pixels + 1; x++)
+-	  mb_pixbuf_img_plot_pixel(pb, img_backing, x, y, r, g, b);
+-    }
++  mb_pixbuf_img_composite(pb, img_backing, img, x, y);
+ 
+   /* Bubble alerts  */
+   if ((time_left_idx > 0) 
+@@ -299,73 +265,40 @@
+ 
+   last_percentage = apm_vals[PERCENTAGE];
+   last_ac         = apm_vals[AC_POWER];
+-
+ }
+ 
+ void
+ resize_callback (MBTrayApp *app, int w, int h )
+ {
+-
+- if (img_icon_scaled) mb_pixbuf_img_free(pb, img_icon_scaled);
+- if (img_icon_pwr_scaled) mb_pixbuf_img_free(pb, img_icon_pwr_scaled);
+-
+- last_percentage = -1; last_ac = -1;
+-
+- img_icon_scaled = mb_pixbuf_img_scale(pb, img_icon, w, h);
+- img_icon_pwr_scaled = mb_pixbuf_img_scale(pb, img_icon_pwr, w, h);
+-
++  window_h = h;
++  window_w = w;
+ }
+ 
+ void 
+ load_icon(void)
+ {
+- char *icon_path = NULL;
+- 
+- printf("%s() called", __func__);
+-
+- last_percentage = -1; last_ac = -1;
+-
+- if (img_icon) mb_pixbuf_img_free(pb, img_icon);
+- if (img_icon_pwr) mb_pixbuf_img_free(pb, img_icon_pwr);
++  int i;
++  static const char *names[] = {
++    "battery_empty.png",
++    "battery_12.5%.png",
++    "battery_25%.png",
++    "battery_37.5%.png",
++    "battery_50%.png",
++    "battery_62.5%.png",
++    "battery_75%.png",
++    "battery_87.5%.png",
++    "battery_full.png",
++    "plug.png"
++  };
+ 
+- icon_path = mb_dot_desktop_icon_get_full_path (ThemeName, 
+-						32, 
+-						MINIAPM_IMG );
++  last_percentage = -1; last_ac = -1;
+ 
+- if (icon_path == NULL 
+-     || !(img_icon = mb_pixbuf_img_new_from_file(pb, icon_path)))
++  for (i = 0; i < NR_IMAGES; i++)
+     {
+-      fprintf(stderr, "mb-applet-battery: failed to load icon %s\n", MINIAPM_IMG);
+-      exit(1);
++      char path[256];
++      sprintf (path, "/usr/share/pixmaps/battery/%s", names[i]);
++      images[i] = mb_pixbuf_img_new_from_file(pb, path);
+     }
+-
+-  free(icon_path);
+-
+-  icon_path = mb_dot_desktop_icon_get_full_path (ThemeName, 
+-						 32, 
+-						 MINIAPM_PWR_IMG );
+-
+- if (icon_path == NULL 
+-     || !(img_icon_pwr = mb_pixbuf_img_new_from_file(pb, icon_path)))
+-    {
+-      fprintf(stderr, "mb-applet-battery: failed to load icon %s\n", MINIAPM_PWR_IMG);
+-      exit(1);
+-    }
+-
+- free(icon_path);
+-
+- return;
+-
+-}
+-
+-void 
+-theme_callback (MBTrayApp *app, char *theme_name)
+-{
+-  if (!theme_name) return;
+-  if (ThemeName) free(ThemeName);
+-  ThemeName = strdup(theme_name);
+-  load_icon();
+-  resize_callback (app, mb_tray_app_width(app), mb_tray_app_width(app) );
+ }
+ 
+ void
+@@ -389,7 +322,7 @@
+ 	  && apm_vals[TIME_LEFT] > 0)
+ 	{
+ 	  sprintf(tray_msg, 
+-		  _("Battery Power\nJuice %.2i %%\nTime left: %.2i mins\n"), apm_vals[PERCENTAGE], apm_vals[TIME_LEFT]);
++		  _("Battery Power\nCharge: %.2i %%\nTime left: %.2i mins\n"), apm_vals[PERCENTAGE], apm_vals[TIME_LEFT]);
+ 	}
+       else sprintf(tray_msg, _("Battery Power\n Device read error.\n"));
+     }
+@@ -455,11 +388,9 @@
+    
+    mb_tray_app_set_button_callback (app, button_callback );
+    
+-   mb_tray_app_set_theme_change_callback (app, theme_callback );
+-   
+    load_icon();
+ 
+-   mb_tray_app_set_icon(app, pb, img_icon);
++   mb_tray_app_set_icon(app, pb, images[4]);
+ 
+   if (file_exists(CONTEXT_APP))
+     {

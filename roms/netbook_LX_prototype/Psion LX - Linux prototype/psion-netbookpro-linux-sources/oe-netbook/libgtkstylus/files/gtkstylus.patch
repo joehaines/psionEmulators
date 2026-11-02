@@ -1,0 +1,40 @@
+--- tap.c.old	Fri Oct 15 11:45:49 2004
++++ tap.c	Fri Oct 15 11:49:40 2004
+@@ -36,6 +36,7 @@
+ 
+ static struct tap *t;
+ static int do_fn;
++static gboolean swapped;
+ 
+ #define TIMEOUT 500
+ 
+@@ -51,12 +52,13 @@
+       if ((abs (x - tt->x) < THRESHOLD)
+ 	  && (abs (y - tt->y) < THRESHOLD))
+ 	{
++	  tt->ev.button.type = GDK_BUTTON_RELEASE;
+ 	  tt->ev.button.time += TIMEOUT;
++	  gtk_main_do_event (&tt->ev);
+ 	  tt->ev.button.button = 3;
+ 	  tt->ev.button.type = GDK_BUTTON_PRESS;
+ 	  gtk_main_do_event (&tt->ev);
+-	  tt->ev.button.type = GDK_BUTTON_RELEASE;
+-	  gtk_main_do_event (&tt->ev);
++	  swapped = TRUE;
+ 	}
+     }
+ 
+@@ -97,6 +99,13 @@
+     {
+       t->flag = FALSE;
+       t = NULL;
++    }
++  else if (ev->type == GDK_BUTTON_RELEASE
++	   && ev->button.button == 1
++	   && swapped)
++    {
++      ev->button.button = 3;
++      swapped = FALSE;
+     }
+ 
+   gtk_main_do_event (ev);

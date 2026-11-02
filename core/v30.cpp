@@ -25,11 +25,53 @@
 
 #include "v30.h"
 #include "v30_internals.h"
+#include "state_archive.h"
 
 #include <cstdio>
 #include <cstdlib>
 
+// Cache std::getenv() lookups on the hot paths (every memory write, IRQ and
+// instruction step consults one). getenv() scans the whole environment on
+// each call — a JS-side lookup under WASM, and a locked scan in the ESP32
+// build's newlib — so an uncached check costs more than the instruction it
+// guards. Same idiom as core/sa1100.cpp.
+#define PSION_ENV_BOOL(name)  ([] { static const bool _v = std::getenv(name) != nullptr; return _v; }())
+#define PSION_ENV_CSTR(name)  ([] { static const char *const _v = std::getenv(name); return _v; }())
+
 using namespace V30Detail;
+
+// Debug: trace a specific PC (PSION_PC_TRACE=<hex>) on each visit.
+static const uint32_t s_pcTraceTarget = [](){
+    const char *e = std::getenv("PSION_PC_TRACE");
+    return e ? uint32_t(std::strtoul(e, nullptr, 16)) : 0xFFFFFFFFu;
+}();
+static const uint32_t s_pcTraceTarget2 = [](){
+    const char *e = std::getenv("PSION_PC_TRACE2");
+    return e ? uint32_t(std::strtoul(e, nullptr, 16)) : 0xFFFFFFFFu;
+}();
+// PSION_PC_GATE_TRACE=<hex>: at every visit to that PC, log the
+// full register set + SP/SS plus the word at [SS:SP] (= the
+// return address pushed by the caller's CALL). Used to bisect
+// which caller is responsible for a divergent DX/AX/... input.
+// Caps at 200 hits per session to keep the log small.
+static const uint32_t s_pcGateTraceTarget = [](){
+    const char *e = std::getenv("PSION_PC_GATE_TRACE");
+    return e ? uint32_t(std::strtoul(e, nullptr, 16)) : 0xFFFFFFFFu;
+}();
+static const bool s_pcTraceAny = s_pcTraceTarget != 0xFFFFFFFFu ||
+    s_pcTraceTarget2 != 0xFFFFFFFFu || s_pcGateTraceTarget != 0xFFFFFFFFu;
+// PSION_OPCODE_DEBUG (see step()).
+static const bool s_opDbg = std::getenv("PSION_OPCODE_DEBUG") != nullptr;
+
+void V30::serializeState(StateArchive &a) {
+    // batchCycles_ / batchBudget_ are scratch for one runBatch() call, and
+    // firstDispatch_ a cache that refills itself: none of them is state.
+    a(regs); a(sregs); a(ip);
+    a(signVal); a(auxVal); a(overVal); a(zeroVal); a(carryVal); a(parityVal);
+    a(tf); a(iflag); a(df); a(md);
+    a(irqLine); a(nmiLine); a(halted); a(intInhibit); a(pollLine);
+    a(segOverride); a(absCycles);
+}
 
 void V30::reset() {
     for (int i = 0; i < 8; ++i) regs.w[i] = 0;
@@ -53,32 +95,33 @@ void V30::reset() {
 // Handle a pending NMI or maskable IRQ at an instruction boundary.
 // Returns true if an interrupt was serviced (so step() can count the
 // cycles appropriately).
-static bool serviceInterrupts(V30& c) {
+// Out of line, with the tracing below, so step() stays small.
+__attribute__((noinline)) static bool serviceInterrupts(V30& c) {
     if (c.nmiLine) {
         c.nmiLine = false;
-        if (std::getenv("PSION_WAKE_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_WAKE_TRACE")) {
             static uint64_t nmiCount = 0;
             if (++nmiCount <= 20)
                 std::fprintf(stderr, "[nmi] #%llu from %04X:%04X -> %04X:%04X\n",
                     (unsigned long long)nmiCount, c.sregs[1], c.ip,
-                    c.busRef().readMemWord(0x0000A), c.busRef().readMemWord(0x00008));
+                    c.busRef().read16(0x0000A), c.busRef().read16(0x00008));
         }
         push16(c, buildPSW(c));
         push16(c, c.sregs[1]);
         push16(c, c.ip);
         c.iflag = 0;
         c.tf    = 0;
-        c.ip       = c.busRef().readMemWord(0x00008);
-        c.sregs[1] = c.busRef().readMemWord(0x0000A);
+        c.ip       = c.busRef().read16(0x00008);
+        c.sregs[1] = c.busRef().read16(0x0000A);
         c.halted = false;
         return true;
     }
     if (c.iflag && c.irqLine) {
         uint8_t vec = c.busRef().ackInterrupt();
         uint32_t vecAddr = uint32_t(vec) * 4;
-        uint16_t newIp = c.busRef().readMemWord(vecAddr);
-        uint16_t newCs = c.busRef().readMemWord(vecAddr + 2);
-        if (std::getenv("PSION_WAKE_TRACE")) {
+        uint16_t newIp = c.busRef().read16(vecAddr);
+        uint16_t newCs = c.busRef().read16(vecAddr + 2);
+        if (PSION_ENV_BOOL("PSION_WAKE_TRACE")) {
             static uint64_t svcCount = 0;
             if (++svcCount <= 20 || svcCount % 200 == 0)
                 std::fprintf(stderr, "[svc] #%llu vec=%02x isr=%04X:%04X\n",
@@ -97,8 +140,8 @@ static bool serviceInterrupts(V30& c) {
     return false;
 }
 
-int64_t V30::step() {
-    const int i8086Scale = i8086CycleScale(variant);
+__attribute__((always_inline)) inline int32_t V30::stepInline() {
+    const int32_t i8086Scale = scale_;
     // Check pending interrupts at instruction boundary. Clears halted.
     // The one-instruction shadow after MOV SS / POP SS / STI defers the
     // check so the kernel's stack-switch pairs complete atomically.
@@ -112,75 +155,14 @@ int64_t V30::step() {
     // into every sound recording.
     if (intInhibit) {
         intInhibit--;
-    } else if (segOverride < 0 && serviceInterrupts(*this)) {
-        if (std::getenv("PSION_IRQ_TRACE")) {
-            static uint64_t irqCount = 0;
-            static uint64_t nextReport = 10'000'000;
-            irqCount++;
-            extern int64_t g_v30_passed;
-            // Report via a module-static counter; caller compares against
-            // the harness cycle clock.
-            if (irqCount % 500 == 0) {
-                std::fprintf(stderr, "[irq] count=%llu (sampled every 500)\n",
-                             (unsigned long long)irqCount);
-            }
-            (void)nextReport;
-        }
+    } else if (segOverride < 0 && (nmiLine || (iflag && irqLine)) && serviceInterrupts(*this)) {
+        if (PSION_ENV_BOOL("PSION_IRQ_TRACE")) traceIrq();
         return 25 * i8086Scale;
     }
 
-    // Debug: trace a specific PC (PSION_PC_TRACE=<hex>) on each visit.
-    static uint32_t s_pcTraceTarget = [](){
-        const char *e = std::getenv("PSION_PC_TRACE");
-        return e ? uint32_t(std::strtoul(e, nullptr, 16)) : 0xFFFFFFFFu;
-    }();
-    static uint32_t s_pcTraceTarget2 = [](){
-        const char *e = std::getenv("PSION_PC_TRACE2");
-        return e ? uint32_t(std::strtoul(e, nullptr, 16)) : 0xFFFFFFFFu;
-    }();
-    // PSION_PC_GATE_TRACE=<hex>: at every visit to that PC, log the
-    // full register set + SP/SS plus the word at [SS:SP] (= the
-    // return address pushed by the caller's CALL). Used to bisect
-    // which caller is responsible for a divergent DX/AX/... input.
-    // Caps at 200 hits per session to keep the log small.
-    static uint32_t s_pcGateTraceTarget = [](){
-        const char *e = std::getenv("PSION_PC_GATE_TRACE");
-        return e ? uint32_t(std::strtoul(e, nullptr, 16)) : 0xFFFFFFFFu;
-    }();
-    {
-        uint32_t pc = lin(sregs[1], ip);
-        if (s_pcTraceTarget != 0xFFFFFFFFu && pc == s_pcTraceTarget) {
-            static uint64_t n = 0;
-            if (n++ < 200)
-            std::fprintf(stderr, "[pc-trace] hit %05X cs=%04X ip=%04X ax=%04X bx=%04X cx=%04X dx=%04X psw=%04X zf=%d cf=%d\n",
-                pc, sregs[1], ip, regs.w[0], regs.w[3], regs.w[1], regs.w[2],
-                buildPSW(*this), zf(*this), cf(*this));
-        }
-        if (s_pcTraceTarget2 != 0xFFFFFFFFu && pc == s_pcTraceTarget2) {
-            static uint64_t n = 0;
-            if (n++ < 200)
-            std::fprintf(stderr, "[pc-trace2] hit %05X cs=%04X ip=%04X ax=%04X bx=%04X cx=%04X dx=%04X psw=%04X zf=%d cf=%d\n",
-                pc, sregs[1], ip, regs.w[0], regs.w[3], regs.w[1], regs.w[2],
-                buildPSW(*this), zf(*this), cf(*this));
-        }
-        if (s_pcGateTraceTarget != 0xFFFFFFFFu && pc == s_pcGateTraceTarget) {
-            static uint64_t n = 0;
-            if (n++ < 200) {
-                uint32_t ssSp = uint32_t(sregs[2]) * 16u + regs.w[4];
-                uint16_t retIp = busRef().readMemWord(ssSp);
-                std::fprintf(stderr,
-                    "[gate-trace] hit %05X "
-                    "ax=%04X bx=%04X cx=%04X dx=%04X si=%04X di=%04X bp=%04X sp=%04X "
-                    "cs=%04X ds=%04X es=%04X ss=%04X "
-                    "[ss:sp]=%04X (retIP, caller probably at cs:%04X)\n",
-                    pc,
-                    regs.w[0], regs.w[3], regs.w[1], regs.w[2],
-                    regs.w[6], regs.w[7], regs.w[5], regs.w[4],
-                    sregs[1], sregs[3], sregs[0], sregs[2],
-                    retIp, uint16_t(retIp - 3));
-            }
-        }
-    }
+    // (The targets are read once, at start-up, so the check here is one
+    // load on every instruction.)
+    if (s_pcTraceAny) tracePc();
 
     // When halted, return a batch of cycles so the driver's tick loop
     // can advance peripherals by the same amount in one go, instead of
@@ -192,39 +174,11 @@ int64_t V30::step() {
     if (halted) return 64 * i8086Scale;
 
     uint32_t pc = lin(sregs[1], ip);
-    uint8_t  op = busRef().readMemByte(pc);
+    uint8_t  op = busRef().read8(pc);
     dbgFetchPc_ = pc; dbgFetchCs_ = sregs[1]; dbgFetchIp_ = ip;
     ip = uint16_t(ip + 1);
 
-    // Wild-jump forensics (PSION_OPCODE_DEBUG): report the first few
-    // control transfers into segment 0 — kernel code never legitimately
-    // executes the IVT/data page, so any entry is a corrupt far pointer.
-    static const bool s_opDbg = std::getenv("PSION_OPCODE_DEBUG") != nullptr;
-    if (s_opDbg) {
-        static uint16_t prevCs = 0xFFFF, prevIp = 0;
-        if (sregs[1] < 0x0040 && prevCs >= 0x0040 && prevCs != 0xFFFF) {
-            static int n = 0;
-            if (n++ < 8) {
-                std::fprintf(stderr,
-                    "[wildjump] %04x:%04x -> %04x:%04x (sp=%04x ss=%04x)\n",
-                    prevCs, prevIp, sregs[1], uint16_t(ip - 1),
-                    regs.w[4], sregs[2]);
-                // Just-popped words (frame content is still in memory).
-                std::fprintf(stderr, "[wildjump]   below-sp:");
-                for (int i = 12; i >= 1; i--) {
-                    uint32_t a = lin(sregs[2], uint16_t(regs.w[4] - i * 2));
-                    std::fprintf(stderr, " %04x", busRef_.readMemWord(a));
-                }
-                std::fprintf(stderr, "\n[wildjump]   target bytes:");
-                uint32_t t = lin(sregs[1], uint16_t(ip - 1));
-                for (int i = -8; i < 24; i++)
-                    std::fprintf(stderr, " %02x", busRef_.readMemByte(t + i));
-                std::fprintf(stderr, "\n");
-            }
-        }
-        prevCs = sregs[1];
-        prevIp = uint16_t(ip - 1);
-    }
+    if (s_opDbg) traceWildJump();
 
     // Try each category in turn. Return value:
     //   >= 0   opcode handled, cycle count
@@ -239,24 +193,125 @@ int64_t V30::step() {
     // clock); without this scale the MC400 boot ROM's peripheral races
     // (watchdog clear deadline, boot beep duration vs timer IRQ window)
     // close at the wrong sim time.
-    const int scale = i8086CycleScale(variant);
     // An op that knows its real 8086 timing pins it in absCycles (see
-    // i8086Exact); otherwise the V30 figure it returns is scaled. Cleared
-    // here rather than only on use, so a value set by an op that then
-    // falls through cannot leak into the next instruction.
+    // i8086Exact); otherwise the V30 figure it returns is scaled (by 1 on
+    // a V30, so not at all). Cleared here rather than only on use, so a
+    // value set by an op that then falls through cannot leak into the next
+    // instruction.
     absCycles = -1;
-    auto charge = [this, scale](int64_t v30Cycles) -> int64_t {
-        if (absCycles >= 0) { int64_t exact = absCycles; absCycles = -1; return exact; }
-        return v30Cycles * scale;
+    auto charge = [this, i8086Scale](int32_t v30Cycles) -> int32_t {
+        if (absCycles >= 0) { int32_t exact = absCycles; absCycles = -1; return exact; }
+        return i8086Scale == 1 ? v30Cycles : v30Cycles * i8086Scale;
     };
-    int64_t cycles;
-    if ((cycles = dispatchMov  (*this, op)) >= 0) { clearSegOverride(*this); return charge(cycles); }
-    if ((cycles = dispatchArith(*this, op)) >= 0) { clearSegOverride(*this); return charge(cycles); }
-    if ((cycles = dispatchCtrl (*this, op)) >= 0) { clearSegOverride(*this); return charge(cycles); }
-    cycles = dispatchMisc(*this, op);
-    if (cycles == -2) return 2 * scale;       // segment-override prefix
+    // Start at the first category with a case for this opcode: the ones
+    // before it would only return kNotMine. Learned as opcodes are first
+    // seen (from 0, the top of the list), then each category that has
+    // the opcode but declines it passes it on, as before.
+    using Dispatch = int32_t (*)(V30 &, uint8_t);
+    static constexpr Dispatch kDispatch[4] = { dispatchMov, dispatchArith, dispatchCtrl, dispatchMisc };
+    unsigned d = firstDispatch_[op];
+    int32_t cycles;
+    while ((cycles = kDispatch[d](*this, op)) == kNotMine && d < 3) ++d;
+    firstDispatch_[op] = uint8_t(d);
+    while ((cycles == -1 || cycles == kNotMine) && d < 3) cycles = kDispatch[++d](*this, op);
+    if (cycles == -2) return 2 * i8086Scale;  // segment-override prefix (dispatchMisc)
     if (cycles >= 0) { clearSegOverride(*this); return charge(cycles); }
 
+    return unimplementedOpcode(op);
+}
+
+int64_t V30::step() { return stepInline(); }
+
+int32_t V30::runBatch(int32_t budget) {
+    batchCycles_ = 0;
+    batchBudget_ = budget;
+    do {
+        int32_t consumed = stepInline();
+        if (consumed <= 0) consumed = 1;
+        batchCycles_ += int32_t(consumed);
+    } while (batchCycles_ < batchBudget_);
+    return batchCycles_;
+}
+
+// The diagnostics step() can run, kept out of line so the per-instruction
+// path stays small.
+
+__attribute__((noinline, cold)) void V30::traceIrq() {
+    static uint64_t irqCount = 0;
+    irqCount++;
+    // Report via a module-static counter; caller compares against
+    // the harness cycle clock.
+    if (irqCount % 500 == 0) {
+        std::fprintf(stderr, "[irq] count=%llu (sampled every 500)\n",
+                     (unsigned long long)irqCount);
+    }
+}
+
+__attribute__((noinline, cold)) void V30::tracePc() {
+    uint32_t pc = lin(sregs[1], ip);
+    if (s_pcTraceTarget != 0xFFFFFFFFu && pc == s_pcTraceTarget) {
+        static uint64_t n = 0;
+        if (n++ < 200)
+        std::fprintf(stderr, "[pc-trace] hit %05X cs=%04X ip=%04X ax=%04X bx=%04X cx=%04X dx=%04X psw=%04X zf=%d cf=%d\n",
+            pc, sregs[1], ip, regs.w[0], regs.w[3], regs.w[1], regs.w[2],
+            buildPSW(*this), zf(*this), cf(*this));
+    }
+    if (s_pcTraceTarget2 != 0xFFFFFFFFu && pc == s_pcTraceTarget2) {
+        static uint64_t n = 0;
+        if (n++ < 200)
+        std::fprintf(stderr, "[pc-trace2] hit %05X cs=%04X ip=%04X ax=%04X bx=%04X cx=%04X dx=%04X psw=%04X zf=%d cf=%d\n",
+            pc, sregs[1], ip, regs.w[0], regs.w[3], regs.w[1], regs.w[2],
+            buildPSW(*this), zf(*this), cf(*this));
+    }
+    if (s_pcGateTraceTarget != 0xFFFFFFFFu && pc == s_pcGateTraceTarget) {
+        static uint64_t n = 0;
+        if (n++ < 200) {
+            uint32_t ssSp = uint32_t(sregs[2]) * 16u + regs.w[4];
+            uint16_t retIp = busRef().read16(ssSp);
+            std::fprintf(stderr,
+                "[gate-trace] hit %05X "
+                "ax=%04X bx=%04X cx=%04X dx=%04X si=%04X di=%04X bp=%04X sp=%04X "
+                "cs=%04X ds=%04X es=%04X ss=%04X "
+                "[ss:sp]=%04X (retIP, caller probably at cs:%04X)\n",
+                pc,
+                regs.w[0], regs.w[3], regs.w[1], regs.w[2],
+                regs.w[6], regs.w[7], regs.w[5], regs.w[4],
+                sregs[1], sregs[3], sregs[0], sregs[2],
+                retIp, uint16_t(retIp - 3));
+        }
+    }
+}
+
+// Wild-jump forensics (PSION_OPCODE_DEBUG): report the first few
+// control transfers into segment 0 — kernel code never legitimately
+// executes the IVT/data page, so any entry is a corrupt far pointer.
+__attribute__((noinline, cold)) void V30::traceWildJump() {
+    static uint16_t prevCs = 0xFFFF, prevIp = 0;
+    if (sregs[1] < 0x0040 && prevCs >= 0x0040 && prevCs != 0xFFFF) {
+        static int n = 0;
+        if (n++ < 8) {
+            std::fprintf(stderr,
+                "[wildjump] %04x:%04x -> %04x:%04x (sp=%04x ss=%04x)\n",
+                prevCs, prevIp, sregs[1], uint16_t(ip - 1),
+                regs.w[4], sregs[2]);
+            // Just-popped words (frame content is still in memory).
+            std::fprintf(stderr, "[wildjump]   below-sp:");
+            for (int i = 12; i >= 1; i--) {
+                uint32_t a = lin(sregs[2], uint16_t(regs.w[4] - i * 2));
+                std::fprintf(stderr, " %04x", busRef_.read16(a));
+            }
+            std::fprintf(stderr, "\n[wildjump]   target bytes:");
+            uint32_t t = lin(sregs[1], uint16_t(ip - 1));
+            for (int i = -8; i < 24; i++)
+                std::fprintf(stderr, " %02x", busRef_.read8(t + i));
+            std::fprintf(stderr, "\n");
+        }
+    }
+    prevCs = sregs[1];
+    prevIp = uint16_t(ip - 1);
+}
+
+__attribute__((noinline, cold)) int64_t V30::unimplementedOpcode(uint8_t op) {
     // No category claimed it: log + halt. The diagnostic is the iteration
     // signal — the next session (or the same one) implements whatever
     // opcode is reported and reruns.
@@ -264,7 +319,7 @@ int64_t V30::step() {
     std::fprintf(stderr,
         "V30: unimplemented opcode 0x%02X at %04X:%04X (linear %05X), halting\n",
         op, sregs[1], failedIp, lin(sregs[1], failedIp));
-    if (std::getenv("PSION_OPCODE_DEBUG")) {
+    if (PSION_ENV_BOOL("PSION_OPCODE_DEBUG")) {
         // Wild-jump forensics: the stack's return addresses identify the
         // code that jumped/called into garbage.
         std::fprintf(stderr,
@@ -275,7 +330,7 @@ int64_t V30::step() {
             sregs[3], sregs[0], sregs[2]);
         for (int i = 0; i < 24; i++) {
             uint32_t a = lin(sregs[2], uint16_t(regs.w[4] + i * 2));
-            std::fprintf(stderr, " %04x", busRef_.readMemWord(a));
+            std::fprintf(stderr, " %04x", busRef_.read16(a));
         }
         // Where the opcode actually came from, and the bytes around it.
         // When the halt is a wild jump rather than a genuinely missing
@@ -288,7 +343,7 @@ int64_t V30::step() {
         std::fprintf(stderr, "\n  bytes at %05x:", lin(sregs[1], failedIp));
         for (int i = -4; i < 12; i++)
             std::fprintf(stderr, " %02x",
-                         busRef_.readMemByte((lin(sregs[1], failedIp) + i) & 0xFFFFF));
+                         busRef_.read8((lin(sregs[1], failedIp) + i) & 0xFFFFF));
         std::fprintf(stderr, "\n");
     }
     halted = true;

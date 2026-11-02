@@ -1,0 +1,5845 @@
+<MACRO>
+<NAME>PIXMAP_COMBO_TYPE</NAME>
+#define PIXMAP_COMBO_TYPE     (pixmap_combo_get_type ())
+</MACRO>
+<MACRO>
+<NAME>PIXMAP_COMBO</NAME>
+#define PIXMAP_COMBO(obj)     (GTK_CHECK_CAST((obj), PIXMAP_COMBO_TYPE, PixmapCombo))
+</MACRO>
+<MACRO>
+<NAME>PIXMAP_COMBO_CLASS</NAME>
+#define PIXMAP_COMBO_CLASS(k) (GTK_CHECK_CLASS_CAST(k), PIXMAP_COMBO_TYPE)
+</MACRO>
+<MACRO>
+<NAME>IS_PIXMAP_COMBO</NAME>
+#define IS_PIXMAP_COMBO(obj)  (GTK_CHECK_TYPE((obj), PIXMAP_COMBO_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>PixmapComboElement</NAME>
+typedef struct {
+	char const *untranslated_tooltip;
+	char **xpm_data;
+	int  index;
+} PixmapComboElement;
+</TYPEDEF>
+<TYPEDEF>
+<NAME>PixmapCombo</NAME>
+typedef struct {
+	GtkComboBox     combo_box;
+
+	/* Static information */
+	PixmapComboElement const *elements;
+	int cols, rows;
+	int num_elements;
+
+	/* State info */
+	int last_index;
+
+	/* Interface elements */
+	GtkWidget    *combo_table, *preview_button;
+	GtkWidget    *preview_pixmap;
+	GtkTooltips  *tool_tip;
+	GnomePixmap **pixmaps;
+} PixmapCombo;
+</TYPEDEF>
+<FUNCTION>
+<NAME>pixmap_combo_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>pixmap_combo_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+PixmapComboElement const *elements,int ncols, int nrows
+</FUNCTION>
+<FUNCTION>
+<NAME>pixmap_combo_select_pixmap</NAME>
+<RETURNS>void  </RETURNS>
+PixmapCombo *combo, int index
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_move_absolute</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, double dx, double dy
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_show_area</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, double x1, double y1, double x2, double y2
+</FUNCTION>
+<MACRO>
+<NAME>E_CANVAS_TYPE</NAME>
+#define E_CANVAS_TYPE			(e_canvas_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_CANVAS</NAME>
+#define E_CANVAS(obj)			(GTK_CHECK_CAST ((obj), E_CANVAS_TYPE, ECanvas))
+</MACRO>
+<MACRO>
+<NAME>E_CANVAS_CLASS</NAME>
+#define E_CANVAS_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_CANVAS_TYPE, ECanvasClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CANVAS</NAME>
+#define E_IS_CANVAS(obj)		(GTK_CHECK_TYPE ((obj), E_CANVAS_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CANVAS_CLASS</NAME>
+#define E_IS_CANVAS_CLASS(klass)	(GTK_CHECK_CLASS_TYPE ((obj), E_CANVAS_TYPE))
+</MACRO>
+<USER_FUNCTION>
+<NAME>ECanvasItemReflowFunc</NAME>
+<RETURNS>void </RETURNS>
+GnomeCanvasItem *item,
+								 gint   	  flags
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ECanvasItemSelectionFunc</NAME>
+<RETURNS>void </RETURNS>
+GnomeCanvasItem *item,
+								 gint             flags,
+								 gpointer         user_data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ECanvasItemSelectionCompareFunc</NAME>
+<RETURNS>gint </RETURNS>
+GnomeCanvasItem *item,
+								 gpointer         data1,
+								 gpointer         data2,
+								 gint             flags
+</USER_FUNCTION>
+<STRUCT>
+<NAME>ECanvas</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ECanvasClass</NAME>
+</STRUCT>
+<TYPEDEF>
+<NAME>ECanvasSelectionInfo</NAME>
+typedef struct {
+	GnomeCanvasItem *item;
+	gpointer         id;
+} ECanvasSelectionInfo;
+</TYPEDEF>
+<STRUCT>
+<NAME>ECanvas</NAME>
+struct ECanvas
+{
+	GnomeCanvas parent;
+		             
+	int                   idle_id;
+	GList                *selection;
+	ECanvasSelectionInfo *cursor;
+
+	/* Input context for dead key support */
+	GdkIC     *ic;
+	GdkICAttr *ic_attr;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_canvas_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_grab_focus</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_request_reflow</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_request_parent_reflow</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_set_reflow_callback</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, ECanvasItemReflowFunc func
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_set_selection_callback</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, ECanvasItemSelectionFunc func
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_set_selection_compare_callback</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, ECanvasItemSelectionCompareFunc func
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_set_cursor</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, gpointer id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_add_selection</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, gpointer id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_remove_selection</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, gpointer id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_item_set_cursor_end</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasItem *item, gpointer id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_color_init</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_color_alloc</NAME>
+<RETURNS>int  </RETURNS>
+gushort red, gushort green, gushort blue
+</FUNCTION>
+<FUNCTION>
+<NAME>e_color_alloc_name</NAME>
+<RETURNS>void  </RETURNS>
+const char *name, GdkColor *color
+</FUNCTION>
+<FUNCTION>
+<NAME>e_color_alloc_gdk</NAME>
+<RETURNS>void  </RETURNS>
+GdkColor *color
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_HSCROLLBAR</NAME>
+#define E_TYPE_HSCROLLBAR			(e_hscrollbar_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_HSCROLLBAR</NAME>
+#define E_HSCROLLBAR(obj)			(GTK_CHECK_CAST ((obj), E_TYPE_HSCROLLBAR, EHScrollbar))
+</MACRO>
+<MACRO>
+<NAME>E_HSCROLLBAR_CLASS</NAME>
+#define E_HSCROLLBAR_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_TYPE_HSCROLLBAR, EHScrollbarClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_HSCROLLBAR</NAME>
+#define E_IS_HSCROLLBAR(obj)			(GTK_CHECK_TYPE ((obj), E_TYPE_HSCROLLBAR))
+</MACRO>
+<MACRO>
+<NAME>E_IS_HSCROLLBAR_CLASS</NAME>
+#define E_IS_HSCROLLBAR_CLASS(klass)		(GTK_CHECK_CLASS_TYPE ((obj), E_TYPE_HSCROLLBAR))
+</MACRO>
+<STRUCT>
+<NAME>EHScrollbar</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EHScrollbarPrivate</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EHScrollbarClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EHScrollbar</NAME>
+struct EHScrollbar {
+	GtkHScrollbar parent;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_hscrollbar_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_hscrollbar_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+GtkAdjustment *adjustment
+</FUNCTION>
+<MACRO>
+<NAME>GTK_COMBO_BOX</NAME>
+#define GTK_COMBO_BOX(obj)	    GTK_CHECK_CAST (obj, gtk_combo_box_get_type (), GtkComboBox)
+</MACRO>
+<MACRO>
+<NAME>GTK_COMBO_BOX_CLASS</NAME>
+#define GTK_COMBO_BOX_CLASS(klass)  GTK_CHECK_CLASS_CAST (klass, gtk_combo_box_get_type (), GtkComboBoxClass)
+</MACRO>
+<MACRO>
+<NAME>GTK_IS_COMBO_BOX</NAME>
+#define GTK_IS_COMBO_BOX(obj)       GTK_CHECK_TYPE (obj, gtk_combo_box_get_type ())
+</MACRO>
+<STRUCT>
+<NAME>GtkComboBox</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GtkComboBoxPrivate</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GtkComboBoxClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GtkComboBox</NAME>
+struct GtkComboBox {
+	GtkHBox hbox;
+	GtkComboBoxPrivate *priv;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>gtk_combo_box_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_box_construct</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboBox *combo_box,GtkWidget   *display_widget,GtkWidget   *optional_pop_down_widget
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_box_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+GtkWidget *display_widget,GtkWidget *optional_pop_down_widget
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_box_popup_hide</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboBox *combo_box
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_box_set_display</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboBox *combo_box,GtkWidget *display_widget
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_box_set_arrow_relief</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboBox *cc, GtkReliefStyle relief
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_box_set_title</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboBox *combo, const gchar *title
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_box_set_arrow_sensitive</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboBox *combo,gboolean sensitive
+</FUNCTION>
+<MACRO>
+<NAME>gnome_font_get_size</NAME>
+#define gnome_font_get_size(f) ((f)->size)
+</MACRO>
+<MACRO>
+<NAME>gnome_font_get_glyph_width</NAME>
+#define gnome_font_get_glyph_width gnome_font_get_width
+</MACRO>
+<MACRO>
+<NAME>gnome_font_lookup_default</NAME>
+#define gnome_font_lookup_default gnome_font_get_glyph
+</MACRO>
+<FUNCTION>
+<NAME>e_unicode_init</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_strstrcase</NAME>
+<RETURNS>const gchar  *</RETURNS>
+const gchar *haystack, const gchar *needle
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_strstrcasedecomp</NAME>
+<RETURNS>const gchar  *</RETURNS>
+const gchar *haystack, const gchar *needle
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_from_gtk_event_key</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkWidget *widget, guint keyval, const gchar *string
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_from_gtk_string</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkWidget *widget, const gchar *string
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_from_gtk_string_sized</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkWidget *widget, const gchar *string, gint bytes
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_to_gtk_string</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkWidget *widget, const gchar *string
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_to_gtk_string_sized</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkWidget *widget, const gchar *string, gint bytes
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_entry_get_text</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkEntry *entry
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_entry_set_text</NAME>
+<RETURNS>void  </RETURNS>
+GtkEntry *entry, const gchar *text
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_editable_get_text</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkEditable *editable
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_editable_set_text</NAME>
+<RETURNS>void  </RETURNS>
+GtkEditable *editable, const gchar *text
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_editable_get_chars</NAME>
+<RETURNS>gchar  *</RETURNS>
+GtkEditable *editable, gint start, gint end
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_editable_insert_text</NAME>
+<RETURNS>void  </RETURNS>
+GtkEditable *editable, const gchar *text, gint length, gint *position
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_menu_item_new_with_label</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+GtkMenu *menu, const gchar *label
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_clist_set_text</NAME>
+<RETURNS>void  </RETURNS>
+GtkCList *clist, gint row, gint col, const gchar *text
+</FUNCTION>
+<FUNCTION>
+<NAME>e_utf8_gtk_clist_append</NAME>
+<RETURNS>gint  </RETURNS>
+GtkCList *clist, gchar *text[]
+</FUNCTION>
+<FUNCTION>
+<NAME>g_unichar_to_utf8</NAME>
+<RETURNS>gint  </RETURNS>
+gint c, gchar *outbuf
+</FUNCTION>
+<FUNCTION>
+<NAME>gdk_keyval_to_unicode</NAME>
+<RETURNS>guint32  </RETURNS>
+guint keysym
+</FUNCTION>
+<MACRO>
+<NAME>COLOR_PALETTE_TYPE</NAME>
+#define COLOR_PALETTE_TYPE     (color_palette_get_type ())
+</MACRO>
+<MACRO>
+<NAME>COLOR_PALETTE</NAME>
+#define COLOR_PALETTE(obj)     (GTK_CHECK_CAST((obj), COLOR_PALETTE_TYPE, ColorPalette))
+</MACRO>
+<MACRO>
+<NAME>COLOR_PALETTE_CLASS</NAME>
+#define COLOR_PALETTE_CLASS(k) (GTK_CHECK_CLASS_CAST(k), COLOR_PALETTE_TYPE)
+</MACRO>
+<MACRO>
+<NAME>IS_COLOR_PALETTE</NAME>
+#define IS_COLOR_PALETTE(obj)  (GTK_CHECK_TYPE((obj), COLOR_PALETTE_TYPE))
+</MACRO>
+<FUNCTION>
+<NAME>color_palette_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>color_palette_new</NAME>
+<RETURNS>GtkWidget        *</RETURNS>
+const char *no_color_label,GdkColor *default_color,const gchar *group_name
+</FUNCTION>
+<FUNCTION>
+<NAME>color_palette_get_current_color</NAME>
+<RETURNS>GdkColor         *</RETURNS>
+ColorPalette *P
+</FUNCTION>
+<FUNCTION>
+<NAME>color_palette_get_color_picker</NAME>
+<RETURNS>GtkWidget        *</RETURNS>
+ColorPalette *P
+</FUNCTION>
+<ENUM>
+<NAME>ECursorType</NAME>
+typedef enum {
+	E_CURSOR_FAT_CROSS,
+	E_CURSOR_THIN_CROSS,
+	E_CURSOR_ARROW,
+	E_CURSOR_MOVE,
+	E_CURSOR_ZOOM_IN,
+	E_CURSOR_ZOOM_OUT,
+	E_CURSOR_SIZE_X,
+	E_CURSOR_SIZE_Y,
+	E_CURSOR_SIZE_TL,
+	E_CURSOR_SIZE_TR,
+	E_CURSOR_PRESS,
+	E_CURSOR_HAND_OPEN,
+	E_CURSOR_HAND_CLOSED,
+	E_CURSOR_NUM_CURSORS
+} ECursorType;
+</ENUM>
+<FUNCTION>
+<NAME>e_cursors_init</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cursors_shutdown</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>e_cursor_set</NAME>
+#define e_cursor_set(win, c)					   \
+G_STMT_START {							   \
+     if (win) 							   \
+         gdk_window_set_cursor (win, e_cursor_get (c)); \
+} G_STMT_END
+</MACRO>
+<MACRO>
+<NAME>e_cursor_set_widget</NAME>
+#define e_cursor_set_widget(w, c)							     \
+G_STMT_START {									     \
+     if (GTK_WIDGET (w)->window)						     \
+	gdk_window_set_cursor (GTK_WIDGET (w)->window, e_cursor_get (c)); \
+} G_STMT_END
+</MACRO>
+<FUNCTION>
+<NAME>e_cursor_get</NAME>
+<RETURNS>GdkCursor  *</RETURNS>
+ECursorType type
+</FUNCTION>
+<MACRO>
+<NAME>GTK_COMBO_STACK</NAME>
+#define GTK_COMBO_STACK(obj)	    GTK_CHECK_CAST (obj, gtk_combo_stack_get_type (), GtkComboStack)
+</MACRO>
+<MACRO>
+<NAME>GTK_COMBO_STACK_CLASS</NAME>
+#define GTK_COMBO_STACK_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_combo_stack_get_type (), GtkComboTextClass)
+</MACRO>
+<MACRO>
+<NAME>GTK_IS_COMBO_STACK</NAME>
+#define GTK_IS_COMBO_STACK(obj)      GTK_CHECK_TYPE (obj, gtk_combo_stack_get_type ())
+</MACRO>
+<STRUCT>
+<NAME>GtkComboStack</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GtkComboStackPrivate</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GtkComboStackClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GtkComboStack</NAME>
+struct GtkComboStack {
+	GtkComboBox parent;
+
+	GtkComboStackPrivate *priv;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>gtk_combo_stack_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_stack_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+const gchar *stock_name,gboolean const is_scrolled
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_stack_push_item</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboStack *combo_stack,const gchar *item
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_stack_remove_top</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboStack *combo_stack,gint num
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_stack_pop</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboStack *combo_stack,gint num
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_stack_clear</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboStack *combo_stack
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_stack_truncate</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboStack *combo, int n
+</FUNCTION>
+<MACRO>
+<NAME>COLOR_GROUP_TYPE</NAME>
+#define COLOR_GROUP_TYPE     (color_group_get_type ())
+</MACRO>
+<MACRO>
+<NAME>COLOR_GROUP</NAME>
+#define COLOR_GROUP(obj)     (GTK_CHECK_CAST((obj), COLOR_GROUP_TYPE, ColorGroup))
+</MACRO>
+<MACRO>
+<NAME>COLOR_GROUP_CLASS</NAME>
+#define COLOR_GROUP_CLASS(k) (GTK_CHECK_CLASS_CAST(k), COLOR_GROUP_TYPE)
+</MACRO>
+<MACRO>
+<NAME>IS_COLOR_GROUP</NAME>
+#define IS_COLOR_GROUP(obj)  (GTK_CHECK_TYPE((obj), COLOR_GROUP_TYPE))
+</MACRO>
+<FUNCTION>
+<NAME>color_group_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_new_named</NAME>
+<RETURNS>GtkObject       *</RETURNS>
+const gchar *name
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_from_name</NAME>
+<RETURNS>GtkObject       *</RETURNS>
+const gchar * name
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_set_history_size</NAME>
+<RETURNS>void  </RETURNS>
+ColorGroup *cg, gint size
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_get_history_size</NAME>
+<RETURNS>gint  </RETURNS>
+ColorGroup *cg
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_get_current_color</NAME>
+<RETURNS>GdkColor        *</RETURNS>
+ColorGroup *cg
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_set_current_color</NAME>
+<RETURNS>void  </RETURNS>
+ColorGroup *cg, GdkColor *color
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_most_recent_color</NAME>
+<RETURNS>GdkColor        *</RETURNS>
+ColorGroup *cg
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_oldest_color</NAME>
+<RETURNS>GdkColor        *</RETURNS>
+ColorGroup *cg
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_next_color</NAME>
+<RETURNS>GdkColor        *</RETURNS>
+ColorGroup *cg
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_previous_color</NAME>
+<RETURNS>GdkColor        *</RETURNS>
+ColorGroup *cg
+</FUNCTION>
+<FUNCTION>
+<NAME>color_group_add_color</NAME>
+<RETURNS>void  </RETURNS>
+ColorGroup *cg, GdkColor *color,gboolean custom_color
+</FUNCTION>
+<MACRO>
+<NAME>E_CANVAS_VBOX_TYPE</NAME>
+#define E_CANVAS_VBOX_TYPE			(e_canvas_vbox_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_CANVAS_VBOX</NAME>
+#define E_CANVAS_VBOX(obj)			(GTK_CHECK_CAST ((obj), E_CANVAS_VBOX_TYPE, ECanvasVbox))
+</MACRO>
+<MACRO>
+<NAME>E_CANVAS_VBOX_CLASS</NAME>
+#define E_CANVAS_VBOX_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_CANVAS_VBOX_TYPE, ECanvasVboxClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CANVAS_VBOX</NAME>
+#define E_IS_CANVAS_VBOX(obj)		(GTK_CHECK_TYPE ((obj), E_CANVAS_VBOX_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CANVAS_VBOX_CLASS</NAME>
+#define E_IS_CANVAS_VBOX_CLASS(klass)	(GTK_CHECK_CLASS_TYPE ((obj), E_CANVAS_VBOX_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ECanvasVbox</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ECanvasVboxClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ECanvasVbox</NAME>
+struct ECanvasVbox
+{
+	GnomeCanvasGroup parent;
+
+	/* item specific fields */
+	GList *items; /* Of type GnomeCanvasItem */
+
+	double width;
+	double height;
+	double spacing;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_canvas_vbox_add_item</NAME>
+<RETURNS>void  </RETURNS>
+ECanvasVbox *e_canvas_vbox, GnomeCanvasItem *item
+</FUNCTION>
+<FUNCTION>
+<NAME>e_canvas_vbox_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_REFLOW_TYPE</NAME>
+#define E_REFLOW_TYPE			(e_reflow_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_REFLOW</NAME>
+#define E_REFLOW(obj)			(GTK_CHECK_CAST ((obj), E_REFLOW_TYPE, EReflow))
+</MACRO>
+<MACRO>
+<NAME>E_REFLOW_CLASS</NAME>
+#define E_REFLOW_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_REFLOW_TYPE, EReflowClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_REFLOW</NAME>
+#define E_IS_REFLOW(obj)		(GTK_CHECK_TYPE ((obj), E_REFLOW_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_REFLOW_CLASS</NAME>
+#define E_IS_REFLOW_CLASS(klass)	(GTK_CHECK_CLASS_TYPE ((obj), E_REFLOW_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>EReflow</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EReflowClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EReflow</NAME>
+struct EReflow
+{
+	GnomeCanvasGroup parent;
+	
+	/* item specific fields */
+	GList *items; /* Of type GnomeCanvasItem */
+	GList *columns; /* Of type GList of type GnomeCanvasItem (points into items) */
+	gint column_count; /* Number of columnns */
+
+	GnomeCanvasItem *empty_text;
+	gchar *empty_message;
+	
+	double minimum_width;
+	double width;
+	double height;
+       
+	double column_width;
+
+	int idle;
+
+	/* These are all for when the column is being dragged. */
+	gboolean column_drag;
+	gdouble start_x;
+	gint which_column_dragged;
+	double temp_column_width;
+	double previous_temp_column_width;
+
+	guint need_height_update : 1;
+	guint need_column_resize : 1;
+
+	guint default_cursor_shown : 1;
+	GdkCursor *arrow_cursor;
+	GdkCursor *default_cursor;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_reflow_add_item</NAME>
+<RETURNS>void  </RETURNS>
+EReflow *e_reflow, GnomeCanvasItem *item
+</FUNCTION>
+<FUNCTION>
+<NAME>e_reflow_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_reflow_post_add_item</NAME>
+<RETURNS>void  </RETURNS>
+EReflow *e_reflow, GnomeCanvasItem *item
+</FUNCTION>
+<MACRO>
+<NAME>COLOR_COMBO_TYPE</NAME>
+#define COLOR_COMBO_TYPE     (color_combo_get_type ())
+</MACRO>
+<MACRO>
+<NAME>COLOR_COMBO</NAME>
+#define COLOR_COMBO(obj)     (GTK_CHECK_CAST((obj), COLOR_COMBO_TYPE, ColorCombo))
+</MACRO>
+<MACRO>
+<NAME>COLOR_COMBO_CLASS</NAME>
+#define COLOR_COMBO_CLASS(k) (GTK_CHECK_CLASS_CAST(k), COLOR_COMBO_TYPE)
+</MACRO>
+<MACRO>
+<NAME>IS_COLOR_COMBO</NAME>
+#define IS_COLOR_COMBO(obj)  (GTK_CHECK_TYPE((obj), COLOR_COMBO_TYPE))
+</MACRO>
+<FUNCTION>
+<NAME>color_combo_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>color_combo_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+char **icon, const char *no_color_label,GdkColor *default_color, gchar *group_name
+</FUNCTION>
+<MACRO>
+<NAME>E_PRINTABLE_TYPE</NAME>
+#define E_PRINTABLE_TYPE        (e_printable_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_PRINTABLE</NAME>
+#define E_PRINTABLE(o)          (GTK_CHECK_CAST ((o), E_PRINTABLE_TYPE, EPrintable))
+</MACRO>
+<MACRO>
+<NAME>E_PRINTABLE_CLASS</NAME>
+#define E_PRINTABLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_PRINTABLE_TYPE, EPrintableClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_PRINTABLE</NAME>
+#define E_IS_PRINTABLE(o)       (GTK_CHECK_TYPE ((o), E_PRINTABLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_PRINTABLE_CLASS</NAME>
+#define E_IS_PRINTABLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_PRINTABLE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>EPrintable</NAME>
+typedef struct {
+	GtkObject   base;
+} EPrintable;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_printable_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_printable_new</NAME>
+<RETURNS>EPrintable  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_printable_print_page</NAME>
+<RETURNS>void  </RETURNS>
+EPrintable        *e_printable,GnomePrintContext *context,gdouble            width,gdouble            height,gboolean           quantized
+</FUNCTION>
+<FUNCTION>
+<NAME>e_printable_data_left</NAME>
+<RETURNS>gboolean  </RETURNS>
+EPrintable        *e_printable
+</FUNCTION>
+<FUNCTION>
+<NAME>e_printable_reset</NAME>
+<RETURNS>void  </RETURNS>
+EPrintable        *e_printable
+</FUNCTION>
+<FUNCTION>
+<NAME>e_printable_height</NAME>
+<RETURNS>gdouble  </RETURNS>
+EPrintable        *e_printable,GnomePrintContext *context,gdouble            width,gdouble            max_height,gboolean           quantized
+</FUNCTION>
+<FUNCTION>
+<NAME>e_printable_will_fit</NAME>
+<RETURNS>gboolean  </RETURNS>
+EPrintable        *e_printable,GnomePrintContext *context,gdouble            width,gdouble            max_height,gboolean           quantized
+</FUNCTION>
+<STRUCT>
+<NAME>EPopupMenu</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EPopupMenu</NAME>
+struct EPopupMenu {
+	char *name;
+	char *pixname;
+	void (*fn) (GtkWidget *widget, void *closure);
+	EPopupMenu *submenu;
+	guint32 disable_mask;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_popup_menu_create</NAME>
+<RETURNS>GtkMenu  *</RETURNS>
+EPopupMenu     *menu_list,guint32         disable_mask,guint32         hide_mask,void           *closure
+</FUNCTION>
+<FUNCTION>
+<NAME>e_popup_menu_run</NAME>
+<RETURNS>void  </RETURNS>
+EPopupMenu     *menu_list,GdkEventButton *event,guint32         disable_mask,guint32         hide_mask,void           *closure
+</FUNCTION>
+<MACRO>
+<NAME>GTK_COMBO_TEXT</NAME>
+#define GTK_COMBO_TEXT(obj)	    GTK_CHECK_CAST (obj, gtk_combo_text_get_type (), GtkComboText)
+</MACRO>
+<MACRO>
+<NAME>GTK_COMBO_TEXT_CLASS</NAME>
+#define GTK_COMBO_TEXT_CLASS(klass) GTK_CHECK_CLASS_CAST (klass, gtk_combo_text_get_type (), GtkComboTextClass)
+</MACRO>
+<MACRO>
+<NAME>GTK_IS_COMBO_TEXT</NAME>
+#define GTK_IS_COMBO_TEXT(obj)      GTK_CHECK_TYPE (obj, gtk_combo_text_get_type ())
+</MACRO>
+<STRUCT>
+<NAME>GtkComboText</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GtkComboText</NAME>
+struct GtkComboText {
+	GtkComboBox parent;
+
+	GtkWidget *entry;
+	GtkWidget *list;
+	GtkWidget *scrolled_window;
+	GtkStateType cache_mouse_state;
+	GtkWidget *cached_entry;
+	gboolean case_sensitive;
+	GHashTable*elements;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>gtk_combo_text_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_text_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+gboolean const is_scrolled
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_text_set_case_sensitive</NAME>
+<RETURNS>gint  </RETURNS>
+GtkComboText *combo_text,gboolean val
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_text_select_item</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboText *combo_text,int elem
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_text_set_text</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboText *combo_text,const gchar *text
+</FUNCTION>
+<FUNCTION>
+<NAME>gtk_combo_text_add_item</NAME>
+<RETURNS>void  </RETURNS>
+GtkComboText *combo_text,const gchar *item,const gchar *value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_popup_menu</NAME>
+<RETURNS>void  </RETURNS>
+GtkMenu *menu, GdkEventButton *event
+</FUNCTION>
+<FUNCTION>
+<NAME>e_auto_kill_popup_menu_on_hide</NAME>
+<RETURNS>void  </RETURNS>
+GtkMenu *menu
+</FUNCTION>
+<FUNCTION>
+<NAME>e_notice</NAME>
+<RETURNS>void  </RETURNS>
+GtkWindow *window, const char *type, const char *format, ...
+</FUNCTION>
+<FUNCTION>
+<NAME>e_container_foreach_leaf</NAME>
+<RETURNS>void  </RETURNS>
+GtkContainer *container,GtkCallback   callback,gpointer      closure
+</FUNCTION>
+<FUNCTION>
+<NAME>e_container_focus_nth_entry</NAME>
+<RETURNS>void  </RETURNS>
+GtkContainer *container,int           n
+</FUNCTION>
+<FUNCTION>
+<NAME>e_container_change_tab_order</NAME>
+<RETURNS>gint  </RETURNS>
+GtkContainer *container,GList        *widgets
+</FUNCTION>
+<MACRO>
+<NAME>E_REFLOW_SORTED_TYPE</NAME>
+#define E_REFLOW_SORTED_TYPE			(e_reflow_sorted_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_REFLOW_SORTED</NAME>
+#define E_REFLOW_SORTED(obj)			(GTK_CHECK_CAST ((obj), E_REFLOW_SORTED_TYPE, EReflowSorted))
+</MACRO>
+<MACRO>
+<NAME>E_REFLOW_SORTED_CLASS</NAME>
+#define E_REFLOW_SORTED_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_REFLOW_SORTED_TYPE, EReflowSortedClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_REFLOW_SORTED</NAME>
+#define E_IS_REFLOW_SORTED(obj) 		(GTK_CHECK_TYPE ((obj), E_REFLOW_SORTED_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_REFLOW_SORTED_CLASS</NAME>
+#define E_IS_REFLOW_SORTED_CLASS(klass) 	(GTK_CHECK_CLASS_TYPE ((obj), E_REFLOW_SORTED_TYPE))
+</MACRO>
+<USER_FUNCTION>
+<NAME>EReflowStringFunc</NAME>
+<RETURNS>char *</RETURNS>
+GnomeCanvasItem *
+</USER_FUNCTION>
+<STRUCT>
+<NAME>EReflowSorted</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EReflowSortedClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EReflowSorted</NAME>
+struct EReflowSorted
+{
+	EReflow parent;
+	
+	/* item specific fields */
+	GCompareFunc      compare_func;
+	EReflowStringFunc string_func;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_reflow_sorted_remove_item</NAME>
+<RETURNS>void  </RETURNS>
+EReflowSorted *sorted, const char *id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_reflow_sorted_replace_item</NAME>
+<RETURNS>void  </RETURNS>
+EReflowSorted *sorted, GnomeCanvasItem *item
+</FUNCTION>
+<FUNCTION>
+<NAME>e_reflow_sorted_reorder_item</NAME>
+<RETURNS>void  </RETURNS>
+EReflowSorted *e_reflow_sorted, const gchar *id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_reflow_sorted_get_item</NAME>
+<RETURNS>GnomeCanvasItem  *</RETURNS>
+EReflowSorted *e_reflow_sorted, const gchar *id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_reflow_sorted_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_reflow_sorted_jump</NAME>
+<RETURNS>void  </RETURNS>
+EReflowSorted *sorted, GCompareFunc compare_func, void          *value
+</FUNCTION>
+<STRUCT>
+<NAME>EFont</NAME>
+</STRUCT>
+<ENUM>
+<NAME>EFontStyle</NAME>
+typedef enum {
+	E_FONT_PLAIN = 0,
+	E_FONT_BOLD = (1 << 0),
+	E_FONT_ITALIC = (1 << 4)
+} EFontStyle;
+</ENUM>
+<FUNCTION>
+<NAME>e_font_from_gdk_name</NAME>
+<RETURNS>EFont  *</RETURNS>
+const gchar *name
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_from_gdk_font</NAME>
+<RETURNS>EFont  *</RETURNS>
+GdkFont *font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_ref</NAME>
+<RETURNS>void  </RETURNS>
+EFont *font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_unref</NAME>
+<RETURNS>void  </RETURNS>
+EFont *font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_ascent</NAME>
+<RETURNS>gint  </RETURNS>
+EFont * font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_descent</NAME>
+<RETURNS>gint  </RETURNS>
+EFont * font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_get_name</NAME>
+<RETURNS>gchar  *</RETURNS>
+EFont *font
+</FUNCTION>
+<MACRO>
+<NAME>e_font_height</NAME>
+#define e_font_height(f) (e_font_ascent (f) + e_font_descent (f))
+</MACRO>
+<FUNCTION>
+<NAME>e_font_draw_utf8_text</NAME>
+<RETURNS>void  </RETURNS>
+GdkDrawable *drawable,EFont *font, EFontStyle style,GdkGC *gc,gint x, gint y,const gchar *text,gint numbytes
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_utf8_text_width</NAME>
+<RETURNS>int  </RETURNS>
+EFont *font, EFontStyle style,const char *text,int numbytes
+</FUNCTION>
+<FUNCTION>
+<NAME>e_font_utf8_char_width</NAME>
+<RETURNS>int  </RETURNS>
+EFont *font, EFontStyle style,char *text
+</FUNCTION>
+<FUNCTION>
+<NAME>e_gdk_font_encoding</NAME>
+<RETURNS>const gchar  *</RETURNS>
+GdkFont *font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_iconv_from_gdk_font</NAME>
+<RETURNS>iconv_t  </RETURNS>
+GdkFont *font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_iconv_to_gdk_font</NAME>
+<RETURNS>iconv_t  </RETURNS>
+GdkFont *font
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_VSCROLLBAR</NAME>
+#define E_TYPE_VSCROLLBAR			(e_vscrollbar_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_VSCROLLBAR</NAME>
+#define E_VSCROLLBAR(obj)			(GTK_CHECK_CAST ((obj), E_TYPE_VSCROLLBAR, EVScrollbar))
+</MACRO>
+<MACRO>
+<NAME>E_VSCROLLBAR_CLASS</NAME>
+#define E_VSCROLLBAR_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_TYPE_VSCROLLBAR, EVScrollbarClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_VSCROLLBAR</NAME>
+#define E_IS_VSCROLLBAR(obj)			(GTK_CHECK_TYPE ((obj), E_TYPE_VSCROLLBAR))
+</MACRO>
+<MACRO>
+<NAME>E_IS_VSCROLLBAR_CLASS</NAME>
+#define E_IS_VSCROLLBAR_CLASS(klass)		(GTK_CHECK_CLASS_TYPE ((obj), E_TYPE_VSCROLLBAR))
+</MACRO>
+<STRUCT>
+<NAME>EVScrollbar</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EVScrollbarPrivate</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EVScrollbarClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EVScrollbar</NAME>
+struct EVScrollbar {
+	GtkVScrollbar parent;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_vscrollbar_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_vscrollbar_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+GtkAdjustment *adjustment
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_SCROLL_FRAME</NAME>
+#define E_TYPE_SCROLL_FRAME            (e_scroll_frame_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_SCROLL_FRAME</NAME>
+#define E_SCROLL_FRAME(obj)            (GTK_CHECK_CAST ((obj), E_TYPE_SCROLL_FRAME, EScrollFrame))
+</MACRO>
+<MACRO>
+<NAME>E_SCROLL_FRAME_CLASS</NAME>
+#define E_SCROLL_FRAME_CLASS(klass)    (GTK_CHECK_CLASS_CAST ((klass), E_TYPE_SCROLL_FRAME,	\
+					EScrollFrameClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_SCROLL_FRAME</NAME>
+#define E_IS_SCROLL_FRAME(obj)         (GTK_CHECK_TYPE ((obj), E_TYPE_SCROLL_FRAME))
+</MACRO>
+<MACRO>
+<NAME>E_IS_SCROLL_FRAME_CLASS</NAME>
+#define E_IS_SCROLL_FRAME_CLASS(klass) (GTK_CHECK_CLASS_TYPE ((klass), E_TYPE_SCROLL_FRAME))
+</MACRO>
+<STRUCT>
+<NAME>EScrollFrame</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EScrollFrameClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EScrollFrame</NAME>
+struct EScrollFrame
+{
+	GtkBin bin;
+
+	/* Private data */
+	gpointer priv;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_scroll_frame_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+GtkAdjustment *hadj, GtkAdjustment *vadj
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_set_hadjustment</NAME>
+<RETURNS>void  </RETURNS>
+EScrollFrame *sf, GtkAdjustment *adj
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_set_vadjustment</NAME>
+<RETURNS>void  </RETURNS>
+EScrollFrame *sf, GtkAdjustment *adj
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_get_hadjustment</NAME>
+<RETURNS>GtkAdjustment  *</RETURNS>
+EScrollFrame *sf
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_get_vadjustment</NAME>
+<RETURNS>GtkAdjustment  *</RETURNS>
+EScrollFrame *sf
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_set_policy</NAME>
+<RETURNS>void  </RETURNS>
+EScrollFrame *sf,GtkPolicyType hsb_policy,GtkPolicyType vsb_policy
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_set_placement</NAME>
+<RETURNS>void  </RETURNS>
+EScrollFrame *sf, GtkCornerType frame_placement
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_set_shadow_type</NAME>
+<RETURNS>void  </RETURNS>
+EScrollFrame *sf, GtkShadowType shadow_type
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_set_scrollbar_spacing</NAME>
+<RETURNS>void  </RETURNS>
+EScrollFrame *sf, guint spacing
+</FUNCTION>
+<FUNCTION>
+<NAME>e_scroll_frame_add_with_viewport</NAME>
+<RETURNS>void  </RETURNS>
+EScrollFrame *sf, GtkWidget *child
+</FUNCTION>
+<MACRO>
+<NAME>GAL_VIEW_FACTORY_ETABLE_TYPE</NAME>
+#define GAL_VIEW_FACTORY_ETABLE_TYPE        (gal_view_factory_etable_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_FACTORY_ETABLE</NAME>
+#define GAL_VIEW_FACTORY_ETABLE(o)          (GTK_CHECK_CAST ((o), GAL_VIEW_FACTORY_ETABLE_TYPE, GalViewFactoryEtable))
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_FACTORY_ETABLE_CLASS</NAME>
+#define GAL_VIEW_FACTORY_ETABLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), GAL_VIEW_FACTORY_ETABLE_TYPE, GalViewFactoryEtableClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_FACTORY_ETABLE</NAME>
+#define GAL_IS_VIEW_FACTORY_ETABLE(o)       (GTK_CHECK_TYPE ((o), GAL_VIEW_FACTORY_ETABLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_FACTORY_ETABLE_CLASS</NAME>
+#define GAL_IS_VIEW_FACTORY_ETABLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), GAL_VIEW_FACTORY_ETABLE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>GalViewFactoryEtable</NAME>
+typedef struct {
+	GalViewFactory base;
+
+	ETableSpecification *spec;
+} GalViewFactoryEtable;
+</TYPEDEF>
+<FUNCTION>
+<NAME>gal_view_factory_etable_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_factory_etable_new</NAME>
+<RETURNS>GalViewFactory  *</RETURNS>
+ETableSpecification  *spec
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_factory_etable_construct</NAME>
+<RETURNS>GalViewFactory  *</RETURNS>
+GalViewFactoryEtable *factory,ETableSpecification  *spec
+</FUNCTION>
+<MACRO>
+<NAME>GAL_DEFINE_VIEWS_DIALOG_TYPE</NAME>
+#define GAL_DEFINE_VIEWS_DIALOG_TYPE			(gal_define_views_dialog_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_DEFINE_VIEWS_DIALOG</NAME>
+#define GAL_DEFINE_VIEWS_DIALOG(obj)			(GTK_CHECK_CAST ((obj), GAL_DEFINE_VIEWS_DIALOG_TYPE, GalDefineViewsDialog))
+</MACRO>
+<MACRO>
+<NAME>GAL_DEFINE_VIEWS_DIALOG_CLASS</NAME>
+#define GAL_DEFINE_VIEWS_DIALOG_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), GAL_DEFINE_VIEWS_DIALOG_TYPE, GalDefineViewsDialogClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_DEFINE_VIEWS_DIALOG</NAME>
+#define GAL_IS_DEFINE_VIEWS_DIALOG(obj)		(GTK_CHECK_TYPE ((obj), GAL_DEFINE_VIEWS_DIALOG_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_DEFINE_VIEWS_DIALOG_CLASS</NAME>
+#define GAL_IS_DEFINE_VIEWS_DIALOG_CLASS(klass)	(GTK_CHECK_CLASS_TYPE ((obj), GAL_DEFINE_VIEWS_DIALOG_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>GalDefineViewsDialog</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GalDefineViewsDialogClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GalDefineViewsDialog</NAME>
+struct GalDefineViewsDialog
+{
+	GnomeDialog parent;
+	
+	/* item specific fields */
+	GladeXML *gui;
+	ETableModel *model;
+
+	GalViewCollection *collection;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>gal_define_views_dialog_new</NAME>
+<RETURNS>GtkWidget                *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_define_views_dialog_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_define_views_dialog_add_section</NAME>
+<RETURNS>void  </RETURNS>
+GalDefineViewsDialog      *gal_define_views_dialog
+</FUNCTION>
+<MACRO>
+<NAME>GAL_VIEW_TYPE</NAME>
+#define GAL_VIEW_TYPE        (gal_view_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW</NAME>
+#define GAL_VIEW(o)          (GTK_CHECK_CAST ((o), GAL_VIEW_TYPE, GalView))
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_CLASS</NAME>
+#define GAL_VIEW_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), GAL_VIEW_TYPE, GalViewClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW</NAME>
+#define GAL_IS_VIEW(o)       (GTK_CHECK_TYPE ((o), GAL_VIEW_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_CLASS</NAME>
+#define GAL_IS_VIEW_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), GAL_VIEW_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>GalView</NAME>
+typedef struct {
+	GtkObject base;
+} GalView;
+</TYPEDEF>
+<FUNCTION>
+<NAME>gal_view_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_edit</NAME>
+<RETURNS>void  </RETURNS>
+GalView *view
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_load_from_node</NAME>
+<RETURNS>void  </RETURNS>
+GalView *view,xmlNode *node
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_save_to_node</NAME>
+<RETURNS>void  </RETURNS>
+GalView *view,xmlNode *parent
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_get_title</NAME>
+<RETURNS>const char  *</RETURNS>
+GalView *view
+</FUNCTION>
+<MACRO>
+<NAME>GAL_VIEW_COLLECTION_TYPE</NAME>
+#define GAL_VIEW_COLLECTION_TYPE        (gal_view_collection_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_COLLECTION</NAME>
+#define GAL_VIEW_COLLECTION(o)          (GTK_CHECK_CAST ((o), GAL_VIEW_COLLECTION_TYPE, GalViewCollection))
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_COLLECTION_CLASS</NAME>
+#define GAL_VIEW_COLLECTION_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), GAL_VIEW_COLLECTION_TYPE, GalViewCollectionClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_COLLECTION</NAME>
+#define GAL_IS_VIEW_COLLECTION(o)       (GTK_CHECK_TYPE ((o), GAL_VIEW_COLLECTION_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_COLLECTION_CLASS</NAME>
+#define GAL_IS_VIEW_COLLECTION_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), GAL_VIEW_COLLECTION_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>GalViewCollection</NAME>
+typedef struct {
+	GtkObject base;
+
+	GList *view_list;
+	GList *factory_list;
+} GalViewCollection;
+</TYPEDEF>
+<FUNCTION>
+<NAME>gal_view_collection_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_collection_new</NAME>
+<RETURNS>GalViewCollection  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_collection_set_storage_directories</NAME>
+<RETURNS>void  </RETURNS>
+GalViewCollection *collection,char              *system_dir,char              *local_dir
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_collection_add_factory</NAME>
+<RETURNS>void  </RETURNS>
+GalViewCollection *collection,GalViewFactory    *factory
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_collection_display_view</NAME>
+<RETURNS>void  </RETURNS>
+GalViewCollection *collection,GalView           *view
+</FUNCTION>
+<MACRO>
+<NAME>GAL_DEFINE_VIEWS_MODEL_TYPE</NAME>
+#define GAL_DEFINE_VIEWS_MODEL_TYPE        (gal_define_views_model_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_DEFINE_VIEWS_MODEL</NAME>
+#define GAL_DEFINE_VIEWS_MODEL(o)          (GTK_CHECK_CAST ((o), GAL_DEFINE_VIEWS_MODEL_TYPE, GalDefineViewsModel))
+</MACRO>
+<MACRO>
+<NAME>GAL_DEFINE_VIEWS_MODEL_CLASS</NAME>
+#define GAL_DEFINE_VIEWS_MODEL_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), GAL_DEFINE_VIEWS_MODEL_TYPE, GalDefineViewsModelClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_DEFINE_VIEWS_MODEL</NAME>
+#define GAL_IS_DEFINE_VIEWS_MODEL(o)       (GTK_CHECK_TYPE ((o), GAL_DEFINE_VIEWS_MODEL_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_DEFINE_VIEWS_MODEL_CLASS</NAME>
+#define GAL_IS_DEFINE_VIEWS_MODEL_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), GAL_DEFINE_VIEWS_MODEL_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>GalDefineViewsModel</NAME>
+typedef struct {
+	ETableModel parent;
+
+	/* item specific fields */
+	GalView **data;
+	int data_count;
+
+	guint editable : 1;
+} GalDefineViewsModel;
+</TYPEDEF>
+<FUNCTION>
+<NAME>gal_define_views_model_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_define_views_model_new</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_define_views_model_append</NAME>
+<RETURNS>void  </RETURNS>
+GalDefineViewsModel *model,GalView             *view
+</FUNCTION>
+<MACRO>
+<NAME>GAL_VIEW_FACTORY_TYPE</NAME>
+#define GAL_VIEW_FACTORY_TYPE        (gal_view_factory_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_FACTORY</NAME>
+#define GAL_VIEW_FACTORY(o)          (GTK_CHECK_CAST ((o), GAL_VIEW_FACTORY_TYPE, GalViewFactory))
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_FACTORY_CLASS</NAME>
+#define GAL_VIEW_FACTORY_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), GAL_VIEW_FACTORY_TYPE, GalViewFactoryClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_FACTORY</NAME>
+#define GAL_IS_VIEW_FACTORY(o)       (GTK_CHECK_TYPE ((o), GAL_VIEW_FACTORY_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_FACTORY_CLASS</NAME>
+#define GAL_IS_VIEW_FACTORY_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), GAL_VIEW_FACTORY_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>GalViewFactory</NAME>
+typedef struct {
+	GtkObject base;
+} GalViewFactory;
+</TYPEDEF>
+<FUNCTION>
+<NAME>gal_view_factory_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_factory_get_title</NAME>
+<RETURNS>const char  *</RETURNS>
+GalViewFactory *factory
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_factory_get_type_code</NAME>
+<RETURNS>const char  *</RETURNS>
+GalViewFactory *factory
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_factory_new_view</NAME>
+<RETURNS>GalView     *</RETURNS>
+GalViewFactory *factory,const char     *name
+</FUNCTION>
+<MACRO>
+<NAME>GAL_VIEW_ETABLE_TYPE</NAME>
+#define GAL_VIEW_ETABLE_TYPE        (gal_view_etable_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_ETABLE</NAME>
+#define GAL_VIEW_ETABLE(o)          (GTK_CHECK_CAST ((o), GAL_VIEW_ETABLE_TYPE, GalViewEtable))
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_ETABLE_CLASS</NAME>
+#define GAL_VIEW_ETABLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), GAL_VIEW_ETABLE_TYPE, GalViewEtableClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_ETABLE</NAME>
+#define GAL_IS_VIEW_ETABLE(o)       (GTK_CHECK_TYPE ((o), GAL_VIEW_ETABLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_ETABLE_CLASS</NAME>
+#define GAL_IS_VIEW_ETABLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), GAL_VIEW_ETABLE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>GalViewEtable</NAME>
+typedef struct {
+	GalView base;
+
+	ETableSpecification *spec;
+	ETableState         *state;
+	char                *title;
+} GalViewEtable;
+</TYPEDEF>
+<FUNCTION>
+<NAME>gal_view_etable_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_etable_new</NAME>
+<RETURNS>GalView  *</RETURNS>
+ETableSpecification *spec
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_etable_construct</NAME>
+<RETURNS>GalView  *</RETURNS>
+GalViewEtable       *view,ETableSpecification *spec
+</FUNCTION>
+<MACRO>
+<NAME>GAL_VIEW_NEW_DIALOG_TYPE</NAME>
+#define GAL_VIEW_NEW_DIALOG_TYPE			(gal_view_new_dialog_get_type ())
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_NEW_DIALOG</NAME>
+#define GAL_VIEW_NEW_DIALOG(obj)			(GTK_CHECK_CAST ((obj), GAL_VIEW_NEW_DIALOG_TYPE, GalViewNewDialog))
+</MACRO>
+<MACRO>
+<NAME>GAL_VIEW_NEW_DIALOG_CLASS</NAME>
+#define GAL_VIEW_NEW_DIALOG_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), GAL_VIEW_NEW_DIALOG_TYPE, GalViewNewDialogClass))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_NEW_DIALOG</NAME>
+#define GAL_IS_VIEW_NEW_DIALOG(obj)		(GTK_CHECK_TYPE ((obj), GAL_VIEW_NEW_DIALOG_TYPE))
+</MACRO>
+<MACRO>
+<NAME>GAL_IS_VIEW_NEW_DIALOG_CLASS</NAME>
+#define GAL_IS_VIEW_NEW_DIALOG_CLASS(klass)	(GTK_CHECK_CLASS_TYPE ((obj), GAL_VIEW_NEW_DIALOG_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>GalViewNewDialog</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GalViewNewDialogClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>GalViewNewDialog</NAME>
+struct GalViewNewDialog
+{
+	GnomeDialog parent;
+	
+	/* item specific fields */
+	GladeXML *gui;
+
+	GalViewCollection *collection;
+	GalViewFactory *selected_factory;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>gal_view_new_dialog_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+GalViewCollection *collection
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_new_dialog_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>gal_view_new_dialog_construct</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+GalViewNewDialog  *dialog,GalViewCollection *collection
+</FUNCTION>
+<STRUCT>
+<NAME>ECache</NAME>
+</STRUCT>
+<USER_FUNCTION>
+<NAME>ECacheDupFunc</NAME>
+<RETURNS>gpointer </RETURNS>
+gconstpointer data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ECacheFreeFunc</NAME>
+<RETURNS>void </RETURNS>
+gpointer data
+</USER_FUNCTION>
+<FUNCTION>
+<NAME>e_cache_new</NAME>
+<RETURNS>ECache  *</RETURNS>
+GHashFunc key_hash_func,GCompareFunc key_compare_func,ECacheDupFunc key_dup_func,ECacheFreeFunc key_free_func,ECacheFreeFunc object_free_func,size_t softlimit,size_t hardlimit
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_ref</NAME>
+<RETURNS>void  </RETURNS>
+ECache * cache
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_unref</NAME>
+<RETURNS>void  </RETURNS>
+ECache * cache
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_lookup</NAME>
+<RETURNS>gpointer  </RETURNS>
+ECache * cache, gconstpointer key
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_lookup_notouch</NAME>
+<RETURNS>gpointer  </RETURNS>
+ECache * cache, gconstpointer key
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_insert</NAME>
+<RETURNS>gboolean  </RETURNS>
+ECache * cache, gpointer key, gpointer data, size_t size
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_invalidate</NAME>
+<RETURNS>void  </RETURNS>
+ECache * cache, gpointer key
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_invalidate_all</NAME>
+<RETURNS>void  </RETURNS>
+ECache * cache
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cache_query_object_size</NAME>
+<RETURNS>size_t  </RETURNS>
+ECache * cache, gconstpointer key
+</FUNCTION>
+<MACRO>
+<NAME>E_MAKE_TYPE</NAME>
+#define E_MAKE_TYPE(l,str,t,ci,i,parent) \
+GtkType l##_get_type(void)\
+{\
+	static GtkType type = 0;\
+	if (!type){\
+		GtkTypeInfo info = {\
+			str,\
+			sizeof (t),\
+			sizeof (t##Class),\
+			(GtkClassInitFunc) ci,\
+			(GtkObjectInitFunc) i,\
+			NULL, /* reserved 1 */\
+			NULL, /* reserved 2 */\
+			(GtkClassInitFunc) NULL\
+		};\
+                type = gtk_type_unique (parent, &info);\
+	}\
+	return type;\
+}
+</MACRO>
+<ENUM>
+<NAME>EFocus</NAME>
+typedef enum {
+	E_FOCUS_NONE,
+	E_FOCUS_CURRENT,
+	E_FOCUS_START,
+	E_FOCUS_END
+} EFocus;
+</ENUM>
+<FUNCTION>
+<NAME>g_str_compare</NAME>
+<RETURNS>int  </RETURNS>
+const void *x, const void *y
+</FUNCTION>
+<FUNCTION>
+<NAME>g_int_compare</NAME>
+<RETURNS>int  </RETURNS>
+const void *x, const void *y
+</FUNCTION>
+<FUNCTION>
+<NAME>e_strdup_strip</NAME>
+<RETURNS>char  *</RETURNS>
+char *string
+</FUNCTION>
+<FUNCTION>
+<NAME>e_free_object_list</NAME>
+<RETURNS>void  </RETURNS>
+GList *list
+</FUNCTION>
+<FUNCTION>
+<NAME>e_free_string_list</NAME>
+<RETURNS>void  </RETURNS>
+GList *list
+</FUNCTION>
+<FUNCTION>
+<NAME>e_read_file</NAME>
+<RETURNS>char  *</RETURNS>
+const char *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_write_file</NAME>
+<RETURNS>int  </RETURNS>
+const char *filename, const char *data, int flags
+</FUNCTION>
+<FUNCTION>
+<NAME>e_mkdir_hier</NAME>
+<RETURNS>int  </RETURNS>
+const char *path, mode_t mode
+</FUNCTION>
+<FUNCTION>
+<NAME>e_strsplit</NAME>
+<RETURNS>gchar  **</RETURNS>
+const gchar *string,const gchar *delimiter,gint         max_tokens
+</FUNCTION>
+<FUNCTION>
+<NAME>e_strstrcase</NAME>
+<RETURNS>gchar  *</RETURNS>
+const gchar *haystack,const gchar *needle
+</FUNCTION>
+<FUNCTION>
+<NAME>e_filename_make_safe</NAME>
+<RETURNS>void  </RETURNS>
+gchar *string
+</FUNCTION>
+<FUNCTION>
+<NAME>e_marshal_INT__INT_INT_POINTER</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data, GtkArg * args
+</FUNCTION>
+<FUNCTION>
+<NAME>e_marshal_NONE__OBJECT_DOUBLE_DOUBLE_BOOL</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data, GtkArg * args
+</FUNCTION>
+<FUNCTION>
+<NAME>e_marshal_DOUBLE__OBJECT_DOUBLE_DOUBLE_BOOL</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data, GtkArg * args
+</FUNCTION>
+<FUNCTION>
+<NAME>e_marshal_BOOL__OBJECT_DOUBLE_DOUBLE_BOOL</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data, GtkArg * args
+</FUNCTION>
+<MACRO>
+<NAME>e_marshal_NONE__INT_INT_POINTER_POINTER_UINT_UINT</NAME>
+#define e_marshal_NONE__INT_INT_POINTER_POINTER_UINT_UINT e_marshal_NONE__INT_INT_POINTER_POINTER_INT_INT
+</MACRO>
+<FUNCTION>
+<NAME>e_marshal_NONE__INT_INT_POINTER_POINTER_INT_INT</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data,GtkArg * args
+</FUNCTION>
+<MACRO>
+<NAME>e_marshal_NONE__INT_INT_POINTER_UINT</NAME>
+#define e_marshal_NONE__INT_INT_POINTER_UINT e_marshal_NONE__INT_INT_POINTER_INT
+</MACRO>
+<FUNCTION>
+<NAME>e_marshal_NONE__INT_INT_POINTER_INT</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data, GtkArg * args
+</FUNCTION>
+<MACRO>
+<NAME>e_marshal_BOOL__INT_INT_POINTER_INT_INT_UINT</NAME>
+#define e_marshal_BOOL__INT_INT_POINTER_INT_INT_UINT e_marshal_BOOL__INT_INT_POINTER_INT_INT_INT
+</MACRO>
+<FUNCTION>
+<NAME>e_marshal_BOOL__INT_INT_POINTER_INT_INT_INT</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data,GtkArg * args
+</FUNCTION>
+<MACRO>
+<NAME>e_marshal_NONE__INT_INT_POINTER_INT_INT_POINTER_UINT_UINT</NAME>
+#define e_marshal_NONE__INT_INT_POINTER_INT_INT_POINTER_UINT_UINT e_marshal_NONE__INT_INT_POINTER_INT_INT_POINTER_INT_INT
+</MACRO>
+<FUNCTION>
+<NAME>e_marshal_NONE__INT_INT_POINTER_INT_INT_POINTER_INT_INT</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data,GtkArg * args
+</FUNCTION>
+<FUNCTION>
+<NAME>e_marshal_NONE__POINTER_POINTER_INT</NAME>
+<RETURNS>void  </RETURNS>
+GtkObject * object,GtkSignalFunc func,gpointer func_data,GtkArg * args
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_get_child_by_name</NAME>
+<RETURNS>xmlNode   *</RETURNS>
+const xmlNode *parent,const xmlChar *child_name
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_get_child_by_name_by_lang</NAME>
+<RETURNS>xmlNode   *</RETURNS>
+const xmlNode *parent,const xmlChar *child_name,const char    *lang
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_get_integer_prop_by_name</NAME>
+<RETURNS>int  </RETURNS>
+const xmlNode *parent,const xmlChar *prop_name
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_set_integer_prop_by_name</NAME>
+<RETURNS>void  </RETURNS>
+xmlNode       *parent,const xmlChar *prop_name,int            value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_get_bool_prop_by_name</NAME>
+<RETURNS>gboolean  </RETURNS>
+const xmlNode *parent,const xmlChar *prop_name
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_set_bool_prop_by_name</NAME>
+<RETURNS>void  </RETURNS>
+xmlNode       *parent,const xmlChar *prop_name,gboolean       value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_get_double_prop_by_name</NAME>
+<RETURNS>double  </RETURNS>
+const xmlNode *parent,const xmlChar *prop_name
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_set_double_prop_by_name</NAME>
+<RETURNS>void  </RETURNS>
+xmlNode       *parent,const xmlChar *prop_name,double         value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_get_string_prop_by_name</NAME>
+<RETURNS>char      *</RETURNS>
+const xmlNode *parent,const xmlChar *prop_name
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_set_string_prop_by_name</NAME>
+<RETURNS>void  </RETURNS>
+xmlNode       *parent,const xmlChar *prop_name,char          *value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_xml_get_translated_string_prop_by_name</NAME>
+<RETURNS>char      *</RETURNS>
+const xmlNode *parent,const xmlChar *prop_name
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_TYPE</NAME>
+#define E_TABLE_FIELD_CHOOSER_TYPE			(e_table_field_chooser_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER</NAME>
+#define E_TABLE_FIELD_CHOOSER(obj)			(GTK_CHECK_CAST ((obj), E_TABLE_FIELD_CHOOSER_TYPE, ETableFieldChooser))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_CLASS</NAME>
+#define E_TABLE_FIELD_CHOOSER_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_TABLE_FIELD_CHOOSER_TYPE, ETableFieldChooserClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_FIELD_CHOOSER</NAME>
+#define E_IS_TABLE_FIELD_CHOOSER(obj)		(GTK_CHECK_TYPE ((obj), E_TABLE_FIELD_CHOOSER_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_FIELD_CHOOSER_CLASS</NAME>
+#define E_IS_TABLE_FIELD_CHOOSER_CLASS(klass)	(GTK_CHECK_CLASS_TYPE ((obj), E_TABLE_FIELD_CHOOSER_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ETableFieldChooser</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETableFieldChooserClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETableFieldChooser</NAME>
+struct ETableFieldChooser
+{
+	GtkVBox parent;
+	
+	/* item specific fields */
+	GladeXML *gui;
+	GnomeCanvas *canvas;
+	GnomeCanvasItem *item;
+
+	GnomeCanvasItem *rect;
+	GtkAllocation last_alloc;
+
+	gchar *dnd_code;
+	ETableHeader *full_header;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_table_field_chooser_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_field_chooser_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_DIALOG_TYPE</NAME>
+#define E_TABLE_FIELD_CHOOSER_DIALOG_TYPE			(e_table_field_chooser_dialog_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_DIALOG</NAME>
+#define E_TABLE_FIELD_CHOOSER_DIALOG(obj)			(GTK_CHECK_CAST ((obj), E_TABLE_FIELD_CHOOSER_DIALOG_TYPE, ETableFieldChooserDialog))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_DIALOG_CLASS</NAME>
+#define E_TABLE_FIELD_CHOOSER_DIALOG_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_TABLE_FIELD_CHOOSER_DIALOG_TYPE, ETableFieldChooserDialogClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_FIELD_CHOOSER_DIALOG</NAME>
+#define E_IS_TABLE_FIELD_CHOOSER_DIALOG(obj)		(GTK_CHECK_TYPE ((obj), E_TABLE_FIELD_CHOOSER_DIALOG_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_FIELD_CHOOSER_DIALOG_CLASS</NAME>
+#define E_IS_TABLE_FIELD_CHOOSER_DIALOG_CLASS(klass)	(GTK_CHECK_CLASS_TYPE ((obj), E_TABLE_FIELD_CHOOSER_DIALOG_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ETableFieldChooserDialog</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETableFieldChooserDialogClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETableFieldChooserDialog</NAME>
+struct ETableFieldChooserDialog
+{
+	GnomeDialog parent;
+	
+	/* item specific fields */
+	ETableFieldChooser *etfc;
+	gchar              *dnd_code;
+	ETableHeader       *full_header;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_table_field_chooser_dialog_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_field_chooser_dialog_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_HEADER_ITEM_TYPE</NAME>
+#define E_TABLE_HEADER_ITEM_TYPE        (e_table_header_item_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_HEADER_ITEM</NAME>
+#define E_TABLE_HEADER_ITEM(o)          (GTK_CHECK_CAST ((o), E_TABLE_HEADER_ITEM_TYPE, ETableHeaderItem))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_HEADER_ITEM_CLASS</NAME>
+#define E_TABLE_HEADER_ITEM_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_HEADER_ITEM_TYPE, ETableHeaderItemClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_HEADER_ITEM</NAME>
+#define E_IS_TABLE_HEADER_ITEM(o)       (GTK_CHECK_TYPE ((o), E_TABLE_HEADER_ITEM_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_HEADER_ITEM_CLASS</NAME>
+#define E_IS_TABLE_HEADER_ITEM_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_HEADER_ITEM_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableHeaderItem</NAME>
+typedef struct {
+	GnomeCanvasItem  parent;
+	ETableHeader    *eth;
+
+	GdkGC           *gc;
+	GdkCursor       *change_cursor;
+
+	short            height, width;
+	GdkFont         *font;
+
+	/*
+	 * Used during resizing;  Could be shorts
+	 */
+	int              resize_col;
+	int              resize_start_pos;
+	int              resize_min_width;
+	
+	GtkObject       *resize_guide;
+
+	int              group_indent_width;
+
+	/*
+	 * Ids
+	 */
+	int structure_change_id, dimension_change_id;
+
+	/*
+	 * For dragging columns
+	 */
+	guint            maybe_drag:1;
+	guint            dnd_ready:1;
+	int              click_x, click_y;
+	int              drag_col, drop_col, drag_mark;
+        guint            drag_motion_id, drag_end_id, drag_leave_id, drag_drop_id, drag_data_received_id, drag_data_get_id;
+	guint            sort_info_changed_id, group_info_changed_id;
+	GnomeCanvasItem *remove_item;
+	GdkBitmap       *stipple;
+
+	gchar           *dnd_code;
+
+	/*
+	 * For column sorting info
+	 */
+	ETableSortInfo  *sort_info;
+	
+	/* For adding fields. */
+	ETableHeader    *full_header;
+	ETable          *table;
+	GtkWidget       *config;
+} ETableHeaderItem;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_header_item_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_GROUP_LEAF_TYPE</NAME>
+#define E_TABLE_GROUP_LEAF_TYPE        (e_table_group_leaf_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_GROUP_LEAF</NAME>
+#define E_TABLE_GROUP_LEAF(o)          (GTK_CHECK_CAST ((o), E_TABLE_GROUP_LEAF_TYPE, ETableGroupLeaf))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_GROUP_LEAF_CLASS</NAME>
+#define E_TABLE_GROUP_LEAF_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_GROUP_LEAF_TYPE, ETableGroupLeafClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_GROUP_LEAF</NAME>
+#define E_IS_TABLE_GROUP_LEAF(o)       (GTK_CHECK_TYPE ((o), E_TABLE_GROUP_LEAF_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_GROUP_LEAF_CLASS</NAME>
+#define E_IS_TABLE_GROUP_LEAF_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_GROUP_LEAF_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableGroupLeaf</NAME>
+typedef struct {
+	ETableGroup group;
+
+	/* 
+	 * Item.
+	 */
+	ETableItem *item;
+
+	gdouble height;
+	gdouble width;
+	gdouble minimum_width;
+
+	ETableSubsetVariable *subset;
+
+	int length_threshold;
+
+	guint draw_grid : 1;
+	guint draw_focus : 1;
+	ETableCursorMode cursor_mode;
+
+	ETableSelectionModel *table_selection_model;
+} ETableGroupLeaf;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_group_leaf_new</NAME>
+<RETURNS>ETableGroup  *</RETURNS>
+GnomeCanvasGroup *parent,ETableHeader *full_header,ETableHeader     *header,ETableModel *model,ETableSortInfo *sort_info
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_leaf_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SUBSET_TYPE</NAME>
+#define E_TABLE_SUBSET_TYPE        (e_table_subset_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SUBSET</NAME>
+#define E_TABLE_SUBSET(o)          (GTK_CHECK_CAST ((o), E_TABLE_SUBSET_TYPE, ETableSubset))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SUBSET_CLASS</NAME>
+#define E_TABLE_SUBSET_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SUBSET_TYPE, ETableSubsetClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SUBSET</NAME>
+#define E_IS_TABLE_SUBSET(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SUBSET_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SUBSET_CLASS</NAME>
+#define E_IS_TABLE_SUBSET_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SUBSET_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableSubset</NAME>
+typedef struct {
+	ETableModel base;
+
+	ETableModel  *source;
+	int  n_map;
+	int *map_table;
+
+	int last_access;
+
+	int              table_model_pre_change_id;
+	int              table_model_changed_id;
+	int              table_model_row_changed_id;
+	int              table_model_cell_changed_id;
+} ETableSubset;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_subset_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_new</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableModel *etm, int n_vals
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_construct</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableSubset *ets, ETableModel *source, int nvals
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_get_toplevel</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableSubset *table_model
+</FUNCTION>
+<TYPEDEF>
+<NAME>u</NAME>
+typedef struct {
+	char *title;
+
+	union {
+		ETableModel *table;
+		GList *children;
+	} u;
+
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_group_new</NAME>
+<RETURNS>ETableGroup  *</RETURNS>
+const char *title, ETableModel *table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_new_leaf</NAME>
+<RETURNS>ETableGroup  *</RETURNS>
+const char *title
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SCROLLED_TYPE</NAME>
+#define E_TABLE_SCROLLED_TYPE        (e_table_scrolled_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SCROLLED</NAME>
+#define E_TABLE_SCROLLED(o)          (GTK_CHECK_CAST ((o), E_TABLE_SCROLLED_TYPE, ETableScrolled))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SCROLLED_CLASS</NAME>
+#define E_TABLE_SCROLLED_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SCROLLED_TYPE, ETableScrolledClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SCROLLED</NAME>
+#define E_IS_TABLE_SCROLLED(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SCROLLED_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SCROLLED_CLASS</NAME>
+#define E_IS_TABLE_SCROLLED_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SCROLLED_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableScrolled</NAME>
+typedef struct {
+	EScrollFrame parent;
+
+	ETable *table;
+} ETableScrolled;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_scrolled_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_scrolled_construct</NAME>
+<RETURNS>ETableScrolled  *</RETURNS>
+ETableScrolled *ets,ETableModel    *etm,ETableExtras   *ete,const char     *spec,const char     *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_scrolled_new</NAME>
+<RETURNS>GtkWidget       *</RETURNS>
+ETableModel    *etm,ETableExtras   *ete,const char     *spec,const char     *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_scrolled_construct_from_spec_file</NAME>
+<RETURNS>ETableScrolled  *</RETURNS>
+ETableScrolled *ets,ETableModel    *etm,ETableExtras   *ete,const char     *spec_fn,const char     *state_fn
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_scrolled_new_from_spec_file</NAME>
+<RETURNS>GtkWidget       *</RETURNS>
+ETableModel    *etm,ETableExtras   *ete,const char     *spec_fn,const char     *state_fn
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_scrolled_get_table</NAME>
+<RETURNS>ETable          *</RETURNS>
+ETableScrolled *ets
+</FUNCTION>
+<MACRO>
+<NAME>BUTTON_HEIGHT</NAME>
+#define BUTTON_HEIGHT        10
+</MACRO>
+<MACRO>
+<NAME>BUTTON_PADDING</NAME>
+#define BUTTON_PADDING       2
+</MACRO>
+<MACRO>
+<NAME>GROUP_INDENT</NAME>
+#define GROUP_INDENT         (BUTTON_HEIGHT + (BUTTON_PADDING * 2))
+</MACRO>
+<MACRO>
+<NAME>HEADER_PADDING</NAME>
+#define HEADER_PADDING 1
+</MACRO>
+<MACRO>
+<NAME>MIN_ARROW_SIZE</NAME>
+#define MIN_ARROW_SIZE 10
+</MACRO>
+<USER_FUNCTION>
+<NAME>ETableForeachFunc</NAME>
+<RETURNS>void </RETURNS>
+int model_row,
+				   gpointer closure
+</USER_FUNCTION>
+<ENUM>
+<NAME>ETableCursorMode</NAME>
+typedef enum
+{
+	E_TABLE_CURSOR_LINE,
+	E_TABLE_CURSOR_SIMPLE,
+} ETableCursorMode;
+</ENUM>
+<MACRO>
+<NAME>E_TYPE_TABLE_TEXT_MODEL</NAME>
+#define E_TYPE_TABLE_TEXT_MODEL            (e_table_text_model_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_TEXT_MODEL</NAME>
+#define E_TABLE_TEXT_MODEL(obj)            (GTK_CHECK_CAST ((obj), E_TYPE_TABLE_TEXT_MODEL, ETableTextModel))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_TEXT_MODEL_CLASS</NAME>
+#define E_TABLE_TEXT_MODEL_CLASS(klass)    (GTK_CHECK_CLASS_CAST ((klass), E_TYPE_TABLE_TEXT_MODEL, ETableTextModelClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_TEXT_MODEL</NAME>
+#define E_IS_TABLE_TEXT_MODEL(obj)         (GTK_CHECK_TYPE ((obj), E_TYPE_TABLE_TEXT_MODEL))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_TEXT_MODEL_CLASS</NAME>
+#define E_IS_TABLE_TEXT_MODEL_CLASS(klass) (GTK_CHECK_CLASS_TYPE ((klass), E_TYPE_TABLE_TEXT_MODEL))
+</MACRO>
+<STRUCT>
+<NAME>ETableTextModel</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETableTextModelClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETableTextModel</NAME>
+struct ETableTextModel {
+	ETextModel parent;
+
+	ETableModel *model;
+	int row;
+	int model_col;
+
+	int cell_changed_signal_id;
+	int row_changed_signal_id;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_table_text_model_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_text_model_new</NAME>
+<RETURNS>ETableTextModel  *</RETURNS>
+ETableModel *table_model, int row, int model_col
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_COLUMN_SPECIFICATION_TYPE</NAME>
+#define E_TABLE_COLUMN_SPECIFICATION_TYPE        (e_table_column_specification_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_COLUMN_SPECIFICATION</NAME>
+#define E_TABLE_COLUMN_SPECIFICATION(o)          (GTK_CHECK_CAST ((o), E_TABLE_COLUMN_SPECIFICATION_TYPE, ETableColumnSpecification))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_COLUMN_SPECIFICATION_CLASS</NAME>
+#define E_TABLE_COLUMN_SPECIFICATION_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_COLUMN_SPECIFICATION_TYPE, ETableColumnSpecificationClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_COLUMN_SPECIFICATION</NAME>
+#define E_IS_TABLE_COLUMN_SPECIFICATION(o)       (GTK_CHECK_TYPE ((o), E_TABLE_COLUMN_SPECIFICATION_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_COLUMN_SPECIFICATION_CLASS</NAME>
+#define E_IS_TABLE_COLUMN_SPECIFICATION_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_COLUMN_SPECIFICATION_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableColumnSpecification</NAME>
+typedef struct {
+	GtkObject base;
+	int model_col;
+	char *title_;
+	char *pixbuf;
+
+	double expansion;
+	int minimum_width;
+	guint resizable : 1;
+
+	char *cell;
+	char *compare;
+} ETableColumnSpecification;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_column_specification_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_column_specification_new</NAME>
+<RETURNS>ETableColumnSpecification  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_column_specification_load_from_node</NAME>
+<RETURNS>void  </RETURNS>
+ETableColumnSpecification *state,const xmlNode             *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_column_specification_save_to_node</NAME>
+<RETURNS>xmlNode                    *</RETURNS>
+ETableColumnSpecification *state,xmlNode                   *parent
+</FUNCTION>
+<MACRO>
+<NAME>E_CELL_TYPE</NAME>
+#define E_CELL_TYPE        (e_cell_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_CELL</NAME>
+#define E_CELL(o)          (GTK_CHECK_CAST ((o), E_CELL_TYPE, ECell))
+</MACRO>
+<MACRO>
+<NAME>E_CELL_CLASS</NAME>
+#define E_CELL_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_CELL_TYPE, ECellClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL</NAME>
+#define E_IS_CELL(o)       (GTK_CHECK_TYPE ((o), E_CELL_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_CLASS</NAME>
+#define E_IS_CELL_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_CELL_TYPE))
+</MACRO>
+<ENUM>
+<NAME>ECellFlags</NAME>
+typedef enum {
+	E_CELL_SELECTED       = 1 << 0,
+
+	E_CELL_JUSTIFICATION  = 3 << 1,
+	E_CELL_JUSTIFY_CENTER = 0 << 1,
+	E_CELL_JUSTIFY_LEFT   = 1 << 1,
+	E_CELL_JUSTIFY_RIGHT  = 2 << 1,
+	E_CELL_JUSTIFY_FILL   = 3 << 1,
+
+	E_CELL_ALIGN_LEFT     = 1 << 1,
+	E_CELL_ALIGN_RIGHT    = 1 << 2,
+
+	E_CELL_FOCUSED        = 1 << 3,
+
+	E_CELL_EDITING        = 1 << 4,
+} ECellFlags;
+</ENUM>
+<TYPEDEF>
+<NAME>ECell</NAME>
+typedef struct {
+	GtkObject       object;
+} ECell;
+</TYPEDEF>
+<TYPEDEF>
+<NAME>ECellView</NAME>
+typedef struct {
+	ECell *ecell;
+	ETableModel *e_table_model;
+	void        *e_table_item_view;
+	
+	gint   focus_x1, focus_y1, focus_x2, focus_y2;
+	gint   focus_col, focus_row;
+} ECellView;
+</TYPEDEF>
+<MACRO>
+<NAME>E_CELL_IS_FOCUSED</NAME>
+#define E_CELL_IS_FOCUSED(ecell_view) (ecell_view->focus_x1 != -1)
+</MACRO>
+<FUNCTION>
+<NAME>e_cell_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_new_view</NAME>
+<RETURNS>ECellView  *</RETURNS>
+ECell *ecell, ETableModel *table_model, void *e_table_item_view
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_kill_view</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_event</NAME>
+<RETURNS>gint  </RETURNS>
+ECellView *ecell_view, GdkEvent *event, int model_col, int view_col, int row, ECellFlags flags
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_realize</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_unrealize</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_draw</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view, GdkDrawable *drawable,int model_col, int view_col, int row, ECellFlags flags,int x1, int y1, int x2, int y2
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_print</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view, GnomePrintContext *context,int model_col, int view_col, int row,double width, double height
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_print_height</NAME>
+<RETURNS>gdouble  </RETURNS>
+ECellView *ecell_view, GnomePrintContext *context,int model_col, int view_col, int row, gdouble width
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_max_width</NAME>
+<RETURNS>int  </RETURNS>
+ECellView *ecell_view, int model_col, int view_col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_show_tooltip</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view, int model_col, int view_col, int row, int col_width, ETableTooltip *tooltip
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_focus</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view, int model_col, int view_col, int row,int x1, int y1, int x2, int y2
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_unfocus</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_height</NAME>
+<RETURNS>int  </RETURNS>
+ECellView *ecell_view, int model_col, int view_col, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_enter_edit</NAME>
+<RETURNS>void       *</RETURNS>
+ECellView *ecell_view, int model_col, int view_col, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_leave_edit</NAME>
+<RETURNS>void  </RETURNS>
+ECellView *ecell_view, int model_col, int view_col, int row, void *edit_context
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_compute_height</NAME>
+<RETURNS>int  </RETURNS>
+ETableCol *ecol, GtkStyle *style, GdkFont *font
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_draw_button</NAME>
+<RETURNS>void  </RETURNS>
+GdkDrawable *drawable, ETableCol *ecol,GtkStyle *style, GdkFont *font, GtkStateType state,GtkWidget *widget, GdkGC *gc,int x, int y, int width, int height,int button_width, int button_height,ETableColArrow arrow
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_draw_elided_string</NAME>
+<RETURNS>void  </RETURNS>
+GdkDrawable *drawable, GdkFont *font, GdkGC *gc,int x, int y, const char *str, int max_width, gboolean center
+</FUNCTION>
+<FUNCTION>
+<NAME>table_browser_test</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>multi_cols_test</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>check_test</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_test</NAME>
+<RETURNS>void  </RETURNS>
+void
+</FUNCTION>
+<USER_FUNCTION>
+<NAME>ECellTextFilter</NAME>
+<RETURNS>char *</RETURNS>
+const void *
+</USER_FUNCTION>
+<MACRO>
+<NAME>E_CELL_TEXT_TYPE</NAME>
+#define E_CELL_TEXT_TYPE        (e_cell_text_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_CELL_TEXT</NAME>
+#define E_CELL_TEXT(o)          (GTK_CHECK_CAST ((o), E_CELL_TEXT_TYPE, ECellText))
+</MACRO>
+<MACRO>
+<NAME>E_CELL_TEXT_CLASS</NAME>
+#define E_CELL_TEXT_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_CELL_TEXT_TYPE, ECellTextClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_TEXT</NAME>
+#define E_IS_CELL_TEXT(o)       (GTK_CHECK_TYPE ((o), E_CELL_TEXT_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_TEXT_CLASS</NAME>
+#define E_IS_CELL_TEXT_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_CELL_TEXT_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ECellText</NAME>
+typedef struct {
+	ECell parent;
+
+	GtkJustification  justify;
+	char             *font_name;
+
+	double x, y;			/* Position at anchor */
+
+	gulong pixel;			/* Fill color */
+
+	/* Clip handling */
+	char *ellipsis;                 /* The ellipsis characters.  NULL = "...". */
+
+	guint use_ellipsis : 1;         /* Whether to use the ellipsis. */
+	
+	int strikeout_column;
+	int bold_column;
+
+	/* This column in the ETable should return a string specifying a color,
+	   either a color name like "red" or a color spec like "rgb:F/0/0".
+	   See the XParseColor man page for the formats available. */
+	int color_column;
+
+	ECellTextFilter filter;
+
+	/* This stores the colors we have allocated. */
+	GHashTable *colors;
+} ECellText;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_cell_text_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_text_new</NAME>
+<RETURNS>ECell      *</RETURNS>
+const char *fontname, GtkJustification justify
+</FUNCTION>
+<MACRO>
+<NAME>E_CELL_CHECKBOX_TYPE</NAME>
+#define E_CELL_CHECKBOX_TYPE        (e_cell_checkbox_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_CELL_CHECKBOX</NAME>
+#define E_CELL_CHECKBOX(o)          (GTK_CHECK_CAST ((o), E_CELL_CHECKBOX_TYPE, ECellCheckbox))
+</MACRO>
+<MACRO>
+<NAME>E_CELL_CHECKBOX_CLASS</NAME>
+#define E_CELL_CHECKBOX_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_CELL_CHECKBOX_TYPE, ECellCheckboxClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_CHECKBOX</NAME>
+#define E_IS_CELL_CHECKBOX(o)       (GTK_CHECK_TYPE ((o), E_CELL_CHECKBOX_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_CHECKBOX_CLASS</NAME>
+#define E_IS_CELL_CHECKBOX_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_CELL_CHECKBOX_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ECellCheckbox</NAME>
+typedef struct {
+	ECellToggle parent;
+} ECellCheckbox;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_cell_checkbox_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_checkbox_new</NAME>
+<RETURNS>ECell      *</RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SUBSET_VARIABLE_TYPE</NAME>
+#define E_TABLE_SUBSET_VARIABLE_TYPE        (e_table_subset_variable_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SUBSET_VARIABLE</NAME>
+#define E_TABLE_SUBSET_VARIABLE(o)          (GTK_CHECK_CAST ((o), E_TABLE_SUBSET_VARIABLE_TYPE, ETableSubsetVariable))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SUBSET_VARIABLE_CLASS</NAME>
+#define E_TABLE_SUBSET_VARIABLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SUBSET_VARIABLE_TYPE, ETableSubsetVariableClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SUBSET_VARIABLE</NAME>
+#define E_IS_TABLE_SUBSET_VARIABLE(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SUBSET_VARIABLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SUBSET_VARIABLE_CLASS</NAME>
+#define E_IS_TABLE_SUBSET_VARIABLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SUBSET_VARIABLE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableSubsetVariable</NAME>
+typedef struct {
+	ETableSubset base;
+
+	int n_vals_allocated;
+} ETableSubsetVariable;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_subset_variable_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_new</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableModel          *etm
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_construct</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableSubsetVariable *etssv,ETableModel          *source
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_add</NAME>
+<RETURNS>void  </RETURNS>
+ETableSubsetVariable *ets,gint                  row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_add_all</NAME>
+<RETURNS>void  </RETURNS>
+ETableSubsetVariable *ets
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_remove</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableSubsetVariable *ets,gint                  row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_increment</NAME>
+<RETURNS>void  </RETURNS>
+ETableSubsetVariable *ets,gint                  position,gint                  amount
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_decrement</NAME>
+<RETURNS>void  </RETURNS>
+ETableSubsetVariable *ets,gint                  position,gint                  amount
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_subset_variable_set_allocation</NAME>
+<RETURNS>void  </RETURNS>
+ETableSubsetVariable *ets,gint                  total
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_STATE_TYPE</NAME>
+#define E_TABLE_STATE_TYPE        (e_table_state_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_STATE</NAME>
+#define E_TABLE_STATE(o)          (GTK_CHECK_CAST ((o), E_TABLE_STATE_TYPE, ETableState))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_STATE_CLASS</NAME>
+#define E_TABLE_STATE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_STATE_TYPE, ETableStateClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_STATE</NAME>
+#define E_IS_TABLE_STATE(o)       (GTK_CHECK_TYPE ((o), E_TABLE_STATE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_STATE_CLASS</NAME>
+#define E_IS_TABLE_STATE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_STATE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableState</NAME>
+typedef struct {
+	GtkObject base;
+
+	ETableSortInfo *sort_info;
+	int             col_count;
+	int            *columns;
+} ETableState;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_state_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_state_new</NAME>
+<RETURNS>ETableState  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_state_load_from_file</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableState   *state,const char    *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_state_load_from_string</NAME>
+<RETURNS>void  </RETURNS>
+ETableState   *state,const char    *xml
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_state_load_from_node</NAME>
+<RETURNS>void  </RETURNS>
+ETableState   *state,const xmlNode *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_state_save_to_file</NAME>
+<RETURNS>void  </RETURNS>
+ETableState   *state,const char    *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_state_save_to_string</NAME>
+<RETURNS>char         *</RETURNS>
+ETableState   *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_state_save_to_node</NAME>
+<RETURNS>xmlNode      *</RETURNS>
+ETableState   *state,xmlNode       *parent
+</FUNCTION>
+<TYPEDEF>
+<NAME>ETableTooltip</NAME>
+typedef struct {
+	GtkWidget *window;
+	gint timer;
+	int col, row;
+	int row_height;
+	int x, y;
+	int cx, cy;
+	GnomeCanvasItem *eti;
+} ETableTooltip;
+</TYPEDEF>
+<MACRO>
+<NAME>E_CELL_TOGGLE_TYPE</NAME>
+#define E_CELL_TOGGLE_TYPE        (e_cell_toggle_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_CELL_TOGGLE</NAME>
+#define E_CELL_TOGGLE(o)          (GTK_CHECK_CAST ((o), E_CELL_TOGGLE_TYPE, ECellToggle))
+</MACRO>
+<MACRO>
+<NAME>E_CELL_TOGGLE_CLASS</NAME>
+#define E_CELL_TOGGLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_CELL_TOGGLE_TYPE, ECellToggleClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_TOGGLE</NAME>
+#define E_IS_CELL_TOGGLE(o)       (GTK_CHECK_TYPE ((o), E_CELL_TOGGLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_TOGGLE_CLASS</NAME>
+#define E_IS_CELL_TOGGLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_CELL_TOGGLE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ECellToggle</NAME>
+typedef struct {
+	ECell parent;
+
+	int        border;
+	int        n_states;
+	GdkPixbuf **images;
+
+	int        height;
+} ECellToggle;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_cell_toggle_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_toggle_new</NAME>
+<RETURNS>ECell      *</RETURNS>
+int border, int n_states, GdkPixbuf **images
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_toggle_construct</NAME>
+<RETURNS>void  </RETURNS>
+ECellToggle *etog, int border,int n_states, GdkPixbuf **images
+</FUNCTION>
+<MACRO>
+<NAME>E_TREE_SIMPLE_TYPE</NAME>
+#define E_TREE_SIMPLE_TYPE        (e_tree_simple_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TREE_SIMPLE</NAME>
+#define E_TREE_SIMPLE(o)          (GTK_CHECK_CAST ((o), E_TREE_SIMPLE_TYPE, ETreeSimple))
+</MACRO>
+<MACRO>
+<NAME>E_TREE_SIMPLE_CLASS</NAME>
+#define E_TREE_SIMPLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TREE_SIMPLE_TYPE, ETreeSimpleClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TREE_SIMPLE</NAME>
+#define E_IS_TREE_SIMPLE(o)       (GTK_CHECK_TYPE ((o), E_TREE_SIMPLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TREE_SIMPLE_CLASS</NAME>
+#define E_IS_TREE_SIMPLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TREE_SIMPLE_TYPE))
+</MACRO>
+<USER_FUNCTION>
+<NAME>ETreeSimpleIconAtFn</NAME>
+<RETURNS>GdkPixbuf *</RETURNS>
+ETreeModel *etree, ETreePath *path, void *model_data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETreeSimpleValueAtFn</NAME>
+<RETURNS>void *</RETURNS>
+ETreeModel *etree, ETreePath *path, int col, void *model_data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETreeSimpleSetValueAtFn</NAME>
+<RETURNS>void </RETURNS>
+ETreeModel *etree, ETreePath *path, int col, const void *val, void *model_data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETreeSimpleIsEditableFn</NAME>
+<RETURNS>gboolean </RETURNS>
+ETreeModel *etree, ETreePath *path, int col, void *model_data
+</USER_FUNCTION>
+<TYPEDEF>
+<NAME>ETreeSimple</NAME>
+typedef struct {
+	ETreeModel parent;
+
+	/* Table methods */
+	ETableSimpleColumnCountFn     col_count;
+	ETableSimpleDuplicateValueFn  duplicate_value;
+	ETableSimpleFreeValueFn       free_value;
+	ETableSimpleInitializeValueFn initialize_value;
+	ETableSimpleValueIsEmptyFn    value_is_empty;
+	ETableSimpleValueToStringFn   value_to_string;
+
+	/* Tree methods */
+	ETreeSimpleIconAtFn icon_at;
+	ETreeSimpleValueAtFn value_at;
+	ETreeSimpleSetValueAtFn set_value_at;
+	ETreeSimpleIsEditableFn is_editable;
+
+	gpointer model_data;
+} ETreeSimple;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_tree_simple_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_simple_new</NAME>
+<RETURNS>ETreeModel  *</RETURNS>
+ETableSimpleColumnCountFn     col_count,ETableSimpleDuplicateValueFn  duplicate_value,ETableSimpleFreeValueFn       free_value,ETableSimpleInitializeValueFn initialize_value,ETableSimpleValueIsEmptyFn    value_is_empty,ETableSimpleValueToStringFn   value_to_string,ETreeSimpleIconAtFn           icon_at,ETreeSimpleValueAtFn          value_at,ETreeSimpleSetValueAtFn       set_value_at,ETreeSimpleIsEditableFn       is_editable,gpointer                      model_data
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SORTED_VARIABLE_TYPE</NAME>
+#define E_TABLE_SORTED_VARIABLE_TYPE        (e_table_sorted_variable_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORTED_VARIABLE</NAME>
+#define E_TABLE_SORTED_VARIABLE(o)          (GTK_CHECK_CAST ((o), E_TABLE_SORTED_VARIABLE_TYPE, ETableSortedVariable))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORTED_VARIABLE_CLASS</NAME>
+#define E_TABLE_SORTED_VARIABLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SORTED_VARIABLE_TYPE, ETableSortedVariableClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORTED_VARIABLE</NAME>
+#define E_IS_TABLE_SORTED_VARIABLE(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SORTED_VARIABLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORTED_VARIABLE_CLASS</NAME>
+#define E_IS_TABLE_SORTED_VARIABLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SORTED_VARIABLE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableSortedVariable</NAME>
+typedef struct {
+	ETableSubsetVariable base;
+
+	ETableSortInfo *sort_info;
+	
+	ETableHeader *full_header;
+
+	int              table_model_changed_id;
+	int              table_model_row_changed_id;
+	int              table_model_cell_changed_id;
+	int              sort_info_changed_id;
+	int              sort_idle_id;
+	int		 insert_idle_id;
+	int		 insert_count;
+
+} ETableSortedVariable;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_sorted_variable_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sorted_variable_new</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableModel *etm, ETableHeader *header, ETableSortInfo *sort_info
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_CONFIG_TYPE</NAME>
+#define E_TABLE_CONFIG_TYPE        (e_table_config_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_CONFIG</NAME>
+#define E_TABLE_CONFIG(o)          (GTK_CHECK_CAST ((o), E_TABLE_CONFIG_TYPE, ETableConfig))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_CONFIG_CLASS</NAME>
+#define E_TABLE_CONFIG_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_CONFIG_TYPE, ETableConfigClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_CONFIG</NAME>
+#define E_IS_TABLE_CONFIG(o)       (GTK_CHECK_TYPE ((o), E_TABLE_CONFIG_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_CONFIG_CLASS</NAME>
+#define E_IS_TABLE_CONFIG_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_CONFIG_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableConfig</NAME>
+typedef struct {
+	GnomeDialog base;
+
+	ETableSpecification *spec;
+	ETableState         *state;
+
+	GtkWidget *sort_label;
+	GtkWidget *group_label;
+
+	GtkWidget *sort_dialog;
+	GtkWidget *group_dialog;
+
+	int sorting_changed_id;
+	int grouping_changed_id;
+} ETableConfig;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_config_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_config_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+ETableSpecification *spec,ETableState         *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_config_construct</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+ETableConfig        *etco,ETableSpecification *spec,ETableState         *state
+</FUNCTION>
+<MACRO>
+<NAME>E_TREE_MODEL_TYPE</NAME>
+#define E_TREE_MODEL_TYPE        (e_tree_model_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TREE_MODEL</NAME>
+#define E_TREE_MODEL(o)          (GTK_CHECK_CAST ((o), E_TREE_MODEL_TYPE, ETreeModel))
+</MACRO>
+<MACRO>
+<NAME>E_TREE_MODEL_CLASS</NAME>
+#define E_TREE_MODEL_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TREE_MODEL_TYPE, ETreeModelClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TREE_MODEL</NAME>
+#define E_IS_TREE_MODEL(o)       (GTK_CHECK_TYPE ((o), E_TREE_MODEL_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TREE_MODEL_CLASS</NAME>
+#define E_IS_TREE_MODEL_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TREE_MODEL_TYPE))
+</MACRO>
+<USER_FUNCTION>
+<NAME>ETreePathCompareFunc</NAME>
+<RETURNS>gint </RETURNS>
+ETreeModel *model, ETreePath *path1, ETreePath *path2
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETreePathFunc</NAME>
+<RETURNS>gboolean </RETURNS>
+ETreeModel *model, ETreePath *path, gpointer data
+</USER_FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_construct</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etree
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_new</NAME>
+<RETURNS>ETreeModel  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_get_root</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_get_parent</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_get_first_child</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_get_last_child</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_get_next</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_get_prev</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_insert</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, ETreePath *parent, int position, gpointer node_data
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_insert_before</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, ETreePath *parent, ETreePath *sibling, gpointer node_data
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_remove</NAME>
+<RETURNS>gpointer  </RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_freeze</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etree
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_thaw</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etree
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_is_root</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_is_expandable</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_is_expanded</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_is_visible</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_set_expanded_default</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etree, gboolean expanded
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_set_expanded</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etree, ETreePath *path, gboolean expanded
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_set_expanded_recurse</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etree, ETreePath *path, gboolean expanded
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_get_children</NAME>
+<RETURNS>guint  </RETURNS>
+ETreeModel *etree, ETreePath *path, ETreePath ***paths
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_depth</NAME>
+<RETURNS>guint  </RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_num_visible_descendents</NAME>
+<RETURNS>guint  </RETURNS>
+ETreeModel *etm, ETreePath *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_get_data</NAME>
+<RETURNS>gpointer  </RETURNS>
+ETreeModel *etm, ETreePath *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_set_data</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etm, ETreePath *node, gpointer node_data
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_at_row</NAME>
+<RETURNS>ETreePath  *</RETURNS>
+ETreeModel *etree, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_icon_of_node</NAME>
+<RETURNS>GdkPixbuf  *</RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_row_of_node</NAME>
+<RETURNS>int  </RETURNS>
+ETreeModel *etree, ETreePath *path
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_root_node_set_visible</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etree, gboolean visible
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_root_node_is_visible</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETreeModel *etree
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_set_compare_function</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *tree_model, ETreePath *node, ETreePathCompareFunc compare
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_sort</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *tree_model, ETreePath *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_changed</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *tree_model, ETreePath *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_inserted</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *tree_model, ETreePath *parent_node, ETreePath *inserted_node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_removed</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *tree_model, ETreePath *parent_node, ETreePath *removed_node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_collapsed</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *tree_model, ETreePath *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_expanded</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *tree_model, ETreePath *node, gboolean *allow_expand
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_save_expanded_state</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETreeModel *etm, const char *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_load_expanded_state</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETreeModel *etm, const char *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_set_save_id</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *etm, ETreePath *node, const char *id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_insert_id</NAME>
+<RETURNS>ETreePath *</RETURNS>
+ETreeModel *tree_model, ETreePath *parent_path,int position, gpointer node_data, const char *save_id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_tree_model_node_traverse</NAME>
+<RETURNS>void  </RETURNS>
+ETreeModel *model, ETreePath *path, ETreePathFunc func, gpointer data
+</FUNCTION>
+<MACRO>
+<NAME>E_CELL_TREE_TYPE</NAME>
+#define E_CELL_TREE_TYPE        (e_cell_tree_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_CELL_TREE</NAME>
+#define E_CELL_TREE(o)          (GTK_CHECK_CAST ((o), E_CELL_TREE_TYPE, ECellTree))
+</MACRO>
+<MACRO>
+<NAME>E_CELL_TREE_CLASS</NAME>
+#define E_CELL_TREE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_CELL_TREE_TYPE, ECellTreeClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_TREE</NAME>
+#define E_IS_CELL_TREE(o)       (GTK_CHECK_TYPE ((o), E_CELL_TREE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_CELL_TREE_CLASS</NAME>
+#define E_IS_CELL_TREE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_CELL_TREE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ECellTree</NAME>
+typedef struct {
+	ECell parent;
+
+	gboolean draw_lines;
+
+	GdkPixbuf   *open_pixbuf;
+	GdkPixbuf   *closed_pixbuf;
+
+	ECell *subcell;
+} ECellTree;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_cell_tree_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_tree_new</NAME>
+<RETURNS>ECell      *</RETURNS>
+GdkPixbuf *open_pixbuf,GdkPixbuf *closed_pixbuf,gboolean draw_lines,ECell *subcell
+</FUNCTION>
+<FUNCTION>
+<NAME>e_cell_tree_construct</NAME>
+<RETURNS>void  </RETURNS>
+ECellTree *ect,GdkPixbuf *open_pixbuf,GdkPixbuf *closed_pixbuf,gboolean draw_lines,ECell *subcell
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_GROUP_TYPE</NAME>
+#define E_TABLE_GROUP_TYPE        (e_table_group_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_GROUP</NAME>
+#define E_TABLE_GROUP(o)          (GTK_CHECK_CAST ((o), E_TABLE_GROUP_TYPE, ETableGroup))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_GROUP_CLASS</NAME>
+#define E_TABLE_GROUP_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_GROUP_TYPE, ETableGroupClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_GROUP</NAME>
+#define E_IS_TABLE_GROUP(o)       (GTK_CHECK_TYPE ((o), E_TABLE_GROUP_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_GROUP_CLASS</NAME>
+#define E_IS_TABLE_GROUP_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_GROUP_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableGroup</NAME>
+typedef struct {
+	GnomeCanvasGroup group;
+
+	/*
+	 * The full header.
+	 */
+	ETableHeader *full_header;
+	ETableHeader *header;
+	
+	/*
+	 * The model we pull data from.
+	 */
+	ETableModel *model;
+
+	/*
+	 * Whether we should add indentation and open/close markers,
+	 * or if we just act as containers of subtables.
+	 */
+	guint transparent : 1;
+
+	guint has_focus : 1;
+	
+	guint frozen : 1;
+} ETableGroup;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_group_add</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg,gint              row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_add_all</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_remove</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableGroup      *etg,gint              row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_count</NAME>
+<RETURNS>gint  </RETURNS>
+ETableGroup      *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_increment</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg,gint              position,gint              amount
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_decrement</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg,gint              position,gint              amount
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_row_count</NAME>
+<RETURNS>gint  </RETURNS>
+ETableGroup      *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_set_focus</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg,EFocus            direction,gint              view_col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_set_cursor_row</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup     *etg,gint             row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_cursor_row</NAME>
+<RETURNS>int  </RETURNS>
+ETableGroup *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_focus</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableGroup      *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_focus_column</NAME>
+<RETURNS>gint  </RETURNS>
+ETableGroup      *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_header</NAME>
+<RETURNS>ETableHeader     *</RETURNS>
+ETableGroup     *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_ecol</NAME>
+<RETURNS>ETableCol        *</RETURNS>
+ETableGroup      *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_printable</NAME>
+<RETURNS>EPrintable       *</RETURNS>
+ETableGroup      *etg
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_compute_location</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg,int *x,int *y,int *row,int *col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_new</NAME>
+<RETURNS>ETableGroup      *</RETURNS>
+GnomeCanvasGroup *parent,ETableHeader     *full_header,ETableHeader     *header,ETableModel      *model,ETableSortInfo   *sort_info,int               n
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_construct</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasGroup *parent,ETableGroup      *etg,ETableHeader     *full_header,ETableHeader     *header,ETableModel      *model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_cursor_change</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg,gint              row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_double_click</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup      *etg,gint              row,gint              col,GdkEvent         *event
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_right_click</NAME>
+<RETURNS>gint  </RETURNS>
+ETableGroup      *etg,gint              row,gint              col,GdkEvent         *event
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_click</NAME>
+<RETURNS>gint  </RETURNS>
+ETableGroup      *etg,gint              row,gint              col,GdkEvent         *event
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_key_press</NAME>
+<RETURNS>gint  </RETURNS>
+ETableGroup      *etg,gint              row,gint              col,GdkEvent         *event
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableGroupLeafFn</NAME>
+<RETURNS>void </RETURNS>
+void *e_table_item, void *closure
+</USER_FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_apply_to_leafs</NAME>
+<RETURNS>void  </RETURNS>
+ETableGroup *etg,ETableGroupLeafFn fn, void *closure
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SORT_INFO_TYPE</NAME>
+#define E_TABLE_SORT_INFO_TYPE        (e_table_sort_info_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORT_INFO</NAME>
+#define E_TABLE_SORT_INFO(o)          (GTK_CHECK_CAST ((o), E_TABLE_SORT_INFO_TYPE, ETableSortInfo))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORT_INFO_CLASS</NAME>
+#define E_TABLE_SORT_INFO_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SORT_INFO_TYPE, ETableSortInfoClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORT_INFO</NAME>
+#define E_IS_TABLE_SORT_INFO(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SORT_INFO_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORT_INFO_CLASS</NAME>
+#define E_IS_TABLE_SORT_INFO_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SORT_INFO_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ETableSortColumn</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETableSortColumn</NAME>
+struct ETableSortColumn {
+	guint column : 31;
+	guint ascending : 1;
+};
+</STRUCT>
+<TYPEDEF>
+<NAME>ETableSortInfo</NAME>
+typedef struct {
+	GtkObject   base;
+	
+	gint group_count;
+	ETableSortColumn *groupings;
+	gint sort_count;
+	ETableSortColumn *sortings;
+	
+	guint frozen : 1;
+	guint sort_info_changed : 1;
+	guint group_info_changed : 1;
+} ETableSortInfo;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_sort_info_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_freeze</NAME>
+<RETURNS>void  </RETURNS>
+ETableSortInfo   *info
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_thaw</NAME>
+<RETURNS>void  </RETURNS>
+ETableSortInfo   *info
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_grouping_get_count</NAME>
+<RETURNS>guint  </RETURNS>
+ETableSortInfo   *info
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_grouping_truncate</NAME>
+<RETURNS>void  </RETURNS>
+ETableSortInfo   *info,int               length
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_grouping_get_nth</NAME>
+<RETURNS>ETableSortColumn  </RETURNS>
+ETableSortInfo   *info,int               n
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_grouping_set_nth</NAME>
+<RETURNS>void  </RETURNS>
+ETableSortInfo   *info,int               n,ETableSortColumn  column
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_sorting_get_count</NAME>
+<RETURNS>guint  </RETURNS>
+ETableSortInfo   *info
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_sorting_truncate</NAME>
+<RETURNS>void  </RETURNS>
+ETableSortInfo   *info,int               length
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_sorting_get_nth</NAME>
+<RETURNS>ETableSortColumn  </RETURNS>
+ETableSortInfo   *info,int               n
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_sorting_set_nth</NAME>
+<RETURNS>void  </RETURNS>
+ETableSortInfo   *info,int               n,ETableSortColumn  column
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_new</NAME>
+<RETURNS>ETableSortInfo    *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_load_from_node</NAME>
+<RETURNS>void  </RETURNS>
+ETableSortInfo   *info,xmlNode          *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sort_info_save_to_node</NAME>
+<RETURNS>xmlNode           *</RETURNS>
+ETableSortInfo   *info,xmlNode          *parent
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SIMPLE_TYPE</NAME>
+#define E_TABLE_SIMPLE_TYPE        (e_table_simple_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SIMPLE</NAME>
+#define E_TABLE_SIMPLE(o)          (GTK_CHECK_CAST ((o), E_TABLE_SIMPLE_TYPE, ETableSimple))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SIMPLE_CLASS</NAME>
+#define E_TABLE_SIMPLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SIMPLE_TYPE, ETableSimpleClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SIMPLE</NAME>
+#define E_IS_TABLE_SIMPLE(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SIMPLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SIMPLE_CLASS</NAME>
+#define E_IS_TABLE_SIMPLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SIMPLE_TYPE))
+</MACRO>
+<USER_FUNCTION>
+<NAME>ETableSimpleColumnCountFn</NAME>
+<RETURNS>int </RETURNS>
+ETableModel *etm, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleRowCountFn</NAME>
+<RETURNS>int </RETURNS>
+ETableModel *etm, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleValueAtFn</NAME>
+<RETURNS>void *</RETURNS>
+ETableModel *etm, int col, int row, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleSetValueAtFn</NAME>
+<RETURNS>void </RETURNS>
+ETableModel *etm, int col, int row, const void *val, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleIsCellEditableFn</NAME>
+<RETURNS>gboolean </RETURNS>
+ETableModel *etm, int col, int row, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleAppendRowFn</NAME>
+<RETURNS>void </RETURNS>
+ETableModel *etm, ETableModel *model, int row, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleDuplicateValueFn</NAME>
+<RETURNS>void *</RETURNS>
+ETableModel *etm, int col, const void *val, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleFreeValueFn</NAME>
+<RETURNS>void </RETURNS>
+ETableModel *etm, int col, void *val, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleInitializeValueFn</NAME>
+<RETURNS>void *</RETURNS>
+ETableModel *etm, int col, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleValueIsEmptyFn</NAME>
+<RETURNS>gboolean </RETURNS>
+ETableModel *etm, int col, const void *val, void *data
+</USER_FUNCTION>
+<USER_FUNCTION>
+<NAME>ETableSimpleValueToStringFn</NAME>
+<RETURNS>char *</RETURNS>
+ETableModel *etm, int col, const void *val, void *data
+</USER_FUNCTION>
+<TYPEDEF>
+<NAME>ETableSimple</NAME>
+typedef struct {
+	ETableModel parent;
+
+	ETableSimpleColumnCountFn     col_count;
+	ETableSimpleRowCountFn        row_count;
+	ETableSimpleValueAtFn         value_at;
+	ETableSimpleSetValueAtFn      set_value_at;
+	ETableSimpleIsCellEditableFn  is_cell_editable;
+	ETableSimpleDuplicateValueFn  duplicate_value;
+	ETableSimpleFreeValueFn       free_value;
+	ETableSimpleInitializeValueFn initialize_value;
+	ETableSimpleValueIsEmptyFn    value_is_empty;
+	ETableSimpleValueToStringFn   value_to_string;
+	ETableSimpleAppendRowFn       append_row;
+	void *data;
+} ETableSimple;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_simple_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_simple_new</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableSimpleColumnCountFn col_count,ETableSimpleRowCountFn row_count,ETableSimpleValueAtFn value_at,ETableSimpleSetValueAtFn set_value_at,ETableSimpleIsCellEditableFn is_cell_editable,ETableSimpleDuplicateValueFn duplicate_value,ETableSimpleFreeValueFn free_value,ETableSimpleInitializeValueFn initialize_value,ETableSimpleValueIsEmptyFn value_is_empty,ETableSimpleValueToStringFn value_to_string,void *data
+</FUNCTION>
+<MACRO>
+<NAME>TARGET_ETABLE_COL_TYPE</NAME>
+#define TARGET_ETABLE_COL_TYPE "application/x-etable-column-header"
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORTER_TYPE</NAME>
+#define E_TABLE_SORTER_TYPE        (e_table_sorter_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORTER</NAME>
+#define E_TABLE_SORTER(o)          (GTK_CHECK_CAST ((o), E_TABLE_SORTER_TYPE, ETableSorter))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORTER_CLASS</NAME>
+#define E_TABLE_SORTER_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SORTER_TYPE, ETableSorterClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORTER</NAME>
+#define E_IS_TABLE_SORTER(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SORTER_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORTER_CLASS</NAME>
+#define E_IS_TABLE_SORTER_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SORTER_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableSorter</NAME>
+typedef struct {
+	GtkObject base;
+
+	ETableModel    *source;
+	ETableHeader   *full_header;
+	ETableSortInfo *sort_info;
+
+	int             needs_sorting;
+
+	int            *sorted;
+	int            *backsorted;
+
+	int             table_model_changed_id;
+	int             table_model_row_changed_id;
+	int             table_model_cell_changed_id;
+	int             sort_info_changed_id;
+} ETableSorter;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_sorter_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sorter_new</NAME>
+<RETURNS>ETableSorter  *</RETURNS>
+ETableModel *etm, ETableHeader *full_header, ETableSortInfo *sort_info
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sorter_model_to_sorted</NAME>
+<RETURNS>gint  </RETURNS>
+ETableSorter *sorter, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sorter_sorted_to_model</NAME>
+<RETURNS>gint  </RETURNS>
+ETableSorter *sorter, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sorter_needs_sorting</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableSorter *sorter
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_TYPE</NAME>
+#define E_TABLE_TYPE        (e_table_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE</NAME>
+#define E_TABLE(o)          (GTK_CHECK_CAST ((o), E_TABLE_TYPE, ETable))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_CLASS</NAME>
+#define E_TABLE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_TYPE, ETableClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE</NAME>
+#define E_IS_TABLE(o)       (GTK_CHECK_TYPE ((o), E_TABLE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_CLASS</NAME>
+#define E_IS_TABLE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ETableDragSourceSite</NAME>
+</STRUCT>
+<ENUM>
+<NAME>ETableCursorLoc</NAME>
+typedef enum {
+	E_TABLE_CURSOR_LOC_NONE = 0,
+	E_TABLE_CURSOR_LOC_ETCTA = 1 << 0,
+	E_TABLE_CURSOR_LOC_TABLE = 1 << 1,
+} ETableCursorLoc;
+</ENUM>
+<TYPEDEF>
+<NAME>ETable</NAME>
+typedef struct {
+	GtkTable parent;
+
+	ETableModel *model;
+
+	ETableHeader *full_header, *header;
+
+	GnomeCanvasItem *canvas_vbox;
+	ETableGroup  *group;
+
+	ETableSortInfo *sort_info;
+	ETableSorter   *sorter;
+
+	ETableSelectionModel *selection;
+	ETableCursorLoc cursor_loc;
+	ETableSpecification *spec;
+
+	int table_model_change_id;
+	int table_row_change_id;
+	int table_cell_change_id;
+	int table_row_inserted_id;
+	int table_row_deleted_id;
+
+	int group_info_change_id;
+
+	int reflow_idle_id;
+
+	GnomeCanvas *header_canvas, *table_canvas;
+
+	GnomeCanvasItem *header_item, *root;
+
+	GnomeCanvasItem *white_item;
+
+	gint length_threshold;
+
+	gint rebuild_idle_id;
+	guint need_rebuild:1;
+
+	/*
+	 * Configuration settings
+	 */
+	guint draw_grid : 1;
+	guint draw_focus : 1;
+	guint row_selection_active : 1;
+	
+	char *click_to_add_message;
+	GnomeCanvasItem *click_to_add;
+	gboolean use_click_to_add;
+
+	ETableCursorMode cursor_mode;
+
+	int drag_get_data_row;
+	int drag_get_data_col;
+
+	int drop_row;
+	int drop_col;
+
+	int drag_row;
+	int drag_col;
+	ETableDragSourceSite *site;
+	
+	int drag_source_button_press_event_id;
+	int drag_source_motion_notify_event_id;
+} ETable;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_construct</NAME>
+<RETURNS>ETable          *</RETURNS>
+ETable               *e_table,ETableModel          *etm,ETableExtras         *ete,const char           *spec,const char           *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_new</NAME>
+<RETURNS>GtkWidget       *</RETURNS>
+ETableModel          *etm,ETableExtras         *ete,const char           *spec,const char           *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_construct_from_spec_file</NAME>
+<RETURNS>ETable          *</RETURNS>
+ETable               *e_table,ETableModel          *etm,ETableExtras         *ete,const char           *spec_fn,const char           *state_fn
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_new_from_spec_file</NAME>
+<RETURNS>GtkWidget       *</RETURNS>
+ETableModel          *etm,ETableExtras         *ete,const char           *spec_fn,const char           *state_fn
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_get_state</NAME>
+<RETURNS>gchar           *</RETURNS>
+ETable               *e_table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_save_state</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *e_table,const gchar          *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_get_state_object</NAME>
+<RETURNS>ETableState     *</RETURNS>
+ETable               *e_table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_set_state</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *e_table,const gchar          *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_set_state_object</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *e_table,ETableState          *state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_load_state</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *e_table,const gchar          *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_set_cursor_row</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *e_table,int                   row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_get_cursor_row</NAME>
+<RETURNS>int  </RETURNS>
+ETable               *e_table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selected_row_foreach</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *e_table,ETableForeachFunc     callback,gpointer              closure
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selected_count</NAME>
+<RETURNS>gint  </RETURNS>
+ETable               *e_table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_get_printable</NAME>
+<RETURNS>EPrintable      *</RETURNS>
+ETable               *e_table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_get_next_row</NAME>
+<RETURNS>gint  </RETURNS>
+ETable               *e_table,gint                  model_row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_get_prev_row</NAME>
+<RETURNS>gint  </RETURNS>
+ETable               *e_table,gint                  model_row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_to_view_row</NAME>
+<RETURNS>gint  </RETURNS>
+ETable               *e_table,gint                  model_row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_view_to_model_row</NAME>
+<RETURNS>gint  </RETURNS>
+ETable               *e_table,gint                  view_row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_get_data</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table,int                   row,int                   col,GdkDragContext       *context,GdkAtom               target,guint32               time
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_highlight</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table,int                   row,int                   col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_unhighlight</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_dest_set</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table,GtkDestDefaults       flags,const GtkTargetEntry *targets,gint                  n_targets,GdkDragAction         actions
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_dest_set_proxy</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table,GdkWindow            *proxy_window,GdkDragProtocol       protocol,gboolean              use_coordinates
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_dest_unset</NAME>
+<RETURNS>void  </RETURNS>
+GtkWidget            *widget
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_source_set</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table,GdkModifierType       start_button_mask,const GtkTargetEntry *targets,gint                  n_targets,GdkDragAction         actions
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_source_unset</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_drag_begin</NAME>
+<RETURNS>GdkDragContext  *</RETURNS>
+ETable               *table,int                   row,int                   col,GtkTargetList        *targets,GdkDragAction         actions,gint                  button,GdkEvent             *event
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_select_all</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_invert_selection</NAME>
+<RETURNS>void  </RETURNS>
+ETable               *table
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_CONFIG_FIELD_TYPE</NAME>
+#define E_TABLE_CONFIG_FIELD_TYPE        (e_table_config_field_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_CONFIG_FIELD</NAME>
+#define E_TABLE_CONFIG_FIELD(o)          (GTK_CHECK_CAST ((o), E_TABLE_CONFIG_FIELD_TYPE, ETableConfigField))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_CONFIG_FIELD_CLASS</NAME>
+#define E_TABLE_CONFIG_FIELD_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_CONFIG_FIELD_TYPE, ETableConfigFieldClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_CONFIG_FIELD</NAME>
+#define E_IS_TABLE_CONFIG_FIELD(o)       (GTK_CHECK_TYPE ((o), E_TABLE_CONFIG_FIELD_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_CONFIG_FIELD_CLASS</NAME>
+#define E_IS_TABLE_CONFIG_FIELD_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_CONFIG_FIELD_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableConfigField</NAME>
+typedef struct {
+	GtkVBox base;
+
+	ETableSpecification *spec;
+	ETableSortInfo *sort_info;
+	guint grouping : 1;
+	int n;
+
+	GtkWidget *combo;
+	GtkWidget *radio_ascending;
+	GtkWidget *radio_descending;
+
+	GtkWidget *child_fields;
+} ETableConfigField;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_config_field_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_config_field_new</NAME>
+<RETURNS>ETableConfigField  *</RETURNS>
+ETableSpecification *spec,ETableSortInfo      *sort_info,gboolean             grouping
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_config_field_construct</NAME>
+<RETURNS>ETableConfigField  *</RETURNS>
+ETableConfigField   *field,ETableSpecification *spec,ETableSortInfo      *sort_info,gboolean             grouping
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SPECIFICATION_TYPE</NAME>
+#define E_TABLE_SPECIFICATION_TYPE        (e_table_specification_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SPECIFICATION</NAME>
+#define E_TABLE_SPECIFICATION(o)          (GTK_CHECK_CAST ((o), E_TABLE_SPECIFICATION_TYPE, ETableSpecification))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SPECIFICATION_CLASS</NAME>
+#define E_TABLE_SPECIFICATION_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SPECIFICATION_TYPE, ETableSpecificationClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SPECIFICATION</NAME>
+#define E_IS_TABLE_SPECIFICATION(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SPECIFICATION_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SPECIFICATION_CLASS</NAME>
+#define E_IS_TABLE_SPECIFICATION_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SPECIFICATION_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableSpecification</NAME>
+typedef struct {
+	GtkObject base;
+
+	ETableColumnSpecification **columns;
+	ETableState *state;
+
+	guint no_headers : 1;
+	guint click_to_add : 1;
+	guint draw_grid : 1;
+	ETableCursorMode cursor_mode;
+	char *click_to_add_message_;
+} ETableSpecification;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_specification_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_specification_new</NAME>
+<RETURNS>ETableSpecification  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_specification_load_from_file</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableSpecification *specification,const char          *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_specification_load_from_string</NAME>
+<RETURNS>void  </RETURNS>
+ETableSpecification *specification,const char          *xml
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_specification_load_from_node</NAME>
+<RETURNS>void  </RETURNS>
+ETableSpecification *specification,const xmlNode       *node
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_specification_save_to_file</NAME>
+<RETURNS>void  </RETURNS>
+ETableSpecification *specification,const char          *filename
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_specification_save_to_string</NAME>
+<RETURNS>char                 *</RETURNS>
+ETableSpecification *specification
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_specification_save_to_node</NAME>
+<RETURNS>xmlNode              *</RETURNS>
+ETableSpecification *specification,xmlDoc              *doc
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_ITEM_TYPE</NAME>
+#define E_TABLE_ITEM_TYPE        (e_table_item_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_ITEM</NAME>
+#define E_TABLE_ITEM(o)          (GTK_CHECK_CAST ((o), E_TABLE_ITEM_TYPE, ETableItem))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_ITEM_CLASS</NAME>
+#define E_TABLE_ITEM_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_ITEM_TYPE, ETableItemClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_ITEM</NAME>
+#define E_IS_TABLE_ITEM(o)       (GTK_CHECK_TYPE ((o), E_TABLE_ITEM_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_ITEM_CLASS</NAME>
+#define E_IS_TABLE_ITEM_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_ITEM_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableItem</NAME>
+typedef struct {
+	GnomeCanvasItem  parent;
+	ETableModel     *table_model;
+	ETableHeader    *header;
+
+	ETableModel     *source_model;
+	ETableSelectionModel *selection;
+
+	int              x1, y1;
+	int              minimum_width, width, height;
+
+	int              cols, rows;
+	
+	/*
+	 * Ids for the signals we connect to
+	 */
+	int              header_dim_change_id;
+	int              header_structure_change_id;
+	int              header_request_width_id;
+	int              table_model_pre_change_id;
+	int              table_model_change_id;
+	int              table_model_row_change_id;
+	int              table_model_cell_change_id;
+	int              table_model_row_inserted_id;
+	int              table_model_row_deleted_id;
+
+	int              selection_change_id;
+	int              cursor_change_id;
+	
+	GdkGC           *fill_gc;
+	GdkGC           *grid_gc;
+	GdkGC           *focus_gc;
+	GdkBitmap       *stipple;
+
+	guint 		 draw_grid:1;
+	guint 		 draw_focus:1;
+	guint 		 renderers_can_change_size:1;
+	guint 		 cell_views_realized:1;
+	      	    
+	guint 		 needs_redraw : 1;
+	guint 		 needs_compute_height : 1;
+	guint 		 needs_compute_width : 1;
+
+	guint            uses_source_model : 1;
+
+	/*
+	 * Realized views, per column
+	 */
+	ECellView      **cell_views;
+	int              n_cells;
+
+	int             *height_cache;
+	int              height_cache_idle_id;
+	int              height_cache_idle_count;
+
+	/*
+	 * Lengh Threshold: above this, we stop computing correctly
+	 * the size
+	 */
+	int              length_threshold;
+	
+	gint             row_guess;
+	ETableCursorMode cursor_mode;
+
+	/*
+	 * During editing
+	 */
+	int              editing_col, editing_row;
+	void            *edit_ctx;
+
+	/*
+	 * Tooltip
+	 */
+	ETableTooltip *tooltip;
+
+} ETableItem;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_item_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_set_cursor</NAME>
+<RETURNS>void  </RETURNS>
+ETableItem *eti, int col, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_get_focused_column</NAME>
+<RETURNS>gint  </RETURNS>
+ETableItem *eti
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_is_row_selected</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableItem *e_table_Item,int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_selected_row_foreach</NAME>
+<RETURNS>void  </RETURNS>
+ETableItem        *eti,ETableForeachFunc  func,gpointer           closure
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_leave_edit</NAME>
+<RETURNS>void  </RETURNS>
+ETableItem *eti
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_enter_edit</NAME>
+<RETURNS>void  </RETURNS>
+ETableItem *eti, int col, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_redraw_range</NAME>
+<RETURNS>void  </RETURNS>
+ETableItem *eti,int start_col, int start_row,int end_col, int end_row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_get_printable</NAME>
+<RETURNS>EPrintable    *</RETURNS>
+ETableItem        *eti
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_print_height</NAME>
+<RETURNS>void  </RETURNS>
+ETableItem        *eti,GnomePrintContext *context,gdouble            width
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_item_compute_location</NAME>
+<RETURNS>void  </RETURNS>
+ETableItem        *eti,int               *x,int               *y,int               *row,int               *col
+</FUNCTION>
+<STRUCT>
+<NAME>ETableHeader</NAME>
+</STRUCT>
+<MACRO>
+<NAME>E_TABLE_HEADER_TYPE</NAME>
+#define E_TABLE_HEADER_TYPE        (e_table_header_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_HEADER</NAME>
+#define E_TABLE_HEADER(o)          (GTK_CHECK_CAST ((o), E_TABLE_HEADER_TYPE, ETableHeader))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_HEADER_CLASS</NAME>
+#define E_TABLE_HEADER_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_HEADER_TYPE, ETableHeaderClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_HEADER</NAME>
+#define E_IS_TABLE_HEADER(o)       (GTK_CHECK_TYPE ((o), E_TABLE_HEADER_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_HEADER_CLASS</NAME>
+#define E_IS_TABLE_HEADER_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_HEADER_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ETableHeader</NAME>
+struct ETableHeader {
+	GtkObject base;
+
+	int col_count;
+	int width;
+	int nominal_width;
+
+	ETableSortInfo *sort_info;
+	int sort_info_group_change_id;
+
+	ETableCol **columns;
+	
+	GSList *change_queue, *change_tail;
+	gint idle;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_table_header_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_new</NAME>
+<RETURNS>ETableHeader   *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_add_column</NAME>
+<RETURNS>void  </RETURNS>
+ETableHeader *eth,ETableCol *tc, int pos
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_get_column</NAME>
+<RETURNS>ETableCol  *</RETURNS>
+ETableHeader *eth,int column
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_count</NAME>
+<RETURNS>int  </RETURNS>
+ETableHeader *eth
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_index</NAME>
+<RETURNS>int  </RETURNS>
+ETableHeader *eth,int col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_get_index_at</NAME>
+<RETURNS>int  </RETURNS>
+ETableHeader *eth,int x_offset
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_get_columns</NAME>
+<RETURNS>ETableCol  **</RETURNS>
+ETableHeader *eth
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_get_selected</NAME>
+<RETURNS>int  </RETURNS>
+ETableHeader *eth
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_total_width</NAME>
+<RETURNS>int  </RETURNS>
+ETableHeader *eth
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_move</NAME>
+<RETURNS>void  </RETURNS>
+ETableHeader *eth,int source_index,int target_index
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_remove</NAME>
+<RETURNS>void  </RETURNS>
+ETableHeader *eth, int idx
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_set_size</NAME>
+<RETURNS>void  </RETURNS>
+ETableHeader *eth, int idx, int size
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_set_selection</NAME>
+<RETURNS>void  </RETURNS>
+ETableHeader *eth,gboolean allow_selection
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_col_diff</NAME>
+<RETURNS>int  </RETURNS>
+ETableHeader *eth,int start_col, int end_col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_calc_widths</NAME>
+<RETURNS>void  </RETURNS>
+ETableHeader *eth
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_header_get_selected_indexes</NAME>
+<RETURNS>GList       *</RETURNS>
+ETableHeader *eth
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_GROUP_CONTAINER_TYPE</NAME>
+#define E_TABLE_GROUP_CONTAINER_TYPE        (e_table_group_container_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_GROUP_CONTAINER</NAME>
+#define E_TABLE_GROUP_CONTAINER(o)          (GTK_CHECK_CAST ((o), E_TABLE_GROUP_CONTAINER_TYPE, ETableGroupContainer))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_GROUP_CONTAINER_CLASS</NAME>
+#define E_TABLE_GROUP_CONTAINER_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_GROUP_CONTAINER_TYPE, ETableGroupContainerClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_GROUP_CONTAINER</NAME>
+#define E_IS_TABLE_GROUP_CONTAINER(o)       (GTK_CHECK_TYPE ((o), E_TABLE_GROUP_CONTAINER_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_GROUP_CONTAINER_CLASS</NAME>
+#define E_IS_TABLE_GROUP_CONTAINER_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_GROUP_CONTAINER_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableGroupContainer</NAME>
+typedef struct {
+	ETableGroup group;
+
+	/*
+	 * The ETableCol used to group this set
+	 */
+	ETableCol    *ecol;
+	gint          ascending;
+
+	/*
+	 * List of ETableGroups we stack
+	 */
+	GList *children;
+
+	/*
+	 * The canvas rectangle that contains the children
+	 */
+	GnomeCanvasItem *rect;
+
+	GdkFont *font;
+
+	gdouble width, height, minimum_width;
+
+	ETableSortInfo *sort_info;
+	int n;
+	int length_threshold;
+
+	ETableSelectionModel *table_selection_model;
+
+	guint draw_grid : 1;
+	guint draw_focus : 1;
+	ETableCursorMode cursor_mode;
+
+	/*
+	 * State: the ETableGroup is open or closed
+	 */
+	guint open:1;
+} ETableGroupContainer;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_group_container_new</NAME>
+<RETURNS>ETableGroup  *</RETURNS>
+GnomeCanvasGroup *parent, ETableHeader *full_header, ETableHeader     *header,ETableModel *model, ETableSortInfo *sort_info, int n
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_container_construct</NAME>
+<RETURNS>void  </RETURNS>
+GnomeCanvasGroup *parent, ETableGroupContainer *etgc,ETableHeader *full_header,ETableHeader     *header,ETableModel *model, ETableSortInfo *sort_info, int n
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_group_container_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_ONE_TYPE</NAME>
+#define E_TABLE_ONE_TYPE        (e_table_one_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_ONE</NAME>
+#define E_TABLE_ONE(o)          (GTK_CHECK_CAST ((o), E_TABLE_ONE_TYPE, ETableOne))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_ONE_CLASS</NAME>
+#define E_TABLE_ONE_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_ONE_TYPE, ETableOneClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_ONE</NAME>
+#define E_IS_TABLE_ONE(o)       (GTK_CHECK_TYPE ((o), E_TABLE_ONE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_ONE_CLASS</NAME>
+#define E_IS_TABLE_ONE_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_ONE_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableOne</NAME>
+typedef struct {
+	ETableModel   parent;
+		    
+	ETableModel  *source;
+	void        **data;
+} ETableOne;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_one_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_one_new</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableModel *source
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_one_commit</NAME>
+<RETURNS>void  </RETURNS>
+ETableOne *one
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_COL_TYPE</NAME>
+#define E_TABLE_COL_TYPE        (e_table_col_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_COL</NAME>
+#define E_TABLE_COL(o)          (GTK_CHECK_CAST ((o), E_TABLE_COL_TYPE, ETableCol))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_COL_CLASS</NAME>
+#define E_TABLE_COL_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_COL_TYPE, ETableColClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_COL</NAME>
+#define E_IS_TABLE_COL(o)       (GTK_CHECK_TYPE ((o), E_TABLE_COL_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_COL_CLASS</NAME>
+#define E_IS_TABLE_COL_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_COL_TYPE))
+</MACRO>
+<ENUM>
+<NAME>ETableColArrow</NAME>
+typedef enum {
+	E_TABLE_COL_ARROW_NONE = 0,
+	E_TABLE_COL_ARROW_UP,
+	E_TABLE_COL_ARROW_DOWN
+} ETableColArrow;
+</ENUM>
+<TYPEDEF>
+<NAME>ETableCol</NAME>
+typedef struct {
+	GtkObject    base;
+	char        *text;
+	GdkPixbuf   *pixbuf;
+	int          min_width;
+	int          width;
+	double       expansion;
+	short        x;
+	GCompareFunc compare;
+	unsigned int is_pixbuf:1;
+	unsigned int selected:1;
+	unsigned int resizeable:1;
+	unsigned int sortable:1;
+	unsigned int groupable:1;
+	int          col_idx;
+
+	GtkJustification justification;
+
+	ECell         *ecell;
+} ETableCol;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_col_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_col_new</NAME>
+<RETURNS>ETableCol      *</RETURNS>
+int col_idx, const char *text,double expansion, int min_width,ECell *ecell, GCompareFunc compare,gboolean resizable
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_col_new_with_pixbuf</NAME>
+<RETURNS>ETableCol      *</RETURNS>
+int col_idx, GdkPixbuf *pixbuf,double expansion, int min_width,ECell *ecell, GCompareFunc compare,gboolean resizable
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_col_destroy</NAME>
+<RETURNS>void  </RETURNS>
+ETableCol *etc
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_ITEM_TYPE</NAME>
+#define E_TABLE_FIELD_CHOOSER_ITEM_TYPE        (e_table_field_chooser_item_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_ITEM</NAME>
+#define E_TABLE_FIELD_CHOOSER_ITEM(o)          (GTK_CHECK_CAST ((o), E_TABLE_FIELD_CHOOSER_ITEM_TYPE, ETableFieldChooserItem))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_FIELD_CHOOSER_ITEM_CLASS</NAME>
+#define E_TABLE_FIELD_CHOOSER_ITEM_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_FIELD_CHOOSER_ITEM_TYPE, ETableFieldChooserItemClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_FIELD_CHOOSER_ITEM</NAME>
+#define E_IS_TABLE_FIELD_CHOOSER_ITEM(o)       (GTK_CHECK_TYPE ((o), E_TABLE_FIELD_CHOOSER_ITEM_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_FIELD_CHOOSER_ITEM_CLASS</NAME>
+#define E_IS_TABLE_FIELD_CHOOSER_ITEM_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_FIELD_CHOOSER_ITEM_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableFieldChooserItem</NAME>
+typedef struct {
+	GnomeCanvasItem  parent;
+	ETableHeader    *full_header;
+
+	double           height, width;
+
+	GdkFont         *font;
+
+	/*
+	 * Ids
+	 */
+	int structure_change_id, dimension_change_id;
+
+	gchar           *dnd_code;
+
+	/*
+	 * For dragging columns
+	 */
+	guint            maybe_drag:1;
+	int              click_x, click_y;
+	int              drag_col;
+	guint            drag_data_get_id;
+        guint            drag_end_id;
+} ETableFieldChooserItem;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_field_chooser_item_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SORTED_TYPE</NAME>
+#define E_TABLE_SORTED_TYPE        (e_table_sorted_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORTED</NAME>
+#define E_TABLE_SORTED(o)          (GTK_CHECK_CAST ((o), E_TABLE_SORTED_TYPE, ETableSorted))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SORTED_CLASS</NAME>
+#define E_TABLE_SORTED_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SORTED_TYPE, ETableSortedClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORTED</NAME>
+#define E_IS_TABLE_SORTED(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SORTED_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SORTED_CLASS</NAME>
+#define E_IS_TABLE_SORTED_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SORTED_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableSorted</NAME>
+typedef struct {
+	ETableSubset base;
+
+	short         sort_col;
+	GCompareFunc  compare;
+} ETableSorted;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_sorted_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sorted_new</NAME>
+<RETURNS>ETableModel  *</RETURNS>
+ETableModel *etm, int col, GCompareFunc compare
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_sorted_resort</NAME>
+<RETURNS>void  </RETURNS>
+ETableSorted *ets, int col, GCompareFunc compare
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_SELECTION_MODEL_TYPE</NAME>
+#define E_TABLE_SELECTION_MODEL_TYPE        (e_table_selection_model_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SELECTION_MODEL</NAME>
+#define E_TABLE_SELECTION_MODEL(o)          (GTK_CHECK_CAST ((o), E_TABLE_SELECTION_MODEL_TYPE, ETableSelectionModel))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_SELECTION_MODEL_CLASS</NAME>
+#define E_TABLE_SELECTION_MODEL_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_SELECTION_MODEL_TYPE, ETableSelectionModelClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SELECTION_MODEL</NAME>
+#define E_IS_TABLE_SELECTION_MODEL(o)       (GTK_CHECK_TYPE ((o), E_TABLE_SELECTION_MODEL_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_SELECTION_MODEL_CLASS</NAME>
+#define E_IS_TABLE_SELECTION_MODEL_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_SELECTION_MODEL_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableSelectionModel</NAME>
+typedef struct {
+	GtkObject     base;
+
+	ETableModel  *model;
+	ETableSorter *sorter;
+
+	gint row_count;
+        guint32 *selection;
+
+	gint cursor_row;
+	gint cursor_col;
+	gint selection_start_row;
+
+	guint model_changed_id;
+	guint model_row_inserted_id, model_row_deleted_id;
+
+	guint frozen : 1;
+	guint selection_model_changed : 1;
+	guint group_info_changed : 1;
+} ETableSelectionModel;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_selection_model_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_is_row_selected</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableSelectionModel *selection,gint                  n
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_foreach</NAME>
+<RETURNS>void  </RETURNS>
+ETableSelectionModel *selection,ETableForeachFunc callback,gpointer closure
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_do_something</NAME>
+<RETURNS>void  </RETURNS>
+ETableSelectionModel *selection,guint                 row,guint                 col,GdkModifierType       state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_maybe_do_something</NAME>
+<RETURNS>void  </RETURNS>
+ETableSelectionModel *selection,guint                 row,guint                 col,GdkModifierType       state
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_clear</NAME>
+<RETURNS>void  </RETURNS>
+ETableSelectionModel *selection
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_selected_count</NAME>
+<RETURNS>gint  </RETURNS>
+ETableSelectionModel *selection
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_select_all</NAME>
+<RETURNS>void  </RETURNS>
+ETableSelectionModel *selection
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_invert_selection</NAME>
+<RETURNS>void  </RETURNS>
+ETableSelectionModel *selection
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_selection_model_new</NAME>
+<RETURNS>ETableSelectionModel   *</RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_EXTRAS_TYPE</NAME>
+#define E_TABLE_EXTRAS_TYPE        (e_table_extras_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_EXTRAS</NAME>
+#define E_TABLE_EXTRAS(o)          (GTK_CHECK_CAST ((o), E_TABLE_EXTRAS_TYPE, ETableExtras))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_EXTRAS_CLASS</NAME>
+#define E_TABLE_EXTRAS_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_EXTRAS_TYPE, ETableExtrasClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_EXTRAS</NAME>
+#define E_IS_TABLE_EXTRAS(o)       (GTK_CHECK_TYPE ((o), E_TABLE_EXTRAS_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_EXTRAS_CLASS</NAME>
+#define E_IS_TABLE_EXTRAS_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_EXTRAS_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableExtras</NAME>
+typedef struct {
+	GtkObject base;
+
+	GHashTable *cells;
+	GHashTable *compares;
+	GHashTable *pixbufs;
+} ETableExtras;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_extras_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_extras_new</NAME>
+<RETURNS>ETableExtras  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_extras_add_cell</NAME>
+<RETURNS>void  </RETURNS>
+ETableExtras *extras,char         *id,ECell        *cell
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_extras_get_cell</NAME>
+<RETURNS>ECell         *</RETURNS>
+ETableExtras *extras,char         *id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_extras_add_compare</NAME>
+<RETURNS>void  </RETURNS>
+ETableExtras *extras,char         *id,GCompareFunc  compare
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_extras_get_compare</NAME>
+<RETURNS>GCompareFunc  </RETURNS>
+ETableExtras *extras,char         *id
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_extras_add_pixbuf</NAME>
+<RETURNS>void  </RETURNS>
+ETableExtras *extras,char         *id,GdkPixbuf    *pixbuf
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_extras_get_pixbuf</NAME>
+<RETURNS>GdkPixbuf     *</RETURNS>
+ETableExtras *extras,char         *id
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_CLICK_TO_ADD_TYPE</NAME>
+#define E_TABLE_CLICK_TO_ADD_TYPE        (e_table_click_to_add_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_CLICK_TO_ADD</NAME>
+#define E_TABLE_CLICK_TO_ADD(o)          (GTK_CHECK_CAST ((o), E_TABLE_CLICK_TO_ADD_TYPE, ETableClickToAdd))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_CLICK_TO_ADD_CLASS</NAME>
+#define E_TABLE_CLICK_TO_ADD_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_CLICK_TO_ADD_TYPE, ETableClickToAddClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_CLICK_TO_ADD</NAME>
+#define E_IS_TABLE_CLICK_TO_ADD(o)       (GTK_CHECK_TYPE ((o), E_TABLE_CLICK_TO_ADD_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_CLICK_TO_ADD_CLASS</NAME>
+#define E_IS_TABLE_CLICK_TO_ADD_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_CLICK_TO_ADD_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableClickToAdd</NAME>
+typedef struct {
+	GnomeCanvasGroup  parent;
+
+	ETableModel      *one;    /* The ETableOne. */
+
+	ETableModel      *model;  /* The backend model. */
+	ETableHeader     *eth;    /* This is just to give to the ETableItem. */
+
+	char             *message;
+
+	GnomeCanvasItem  *row;    /* If row is NULL, we're sitting with no data and a "Click here" message. */
+	GnomeCanvasItem  *text;   /* If text is NULL, row shouldn't be. */
+	GnomeCanvasItem  *rect;   /* What the heck.  Why not. */
+	
+	gdouble           width;
+	gdouble           height;
+
+	ETableSelectionModel *selection;
+} ETableClickToAdd;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_click_to_add_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_click_to_add_commit</NAME>
+<RETURNS>void  </RETURNS>
+ETableClickToAdd *etcta
+</FUNCTION>
+<MACRO>
+<NAME>E_TABLE_MODEL_TYPE</NAME>
+#define E_TABLE_MODEL_TYPE        (e_table_model_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_MODEL</NAME>
+#define E_TABLE_MODEL(o)          (GTK_CHECK_CAST ((o), E_TABLE_MODEL_TYPE, ETableModel))
+</MACRO>
+<MACRO>
+<NAME>E_TABLE_MODEL_CLASS</NAME>
+#define E_TABLE_MODEL_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_TABLE_MODEL_TYPE, ETableModelClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_MODEL</NAME>
+#define E_IS_TABLE_MODEL(o)       (GTK_CHECK_TYPE ((o), E_TABLE_MODEL_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TABLE_MODEL_CLASS</NAME>
+#define E_IS_TABLE_MODEL_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_TABLE_MODEL_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>ETableModel</NAME>
+typedef struct {
+	GtkObject   base;
+} ETableModel;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_table_model_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_column_count</NAME>
+<RETURNS>int  </RETURNS>
+ETableModel *e_table_model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_column_name</NAME>
+<RETURNS>const char  *</RETURNS>
+ETableModel *e_table_model, int col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_row_count</NAME>
+<RETURNS>int  </RETURNS>
+ETableModel *e_table_model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_value_at</NAME>
+<RETURNS>void        *</RETURNS>
+ETableModel *e_table_model, int col, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_set_value_at</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model, int col, int row, const void *value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_is_cell_editable</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableModel *e_table_model, int col, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_append_row</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model, ETableModel *source, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_row_sort_group</NAME>
+<RETURNS>const char  *</RETURNS>
+ETableModel *e_table_model, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_has_sort_group</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableModel *e_table_model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_duplicate_value</NAME>
+<RETURNS>void        *</RETURNS>
+ETableModel *e_table_model, int col, const void *value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_free_value</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model, int col, void *value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_initialize_value</NAME>
+<RETURNS>void        *</RETURNS>
+ETableModel *e_table_model, int col
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_value_is_empty</NAME>
+<RETURNS>gboolean  </RETURNS>
+ETableModel *e_table_model, int col, const void *value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_value_to_string</NAME>
+<RETURNS>char        *</RETURNS>
+ETableModel *e_table_model, int col, const void *value
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_pre_change</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_changed</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_row_changed</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_cell_changed</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model, int col, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_row_inserted</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model, int row
+</FUNCTION>
+<FUNCTION>
+<NAME>e_table_model_row_deleted</NAME>
+<RETURNS>void  </RETURNS>
+ETableModel *e_table_model, int row
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_HPANED</NAME>
+#define E_TYPE_HPANED	         (e_hpaned_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_HPANED</NAME>
+#define E_HPANED(obj)            (GTK_CHECK_CAST ((obj), E_TYPE_HPANED, EHPaned))
+</MACRO>
+<MACRO>
+<NAME>E_HPANED_CLASS</NAME>
+#define E_HPANED_CLASS(klass)    (GTK_CHECK_CLASS_CAST ((klass), E_TYPE_HPANED, EHPanedClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_HPANED</NAME>
+#define E_IS_HPANED(obj)         (GTK_CHECK_TYPE ((obj), E_TYPE_HPANED))
+</MACRO>
+<MACRO>
+<NAME>E_IS_HPANED_CLASS</NAME>
+#define E_IS_HPANED_CLASS(klass) (GTK_CHECK_CLASS_TYPE ((klass), E_TYPE_HPANED))
+</MACRO>
+<MACRO>
+<NAME>E_HPANED_GET_CLASS</NAME>
+#define E_HPANED_GET_CLASS(obj)  (GTK_CHECK_GET_CLASS ((obj), E_TYPE_HPANED, EHPanedClass))
+</MACRO>
+<STRUCT>
+<NAME>EHPaned</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EHPanedClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EHPaned</NAME>
+struct EHPaned
+{
+  EPaned paned;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_hpaned_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_hpaned_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_VPANED</NAME>
+#define E_TYPE_VPANED            (e_vpaned_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_VPANED</NAME>
+#define E_VPANED(obj)            (GTK_CHECK_CAST ((obj), E_TYPE_VPANED, EVPaned))
+</MACRO>
+<MACRO>
+<NAME>E_VPANED_CLASS</NAME>
+#define E_VPANED_CLASS(klass)    (GTK_CHECK_CLASS_CAST ((klass), E_TYPE_VPANED, EVPanedClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_VPANED</NAME>
+#define E_IS_VPANED(obj)         (GTK_CHECK_TYPE ((obj), E_TYPE_VPANED))
+</MACRO>
+<MACRO>
+<NAME>E_IS_VPANED_CLASS</NAME>
+#define E_IS_VPANED_CLASS(klass) (GTK_CHECK_CLASS_TYPE ((klass), E_TYPE_VPANED))
+</MACRO>
+<MACRO>
+<NAME>E_VPANED_GET_CLASS</NAME>
+#define E_VPANED_GET_CLASS(obj)  (GTK_CHECK_GET_CLASS ((obj), E_TYPE_VPANED, EVPanedClass))
+</MACRO>
+<STRUCT>
+<NAME>EVPaned</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EVPanedClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EVPaned</NAME>
+struct EVPaned
+{
+  EPaned paned;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_vpaned_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_vpaned_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_PANED</NAME>
+#define E_TYPE_PANED                  (e_paned_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_PANED</NAME>
+#define E_PANED(obj)                  (GTK_CHECK_CAST ((obj), E_TYPE_PANED, EPaned))
+</MACRO>
+<MACRO>
+<NAME>E_PANED_CLASS</NAME>
+#define E_PANED_CLASS(klass)          (GTK_CHECK_CLASS_CAST ((klass), E_TYPE_PANED, EPanedClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_PANED</NAME>
+#define E_IS_PANED(obj)               (GTK_CHECK_TYPE ((obj), E_TYPE_PANED))
+</MACRO>
+<MACRO>
+<NAME>E_IS_PANED_CLASS</NAME>
+#define E_IS_PANED_CLASS(klass)       (GTK_CHECK_CLASS_TYPE ((klass), E_TYPE_PANED))
+</MACRO>
+<MACRO>
+<NAME>E_PANED_GET_CLASS</NAME>
+#define E_PANED_GET_CLASS(obj)        (GTK_CHECK_GET_CLASS ((obj), E_TYPE_PANED, EPanedClass))
+</MACRO>
+<STRUCT>
+<NAME>EPaned</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EPanedClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>EPaned</NAME>
+struct EPaned
+{
+  GtkContainer container;
+  
+  GtkWidget *child1;
+  GtkWidget *child2;
+  
+  GdkWindow *handle;
+  GdkGC *xor_gc;
+  GdkCursorType cursor_type;
+  
+  /*< public >*/
+  guint16 handle_size;
+  
+  /*< private >*/
+  guint16 handle_width;
+  guint16 handle_height;
+
+  gint child1_real_size;
+  gint child1_size;
+  gint last_allocation;
+  gint min_position;
+  gint max_position;
+
+  gint old_child1_size;
+  gint quantum;
+
+  guint position_set : 1;
+  guint in_drag : 1;
+  guint child1_shrink : 1;
+  guint child1_resize : 1;
+  guint child2_shrink : 1;
+  guint child2_resize : 1;
+
+  gint16 handle_xpos;
+  gint16 handle_ypos;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_paned_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_add1</NAME>
+<RETURNS>void  </RETURNS>
+EPaned    *paned,GtkWidget *child
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_add2</NAME>
+<RETURNS>void  </RETURNS>
+EPaned    *paned,GtkWidget *child
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_pack1</NAME>
+<RETURNS>void  </RETURNS>
+EPaned    *paned,GtkWidget *child,gboolean   resize,gboolean   shrink
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_pack2</NAME>
+<RETURNS>void  </RETURNS>
+EPaned    *paned,GtkWidget *child,gboolean   resize,gboolean   shrink
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_get_position</NAME>
+<RETURNS>gint  </RETURNS>
+EPaned    *paned
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_set_position</NAME>
+<RETURNS>void  </RETURNS>
+EPaned    *paned,gint       position
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_set_handle_size</NAME>
+<RETURNS>void  </RETURNS>
+EPaned    *paned,guint16    size
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_compute_position</NAME>
+<RETURNS>void  </RETURNS>
+EPaned   *paned,gint      allocation,gint      child1_req,gint      child2_req
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_handle_shown</NAME>
+<RETURNS>gboolean  </RETURNS>
+EPaned   *paned
+</FUNCTION>
+<FUNCTION>
+<NAME>e_paned_quantized_size</NAME>
+<RETURNS>gint  </RETURNS>
+EPaned   *paned,int       size
+</FUNCTION>
+<MACRO>
+<NAME>E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_TYPE</NAME>
+#define E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_TYPE			(e_text_event_processor_emacs_like_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TEXT_EVENT_PROCESSOR_EMACS_LIKE</NAME>
+#define E_TEXT_EVENT_PROCESSOR_EMACS_LIKE(obj)			(GTK_CHECK_CAST ((obj), E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_TYPE, ETextEventProcessorEmacsLike))
+</MACRO>
+<MACRO>
+<NAME>E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_CLASS</NAME>
+#define E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_TYPE, ETextEventProcessorEmacsLikeClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT_EVENT_PROCESSOR_EMACS_LIKE</NAME>
+#define E_IS_TEXT_EVENT_PROCESSOR_EMACS_LIKE(obj)		        (GTK_CHECK_TYPE ((obj), E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT_EVENT_PROCESSOR_EMACS_LIKE_CLASS</NAME>
+#define E_IS_TEXT_EVENT_PROCESSOR_EMACS_LIKE_CLASS(klass)	        (GTK_CHECK_CLASS_TYPE ((obj), E_TEXT_EVENT_PROCESSOR_EMACS_LIKE_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ETextEventProcessorEmacsLike</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextEventProcessorEmacsLikeClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextEventProcessorEmacsLike</NAME>
+struct ETextEventProcessorEmacsLike
+{
+	ETextEventProcessor parent;
+	
+	/* object specific fields */
+	guint mouse_down : 1;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_text_event_processor_emacs_like_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_event_processor_emacs_like_new</NAME>
+<RETURNS>ETextEventProcessor  *</RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_TEXT</NAME>
+#define E_TYPE_TEXT            (e_text_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TEXT</NAME>
+#define E_TEXT(obj)            (GTK_CHECK_CAST ((obj), E_TYPE_TEXT, EText))
+</MACRO>
+<MACRO>
+<NAME>E_TEXT_CLASS</NAME>
+#define E_TEXT_CLASS(klass)    (GTK_CHECK_CLASS_CAST ((klass), E_TYPE_TEXT, ETextClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT</NAME>
+#define E_IS_TEXT(obj)         (GTK_CHECK_TYPE ((obj), E_TYPE_TEXT))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT_CLASS</NAME>
+#define E_IS_TEXT_CLASS(klass) (GTK_CHECK_CLASS_TYPE ((klass), E_TYPE_TEXT))
+</MACRO>
+<STRUCT>
+<NAME>EText</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextSuckFont</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextSuckChar</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextSuckChar</NAME>
+struct ETextSuckChar {
+	int     left_sb;
+	int     right_sb;
+	int     width;
+	int     ascent;
+	int     descent;
+	int     bitmap_offset; /* in pixels */
+};
+</STRUCT>
+<STRUCT>
+<NAME>ETextSuckFont</NAME>
+struct ETextSuckFont {
+	guchar *bitmap;
+	gint    bitmap_width;
+	gint    bitmap_height;
+	gint    ascent;
+	ETextSuckChar chars[256];
+};
+</STRUCT>
+<STRUCT>
+<NAME>EText</NAME>
+struct EText {
+	GnomeCanvasItem item;
+	
+	ETextModel *model;
+	gint model_changed_signal_id;
+
+	char *text;			/* Text to display */
+	gpointer lines;			/* Text split into lines (private field) */
+	int num_lines;			/* Number of lines of text */
+
+#if 0
+	GdkFont *font;			/* Font for text */
+#else
+	EFont *font;
+#endif
+	GtkAnchorType anchor;		/* Anchor side for text */
+	GtkJustification justification;	/* Justification for text */
+
+	double clip_width;		/* Width of optional clip rectangle */
+	double clip_height;		/* Height of optional clip rectangle */
+
+	double xofs, yofs;		/* Text offset distance from anchor position */
+
+	gulong pixel;			/* Fill color */
+	GdkBitmap *stipple;		/* Stipple for text */
+	GdkGC *gc;			/* GC for drawing text */
+
+	int cx, cy;			/* Top-left canvas coordinates for text */
+	int clip_cx, clip_cy;		/* Top-left canvas coordinates for clip rectangle */
+	int clip_cwidth, clip_cheight;	/* Size of clip rectangle in pixels */
+	int max_width;			/* Maximum width of text lines */
+	int width;                      /* Rendered text width in pixels */
+	int height;			/* Rendered text height in pixels */
+
+	guint clip : 1;			/* Use clip rectangle? */
+	guint fill_clip_rectangle : 1;  /* Fill the clipping rectangle. */
+
+	/* Antialiased specific stuff follows */
+#if 0
+	ETextSuckFont *suckfont; /* Sucked font */
+#endif
+	guint32 rgba;			/* RGBA color for text */
+	double affine[6];               /* The item -> canvas affine */
+
+	char *ellipsis;                 /* The ellipsis characters.  NULL = "...". */
+	double ellipsis_width;          /* The width of the ellipsis. */
+	gboolean use_ellipsis;          /* Whether to use the ellipsis. */
+
+	gboolean editable;              /* Item is editable */
+	gboolean editing;               /* Item is currently being edited */
+
+	int xofs_edit;                  /* Offset because of editing */
+	int yofs_edit;                  /* Offset because of editing */
+
+	/* This needs to be reworked a bit once we get line wrapping. */
+	int selection_start;            /* Start of selection IN BYTES */
+	int selection_end;              /* End of selection IN BYTES */
+	gboolean select_by_word;        /* Current selection is by word */
+
+	/* This section is for drag scrolling and blinking cursor. */
+	gint timeout_id;                /* Current timeout id for scrolling */
+	GTimer *timer;                  /* Timer for blinking cursor and scrolling */
+
+	gint lastx, lasty;              /* Last x and y motion events */
+	gint last_state;                /* Last state */
+	gulong scroll_start;            /* Starting time for scroll (microseconds) */
+
+	gint show_cursor;               /* Is cursor currently shown */
+	gboolean button_down;           /* Is mouse button 1 down */
+
+	ETextEventProcessor *tep;       /* Text Event Processor */
+	gint tep_command_id;
+
+	GtkWidget *invisible;           /* For selection handling */
+	gboolean has_selection;         /* TRUE if we have the selection */
+	gchar *primary_selection;       /* Primary selection text */
+	gint primary_length;            /* Primary selection text length */
+	gchar *clipboard_selection;     /* Clipboard selection text */
+	gint clipboard_length;          /* Clipboard selection text length*/
+
+	guint pointer_in : 1;           /* Is the pointer currently over us? */
+	guint default_cursor_shown : 1; /* Is the default cursor currently shown? */
+	guint draw_borders : 1;         /* Draw borders? */
+
+	guint line_wrap : 1;            /* Do line wrap */
+	gchar *break_characters;        /* Characters to optionally break after */
+
+	gint max_lines;                 /* Max number of lines (-1 = infinite) */
+
+	GdkCursor *default_cursor;      /* Default cursor (arrow) */
+	GdkCursor *i_cursor;            /* I beam cursor */
+
+	gint tooltip_timeout;           /* Timeout for the tooltip */
+	GtkWidget *tooltip_window;      /* GtkWindow for displaying the tooltip */
+	gint tooltip_count;             /* GDK_ENTER_NOTIFY count. */
+
+	guint needs_redraw : 1;         /* Needs redraw */
+	guint needs_recalc_bounds : 1;  /* Need recalc_bounds */
+	guint needs_calc_height : 1;    /* Need calc_height */
+	guint needs_calc_line_widths : 1; /* Needs calc_line_widths */
+	guint needs_split_into_lines : 1; /* Needs split_into_lines */
+
+	gint dbl_timeout;               /* Double click timeout */
+	gint tpl_timeout;               /* Triple click timeout */
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_text_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<ENUM>
+<NAME>ETextEventProcessorCommandPosition</NAME>
+typedef enum {
+	E_TEP_VALUE,
+	E_TEP_SELECTION,
+
+	E_TEP_START_OF_BUFFER,
+	E_TEP_END_OF_BUFFER,
+
+	E_TEP_START_OF_LINE,
+	E_TEP_END_OF_LINE,
+
+	E_TEP_FORWARD_CHARACTER,
+	E_TEP_BACKWARD_CHARACTER,
+
+	E_TEP_FORWARD_WORD,
+	E_TEP_BACKWARD_WORD,
+
+	E_TEP_FORWARD_LINE,
+	E_TEP_BACKWARD_LINE,
+
+	E_TEP_FORWARD_PARAGRAPH,
+	E_TEP_BACKWARD_PARAGRAPH,
+
+	E_TEP_FORWARD_PAGE,
+	E_TEP_BACKWARD_PAGE,
+
+	E_TEP_SELECT_WORD,
+	E_TEP_SELECT_ALL
+
+} ETextEventProcessorCommandPosition;
+</ENUM>
+<ENUM>
+<NAME>ETextEventProcessorCommandAction</NAME>
+typedef enum {
+	E_TEP_MOVE,
+	E_TEP_SELECT,
+	E_TEP_DELETE,
+	E_TEP_INSERT,
+
+	E_TEP_COPY,
+	E_TEP_PASTE,
+	E_TEP_GET_SELECTION,
+	E_TEP_SET_SELECT_BY_WORD,
+	E_TEP_ACTIVATE,
+	
+	E_TEP_GRAB,
+	E_TEP_UNGRAB,
+
+	E_TEP_NOP
+} ETextEventProcessorCommandAction;
+</ENUM>
+<TYPEDEF>
+<NAME>ETextEventProcessorCommand</NAME>
+typedef struct {
+	ETextEventProcessorCommandPosition position;
+	ETextEventProcessorCommandAction action;
+	int value;
+	char *string;
+	guint32 time;
+} ETextEventProcessorCommand;
+</TYPEDEF>
+<TYPEDEF>
+<NAME>ETextEventProcessorEventButton</NAME>
+typedef struct {
+	GdkEventType type;
+	guint32 time;
+	guint state;
+	guint button;
+	gint position;
+} ETextEventProcessorEventButton;
+</TYPEDEF>
+<TYPEDEF>
+<NAME>ETextEventProcessorEventKey</NAME>
+typedef struct {
+	GdkEventType type;
+	guint32 time;
+	guint state;
+	guint keyval;
+	gint length;
+	gchar *string;
+} ETextEventProcessorEventKey;
+</TYPEDEF>
+<TYPEDEF>
+<NAME>ETextEventProcessorEventMotion</NAME>
+typedef struct {
+	GdkEventType type;
+	guint32 time;
+	guint state;
+	gint position;
+} ETextEventProcessorEventMotion;
+</TYPEDEF>
+<UNION>
+<NAME>ETextEventProcessorEvent</NAME>
+union ETextEventProcessorEvent {
+	GdkEventType type;
+	ETextEventProcessorEventButton button;
+	ETextEventProcessorEventKey key;
+	ETextEventProcessorEventMotion motion;
+};
+</UNION>
+<MACRO>
+<NAME>E_ENTRY_TYPE</NAME>
+#define E_ENTRY_TYPE        (e_entry_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_ENTRY</NAME>
+#define E_ENTRY(o)          (GTK_CHECK_CAST ((o), E_ENTRY_TYPE, EEntry))
+</MACRO>
+<MACRO>
+<NAME>E_ENTRY_CLASS</NAME>
+#define E_ENTRY_CLASS(k)    (GTK_CHECK_CLASS_CAST((k), E_ENTRY_TYPE, EEntryClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_ENTRY</NAME>
+#define E_IS_ENTRY(o)       (GTK_CHECK_TYPE ((o), E_ENTRY_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_ENTRY_CLASS</NAME>
+#define E_IS_ENTRY_CLASS(k) (GTK_CHECK_CLASS_TYPE ((k), E_ENTRY_TYPE))
+</MACRO>
+<TYPEDEF>
+<NAME>EEntry</NAME>
+typedef struct {
+	GtkTable parent;
+	
+	GnomeCanvas *canvas;
+	EText *item;
+} EEntry;
+</TYPEDEF>
+<FUNCTION>
+<NAME>e_entry_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_entry_construct</NAME>
+<RETURNS>EEntry     *</RETURNS>
+EEntry *e_entry
+</FUNCTION>
+<FUNCTION>
+<NAME>e_entry_new</NAME>
+<RETURNS>GtkWidget  *</RETURNS>
+void
+</FUNCTION>
+<MACRO>
+<NAME>E_TYPE_TEXT_MODEL</NAME>
+#define E_TYPE_TEXT_MODEL            (e_text_model_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TEXT_MODEL</NAME>
+#define E_TEXT_MODEL(obj)            (GTK_CHECK_CAST ((obj), E_TYPE_TEXT_MODEL, ETextModel))
+</MACRO>
+<MACRO>
+<NAME>E_TEXT_MODEL_CLASS</NAME>
+#define E_TEXT_MODEL_CLASS(klass)    (GTK_CHECK_CLASS_CAST ((klass), E_TYPE_TEXT_MODEL, ETextModelClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT_MODEL</NAME>
+#define E_IS_TEXT_MODEL(obj)         (GTK_CHECK_TYPE ((obj), E_TYPE_TEXT_MODEL))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT_MODEL_CLASS</NAME>
+#define E_IS_TEXT_MODEL_CLASS(klass) (GTK_CHECK_CLASS_TYPE ((klass), E_TYPE_TEXT_MODEL))
+</MACRO>
+<STRUCT>
+<NAME>ETextModel</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextModelClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextModel</NAME>
+struct ETextModel {
+	GtkObject item;
+
+	char *text;			/* Text to display */
+	int length;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_text_model_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_model_new</NAME>
+<RETURNS>ETextModel  *</RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_model_changed</NAME>
+<RETURNS>void  </RETURNS>
+ETextModel *model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_model_get_text</NAME>
+<RETURNS>gchar  *</RETURNS>
+ETextModel *model
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_model_set_text</NAME>
+<RETURNS>void  </RETURNS>
+ETextModel *model, gchar *text
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_model_insert</NAME>
+<RETURNS>void  </RETURNS>
+ETextModel *model, gint position, gchar *text
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_model_insert_length</NAME>
+<RETURNS>void  </RETURNS>
+ETextModel *model, gint position, gchar *text, gint length
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_model_delete</NAME>
+<RETURNS>void  </RETURNS>
+ETextModel *model, gint position, gint length
+</FUNCTION>
+<MACRO>
+<NAME>E_TEXT_EVENT_PROCESSOR_TYPE</NAME>
+#define E_TEXT_EVENT_PROCESSOR_TYPE			(e_text_event_processor_get_type ())
+</MACRO>
+<MACRO>
+<NAME>E_TEXT_EVENT_PROCESSOR</NAME>
+#define E_TEXT_EVENT_PROCESSOR(obj)			(GTK_CHECK_CAST ((obj), E_TEXT_EVENT_PROCESSOR_TYPE, ETextEventProcessor))
+</MACRO>
+<MACRO>
+<NAME>E_TEXT_EVENT_PROCESSOR_CLASS</NAME>
+#define E_TEXT_EVENT_PROCESSOR_CLASS(klass)		(GTK_CHECK_CLASS_CAST ((klass), E_TEXT_EVENT_PROCESSOR_TYPE, ETextEventProcessorClass))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT_EVENT_PROCESSOR</NAME>
+#define E_IS_TEXT_EVENT_PROCESSOR(obj)		        (GTK_CHECK_TYPE ((obj), E_TEXT_EVENT_PROCESSOR_TYPE))
+</MACRO>
+<MACRO>
+<NAME>E_IS_TEXT_EVENT_PROCESSOR_CLASS</NAME>
+#define E_IS_TEXT_EVENT_PROCESSOR_CLASS(klass)	        (GTK_CHECK_CLASS_TYPE ((obj), E_TEXT_EVENT_PROCESSOR_TYPE))
+</MACRO>
+<STRUCT>
+<NAME>ETextEventProcessor</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextEventProcessorClass</NAME>
+</STRUCT>
+<STRUCT>
+<NAME>ETextEventProcessor</NAME>
+struct ETextEventProcessor
+{
+	GtkObject parent;
+
+	/* object specific fields */
+	guint allow_newlines : 1;
+};
+</STRUCT>
+<FUNCTION>
+<NAME>e_text_event_processor_get_type</NAME>
+<RETURNS>GtkType  </RETURNS>
+void
+</FUNCTION>
+<FUNCTION>
+<NAME>e_text_event_processor_handle_event</NAME>
+<RETURNS>gint  </RETURNS>
+ETextEventProcessor *tep, ETextEventProcessorEvent *event
+</FUNCTION>

@@ -1,0 +1,42 @@
+DESCRIPTION = "PLP Tools \
+PLP Tools are built using GCC 3.3.4.  3.4 series c++ compilers \
+(the current compiler used to build oe components) do not do \
+proper static initialization for template specialization components.  \
+The 3.3.4 cross compiler is built using the libc6 library from oe's \
+3.4.1 compiler.  \
+\
+The resultant libstdc++ library from the 3.3.4 compiler is exported to \
+this plp distribution. \
+\
+The source tarball plptools-0.11-oe.tar.gz is built using the 3.3.4 \
+compiler and the resultant libplp library, ncpd, and plpbackup are \
+copied to this plp distribution."
+
+PR = "r0"
+SRC_URI = "file://plptools-0.11-oe.tar.gz \
+           file://libstdc++.so.5.0.6 \
+	   file://libplp.so.0.0.11 \
+	   file://ncpd \
+	   file://plpbackup \
+           file://plp_upgrade"
+
+do_configure() {
+}
+
+do_compile() {
+}
+
+do_install() {
+	install -d ${D}/usr/bin/
+	install -d ${D}/usr/sbin/
+	install -d ${D}/lib/
+	install -m 0755 ${WORKDIR}/libstdc++.so.5.0.6 ${D}/lib/libstdc++.so.5.0.6
+	ln -sf libstdc++.so.5.0.6 ${D}/lib/libstdc++.so
+	ln -sf libstdc++.so.5.0.6 ${D}/lib/libstdc++.so.5
+	install -m 0755 ${WORKDIR}/libplp.so.0.0.11 ${D}/lib/libplp.so.0.0.11
+	ln -sf libplp.so.0.0.11 ${D}/lib/libplp.so
+	ln -sf libplp.so.0.0.11 ${D}/lib/libplp.so.0
+	install -m 0755 ${WORKDIR}/ncpd ${D}/usr/sbin/ncpd
+	install -m 0755 ${WORKDIR}/plp_upgrade ${D}/usr/bin/plp_upgrade
+	install -m 0755 ${WORKDIR}/plpbackup ${D}/usr/bin/plpbackup
+}

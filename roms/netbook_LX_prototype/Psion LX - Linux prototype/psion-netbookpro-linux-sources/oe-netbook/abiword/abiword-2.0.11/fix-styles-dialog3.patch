@@ -1,0 +1,23 @@
+--- ap_UnixDialog_Styles.cpp~fix-styles-dialog2.patch	2004-09-14 14:43:26.000000000 +0100
++++ abi/src/wp/ap/unix/ap_UnixDialog_Styles.cpp	2004-09-14 14:56:54.000000000 +0100
+@@ -1162,12 +1162,15 @@
+ 	g_signal_connect(G_OBJECT(m_wModifyLanguage),
+ 					   "activate",
+ 					   G_CALLBACK(s_modify_language),
+-					   reinterpret_cast<gpointer>(this));
++			     	   	   reinterpret_cast<gpointer>(this));
+ 
+-	g_signal_connect(G_OBJECT(m_wModifyDrawingArea),
+-					   "expose_event",
+-					   G_CALLBACK(s_modifyPreview_exposed),
+-					   reinterpret_cast<gpointer>(this));
++	if((m_wModifyDrawingArea != NULL))
++     	{
++		g_signal_connect(G_OBJECT(m_wModifyDrawingArea),
++						   "expose_event",
++						   G_CALLBACK(s_modifyPreview_exposed),
++						   reinterpret_cast<gpointer>(this));
++	}
+ 
+ 	g_signal_connect(G_OBJECT(m_wDeletePropButton),
+ 					   "clicked",

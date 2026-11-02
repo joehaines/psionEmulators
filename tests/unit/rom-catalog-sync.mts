@@ -83,6 +83,12 @@ const folders = [...filterBlock.matchAll(/^\s+- '([^']+)\/\*\*'$/gm)].map(m => m
 check(folders.length > 10, `parsed ${folders.length} folders from electron-builder.yml's roms filter`);
 const bundled = (p: string) => folders.some(f => p.startsWith(f + '/'));
 const needed = new Set<string>([...registry.values(), ...literals]);
+// Built-in flash images the profiles name (internalFlashImage). Generated,
+// not committed (scripts/build-lx-nand.mts), so only their folder is checked.
+for (const m of read('core/device_registry.cpp').matchAll(/^\s+"([^"\n]+\.gz)",/gm)) {
+  needed.add(m[1]);
+  check(existsSync(join(ROOT, 'roms', dirname(m[1]))), `flash image folder roms/${dirname(m[1])} does not exist`);
+}
 for (const set of Object.values(ROM_CATALOG)) if (set.kind === 'os') needed.add(set.options[0].path);
 for (const p of needed) check(bundled(p), `the desktop app needs roms/${p}, which electron-builder.yml does not bundle`);
 for (const f of folders) check(existsSync(join(ROOT, 'roms', f)), `electron-builder.yml bundles roms/${f}, which does not exist`);

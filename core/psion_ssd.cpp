@@ -23,6 +23,7 @@
 //     to 0 so a new address sequence starts at boundary zero.
 
 #include "psion_ssd.h"
+#include "state_archive.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -50,16 +51,43 @@ bool PsionSSD::attach(const uint8_t *bytes, size_t size, Type type) {
     if ((size & (size - 1)) != 0)          return false;  // not power of two
     if (!bytes)                            return false;
 
+    m_base = nullptr;
+    m_size = 0;
+    m_pages.clear();
     m_data.assign(bytes, bytes + size);
+    return finishAttach(size, type);
+}
 
+bool PsionSSD::attachInPlace(const uint8_t *bytes, size_t size) {
+    if (size < 0x10000 || size > 0x800000) return false;
+    if ((size & (size - 1)) != 0)          return false;
+    if (!bytes)                            return false;
+    m_data.clear();
+    m_data.shrink_to_fit();
+    m_base = bytes;
+    m_size = size;
+    m_pages.assign(size >> kPageBits, std::vector<uint8_t>());
+    return finishAttach(size, Type::Flash);
+}
+
+uint8_t &PsionSSD::byteRef(uint32_t addr) {
+    if (!m_base) return m_data[addr];
+    std::vector<uint8_t> &page = m_pages[addr >> kPageBits];
+    if (page.empty()) {
+        const uint8_t *from = m_base + (addr & ~(kPage - 1));
+        page.assign(from, from + kPage);
+    }
+    return page[addr & (kPage - 1)];
+}
+
+bool PsionSSD::finishAttach(size_t size, Type type) {
     // Explicit type wins (it models the pack's hardware straps, which
     // exist independently of the contents); Auto falls back to sniffing
     // the FEFS magic, which is right for Flash dumps but misreads a
     // FEFS-formatted RAM pack as Flash.
     Type effective = type;
     if (effective == Type::Auto) {
-        const bool magic = m_data.size() >= 2 &&
-            uint16_t(m_data[0] | (m_data[1] << 8)) == 0xF1A5;
+        const bool magic = size >= 2 && uint16_t(byteAt(0) | (byteAt(1) << 8)) == 0xF1A5;
         effective = magic ? Type::Flash : Type::Ram;
     }
 
@@ -92,6 +120,9 @@ bool PsionSSD::attach(const uint8_t *bytes, size_t size, Type type) {
 
 void PsionSSD::detach() {
     m_data.clear();
+    m_base = nullptr;
+    m_size = 0;
+    m_pages.clear();
     m_infoByte = 0;
     m_memWidth = 0;
     m_siboControl = 0;
@@ -188,31 +219,36 @@ void PsionSSD::flashProgram(uint32_t addr, uint8_t data) {
     // Vpp is strapped off on a hardware write-protected pack, so the
     // program cycle completes with the array unchanged and the driver's
     // verify read fails — the same outcome as the real device.
-    if (m_writeProtected || addr >= m_data.size()) return;
+    if (m_writeProtected || addr >= size()) return;
     // Programming only clears bits; returning a cell to 1 takes an
     // erase. FEFS relies on this (deleting a file clears the entry's
     // valid bit in place), so model it rather than storing outright.
-    m_data[addr] &= data;
+    if ((byteAt(addr) & data) != byteAt(addr)) byteRef(addr) &= data;
 }
 
 void PsionSSD::flashEraseDevice(uint32_t addr) {
-    if (m_writeProtected || m_memWidth <= 0 || m_data.empty()) return;
+    if (m_writeProtected || m_memWidth <= 0 || size() == 0) return;
     // 28F0xx-class parts are bulk-erase: one command clears the whole
     // device. A pack is 1-4 devices of 2^memWidth bytes, selected by the
     // top bits of the latched address.
     const uint32_t deviceSize = uint32_t(1) << m_memWidth;
     uint32_t base = (addr / deviceSize) * deviceSize;
-    if (base >= m_data.size()) return;
-    const uint32_t len = uint32_t(std::min<size_t>(deviceSize, m_data.size() - base));
-    std::fill_n(m_data.begin() + base, len, uint8_t(0xFF));
+    if (base >= size()) return;
+    const uint32_t len = uint32_t(std::min<size_t>(deviceSize, size() - base));
+    if (!m_base) {
+        std::fill_n(m_data.begin() + base, len, uint8_t(0xFF));
+        return;
+    }
+    for (uint32_t p = base >> kPageBits; p < (base + len) >> kPageBits; ++p)
+        m_pages[p].assign(kPage, uint8_t(0xFF));
 }
 
 uint32_t PsionSSD::latchedAddr() const {
-    if (m_memWidth <= 0 || m_data.empty()) return 0;
+    if (m_memWidth <= 0 || size() == 0) return 0;
     const uint32_t mask = (uint32_t(1) << m_memWidth) - 1u;
     const uint32_t deviceSel = (m_portLatch >> 22) & 0x3u;
     uint32_t addr = (m_portLatch & mask) | (deviceSel << m_memWidth);
-    if (addr >= m_data.size()) addr = uint32_t(m_data.size() - 1);
+    if (addr >= size()) addr = uint32_t(size() - 1);
     return addr;
 }
 
@@ -274,10 +310,10 @@ void PsionSSD::writeFrame(uint16_t frame) {
         const uint8_t data = uint8_t(frame & 0xFF);
         switch (m_siboControl & 0x0F) {
         case 0x00: // Port A write -> SSD memory write / flash command
-            if (m_infoByte && !m_data.empty()) {
+            if (m_infoByte && size() != 0) {
                 if (!m_isFlash) {
                     // RAM pack: Port A is plain SRAM, store the byte.
-                    m_data[latchedAddr()] = data;
+                    byteRef(latchedAddr()) = data;
                 } else if (m_flashState == FlashState::ProgramSetup) {
                     // Second cycle of a program command: this is data.
                     flashProgram(latchedAddr(), data);
@@ -363,14 +399,14 @@ uint8_t PsionSSD::readFrameInner() {
         switch (m_siboControl & 0x0F) {
         case 0x00: { // Port A read data -> SSD memory read
             uint8_t v = 0;
-            if (m_infoByte && !m_data.empty()) {
+            if (m_infoByte && size() != 0) {
                 if (m_isFlash && m_flashState == FlashState::ReadId) {
                     // Intelligent identifier: even address = maker,
                     // odd = device. Intel 28F0xx-class part, which is
                     // what a "Type 1 Flash" pack carries.
                     v = (latchedAddr() & 1) ? FLASH_DEVICE_ID : FLASH_MAKER_ID;
                 } else {
-                    v = m_data[latchedAddr()];
+                    v = byteAt(latchedAddr());
                 }
             }
             // Address LSB auto-advances after the read when the
@@ -389,4 +425,39 @@ uint8_t PsionSSD::readFrameInner() {
     }
     }
     return 0;
+}
+
+void PsionSSD::serializeOverlay(StateArchive &a) {
+    uint32_t n = 0;
+    for (const std::vector<uint8_t> &p : m_pages) n += !p.empty();
+    a(n);
+    if (a.loading()) {
+        for (std::vector<uint8_t> &p : m_pages) p.clear();
+        for (uint32_t i = 0; i < n && a.ok(); ++i) {
+            uint32_t index = 0;
+            a(index);
+            if (index >= m_pages.size()) { a.fail(); return; }
+            m_pages[index].resize(kPage);
+            a.bytes(m_pages[index].data(), kPage);
+        }
+        return;
+    }
+    for (uint32_t i = 0; i < m_pages.size(); ++i) {
+        if (m_pages[i].empty()) continue;
+        a(i);
+        a.bytes(m_pages[i].data(), kPage);
+    }
+}
+
+void PsionSSD::serializeState(StateArchive &a) {
+    // An in-place pack's image is the host's to supply, already attached
+    // at load: only what the Psion wrote to it travels.
+    uint32_t inPlace = m_base ? uint32_t(m_size) : 0;
+    a(inPlace);
+    if (inPlace != (m_base ? m_size : 0)) { a.fail(); return; }
+    if (m_base) serializeOverlay(a);
+    else        a(m_data);
+    a(m_infoByte); a(m_guestAccessed); a(m_memWidth); a(m_siboControl);
+    a(m_portLatch); a(m_portDcSelect); a(m_portBLatch); a(m_portBMode); a(m_portBCounter);
+    a(m_isFlash); a(m_writeProtected); a(m_flashState); a(m_eraseArmed);
 }

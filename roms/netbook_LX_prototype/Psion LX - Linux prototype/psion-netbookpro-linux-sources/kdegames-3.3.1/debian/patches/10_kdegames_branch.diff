@@ -1,0 +1,2723 @@
+? debian/patches/01_kdegames_branch.diff
+Index: atlantik/ChangeLog
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/ChangeLog,v
+retrieving revision 1.158.2.1
+retrieving revision 1.158.2.4
+diff -u -r1.158.2.1 -r1.158.2.4
+--- atlantik/ChangeLog	6 Sep 2004 19:11:33 -0000	1.158.2.1
++++ atlantik/ChangeLog	14 Oct 2004 01:28:30 -0000	1.158.2.4
+@@ -1,3 +1,11 @@
++0.7.2
++-----
++
++- Proper use of host and port in kio_atlantik: fixes problems with
++  invitations sent by newer clients.
++- bugfix: scroll player views when they get too big. (#69043)
++- bugfix: show correct amount of players in trade widget.
++
+ 0.7.1
+ -----
+ 
+Index: atlantik/atlantik.desktop
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/atlantik.desktop,v
+retrieving revision 1.123.2.2
+retrieving revision 1.123.2.3
+diff -u -r1.123.2.2 -r1.123.2.3
+--- atlantik/atlantik.desktop	31 Aug 2004 07:19:58 -0000	1.123.2.2
++++ atlantik/atlantik.desktop	24 Oct 2004 07:03:55 -0000	1.123.2.3
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Exec=atlantik -caption "%c" %i %m
+ Name=Atlantik
++Name[ar]=لعبة الرقعة (Atlantik)
+ Name[bn]=আটলান্টিক
+ Name[eo]=Atlantiko
+ Name[hi]=अटलांटिक
+@@ -14,6 +15,7 @@
+ Name[zh_TW]=Atlantik 大富翁
+ Name[zu]=I-Atlantik
+ GenericName=Monopoly®-like Board Games
++GenericName[ar]=ألعاب الرقعة الشبيهة بمونوبولي
+ GenericName[bg]=Монополи®
+ GenericName[bn]=মনোপলি®-জাতীয় ছকভিত্তিক খেলা
+ GenericName[bs]=Igre nalik na Monopol®
+Index: atlantik/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/eventsrc,v
+retrieving revision 1.65.2.2
+retrieving revision 1.65.2.4
+diff -u -r1.65.2.2 -r1.65.2.4
+--- atlantik/eventsrc	31 Aug 2004 07:19:59 -0000	1.65.2.2
++++ atlantik/eventsrc	24 Oct 2004 07:03:55 -0000	1.65.2.4
+@@ -11,6 +11,7 @@
+ 
+ [gainedturn]
+ Name=Gained Turn
++Name[ar]=ربحت دورا
+ Name[bg]=Придобит ред
+ Name[bs]=Potez dobiven
+ Name[ca]=Et toca jugar
+@@ -47,6 +48,7 @@
+ Name[zh_CN]=获得一次机会
+ Name[zh_TW]=增加的回合
+ Comment=It is your turn now
++Comment[ar]=دورك الآن
+ Comment[bg]=Придобит ред
+ Comment[bn]=এখন আপনার চাল
+ Comment[bs]=Na vas je red
+@@ -89,11 +91,13 @@
+ 
+ [chat]
+ Name=Chat
++Name[ar]=دردشة
+ Name[bg]=Изпратено съобщение
+ Name[bn]=আড্ডা
+ Name[bs]=Razgovor
+ Name[ca]=Xat
+ Name[cs]=Rozhovor
++Name[cy]=Sgwrsio
+ Name[el]=Κουβέντα
+ Name[eo]=Babilu
+ Name[et]=Vestlus
+@@ -122,6 +126,7 @@
+ Name[zh_CN]=聊天
+ Name[zh_TW]=聊天
+ Comment=A player sends a chat message
++Comment[ar]=لقد أرسل لاعب رسالة دردشة
+ Comment[bg]=Изпратено е съобщение от играч
+ Comment[bn]=একজন খেলোয়াড় একটি বার্তা পাঠালেন
+ Comment[bs]=Igrač je poslao poruku
+@@ -164,8 +169,10 @@
+ 
+ [newplayer]
+ Name=New player
++Name[ar]=لاعب جديد
+ Name[bg]=Нов играч
+ Name[bn]=নতুন খেলোয়াড়
++Name[br]=C'hoarier nevez
+ Name[bs]=Novi igrač
+ Name[ca]=Nou jugador
+ Name[cs]=Nový hráč
+@@ -205,6 +212,7 @@
+ Name[zh_CN]=新玩家
+ Name[zh_TW]=新玩家
+ Comment=A new player joins the game
++Comment[ar]=لقد اشترك لاعب جديد في اللعبة
+ Comment[bg]=Нов играч се присъедини към играта
+ Comment[bn]=একজন নতুন খেলোয়াড় খেলায় যোগ দিয়েছেন
+ Comment[bs]=Novi igrač se uključuje u igru
+@@ -247,8 +255,10 @@
+ 
+ [newgame]
+ Name=New game
++Name[ar]=لعبة جديدة
+ Name[bg]=Нова игра
+ Name[bn]=নতুন খেলা
++Name[br]=C'hoari nevez
+ Name[bs]=Nova igra
+ Name[ca]=Nova partida
+ Name[cs]=Nová hra
+@@ -287,6 +297,7 @@
+ Name[zh_CN]=新游戏
+ Name[zh_TW]=新遊戲
+ Comment=A new game is created
++Comment[ar]=لقد انشئت لعبة جديدة
+ Comment[bg]=Създадена е нова игра
+ Comment[bn]=একটি নতুন খেলা আরম্ভ হয়েছে
+ Comment[bs]=Napravljena je nova igra
+Index: atlantik/client/atlantik.cpp
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/client/atlantik.cpp,v
+retrieving revision 1.170.2.1
+retrieving revision 1.170.2.3
+diff -u -r1.170.2.1 -r1.170.2.3
+--- atlantik/client/atlantik.cpp	6 Sep 2004 19:11:33 -0000	1.170.2.1
++++ atlantik/client/atlantik.cpp	10 Oct 2004 02:32:46 -0000	1.170.2.3
+@@ -19,7 +19,7 @@
+ #include <qcolor.h>
+ #include <qdatetime.h>
+ #include <qlineedit.h>
+-#include <qscrollbar.h>
++#include <qscrollview.h>
+ #include <qpopupmenu.h>
+ 
+ #include <kaboutapplication.h>
+@@ -159,11 +159,18 @@
+ 	setCentralWidget(m_mainWidget);
+ 
+ 	// Vertical view area for portfolios.
+-	m_portfolioWidget = new QWidget(m_mainWidget, "pfwidget");
+-	m_mainLayout->addWidget(m_portfolioWidget, 0, 0);
++	m_portfolioScroll = new QScrollView(m_mainWidget, "pfScroll");
++	m_mainLayout->addWidget( m_portfolioScroll, 0, 0 );
++	m_portfolioScroll->setHScrollBarMode( QScrollView::AlwaysOff );
++	m_portfolioScroll->setResizePolicy( QScrollView::AutoOneFit );
++	m_portfolioScroll->setFixedHeight( 200 );
++	m_portfolioScroll->hide();
++
++	m_portfolioWidget = new QWidget( m_portfolioScroll->viewport(), "pfWidget" );
++	m_portfolioScroll->addChild( m_portfolioWidget );
+ 	m_portfolioWidget->show();
+-	m_portfolioLayout = new QVBoxLayout(m_portfolioWidget);
+ 
++	m_portfolioLayout = new QVBoxLayout(m_portfolioWidget);
+ 	m_portfolioViews.setAutoDelete(true);
+ 
+ 	// Nice label
+@@ -433,12 +440,6 @@
+ 
+ void Atlantik::slotNetworkConnected()
+ {
+-	// Check command-line args to see if we need to auto-join
+-	KCmdLineArgs *args = KCmdLineArgs::parsedArgs();
+-
+-	QCString game = args->getOption("game");	
+-	if (!game.isNull())
+-		m_atlantikNetwork->joinGame(game.toInt());
+ }
+ 
+ void Atlantik::slotNetworkError(int errnum)
+@@ -774,6 +775,13 @@
+ void Atlantik::sendHandshake()
+ {
+ 	m_atlantikNetwork->setName(m_config.playerName);
++
++	// Check command-line args to see if we need to auto-join
++	KCmdLineArgs *args = KCmdLineArgs::parsedArgs();
++
++	QCString game = args->getOption("game");	
++	if (!game.isNull())
++		m_atlantikNetwork->joinGame(game.toInt());
+ }
+ 
+ void Atlantik::statusBarClick(int item)
+@@ -791,6 +799,8 @@
+ {
+ 	PortfolioView *portfolioView = new PortfolioView(m_atlanticCore, player, m_config.activeColor, m_config.inactiveColor, m_portfolioWidget);
+ 	m_portfolioViews.append(portfolioView);
++	if ( m_portfolioViews.count() > 0 && m_portfolioScroll->isHidden() )
++		m_portfolioScroll->show();
+ 
+ 	connect(player, SIGNAL(changed(Player *)), portfolioView, SLOT(playerChanged()));
+ 	connect(portfolioView, SIGNAL(newTrade(Player *)), m_atlantikNetwork, SLOT(newTrade(Player *)));
+Index: atlantik/client/atlantik.h
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/client/atlantik.h,v
+retrieving revision 1.68.2.1
+retrieving revision 1.68.2.2
+diff -u -r1.68.2.1 -r1.68.2.2
+--- atlantik/client/atlantik.h	6 Sep 2004 19:11:33 -0000	1.68.2.1
++++ atlantik/client/atlantik.h	10 Oct 2004 02:32:46 -0000	1.68.2.2
+@@ -29,6 +29,8 @@
+ #include "portfolioview.h"
+ #include "board.h"
+ 
++class QScrollView;
++
+ class AtlanticCore;
+ class AtlantikNetwork;
+ 
+@@ -232,6 +234,7 @@
+ 	PortfolioView *addPortfolioView(Player *player);
+ 	PortfolioView *findPortfolioView(Player *player);
+ 
++	QScrollView *m_portfolioScroll;
+ 	QWidget *m_mainWidget, *m_portfolioWidget;
+ 	QGridLayout *m_mainLayout;
+ 	QVBoxLayout *m_portfolioLayout;
+Index: atlantik/client/main.h
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/client/main.h,v
+retrieving revision 1.51.2.1
+retrieving revision 1.51.2.2
+diff -u -r1.51.2.1 -r1.51.2.2
+--- atlantik/client/main.h	6 Sep 2004 19:11:33 -0000	1.51.2.1
++++ atlantik/client/main.h	7 Oct 2004 14:41:53 -0000	1.51.2.2
+@@ -17,12 +17,12 @@
+ #ifndef ATLANTIK_MAIN_H
+ #define ATLANTIK_MAIN_H
+ 
+-#define	ATLANTIK_VERSION 071
+-#define	ATLANTIK_VERSION_STRING "0.7.1"
++#define	ATLANTIK_VERSION 072
++#define	ATLANTIK_VERSION_STRING "0.7.2"
+ 
+ #define ATLANTIK_VERSION_MAJOR 0
+ #define ATLANTIK_VERSION_MINOR 7
+-#define ATLANTIK_VERSION_RELEASE 1
++#define ATLANTIK_VERSION_RELEASE 2
+ 
+ int main(int, char *[]);
+ 
+Index: atlantik/kio_atlantik/kio_atlantik.cpp
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/kio_atlantik/kio_atlantik.cpp,v
+retrieving revision 1.7
+retrieving revision 1.7.2.1
+diff -u -r1.7 -r1.7.2.1
+--- atlantik/kio_atlantik/kio_atlantik.cpp	28 May 2004 17:39:17 -0000	1.7
++++ atlantik/kio_atlantik/kio_atlantik.cpp	7 Oct 2004 14:41:54 -0000	1.7.2.1
+@@ -15,11 +15,9 @@
+ // Boston, MA 02111-1307, USA.
+ 
+ #include <stdlib.h>
++
+ #include <qtextstream.h>
+ 
+-#include <kio/slavebase.h>
+-#include <kinstance.h>
+-#include <kdebug.h>
+ #include <kdeversion.h>
+ #undef KDE_3_1_FEATURES
+ #ifdef KDE_MAKE_VERSION
+@@ -27,6 +25,8 @@
+ #define KDE_3_1_FEATURES
+ #endif
+ #endif
++#include <kio/slavebase.h>
++#include <kinstance.h>
+ #include <kprocess.h>
+ 
+ #include "kio_atlantik.h"
+@@ -48,20 +48,19 @@
+ 	*proc << "atlantik";
+ 
+ #ifdef KDE_3_1_FEATURES
+-	QString host = KProcess::quote(url.queryItem("host"));
+-	QString port = KProcess::quote(url.queryItem("port"));
+-	QString game = KProcess::quote(url.queryItem("game"));
++	QString host = url.hasHost() ? url.host() : KProcess::quote( url.queryItem("host") );
+ #else
+-	QString host = url.queryItem("host"));
+-	QString port = url.queryItem("port"));
+-	QString game = url.queryItem("game"));
++	QString host = url.hasHost() ? url.host() : url.queryItem("host");
+ #endif
++	QString port = QString::number( url.port() ? url.port() : 1234 );
++	int game = url.queryItem("game").toInt();
++	QString gameString = game ? QString::number( game ) : QString::null;
+ 
+ 	if (!host.isNull() && !port.isNull())
+ 	{
+ 		*proc << "--host" << host << "--port" << port;
+-		if (!game.isNull())
+-			*proc << "--game" << game;
++		if (!gameString.isNull())
++			*proc << "--game" << gameString;
+ 	}
+ 
+ 	proc->start(KProcess::DontCare);
+Index: atlantik/libatlantic/trade.cpp
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/libatlantic/trade.cpp,v
+retrieving revision 1.26
+retrieving revision 1.26.2.1
+diff -u -r1.26 -r1.26.2.1
+--- atlantik/libatlantic/trade.cpp	10 Feb 2004 19:46:35 -0000	1.26
++++ atlantik/libatlantic/trade.cpp	14 Oct 2004 01:28:30 -0000	1.26.2.1
+@@ -38,29 +38,20 @@
+ 
+ void Trade::addPlayer(Player *player)
+ {
+-	mPlayers.append(player);
+ 	m_playerAcceptMap[player] = false;
+ }
+ 
+ void Trade::removePlayer(Player *player)
+ {
+-	mPlayers.remove(player);
+ 	m_playerAcceptMap[player] = false;
+ }
+ 
+-QPtrList<Player> Trade::players() const
+-{
+-	return mPlayers;
+-}
+-
+-unsigned int Trade::acceptCount()
++unsigned int Trade::count( bool acceptOnly )
+ {
+ 	unsigned int count = 0;
+ 	for (QMapIterator<Player *, bool> it = m_playerAcceptMap.begin() ; it != m_playerAcceptMap.end() ; ++it)
+-	{
+-		if (it.data())
++		if ( !acceptOnly || it.data() )
+ 			count++;
+-	}
+ 	return count;
+ }
+ 
+Index: atlantik/libatlantic/trade.h
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/libatlantic/trade.h,v
+retrieving revision 1.20
+retrieving revision 1.20.2.1
+diff -u -r1.20 -r1.20.2.1
+--- atlantik/libatlantic/trade.h	10 Feb 2004 19:46:35 -0000	1.20
++++ atlantik/libatlantic/trade.h	14 Oct 2004 01:28:30 -0000	1.20.2.1
+@@ -107,8 +107,7 @@
+ 	void addPlayer(Player *player);
+ 	void removePlayer(Player *player);
+ 	
+-	QPtrList<Player> players() const;
+-	unsigned int acceptCount();
++	unsigned int count( bool acceptOnly );
+ 
+ 	bool isRejected() { return m_rejected; }
+ 	
+Index: atlantik/libatlantikui/trade_widget.cpp
+===================================================================
+RCS file: /home/kde/kdegames/atlantik/libatlantikui/trade_widget.cpp,v
+retrieving revision 1.46
+retrieving revision 1.46.2.1
+diff -u -r1.46 -r1.46.2.1
+--- atlantik/libatlantikui/trade_widget.cpp	10 Feb 2004 19:46:36 -0000	1.46
++++ atlantik/libatlantikui/trade_widget.cpp	14 Oct 2004 01:28:30 -0000	1.46.2.1
+@@ -143,7 +143,7 @@
+ 
+ 	m_status = new QLabel(this);
+ 	listCompBox->addWidget(m_status);
+-	m_status->setText(i18n("%1 out of %2 players accept current trade proposal.").arg(m_trade->acceptCount()).arg(m_trade->players().count()));
++	m_status->setText( i18n( "%1 out of %2 players accept current trade proposal." ).arg( m_trade->count( true ) ).arg( m_trade->count( false ) ) );
+ 
+ //	mPlayerList->header()->hide();
+ //	mPlayerList->setRootIsDecorated(true);
+@@ -216,7 +216,7 @@
+ {
+ 	// TODO: add notification whether playerSelf has accepted or not and
+ 	// enable/disable accept button based on that
+-	m_status->setText(i18n("%1 out of %2 players accept current trade proposal.").arg(m_trade->acceptCount()).arg(m_trade->players().count()));
++	m_status->setText( i18n( "%1 out of %2 players accept current trade proposal." ).arg( m_trade->count( true ) ).arg( m_trade->count( false ) ) );
+ }
+ 
+ void TradeDisplay::playerChanged(Player *player)
+Index: kasteroids/kasteroids.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kasteroids/kasteroids.desktop,v
+retrieving revision 1.250.2.1
+retrieving revision 1.250.2.2
+diff -u -r1.250.2.1 -r1.250.2.2
+--- kasteroids/kasteroids.desktop	24 Aug 2004 06:26:52 -0000	1.250.2.1
++++ kasteroids/kasteroids.desktop	24 Oct 2004 07:03:55 -0000	1.250.2.2
+@@ -3,6 +3,7 @@
+ BinaryPattern=kasteroids;
+ Name=KAsteroids
+ Name[af]=Kasteroids
++Name[ar]=لعبة الكويكبات (KAsteroids)
+ Name[bn]=কে-অ্যাস্টেরয়েড
+ Name[eo]=Asteroidoj
+ Name[hi]=के-एस्टरॉइड्स
+@@ -24,12 +25,14 @@
+ Exec=kasteroids %i %m -caption "%c"
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: katomic/katomic.desktop
+===================================================================
+RCS file: /home/kde/kdegames/katomic/katomic.desktop,v
+retrieving revision 1.272.2.1
+retrieving revision 1.272.2.2
+diff -u -r1.272.2.1 -r1.272.2.2
+--- katomic/katomic.desktop	24 Aug 2004 06:26:54 -0000	1.272.2.1
++++ katomic/katomic.desktop	24 Oct 2004 07:03:55 -0000	1.272.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KAtomic
+ Name[af]=Katomic
++Name[ar]=لعبة التركيب الجزيئي الكيميائي (KAtomic)
+ Name[bn]=কে-অ্যাটমিক
+ Name[eo]=Atomoj
+ Name[hi]=के-एटॉमिक
+@@ -20,12 +21,14 @@
+ DocPath=katomic/index.html
+ GenericName=Logic Game
+ GenericName[af]=Logika Speletjie
++GenericName[ar]=لعبة منطق
+ GenericName[be]=Лягічная гульня
+ GenericName[bg]=Логическа игра
+ GenericName[bn]=যুক্তির খেলা
+ GenericName[bs]=Logička igra
+ GenericName[ca]=Joc de lògica
+ GenericName[cs]=Logická hra
++GenericName[cy]=Gêm Rhesymeg
+ GenericName[da]=Logikspil
+ GenericName[de]=Logikspiel
+ GenericName[el]=Παιχνίδι λογικής
+Index: kbackgammon/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/kbackgammon/eventsrc,v
+retrieving revision 1.124.2.2
+retrieving revision 1.124.2.3
+diff -u -r1.124.2.2 -r1.124.2.3
+--- kbackgammon/eventsrc	31 Aug 2004 07:20:01 -0000	1.124.2.2
++++ kbackgammon/eventsrc	24 Oct 2004 07:03:56 -0000	1.124.2.3
+@@ -2,6 +2,7 @@
+ IconName=kbackgammon
+ Comment=KBackgammon
+ Comment[af]=Kbackgammon
++Comment[ar]=لعبة النرد/الطاولة (KBackgammon)
+ Comment[bn]=কে-ব্যাকগ্যামোন
+ Comment[cs]=Vrchcáby
+ Comment[eo]=Bakgamono
+@@ -21,9 +22,11 @@
+ [game over w]
+ Name=Game over, you won
+ Name[af]=Speletjie bo, jy wen
++Name[ar]=اللعبة انتهت، لقد فزت
+ Name[az]=Oyun Qurtardı, siz uddunuz
+ Name[bg]=Спечелихте
+ Name[bn]=খেল খতম, আপনি জিতেছেন
++Name[br]=Echu an abadenn, aet out ar maout
+ Name[bs]=Igra završena, vi ste pobjednik
+ Name[ca]=Final del joc, heu guanyat
+ Name[cs]=Konec hry, vyhrál(a) jste
+@@ -76,6 +79,7 @@
+ Name[zu]=Umdlalo uphelile, uphemelele
+ Comment=You have won the current game of backgammon
+ Comment[af]=Jy het wen die huidige speletjie van backgammon
++Comment[ar]=لقد فزت اللعبة الحالية من لعبة النرد/الطاولة
+ Comment[az]=Hazırkı nərdtaxta oyununu uddunuz
+ Comment[bg]=Спечелихте
+ Comment[bn]=এই ব্যাকগ্যামোন খেলাটি আপনি জিতেছেন
+@@ -132,6 +136,7 @@
+ [game over l]
+ Name=Gamo over, you lost
+ Name[af]=Speletjie bo, jy verloor
++Name[ar]=اللعبة انتهت، لقد خسرت
+ Name[az]=Oyun Qurtardı, siz uduzdunuz
+ Name[bg]=Загубихте
+ Name[bn]=খেল খতম, আপনি হেরে গিয়েছেন
+@@ -188,6 +193,7 @@
+ Name[zu]=Umdlalo uphellile, uhluliwe
+ Comment=You have lost the current game of backgammon
+ Comment[af]=Jy het verloor die huidige speletjie van backgammon
++Comment[ar]=لقد خسرت اللعبة الحالية من لعبة النرد/الطاولة
+ Comment[az]=Hazırkı nərdtaxta oyununu uduzdunuz
+ Comment[bg]=Загубихте
+ Comment[bn]=এই ব্যাকগ্যামোন খেলাটি আপনি হেরেছেন
+@@ -348,6 +354,7 @@
+ [roll]
+ Name=Roll the dice
+ Name[af]=Rol die dobbelsteen
++Name[ar]=ارمي النرد
+ Name[az]=Zərləri at
+ Name[bg]=Хвърляне на заровете
+ Name[bn]=পাশা গড়ান
+@@ -401,6 +408,7 @@
+ Name[zu]=Gingqa idayisi
+ Comment=It's your turn to roll the dice
+ Comment[af]=Dit is jou skakel na rol die dobbelsteen
++Comment[ar]=لقد حان دورك لرمي النرد
+ Comment[az]=Zərləri atmaqda sizin sıranız gəldi
+ Comment[bg]=Хвърляне на заровете
+ Comment[bn]=এখন আপনার পাশা গড়ানোর পালা
+@@ -560,6 +568,7 @@
+ [invitation]
+ Name=Game invitation
+ Name[af]=Speletjie uitnodiging
++Name[ar]=دعوة إلى لعبة
+ Name[az]=Oyuna Dəvət
+ Name[bg]=Покана за игра
+ Name[bn]=খেলার আমন্ত্রণ
+@@ -614,6 +623,7 @@
+ Name[zu]=Isimemo somdlalo
+ Comment=Somebody has invited you to a match
+ Comment[af]=Iemand het uitgenooi jy na 'n ooreenstem
++Comment[ar]=لقد دعاك أحد لمباراة
+ Comment[az]=Biri sizi oyuna dəvət etdi
+ Comment[bg]=Покана за игра
+ Comment[bn]=কেউ একজন আপনাকে একটি ম্যাচে আমন্ত্রণ জানিয়েছে
+Index: kbackgammon/kbackgammon.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kbackgammon/kbackgammon.desktop,v
+retrieving revision 1.153.2.2
+retrieving revision 1.153.2.3
+diff -u -r1.153.2.2 -r1.153.2.3
+--- kbackgammon/kbackgammon.desktop	31 Aug 2004 07:20:02 -0000	1.153.2.2
++++ kbackgammon/kbackgammon.desktop	24 Oct 2004 07:03:56 -0000	1.153.2.3
+@@ -3,6 +3,7 @@
+ Exec=kbackgammon %i %m -caption "%c"
+ Name=KBackgammon
+ Name[af]=Kbackgammon
++Name[ar]=لعبة النرد/الطاولة (KBackgammon)
+ Name[bn]=কে-ব্যাকগ্যামোন
+ Name[cs]=Vrchcáby
+ Name[eo]=Bakgamono
+@@ -23,11 +24,13 @@
+ DocPath=kbackgammon/index.html
+ GenericName=Board Game
+ GenericName[af]=Bord Speletjie
++GenericName[ar]=لعبة لوح
+ GenericName[bg]=Игра на дъска
+ GenericName[bn]=ছককেন্দ্রিক খেলা
+ GenericName[bs]=Igra s pločom
+ GenericName[ca]=Joc de taula
+ GenericName[cs]=Desková Same
++GenericName[cy]=Gêm Bwrdd
+ GenericName[da]=Brætspil
+ GenericName[de]=Brettspiel
+ GenericName[el]=Επιτραπέζιο παιχνίδι
+Index: kbattleship/kbattleship/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/kbattleship/kbattleship/eventsrc,v
+retrieving revision 1.53.2.1
+retrieving revision 1.53.2.2
+diff -u -r1.53.2.1 -r1.53.2.2
+--- kbattleship/kbattleship/eventsrc	24 Aug 2004 06:26:58 -0000	1.53.2.1
++++ kbattleship/kbattleship/eventsrc	24 Oct 2004 07:03:56 -0000	1.53.2.2
+@@ -1,6 +1,7 @@
+ [!Global!]
+ IconName=kbattleship
+ Comment=KBattleship
++Comment[ar]=لعبة سفينة الحرب (KBattleship)
+ Comment[bn]=কে-ব্যাটেলশীপ
+ Comment[cs]=Souboj lodí
+ Comment[de]=Schiffe versenken (KBattleship)
+@@ -17,6 +18,7 @@
+ 
+ [shoot_water]
+ Name=Shot at water
++Name[ar]=إصابة في الماء
+ Name[bg]=Пропуск (стрелба във водата)
+ Name[bn]=পানিতে কামান চালান
+ Name[bs]=Pucanj u vodu
+@@ -56,6 +58,7 @@
+ Name[zh_CN]=向水中射击
+ Name[zh_TW]=水面射擊
+ Comment=Someone has shot at the water
++Comment[ar]=لقد رمى أحدهم على الماء
+ Comment[bg]=Пропуск (стрелба във водата)
+ Comment[bn]=কোনো একজন পানিতে গোলা ছুড়েছে
+ Comment[bs]=Neko je pucao u vodu
+@@ -98,6 +101,7 @@
+ 
+ [shoot_hit_1]
+ Name=Player 1 shot
++Name[ar]=رمية اللاعب 1 
+ Name[bg]=Изстрел на играч 1
+ Name[bn]=প্রথম খেলোয়াড় গোলা ছুড়েছে
+ Name[bs]=Pucanj igrača 1
+@@ -137,6 +141,7 @@
+ Name[zh_CN]=Player 1 射击
+ Name[zh_TW]=玩家 1 射擊
+ Comment=Player 1 takes a shot
++Comment[ar]=اللاعب 1 ي رم 
+ Comment[bg]=Изстрел на играч 1
+ Comment[bn]=প্রথম খেলোয়াড় গোলা ছুড়ছে
+ Comment[bs]=Igrač 1 je na potezu
+@@ -180,6 +185,7 @@
+ 
+ [shoot_hit_2]
+ Name=Player 2 shot
++Name[ar]=رمية اللاعب 2
+ Name[bg]=Изстрел на играч 2
+ Name[bn]=দ্বিতীয় খেলোয়াড় গোলা ছুড়েছে
+ Name[bs]=Pucanj igrača 2
+@@ -219,6 +225,7 @@
+ Name[zh_CN]=Player 2 射击
+ Name[zh_TW]=玩家 2 射擊
+ Comment=Player 2 takes a shot
++Comment[ar]=اللاعب 2 يرمى
+ Comment[bg]=Изстрел на играч 2
+ Comment[bn]=দ্বিতীয় খেলোয়াড় গোলা ছুড়ছে
+ Comment[bs]=Igrač 2 je na potezu
+@@ -262,6 +269,7 @@
+ 
+ [shoot_sink]
+ Name=Sunk ship
++Name[ar]=سفينة مغرقة
+ Name[bg]=Потопен е кораб
+ Name[bn]=ডুবে যাওয়া জাহাজ
+ Name[bs]=Potopljen brod
+@@ -300,6 +308,7 @@
+ Name[zh_CN]=击沉军舰
+ Name[zh_TW]= 沉船
+ Comment=A ship has been sunk
++Comment[ar]=لقد أغرقت سفينة
+ Comment[bg]=Потопен е кораб
+ Comment[bn]=একটি জাহাজ ডুবে গিয়েছে
+ Comment[bs]=Brod je potopljen
+Index: kbattleship/kbattleship/kbattleship.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kbattleship/kbattleship/kbattleship.desktop,v
+retrieving revision 1.152.2.1
+retrieving revision 1.152.2.2
+diff -u -r1.152.2.1 -r1.152.2.2
+--- kbattleship/kbattleship/kbattleship.desktop	24 Aug 2004 06:26:58 -0000	1.152.2.1
++++ kbattleship/kbattleship/kbattleship.desktop	24 Oct 2004 07:03:56 -0000	1.152.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KBattleship
+ Name[af]=Kbattleship
++Name[ar]=لعبة سفينة الحرب (KBattleship)
+ Name[bn]=কে-ব্যাটেলশীপ
+ Name[cs]=Lodě
+ Name[de]=Schiffe versenken
+@@ -26,12 +27,14 @@
+ DocPath=kbattleship/index.html
+ GenericName=Strategy Game
+ GenericName[af]=Strategie Speletjie
++GenericName[ar]=لعبة استراتيجية
+ GenericName[be]=Стратэгічная гульня
+ GenericName[bg]=Стратегическа игра
+ GenericName[bn]=কৌশলের খেলা
+ GenericName[bs]=Strateška igra
+ GenericName[ca]=Joc d'estratègia
+ GenericName[cs]=Strategická hra
++GenericName[cy]=Gêm Strategaeth
+ GenericName[da]=Strategispil
+ GenericName[de]=Strategiespiel
+ GenericName[el]=Παιχνίδι στρατηγικής
+Index: kblackbox/kblackbox.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kblackbox/kblackbox.desktop,v
+retrieving revision 1.262.2.1
+retrieving revision 1.262.2.2
+diff -u -r1.262.2.1 -r1.262.2.2
+--- kblackbox/kblackbox.desktop	24 Aug 2004 06:27:00 -0000	1.262.2.1
++++ kblackbox/kblackbox.desktop	24 Oct 2004 07:03:56 -0000	1.262.2.2
+@@ -2,12 +2,14 @@
+ Encoding=UTF-8
+ GenericName=Logic Game
+ GenericName[af]=Logika Speletjie
++GenericName[ar]=لعبة منطق
+ GenericName[be]=Лягічная гульня
+ GenericName[bg]=Логическа игра
+ GenericName[bn]=যুক্তির খেলা
+ GenericName[bs]=Logička igra
+ GenericName[ca]=Joc de lògica
+ GenericName[cs]=Logická hra
++GenericName[cy]=Gêm Rhesymeg
+ GenericName[da]=Logikspil
+ GenericName[de]=Logikspiel
+ GenericName[el]=Παιχνίδι λογικής
+@@ -60,6 +62,7 @@
+ Exec=kblackbox %i %m -caption "%c"
+ Name=KBlackBox
+ Name[af]=Kblackbox
++Name[ar]=لعبة الصندوق الأسود (KBlackBox)
+ Name[bn]=কে-ব্ল্যাকবক্স
+ Name[eo]=Nigra kesto
+ Name[hi]=के-ब्लेकबॉक्स
+Index: kbounce/kbounce.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kbounce/kbounce.desktop,v
+retrieving revision 1.67.2.1
+retrieving revision 1.67.2.2
+diff -u -r1.67.2.1 -r1.67.2.2
+--- kbounce/kbounce.desktop	24 Aug 2004 06:27:02 -0000	1.67.2.1
++++ kbounce/kbounce.desktop	24 Oct 2004 07:03:57 -0000	1.67.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KBounce
+ Name[af]=K-hop
++Name[ar]=لعبة الإرتداد (KBounce)
+ Name[bn]=কে-বাউন্স
+ Name[eo]=Saltpilko
+ Name[hi]=के-बाउंस
+@@ -19,12 +20,14 @@
+ 
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: kenolaba/kenolaba.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kenolaba/kenolaba.desktop,v
+retrieving revision 1.66.2.2
+retrieving revision 1.66.2.3
+diff -u -r1.66.2.2 -r1.66.2.3
+--- kenolaba/kenolaba.desktop	31 Aug 2004 07:20:05 -0000	1.66.2.2
++++ kenolaba/kenolaba.desktop	24 Oct 2004 07:03:57 -0000	1.66.2.3
+@@ -1,6 +1,7 @@
+ [Desktop Entry]
+ Encoding=UTF-8
+ Name=Kenolaba
++Name[ar]=لعبة Kenolaba
+ Name[bn]=কেনোলাবা
+ Name[eo]=Kenolabo
+ Name[hi]=के-नोलाबा
+@@ -15,11 +16,13 @@
+ DocPath=kenolaba/index.html
+ GenericName=Board Game
+ GenericName[af]=Bord Speletjie
++GenericName[ar]=لعبة لوح
+ GenericName[bg]=Игра на дъска
+ GenericName[bn]=ছককেন্দ্রিক খেলা
+ GenericName[bs]=Igra s pločom
+ GenericName[ca]=Joc de taula
+ GenericName[cs]=Desková Same
++GenericName[cy]=Gêm Bwrdd
+ GenericName[da]=Brætspil
+ GenericName[de]=Brettspiel
+ GenericName[el]=Επιτραπέζιο παιχνίδι
+Index: kfouleggs/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/kfouleggs/eventsrc,v
+retrieving revision 1.64.2.4
+retrieving revision 1.64.2.6
+diff -u -r1.64.2.4 -r1.64.2.6
+--- kfouleggs/eventsrc	30 Sep 2004 14:03:05 -0000	1.64.2.4
++++ kfouleggs/eventsrc	24 Oct 2004 07:03:57 -0000	1.64.2.6
+@@ -1,6 +1,7 @@
+ [!Global!]
+ IconName=kfouleggs
+ Comment=KFoulEggs
++Comment[ar]=لعبة البيضات المعفنة (KFoulEggs)
+ Comment[bn]=কে-ফাউলএগ
+ Comment[cs]=Zkažená vejce
+ Comment[hi]=के-फाउलएग्स
+@@ -13,6 +14,7 @@
+ 
+ [removed]
+ Name=Blocks removed
++Name[ar]=لقد أزيل الطوب
+ Name[bg]=Премахнати са блокове
+ Name[bn]=গুটি সরিয়ে ফেলা হয়েছে
+ Name[bs]=Uklonjeni blokovi
+@@ -91,9 +93,11 @@
+ [game over]
+ Name=Game Over
+ Name[af]=Speletjie Bo
++Name[ar]=اللعبة انتهت
+ Name[az]=Oyun Qurtardı
+ Name[bg]=Край на играта
+ Name[bn]=খেল খতম
++Name[br]=Echu an abadenn
+ Name[bs]=Igra završena
+ Name[ca]=Fi de la partida
+ Name[cs]=Konec hry
+@@ -145,6 +149,7 @@
+ Name[zu]=Umdlalo uphelile
+ Comment=Game over
+ Comment[bg]=Край на играта
++Comment[br]=Echu an abadenn
+ Comment[bs]=Kraj igre
+ Comment[ca]=Fi de la partida
+ Comment[cs]=Hra skončena
+@@ -166,14 +171,16 @@
+ Comment[ru]=Конец игры
+ Comment[sk]=Koniec hry
+ Comment[sr]=Крај игре
+-Comment[sr@Latn]=Крај игре
++Comment[sr@Latn]=Kraj igre
+ Comment[sv]=Spelet slut
+ Comment[ta]=ஆட்டம் முடிந்தது
++Comment[tg]=Бозӣ ба итмом расид
+ Comment[zh_CN]=游戏结束
+ default_presentation=0
+ 
+ [glued]
+ Name=Piece glued
++Name[ar]=لقد ألصقت القطعة
+ Name[bg]=Залепени са парчета
+ Name[bn]=গুটি আটকে রয়েছে
+ Name[bs]=Komad spojen
+@@ -209,6 +216,7 @@
+ Name[zh_CN]=粘连的块数
+ Name[zh_TW]=黏著的小碎片
+ Comment=Piece glued
++Comment[ar]=لقد ألصقت القطعة
+ Comment[bg]=Залепени са парчета
+ Comment[bn]=গুটি আটকে রয়েছে
+ Comment[bs]=Komad spojen
+Index: kfouleggs/kfouleggs.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kfouleggs/kfouleggs.desktop,v
+retrieving revision 1.117.2.1
+retrieving revision 1.117.2.2
+diff -u -r1.117.2.1 -r1.117.2.2
+--- kfouleggs/kfouleggs.desktop	24 Aug 2004 06:27:06 -0000	1.117.2.1
++++ kfouleggs/kfouleggs.desktop	24 Oct 2004 07:03:57 -0000	1.117.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KFoulEggs
+ Name[af]=K-vrot-eier
++Name[ar]=لعبة البيضات المعفنة (KFoulEggs)
+ Name[bn]=কে-ফাউলএগ
+ Name[eo]=Putraj ovoj
+ Name[hi]=के-फाउलएग्स
+@@ -21,12 +22,14 @@
+ DocPath=kfouleggs/index.html
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: kgoldrunner/gamedata/Makefile.am
+===================================================================
+RCS file: /home/kde/kdegames/kgoldrunner/gamedata/Makefile.am,v
+retrieving revision 1.12
+retrieving revision 1.12.4.1
+diff -u -r1.12 -r1.12.4.1
+--- kgoldrunner/gamedata/Makefile.am	11 Oct 2003 11:21:19 -0000	1.12
++++ kgoldrunner/gamedata/Makefile.am	11 Oct 2004 23:34:26 -0000	1.12.4.1
+@@ -8,6 +8,6 @@
+ 	$(mkinstalldirs) $(DESTDIR)$(gamedatadir)
+ 	pwd=`cd $(srcdir) && pwd` ;\
+ 	cd $(DESTDIR)$(gamedatadir) && tar -xf $$pwd/levels.tar ;\
+-	chown -R root.root levels 2> /dev/null || true ;\
++	chown -R root:root levels 2> /dev/null || true ;\
+ 	chmod 644 levels/* 2> /dev/null || true 
+ 
+Index: kgoldrunner/src/KGoldrunner.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kgoldrunner/src/KGoldrunner.desktop,v
+retrieving revision 1.91.2.2
+retrieving revision 1.91.2.3
+diff -u -r1.91.2.2 -r1.91.2.3
+--- kgoldrunner/src/KGoldrunner.desktop	31 Aug 2004 07:20:09 -0000	1.91.2.2
++++ kgoldrunner/src/KGoldrunner.desktop	24 Oct 2004 07:03:58 -0000	1.91.2.3
+@@ -2,6 +2,7 @@
+ [Desktop Entry]
+ Encoding=UTF-8
+ Name=KGoldrunner
++Name[ar]=لعبة البحث عن الذهب (KGoldrunner)
+ Name[bn]=কে-গোল্ডরানার
+ Name[fr]=KGoldRunner
+ Name[hi]=के-गोल्डरनर
+@@ -13,12 +14,14 @@
+ Name[zh_TW]=KGoldrunner 撿金塊
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+@@ -73,6 +76,7 @@
+ MiniIcon=kgoldrunner
+ DocPath=kgoldrunner/index.html
+ Comment=A game of action and puzzle-solving
++Comment[ar]=لعبة حركة وحلَ ألغاز
+ Comment[bg]=Екшън игра с решаване на главоблъсканици
+ Comment[bn]=ধাঁধাঁ ও অ্যাকশন মেশানো এক দারুণ খেলা
+ Comment[bs]=Akciona igra sa rješavanjem zagonetke
+Index: kgoldrunner/src/kgoldrunner.cpp
+===================================================================
+RCS file: /home/kde/kdegames/kgoldrunner/src/kgoldrunner.cpp,v
+retrieving revision 1.16
+retrieving revision 1.16.4.1
+diff -u -r1.16 -r1.16.4.1
+--- kgoldrunner/src/kgoldrunner.cpp	15 Dec 2003 08:10:27 -0000	1.16
++++ kgoldrunner/src/kgoldrunner.cpp	11 Oct 2004 23:34:26 -0000	1.16.4.1
+@@ -938,9 +938,12 @@
+             return;                    		// Stay in Mouse Mode.
+     }
+ 
+-    if (! hero->started)			// Start when first movement
+-	game->startPlaying();			// key is pressed ...
+-    game->heroAction (movement);
++    if ( game->getLevel() != 0 )
++    {
++      if (! hero->started)			// Start when first movement
++        game->startPlaying();			// key is pressed ...
++      game->heroAction (movement);
++    }
+ }
+ 
+ /******************************************************************************/
+Index: kgoldrunner/src/kgrdialog.cpp
+===================================================================
+RCS file: /home/kde/kdegames/kgoldrunner/src/kgrdialog.cpp,v
+retrieving revision 1.11
+retrieving revision 1.11.2.1
+diff -u -r1.11 -r1.11.2.1
+--- kgoldrunner/src/kgrdialog.cpp	26 Jun 2004 07:05:37 -0000	1.11
++++ kgoldrunner/src/kgrdialog.cpp	18 Oct 2004 12:25:06 -0000	1.11.2.1
+@@ -880,10 +880,10 @@
+     ans = QMessageBox::warning (parent, caption,
+ 				"<qt>" + text + "</qt>",
+ 				label0, label1, label2,
+-				0, (label2 == "") ? 1 : 2);
++				0, (label2.isEmpty()) ? 1 : 2);
+ #else
+     // KDE does word-wrapping and will observe "\n" line-breaks.
+-    if (label2 == "") {
++    if (label2.isEmpty()) {
+ 	// Display a box with 2 buttons.
+ 	ans = KMessageBox::questionYesNo (parent, text, caption,
+ 			    label0, label1);
+Index: kgoldrunner/src/kgrgame.cpp
+===================================================================
+RCS file: /home/kde/kdegames/kgoldrunner/src/kgrgame.cpp,v
+retrieving revision 1.17
+retrieving revision 1.17.2.1
+diff -u -r1.17 -r1.17.2.1
+--- kgoldrunner/src/kgrgame.cpp	14 Apr 2004 16:27:24 -0000	1.17
++++ kgoldrunner/src/kgrgame.cpp	11 Oct 2004 23:34:26 -0000	1.17.2.1
+@@ -111,6 +111,8 @@
+     int selectedLevel = selectLevel (startingAt, requestedLevel);
+     if (selectedLevel > 0) {	// If OK, start the selected game and level.
+  	newGame (selectedLevel, selectedGame);
++    } else {
++      level = 0;
+     }
+ }
+ 
+Index: kjumpingcube/kjumpingcube.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kjumpingcube/kjumpingcube.desktop,v
+retrieving revision 1.253.2.1
+retrieving revision 1.253.2.2
+diff -u -r1.253.2.1 -r1.253.2.2
+--- kjumpingcube/kjumpingcube.desktop	24 Aug 2004 06:27:10 -0000	1.253.2.1
++++ kjumpingcube/kjumpingcube.desktop	24 Oct 2004 07:03:58 -0000	1.253.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KJumpingCube
+ Name[af]=Kjumpingcube
++Name[ar]=لعبة المكعب القافز (KJumpingCube)
+ Name[az]=K Hoppanan Kub
+ Name[bn]=কে-জাম্পিংকিউব
+ Name[br]=KDiñsALamm
+@@ -32,6 +33,7 @@
+ DocPath=kjumpingcube/index.html
+ GenericName=Tactical Game
+ GenericName[af]=Taktiese Speletjie
++GenericName[ar]=لعبة تكتيكية
+ GenericName[az]=Taktik oyunu
+ GenericName[be]=Тактычная гульня
+ GenericName[bg]=Тактическа игра
+@@ -40,6 +42,7 @@
+ GenericName[bs]=Taktička igra
+ GenericName[ca]=Joc de tàctica
+ GenericName[cs]=Taktická hra
++GenericName[cy]=Gêm Tactegol
+ GenericName[da]=Taktisk spil
+ GenericName[de]=Taktikspiel
+ GenericName[el]=Παιχνίδι τακτικής
+Index: klickety/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/klickety/eventsrc,v
+retrieving revision 1.60.2.4
+retrieving revision 1.60.2.6
+diff -u -r1.60.2.4 -r1.60.2.6
+--- klickety/eventsrc	30 Sep 2004 14:03:09 -0000	1.60.2.4
++++ klickety/eventsrc	24 Oct 2004 07:03:58 -0000	1.60.2.6
+@@ -1,13 +1,16 @@
+ [!Global!]
+ IconName=klickety
+ Comment=Klickety
++Comment[ar]=لعبة Klickety
+ Comment[bn]=ক্লিকেটি
+ Comment[hi]=के-लिकेटी
+ Comment[ru]=Отпечаток
+ Comment[ta]=கேலிங்கட்டி
++Comment[tg]=KЛикути
+ 
+ [removed]
+ Name=Line removed
++Name[ar]=لقد أزيل الخط
+ Name[bg]=Премахната е линия
+ Name[bn]=লাইন সরিয়ে ফেলা হয়েছে
+ Name[bs]=Uklonjena linija
+@@ -45,6 +48,7 @@
+ Name[zh_CN]=消去的行数
+ Name[zh_TW]=消去的行
+ Comment=Line removed
++Comment[ar]=لقد أزيل الخط
+ Comment[bg]=Премахната е линия
+ Comment[bn]=লাইন সরিয়ে ফেলা হয়েছে
+ Comment[bs]=Uklonjena linija
+@@ -86,9 +90,11 @@
+ [game over]
+ Name=Game Over
+ Name[af]=Speletjie Bo
++Name[ar]=اللعبة انتهت
+ Name[az]=Oyun Qurtardı
+ Name[bg]=Край на играта
+ Name[bn]=খেল খতম
++Name[br]=Echu an abadenn
+ Name[bs]=Igra završena
+ Name[ca]=Fi de la partida
+ Name[cs]=Konec hry
+@@ -140,6 +146,7 @@
+ Name[zu]=Umdlalo uphelile
+ Comment=Game over
+ Comment[bg]=Край на играта
++Comment[br]=Echu an abadenn
+ Comment[bs]=Kraj igre
+ Comment[ca]=Fi de la partida
+ Comment[cs]=Hra skončena
+@@ -161,8 +168,9 @@
+ Comment[ru]=Конец игры
+ Comment[sk]=Koniec hry
+ Comment[sr]=Крај игре
+-Comment[sr@Latn]=Крај игре
++Comment[sr@Latn]=Kraj igre
+ Comment[sv]=Spelet slut
+ Comment[ta]=ஆட்டம் முடிந்தது
++Comment[tg]=Бозӣ ба итмом расид
+ Comment[zh_CN]=游戏结束
+ default_presentation=0
+Index: klickety/klickety.desktop
+===================================================================
+RCS file: /home/kde/kdegames/klickety/klickety.desktop,v
+retrieving revision 1.29.2.2
+retrieving revision 1.29.2.3
+diff -u -r1.29.2.2 -r1.29.2.3
+--- klickety/klickety.desktop	31 Aug 2004 07:20:11 -0000	1.29.2.2
++++ klickety/klickety.desktop	24 Oct 2004 07:03:58 -0000	1.29.2.3
+@@ -1,17 +1,21 @@
+ [Desktop Entry]
+ Name=Klickety
++Name[ar]=لعبة استراتيجية (Klickety)
+ Name[bn]=ক্লিকেটি
+ Name[hi]=के-लिकेटी
+ Name[ru]=Отпечаток
+ Name[ta]=கேலிங்கட்டி
++Name[tg]=КЛикути
+ Name[zu]=I-Klickety
+ GenericName=Board Game
+ GenericName[af]=Bord Speletjie
++GenericName[ar]=لعبة لوح
+ GenericName[bg]=Игра на дъска
+ GenericName[bn]=ছককেন্দ্রিক খেলা
+ GenericName[bs]=Igra s pločom
+ GenericName[ca]=Joc de taula
+ GenericName[cs]=Desková Same
++GenericName[cy]=Gêm Bwrdd
+ GenericName[da]=Brætspil
+ GenericName[de]=Brettspiel
+ GenericName[el]=Επιτραπέζιο παιχνίδι
+Index: klines/klines.desktop
+===================================================================
+RCS file: /home/kde/kdegames/klines/klines.desktop,v
+retrieving revision 1.115.2.1
+retrieving revision 1.115.2.2
+diff -u -r1.115.2.1 -r1.115.2.2
+--- klines/klines.desktop	24 Aug 2004 06:27:14 -0000	1.115.2.1
++++ klines/klines.desktop	24 Oct 2004 07:03:58 -0000	1.115.2.2
+@@ -8,6 +8,7 @@
+ DocPath=klines/index.html
+ GenericName=Tactical Game
+ GenericName[af]=Taktiese Speletjie
++GenericName[ar]=لعبة تكتيكية
+ GenericName[az]=Taktik oyunu
+ GenericName[be]=Тактычная гульня
+ GenericName[bg]=Тактическа игра
+@@ -16,6 +17,7 @@
+ GenericName[bs]=Taktička igra
+ GenericName[ca]=Joc de tàctica
+ GenericName[cs]=Taktická hra
++GenericName[cy]=Gêm Tactegol
+ GenericName[da]=Taktisk spil
+ GenericName[de]=Taktikspiel
+ GenericName[el]=Παιχνίδι τακτικής
+@@ -73,7 +75,9 @@
+ Terminal=0
+ Name=Kolor Lines
+ Name[af]=Kleur Lyne
++Name[ar]=خطوط Kolor
+ Name[bn]=কালার লাইন্স
++Name[br]=Linenn Kolor
+ Name[eo]=Kolorlinioj
+ Name[eu]=Kolor Lineak
+ Name[fr]=KLines
+Index: kmahjongg/kmahjongg.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kmahjongg/kmahjongg.desktop,v
+retrieving revision 1.241.2.1
+retrieving revision 1.241.2.2
+diff -u -r1.241.2.1 -r1.241.2.2
+--- kmahjongg/kmahjongg.desktop	24 Aug 2004 06:27:16 -0000	1.241.2.1
++++ kmahjongg/kmahjongg.desktop	24 Oct 2004 07:03:59 -0000	1.241.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KMahjongg
+ Name[af]=Kmahjong
++Name[ar]=لعبة KMahjongg
+ Name[bn]=কে-মাহজং
+ Name[eo]=Mahjongo
+ Name[hi]=के-महजोंग
+@@ -10,18 +11,20 @@
+ Name[pl]=Mahjongg
+ Name[ru]=Маджонг
+ Name[sv]=Kmahjongg
+-Name[tg]=KМаҷонг
++Name[tg]=KМаҳҷонг
+ Name[th]=มาจง - K
+ Name[zh_TW]=KMahjongg 麻將
+ Exec=kmahjongg %i %m -caption "%c"
+ Type=Application
+ GenericName=Tile Game
+ GenericName[af]=Teël Speletjie
++GenericName[ar]=لعبة قرميد
+ GenericName[bg]=Игра с плочки
+ GenericName[bn]=টালির খেলা
+ GenericName[bs]=Igra s poljima
+ GenericName[ca]=Joc de mosaics
+ GenericName[cs]=Hra s dlaždicemi
++GenericName[cy]=Gêm Teil
+ GenericName[da]=Flisespil
+ GenericName[de]=Spiel mit Steinen
+ GenericName[el]=Παιχνίδι με πούλια
+Index: kmines/data/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/kmines/data/eventsrc,v
+retrieving revision 1.85.2.5
+retrieving revision 1.85.2.7
+diff -u -r1.85.2.5 -r1.85.2.7
+--- kmines/data/eventsrc	30 Sep 2004 14:03:12 -0000	1.85.2.5
++++ kmines/data/eventsrc	24 Oct 2004 07:03:59 -0000	1.85.2.7
+@@ -1,6 +1,7 @@
+ [!Global!]
+ IconName=kmines
+ Comment=KMines
++Comment[ar]=لعبة الألغام (KMines)
+ Comment[bn]=কে-মাইন্স
+ Comment[hi]=के-माइन्स
+ Comment[pt_BR]=KMinas
+@@ -13,6 +14,7 @@
+ 
+ [reveal]
+ Name=Reveal case
++Name[ar]=أظهر القضية
+ Name[bg]=Разкриване
+ Name[bn]=মাইন প্রদর্শন করো
+ Name[bs]=Otkrij polja
+@@ -313,6 +315,7 @@
+ 
+ [explosion]
+ Name=Explosion
++Name[ar]=انفجار
+ Name[bg]=Експлозия
+ Name[bn]=বিস্ফোরণ
+ Name[bs]=Eksplozija
+@@ -390,6 +393,7 @@
+ 
+ [won]
+ Name=Game won
++Name[ar]=ربحت اللعبة
+ Name[bg]=Спечелихте
+ Name[bn]=খেলা জিতেছেন
+ Name[bs]=Pobjeda
+@@ -429,6 +433,7 @@
+ Name[zh_CN]=您赢了游戏
+ Name[zh_TW]=遊戲獲勝
+ Comment=Game won
++Comment[ar]=ربحت اللعبة
+ Comment[bg]=Спечелихте
+ Comment[bn]=খেল খতম
+ Comment[bs]=Pobjeda
+@@ -471,6 +476,7 @@
+ 
+ [lost]
+ Name=Game lost
++Name[ar]=خسرت اللعبة
+ Name[bg]=Загубихте
+ Name[bn]=খেলায় হেরে গিয়েছেন
+ Name[bs]=Poraz
+@@ -510,6 +516,7 @@
+ Name[zh_CN]=您输了游戏
+ Name[zh_TW]=遊戲失敗
+ Comment=Game lost
++Comment[ar]=خسرت اللعبة
+ Comment[bg]=Загубихте
+ Comment[bn]=খেলায় হেরে গিয়েছেন
+ Comment[bs]=Poraz
+@@ -572,9 +579,10 @@
+ Name[ru]=Поставить знак вопроса
+ Name[sk]=Nastaviť otáznik
+ Name[sr]=Постави знак питања
+-Name[sr@Latn]=Постави знак питања
++Name[sr@Latn]=Postavi znak pitanja
+ Name[sv]=Placerade frågetecken
+ Name[ta]=கேள்விக்குறியை அமை
++Name[tg]=Танзим кардани нишони савол
+ Name[zh_CN]=设置了问号
+ Comment=Set question mark
+ Comment[bg]=Поставяне на въпросителна
+@@ -597,9 +605,10 @@
+ Comment[ru]=Поставить знак вопроса
+ Comment[sk]=Nastaviť otáznik
+ Comment[sr]=Постави знак питања
+-Comment[sr@Latn]=Постави знак питања
++Comment[sr@Latn]=Postavi znak pitanja
+ Comment[sv]=Placerade frågetecken
+ Comment[ta]=கேள்விக்குறியை அமை
++Comment[tg]=Танзим кардани нишони савол
+ Comment[zh_CN]=设置了问号
+ default_presentation=0
+ 
+@@ -625,9 +634,10 @@
+ Name[ru]=Снять знак вопроса
+ Name[sk]=Odstrániť otáznik
+ Name[sr]=Скини знак питања
+-Name[sr@Latn]=Скини знак питања
++Name[sr@Latn]=Skini znak pitanja
+ Name[sv]=Tog bort frågetecken
+ Name[ta]=கேள்விக் குறி அமைக்கவில்லை
++Name[tg]=Танзим накардани нишони савол
+ Name[zh_CN]=取消了问号
+ Comment=Unset question mark
+ Comment[bg]=Премахване на въпросителна
+@@ -650,8 +660,9 @@
+ Comment[ru]=Снять знак вопроса
+ Comment[sk]=Odstrániť otáznik
+ Comment[sr]=Скини знак питања
+-Comment[sr@Latn]=Скини знак питања
++Comment[sr@Latn]=Skini znak pitanja
+ Comment[sv]=Tog bort frågetecken
+ Comment[ta]=கேள்விக்குறி நீக்கு
++Comment[tg]=Танзим накардани нишони савол
+ Comment[zh_CN]=取消了问号
+ default_presentation=0
+Index: kmines/data/kmines.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kmines/data/kmines.desktop,v
+retrieving revision 1.240.2.1
+retrieving revision 1.240.2.2
+diff -u -r1.240.2.1 -r1.240.2.2
+--- kmines/data/kmines.desktop	24 Aug 2004 06:27:18 -0000	1.240.2.1
++++ kmines/data/kmines.desktop	24 Oct 2004 07:03:59 -0000	1.240.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KMines
+ Name[af]=Kmyne
++Name[ar]=لعبة الألغام (KMines)
+ Name[bn]=কে-মাইন্স
+ Name[eo]=Minoj
+ Name[hi]=के-माइन्स
+@@ -22,12 +23,14 @@
+ DocPath=kmines/index.html
+ GenericName=Logic Game
+ GenericName[af]=Logika Speletjie
++GenericName[ar]=لعبة منطق
+ GenericName[be]=Лягічная гульня
+ GenericName[bg]=Логическа игра
+ GenericName[bn]=যুক্তির খেলা
+ GenericName[bs]=Logička igra
+ GenericName[ca]=Joc de lògica
+ GenericName[cs]=Logická hra
++GenericName[cy]=Gêm Rhesymeg
+ GenericName[da]=Logikspil
+ GenericName[de]=Logikspiel
+ GenericName[el]=Παιχνίδι λογικής
+Index: kmines/solver/bfield.cpp
+===================================================================
+RCS file: /home/kde/kdegames/kmines/solver/bfield.cpp,v
+retrieving revision 1.10
+retrieving revision 1.10.2.1
+diff -u -r1.10 -r1.10.2.1
+--- kmines/solver/bfield.cpp	26 Feb 2004 05:21:59 -0000	1.10
++++ kmines/solver/bfield.cpp	18 Oct 2004 12:15:02 -0000	1.10.2.1
+@@ -62,7 +62,8 @@
+ {
+     if ( s.length()!=w*h ) return false;
+     uint n = 0;
+-    for (uint i=0; i<s.length(); i++)
++	unsigned int strLength(s.length());
++    for (uint i=0; i<strLength; i++)
+         if ( s[i]=="1" ) n++;
+         else if ( s[i]!="0" ) return false;
+     return ( n==nb );
+@@ -76,7 +77,8 @@
+ 
+     Case tmp;
+     tmp.state = Covered;
+-    for (uint i=0; i<s.length(); i++) {
++	unsigned int strLength(s.length());
++    for (uint i=0; i<strLength; i++) {
+         tmp.mine = ( s[i]=="1" );
+         at(i) = tmp;
+     }
+Index: kolf/kolf.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kolf/kolf.desktop,v
+retrieving revision 1.72.2.1
+retrieving revision 1.72.2.2
+diff -u -r1.72.2.1 -r1.72.2.2
+--- kolf/kolf.desktop	24 Aug 2004 06:27:20 -0000	1.72.2.1
++++ kolf/kolf.desktop	24 Oct 2004 07:03:59 -0000	1.72.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ DocPath=kolf/index.html
+ Name=Kolf
++Name[ar]=لعبة الجولف (Kolf)
+ Name[bn]=কল্‌ফ
+ Name[eo]=Golfo
+ Name[hi]=कोल्फ
+Index: kolf/tutorial.kolf
+===================================================================
+RCS file: /home/kde/kdegames/kolf/tutorial.kolf,v
+retrieving revision 1.108.2.4
+retrieving revision 1.108.2.5
+diff -u -r1.108.2.4 -r1.108.2.5
+--- kolf/tutorial.kolf	22 Sep 2004 14:01:09 -0000	1.108.2.4
++++ kolf/tutorial.kolf	24 Oct 2004 07:03:59 -0000	1.108.2.5
+@@ -1095,6 +1095,7 @@
+ Comment[sr@Latn]=<h3>Crne rupe</h3>Crne rupe transportuju lopticu do svog izlaza i izbacuju je brzinom direktno proporcionalnom brzini kojom je loptica prethodno išla. Izaberite <u>Rupa->Prikaži informacije</u> da biste videli koja crna rupa ima koji izlaz i smer koji će loptica imati kada izađe.
+ Comment[sv]=<h3>Svarta hål</h3>Svarta hål transporterar bollen till sina utgångar, och skickar ut den med en hastighet som är direkt proportionell mot hastigheten som bollen hade. Välj <u>Hål->Visa information</u> för att se vilket svart hål som går till vilken utgång, och i vilken riktning bollen kommer ut.
+ Comment[ta]=<h3>கருப்பு ஓட்டைகள்</h3>கருப்பு ஓட்டைகள் பந்தை வெளியேற்றத்தில் நிறுத்தி பந்து எந்த வேகத்தில் வருகிறதோ அதே வேகத்தில் வெளியேற்றும். தேர்வு <u>ஓட்டை-></u> எந்த கருப்பு ஓட்டை எந்த வழியாக வௌதயேறுகிறது என்பதையும் பந்து வெளியேறும் திசையயும் பார்ப்பதற்கு தகவலை காட்டவும்.
++Comment[tg]=<h3>Сӯрохиҳои Сиёҳ</h3>Сӯрохиҳои Сиёҳ тӯбро ба баромад мебаранд ва онро бо суръате, ки тӯбча дошт, ҳаво медиҳанд.<u>Сӯрохи ->Нишон додани ахборот</u> Барои дидани он, ки сӯрохии сиёҳ ба кадом баромад ва аз кадом самт.
+ Comment[tr]= <h3>Karadelikler</h3>Kara delikler topu çıkışlarına taşırlar ve topuzun hızı ile orantılı bir hız ile dışarı atarlar. <u>Delik->Bilgi Göster</u> seçerek hangi karadeliğin hangi çıkışa sahip olduğunu ve topun çıkış yönünü öğrenebilirsiniz.
+ Comment[xh]=<h3>Imingxuma Emnyama</h3>Imingxuma Emnyama ihambisa ibhola iyokutsho kwindawo yazo yokuphuma, ize iyikhuphe ngqo ngesantya esihlobene kwisantya ibihamba ngaso ibhola yakho. Khetha <u>Umngxuma->Bonisa Ulwazi</u> ze bone ukuba ngowuphi Umngxuma Omnyama ohamba ayokutsho kweliphi icala lendlela nakweyiphi indawo yokuphuma eza kuza kulo ibhola yakho.
+ Comment[zh_CN]=<h3>黑洞</h3>黑洞将球运送到出口处，并根据您的球速按成比例的速度将其弹出。选择<u>球洞->显示信息</u>可查看哪个黑洞对应哪个出口，以及球从出口弹出的方向。
+Index: kolf/x-kolf.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kolf/x-kolf.desktop,v
+retrieving revision 1.75.2.1
+retrieving revision 1.75.2.2
+diff -u -r1.75.2.1 -r1.75.2.2
+--- kolf/x-kolf.desktop	24 Aug 2004 06:27:20 -0000	1.75.2.1
++++ kolf/x-kolf.desktop	24 Oct 2004 07:03:59 -0000	1.75.2.2
+@@ -4,6 +4,7 @@
+ MimeType=application/x-kolf
+ Type=MimeType
+ Comment=Kolf Saved Game
++Comment[ar]=لعبة Kolf محفوظة
+ Comment[bg]=Записана игра на Kolf
+ Comment[bn]=কল্‌ফ খেলা সংরক্ষণ করেছে
+ Comment[bs]=Kolf snimljena igra
+Index: kolf/x-kourse.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kolf/x-kourse.desktop,v
+retrieving revision 1.55.2.2
+retrieving revision 1.55.2.3
+diff -u -r1.55.2.2 -r1.55.2.3
+--- kolf/x-kourse.desktop	13 Sep 2004 14:16:37 -0000	1.55.2.2
++++ kolf/x-kourse.desktop	24 Oct 2004 07:03:59 -0000	1.55.2.3
+@@ -3,6 +3,7 @@
+ Encoding=UTF-8
+ MimeType=application/x-kourse
+ Comment=Kolf course
++Comment[ar]=مضمار Kolf
+ Comment[bg]=Записано игрище на Kolf
+ Comment[bn]=কল্‌ফ কোর্স
+ Comment[bs]=Kolf teren
+Index: kolf/courses/Easy.kolf
+===================================================================
+RCS file: /home/kde/kdegames/kolf/courses/Easy.kolf,v
+retrieving revision 1.97.2.1
+retrieving revision 1.97.2.2
+diff -u -r1.97.2.1 -r1.97.2.2
+--- kolf/courses/Easy.kolf	24 Aug 2004 06:27:21 -0000	1.97.2.1
++++ kolf/courses/Easy.kolf	24 Oct 2004 07:04:00 -0000	1.97.2.2
+@@ -613,6 +613,7 @@
+ [13-sign@219,247|14]
+ Comment=Hit slowly...
+ Comment[af]=Getref stadig...
++Comment[ar]=إضرب ببطء...
+ Comment[bg]=Леки и технични удари...
+ Comment[bn]=ধীরে আঘাত করুন...
+ Comment[bs]=Polako pucaj...
+Index: kolf/courses/Impossible
+===================================================================
+RCS file: /home/kde/kdegames/kolf/courses/Impossible,v
+retrieving revision 1.85.2.1
+retrieving revision 1.85.2.2
+diff -u -r1.85.2.1 -r1.85.2.2
+--- kolf/courses/Impossible	24 Aug 2004 06:27:21 -0000	1.85.2.1
++++ kolf/courses/Impossible	24 Oct 2004 07:04:00 -0000	1.85.2.2
+@@ -1574,6 +1574,7 @@
+ 
+ [17-sign@23,152|20]
+ Comment=Luck
++Comment[ar]=حظ
+ Comment[bg]=Късмет
+ Comment[bn]=ভাগ্য
+ Comment[bs]=Sreća
+@@ -3383,6 +3384,7 @@
+ 
+ [9-sign@146,329|23]
+ Comment=Chaos
++Comment[ar]=فوضى
+ Comment[bg]=Хаос
+ Comment[bn]=গোলমাল
+ Comment[bs]=Haos
+Index: kolf/courses/ReallyEasy
+===================================================================
+RCS file: /home/kde/kdegames/kolf/courses/ReallyEasy,v
+retrieving revision 1.69.2.1
+retrieving revision 1.69.2.2
+diff -u -r1.69.2.1 -r1.69.2.2
+--- kolf/courses/ReallyEasy	24 Aug 2004 06:27:21 -0000	1.69.2.1
++++ kolf/courses/ReallyEasy	24 Oct 2004 07:04:00 -0000	1.69.2.2
+@@ -1,6 +1,7 @@
+ [0-course@-50,-50]
+ Name=Really Easy
+ Name[af]=Rerig Maklike
++Name[ar]=سهل جدا
+ Name[bg]=Елементарно
+ Name[bn]=খুবই সহজ
+ Name[bs]=Stvarno lagano
+Index: kolf/courses/USApro
+===================================================================
+RCS file: /home/kde/kdegames/kolf/courses/USApro,v
+retrieving revision 1.41.2.1
+retrieving revision 1.41.2.2
+diff -u -r1.41.2.1 -r1.41.2.2
+--- kolf/courses/USApro	24 Aug 2004 06:27:21 -0000	1.41.2.1
++++ kolf/courses/USApro	24 Oct 2004 07:04:00 -0000	1.41.2.2
+@@ -853,6 +853,7 @@
+ 
+ [4-sign@201,171|8]
+ Comment=Grand Canyon
++Comment[ar]=الوادي العظيم
+ Comment[bg]=Гранд Каньон
+ Comment[bn]=গ্র্যান্ড ক্যানিয়ন
+ Comment[el]=Γραντ Κάνυον
+@@ -1296,6 +1297,7 @@
+ 
+ [7-sign@11,116|7]
+ Comment=Golden Gate
++Comment[ar]=البوابة الذهبية
+ Comment[bg]=Голдън Гейт
+ Comment[bn]=গোল্ডেন গেট
+ Comment[cs]=Zlatá brána
+@@ -1348,6 +1350,7 @@
+ 
+ [7-sign@98,209|24]
+ Comment=Bay Bridge
++Comment[ar]=جسر الخليج (باي(
+ Comment[bg]=Бей Бридж
+ Comment[bn]=বে ব্রিজ
+ Comment[de]=Bay-Brücke
+Index: konquest/konquest.desktop
+===================================================================
+RCS file: /home/kde/kdegames/konquest/konquest.desktop,v
+retrieving revision 1.249.2.1
+retrieving revision 1.249.2.2
+diff -u -r1.249.2.1 -r1.249.2.2
+--- konquest/konquest.desktop	24 Aug 2004 06:27:23 -0000	1.249.2.1
++++ konquest/konquest.desktop	24 Oct 2004 07:04:00 -0000	1.249.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Icon=konquest
+ Name=Konquest
++Name[ar]=لعبة الإحتلال (Konquest)
+ Name[bn]=কনকোয়েস্ট
+ Name[br]=KAloubadur
+ Name[da]=Erobring
+@@ -23,12 +24,14 @@
+ Type=Application
+ GenericName=Strategy Game
+ GenericName[af]=Strategie Speletjie
++GenericName[ar]=لعبة استراتيجية
+ GenericName[be]=Стратэгічная гульня
+ GenericName[bg]=Стратегическа игра
+ GenericName[bn]=কৌশলের খেলা
+ GenericName[bs]=Strateška igra
+ GenericName[ca]=Joc d'estratègia
+ GenericName[cs]=Strategická hra
++GenericName[cy]=Gêm Strategaeth
+ GenericName[da]=Strategispil
+ GenericName[de]=Strategiespiel
+ GenericName[el]=Παιχνίδι στρατηγικής
+Index: kpat/CHANGES
+===================================================================
+RCS file: /home/kde/kdegames/kpat/CHANGES,v
+retrieving revision 1.8
+retrieving revision 1.8.4.2
+diff -u -r1.8 -r1.8.4.2
+--- kpat/CHANGES	27 Jul 2003 11:44:48 -0000	1.8
++++ kpat/CHANGES	30 Oct 2004 21:46:46 -0000	1.8.4.2
+@@ -1,3 +1,14 @@
++2004-10-30 Inge Wallin <inge@lysator.liu.se>
++
++	- Backport fix for bug 89276: kpat: make nag screen "you have
++	  lost this game" an option
++
++2004-10-19 Inge Wallin <inge@lysator.liu.se>
++
++	- Backport fix for bug 89755: Aces up move counter doesn't
++	  work (idiot.cpp)
++	- bump version to 2.2.1
++
+ since kpat-0.7.3 (18/Nov/1999) <kpat@incense.org>
+ 
+ 	- bugfix in idiot.cpp
+Index: kpat/idiot.cpp
+===================================================================
+RCS file: /home/kde/kdegames/kpat/idiot.cpp,v
+retrieving revision 1.25
+retrieving revision 1.25.4.1
+diff -u -r1.25 -r1.25.4.1
+--- kpat/idiot.cpp	1 May 2003 17:59:22 -0000	1.25
++++ kpat/idiot.cpp	19 Oct 2004 21:31:44 -0000	1.25.4.1
+@@ -80,12 +80,15 @@
+ {
+     if (c->source() == deck) {
+         deal();
++        ++moves;
++        emit setMoves(moves);
+         return true;
+     }
+ 
+     if (c != c->source()->top())
+         return false;
+ 
++    bool  didMove = true;
+     if( canMoveAway(c) )
+         away->add(c, false, false);
+     else if( play[ 0 ]->isEmpty() )
+@@ -96,6 +99,14 @@
+         play[2]->add( c, false, true);
+     else if( play[ 3 ]->isEmpty() )
+         play[3]->add(c, false, true);
++    else
++        didMove = false;
++
++    if (didMove) {
++        ++moves;
++        emit setMoves(moves);
++    }
++
+ 
+     return true; // may be a lie, but noone cares
+ }
+Index: kpat/kpat.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kpat/kpat.desktop,v
+retrieving revision 1.269.2.1
+retrieving revision 1.269.2.2
+diff -u -r1.269.2.1 -r1.269.2.2
+--- kpat/kpat.desktop	24 Aug 2004 06:27:25 -0000	1.269.2.1
++++ kpat/kpat.desktop	24 Oct 2004 07:04:01 -0000	1.269.2.2
+@@ -1,6 +1,7 @@
+ [Desktop Entry]
+ Encoding=UTF-8
+ Name=Patience
++Name[ar]=لعبة الصبر (Patience)
+ Name[az]=Səbir
+ Name[bn]=পেশেন্স
+ Name[br]=Habaskter
+Index: kpat/pwidget.cpp
+===================================================================
+RCS file: /home/kde/kdegames/kpat/pwidget.cpp,v
+retrieving revision 1.115
+retrieving revision 1.115.2.1
+diff -u -r1.115 -r1.115.2.1
+--- kpat/pwidget.cpp	13 Jul 2004 20:40:21 -0000	1.115
++++ kpat/pwidget.cpp	30 Oct 2004 21:46:46 -0000	1.115.2.1
+@@ -430,14 +430,39 @@
+ #endif
+ }
+ 
++
+ void pWidget::gameLost()
+ {
++    QString   dontAskAgainName = "gameLostDontAskAgain";
++
++    // The following code is taken out of kmessagebox.cpp in kdeui.
++    // Is there a better way?
++    KConfig  *config = 0;
++    QString grpNotifMsgs = QString::fromLatin1("Notification Messages");
++
++    config = KGlobal::config();
++    KConfigGroupSaver saver(config, grpNotifMsgs);
++    QString  dontAsk = config->readEntry(dontAskAgainName).lower();
++
++    // If we are ordered never to ask again and to continue the game,
++    // then do so.
++    if (dontAsk == "no")
++	return;
++    // If it says yes, we ask anyway. Just starting a new game would
++    // be incredibly annoying.
++    if (dontAsk == "yes")
++	dontAskAgainName = QString::null;
++
+     if (KMessageBox::questionYesNo(this, i18n("You could not win this game, "
+                                               "but there is always a second try.\nStart a new game?"),
+                                    i18n("Could Not Win!"),
+-                                   i18n("New Game"), KStdGuiItem::cont()) == KMessageBox::Yes)
++                                   i18n("New Game"),
++				   KStdGuiItem::cont(),
++				   dontAskAgainName) == KMessageBox::Yes) {
+         QTimer::singleShot(0, this, SLOT(newGame()));
+- }
++    }
++}
++
+ 
+ void pWidget::openGame(const KURL &url)
+ {
+Index: kpat/version.h
+===================================================================
+RCS file: /home/kde/kdegames/kpat/version.h,v
+retrieving revision 1.16
+retrieving revision 1.16.2.1
+diff -u -r1.16 -r1.16.2.1
+--- kpat/version.h	4 Aug 2004 08:20:15 -0000	1.16
++++ kpat/version.h	19 Oct 2004 21:31:44 -0000	1.16.2.1
+@@ -1,5 +1,5 @@
+ #ifndef KPAT_VERSION
+-#define KPAT_VERSION "2.2"
++#define KPAT_VERSION "2.2.1"
+ #endif
+ 
+ #define settings_group "General Settings"
+Index: kpoker/kpoker.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kpoker/kpoker.desktop,v
+retrieving revision 1.250.2.1
+retrieving revision 1.250.2.2
+diff -u -r1.250.2.1 -r1.250.2.2
+--- kpoker/kpoker.desktop	24 Aug 2004 06:27:27 -0000	1.250.2.1
++++ kpoker/kpoker.desktop	24 Oct 2004 07:04:01 -0000	1.250.2.2
+@@ -23,6 +23,7 @@
+ DocPath=kpoker/index.html
+ GenericName=Card Game
+ GenericName[af]=Kaart Speletjie
++GenericName[ar]=لعبة الورق
+ GenericName[be]=Картачная гульня
+ GenericName[bg]=Покер
+ GenericName[bn]=তাস খেলা
+@@ -30,6 +31,7 @@
+ GenericName[bs]=Igra s kartama
+ GenericName[ca]=Joc de cartes
+ GenericName[cs]=Karty
++GenericName[cy]=Gêm cardiau
+ GenericName[da]=Kortspil
+ GenericName[de]=Kartenspiel
+ GenericName[el]=Παιχνίδι καρτών
+Index: kreversi/kreversi.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kreversi/kreversi.desktop,v
+retrieving revision 1.234.2.2
+retrieving revision 1.234.2.3
+diff -u -r1.234.2.2 -r1.234.2.3
+--- kreversi/kreversi.desktop	31 Aug 2004 07:20:21 -0000	1.234.2.2
++++ kreversi/kreversi.desktop	24 Oct 2004 07:04:01 -0000	1.234.2.3
+@@ -19,11 +19,13 @@
+ DocPath=kreversi/index.html
+ GenericName=Board Game
+ GenericName[af]=Bord Speletjie
++GenericName[ar]=لعبة لوح
+ GenericName[bg]=Игра на дъска
+ GenericName[bn]=ছককেন্দ্রিক খেলা
+ GenericName[bs]=Igra s pločom
+ GenericName[ca]=Joc de taula
+ GenericName[cs]=Desková Same
++GenericName[cy]=Gêm Bwrdd
+ GenericName[da]=Brætspil
+ GenericName[de]=Brettspiel
+ GenericName[el]=Επιτραπέζιο παιχνίδι
+Index: kreversi/sounds/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/kreversi/sounds/eventsrc,v
+retrieving revision 1.35.2.5
+retrieving revision 1.35.2.7
+diff -u -r1.35.2.5 -r1.35.2.7
+--- kreversi/sounds/eventsrc	30 Sep 2004 14:03:15 -0000	1.35.2.5
++++ kreversi/sounds/eventsrc	24 Oct 2004 07:04:01 -0000	1.35.2.7
+@@ -5,10 +5,12 @@
+ Comment[is]=Viðsnúningur
+ Comment[ru]=Реверси
+ Comment[sv]=Kreversi
++Comment[tg]=KРеверсия
+ 
+ [click]
+ Name=Click
+ Name[bg]=Щракване
++Name[br]=Klik
+ Name[bs]=Klikni
+ Name[ca]=Clic
+ Name[da]=Klik
+@@ -28,7 +30,7 @@
+ Name[sk]=Kliknutie
+ Name[sl]=Klik
+ Name[sr]=Кликни
+-Name[sr@Latn]=Кликни
++Name[sr@Latn]=Klikni
+ Name[sv]=Klicka
+ Name[ta]=சொடுக்கு
+ Name[tg]=Ангуштзанӣ
+@@ -54,7 +56,7 @@
+ Comment[sk]=Kliknutie
+ Comment[sl]=Klik
+ Comment[sr]=Кликни
+-Comment[sr@Latn]=Кликни
++Comment[sr@Latn]=Klikni
+ Comment[sv]=Klick
+ Comment[ta]=சொடுக்கு
+ Comment[tg]=Ангушт задан
+@@ -65,6 +67,7 @@
+ 
+ [won]
+ Name=Game won
++Name[ar]=ربحت اللعبة
+ Name[bg]=Спечелихте
+ Name[bn]=খেলা জিতেছেন
+ Name[bs]=Pobjeda
+@@ -104,6 +107,7 @@
+ Name[zh_CN]=您赢了游戏
+ Name[zh_TW]=遊戲獲勝
+ Comment=Game won
++Comment[ar]=ربحت اللعبة
+ Comment[bg]=Спечелихте
+ Comment[bn]=খেল খতম
+ Comment[bs]=Pobjeda
+@@ -147,6 +151,7 @@
+ 
+ [lost]
+ Name=Game lost
++Name[ar]=خسرت اللعبة
+ Name[bg]=Загубихте
+ Name[bn]=খেলায় হেরে গিয়েছেন
+ Name[bs]=Poraz
+@@ -186,6 +191,7 @@
+ Name[zh_CN]=您输了游戏
+ Name[zh_TW]=遊戲失敗
+ Comment=Game lost
++Comment[ar]=خسرت اللعبة
+ Comment[bg]=Загубихте
+ Comment[bn]=খেলায় হেরে গিয়েছেন
+ Comment[bs]=Poraz
+@@ -229,6 +235,7 @@
+ [draw]
+ Name=Draw
+ Name[bg]=Равенство
++Name[br]=Tresañ
+ Name[bs]=Crtaj
+ Name[ca]=Empat
+ Name[da]=Træk
+@@ -249,7 +256,7 @@
+ Name[sk]=Remíza
+ Name[sl]=Poteg
+ Name[sr]=Цртај
+-Name[sr@Latn]=Цртај
++Name[sr@Latn]=Crtaj
+ Name[sv]=Oavgjort
+ Name[ta]=வரை
+ Name[tg]=Кашидан
+@@ -257,6 +264,7 @@
+ Name[zh_CN]=平局
+ Comment=Draw
+ Comment[bg]=Равенство
++Comment[br]=Tresañ
+ Comment[bs]=Crtaj
+ Comment[ca]=Empat
+ Comment[da]=Træk
+@@ -277,7 +285,7 @@
+ Comment[sk]=Remíza
+ Comment[sl]=Poteg
+ Comment[sr]=Цртај
+-Comment[sr@Latn]=Цртај
++Comment[sr@Latn]=Crtaj
+ Comment[sv]=Oavgjort
+ Comment[ta]=வரை
+ Comment[tg]=Кашидан
+@@ -308,7 +316,7 @@
+ Name[sk]=Neplatný ťah
+ Name[sl]=Neveljaven premik
+ Name[sr]=Недозвољен потез
+-Name[sr@Latn]=Недозвољен потез
++Name[sr@Latn]=Nedozvoljen potez
+ Name[sv]=Felaktigt drag
+ Name[ta]=நிகழ்ச்சியை வெளிப்படுத்து
+ Name[tg]=Ҳаракати Нодуруст
+@@ -335,8 +343,9 @@
+ Comment[ru]=Неправильный ход
+ Comment[sk]=Neplatný ťah
+ Comment[sr]=Недозвољен потез
+-Comment[sr@Latn]=Недозвољен потез
++Comment[sr@Latn]=Nedozvoljen potez
+ Comment[sv]=Felaktigt drag
+ Comment[ta]=தவறாண நகர்த்தல்
++Comment[tg]=Ҳаракати нодуруст
+ Comment[zh_CN]=无效移动
+ default_presentation=0
+Index: ksame/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/ksame/eventsrc,v
+retrieving revision 1.148.2.4
+retrieving revision 1.148.2.6
+diff -u -r1.148.2.4 -r1.148.2.6
+--- ksame/eventsrc	30 Sep 2004 14:03:18 -0000	1.148.2.4
++++ ksame/eventsrc	24 Oct 2004 07:04:02 -0000	1.148.2.6
+@@ -36,6 +36,7 @@
+ [stones removed]
+ Name=Removed some stones
+ Name[af]=Verwyder sommige klippe
++Name[ar]=لقد أزيلت بعض الأحجار
+ Name[az]=Bir neçə daş əksildi
+ Name[bg]=Премахнати са топки
+ Name[bn]=কিছু পাথর সরানো হয়েছে
+@@ -110,17 +111,20 @@
+ Comment[ru]=Вы щёлкнули по камешкам, и они исчезли.
+ Comment[sk]=Klikli ste na kamene a tie sa odstránili
+ Comment[sr]=Кликнули сте на неке каменчиће и учинили да нестану
+-Comment[sr@Latn]=Кликнули сте на неке каменчиће и учинили да нестану
++Comment[sr@Latn]=Kliknuli ste na neke kamenčiće i učinili da nestanu
+ Comment[sv]=Du klickade på några stenar och fick dem att försvinna
+ Comment[ta]= நீங்கள் சில கற்கள் மீது அழுத்தி அதை மறைய வைத்துவிட்டீர்கள்
++Comment[tg]=Шумо ба баъзе сангҳо пахш кардед онҳо ғайб шуданд
+ Comment[zh_CN]=您点击了某些石头并让它们消失
+ 
+ [game over]
+ Name=Game Over
+ Name[af]=Speletjie Bo
++Name[ar]=اللعبة انتهت
+ Name[az]=Oyun Qurtardı
+ Name[bg]=Край на играта
+ Name[bn]=খেল খতম
++Name[br]=Echu an abadenn
+ Name[bs]=Igra završena
+ Name[ca]=Fi de la partida
+ Name[cs]=Konec hry
+@@ -192,14 +196,16 @@
+ Comment[ru]=Конец игры - больше нет камешков, которые можно удалять.
+ Comment[sk]=Koniec hry, pretože už nie sú žiadne odstrániteľné kamene
+ Comment[sr]=Игра је завршена јер више нема каменчића које можете уклонити
+-Comment[sr@Latn]=Игра је завршена јер више нема каменчића које можете уклонити
++Comment[sr@Latn]=Igra je završena jer više nema kamenčića koje možete ukloniti
+ Comment[sv]=Spelet är slut för det finns inga flera stenar som kan tas bort
+ Comment[ta]=நீக்குவதற்கு கற்கள் இல்லையென்பதால் ஆட்டம் முடிந்தது
++Comment[tg]=Бозӣ бо итмом расид, зеро ягон сангча барои хориҷкунӣ боқӣ намонд
+ Comment[zh_CN]=没有可移动的石头，游戏结束
+ 
+ [game won]
+ Name=Excellent finish
+ Name[af]=Uitstekende einde
++Name[ar]=نهاية ممتازة
+ Name[az]=Gözəl bir final
+ Name[bg]=Край на играта
+ Name[bn]=চমত্‍কার সমাপ্তি
+@@ -273,7 +279,8 @@
+ Comment[ru]=Конец игры, не осталось ни единого камешка.
+ Comment[sk]=Koniec hry, pretože ste odstránili aj posledný kameň
+ Comment[sr]=Крај игре, уклонили сте све каменчиће
+-Comment[sr@Latn]=Крај игре, уклонили сте све каменчиће
++Comment[sr@Latn]=Kraj igre, uklonili ste sve kamenčiće
+ Comment[sv]=Spelet är slut, du tog bort till och med den sista stenen
+ Comment[ta]=ஆட்டம் முடிந்தது, நீங்கள் இறுதிக்கல்லைக்கூட நீக்கிவிட்டீர்கள்
++Comment[tg]=Бозӣ бо итмом расид, шумо ҳатто санги охиринро хориҷ кардед
+ Comment[zh_CN]=游戏结束，您甚至消去了最后一个石头
+Index: ksame/ksame.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ksame/ksame.desktop,v
+retrieving revision 1.240.2.2
+retrieving revision 1.240.2.3
+diff -u -r1.240.2.2 -r1.240.2.3
+--- ksame/ksame.desktop	31 Aug 2004 07:20:24 -0000	1.240.2.2
++++ ksame/ksame.desktop	24 Oct 2004 07:04:02 -0000	1.240.2.3
+@@ -41,11 +41,13 @@
+ DocPath=ksame/index.html
+ GenericName=Board Game
+ GenericName[af]=Bord Speletjie
++GenericName[ar]=لعبة لوح
+ GenericName[bg]=Игра на дъска
+ GenericName[bn]=ছককেন্দ্রিক খেলা
+ GenericName[bs]=Igra s pločom
+ GenericName[ca]=Joc de taula
+ GenericName[cs]=Desková Same
++GenericName[cy]=Gêm Bwrdd
+ GenericName[da]=Brætspil
+ GenericName[de]=Brettspiel
+ GenericName[el]=Επιτραπέζιο παιχνίδι
+Index: kshisen/kshisen.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kshisen/kshisen.desktop,v
+retrieving revision 1.248.2.1
+retrieving revision 1.248.2.2
+diff -u -r1.248.2.1 -r1.248.2.2
+--- kshisen/kshisen.desktop	24 Aug 2004 06:27:33 -0000	1.248.2.1
++++ kshisen/kshisen.desktop	24 Oct 2004 07:04:02 -0000	1.248.2.2
+@@ -22,11 +22,13 @@
+ Type=Application
+ GenericName=Tile Game
+ GenericName[af]=Teël Speletjie
++GenericName[ar]=لعبة قرميد
+ GenericName[bg]=Игра с плочки
+ GenericName[bn]=টালির খেলা
+ GenericName[bs]=Igra s poljima
+ GenericName[ca]=Joc de mosaics
+ GenericName[cs]=Hra s dlaždicemi
++GenericName[cy]=Gêm Teil
+ GenericName[da]=Flisespil
+ GenericName[de]=Spiel mit Steinen
+ GenericName[el]=Παιχνίδι με πούλια
+Index: ksirtet/ksirtet/eventsrc
+===================================================================
+RCS file: /home/kde/kdegames/ksirtet/ksirtet/eventsrc,v
+retrieving revision 1.63.2.4
+retrieving revision 1.63.2.6
+diff -u -r1.63.2.4 -r1.63.2.6
+--- ksirtet/ksirtet/eventsrc	30 Sep 2004 14:03:20 -0000	1.63.2.4
++++ ksirtet/ksirtet/eventsrc	24 Oct 2004 07:04:03 -0000	1.63.2.6
+@@ -13,6 +13,7 @@
+ 
+ [removed]
+ Name=Line removed
++Name[ar]=لقد أزيل الخط
+ Name[bg]=Премахната е линия
+ Name[bn]=লাইন সরিয়ে ফেলা হয়েছে
+ Name[bs]=Uklonjena linija
+@@ -50,6 +51,7 @@
+ Name[zh_CN]=消去的行数
+ Name[zh_TW]=消去的行
+ Comment=Line removed
++Comment[ar]=لقد أزيل الخط
+ Comment[bg]=Премахната е линия
+ Comment[bn]=লাইন সরিয়ে ফেলা হয়েছে
+ Comment[bs]=Uklonjena linija
+@@ -91,9 +93,11 @@
+ [game over]
+ Name=Game Over
+ Name[af]=Speletjie Bo
++Name[ar]=اللعبة انتهت
+ Name[az]=Oyun Qurtardı
+ Name[bg]=Край на играта
+ Name[bn]=খেল খতম
++Name[br]=Echu an abadenn
+ Name[bs]=Igra završena
+ Name[ca]=Fi de la partida
+ Name[cs]=Konec hry
+@@ -145,6 +149,7 @@
+ Name[zu]=Umdlalo uphelile
+ Comment=Game over
+ Comment[bg]=Край на играта
++Comment[br]=Echu an abadenn
+ Comment[bs]=Kraj igre
+ Comment[ca]=Fi de la partida
+ Comment[cs]=Hra skončena
+@@ -166,14 +171,16 @@
+ Comment[ru]=Конец игры
+ Comment[sk]=Koniec hry
+ Comment[sr]=Крај игре
+-Comment[sr@Latn]=Крај игре
++Comment[sr@Latn]=Kraj igre
+ Comment[sv]=Spelet slut
+ Comment[ta]=ஆட்டம் முடிந்தது
++Comment[tg]=Бозӣ ба итмом расид
+ Comment[zh_CN]=游戏结束
+ default_presentation=0
+ 
+ [glued]
+ Name=Piece glued
++Name[ar]=لقد ألصقت القطعة
+ Name[bg]=Залепени са парчета
+ Name[bn]=গুটি আটকে রয়েছে
+ Name[bs]=Komad spojen
+@@ -209,6 +216,7 @@
+ Name[zh_CN]=粘连的块数
+ Name[zh_TW]=黏著的小碎片
+ Comment=Piece glued
++Comment[ar]=لقد ألصقت القطعة
+ Comment[bg]=Залепени са парчета
+ Comment[bn]=গুটি আটকে রয়েছে
+ Comment[bs]=Komad spojen
+Index: ksirtet/ksirtet/ksirtet.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ksirtet/ksirtet/ksirtet.desktop,v
+retrieving revision 1.118.2.1
+retrieving revision 1.118.2.2
+diff -u -r1.118.2.1 -r1.118.2.2
+--- ksirtet/ksirtet/ksirtet.desktop	24 Aug 2004 06:27:35 -0000	1.118.2.1
++++ ksirtet/ksirtet/ksirtet.desktop	24 Oct 2004 07:04:03 -0000	1.118.2.2
+@@ -18,12 +18,14 @@
+ DocPath=ksirtet/index.html
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: ksmiletris/ksmiletris.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ksmiletris/ksmiletris.desktop,v
+retrieving revision 1.243.2.1
+retrieving revision 1.243.2.2
+diff -u -r1.243.2.1 -r1.243.2.2
+--- ksmiletris/ksmiletris.desktop	24 Aug 2004 06:27:37 -0000	1.243.2.1
++++ ksmiletris/ksmiletris.desktop	24 Oct 2004 07:04:03 -0000	1.243.2.2
+@@ -4,12 +4,14 @@
+ MimeType=
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: ksnake/ksnake.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ksnake/ksnake.desktop,v
+retrieving revision 1.265.2.1
+retrieving revision 1.265.2.2
+diff -u -r1.265.2.1 -r1.265.2.2
+--- ksnake/ksnake.desktop	24 Aug 2004 06:27:39 -0000	1.265.2.1
++++ ksnake/ksnake.desktop	24 Oct 2004 07:04:03 -0000	1.265.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ Name=KSnakeRace
+ Name[af]=K-slang-resies
++Name[ar]=لعبة سباق الأفعى (KSnakeRace)
+ Name[bn]=কে-স্নেকরেস
+ Name[ca]=Cursa de serps
+ Name[eo]=Serpentkurado
+@@ -28,12 +29,14 @@
+ DocPath=ksnake/index.html
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: ksokoban/data/ksokoban.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ksokoban/data/ksokoban.desktop,v
+retrieving revision 1.248.2.1
+retrieving revision 1.248.2.2
+diff -u -r1.248.2.1 -r1.248.2.2
+--- ksokoban/data/ksokoban.desktop	24 Aug 2004 06:27:41 -0000	1.248.2.1
++++ ksokoban/data/ksokoban.desktop	24 Oct 2004 07:04:04 -0000	1.248.2.2
+@@ -17,12 +17,14 @@
+ Name[zu]=I-KSokoban
+ GenericName=Logic Game
+ GenericName[af]=Logika Speletjie
++GenericName[ar]=لعبة منطق
+ GenericName[be]=Лягічная гульня
+ GenericName[bg]=Логическа игра
+ GenericName[bn]=যুক্তির খেলা
+ GenericName[bs]=Logička igra
+ GenericName[ca]=Joc de lògica
+ GenericName[cs]=Logická hra
++GenericName[cy]=Gêm Rhesymeg
+ GenericName[da]=Logikspil
+ GenericName[de]=Logikspiel
+ GenericName[el]=Παιχνίδι λογικής
+Index: kspaceduel/kspaceduel.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kspaceduel/kspaceduel.desktop,v
+retrieving revision 1.255.2.1
+retrieving revision 1.255.2.2
+diff -u -r1.255.2.1 -r1.255.2.2
+--- kspaceduel/kspaceduel.desktop	24 Aug 2004 06:27:43 -0000	1.255.2.1
++++ kspaceduel/kspaceduel.desktop	24 Oct 2004 07:04:05 -0000	1.255.2.2
+@@ -5,6 +5,7 @@
+ BinaryPattern=kspaceduel;
+ Name=KSpaceDuel
+ Name[af]=K-ruimte-uitdaging
++Name[ar]=لعبة مبارزة الفضاء (KSpaceDuel)
+ Name[bn]=কে-স্পেসডুয়েল
+ Name[eo]=Spacduelo
+ Name[hi]=के-स्पेसड्यूएल
+@@ -27,12 +28,14 @@
+ Exec=kspaceduel %i %m -caption "%c"
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: ktron/ktron.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ktron/ktron.desktop,v
+retrieving revision 1.245.2.1
+retrieving revision 1.245.2.2
+diff -u -r1.245.2.1 -r1.245.2.2
+--- ktron/ktron.desktop	24 Aug 2004 06:27:45 -0000	1.245.2.1
++++ ktron/ktron.desktop	24 Oct 2004 07:04:05 -0000	1.245.2.2
+@@ -6,12 +6,14 @@
+ DocPath=ktron/index.html
+ GenericName=Arcade Game
+ GenericName[af]=Arkade Speletjie
++GenericName[ar]=لعبة أركيد
+ GenericName[be]=Аркадная гульня
+ GenericName[bg]=Аркадна игра
+ GenericName[bn]=আর্কেড (Arcade) জাতীয় খেলা
+ GenericName[bs]=Arkadna igra
+ GenericName[ca]=Joc arcade
+ GenericName[cs]=Arkádová hra
++GenericName[cy]=Gêm Arcêd
+ GenericName[da]=Arkade-videospil
+ GenericName[de]=Arkade-Spiel
+ GenericName[el]=Arcade παιχνίδι
+Index: ktuberling/ktuberling.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ktuberling/ktuberling.desktop,v
+retrieving revision 1.240.2.2
+retrieving revision 1.240.2.3
+diff -u -r1.240.2.2 -r1.240.2.3
+--- ktuberling/ktuberling.desktop	31 Aug 2004 07:20:28 -0000	1.240.2.2
++++ ktuberling/ktuberling.desktop	24 Oct 2004 07:04:05 -0000	1.240.2.3
+@@ -3,6 +3,7 @@
+ Exec=ktuberling %i %m -caption "%c" %u
+ Name=Potato Guy
+ Name[af]=Aartappel Man
++Name[ar]=لعبة رجل البطاطا
+ Name[az]=Kartof Adam
+ Name[bn]=পটাটো গাই
+ Name[br]=Paotr ar patatez
+@@ -50,6 +51,7 @@
+ Name[zu]=I-Potato Guy
+ GenericName=Game for Children
+ GenericName[af]=Speletjie vir Kinders
++GenericName[ar]=لعبة للأطفال
+ GenericName[bg]=Игра за деца
+ GenericName[bn]=পোলাপানের খেলা
+ GenericName[bs]=Igra za djecu
+Index: ktuberling/x-tuberling.desktop
+===================================================================
+RCS file: /home/kde/kdegames/ktuberling/x-tuberling.desktop,v
+retrieving revision 1.29.2.2
+retrieving revision 1.29.2.3
+diff -u -r1.29.2.2 -r1.29.2.3
+--- ktuberling/x-tuberling.desktop	31 Aug 2004 07:20:28 -0000	1.29.2.2
++++ ktuberling/x-tuberling.desktop	24 Oct 2004 07:04:05 -0000	1.29.2.3
+@@ -3,8 +3,10 @@
+ Encoding=UTF-8
+ MimeType=application/x-tuberling
+ Comment=Potato
++Comment[ar]=بطاطا
+ Comment[bg]=Картоф
+ Comment[bn]=আলু
++Comment[br]=Patatez
+ Comment[bs]=Krompir
+ Comment[cs]=Brambora
+ Comment[da]=Kartoffel
+Index: kwin4/kwin4.desktop
+===================================================================
+RCS file: /home/kde/kdegames/kwin4/kwin4.desktop,v
+retrieving revision 1.118.2.1
+retrieving revision 1.118.2.2
+diff -u -r1.118.2.1 -r1.118.2.2
+--- kwin4/kwin4.desktop	24 Aug 2004 06:27:49 -0000	1.118.2.1
++++ kwin4/kwin4.desktop	24 Oct 2004 07:04:05 -0000	1.118.2.2
+@@ -19,12 +19,14 @@
+ Name[zu]=I-KWin4
+ GenericName=Strategy Game
+ GenericName[af]=Strategie Speletjie
++GenericName[ar]=لعبة استراتيجية
+ GenericName[be]=Стратэгічная гульня
+ GenericName[bg]=Стратегическа игра
+ GenericName[bn]=কৌশলের খেলা
+ GenericName[bs]=Strateška igra
+ GenericName[ca]=Joc d'estratègia
+ GenericName[cs]=Strategická hra
++GenericName[cy]=Gêm Strategaeth
+ GenericName[da]=Strategispil
+ GenericName[de]=Strategiespiel
+ GenericName[el]=Παιχνίδι στρατηγικής
+Index: libkdegames/carddecks/cards-aisleriot/index.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/cards-aisleriot/index.desktop,v
+retrieving revision 1.54.2.1
+retrieving revision 1.54.2.2
+diff -u -r1.54.2.1 -r1.54.2.2
+--- libkdegames/carddecks/cards-aisleriot/index.desktop	24 Aug 2004 06:27:52 -0000	1.54.2.1
++++ libkdegames/carddecks/cards-aisleriot/index.desktop	24 Oct 2004 07:04:06 -0000	1.54.2.2
+@@ -13,6 +13,7 @@
+ Name[ru]=ЭшлРиот (коллекция пасьянсов)
+ Name[sv]=Kyrkouppror
+ Name[ta]= அய்ஸில்ரியாட்
++Name[tg]=АйслРиот
+ Name[uk]=Заколот на човні
+ Name[vi]= AisleRiot
+ Name[zu]=I-AisleRiot
+Index: libkdegames/carddecks/cards-default/index.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/cards-default/index.desktop,v
+retrieving revision 1.115.2.2
+retrieving revision 1.115.2.3
+diff -u -r1.115.2.2 -r1.115.2.3
+--- libkdegames/carddecks/cards-default/index.desktop	13 Sep 2004 14:16:43 -0000	1.115.2.2
++++ libkdegames/carddecks/cards-default/index.desktop	24 Oct 2004 07:04:06 -0000	1.115.2.3
+@@ -4,8 +4,10 @@
+ Name[az]=Standart
+ Name[bg]=Стандарт
+ Name[bn]=প্রমিত
++Name[br]=Reoliek
+ Name[ca]=Estàndard
+ Name[cs]=Standardní
++Name[cy]=Safonol
+ Name[eo]=Normala
+ Name[es]=Estándar
+ Name[fi]=Normaali
+Index: libkdegames/carddecks/cards-penguins/index.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/cards-penguins/index.desktop,v
+retrieving revision 1.93.2.1
+retrieving revision 1.93.2.2
+diff -u -r1.93.2.1 -r1.93.2.2
+--- libkdegames/carddecks/cards-penguins/index.desktop	24 Aug 2004 06:27:54 -0000	1.93.2.1
++++ libkdegames/carddecks/cards-penguins/index.desktop	24 Oct 2004 07:04:06 -0000	1.93.2.2
+@@ -1,6 +1,7 @@
+ [KDE Backdeck]
+ Name=Penguins
+ Name[af]=Pikkewyne
++Name[ar]=بطاريق
+ Name[az]=Pinqvinlər
+ Name[bg]=Пингвин
+ Name[bn]=পেঙ্গুইন
+Index: libkdegames/carddecks/cards-warwick/index.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/cards-warwick/index.desktop,v
+retrieving revision 1.109.2.1
+retrieving revision 1.109.2.2
+diff -u -r1.109.2.1 -r1.109.2.2
+--- libkdegames/carddecks/cards-warwick/index.desktop	24 Aug 2004 06:27:54 -0000	1.109.2.1
++++ libkdegames/carddecks/cards-warwick/index.desktop	24 Oct 2004 07:04:07 -0000	1.109.2.2
+@@ -1,9 +1,11 @@
+ [KDE Backdeck]
+ Name=Blue Balloon
+ Name[af]=Blou Ballon
++Name[ar]=بالون أزرق
+ Name[az]=Göy Balon
+ Name[bg]=Син балон
+ Name[bn]=নীল বেলুন
++Name[br]=Boull glas
+ Name[bs]=Plavi balon
+ Name[ca]=Pilota blava
+ Name[cs]=Modrý balón
+Index: libkdegames/carddecks/cards-xskat-french/index.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/cards-xskat-french/index.desktop,v
+retrieving revision 1.116.2.5
+retrieving revision 1.116.2.7
+diff -u -r1.116.2.5 -r1.116.2.7
+--- libkdegames/carddecks/cards-xskat-french/index.desktop	30 Sep 2004 14:03:23 -0000	1.116.2.5
++++ libkdegames/carddecks/cards-xskat-french/index.desktop	24 Oct 2004 07:04:07 -0000	1.116.2.7
+@@ -1,6 +1,7 @@
+ [KDE Backdeck]
+ Name=XSkat French
+ Name[bg]=Френски модел
++Name[br]=XSkat gallek
+ Name[bs]=XSkat Francuski
+ Name[ca]=XSkat francès
+ Name[cs]=Francouzský XSkat
+@@ -22,7 +23,7 @@
+ Name[sk]=XSkat francúzsky
+ Name[sl]=Francoski XSkat
+ Name[sr]=XSkat француски
+-Name[sr@Latn]=XSkat француски
++Name[sr@Latn]=XSkat francuski
+ Name[sv]=Fransk X-skat
+ Name[ta]=XSkat ஃபிரண்ச்
+ Name[tg]=XSkat Фаронсавӣ
+Index: libkdegames/carddecks/cards-xskat-german/index.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/cards-xskat-german/index.desktop,v
+retrieving revision 1.20.2.5
+retrieving revision 1.20.2.7
+diff -u -r1.20.2.5 -r1.20.2.7
+--- libkdegames/carddecks/cards-xskat-german/index.desktop	30 Sep 2004 14:03:23 -0000	1.20.2.5
++++ libkdegames/carddecks/cards-xskat-german/index.desktop	24 Oct 2004 07:04:07 -0000	1.20.2.7
+@@ -1,6 +1,7 @@
+ [KDE Backdeck]
+ Name=XSkat German
+ Name[bg]=Немски модел
++Name[br]=XSkat alamanek
+ Name[bs]=XSkat Njemački
+ Name[ca]=XSkat alemany
+ Name[cs]=Německý XSkat
+@@ -22,7 +23,7 @@
+ Name[sk]=XScat nemecký
+ Name[sl]=Nemški XSkat
+ Name[sr]=XSkat немачки
+-Name[sr@Latn]=XSkat немачки
++Name[sr@Latn]=XSkat nemački
+ Name[sv]=Tysk X-skat
+ Name[ta]=XSkat ஜெர்மன்
+ Name[tg]=XSkat Олмонӣ
+Index: libkdegames/carddecks/decks/deck10.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck10.desktop,v
+retrieving revision 1.98.2.1
+retrieving revision 1.98.2.2
+diff -u -r1.98.2.1 -r1.98.2.2
+--- libkdegames/carddecks/decks/deck10.desktop	24 Aug 2004 06:27:55 -0000	1.98.2.1
++++ libkdegames/carddecks/decks/deck10.desktop	24 Oct 2004 07:04:08 -0000	1.98.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Classic Blue
+ Name[af]=Klasieke Blou
++Name[ar]=أزرق كلاسيكي
+ Name[az]=Klassik Göy
+ Name[bg]=Класическо синьо
+ Name[bn]=ক্লাসিক নীল
+Index: libkdegames/carddecks/decks/deck11.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck11.desktop,v
+retrieving revision 1.99.2.1
+retrieving revision 1.99.2.2
+diff -u -r1.99.2.1 -r1.99.2.2
+--- libkdegames/carddecks/decks/deck11.desktop	24 Aug 2004 06:27:55 -0000	1.99.2.1
++++ libkdegames/carddecks/decks/deck11.desktop	24 Oct 2004 07:04:08 -0000	1.99.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Classic Red
+ Name[af]=Klasieke Rooi
++Name[ar]=أحمر كلاسيكي
+ Name[az]=Klassik Qırmızı
+ Name[bg]=Класическо червено
+ Name[bn]=ক্লাসিক লাল
+Index: libkdegames/carddecks/decks/deck13.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck13.desktop,v
+retrieving revision 1.89.2.2
+retrieving revision 1.89.2.3
+diff -u -r1.89.2.2 -r1.89.2.3
+--- libkdegames/carddecks/decks/deck13.desktop	31 Aug 2004 07:20:32 -0000	1.89.2.2
++++ libkdegames/carddecks/decks/deck13.desktop	24 Oct 2004 07:04:08 -0000	1.89.2.3
+@@ -1,12 +1,15 @@
+ [KDE Cards]
+ Name=Copy
+ Name[af]=Kopie
++Name[ar]=إنسخ
+ Name[az]=Köçür
+ Name[bg]=Ръка
+ Name[bn]=কপি
++Name[br]=Eilañ
+ Name[bs]=Kopiraj
+ Name[ca]=Còpia
+ Name[cs]=Kopie
++Name[cy]=Copio
+ Name[da]=Kopi
+ Name[de]=Kopie
+ Name[eo]=Mano
+Index: libkdegames/carddecks/decks/deck14.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck14.desktop,v
+retrieving revision 1.91.2.1
+retrieving revision 1.91.2.2
+diff -u -r1.91.2.1 -r1.91.2.2
+--- libkdegames/carddecks/decks/deck14.desktop	24 Aug 2004 06:27:55 -0000	1.91.2.1
++++ libkdegames/carddecks/decks/deck14.desktop	24 Oct 2004 07:04:08 -0000	1.91.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Penguin
+ Name[af]=Pikkewyn
++Name[ar]=بطريق
+ Name[az]=Pinqvin
+ Name[bg]=Пингвин
+ Name[bn]=পেঙ্গুইন
+Index: libkdegames/carddecks/decks/deck16.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck16.desktop,v
+retrieving revision 1.79.2.1
+retrieving revision 1.79.2.2
+diff -u -r1.79.2.1 -r1.79.2.2
+--- libkdegames/carddecks/decks/deck16.desktop	24 Aug 2004 06:27:55 -0000	1.79.2.1
++++ libkdegames/carddecks/decks/deck16.desktop	24 Oct 2004 07:04:08 -0000	1.79.2.2
+@@ -1,9 +1,11 @@
+ [KDE Cards]
+ Name=Grandma
+ Name[af]=Ouma
++Name[ar]=جدَة
+ Name[az]=Nənə
+ Name[bg]=Стар стил
+ Name[bn]=ঠাকুরমা, দাদী, নানী ইত্যাদি
++Name[br]=Mamm-goz
+ Name[ca]=Àvia
+ Name[cs]=Babička
+ Name[da]=Bedstemor
+Index: libkdegames/carddecks/decks/deck17.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck17.desktop,v
+retrieving revision 1.97.2.1
+retrieving revision 1.97.2.2
+diff -u -r1.97.2.1 -r1.97.2.2
+--- libkdegames/carddecks/decks/deck17.desktop	24 Aug 2004 06:27:55 -0000	1.97.2.1
++++ libkdegames/carddecks/decks/deck17.desktop	24 Oct 2004 07:04:08 -0000	1.97.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Modern Red
+ Name[af]=Moderne Rooi
++Name[ar]=أحمر حديث
+ Name[az]=Çağdaş Qırmızı
+ Name[bg]=Модерно червено
+ Name[bn]=আধুনিক লাল
+Index: libkdegames/carddecks/decks/deck19.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck19.desktop,v
+retrieving revision 1.83.2.1
+retrieving revision 1.83.2.2
+diff -u -r1.83.2.1 -r1.83.2.2
+--- libkdegames/carddecks/decks/deck19.desktop	24 Aug 2004 06:27:55 -0000	1.83.2.1
++++ libkdegames/carddecks/decks/deck19.desktop	24 Oct 2004 07:04:08 -0000	1.83.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Horizon
+ Name[af]=Horison
++Name[ar]=الأفق
+ Name[az]=Üfüq
+ Name[bg]=Хоризонт
+ Name[bn]=দিগন্ত
+Index: libkdegames/carddecks/decks/deck2.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck2.desktop,v
+retrieving revision 1.73.2.1
+retrieving revision 1.73.2.2
+diff -u -r1.73.2.1 -r1.73.2.2
+--- libkdegames/carddecks/decks/deck2.desktop	24 Aug 2004 06:27:55 -0000	1.73.2.1
++++ libkdegames/carddecks/decks/deck2.desktop	24 Oct 2004 07:04:08 -0000	1.73.2.2
+@@ -1,5 +1,6 @@
+ [KDE Cards]
+ Name=Starrise
++Name[ar]=ظهور النجوم
+ Name[bg]=Звезди
+ Name[bn]=তারার উদয়
+ Name[ca]=Estrellat
+Index: libkdegames/carddecks/decks/deck20.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck20.desktop,v
+retrieving revision 1.91.2.1
+retrieving revision 1.91.2.2
+diff -u -r1.91.2.1 -r1.91.2.2
+--- libkdegames/carddecks/decks/deck20.desktop	24 Aug 2004 06:27:55 -0000	1.91.2.1
++++ libkdegames/carddecks/decks/deck20.desktop	24 Oct 2004 07:04:08 -0000	1.91.2.2
+@@ -1,9 +1,11 @@
+ [KDE Cards]
+ Name=Flowers
+ Name[af]=Blomme
++Name[ar]=أزهار
+ Name[az]=Çiçəklər
+ Name[bg]=Цветя
+ Name[bn]=ফুল
++Name[br]=Bleunioù
+ Name[bs]=Cvijeće
+ Name[ca]=Flors
+ Name[cs]=Květiny
+Index: libkdegames/carddecks/decks/deck21.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck21.desktop,v
+retrieving revision 1.84.2.1
+retrieving revision 1.84.2.2
+diff -u -r1.84.2.1 -r1.84.2.2
+--- libkdegames/carddecks/decks/deck21.desktop	24 Aug 2004 06:27:55 -0000	1.84.2.1
++++ libkdegames/carddecks/decks/deck21.desktop	24 Oct 2004 07:04:08 -0000	1.84.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Carpet
+ Name[af]=Tapyt
++Name[ar]=سجادة
+ Name[az]=Xalı
+ Name[bg]=Килим
+ Name[bn]=গালিচা
+Index: libkdegames/carddecks/decks/deck22.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck22.desktop,v
+retrieving revision 1.94.2.1
+retrieving revision 1.94.2.2
+diff -u -r1.94.2.1 -r1.94.2.2
+--- libkdegames/carddecks/decks/deck22.desktop	24 Aug 2004 06:27:55 -0000	1.94.2.1
++++ libkdegames/carddecks/decks/deck22.desktop	24 Oct 2004 07:04:08 -0000	1.94.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Bathing
+ Name[af]=Swem
++Name[ar]=يتحمم
+ Name[az]=Çimmə
+ Name[bg]=Море
+ Name[bn]=গোসল, স্নান
+Index: libkdegames/carddecks/decks/deck23.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck23.desktop,v
+retrieving revision 1.78.2.1
+retrieving revision 1.78.2.2
+diff -u -r1.78.2.1 -r1.78.2.2
+--- libkdegames/carddecks/decks/deck23.desktop	24 Aug 2004 06:27:55 -0000	1.78.2.1
++++ libkdegames/carddecks/decks/deck23.desktop	24 Oct 2004 07:04:08 -0000	1.78.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Oasis
+ Name[af]=Oase
++Name[ar]=واحة
+ Name[az]=Oazis
+ Name[bg]=Оазис
+ Name[bn]=মরুদ্যান
+Index: libkdegames/carddecks/decks/deck3.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck3.desktop,v
+retrieving revision 1.82.2.1
+retrieving revision 1.82.2.2
+diff -u -r1.82.2.1 -r1.82.2.2
+--- libkdegames/carddecks/decks/deck3.desktop	24 Aug 2004 06:27:55 -0000	1.82.2.1
++++ libkdegames/carddecks/decks/deck3.desktop	24 Oct 2004 07:04:08 -0000	1.82.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Romantic
+ Name[af]=Romantiese
++Name[ar]=رومانسي
+ Name[az]=Romantik
+ Name[bg]=Романтика
+ Name[bn]=রোমান্টিক
+Index: libkdegames/carddecks/decks/deck4.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck4.desktop,v
+retrieving revision 1.106.2.1
+retrieving revision 1.106.2.2
+diff -u -r1.106.2.1 -r1.106.2.2
+--- libkdegames/carddecks/decks/deck4.desktop	24 Aug 2004 06:27:55 -0000	1.106.2.1
++++ libkdegames/carddecks/decks/deck4.desktop	24 Oct 2004 07:04:08 -0000	1.106.2.2
+@@ -1,5 +1,6 @@
+ [KDE Cards]
+ Name=Panda
++Name[ar]=باندا
+ Name[bg]=Панда
+ Name[bn]=পান্ডা
+ Name[el]=Πάντα
+@@ -22,6 +23,7 @@
+ Name[zu]=Ibhele
+ Comment=Dedicated to WWF
+ Comment[af]=Opgedra  na Wwf
++Comment[ar]=إهداء إلى المؤسسة العالمية للحفاظ على البيئة (WWF) 
+ Comment[az]=WWFyə hasr edilib
+ Comment[bg]=Посвещава се на WWF
+ Comment[bn]=WWF-এর প্রতি উত্‍সর্গীকৃত
+Index: libkdegames/carddecks/decks/deck5.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck5.desktop,v
+retrieving revision 1.84.2.2
+retrieving revision 1.84.2.3
+diff -u -r1.84.2.2 -r1.84.2.3
+--- libkdegames/carddecks/decks/deck5.desktop	13 Sep 2004 14:16:44 -0000	1.84.2.2
++++ libkdegames/carddecks/decks/deck5.desktop	24 Oct 2004 07:04:08 -0000	1.84.2.3
+@@ -1,8 +1,10 @@
+ [KDE Cards]
+ Name=Water
++Name[ar]=ماء
+ Name[az]=Su
+ Name[bg]=Вода
+ Name[bn]=পানি
++Name[br]=Dou
+ Name[bs]=Voda
+ Name[ca]=Aigua
+ Name[cs]=Voda
+Index: libkdegames/carddecks/decks/deck6.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck6.desktop,v
+retrieving revision 1.85.2.1
+retrieving revision 1.85.2.2
+diff -u -r1.85.2.1 -r1.85.2.2
+--- libkdegames/carddecks/decks/deck6.desktop	24 Aug 2004 06:27:55 -0000	1.85.2.1
++++ libkdegames/carddecks/decks/deck6.desktop	24 Oct 2004 07:04:08 -0000	1.85.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Beach
+ Name[af]=Strand
++Name[ar]=شاطئ
+ Name[az]=Çimərlik
+ Name[bg]=Плаж
+ Name[bn]=সৈকত
+Index: libkdegames/carddecks/decks/deck7.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck7.desktop,v
+retrieving revision 1.92.2.1
+retrieving revision 1.92.2.2
+diff -u -r1.92.2.1 -r1.92.2.2
+--- libkdegames/carddecks/decks/deck7.desktop	24 Aug 2004 06:27:55 -0000	1.92.2.1
++++ libkdegames/carddecks/decks/deck7.desktop	24 Oct 2004 07:04:08 -0000	1.92.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Sunset
+ Name[af]=Sonsondergang
++Name[ar]=غروب الشمس
+ Name[az]=Gün doğuşu
+ Name[bg]=Залез
+ Name[bn]=সূর্যাস্ত
+Index: libkdegames/carddecks/decks/deck8.desktop
+===================================================================
+RCS file: /home/kde/kdegames/libkdegames/carddecks/decks/deck8.desktop,v
+retrieving revision 1.87.2.1
+retrieving revision 1.87.2.2
+diff -u -r1.87.2.1 -r1.87.2.2
+--- libkdegames/carddecks/decks/deck8.desktop	24 Aug 2004 06:27:55 -0000	1.87.2.1
++++ libkdegames/carddecks/decks/deck8.desktop	24 Oct 2004 07:04:08 -0000	1.87.2.2
+@@ -1,6 +1,7 @@
+ [KDE Cards]
+ Name=Road
+ Name[af]=Pad
++Name[ar]=طريق
+ Name[az]=Yol
+ Name[bg]=Път
+ Name[bn]=পথ
+Index: lskat/lskat.desktop
+===================================================================
+RCS file: /home/kde/kdegames/lskat/lskat.desktop,v
+retrieving revision 1.161.2.1
+retrieving revision 1.161.2.2
+diff -u -r1.161.2.1 -r1.161.2.2
+--- lskat/lskat.desktop	24 Aug 2004 06:27:58 -0000	1.161.2.1
++++ lskat/lskat.desktop	24 Oct 2004 07:04:09 -0000	1.161.2.2
+@@ -2,6 +2,7 @@
+ Encoding=UTF-8
+ GenericName=Card Game
+ GenericName[af]=Kaart Speletjie
++GenericName[ar]=لعبة الورق
+ GenericName[be]=Картачная гульня
+ GenericName[bg]=Покер
+ GenericName[bn]=তাস খেলা
+@@ -9,6 +10,7 @@
+ GenericName[bs]=Igra s kartama
+ GenericName[ca]=Joc de cartes
+ GenericName[cs]=Karty
++GenericName[cy]=Gêm cardiau
+ GenericName[da]=Kortspil
+ GenericName[de]=Kartenspiel
+ GenericName[el]=Παιχνίδι καρτών
+@@ -64,6 +66,7 @@
+ Icon=lskat
+ Name=Lieutnant Skat
+ Name[af]=Luitenant Skat
++Name[ar]=الملازم Skat
+ Name[az]=LEytenant Skat
+ Name[bn]=লেফটেনেন্ট স্কাট
+ Name[br]=Letanant Skat

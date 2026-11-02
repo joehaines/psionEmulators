@@ -1,0 +1,203 @@
+Index: day_view.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-calendar/day_view.c,v
+retrieving revision 1.59
+diff -u -r1.59 day_view.c
+--- day_view.c	18 Aug 2004 12:58:14 -0000	1.59
++++ day_view.c	20 Sep 2004 17:42:19 -0000
+@@ -506,7 +506,6 @@
+ {
+   gtk_date_sel_set_time (GTK_DATE_SEL (datesel), viewtime);
+   gtk_widget_draw (datesel, NULL);
+-      
+   day_view_update ();
+ }
+ 
+Index: event-ui.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-calendar/event-ui.c,v
+retrieving revision 1.110
+diff -u -r1.110 event-ui.c
+--- event-ui.c	1 Sep 2004 10:02:30 -0000	1.110
++++ event-ui.c	20 Sep 2004 17:42:19 -0000
+@@ -548,13 +548,73 @@
+   edit_finished (d);
+ }
+ 
++static void
++check_constrains(struct edit_state *s)
++{
++    if ((s->page == 0) && (s->ev))
++    {
++      char buf[32];
++      struct tm tm_start, tm_end;
++      time_t start_t, end_t;
++      event_t ev;
++      
++      ev = (event_t)(s->ev->cloned_ev);
++      
++      /* Appointment */
++      char *start = gtk_editable_get_chars (GTK_EDITABLE (GTK_COMBO
++                                                          (s->starttime)->entry),
++                                            0, -1);
++      char *end = gtk_editable_get_chars (GTK_EDITABLE (GTK_COMBO
++                                                        (s->endtime)->entry),
++                                          0, -1);
++
++      memset (&tm_start, 0, sizeof (struct tm));
++      tm_start.tm_year = GTK_DATE_COMBO (s->startdate)->year - 1900;
++      tm_start.tm_mon = GTK_DATE_COMBO (s->startdate)->month;
++      tm_start.tm_mday = GTK_DATE_COMBO (s->startdate)->day;
++
++      memset (&tm_end, 0, sizeof (struct tm));
++      tm_end.tm_year = GTK_DATE_COMBO (s->enddate)->year - 1900;
++      tm_end.tm_mon = GTK_DATE_COMBO (s->enddate)->month;
++      tm_end.tm_mday = GTK_DATE_COMBO (s->enddate)->day;
++
++      strptime (start, TIMEFMT, &tm_start);
++      strptime (end, TIMEFMT, &tm_end);
++
++      start_t = mktime (&tm_start);
++      end_t = mktime (&tm_end);
++
++      /* If DST was in effect, mktime will have "helpfully" incremented the
++         hour.  */
++      if (tm_start.tm_isdst)
++        {
++          start_t -= 60*60;
++          end_t -= 60*60;
++        }
++
++      if (start_t == end_t)
++        {
++          tm_end.tm_hour+=1;
++          strftime (buf, sizeof(buf), TIMEFMT, &tm_end);
++          gtk_entry_set_text (GTK_ENTRY (GTK_COMBO (s->endtime)->entry), buf);
++        }
++      g_free (end);
++      g_free (start);
++      ev->start = start_t;
++      ev->duration = end_t - start_t;
++    }
++
++}
++
+ static gboolean
+ set_notebook_page (GtkWidget *w, struct edit_state *s)
+ {
+   guint i = gtk_option_menu_get_history (GTK_OPTION_MENU (w));
+   gtk_notebook_set_page (GTK_NOTEBOOK (s->notebooktype), i);
+   s->page = i;
++  check_constrains(s);
+   gtk_widget_draw (s->notebooktype, NULL);
++  
+   return FALSE;
+ }
+ 
+@@ -803,7 +863,10 @@
+   hboxtask2           = gtk_hbox_new (FALSE, 0);
+ 
+   s                   = g_malloc0 (sizeof (struct edit_state));
+-
++    
++  gtk_window_set_transient_for(GTK_WINDOW(window), GTK_WINDOW(main_window));
++  gtk_window_set_modal(GTK_WINDOW(window), TRUE);
++  
+   /* Scrolled window for event tab */
+   scrolledwindowevent = gtk_scrolled_window_new (NULL, NULL);
+   gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindowevent),
+Index: main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-calendar/main.c,v
+retrieving revision 1.94
+diff -u -r1.94 main.c
+--- main.c	3 Sep 2004 14:14:19 -0000	1.94
++++ main.c	20 Sep 2004 17:42:19 -0000
+@@ -121,7 +121,6 @@
+   gtk_date_sel_set_time(GTK_DATE_SEL(ds),viewtime);
+   ds = g_object_get_data(G_OBJECT(main_window),"datesel-day");
+   gtk_date_sel_set_time(GTK_DATE_SEL(ds),viewtime);
+-  update_all_views();
+ }
+ 
+ void
+@@ -167,7 +166,7 @@
+         {
+           current_view = w;
+           gtk_notebook_set_page (GTK_NOTEBOOK (notebook), i);
+-          if (w == day) /* nasty hack to compensate missing update if clist */
++          if (w == day) /* nasty hack to compensate missing update of clist */
+             update_current_view();
+           return;
+         }
+@@ -229,8 +228,6 @@
+   else
+     viewtime = selected_time;
+   
+-  gtk_button_set_relief(GTK_BUTTON(today_button),
+-                        force_today ? GTK_RELIEF_HALF : GTK_RELIEF_NONE);
+   set_time_all_views();
+ }
+ 
+@@ -370,6 +367,7 @@
+         ccpos++;
+         return TRUE;
+     }
++    
+   return FALSE;
+ }
+ 
+@@ -502,9 +500,12 @@
+     gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
+ 
+   pw = gtk_image_new_from_stock (GTK_STOCK_HOME, gtk_toolbar_get_icon_size (GTK_TOOLBAR (toolbar)));
+-  today_button = gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Today"),
+-			   _("Switch to today and stay there/return to day selecting."), 
+-               NULL, pw, set_today, NULL);
++  today_button = gtk_toolbar_append_element (GTK_TOOLBAR (toolbar), 
++                                             GTK_TOOLBAR_CHILD_TOGGLEBUTTON, 
++                                             NULL,
++                                             _("Today"), 
++			                                 _("Switch to today and stay there/return to day selecting."), 
++                                             NULL, pw, set_today, NULL);
+   GTK_WIDGET_UNSET_FLAGS(today_button, GTK_CAN_FOCUS);
+ 
+   if (window_x > 260) 
+@@ -592,6 +593,7 @@
+   update_all_views ();
+ 
+   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (day_button), TRUE);
++  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (today_button), FALSE);
+   new_view (day);
+ 
+   gtk_main ();
+Index: month_view.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-calendar/month_view.c,v
+retrieving revision 1.41
+diff -u -r1.41 month_view.c
+--- month_view.c	1 Sep 2004 11:16:27 -0000	1.41
++++ month_view.c	20 Sep 2004 17:42:19 -0000
+@@ -620,6 +620,7 @@
+ 
+   datesel = gtk_date_sel_new (GTKDATESEL_MONTH);
+   gtk_widget_show (datesel);
++  GTK_WIDGET_SET_FLAGS(datesel, GTK_CAN_FOCUS);
+   gtk_widget_grab_focus(datesel);
+ 
+   gtk_box_pack_start (GTK_BOX (vbox), datesel, FALSE, FALSE, 0);
+Index: week_view.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-calendar/week_view.c,v
+retrieving revision 1.40
+diff -u -r1.40 week_view.c
+--- week_view.c	18 Aug 2004 12:58:14 -0000	1.40
++++ week_view.c	20 Sep 2004 17:42:19 -0000
+@@ -607,6 +607,7 @@
+   
+   for (i=0;i<7;i++)
+     week_days[i].initialized = FALSE;
++  GTK_WIDGET_SET_FLAGS(datesel, GTK_CAN_FOCUS);
+   gtk_widget_grab_focus(datesel);
+   g_signal_connect (G_OBJECT (datesel), "key_press_event", 
+ 		    G_CALLBACK (week_view_key_press_event), NULL);

@@ -1,0 +1,127 @@
+Index: tasks.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/tasks.c,v
+retrieving revision 1.5
+retrieving revision 1.7
+diff -u -r1.5 -r1.7
+--- tasks.c	13 Sep 2004 17:09:21 -0000	1.5
++++ tasks.c	10 Nov 2004 16:40:28 -0000	1.7
+@@ -48,8 +48,8 @@
+ 	else if ((action[0] == 'r') || !strcmp(action, "restore"))
+ 	{
+ 		sound_init();
+-		sound_load_settings();
+-		if (get_mute_status)
++		
++		if (get_mute_status())
+ 			set_mute_status(TRUE);
+ 	}
+ 	else
+Index: sound/soundctrl.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/sound/soundctrl.c,v
+retrieving revision 1.6
+diff -u -r1.6 soundctrl.c
+--- sound/soundctrl.c	7 Oct 2004 15:54:00 -0000	1.6
++++ sound/soundctrl.c	11 Nov 2004 15:45:33 -0000
+@@ -102,19 +102,22 @@
+ }
+ 
+ 
+-static gboolean 
+-channel_active(const gchar *name)
++static int
++channel_active(int chan)
+ {
+ 	int i = 0;
+ 	
+-	if (!name) 
++	if (!mixer_names[chan]) 
+ 		return FALSE;
+ 
++	if (!((1 << chan) & devmask))
++		return FALSE;
++	
+ 	if (!show_channels)
+ 		return TRUE;
+ 	
+ 	while (show_channels[i])
+-		if (!strcmp(show_channels[i++], name))
++		if (!strcmp(show_channels[i++], mixer_names[chan]))
+ 			return TRUE;
+ 		
+ 	return (FALSE);
+@@ -165,27 +168,36 @@
+ 	{
+ 		int nc = -1, val = -1, ret;
+ 		char buf[128];
++		
++		memset(buf, 0, 128);
++		
+ 		while (fgets(buf, 128, cfgfile))
+ 		{
+ 			ret = sscanf(buf, "muted %d", &nc);
+ 			if (ret)
+ 				muted = nc;
+ 			
+-			ret = sscanf(buf, "%d %d", &nc, &val);			
++			ret = sscanf(buf, "%d %d", &nc, &val);		
++			
++			memset(buf, 0, 128);
+ 			if ((ret == 2) && (nc >= 0) && (nc <= SOUND_MIXER_NRDEVICES))
+ 			{
+-				if (muted)
++				if (channel_active(mchannels[nc].nr) && !(nc && !mchannels[nc].nr))
+ 				{
+-					set_volume(mchannels[nc].nr, 0);
+-					mchannels[nc].backupval = val;
+-					mchannels[nc].value = val;
++					if (muted)
++					{
++						set_volume(mchannels[nc].nr, 0);
++						mchannels[nc].backupval = val;
++						mchannels[nc].initval = val;
++						mchannels[nc].value = val;
++					}
++					else
++					{
++						mchannels[nc].value = val;
++						mchannels[nc].initval = val;
++						set_volume(mchannels[nc].nr, val);
++					}
+ 				}
+-				else
+-				{
+-					mchannels[nc].value = val;
+-					set_volume(mchannels[nc].nr, val);
+-				}
+-	
+ 			}
+ 		}
+ 		fclose(cfgfile);
+@@ -222,10 +234,13 @@
+ 	if (!initialized)
+ 		return;
+ 		
+-	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
++	for (i = 0; i < active_channels; i++)
+ 	{
+-		mchannels[i].value = mchannels[i].initval;
+-		set_volume(mchannels[i].nr, mchannels[i].value);
++		if (channel_active(mchannels[i].nr))
++		{
++			mchannels[i].value = mchannels[i].initval;
++			set_volume(mchannels[i].nr, mchannels[i].value);
++		}
+ 	}
+ }
+ 
+@@ -274,7 +289,7 @@
+ 		
+ 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+ 	{
+-		if (((1 << i) & devmask) && channel_active(mixer_names[i])) 
++		if (/*((1 << i) & devmask)*/channel_active(i))
+ 		{
+ 			mchannels[active_channels].nr = i; /* channel number */
+ 			if (i) /* name and label */

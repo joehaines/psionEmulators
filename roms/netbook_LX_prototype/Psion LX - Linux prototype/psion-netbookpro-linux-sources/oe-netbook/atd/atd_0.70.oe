@@ -1,0 +1,25 @@
+PR = "r9"
+
+SRC_URI = "cvs://anoncvs:anoncvs@cvs.handhelds.org/cvs;module=apps/atd;tag=ATD-0_70 \
+	file://atd-select.patch;patch=1"
+S = "${WORKDIR}/atd"
+
+DEPENDS = "apmd"
+RDEPENDS_${PN} = "apmd"
+
+inherit update-rc.d
+
+INITSCRIPT_NAME = "atd"
+INITSCRIPT_PARAMS = "defaults 97"
+
+do_compile() {
+	oe_runmake
+}
+
+do_install() {
+	install -d ${D}${sbindir}
+	install atd ${D}${sbindir}/atd
+	install -d ${D}/etc/init.d
+	install dist/etc/init.d/atd ${D}/etc/init.d/atd
+}
+

@@ -1,0 +1,1406 @@
+--- xtscal-0.6.2-org/main.c	2004-09-06 15:00:38.000000000 +0100
++++ xtscal-0.6.2-new/main.c	2004-09-13 13:55:16.000000000 +0100
+@@ -5,7 +5,14 @@
+  * modify it under the terms of the GNU General Public License
+  * as published by the Free Software Foundation; either version
+  * 2 of the License, or (at your option) any later version.
+- */
++ *
++ *
++ * History:
++ * 01-Sep-04  C.Stylianou       Modified for Psion Lx.
++ * 13-Sep-04  C.Stylianou       Modified to work if e2 is not present.
++ */ 
++
++// TODO: Add string to display "too far for point", if too far from target.
+ 
+ #include <stdlib.h>
+ #include <stdio.h>
+@@ -20,13 +27,14 @@
+ 
+ #include <X11/X.h>
+ #include <X11/Xlib.h>
+-
+ #include <X11/extensions/Xrender.h>
+ #include <X11/extensions/Xrandr.h>
+ #include <X11/Xft/Xft.h>
+ #include <X11/extensions/xcalibrate.h>
+ #include <X11/keysym.h>
+ 
++#include <linux/nvram.h>
++
+ #include "h3600_ts.h"
+ #include "calibrate.h"
+ 
+@@ -40,7 +48,7 @@
+ XRectangle rectangles[2];
+ XRenderColor rect_color;
+ int crosshair_x, crosshair_y;
+-int event;
++int event = 0;
+ XftColor xftcol;
+ XftDraw *xftdraw;
+ XftFont *xftfont;
+@@ -48,676 +56,902 @@
+ int ts_fd;
+ int samples;
+ Pixmap bg_pixmap;
+-int flag_debug;
++int flag_debug = 0;
+ int rotation = 0;
+ int error_base, event_base;
+ 
+-int using_xcalibrate;
++int check_x[5], check_y[5];
+ 
+-int moving;
++static int using_xcalibrate = 0;
++static int moving;
++static int eeprom_present = False;
++static int nvramFd = -1;
+ 
+-#define CROSSHAIR_SIZE	25
+-#define OFFSET 24
++#define CROSSHAIR_SIZE	50
++#define XOFFSET 80
++#define YOFFSET 60
+ #define WIDTH 3
+-#define SPEED 8
++#define SPEED 20
+ #define ENOUGH 5
+ #define MAX_SAMPLES 40
++#define MAX_DIFF_E2 50
++#define MAX_DIFF 100
+ 
+ #define RAW_DEVICE "/dev/h3600_tsraw"
+-#define FONTNAME "sans-10"
++#define FONTNAME "sans-9"
++
++// for eeprom
++#define START_OF_CALIBRATION_DATA	21
++#define SIZE_OF_CALIBRATION_DATA	20
++
++// dev/nvram ioctls - unlock touch calibration area
++#define NVRAM_UNLOCK_TOUCH_CALIBRATION	_IO('p', 0x42)
++
++unsigned char	buff[1024];
++
++struct coord 
++{
++    unsigned int x;
++    unsigned int y;
++} coords[5];
+ 
+ struct point 
+ {
+-  int x;
+-  int y;
++    unsigned int x;
++    unsigned int y;
+ };
+ 
++
+ struct point sample[MAX_SAMPLES];
+ calibration cal;
+ 
+ void handle_ts_event (int x, int y, int pressure);
+ 
++// Note: In get/set calibration routines, data is stored in big-endian order
++static void 
++get_e2calibration_data(int nvramFd, struct coord *pcoords)
++{
++    int	i;
++
++    lseek(nvramFd, START_OF_CALIBRATION_DATA, SEEK_SET);
++    read(nvramFd, buff, SIZE_OF_CALIBRATION_DATA);
++    for( i = 0; i < SIZE_OF_CALIBRATION_DATA; i+=2 )
++    {
++        if(i%4)
++        {
++            pcoords[i/4].y = ((unsigned int)buff[i])<<8;
++            pcoords[i/4].y |= buff[i+1];
++        }
++        else
++        {
++            pcoords[i/4].x = ((unsigned int)buff[i])<<8;
++            pcoords[i/4].x |= buff[i+1];
++        }
++    }
++    
++    if (flag_debug)
++    {
++        //show values from eeprom
++        printf("e2@400,300 (center): x=%d,y=%d\n", coords[0].x, coords[0].y);
++        printf("e2@80,60 (top left): x=%d,y=%d\n", coords[1].x, coords[1].y);
++        printf("e2@80,540 (bottom left): x=%d,y=%d\n", coords[2].x, coords[2].y);
++        printf("e2@720,540 (bottom right): x=%d,y=%d\n", coords[3].x, coords[3].y);
++        printf("e2@720,60 (top right): x=%d,y=%d\n", coords[4].x, coords[4].y);
++    }
++    
++    //copy eeprom calibration points
++    for (i=0; i<5; i++)
++    {
++        cal.x[i] = coords[i].x;
++        cal.y[i] = coords[i].y;
++    }
++   
++    // copy fixed fb points
++    cal.xfb[0] = (screen_x / 2);
++    cal.yfb[0] = (screen_y / 2); 
++    cal.xfb[1] = XOFFSET;
++    cal.yfb[1] = YOFFSET;
++    cal.xfb[2] = XOFFSET;
++    cal.yfb[2] = screen_y - YOFFSET;
++    cal.xfb[3] = screen_x - XOFFSET;
++    cal.yfb[3] = screen_y - YOFFSET;
++    cal.xfb[4] = screen_x - XOFFSET;
++	cal.yfb[4] = YOFFSET;
++}
++
++static void 
++set_e2calibration_data(int nvramFd, struct coord *pcoords)
++{
++    int	i;
++
++    for( i = 0; i < SIZE_OF_CALIBRATION_DATA; i+=2 )
++    {
++        if(i%4)
++        {
++            buff[i] = (unsigned char) (pcoords[i/4].y >> 8);
++            buff[i+1] = (unsigned char) pcoords[i/4].y;
++        }
++        else
++        {
++            buff[i] = (unsigned char) (pcoords[i/4].x >> 8);
++            buff[i+1] = (unsigned char) pcoords[i/4].x;
++        }
++    }
++    lseek(nvramFd, START_OF_CALIBRATION_DATA, SEEK_SET);
++    ioctl(nvramFd, NVRAM_UNLOCK_TOUCH_CALIBRATION, NULL);
++    write(nvramFd, buff, SIZE_OF_CALIBRATION_DATA);
++}
++
+ void
+ hide_cursor (Display *dpy, Window w)
+ {
+-  Pixmap pix;
+-  XColor col;
+-  Cursor blank_curs;
++    Pixmap pix;
++    XColor col;
++    Cursor blank_curs;
+ 
+-  pix = XCreatePixmap (dpy, w, 1, 1, 1);
+-  memset (&col, 0, sizeof (col));
+-  blank_curs = XCreatePixmapCursor (dpy, pix, pix, &col, &col, 1, 1);
+-  XFreePixmap (dpy, pix);
+-  XDefineCursor (dpy, w, blank_curs);
++    pix = XCreatePixmap (dpy, w, 1, 1, 1);
++    memset (&col, 0, sizeof (col));
++    blank_curs = XCreatePixmapCursor (dpy, pix, pix, &col, &col, 1, 1);
++    XFreePixmap (dpy, pix);
++    XDefineCursor (dpy, w, blank_curs);
+ }
+ 
+ void
+ draw_crosshair (void)
+ {
+-  XftDraw *draw;
+-  XRenderPictureAttributes att;
++    XftDraw *draw;
++    XRenderPictureAttributes att;
+ 
+-  crosshair_gc = XCreateGC (dpy, crosshair_w, 0, NULL);
++    crosshair_gc = XCreateGC (dpy, crosshair_w, 0, NULL);
+ 
+-  XSetForeground (dpy, crosshair_gc, WhitePixel (dpy, screen));
++    XSetForeground (dpy, crosshair_gc, WhitePixel (dpy, screen));
+ 
+-  draw = XftDrawCreate (dpy, crosshair_w,
+-			DefaultVisual (dpy, screen),
+-			DefaultColormap (dpy, screen));
++    draw = XftDrawCreate (dpy, crosshair_w,
++            DefaultVisual (dpy, screen),
++            DefaultColormap (dpy, screen));
+   
+-  pict = XftDrawPicture (draw);
++    pict = XftDrawPicture (draw);
+   
+-  att.poly_edge = PolyEdgeSmooth;
+-  XRenderChangePicture (dpy, pict, CPPolyEdge, &att);
++    att.poly_edge = PolyEdgeSmooth;
++    XRenderChangePicture (dpy, pict, CPPolyEdge, &att);
+   
+-  rect_color.red   = 0;
+-  rect_color.green = 0;
+-  rect_color.blue  = 0xffff;
+-  rect_color.alpha = 0xffff;
++    rect_color.red   = 0;
++    rect_color.green = 0;
++    rect_color.blue  = 0xffff;
++    rect_color.alpha = 0xffff;
+ 
+-  rectangles[0].x = 0;
+-  rectangles[0].width = CROSSHAIR_SIZE;
+-  rectangles[0].y = (CROSSHAIR_SIZE / 2) - (WIDTH / 2);
+-  rectangles[0].height = WIDTH;
++    rectangles[0].x = 0;
++    rectangles[0].width = CROSSHAIR_SIZE;
++    rectangles[0].y = (CROSSHAIR_SIZE / 2) - (WIDTH / 2);
++    rectangles[0].height = WIDTH;
+  
+-  rectangles[1].x = (CROSSHAIR_SIZE / 2) - (WIDTH / 2);
+-  rectangles[1].width = WIDTH;
+-  rectangles[1].y = 0;
+-  rectangles[1].height = CROSSHAIR_SIZE;
++    rectangles[1].x = (CROSSHAIR_SIZE / 2) - (WIDTH / 2);
++    rectangles[1].width = WIDTH;
++    rectangles[1].y = 0;
++    rectangles[1].height = CROSSHAIR_SIZE;
+ }
+ 
+ void
+ crosshair_expose (void)
+ {
+-  XRenderFillRectangles (dpy, PictOpSrc, pict, &rect_color, rectangles, 2);
+-
+-  XFillArc (dpy, crosshair_w, crosshair_gc, (CROSSHAIR_SIZE / 2) - (WIDTH / 2) - 1, 
+-	    (CROSSHAIR_SIZE / 2) - (WIDTH / 2) - 1,
+-	    WIDTH + 1, WIDTH + 1, 0, 360 * 64);
++    XRenderFillRectangles (dpy, PictOpSrc, pict, &rect_color, rectangles, 2);
++    XFillArc (dpy, crosshair_w, crosshair_gc, 
++            (CROSSHAIR_SIZE / 2) - (WIDTH / 2) - 1, 
++            (CROSSHAIR_SIZE / 2) - (WIDTH / 2) - 1,
++            WIDTH + 1, WIDTH + 1, 0, 360 * 64);
+ }
+ 
+ void
+ draw_background (void)
+ {
+-  static const char *str[] = 
++    static const char *str[] = 
+     {
+-      "Touch the crosshairs to",
+-      "calibrate the screen"
++        "Carefully press and briefly hold stylus on the center of the crosshair.",
++        "Repeat as the crosshair moves around the screen",
++        "(You can cancel at any time by pressing the Esc key)",
+     };
+-  const char **sp;
+-  int y;
++    const char **sp;
++    int y;
+ 
+-  y = screen_y / 3;
++    y = screen_y / 3;
+ 
+-  for (sp = str; *sp; sp++)
++    for (sp = str; *sp; sp++)
+     {
+-      XGlyphInfo extents;
+-
+-      XftTextExtentsUtf8 (dpy, xftfont, *sp, strlen (*sp),
+-			  &extents);
+-
+-      XftDrawStringUtf8 (xftdraw, &xftcol, xftfont, 
+-			 (screen_x / 2) - (extents.width / 2), y,
+-			 *sp, strlen (*sp));
++        XGlyphInfo extents;
++        
++        XftTextExtentsUtf8 (dpy, xftfont, *sp, strlen (*sp), &extents);
++        
++        XftDrawStringUtf8 (xftdraw, &xftcol, xftfont, 
++                (screen_x / 2) - (extents.width / 2), y,
++                *sp, strlen (*sp));
+ 
+-      y += extents.height + 4;
++        y += extents.height + 4;
+     }
+ }
+ 
+ void
+ handle_events (void)
+ {
+-  while (XPending (dpy))
++    while (XPending (dpy))
+     {
+-      XEvent e;
++        XEvent e;
+       
+-      XNextEvent (dpy, &e);
++        XNextEvent (dpy, &e);
+       
+-      switch (e.type)
+-	{
+-	case KeyPress:
+-	  if (XKeycodeToKeysym (dpy, e.xkey.keycode, 0) == XK_Escape)
+-	    exit (0);
+-	  break;
+-	case Expose:
+-	  if (e.xexpose.window == crosshair_w)
+-	    crosshair_expose ();
+-	  break;
+-	default:
+-	  if (e.type == event_base)
+-	    {
+-	      XCalibrateRawTouchscreenEvent *te = (XCalibrateRawTouchscreenEvent *)&e;
+-
+-	      handle_ts_event (te->x, te->y, te->pressure);
+-	    }
+-	  break;
+-	}
++        switch (e.type)
++        {
++            case KeyPress:
++                if (XKeycodeToKeysym (dpy, e.xkey.keycode, 0) == XK_Escape)
++                    exit (0);
++                break;
++            case Expose:
++                if (e.xexpose.window == crosshair_w)
++                    crosshair_expose ();
++                break;    
++            default:
++                if (e.type == event_base)
++                {
++                    XCalibrateRawTouchscreenEvent *te = 
++                            (XCalibrateRawTouchscreenEvent *)&e;
++                    handle_ts_event (te->x, te->y, te->pressure);
++                }
++                break;
++        }
+     }
+ }
+ 
+ void
+ crosshair_to (int x, int y)
+ {
+-  int dx, dy;
+-  double r;
+-
+-  dx = x - crosshair_x;
+-  dy = y - crosshair_y;
++    int dx, dy;
++    double r;
+ 
+-  if (dx == 0 && dy == 0)
+-    return;
++    dx = x - crosshair_x;
++    dy = y - crosshair_y;
+ 
+-  moving = True;
++    if (dx == 0 && dy == 0)
++        return;
++    
++    moving = True;
+ 
+-  r = (double)dy / (double)dx;
++    r = (double)dy / (double)dx;
+ 
+-  if (fabs (r) < 1.0)
++    if (fabs (r) < 1.0)
+     {
+-      int i, xs;
+-      double fy = crosshair_y;
+-
+-      xs = (crosshair_x > x) ? -SPEED : SPEED;
++        int i, xs;
++        double fy = crosshair_y;
+ 
+-      for (i = crosshair_x; (i - x) / SPEED; )
++        xs = (crosshair_x > x) ? -SPEED : SPEED;
++        
++        for (i = crosshair_x; (i - x) / SPEED; )
+         {
+-          int midpoint = (x + crosshair_x) / 2;
+-          int distance_from_midpoint = abs(i - midpoint); 
+-	  int distance_from_endpoint = abs(x - crosshair_x) / 2 - distance_from_midpoint;
+-          int xsadjust = xs + (xs >> 3) * distance_from_endpoint / 10;
+-          i += xsadjust;
+-          fy += r * xsadjust;
++            int midpoint = (x + crosshair_x) / 2;
++            int distance_from_midpoint = abs(i - midpoint); 
++            int distance_from_endpoint = 
++                    abs(x - crosshair_x) / 2 - distance_from_midpoint;
++            int xsadjust = xs + (xs >> 3) * distance_from_endpoint / 10;
++            i += xsadjust;
++            fy += r * xsadjust;
+ 
+-	  XMoveWindow (dpy, crosshair_w, i, fy);
+-	  XFlush (dpy);
+-	  handle_events ();
+-	  usleep (5000);
+-	}
++            XMoveWindow (dpy, crosshair_w, i, fy);
++            XFlush (dpy);
++            handle_events ();
++            usleep (5000);
++        }
+     }
+-  else
++    else
+     {
+-      int i, ys;
+-      double fx = crosshair_x;
+-
+-      r = (double)dx / (double)dy;
++        int i, ys;
++        double fx = crosshair_x;
+ 
+-      ys = (crosshair_y > y) ? -SPEED : SPEED;
++        r = (double)dx / (double)dy;
+ 
+-      for (i = crosshair_y; (i - y) / SPEED; )
++        ys = (crosshair_y > y) ? -SPEED : SPEED;
++        
++        for (i = crosshair_y; (i - y) / SPEED; )
+         {
+-          int midpoint = (y + crosshair_y) / 2;
+-          int distance_from_midpoint = abs(i - midpoint); 
+-	  int distance_from_endpoint = abs(y - crosshair_y) / 2 - distance_from_midpoint;
+-          int ysadjust = ys + (ys >> 3) * distance_from_endpoint / 10;
+-          i += ysadjust;
+-          fx += r * ysadjust;
++            int midpoint = (y + crosshair_y) / 2;
++            int distance_from_midpoint = abs(i - midpoint); 
++            int distance_from_endpoint = 
++                    abs(y - crosshair_y) / 2 - distance_from_midpoint;
++            int ysadjust = ys + (ys >> 3) * distance_from_endpoint / 10;      
++            i += ysadjust;
++            fx += r * ysadjust;
+ 
+-	  XMoveWindow (dpy, crosshair_w, fx, i);
+-	  XFlush (dpy);
+-	  handle_events ();
+-	  usleep (5000);
+-	}
++            XMoveWindow (dpy, crosshair_w, fx, i);
++            XFlush (dpy);
++            handle_events ();
++            usleep (5000);
++        }
+     }
+ 
+-  XMoveWindow (dpy, crosshair_w, x, y);
+-  crosshair_x = x;
+-  crosshair_y = y;
++    XMoveWindow (dpy, crosshair_w, x, y);
++    crosshair_x = x;
++    crosshair_y = y;
+ 
+-  moving = False;
++    moving = False;
+ }
+ 
+ void
+ next_event (void)
+ {
+-  crosshair_to (cal.xscr[event] - CROSSHAIR_SIZE / 2, cal.yscr[event] - CROSSHAIR_SIZE / 2);
++    crosshair_to (cal.xscr[event] - CROSSHAIR_SIZE / 2, 
++            cal.yscr[event] - CROSSHAIR_SIZE / 2);
+ }
+ 
+ int 
+ sort_by_x (const void* a, const void *b)
+ {
+-  return (((struct point *)a)->x - ((struct point *)b)->x);
++    return (((struct point *)a)->x - ((struct point *)b)->x);
+ }
+ 
+ int 
+ sort_by_y (const void* a, const void *b)
+ {
+-  return (((struct point *)a)->y - ((struct point *)b)->y);
++    return (((struct point *)a)->y - ((struct point *)b)->y);
+ }
+ 
+ void
+ set_calibration (calibration *cal)
+ {
+-  TS_CAL tc;
+-  int xtrans, ytrans, xscale, yscale, xyscale, yxscale;
+-  calibration ocal = *cal;
++    TS_CAL tc;
++    int xtrans, ytrans, xscale, yscale, xyscale, yxscale;
++    calibration ocal = *cal;
+ 
+-  if (using_xcalibrate)
++    if (using_xcalibrate)
+     {
+-      FILE *fp;
+-      if (flag_debug)
+-	printf ("constants are: %d %d %d %d %d %d %d\n", cal->a[1], cal->a[2], cal->a[0], cal->a[4], cal->a[5], cal->a[3], cal->a[6]);
+-      fp = fopen ("/etc/pointercal", "w");
+-      if (!fp)
+-	{
+-	  perror ("/etc/pointercal");
+-	  exit (1);
+-	}
+-      fprintf (fp, "%d %d %d %d %d %d %d\n", cal->a[1], cal->a[2], cal->a[0], cal->a[4], cal->a[5], cal->a[3], cal->a[6]);
+-      fclose (fp); 
+-      return;
++        FILE *fp;
++        if (flag_debug)
++            printf ("constants are: %d %d %d %d %d %d %d\n", 
++                        cal->a[1], cal->a[2], cal->a[0], 
++                        cal->a[4], cal->a[5], cal->a[3], cal->a[6]);
++        
++        fp = fopen ("/etc/pointercal", "w");
++        if (!fp)
++        {
++            perror ("/etc/pointercal");
++            exit (1);
++        }
++        
++        fprintf (fp, "%d %d %d %d %d %d %d\n", 
++                        cal->a[1], cal->a[2], cal->a[0], 
++                        cal->a[4], cal->a[5], cal->a[3], cal->a[6]);
++        fclose (fp); 
++        return;
+     }
+ 
+-  xtrans = cal->a[0] / cal->a[6];
+-  ytrans = cal->a[3] / cal->a[6];
+-  xscale = cal->a[1] * 256 / cal->a[6];
+-  yscale = cal->a[5] * 256 / cal->a[6];
+-  xyscale = cal->a[2] * 256 / cal->a[6];
+-  yxscale = cal->a[4] * 256 / cal->a[6];
++    xtrans = cal->a[0] / cal->a[6];
++    ytrans = cal->a[3] / cal->a[6];
++    xscale = cal->a[1] * 256 / cal->a[6];
++    yscale = cal->a[5] * 256 / cal->a[6];
++    xyscale = cal->a[2] * 256 / cal->a[6];
++    yxscale = cal->a[4] * 256 / cal->a[6];
+   
+-  tc.xtrans = xtrans;
+-  tc.ytrans = ytrans;
+-  tc.xscale = xscale;
+-  tc.yscale = yscale;
+-  tc.xyswap = 0;
++    tc.xtrans = xtrans;
++    tc.ytrans = ytrans;
++    tc.xscale = xscale;
++    tc.yscale = yscale;
++    tc.xyswap = 0;
+ 
+-  printf ("%d %d %d %d %d\n", tc.xscale, tc.xtrans, tc.yscale, tc.ytrans, tc.xyswap);
++    printf ("data: %d %d %d %d %d\n", 
++            tc.xscale, tc.xtrans, tc.yscale, tc.ytrans, tc.xyswap);
+ 
+-  if (ioctl (ts_fd, TS_SET_CAL, (void *)&tc) != 0)
++    if (ioctl (ts_fd, TS_SET_CAL, (void *)&tc) != 0)
+     {
+-      perror ("TS_SET_CAL");
+-      exit (1);
++        perror ("TS_SET_CAL");
++        exit (1);
+     }
+ }
+ 
+ void
+ handle_ts_event (int x, int y, int pressure)
+-{
+-  if (moving)
++{	
++    if (moving)
+     {
+-      /* Ignore any accidental clicks during animation */
+-      return;
++        /* Ignore any accidental clicks during animation */
++        return;
+     }
+-
+-  if (pressure)
++    
++    if (pressure)
+     {
+-      if (samples < MAX_SAMPLES)
+-	{
+-	  sample[samples].x = x;
+-	  sample[samples].y = y;
+-	  samples++;
+-	}
++        if (samples < MAX_SAMPLES)
++        {
++            sample[samples].x = x;
++            sample[samples].y = y;
++            samples++;
++        }
+     }
+-  else
++    else
+     {
+-      if (samples > ENOUGH)
+-	{
+-	  int middle, sx, sy;
+-	  
+-	  middle = samples / 2;
+-	  qsort (sample, samples, sizeof(struct point), sort_by_x);
+-	  if (samples & 1)
+-	    sx = sample[middle].x;
+-	  else
+-	    sx = (sample[middle-1].x + sample[middle].x) / 2;
+-	  qsort (sample, samples, sizeof(struct point), sort_by_y);
+-	  if (samples & 1)
+-	    sy = sample[middle].y;
+-	  else
+-	    sy = (sample[middle-1].y + sample[middle].y) / 2;
+-	  
+-	  cal.x[event] = sx;
+-	  cal.y[event] = sy;
+-	  
+-	  if (flag_debug)
+-	    fprintf (stderr, "point %d: [%d %d]\n", event, cal.x[event], cal.y[event]);
+-	  
+-	  event++;
+-	  
+-	  if (event < NR_POINTS)
+-	    {
+-	      samples = 0;
+-	      next_event ();
+-	    }
+-	  else
+-	    {
+-	      if (perform_calibration (&cal))
+-		{
+-		  set_calibration (&cal);
+-		  XCalibrateSetRawMode (dpy, False);
+-		  exit (0);
+-		}
+-	      else
+-		{
+-		  samples = 0;
+-		  event = 0;
+-		  next_event ();
+-		}
+-	    }
+-	}
++        if (samples > ENOUGH)
++        {
++            int middle, sx, sy;
++
++            middle = samples / 2;
++            qsort (sample, samples, sizeof(struct point), sort_by_x);
++            if (samples & 1)
++                sx = sample[middle].x;
++            else
++                sx = (sample[middle-1].x + sample[middle].x) / 2;
++            qsort (sample, samples, sizeof(struct point), sort_by_y);
++            if (samples & 1)
++                sy = sample[middle].y;
++            else
++                sy = (sample[middle-1].y + sample[middle].y) / 2;
++                    
++            cal.x[event] = sx;
++            cal.y[event] = sy;
++      
++            if (flag_debug)
++                fprintf (stderr, "cal point %d: [%d %d]\n", event, cal.x[event], cal.y[event]);
++             
++            if (eeprom_present)
++			{
++				if (!(cal.x[event] <= coords[event].x - MAX_DIFF_E2) && 
++				     (cal.x[event] <= coords[event].x + MAX_DIFF_E2) || 
++			        !(cal.x[event] >= coords[event].x - MAX_DIFF_E2) && 
++				     (cal.x[event] >= coords[event].x + MAX_DIFF_E2))
++				{
++					if (!(cal.y[event] <= coords[event].y - MAX_DIFF_E2) && 
++					     (cal.y[event] <= coords[event].y + MAX_DIFF_E2) || 
++				        !(cal.y[event] >= coords[event].y - MAX_DIFF_E2) && 
++				         (cal.y[event] >= coords[event].y + MAX_DIFF_E2))
++					event++;
++				}
++			}
++			else
++			{
++				if (!(cal.x[event] <= check_x[event] - MAX_DIFF) && 
++				     (cal.x[event] <= check_x[event] + MAX_DIFF) || 
++			        !(cal.x[event] >= check_x[event] - MAX_DIFF) && 
++				     (cal.x[event] >= check_x[event] + MAX_DIFF))
++				{
++					if (!(cal.y[event] <= check_y[event] - MAX_DIFF) && 
++					     (cal.y[event] <= check_y[event] + MAX_DIFF) || 
++				        !(cal.y[event] >= check_y[event] - MAX_DIFF) && 
++				         (cal.y[event] >= check_y[event] + MAX_DIFF))
++					event++;
++				}
++			}
++			
++            if (event < NR_POINTS)
++            {
++                samples = 0;
++                next_event ();
++            }
++            else
++            {
++                if (perform_calibration (&cal))
++                {
++                    set_calibration (&cal);
++                    XCalibrateSetRawMode (dpy, False);
++                    if (nvramFd >= 0 )
++                    {
++                        close (nvramFd);
++                        nvramFd = -1;
++                    }
++                    exit (0);
++                }
++                else
++                {
++                    samples = 0;
++                    event = 0;
++                    next_event ();
++                }
++            }
++        }
+     }
+ }
+ 
+ void
+ read_ts (void)
+ {
+-  TS_EVENT ts_ev;
+-  int r;
++    TS_EVENT ts_ev;
++    int r;
+ 
+-  r = read (ts_fd, &ts_ev, sizeof (ts_ev));
+-  if (r == sizeof (ts_ev))
+-    handle_ts_event (ts_ev.x, ts_ev.y, ts_ev.pressure);
++    r = read (ts_fd, &ts_ev, sizeof (ts_ev));
++    if (r == sizeof (ts_ev))
++        handle_ts_event (ts_ev.x, ts_ev.y, ts_ev.pressure);
+ }
+ 
+ void
+ do_cal (char **args)
+ {
+-  TS_CAL tc;
+-
+-  tc.xscale = atoi (args[0]);
+-  tc.xtrans = atoi (args[1]);
+-  tc.yscale = atoi (args[2]);
+-  tc.ytrans = atoi (args[3]);
+-  tc.xyswap = atoi (args[4]);
++    TS_CAL tc;
++    
++    tc.xscale = atoi (args[0]);
++    tc.xtrans = atoi (args[1]);
++    tc.yscale = atoi (args[2]);
++    tc.ytrans = atoi (args[3]);
++    tc.xyswap = atoi (args[4]);
+ 
+-  if (flag_debug)
+-    fprintf (stderr, "setting: %d %d %d %d %d\n", 
+-	     tc.xtrans, tc.ytrans, tc.xscale, tc.yscale, tc.xyswap);
++    if (flag_debug)
++        fprintf (stderr, "setting: %d %d %d %d %d\n", 
++                tc.xtrans, tc.ytrans, tc.xscale, tc.yscale, tc.xyswap);
+     
+-  if (ioctl (ts_fd, TS_SET_CAL, (void *)&tc) != 0)
++    if (ioctl (ts_fd, TS_SET_CAL, (void *)&tc) != 0)
+     {
+-      perror ("TS_SET_CAL");
+-      exit (1);
++        perror ("TS_SET_CAL");
++        exit (1);
+     }
+   
+-  exit (0);
++    exit (0);
+ }
+ 
+ void
+ show_cal (void)
+ {
+-  TS_CAL tc;
++    TS_CAL tc;
+ 
+-  if (ioctl (ts_fd, TS_GET_CAL, (void *)&tc) != 0)
++    if (ioctl (ts_fd, TS_GET_CAL, (void *)&tc) != 0)
+     {
+-      perror ("TS_GET_CAL");
+-      exit (1);
++        perror ("TS_GET_CAL");
++        exit (1);
+     }
+-
+-  printf ("%d %d %d %d %d\n", tc.xscale, tc.xtrans, tc.yscale, tc.ytrans, tc.xyswap);
++    
++    printf ("%d %d %d %d %d\n", tc.xscale, tc.xtrans, tc.yscale, tc.ytrans, tc.xyswap);
+ }
+ 
+ void
+ usage (const char *name)
+ {
+-  fprintf (stderr, "usage: %s -view\n", name);
+-  fprintf (stderr, "       %s [-rotate <0 | 90 | 180 | 270>]\n", name);
+-  fprintf (stderr, "       %s -cal <xs> <xt> <ys> <yt> <xyswap>\n", name);
++    fprintf (stderr, "usage: %s -view\n", name);
++	fprintf (stderr, "       %s -e2cal\n", name);
++    fprintf (stderr, "       %s [-rotate <0 | 90 | 180 | 270>]\n", name);
++    fprintf (stderr, "       %s -cal <xs> <xt> <ys> <yt> <xyswap>\n", name);
+ 
+-  exit (1);
++    exit (1);
+ }
+ 
+ int
+ xrr_supported (void)
+ {
+-  int xrr_event_base, xrr_error_base;
+-  int xrr_major, xrr_minor;
+-
+-  if (XRRQueryExtension (dpy, &xrr_event_base, &xrr_error_base) == False
+-      || XRRQueryVersion (dpy, &xrr_major, &xrr_minor) == 0
+-      || xrr_major != 1
+-      || xrr_minor < 1)
++    int xrr_event_base, xrr_error_base;
++    int xrr_major, xrr_minor;
++    
++    if (XRRQueryExtension (dpy, &xrr_event_base, &xrr_error_base) == False
++        || XRRQueryVersion (dpy, &xrr_major, &xrr_minor) == 0
++        || xrr_major != 1
++        || xrr_minor < 1)
+     return 0;
+ 
+-  return 1;
++    return 1;
+ }
+ 
+ int
+ main (int argc, char *argv[])
+ {
+-  XSetWindowAttributes attributes;
+-  int xfd;
+-  XRenderColor colortmp;
+-  int max_fd;
+-  GC bg_gc;
+-  int i;
+-  int have_xrandr;
+-
+-  for (i = 1; i < argc; i++)
++    XSetWindowAttributes attributes;
++    int xfd;
++    XRenderColor colortmp;
++    int max_fd;
++    GC bg_gc;
++    int i = 0;
++    int have_xrandr = 0;
++	
++	// Check if we can open eeprom
++	nvramFd = open("/dev/nvram", O_RDWR);
++    if (nvramFd >= 0 )
++		eeprom_present = True;
++	
++    for (i = 1; i < argc; i++)
+     {
+-      if (!strcmp (argv[i], "-view"))
+-	{
+-	  show_cal ();
+-	  exit (0);
+-	}
+-      else if (!strcmp (argv[i], "-debug"))
+-	flag_debug = 1;
+-      else if (!strcmp (argv[i], "-cal"))
+-	{
+-	  if (argc > (i + 5))
+-	    do_cal (argv + i + 1);
+-	  else
+-	    usage (argv[0]);
+-	}
+-      else if (!strcmp (argv[i], "-rotate"))
+-	{
+-	  if (argc > (i + 1))
+-	    rotation = atoi (argv[++i]);
+-	  else
+-	    usage (argv[0]);
+-	}
+-      else
+-	usage (argv[0]);
++        if (!strcmp (argv[i], "-view"))
++        {
++            show_cal ();
++            exit (0);
++        }    
++        else if (!strcmp (argv[i], "-debug"))
++            flag_debug = 1;       
++        else if (!strcmp (argv[i], "-cal"))
++        {
++            if (argc > (i + 5))
++                do_cal (argv + i + 1);
++            else
++                usage (argv[0]);
++        }       
++        else if (!strcmp (argv[i], "-rotate"))
++        {
++            if (argc > (i + 1))
++                rotation = atoi (argv[++i]);
++            else
++                usage (argv[0]);
++        }
++        
++        else if (!strcmp (argv[i], "-e2cal"))
++        {	
++            if (eeprom_present)
++			{
++				dpy = XOpenDisplay (NULL);
++			    if (dpy == NULL)
++			    {
++				    fprintf (stderr, "Couldn't open display (e2)\n");
++				    exit (1);
++			    }
++            
++                screen = DefaultScreen (dpy);
++                if (XCalibrateQueryExtension (dpy, &event_base, &error_base))
++                {
++				    int r;
++                
++                    r = XCalibrateSetRawMode (dpy, True);
++                    if (r)
++                    {
++                        fprintf (stderr, "failed to set raw mode: error %d\n", r);
++                        exit (1);
++                    }
++                
++                    using_xcalibrate = 1;
++			    }
++            
++                screen_x = DisplayWidth (dpy, screen);
++                screen_y = DisplayHeight (dpy, screen);
++            
++                get_e2calibration_data(nvramFd, coords); //get cal data from eeprom
++            
++                if (perform_calibration (&cal))
++                {
++                    set_calibration (&cal);
++                    XCalibrateSetRawMode (dpy, False);
++                }
++            
++                if (nvramFd >= 0)
++                {
++                    close (nvramFd);
++                    nvramFd = -1;
++                }
++            
++                exit (0);
++            }
++		}			
++				
++        else
++            usage (argv[0]);
+     }
+   
+-  dpy = XOpenDisplay (NULL);
+-  if (dpy == NULL)
++    dpy = XOpenDisplay (NULL);
++    if (dpy == NULL)
+     {
+-      fprintf (stderr, "Couldn't open display\n");
+-      exit (1);
++        fprintf (stderr, "Couldn't open display (!e2)\n");
++        exit (1);
+     }
+ 
+-  screen = DefaultScreen (dpy);
++    screen = DefaultScreen (dpy);
+ 
+-  if (XCalibrateQueryExtension (dpy, &event_base, &error_base))
++    if (XCalibrateQueryExtension (dpy, &event_base, &error_base))
+     {
+-      int r;
++        int r;
+ 
+-      if (flag_debug)
+-	fprintf (stderr, "Using XCALIBRATE\n");
++        if (flag_debug)
++            fprintf (stderr, "Using XCALIBRATE\n");
+ 
+-      r = XCalibrateSetRawMode (dpy, True);
+-      if (r)
+-	{
+-	  fprintf (stderr, "failed to set raw mode: error %d\n", r);
+-	  exit (1);
+-	}
++        r = XCalibrateSetRawMode (dpy, True);
++        if (r)
++        {
++            fprintf (stderr, "failed to set raw mode: error %d\n", r);
++            exit (1);
++        }
+ 
+-      using_xcalibrate = 1;
++         using_xcalibrate = 1;
+     }
+-
+-  have_xrandr = xrr_supported ();
+-  if (have_xrandr)
++    
++    have_xrandr = xrr_supported ();   
++    if (have_xrandr)
+     {
+-      XRRScreenConfiguration *rr_screen;
+-      Rotation current_rotation;
+-
+-      if (flag_debug)
+-	fprintf (stderr, "XRANDR is supported\n");
++        XRRScreenConfiguration *rr_screen;
++        Rotation current_rotation;
+ 
+-      rr_screen = XRRGetScreenInfo (dpy, RootWindow (dpy, screen));
++        if (flag_debug)
++            fprintf (stderr, "XRANDR is supported\n");
+ 
+-      XRRRotations (dpy, screen, &current_rotation);
++        rr_screen = XRRGetScreenInfo (dpy, RootWindow (dpy, screen));
+ 
+-      XRRFreeScreenConfigInfo (rr_screen);
++        XRRRotations (dpy, screen, &current_rotation);
+ 
+-      if (flag_debug)
+-	fprintf (stderr, "Current RANDR rotation is %d\n", current_rotation);
++        XRRFreeScreenConfigInfo (rr_screen);
+ 
+-      switch (current_rotation)
+-	{
+-	case RR_Rotate_270:
+-	  rotation += 90;
+-	case RR_Rotate_180:
+-	  rotation += 90;
+-	case RR_Rotate_90:
+-	  rotation += 90;
+-	  rotation %= 360;
+-	case RR_Rotate_0:
+-	  break;
+-	default:
+-	  fprintf (stderr, "Unknown RANDR rotation: %d\n", current_rotation);
+-	  break;
+-	}
++        if (flag_debug)
++            fprintf (stderr, "Current RANDR rotation is %d\n", current_rotation);
++        
++        switch (current_rotation)
++        {
++            case RR_Rotate_270:
++                rotation += 90;
++            case RR_Rotate_180:
++                rotation += 90;
++            case RR_Rotate_90:
++                rotation += 90;
++                rotation %= 360;
++            case RR_Rotate_0:
++                break;
++            default:
++            fprintf (stderr, "Unknown RANDR rotation: %d\n", current_rotation);
++            break;
++        }
+     }
+-  else
++    else
+     {
+-      if (flag_debug)
+-	fprintf (stderr, "XRANDR not supported\n");
++        if (flag_debug)
++            fprintf (stderr, "XRANDR not supported\n");
+     }
+ 
+-  attributes.override_redirect = flag_debug ? False : True;
+-  attributes.background_pixel = WhitePixel (dpy, screen);
++    attributes.override_redirect = flag_debug ? False : True;
++    attributes.background_pixel = WhitePixel (dpy, screen);
+     
+-  w = XCreateWindow (dpy, DefaultRootWindow(dpy), 0 , 0,
+-		     DisplayWidth(dpy, 0), DisplayHeight(dpy, 0),
+-		     0,
+-		     DefaultDepth(dpy, 0),
+-		     InputOutput,
+-		     DefaultVisual(dpy, 0),
+-		     CWOverrideRedirect | CWBackPixel,
+-		     &attributes );
+-
+-  screen_x = DisplayWidth (dpy, screen);
+-  screen_y = DisplayHeight (dpy, screen);
+-
+-  hide_cursor (dpy, w);
+-
+-  crosshair_x = OFFSET;
+-  crosshair_y = OFFSET;
++    w = XCreateWindow (dpy, DefaultRootWindow(dpy), 0 , 0,
++            DisplayWidth(dpy, 0), DisplayHeight(dpy, 0),
++            0,
++            DefaultDepth(dpy, 0),
++            InputOutput,
++            DefaultVisual(dpy, 0),
++            CWOverrideRedirect | CWBackPixel,
++            &attributes );
++    
++    screen_x = DisplayWidth (dpy, screen);
++    screen_y = DisplayHeight (dpy, screen);
+ 
+-  crosshair_w = XCreateSimpleWindow (dpy, w, crosshair_x, crosshair_y,
+-				     CROSSHAIR_SIZE, CROSSHAIR_SIZE,
+-				     0, None, WhitePixel (dpy, screen));
++    hide_cursor (dpy, w);
+ 
+-  draw_crosshair ();
++    // start initial crosshair at screen position 400x300 (center)
++    crosshair_x = (screen_x / 2);
++    crosshair_y = (screen_y / 2); 
+ 
+-  xftfont = XftFontOpenName (dpy, screen, FONTNAME);
+-  
+-  if (xftfont == NULL)
++    crosshair_w = XCreateSimpleWindow (dpy, w, crosshair_x, crosshair_y,
++            CROSSHAIR_SIZE, CROSSHAIR_SIZE, 0, None, WhitePixel (dpy, screen));
++            
++    draw_crosshair ();
++    
++    xftfont = XftFontOpenName (dpy, screen, FONTNAME);
++    
++    if (xftfont == NULL)
+     { 
+-      fprintf (stderr, "Can't open XFT font\n"); 
+-      exit(1); 
++        fprintf (stderr, "Can't open XFT font\n"); 
++        exit(1); 
+     }
++    
++    colortmp.red   = 0;
++    colortmp.green = 0;
++    colortmp.blue  = 0;
++    colortmp.alpha = 0xffff; 
++    XftColorAllocValue (dpy,
++            DefaultVisual (dpy, screen),
++            DefaultColormap (dpy, screen),
++            &colortmp,
++            &xftcol);
++    
++    bg_pixmap = XCreatePixmap (dpy, w, screen_x, screen_y, 
++            DefaultDepth (dpy, screen));
++    
++    bg_gc = XCreateGC (dpy, bg_pixmap, 0, NULL);
++    XSetForeground (dpy, bg_gc, WhitePixel (dpy, screen));
+ 
+-  colortmp.red   = 0;
+-  colortmp.green = 0;
+-  colortmp.blue  = 0;
+-  colortmp.alpha = 0xffff;
+-  XftColorAllocValue (dpy,
+-		     DefaultVisual (dpy, screen),
+-		     DefaultColormap (dpy, screen),
+-		     &colortmp,
+-		     &xftcol);
+-
+-  bg_pixmap = XCreatePixmap (dpy, w, screen_x, screen_y, DefaultDepth (dpy, screen));
+-  bg_gc = XCreateGC (dpy, bg_pixmap, 0, NULL);
+-  XSetForeground (dpy, bg_gc, WhitePixel (dpy, screen));
+-
+-  XFillRectangle (dpy, bg_pixmap, bg_gc, 0, 0, screen_x, screen_y);
+-
+-  xftdraw = XftDrawCreate (dpy, bg_pixmap,
+-			   DefaultVisual (dpy, screen),
+-			   DefaultColormap (dpy, screen));
+-
+-  draw_background ();
+-
+-  XSetWindowBackgroundPixmap (dpy, w, bg_pixmap);
++    XFillRectangle (dpy, bg_pixmap, bg_gc, 0, 0, screen_x, screen_y);
++    
++    xftdraw = XftDrawCreate (dpy, bg_pixmap,
++            DefaultVisual (dpy, screen),
++            DefaultColormap (dpy, screen));
+ 
+-  XSelectInput (dpy, w, StructureNotifyMask | ButtonPressMask | KeyPressMask);
+-  XSelectInput (dpy, crosshair_w, ExposureMask);
+-  XMapWindow (dpy, w);
+-  XMapRaised (dpy, crosshair_w);
+-  XGrabPointer (dpy, w, True, Button1Mask, GrabModeAsync, GrabModeAsync,
+-		None, None, CurrentTime);
+-  XGrabKeyboard (dpy, w, True, GrabModeAsync, GrabModeAsync, CurrentTime);
++    draw_background ();
++    
++    XSetWindowBackgroundPixmap (dpy, w, bg_pixmap);
+ 
+-  xfd = ConnectionNumber (dpy);
++    XSelectInput (dpy, w, StructureNotifyMask | ButtonPressMask | KeyPressMask);
++    XSelectInput (dpy, crosshair_w, ExposureMask);
++    XMapWindow (dpy, w);
++    XMapRaised (dpy, crosshair_w);
++    XGrabPointer (dpy, w, True, Button1Mask, GrabModeAsync, GrabModeAsync,
++            None, None, CurrentTime);
++    XGrabKeyboard (dpy, w, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+ 
++    xfd = ConnectionNumber (dpy);
++    
++	// get cal data from eeprom
++	if (eeprom_present)
++        get_e2calibration_data(nvramFd, coords); 
++	
++	// hardcode ref values if can't get from e2
++	else
++	{   
++        //center
++		check_x[0] = 2020;
++        check_y[0] = 2070;
++		//top left
++		check_x[1] = 500;
++        check_y[1] = 3600;
++		//bottom left
++		check_x[2] = 500;
++        check_y[2] = 540;
++		//bottom right
++		check_x[3] = 3550;
++        check_y[3] = 540;
++		//top right
++		check_x[4] = 3550;
++        check_y[4] = 3600;
++    }
++    
+ #if NR_POINTS == 5
+-  cal.xscr[0] = OFFSET;
+-  cal.yscr[0] = OFFSET;
+-
+-  cal.xscr[1] = screen_x - OFFSET;
+-  cal.yscr[1] = OFFSET;
+ 
+-  cal.xscr[2] = screen_x - OFFSET;
+-  cal.yscr[2] = screen_y - OFFSET;
++    //Center
++    cal.xscr[0] = (screen_x / 2);
++    cal.yscr[0] = (screen_y / 2); 
++  
++    //Top Left
++    cal.xscr[1] = XOFFSET;
++    cal.yscr[1] = YOFFSET;
+ 
+-  cal.xscr[3] = OFFSET;
+-  cal.yscr[3] = screen_y - OFFSET;
++    //Bottom Left
++    cal.xscr[2] = XOFFSET;
++    cal.yscr[2] = screen_y - YOFFSET;
++   
++    //Bottom Right
++    cal.xscr[3] = screen_x - XOFFSET;
++    cal.yscr[3] = screen_y - YOFFSET;
+ 
+-  cal.xscr[4] = (screen_x / 2);
+-  cal.yscr[4] = (screen_y / 2);
++    //Top Right
++    cal.xscr[4] = screen_x - XOFFSET;
++    cal.yscr[4] = YOFFSET;
++    
+ #else
+ 
+ #error Unsupported number of calibration points
+ 
+ #endif
+ 
+-  for (i = 0; i < NR_POINTS; i++)
+-    {
+-      switch (rotation)
+-	{
+-	case 0:
+-	  cal.xfb[i] = cal.xscr[i];
+-	  cal.yfb[i] = cal.yscr[i];
+-	  break;
+-	case 90:
+-	  cal.xfb[i] = cal.yscr[i];
+-	  cal.yfb[i] = screen_x - cal.xscr[i];
+-	  break;
+-	case 180:
+-	  cal.xfb[i] = screen_x - cal.xscr[i];
+-	  cal.yfb[i] = screen_y - cal.yscr[i];
+-	  break;
+-	case 270:
+-	  cal.xfb[i] = screen_y - cal.yscr[i];
+-	  cal.yfb[i] = cal.xscr[i];
+-	  break;
+-	}
+-
+-      if (flag_debug)
+-	printf ("rotation %d: (%d,%d) -> (%d,%d)\n", rotation, 
+-		cal.xscr[i], cal.yscr[i], cal.xfb[i], cal.yfb[i]);
+-    }
+-
+-  next_event ();
+-
+-  if (!using_xcalibrate)
+-    {
+-      ts_fd = open (RAW_DEVICE, O_RDONLY);
+-      if (ts_fd < 0)
+-	{
+-	  perror (RAW_DEVICE);
+-	  exit (1);
+-	}
+-    }
+-
+-  max_fd = (xfd > ts_fd) ? xfd : ts_fd;
+-
+-  for (;;)
++    for (i = 0; i < NR_POINTS; i++)
+     {
+-      fd_set fds;
++        switch (rotation)
++        {
++            case 0:
++                cal.xfb[i] = cal.xscr[i];
++                cal.yfb[i] = cal.yscr[i];
++                break;
++            case 90:
++                cal.xfb[i] = cal.yscr[i];
++                cal.yfb[i] = screen_x - cal.xscr[i];
++                break;
++            case 180:
++                cal.xfb[i] = screen_x - cal.xscr[i];
++                cal.yfb[i] = screen_y - cal.yscr[i];
++                break;
++            case 270:
++                cal.xfb[i] = screen_y - cal.yscr[i];
++                cal.yfb[i] = cal.xscr[i];
++                break;
++        }
+ 
+-      handle_events ();
++        if (flag_debug)
++            printf ("rotation %d: (%d,%d) -> (%d,%d)\n", rotation, 
++                    cal.xscr[i], cal.yscr[i], cal.xfb[i], cal.yfb[i]);
++        }
++    
++        next_event ();
++        
++        if (!using_xcalibrate)
++        {
++            ts_fd = open (RAW_DEVICE, O_RDONLY);
++            if (ts_fd < 0)
++            {
++                perror (RAW_DEVICE);
++                exit (1);
++            }
++        }
++        
++        max_fd = (xfd > ts_fd) ? xfd : ts_fd;
++        
++        for (;;)
++        {
++            fd_set fds;
+ 
+-      FD_ZERO (&fds);
+-      FD_SET (xfd, &fds);
+-      if (ts_fd != -1)
+-	FD_SET (ts_fd, &fds);
++            handle_events ();
+ 
+-      select (max_fd + 1, &fds, NULL, NULL, NULL);
+-      
+-      if (ts_fd != -1 && FD_ISSET (ts_fd, &fds))
+-	read_ts ();
+-    }
++            FD_ZERO (&fds);
++            FD_SET (xfd, &fds);  
++            if (ts_fd != -1)
++                FD_SET (ts_fd, &fds);
++            
++            select (max_fd + 1, &fds, NULL, NULL, NULL);
++            
++            if (ts_fd != -1 && FD_ISSET (ts_fd, &fds))
++                read_ts ();
++        }
+ }

@@ -24,6 +24,7 @@
 #include "../core/series3c.h"
 #include "../core/sa1100.h"
 #include "../core/clps7111.h"
+#include "../core/inflate.h"
 #include <algorithm>
 #include <chrono>
 #include <thread>
@@ -714,6 +715,8 @@ int main(int argc, char **argv) {
     int    serialPollUart = 2;
     bool   serialPollUartExplicit = false;
     const char *deviceOverride = nullptr;
+    const char *flashPath = nullptr;
+    const char *saveFlashPath = nullptr;
     // --machine-id HEX: set the machine's Unique id before the first cycle
     // runs, the same way the frontend's debug panel does. Up to 16 hex
     // digits: the low 8 are the identity PROM / EEPROM word, and the high
@@ -802,6 +805,14 @@ int main(int argc, char **argv) {
         else if (a == "--max-traps" && i + 1 < argc) maxTraps = std::atoi(argv[++i]);
         else if (a == "--max-nonpaper" && i + 1 < argc) maxNonPaper = std::atoi(argv[++i]);
         else if (a == "--device" && i + 1 < argc) deviceOverride = argv[++i];
+        // --flash-path FILE — image for the device's built-in flash (the
+        // Psion LX's NAND), raw or .gz. Without it, a device whose profile
+        // names a factory image (internalFlashImage) gets that, found under
+        // the roms/ directory the ROM came from.
+        else if (a == "--flash-path" && i + 1 < argc) flashPath = argv[++i];
+        // --save-flash FILE — write the built-in flash, as the guest left it,
+        // to FILE at the end of the run.
+        else if (a == "--save-flash" && i + 1 < argc) saveFlashPath = argv[++i];
         else if (a == "--language" && i + 1 < argc) languageIndex = std::atoi(argv[++i]);
         else if (a == "--machine-id" && i + 1 < argc) {
             std::string hex = argv[++i];
@@ -1062,6 +1073,34 @@ int main(int argc, char **argv) {
     emu->setLogger([](const char *s) { emitLog(s); });
     emu->setLoggingEnabled(!quietLogs);
     emu->loadROM(rom.data(), rom.size());
+
+    // Built-in flash (the Psion LX's NAND): --flash-path, else the profile's
+    // factory image from the roms/ directory the ROM was loaded from.
+    {
+        std::string fp = flashPath ? flashPath : "";
+        if (fp.empty() && profile->internalFlashImage) {
+            std::string rp = romPath;
+            size_t at = rp.rfind("roms/");
+            std::string root = at == std::string::npos ? std::string("roms/") : rp.substr(0, at + 5);
+            if (const char *env = std::getenv("PSION_ROMS_DIR")) root = std::string(env) + "/";
+            fp = root + profile->internalFlashImage;
+        }
+        if (!fp.empty()) {
+            auto img = readFile(fp.c_str());
+            if (Inflate::isGzip(img.data(), img.size())) {
+                std::vector<uint8_t> raw;
+                if (!Inflate::gzip(img.data(), img.size(), raw)) {
+                    std::fprintf(stderr, "=== harness: %s is not a valid gzip file ===\n", fp.c_str());
+                    return 1;
+                }
+                img.swap(raw);
+            }
+            bool ok = emu->attachInternalFlash(img.data(), img.size());
+            std::fprintf(stderr, "=== harness: internal flash %s (%zu bytes) -> %s ===\n",
+                         fp.c_str(), img.size(), ok ? "attached" : "REJECTED");
+            if (!ok) return 1;
+        }
+    }
 
     // Replay a user-supplied RAM snapshot. Loaded after loadROM (which
     // resets the chip + zero-fills RAM) so the bytes survive into
@@ -1843,6 +1882,13 @@ int main(int argc, char **argv) {
     }
 
     if (screenshotPath) writePGM(emu, screenshotPath);
+    if (saveFlashPath && emu->getInternalFlashSize()) {
+        if (FILE *f = std::fopen(saveFlashPath, "wb")) {
+            std::fwrite(emu->getInternalFlashData(), 1, emu->getInternalFlashSize(), f);
+            std::fclose(f);
+            std::fprintf(stderr, "=== harness: internal flash saved to %s ===\n", saveFlashPath);
+        }
+    }
 
     // Boot-validation: compute LCD stats from the final framebuffer, decide
     // pass/fail against thresholds, emit a JSON summary for scripting, and

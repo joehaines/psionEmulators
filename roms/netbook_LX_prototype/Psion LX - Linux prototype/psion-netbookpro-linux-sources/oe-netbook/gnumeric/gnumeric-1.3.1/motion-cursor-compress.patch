@@ -1,0 +1,90 @@
+--- src/gnumeric-canvas.c~motion-compress-down.patch	2004-08-13 17:40:52.000000000 +0100
++++ src/gnumeric-canvas.c	2004-08-14 01:02:01.000000000 +0100
+@@ -96,52 +96,64 @@
+ 	case GDK_Left:
+ 		if (event->state & SCROLL_LOCK_MASK)
+ 			scg_set_left_col (gcanvas->simple.scg, gcanvas->first.col - 1);
+-		else if (transition_keys && jump_to_bounds) {
++		else {
+ 			delayed_movement = TRUE;
++		   	if (transition_keys && jump_to_bounds) 
+ 			scg_queue_movement (gcanvas->simple.scg, movefn,
+ 				 -(gcanvas->last_visible.col-gcanvas->first.col),
+ 				 FALSE, TRUE);
+-		} else
+-			(*movefn) (gcanvas->simple.scg, -1, jump_to_bounds || end_mode, TRUE);
++			else
++				scg_queue_movement (gcanvas->simple.scg, movefn,
++					-1, jump_to_bounds || end_mode, TRUE);
++		}
+ 		break;
+ 
+ 	case GDK_KP_Right:
+ 	case GDK_Right:
+ 		if (event->state & SCROLL_LOCK_MASK)
+ 			scg_set_left_col (gcanvas->simple.scg, gcanvas->first.col + 1);
+-		else if (transition_keys && jump_to_bounds) {
++		else {
+ 			delayed_movement = TRUE;
++		   	if (transition_keys && jump_to_bounds) 
+ 			scg_queue_movement (gcanvas->simple.scg, movefn,
+ 				 gcanvas->last_visible.col-gcanvas->first.col,
+ 				 FALSE, TRUE);
+-		} else
+-			(*movefn) (gcanvas->simple.scg, 1, jump_to_bounds || end_mode, TRUE);
++			else
++				scg_queue_movement (gcanvas->simple.scg, movefn,
++					1, jump_to_bounds || end_mode, TRUE);
++		}
+ 		break;
+ 
+ 	case GDK_KP_Up:
+ 	case GDK_Up:
+ 		if (event->state & SCROLL_LOCK_MASK)
+ 			scg_set_top_row (gcanvas->simple.scg, gcanvas->first.row - 1);
+-		else if (transition_keys && jump_to_bounds) {
++		else {
+ 			delayed_movement = TRUE;
++		   	if (transition_keys && jump_to_bounds)
+ 			scg_queue_movement (gcanvas->simple.scg, movefn,
+				 -(gcanvas->last_visible.row-gcanvas->first.row),
+ 				 FALSE, FALSE);
+-		} else
+-			(*movefn) (gcanvas->simple.scg, -1, jump_to_bounds || end_mode, FALSE);
++			else
++				scg_queue_movement (gcanvas->simple.scg, movefn,
++					-1, jump_to_bounds || end_mode, FALSE);
++		}
+ 		break;
+ 
+ 	case GDK_KP_Down:
+ 	case GDK_Down:
+ 		if (event->state & SCROLL_LOCK_MASK)
+ 			scg_set_top_row (gcanvas->simple.scg, gcanvas->first.row + 1);
+-		else if (transition_keys && jump_to_bounds) {
++		else {
+ 			delayed_movement = TRUE;
++			if (transition_keys && jump_to_bounds)
+ 			scg_queue_movement (gcanvas->simple.scg, movefn,
+ 				 gcanvas->last_visible.row-gcanvas->first.row,
+ 				 FALSE, FALSE);
+-		} else
+-			(*movefn) (gcanvas->simple.scg, 1, jump_to_bounds || end_mode, FALSE);
++			else
++				scg_queue_movement (gcanvas->simple.scg, movefn,
++					1, jump_to_bounds || end_mode, FALSE);
++		}
+ 		break;
+ 
+ 	case GDK_KP_Page_Up:
+--- src/sheet-control-gui.c~	2004-08-13 17:40:52.000000000 +0100
++++ src/sheet-control-gui.c	2004-08-14 00:48:47.000000000 +0100
+@@ -2631,7 +2631,7 @@
+ 	if (scg->delayedMovement.timer != -1) {
+ 		if (jump ||
+ 		    /* do not skip more than 3 requests at a time */
+-		    scg->delayedMovement.counter > 3 ||
++		    scg->delayedMovement.counter > 5 ||
+ 		    scg->delayedMovement.handler != handler ||
+ 		    scg->delayedMovement.horiz != horiz) {
+ 			g_source_remove (scg->delayedMovement.timer);

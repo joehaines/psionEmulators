@@ -1,0 +1,1972 @@
+
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+
+#include <stdio.h>
+#include "define.h"
+
+#ifndef NO_SMBMOUNT
+#include <mntent.h>
+#endif
+
+#include "data.h"
+#include "utility.h"
+
+/* ------------------------------------------------------------------------- */
+
+static GSList *grouplist = (GSList*)NULL;      /* list of groups (one list only) */
+static GSList *hostlist = (GSList*)NULL;       /* list of preferred hosts */
+static GSList *mountlist = (GSList*)NULL;      /* list of mounted shares */
+static GSList *memmountlist = (GSList*)NULL;   /* list of memorized mounts */
+static GSList *masterlist = (GSList*)NULL;     /* list of additional master browsers */
+static GSList *notifylist = (GSList*)NULL;     /* list of notify callbacks */
+static GSList *groupmasterlist = (GSList*)NULL;/* list of additional group master browsers */
+static unsigned char do_notify = 1;            /* flag, whether do notifying or not */
+
+static char empty_string[] = "";
+
+/* static functions */
+static void group_list_delete_all ();
+static void share_list_delete_all (GSList **sharelist);
+static void groupmaster_list_add (group_master_struct *master);
+
+/* ------------------------------------------------------------------------- */
+/* --- change notify functions --------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+static void notify_change (data_notify_struct *notify)
+{
+  GSList *temp;
+  data_change_callback callback;
+  
+  temp = notifylist;
+  while ( temp != NULL )
+  {
+    callback = (data_change_callback)(temp->data);
+    if ( callback != NULL )
+    {
+      callback(notify);
+    }
+    temp = temp->next;
+  }
+}
+
+/* ---------- */
+
+void notify_add_callback (data_change_callback callback)
+{
+  if ( callback != NULL )
+  {
+    notifylist = g_slist_append(notifylist, callback);
+  }
+}
+
+void notify_delete_callback (data_change_callback callback)
+{
+  if ( callback != NULL )
+  {
+    notifylist = g_slist_remove(notifylist, callback);
+    if ( !g_slist_length(notifylist) )
+    {
+      g_slist_free(notifylist);
+      notifylist = (GSList*)NULL;
+    }
+  }
+}
+
+void notify_delete_all ()
+{
+  g_slist_free(notifylist);
+  notifylist = (GSList*)NULL;
+}
+
+void notify_start ()
+{
+  do_notify = 1;
+}
+
+void notify_stop ()
+{
+  do_notify = 0;
+}
+
+void notify_mount_change ()
+{
+  data_notify_struct notify;
+
+  notify.dt = dt_mount;
+  notify.group = empty_string;
+  notify.machine = empty_string;
+  notify.data = NULL;
+  notify_change(&notify);
+}
+
+void notify_group_change ()
+{
+  data_notify_struct notify;
+
+  notify.dt = dt_group;
+  notify.group = empty_string;
+  notify.machine = empty_string;
+  notify.data = NULL;
+  notify_change(&notify);
+}
+
+void notify_host_change ()
+{
+  data_notify_struct notify;
+
+  notify.dt = dt_pref_host;
+  notify.group = empty_string;
+  notify.machine = empty_string;
+  notify.data = NULL;
+  notify_change(&notify);
+}
+
+void notify_master_change ()
+{
+  data_notify_struct notify;
+
+  notify.dt = dt_master;
+  notify.group = empty_string;
+  notify.machine = empty_string;
+  notify.data = NULL;
+  notify_change(&notify);
+}
+
+void notify_groupmaster_change ()
+{
+  data_notify_struct notify;
+
+  notify.dt = dt_groupmaster;
+  notify.group = empty_string;
+  notify.machine = empty_string;
+  notify.data = NULL;
+  notify_change(&notify);
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- mount list functions ------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
+
+/* add preferred host to host list, if it doesn't exist
+   returns '1' on success, otherwise it returns '0' */
+static unsigned char mount_list_add (mount_struct *mount)
+{
+  if ( mount )
+  {
+    if ( mount_list_search_by_mountpoint(mount->mountpoint) == NULL )
+    {
+      mountlist = g_slist_append(mountlist, mount);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/* return value: 1 -> entry deleted, 0 -> not deleted */
+static unsigned char mount_list_delete_by_mountpoint (char *mountpoint)
+{
+  mount_struct *mount;
+  
+  mount = mount_list_search_by_mountpoint(mountpoint);
+  if ( mount != NULL )
+  {
+    mountlist = g_slist_remove(mountlist, mount);
+    g_free(mount);
+    return 1;
+  }
+  return 0;
+}
+
+/* deletes the list of mounted shares */
+static void mount_list_delete_all ()
+{
+  if ( mountlist != NULL )
+    slist_free_with_data(&mountlist);
+}
+
+/* reports the number of mounts stored */
+guint mount_list_count ()
+{
+  return g_slist_length(mountlist);
+}
+
+/* enumerates all mounts */
+void mount_list_enumerate (mount_enumerate_callback callback, gpointer data)
+{
+  GSList *temp;
+  mount_struct *mount;
+  
+  temp = mountlist;
+  while ( temp != NULL )
+  {
+    mount = (mount_struct*)(temp->data);
+    if ( mount )
+    {
+      if ( callback )
+        callback(mount, data);
+    }
+    temp = temp->next;
+  }
+}
+
+/* ---------- */
+
+/* return value: 1 -> mountpoint is in list, 0 -> not in list */
+unsigned char mount_list_in_list_mountpoint (char *mountpoint)
+{
+  if ( mount_list_search_by_mountpoint(mountpoint) != NULL )
+    return 1;
+  else
+    return 0;
+}
+
+/* searches a mount entry by its mountpoinz, returns a pointer
+   to its structure on success */
+mount_struct *mount_list_search_by_mountpoint (char *mountpoint)
+{
+  mount_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (mount_struct*)NULL;
+  templist = mountlist;
+  
+  while ( templist != NULL )
+  {
+    temp = (mount_struct*)(templist->data);
+    if ( temp )
+    {
+      if ( compare_path(mountpoint, temp->mountpoint) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* searches a mount entry by its machine name + share name, returns a pointer
+   to its structure on success */
+mount_struct *mount_list_search_by_machine_share (char *machine, char *share)
+{
+  mount_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (mount_struct*)NULL;
+  templist = mountlist;
+  
+  while ( templist != NULL )
+  {
+    temp = (mount_struct*)(templist->data);
+    if ( temp )
+    {
+      if ( compare_smb_machinename(machine, temp->machine) )
+      {
+        if ( compare_smb_sharename(share, temp->share) )
+        {
+          ret = temp;
+          break;
+        }
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* ---------- */
+
+/* --- reading the mtab file (mostly "/etc/mtab") for smbfs entries --- */
+
+#ifndef NO_SMBMOUNT
+
+static void mount_list_get_mtab (GSList ** mlist)
+{
+  FILE *mtab;
+  struct mntent *mnt;
+  mount_struct *smbfs_struct;
+  char service[SERVICE_LEN+1];
+  char *machine, *share;
+
+  mtab = setmntent(MOUNTED, "r");
+  if ( !mtab )
+  {
+    /* error opening mtab */
+    return;
+  }
+  
+  while ( (mnt = getmntent(mtab)) )
+  {
+    if ( !strcmp(mnt->mnt_type, "smbfs") )
+    {
+      smbfs_struct = (mount_struct*)g_malloc(sizeof(mount_struct));
+      
+      string_ncopy(service, mnt->mnt_fsname, SERVICE_LEN);
+      extract_smb_service(service, &machine, &share);
+      string_ncopy(smbfs_struct->machine, machine, MAXMACHNAMEL);
+      string_ncopy(smbfs_struct->share, share, MAXSHRNAMEL);
+
+      string_ncopy(smbfs_struct->mountpoint, mnt->mnt_dir, PATH_LEN-1);
+      unmangle(smbfs_struct->mountpoint, mnt->mnt_dir, PATH_LEN-1);
+      /* always complete path with a slash */
+      strcat(smbfs_struct->mountpoint, "/");
+      
+      *mlist = g_slist_append(*mlist, smbfs_struct);
+    }
+  }
+  
+  endmntent(mtab);
+}
+
+/* does a look at the currently mounted shares and updates the mountlist */
+void mount_list_retrigger ()
+{
+  GSList *mlist = (GSList*)NULL;
+  GSList *m_list, *step_list;
+  mount_struct *smbfs_struct, *m_struct;
+  unsigned char is_changed;
+  unsigned char found;
+  
+  is_changed = 0;
+  mount_list_get_mtab(&mlist);
+  notify_stop();
+  
+  if ( mlist != NULL )
+  {
+    step_list = mlist;
+    
+    /* first step: add all entries in mtab not being in mount list to mount list */
+    /* second step: delete all entries in mount list not being in mtab */
+    
+    /* step one */
+    while ( step_list )
+    {
+      smbfs_struct = (mount_struct*)(step_list->data);
+      if ( smbfs_struct != NULL )
+      {
+        if ( mount_list_search_by_mountpoint(smbfs_struct->mountpoint) == NULL )
+        {
+          m_struct = (mount_struct*)g_malloc(sizeof(mount_struct));
+          string_ncopy(m_struct->machine, smbfs_struct->machine, MAXMACHNAMEL);
+          string_ncopy(m_struct->share, smbfs_struct->share, MAXSHRNAMEL);
+          string_ncopy(m_struct->mountpoint, smbfs_struct->mountpoint, PATH_LEN);
+          if ( mount_list_add(m_struct) )
+          {
+            is_changed = 1;
+          }
+          else
+          {
+            g_free(m_struct);
+          }
+        }
+      }
+      step_list = step_list->next;
+    }
+      
+    /* step two */
+    m_list = mountlist;
+    while ( m_list != NULL )
+    {
+      m_struct = (mount_struct*)(m_list->data);
+      if ( m_struct != NULL )
+      {
+        found = 0;
+        step_list = mlist;
+        while ( step_list != NULL )
+        {
+          smbfs_struct = (mount_struct*)(step_list->data);
+          if ( smbfs_struct != NULL )
+          {
+            if ( compare_path(m_struct->mountpoint, smbfs_struct->mountpoint) )
+            {
+              found = 1;
+              break;
+            }
+          }
+          step_list = step_list->next;
+        }
+        m_list = m_list->next;
+        /* mountlist entry not found in mtab -> delete */
+        if ( !found )
+        {
+          if ( mount_list_delete_by_mountpoint(m_struct->mountpoint) )
+          {
+            m_list = mountlist;
+            is_changed = 1;
+          }
+        }
+      }
+    }
+    
+    slist_free_with_data(&mlist);
+  }
+  /* -- no entry in mtab -> delete all entries in mountlist -- */
+  else
+  {
+    if ( g_slist_length(mountlist) > 0 )
+      is_changed = 1;
+    mount_list_delete_all();
+  }
+  
+  notify_start();
+  if ( is_changed )
+  {
+    notify_mount_change();
+  }
+}
+
+#endif
+
+/* ------------------------------------------------------------------------- */
+/* --- memorized mount list functions -------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+/* add mount to memorized mount list, if it doesn't exist
+   returns '1' on success, otherwise it returns '0' */
+static unsigned char mem_mount_list_add (mem_mount_struct *mount)
+{
+  if ( mount != NULL )
+  {
+    if ( mem_mount_list_search_by_mpoint(mount->mountpoint) == NULL )
+    {
+      memmountlist = g_slist_append(memmountlist, mount);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/* deletes the memorized mount list */
+static void mem_mount_list_delete_all ()
+{
+  GSList *templist;
+  mem_mount_struct *temp;
+  GSList *arglist;
+  
+  templist = memmountlist;
+  while ( templist != NULL )
+  {
+    temp = (mem_mount_struct*)(templist->data);
+    if ( temp )
+    {
+      arglist = temp->arglist;
+      if ( arglist != NULL )
+        slist_free_with_data(&arglist);
+      g_free(temp);
+      templist->data = NULL;
+    }
+    templist = templist->next;
+  }
+  g_slist_free(memmountlist);
+  memmountlist = (GSList*)NULL;
+}
+
+/* reports the number of memorized mounts stored */
+guint mem_mount_list_count (void)
+{
+  return g_slist_length(memmountlist);
+}
+
+/* enumerates all stored preferred hosts */
+void mem_mount_list_enumerate (mem_mount_enumerate_callback callback, gpointer data)
+{
+  GSList *temp;
+  mem_mount_struct *mount;
+  
+  temp = memmountlist;
+  while ( temp != NULL )
+  {
+    mount = (mem_mount_struct*)(temp->data);
+    if ( mount != NULL )
+    {
+      if ( callback )
+        callback(mount, data);
+    }
+    temp = temp->next;
+  }
+}
+
+/* ---------- */
+
+/* searches a memorized mount by its mountpoint, returns a pointer
+   to its structure on success */
+mem_mount_struct *mem_mount_list_search_by_mpoint(char *mountpoint)
+{
+  mem_mount_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (mem_mount_struct*)NULL;
+  templist = memmountlist;
+  
+  while ( templist != NULL )
+  {
+    temp = (mem_mount_struct*)(templist->data);
+    if ( temp )
+    {
+      if ( compare_path(mountpoint, temp->mountpoint) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- preferred host list functions --------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+/* add preferred host to host list, if it doesn't exist
+   returns '1' on success, otherwise it returns '0' */
+static unsigned char host_list_add (host_struct *host)
+{
+  if ( host )
+  {
+    if ( host_list_search_by_name(host->name) == NULL )
+    {
+      hostlist = g_slist_append(hostlist, host);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/* recursively deletes the preferred host list and all subsequent lists */
+static void host_list_delete_all ()
+{
+  GSList *templist;
+  host_struct *temp;
+  GSList *sharelist;
+  
+  templist = hostlist;
+  while ( templist != NULL )
+  {
+    temp = (host_struct*)(templist->data);
+    if ( temp )
+    {
+      sharelist = temp->sharelist;
+      if ( sharelist != NULL )
+        share_list_delete_all(&sharelist);
+      g_free(temp);
+      templist->data = NULL;
+    }
+    templist = templist->next;
+  }
+  g_slist_free(hostlist);
+  hostlist = (GSList*)NULL;
+}
+
+/* reports the number of preferred hosts stored */
+guint host_list_count ()
+{
+  return g_slist_length(hostlist);
+}
+
+/* enumerates all stored preferred hosts */
+void host_list_enumerate (host_enumerate_callback callback, gpointer data)
+{
+  GSList *temp;
+  host_struct *host;
+  
+  temp = hostlist;
+  while ( temp != NULL )
+  {
+    host = (host_struct*)(temp->data);
+    if ( host )
+    {
+      if ( callback )
+        callback(host, data);
+    }
+    temp = temp->next;
+  }
+}
+
+/* ---------- */
+
+/* searches a preferred host by its name, returns a pointer
+   to its structure on success */
+host_struct *host_list_search_by_name(char *name)
+{
+  host_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (host_struct*)NULL;
+  templist = hostlist;
+  
+  while ( templist != NULL )
+  {
+    temp = (host_struct*)(templist->data);
+    if ( temp )
+    {
+      if ( compare_smb_machinename(name, temp->name) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- group list functions ------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
+
+static void group_list_add (group_struct *group)
+{
+  grouplist = g_slist_append(grouplist, group);
+}
+
+static void group_list_master_add (GSList **masterlist, group_master_type type, char *name)
+{
+  group_master_struct *master;
+  
+  master = (group_master_struct*)g_malloc(sizeof(group_master_struct));
+  string_ncopy(master->name, name, MAXMACHNAMEL);
+  master->group[0] = 0;
+  master->type = type;
+  *masterlist = g_slist_append(*masterlist, master);
+}
+
+void group_list_master_delete_local (GSList **masterlist, char *name)
+{
+  group_master_struct *master;
+  
+  if ( *masterlist != NULL )
+  {
+    master = group_list_master_search_by_name(*masterlist, name);
+    if ( (master != NULL) && (master->type == type_user_add_local) )
+    {
+      *masterlist = g_slist_remove(*masterlist, master);
+      g_free(master);
+    }
+  }
+}
+
+/* searches a group's master browser list for a certain entry,
+   returns the first master if searchname = "" */
+group_master_struct *group_list_master_search_by_name (GSList *masterlist, char *name)
+{
+  group_master_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (group_master_struct*)NULL;
+  templist = masterlist;
+  
+  while ( templist != NULL )
+  {
+    temp = (group_master_struct*)(templist->data);
+    if ( temp != NULL )
+    {
+      if ( is_empty_string(name) )
+      {
+        ret = temp;
+        break;
+      }
+      else
+      {
+        if ( compare_smb_machinename(temp->name, name) )
+        {
+          ret = temp;
+          break;
+        }
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* replaces a list already stored with a new list */
+static void group_list_add_list (GSList *groupmasterlist)
+{
+  group_struct *group;
+  GROUPMASTER_STRUCT *data;
+
+  if ( grouplist != NULL )
+    group_list_delete_all();
+  
+  while ( groupmasterlist != NULL )
+  {
+    data = (GROUPMASTER_STRUCT*)(groupmasterlist->data);
+    if ( data != NULL )
+    {
+      group = (group_struct*)g_malloc(sizeof(group_struct));
+      group->dt = dt_group;
+      string_ncopy(group->name, data->group_name, MAXGROUPNAMEL);
+      group->masterlist = (GSList*)NULL;
+      if ( !is_empty_string(data->master_browser) )
+      {
+        group_list_master_add(&(group->masterlist), type_groups_browse, data->master_browser);
+      }
+      group->machinelist = (GSList*)NULL;
+      
+      group_list_add(group);
+    }
+    groupmasterlist = groupmasterlist->next;
+  }
+}
+
+/* appends a group to the list if it doesn't exist,
+   otherwise it checks the master browser entry and
+   instert a master if it is empty */
+static void group_list_add_append (GSList *groupmasterlist)
+{
+  group_struct *group;
+  GROUPMASTER_STRUCT *data;
+  
+  while ( groupmasterlist != NULL )
+  {
+    data = (GROUPMASTER_STRUCT*)(groupmasterlist->data);
+    if ( data != NULL )
+    {
+      group = group_list_search_by_name(data->group_name);
+      if ( group != NULL )
+      {
+        /* group in list, check master browser entry */
+        if ( !is_empty_string(data->master_browser) )
+        {
+          if ( !group_list_master_search_by_name(group->masterlist, data->master_browser) )
+          {
+            /* add additional group's master */
+            group_list_master_add(&(group->masterlist), type_groups_browse, data->master_browser);
+          }
+        }
+      }
+      else
+      {
+        /* group not in list, append */
+        group = (group_struct*)g_malloc(sizeof(group_struct));
+        group->dt = dt_group;
+        string_ncopy(group->name, data->group_name, MAXGROUPNAMEL);
+        group->masterlist = (GSList*)NULL;
+        if ( !is_empty_string(data->master_browser) )
+        {
+          group_list_master_add(&(group->masterlist), type_groups_browse, data->master_browser);
+        }
+        group->machinelist = (GSList*)NULL;
+      
+        grouplist = g_slist_append(grouplist, group);
+      }
+    }
+    groupmasterlist = groupmasterlist->next;
+  }
+}
+
+void group_list_append_additional_master (char *group_name)
+{
+  group_struct *group;
+  group_master_struct *master;
+
+  group = group_list_search_by_name(group_name);
+  if ( group != NULL )
+  {
+    /* enumerate all stored masters of the group */
+    master = groupmaster_list_search_by_workgroup(group_name, 1);
+    while ( master != NULL )
+    {
+      /* master already in list ? */
+      if ( !group_list_master_search_by_name(group->masterlist, master->name) )
+      {
+        /* add additional group's master */
+        group_list_master_add(&(group->masterlist), master->type, master->name);
+      }
+      /* next master */
+      master = groupmaster_list_search_by_workgroup(group_name, 0);
+    }
+  }
+}
+
+/* recursively deletes the group list and all subsequent lists */
+static void group_list_delete_all ()
+{
+  GSList *templist;
+  group_struct *temp;
+  GSList *delete_list;
+  
+  templist = grouplist;
+  while ( templist != NULL )
+  {
+    temp = (group_struct*)(templist->data);
+    if ( temp )
+    {
+      if ( temp->masterlist != NULL )
+        slist_free_with_data(&(temp->masterlist));
+      delete_list = (GSList*)(temp->machinelist);
+      if ( delete_list != NULL )
+        machine_list_delete_all(&delete_list);
+      g_free(temp);
+      templist->data = NULL;
+    }
+    templist = templist->next;
+  }
+  g_slist_free(grouplist);
+  grouplist = (GSList*)NULL;
+}
+
+/* reports the number of groups stored */
+guint group_list_count ()
+{
+  return g_slist_length(grouplist);
+}
+
+/* enumerates all stored groups */
+void group_list_enumerate (group_enumerate_callback callback, gpointer data)
+{
+  GSList *temp;
+  group_struct *group;
+  
+  temp = grouplist;
+  while ( temp != NULL )
+  {
+    group = (group_struct*)(temp->data);
+    if ( group )
+    {
+      if ( callback )
+        callback(group, data);
+    }
+    temp = temp->next;
+  }
+}
+
+/* ---------- */
+
+/* searches a group by its name, returns a pointer to its structure on success */
+group_struct *group_list_search_by_name(char *name)
+{
+  group_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (group_struct*)NULL;
+  templist = grouplist;
+  
+  while ( templist != NULL )
+  {
+    temp = (group_struct*)(templist->data);
+    if ( temp )
+    {
+      if ( compare_smb_groupname(name, temp->name) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- machine list functions ---------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+static void machine_list_add (GSList **machinelist, machine_struct *machine)
+{
+  *machinelist = g_slist_append(*machinelist, machine);
+}
+
+static void machine_list_add_entry (GSList **machinelist, group_struct *group, MACHINECOMMENT_STRUCT *data)
+{
+  machine_struct *machine;
+  
+  machine = (machine_struct*)g_malloc(sizeof(machine_struct));
+  machine->dt = dt_machine;
+  string_ncopy(machine->name, data->entry_name, MAXMACHNAMEL);
+  string_ncopy(machine->comment, data->entry_comment, MAXCOMMENTL);
+  machine->browse_user[0] = 0;
+  machine->browse_password[0] = 0;
+  machine->ipaddr[0] = 0;
+  machine->domain[0] = 0;
+  machine->os[0] = 0;
+  machine->server[0] = 0;
+  machine->group = group;
+  machine->sharelist = (GSList*)NULL;
+
+  machine_list_add(machinelist, machine);
+}
+
+/* replaces a machine list already stored with a new list */
+static void machine_list_add_list (GSList **machinelist, group_struct *group, GSList *machinecommentlist)
+{
+  MACHINECOMMENT_STRUCT *data;
+  unsigned char first_reply;
+  
+  if ( group == NULL )
+    return;
+    
+  first_reply = ( g_slist_length(*machinelist) == 0 ) ? 1 : 0;
+
+  while ( machinecommentlist != NULL )
+  {
+    data = (MACHINECOMMENT_STRUCT*)(machinecommentlist->data);
+    if ( data != NULL )
+    {
+      if ( first_reply )
+      {
+        machine_list_add_entry(machinelist, group, data);
+      }
+      else
+      {
+        /* check if machine already exists */
+        if ( !machine_list_search_by_group_name(group->name, data->entry_name) )
+          machine_list_add_entry(machinelist, group, data);
+      }
+    }
+    machinecommentlist = machinecommentlist->next;
+  }
+}
+
+/* recursively deletes a machine list and all subsequent share lists */
+void machine_list_delete_all (GSList **machinelist)
+{
+  GSList *templist;
+  machine_struct *temp;
+  GSList *sharelist;
+  
+  templist = *machinelist;
+  while ( templist != NULL )
+  {
+    temp = (machine_struct*)(templist->data);
+    if ( temp )
+    {
+      sharelist = (GSList*)temp->sharelist;
+      if ( sharelist )
+        share_list_delete_all(&sharelist);
+      g_free(temp);
+      templist->data = NULL;
+    }
+    templist = templist->next;
+  }
+  g_slist_free(*machinelist);
+  *machinelist = (GSList*)NULL;
+}
+
+/* reports the number of machines stored in a group */
+guint machine_list_count (char *groupname)
+{
+  group_struct *group;
+  guint iret = 0;
+
+  group = group_list_search_by_name(groupname);
+  if ( group != NULL )
+  {
+    if ( group->machinelist != NULL )
+      iret = g_slist_length(group->machinelist);
+  }
+  return iret;
+}
+
+/* enumerates all stored machines in a group */
+void machine_list_enumerate (char *groupname, machine_enumerate_callback callback, gpointer data)
+{
+  GSList *temp;
+  group_struct *group;
+  machine_struct *machine;
+  
+  group = group_list_search_by_name(groupname);
+  if ( group )
+  {
+    temp = group->machinelist;
+    while ( temp != NULL )
+    {
+      machine = (machine_struct*)(temp->data);
+      if ( machine )
+      {
+        if ( callback )
+          callback(machine, data);
+      }
+      temp = temp->next;
+    }
+  }
+}
+
+/* ---------- */
+
+/* searches a machine by its name, on succes it returns a pointer to its structure */
+machine_struct *machine_list_search_by_name (GSList *machinelist, char *name)
+{
+  machine_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (machine_struct*)NULL;
+  templist = machinelist;
+  
+  while ( templist != NULL )
+  {
+    temp = (machine_struct*)(templist->data);
+    if ( temp != NULL )
+    {
+      if ( compare_smb_machinename(name, temp->name) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+machine_struct *machine_list_search_by_group_name (char *group, char *machine)
+{
+  machine_struct *ret;
+  group_struct *g_struct;
+  
+  ret = (machine_struct*)NULL;
+  g_struct = group_list_search_by_name(group);
+  if ( g_struct != NULL )
+  {
+    ret = machine_list_search_by_name(g_struct->machinelist, machine);
+  }
+  
+  return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- share list functions ------------------------------------------------ */
+/* ------------------------------------------------------------------------- */
+
+/* add a share object */
+static void share_list_add (GSList **sharelist, share_struct *share)
+{
+  *sharelist = g_slist_append(*sharelist, share);
+}
+
+/* replaces a share list already stored with a new list */
+static void share_list_add_list (GSList **sharelist, gpointer host, GSList *sharecommenttypelist)
+{
+  share_struct *share;
+  SHARECOMMENTTYPE_STRUCT *data;
+  dt_struct *hosttype;
+  
+  if ( host == NULL )
+    return;
+
+  if ( *sharelist != NULL )
+    share_list_delete_all(sharelist);
+  
+  while ( sharecommenttypelist != NULL )
+  {
+    data = (SHARECOMMENTTYPE_STRUCT*)(sharecommenttypelist->data);
+    if ( data != NULL )
+    {
+      hosttype = (dt_struct*)host;
+      share = (share_struct*)g_malloc(sizeof(share_struct));
+      if ( hosttype->dt == dt_pref_host )   /* appending on preferred host or... */
+        share->dt = dt_share_pref_host;
+      else                                  /* ... on regular machine ? */
+        share->dt = dt_share;
+      string_ncopy(share->name, data->entry_name, MAXSHRNAMEL);
+      string_ncopy(share->comment, data->entry_comment, MAXCOMMENTL);
+      share->st = data->share_type;
+      share->machine = (gpointer)host;
+      share->folderlist = (GSList*)NULL;
+      
+      share_list_add(sharelist, share);
+    }
+    sharecommenttypelist = sharecommenttypelist->next;
+  }
+}
+
+/* delete the share list */
+static void share_list_delete_all (GSList **sharelist)
+{
+  GSList *templist;
+  share_struct *temp;
+  
+  templist = *sharelist;
+
+  while ( templist != NULL )
+  {
+    temp = (share_struct*)(templist->data);
+    if ( temp )
+    {
+      g_free(temp);
+      templist->data = NULL;
+    }
+    templist = templist->next;
+  }
+
+  g_slist_free(*sharelist);
+  *sharelist = (GSList*)NULL;
+}
+
+/* reports the number of shares stored in a machine of a group */
+guint share_list_count (char *groupname, char *machinename)
+{
+  group_struct *group;
+  machine_struct *machine;
+  host_struct *host;
+  guint iret = 0;
+
+  /* 'normal' machine */
+  if ( !is_empty_string(groupname) )
+  {
+    group = group_list_search_by_name(groupname);
+    if ( group != NULL )
+    {
+      if ( group->machinelist != NULL )
+      {
+        machine = machine_list_search_by_name(group->machinelist, machinename);
+        if ( machine != NULL )
+        {
+          iret = g_slist_length(machine->sharelist);
+        }
+      }
+    }
+  }
+  /* preferred host */
+  else
+  {
+    host = host_list_search_by_name(machinename);
+    if ( host != NULL )
+    {
+      iret = g_slist_length(host->sharelist);
+    }
+  }
+
+  return iret;
+}
+
+/* enumerates all stored shares in a group's machine */
+void share_list_enumerate (char *groupname, char *machinename, share_enumerate_callback callback, gpointer data)
+{
+  GSList *temp = (GSList*)NULL;
+  group_struct *group;
+  machine_struct *machine;
+  host_struct *host;
+  share_struct *share;
+  
+  /* 'normal' machine */
+  if ( !is_empty_string(groupname) )
+  {
+    group = group_list_search_by_name(groupname);
+    if ( group )
+    {
+      machine = machine_list_search_by_name(group->machinelist, machinename);
+      if ( machine != NULL )
+      {
+        temp = machine->sharelist;
+      }
+    }
+  }
+  /* preferred host */
+  else
+  {
+    host = host_list_search_by_name(machinename);
+    if ( host != NULL )
+    {
+      temp = host->sharelist;
+    }
+  }
+  
+  while ( temp != NULL )
+  {
+    share = (share_struct*)(temp->data);
+    if ( share )
+    {
+      if ( callback )
+        callback(share, data);
+    }
+    temp = temp->next;
+  }
+}
+
+/* ---------- */
+
+/* searches a machine by its name, on succes it returns a pointer to its structure */
+share_struct *share_list_search_by_name (GSList *sharelist, char *name)
+{
+  share_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (share_struct*)NULL;
+  templist = sharelist;
+  
+  while ( templist != NULL )
+  {
+    temp = (share_struct*)(templist->data);
+    if ( temp != NULL )
+    {
+      if ( compare_smb_sharename(name, temp->name) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* searches the structure of the share in a certain machine of a certain group.
+   if group is an empty string (""), it looks for a preferred host */
+share_struct *share_list_search_by_group_machine_name (char *group, char *machine, char *share)
+{
+  share_struct *ret;
+  group_struct *g_struct;
+  host_struct *h_struct;
+  machine_struct *m_struct;
+  GSList *sharelist;
+  
+  ret = (share_struct*)NULL;
+  sharelist = (GSList*)NULL;
+  
+  if ( !is_empty_string(group) )
+  {
+    g_struct = group_list_search_by_name(group);
+    if ( g_struct != NULL )
+    {
+      m_struct = machine_list_search_by_name(g_struct->machinelist, machine);
+      if ( m_struct != NULL )
+      {
+        sharelist = m_struct->sharelist;
+      }
+    }
+  }
+  else
+  {
+    h_struct = host_list_search_by_name(machine);
+    if ( h_struct != NULL )
+    {
+      sharelist = h_struct->sharelist;
+    }
+  }
+  
+  if ( sharelist != NULL )
+  {
+    ret = share_list_search_by_name(sharelist, share);
+  }
+  
+  return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- master browser list functions --------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+/* add master browser to master list, if it doesn't exist
+   returns '1' on success, otherwise it returns '0' */
+static unsigned char master_list_add (master_struct *master)
+{
+  if ( master != NULL )
+  {
+    if ( master_list_search_by_name(master->name) == NULL )
+    {
+      masterlist = g_slist_append(masterlist, master);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/* deletes the master browser list */
+static void master_list_delete_all ()
+{
+  if ( masterlist != NULL )
+    slist_free_with_data(&masterlist);
+}
+
+/* reports the number of master browsers stored */
+guint master_list_count ()
+{
+  return g_slist_length(masterlist);
+}
+
+/* enumerates all master browsers hosts */
+void master_list_enumerate (master_enumerate_callback callback, gpointer data)
+{
+  GSList *temp;
+  master_struct *master;
+  
+  temp = masterlist;
+  while ( temp != NULL )
+  {
+    master = (master_struct*)(temp->data);
+    if ( master != NULL )
+    {
+      if ( callback )
+        callback(master, data);
+    }
+    temp = temp->next;
+  }
+}
+
+/* ---------- */
+
+/* searches a master browser by its name, returns a pointer
+   to its structure on success */
+master_struct *master_list_search_by_name(char *name)
+{
+  master_struct *ret, *temp;
+  GSList *templist;
+  
+  ret = (master_struct*)NULL;
+  templist = masterlist;
+  
+  while ( templist != NULL )
+  {
+    temp = (master_struct*)(templist->data);
+    if ( temp != NULL )
+    {
+      if ( compare_smb_machinename(name, temp->name) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+    templist = templist->next;
+  }
+  
+  return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- inserting functions ------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+/* insert a mounted share */
+void data_mount_add (char *service, char *mountpoint)
+{
+  mount_struct *mount;
+  char *machine, *share;
+  data_notify_struct notify;
+  
+  if ( service == NULL )
+    return;
+  if ( mountpoint == NULL )
+    return;
+  
+  if ( mount_list_search_by_mountpoint(mountpoint) == NULL )
+  {
+    mount = (mount_struct*)(g_malloc(sizeof(mount_struct)));
+    if ( mount != NULL )
+    {
+      extract_smb_service(service, &machine, &share);
+      string_ncopy(mount->machine, machine, MAXMACHNAMEL);
+      string_ncopy(mount->share, share, MAXSHRNAMEL);
+      string_ncopy(mount->mountpoint, mountpoint, PATH_LEN);
+      if ( mount_list_add(mount) )
+      {
+        notify.dt = dt_mount;
+        notify.group = empty_string;
+        notify.machine = empty_string;
+        notify.data = NULL;
+        notify_change(&notify);
+      }
+      else
+      {
+        g_free(mount);
+      }
+    }
+  }
+}
+
+void data_mount_delete (char *mountpoint)
+{
+  data_notify_struct notify;
+  
+  if ( mountpoint == NULL )
+    return;
+  
+  if ( mount_list_delete_by_mountpoint(mountpoint) )
+  {
+    notify.dt = dt_mount;
+    notify.group = empty_string;
+    notify.machine = empty_string;
+    notify.data = NULL;
+    notify_change(&notify);
+  }
+}
+
+/* insert a master browser to list */
+void data_master_add (char *name, master_browser_type type)
+{
+  master_struct *master;
+  data_notify_struct notify;
+  
+  if ( name == NULL )
+    return;
+    
+  master = (master_struct*)g_malloc(sizeof(master_struct));
+  master->type = type;
+  string_ncopy(master->name, name, MAXMACHNAMEL);
+  
+  if ( master_list_add(master) )
+  {
+    if ( do_notify )
+    {
+      notify.dt = dt_master;
+      notify.group = empty_string;
+      notify.machine = name;
+      notify.data = NULL;
+      notify_change(&notify);
+    }
+  }
+  else
+  {
+    g_free(master);
+  }
+}
+
+/* delete a master browser from list */
+void data_master_delete (char *name)
+{
+  master_struct *master;
+  data_notify_struct notify;
+  
+  if ( name == NULL )
+    return;
+
+  master = master_list_search_by_name(name);
+  if ( master != NULL )
+  {
+    masterlist = g_slist_remove(masterlist, master);
+    g_free(master);
+
+    if ( do_notify )
+    {
+      notify.dt = dt_master;
+      notify.group = empty_string;
+      notify.machine = name;
+      notify.data = NULL;
+      notify_change(&notify);
+    }
+  }
+}
+
+/* insert a preferred host to list */
+void data_hosts_add (char *machine, char *group, char *ip, host_type type)
+{
+  host_struct *host;
+  data_notify_struct notify;
+  
+  if ( machine == NULL )
+    return;
+  if ( group == NULL )
+    return;
+  if ( ip == NULL )
+    return;
+  
+  host = (host_struct*)g_malloc(sizeof(host_struct));
+  
+  host->dt = dt_pref_host;
+  host->type = type;
+  string_ncopy(host->name, machine, MAXMACHNAMEL);
+  strcpy(host->comment, cempty);
+  string_ncopy(host->group, group, MAXGROUPNAMEL);
+  host->browse_user[0] = 0;
+  host->browse_password[0] = 0;
+  string_ncopy(host->ipaddr, ip, MAXIPL);
+  host->domain[0] = 0;
+  host->os[0] = 0;
+  host->server[0] = 0;
+  host->sharelist = (GSList*)NULL;
+  
+  if ( host_list_add(host) )
+  {
+    if ( do_notify )
+    {
+      notify.dt = dt_pref_host;
+      notify.group = empty_string;
+      notify.machine = machine;
+      notify.data = NULL;
+      notify_change(&notify);
+    }
+  }
+  else
+  {
+    g_free(host);
+  }
+}
+
+/* deletes all preferred hosts from list */
+
+void data_hosts_delete_all (void)
+{
+  host_list_delete_all();
+  notify_host_change();
+}
+
+/* delete a preferred host from list */
+void data_hosts_delete (char *machine)
+{
+  host_struct *host;
+  data_notify_struct notify;
+  
+  if ( machine == NULL )
+    return;
+
+  host = host_list_search_by_name(machine);
+  if ( host )
+  {
+    hostlist = g_slist_remove(hostlist, host);
+    if ( host->sharelist != NULL )
+      share_list_delete_all(&(host->sharelist));
+    g_free(host);
+
+    if ( do_notify )
+    {
+      notify.dt = dt_pref_host;
+      notify.group = empty_string;
+      notify.machine = machine;
+      notify.data = NULL;
+      notify_change(&notify);
+    }
+  }
+}
+
+void data_hosts_machineinfo_set (char *machine, MACHINEINFO_STRUCT *machineinfo)
+{
+  host_struct *host;
+
+  if ( machine == NULL )
+    return;
+  if ( machineinfo == NULL )
+    return;
+  
+  host = host_list_search_by_name(machine);
+  if ( host != NULL )
+  {
+    if ( machineinfo != NULL )
+    {
+      string_ncopy(host->ipaddr, machineinfo->ipaddr, MAXIPL);
+      string_ncopy(host->group, machineinfo->Domain, MAXGROUPNAMEL);
+      string_ncopy(host->os, machineinfo->OS, MAXCOMMENTL);
+      string_ncopy(host->server, machineinfo->Server, MAXCOMMENTL);
+    }
+  }
+}
+
+/* replaces or appends a list of groups to the list */
+void data_groups_add (GSList *groupmasterlist, unsigned char append)
+{
+  data_notify_struct notify;
+
+  if ( groupmasterlist == NULL )
+    return;
+  
+  if ( !append )
+  {
+    group_list_add_list(groupmasterlist);
+  }
+  else
+  {
+    group_list_add_append(groupmasterlist);
+  }
+  
+  if ( do_notify )
+  {
+    notify.dt = dt_group;
+    notify.group = empty_string;
+    notify.machine = empty_string;
+    notify.data = NULL;
+    notify_change(&notify);
+  }
+}
+
+/* adds a list of machines to a certain group
+   return: '1' if group exists
+           '0' if not */
+unsigned char data_machines_add (char *group, GSList *machinecommentlist, BROWSE_MODE mode)
+{
+  group_struct *workgroup;
+  data_notify_struct notify;
+  
+  if ( group == NULL )
+    return 0;
+  if ( machinecommentlist == NULL )
+    return 0;
+
+  workgroup = group_list_search_by_name(group);
+  if ( workgroup != NULL )
+  {
+    if ( machinecommentlist != NULL )
+      machine_list_add_list(&(workgroup->machinelist), workgroup, machinecommentlist);
+    
+    if ( workgroup->pending_jobs )
+      workgroup->pending_jobs--;
+  
+    /* last browse job received ? */
+    if ( !(workgroup->pending_jobs) )
+    {
+      if ( do_notify )
+      {
+        notify.dt = dt_machine;
+        notify.group = group;
+        notify.machine = empty_string;
+        notify.data = (gpointer)mode;
+        notify_change(&notify);
+      }
+    }
+    return 1;
+  }
+  return 0;
+}
+
+void data_machines_machineinfo_set (char *group, char *machine, MACHINEINFO_STRUCT *machineinfo)
+{
+  group_struct *workgroup;
+  machine_struct *host;
+  
+  if ( group == NULL )
+    return;
+  if ( machine == NULL )
+    return;
+
+  workgroup = group_list_search_by_name(group);
+  if ( workgroup != NULL )
+  {
+    host = machine_list_search_by_name(workgroup->machinelist, machine);
+    if ( host != NULL )
+    {
+      if ( machineinfo != NULL )
+      {
+        string_ncopy(host->ipaddr, machineinfo->ipaddr, MAXIPL);
+        string_ncopy(host->os, machineinfo->OS, MAXCOMMENTL);
+        string_ncopy(host->server, machineinfo->Server, MAXCOMMENTL);
+      }
+    }
+  }
+}
+
+/* adds a list of shares to a certain machine of a group
+   return: '1' if group and machine exists
+           '0' if not */
+unsigned char data_shares_add (char *group, char *machine,
+                    char *user, char *password, GSList * sharecommenttypelist, BROWSE_MODE mode)
+{
+  group_struct *workgroup;
+  machine_struct *host;
+  data_notify_struct notify;
+  
+  if ( group == NULL )
+    return 0;
+  if ( machine == NULL )
+    return 0;
+
+  workgroup = group_list_search_by_name(group);
+  if ( workgroup != NULL )
+  {
+    host = machine_list_search_by_name(workgroup->machinelist, machine);
+    if ( host != NULL )
+    {
+      /* set the browse user + password for later share browse */
+      strncpy(host->browse_user, user, USER_LEN);
+      strncpy(host->browse_password, password, PASSWORD_LEN);
+    
+      share_list_add_list(&(host->sharelist), host, sharecommenttypelist);
+      
+      if ( do_notify )
+      {
+        notify.dt = dt_share;
+        notify.group = group;
+        notify.machine = machine;
+        notify.data = (gpointer)mode;
+        notify_change(&notify);
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/* adds a list of shares to a preferred host */
+void data_hosts_shares_add (char *machine, char *user, char *password, GSList * sharecommenttypelist)
+{
+  host_struct *host;
+  data_notify_struct notify;
+  
+  if ( machine == NULL )
+    return;
+  if ( sharecommenttypelist == NULL )
+    return;
+  
+  host = host_list_search_by_name(machine);
+  if ( host != NULL )
+  {
+    /* set the browse user + password for later share browse */
+    strncpy(host->browse_user, user, USER_LEN);
+    strncpy(host->browse_password, password, PASSWORD_LEN);
+    
+    share_list_add_list(&(host->sharelist), host, sharecommenttypelist);
+      
+    if ( do_notify )
+    {
+      notify.dt = dt_share_pref_host;
+      notify.group = empty_string;
+      notify.machine = machine;
+      notify.data = NULL;
+      notify_change(&notify);
+    }
+  }
+}
+
+/* adds an memorized mount to its list,
+   arglist must be completed with a NULL pointer */
+void data_mem_mount_add (MEM_MOUNT_TYPE type, char *mountpoint, char **arglist)
+{
+  mem_mount_struct *mount;
+  int i;
+  char *arg;
+  
+  if ( mountpoint == NULL )
+    return;
+  
+  mount = mem_mount_list_search_by_mpoint(mountpoint);
+  if ( mount == NULL )
+  {
+    mount = (mem_mount_struct*)(g_malloc(sizeof(mem_mount_struct)));
+    if ( mount != NULL )
+    {
+      mount->type = type;
+      string_ncopy(mount->mountpoint, mountpoint, PATH_LEN);
+      mount->arglist = NULL;
+      i = 0;
+      while ( arglist[i] != NULL )
+      {
+        arg = (char*)(g_malloc(strlen(arglist[i])+1));
+        if ( arg != NULL )
+        {
+          strcpy(arg, arglist[i]);
+          mount->arglist = g_slist_append(mount->arglist, arg);
+        }
+        i++;
+      }
+      mem_mount_list_add(mount);
+    }
+  }
+}
+
+void data_mem_mount_delete (char *mountpoint)
+{
+  mem_mount_struct *mount;
+  
+  if ( mountpoint == NULL )
+    return;
+
+  mount = mem_mount_list_search_by_mpoint(mountpoint);
+  if ( mount != NULL )
+  {
+    if ( mount->arglist != NULL )
+      slist_free_with_data(&(mount->arglist));
+    memmountlist = g_slist_remove(memmountlist, mount);
+    g_free(mount);
+  }
+}
+
+/* insert a group master browser to list */
+void data_groupmaster_add (char *group, char *name, group_master_type type)
+{
+  group_master_struct *master;
+  data_notify_struct notify;
+    
+  if ( group == NULL )
+    return;
+  if ( name == NULL )
+    return;
+  
+  /* master already in group ? */
+  master = groupmaster_list_search_by_workgroup_name(group, name);
+  
+  if ( master == NULL )
+  {
+    master = (group_master_struct*)g_malloc(sizeof(group_master_struct));
+    master->type = type;
+    string_ncopy(master->name, name, MAXMACHNAMEL);
+    string_ncopy(master->group, group, MAXGROUPNAMEL);
+    
+    groupmaster_list_add(master);
+  
+    if ( do_notify )
+    {
+      notify.dt = dt_groupmaster;
+      notify.group = group;
+      notify.machine = name;
+      notify.data = NULL;
+      notify_change(&notify);
+    }
+  }
+}
+
+/* delete a master browser from list */
+void data_groupmaster_delete (char *group, char *name)
+{
+  group_master_struct *master;
+  data_notify_struct notify;
+
+  if ( group == NULL )
+    return;
+  if ( name == NULL )
+    return;
+  
+  master = groupmaster_list_search_by_workgroup_name(group, name);
+  if ( master != NULL )
+  {
+    groupmasterlist = g_slist_remove(groupmasterlist, master);
+    g_free(master);
+
+    if ( do_notify )
+    {
+      notify.dt = dt_groupmaster;
+      notify.group = group;
+      notify.machine = name;
+      notify.data = NULL;
+      notify_change(&notify);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- groups master browser list functions -------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+static void groupmaster_list_add (group_master_struct *master)
+{
+  groupmasterlist = g_slist_append(groupmasterlist, master);
+}
+
+static void groupmaster_list_delete_all (void)
+{
+  if ( groupmasterlist != NULL )
+    slist_free_with_data(&groupmasterlist);
+}
+
+/* reports the number of group master browsers stored */
+guint groupmaster_list_count ()
+{
+  return g_slist_length(groupmasterlist);
+}
+
+/* enumerates all master browsers hosts */
+void groupmaster_list_enumerate (groupmaster_enumerate_callback callback, gpointer data)
+{
+  GSList *temp;
+  group_master_struct *master;
+  
+  temp = groupmasterlist;
+  while ( temp != NULL )
+  {
+    master = (group_master_struct*)(temp->data);
+    if ( master != NULL )
+    {
+      if ( callback )
+        callback(master, data);
+    }
+    temp = temp->next;
+  }
+}
+
+/* searches a groups master browser by its workgroup, returns a pointer
+   to its structure on success. You recursive can get more than one
+   group master by invoking the first time using 'reset = 1' and
+   following 'reset = 0' */
+group_master_struct *groupmaster_list_search_by_workgroup(char *workgroup, unsigned char reset)
+{
+  group_master_struct *ret, *temp;
+  static GSList *templist = NULL;
+  
+  ret = (group_master_struct*)NULL;
+  /* search from the beginning of the list ? */
+  if ( reset )
+    templist = groupmasterlist;
+  
+  while ( templist != NULL )
+  {
+    temp = (group_master_struct*)(templist->data);
+    templist = templist->next;
+    if ( temp != NULL )
+    {
+      if ( compare_smb_groupname(workgroup, temp->group) )
+      {
+        ret = temp;
+        break;
+      }
+    }
+  }
+  
+  return ret;
+}
+
+/* searches a groups master browser by its workgroup and name,
+   returns a pointer to its structure on success */
+group_master_struct *groupmaster_list_search_by_workgroup_name (char *workgroup, char *master)
+{
+  group_master_struct *ret, *temp;
+  
+  ret = NULL;
+  
+  temp = groupmaster_list_search_by_workgroup(workgroup, 1);
+  while ( temp != NULL )
+  {
+    if ( compare_smb_machinename(master, temp->name) )
+    {
+      ret = temp;
+      break;
+    }
+    temp = groupmaster_list_search_by_workgroup(workgroup, 0);
+  }
+  
+  return ret;
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- initialization functions -------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+/* call this function before using the data storage functions */
+void data_init ()
+{
+  if ( hostlist != NULL ) host_list_delete_all();
+  if ( grouplist != NULL ) group_list_delete_all();
+  if ( mountlist != NULL ) mount_list_delete_all();
+  if ( memmountlist != NULL ) mem_mount_list_delete_all();
+  if ( masterlist != NULL ) master_list_delete_all();
+  if ( notifylist != NULL ) notify_delete_all();
+  if ( groupmasterlist != NULL ) groupmaster_list_delete_all();
+  do_notify = 1;
+}
+
+/* call this function to clean up data storage */
+void data_clean ()
+{
+  notify_delete_all();
+  mount_list_delete_all();
+  mem_mount_list_delete_all();
+  master_list_delete_all();
+  host_list_delete_all();
+  group_list_delete_all();
+  groupmaster_list_delete_all();
+}
+
+/* ------------------------------------------------------------------------- */

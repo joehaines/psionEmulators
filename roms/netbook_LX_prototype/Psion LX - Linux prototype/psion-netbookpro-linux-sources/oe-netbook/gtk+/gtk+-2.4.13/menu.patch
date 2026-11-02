@@ -1,0 +1,113 @@
+--- gtk+-2.4.13/gtk/gtkmenushell.c~	Fri Oct 22 19:03:12 2004
++++ gtk+-2.4.13/gtk/gtkmenushell.c	Wed Oct 27 14:30:18 2004
+@@ -143,7 +143,7 @@
+ static GType    gtk_menu_shell_child_type  (GtkContainer      *container);
+ static void gtk_menu_shell_real_select_item  (GtkMenuShell      *menu_shell,
+ 					      GtkWidget         *menu_item);
+-static void gtk_menu_shell_select_submenu_first (GtkMenuShell   *menu_shell); 
++static gboolean gtk_menu_shell_select_submenu_first (GtkMenuShell   *menu_shell); 
+ 
+ static void gtk_real_menu_shell_move_current (GtkMenuShell      *menu_shell,
+ 					      GtkMenuDirectionType direction);
+@@ -968,7 +968,7 @@
+  *
+  * Since: 2.2
+  **/
+-void
++gboolean
+ gtk_menu_shell_select_first (GtkMenuShell *menu_shell,
+ 			     gboolean      search_sensitive)
+ {
+@@ -992,7 +992,12 @@
+     }
+ 
+   if (to_select)
+-    gtk_menu_shell_select_item (menu_shell, to_select);
++    {
++      gtk_menu_shell_select_item (menu_shell, to_select);
++      return TRUE;
++    }
++
++  return FALSE;
+ }
+ 
+ void
+@@ -1022,7 +1027,7 @@
+     gtk_menu_shell_select_item (menu_shell, to_select);
+ }
+ 
+-static void
++static gboolean
+ gtk_menu_shell_select_submenu_first (GtkMenuShell     *menu_shell)
+ {
+   GtkMenuItem *menu_item;
+@@ -1030,7 +1035,9 @@
+   menu_item = GTK_MENU_ITEM (menu_shell->active_menu_item); 
+   
+   if (menu_item->submenu)
+-    gtk_menu_shell_select_first (GTK_MENU_SHELL (menu_item->submenu), TRUE);
++    return gtk_menu_shell_select_first (GTK_MENU_SHELL (menu_item->submenu), TRUE);
++
++  return FALSE;
+ }
+ 
+ static void
+@@ -1102,28 +1109,27 @@
+ 	  _gtk_menu_item_is_selectable (menu_shell->active_menu_item) &&
+ 	  GTK_MENU_ITEM (menu_shell->active_menu_item)->submenu)
+ 	{
+-	  gtk_menu_shell_select_submenu_first (menu_shell);
++	  if (gtk_menu_shell_select_submenu_first (menu_shell))
++	    break;
+ 	}
+-      else
+-	{
+-	  /* Try to find a menu running the opposite direction */
+-	  while (parent_menu_shell && 
+-		 (GTK_MENU_SHELL_GET_CLASS (parent_menu_shell)->submenu_placement ==
+-		  GTK_MENU_SHELL_GET_CLASS (menu_shell)->submenu_placement))
+-            {
+-              GtkWidget *tmp_widget = parent_menu_shell->parent_menu_shell;
+-
+-              if (tmp_widget)
+-                parent_menu_shell = GTK_MENU_SHELL (tmp_widget);
+-              else
+-                parent_menu_shell = NULL;
+-            }
+ 
+-	  if (parent_menu_shell)
+-	    {
+-	      gtk_menu_shell_move_selected (parent_menu_shell, 1);
+-	      gtk_menu_shell_select_submenu_first (parent_menu_shell);
+-	    }
++      /* Try to find a menu running the opposite direction */
++      while (parent_menu_shell && 
++	     (GTK_MENU_SHELL_GET_CLASS (parent_menu_shell)->submenu_placement ==
++	      GTK_MENU_SHELL_GET_CLASS (menu_shell)->submenu_placement))
++	{
++	  GtkWidget *tmp_widget = parent_menu_shell->parent_menu_shell;
++	  
++	  if (tmp_widget)
++	    parent_menu_shell = GTK_MENU_SHELL (tmp_widget);
++	  else
++	    parent_menu_shell = NULL;
++	}
++      
++      if (parent_menu_shell)
++	{
++	  gtk_menu_shell_move_selected (parent_menu_shell, 1);
++	  gtk_menu_shell_select_submenu_first (parent_menu_shell);
+ 	}
+       break;
+       
+--- gtk+-2.4.13/gtk/gtkmenushell.h~	Mon Mar 15 02:03:56 2004
++++ gtk+-2.4.13/gtk/gtkmenushell.h	Wed Oct 27 14:26:28 2004
+@@ -110,7 +110,7 @@
+ void  gtk_menu_shell_activate_item     (GtkMenuShell *menu_shell,
+ 					GtkWidget    *menu_item,
+ 					gboolean      force_deactivate);
+-void  gtk_menu_shell_select_first      (GtkMenuShell *menu_shell,
++gboolean  gtk_menu_shell_select_first  (GtkMenuShell *menu_shell,
+ 					gboolean      search_sensitive);
+ void _gtk_menu_shell_select_last       (GtkMenuShell *menu_shell,
+ 					gboolean      search_sensitive);

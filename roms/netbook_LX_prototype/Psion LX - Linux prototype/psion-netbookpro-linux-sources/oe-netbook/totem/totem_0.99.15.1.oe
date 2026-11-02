@@ -1,0 +1,26 @@
+PR = "r6"
+DESCRIPTION = "media player for GNOME"
+inherit gnome gconf
+
+DEPENDS = "gstreamer gconf gnome-desktop glib-2.0 hicolor-icon-theme gst-plugins"
+RDEPENDS_${PN} = "hicolor-icon-theme gst-plugin-gnomevfs gst-plugin-esd \
+		  gst-plugin-mad gst-plugin-ivorbis gst-plugin-audioconvert \
+		  gst-plugin-switch gst-plugin-video gst-plugin-videobalance \
+		  gst-plugin-videofilter gst-plugin-videoscale \
+		  gst-plugin-ximagesink gst-plugin-xwindowlistener \
+		  gst-plugin-audio gst-plugin-volume gst-plugin-tagedit \
+		  gst-plugin-ffmpegcolorspace gst-plugin-typefindfunctions"
+
+SRC_URI += "file://gettext-nobble.patch;patch=1;pnum=0 \
+	    file://desktop-name.patch;patch=1;pnum=0 \
+		file://psion-remove-unused-menu-items.patch;patch=1;pnum=0 \
+		file://psion-remove-nautilus-plugins.patch;patch=1;pnum=0 \
+            file://media-player-48.png "
+
+EXTRA_OECONF = "--enable-gstreamer --disable-schemas-install"
+
+LDFLAGS += '-Wl,--export-dynamic'
+
+do_install_append() {
+	cp ${WORKDIR}/media-player-48.png ${D}${datadir}/totem
+}

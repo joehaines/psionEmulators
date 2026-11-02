@@ -1,0 +1,134 @@
+%define name	LinNeighborhood
+%define ver	@VERSION@
+%define RELEASE	1
+%define rel	%{?CUSTOM_RELEASE} %{!?CUSTOM_RELEASE:%RELEASE}
+
+######################################################################
+
+Summary:	GUI for the Network Neighborhood under LINUX
+Summary(fr):	Interface graphique pour l'accès au voisinage réseau sous LINUX
+Name:		%name
+Version:	%ver
+Release:	%rel
+Copyright:	GPL
+Group:		Applications/Communications
+Requires:	gtk+ >= 1.2.0 gettext samba-common
+Buildroot:	/var/tmp/%{name}-%{ver}-root
+Source:		http://www.bnro.de/~schmidjo/download/%{name}-%{version}.tar.gz
+Packager:	Patrick Monnerat <patrick/monnerat@econophone.ch>
+URL:		http://www.bnro.de/~schmidjo/
+
+######################################################################
+
+%description
+This application is a GUI similar to the Win9x/NT network neighborhood.
+It makes you able to browse entire networks and mount shares. The Samba
+client (http://www.samba.org) is required (for smbmount/smbumount/smbmnt),
+or Samba without smbmount/smbumount/smbmnt but with smbfs installed.
+
+Please read the README and CONFIGURATION in %{_docdir}/%{name}-%{version}.
+
+
+%description -l fr
+Cette application est une interface graphique au voisinage réseau à la
+manière de Win9x/NT. Elle permet de parcourir des réseaux entiers et de
+monter des volumes partagés.
+Soit le client Samba (http://www.samba.org) (pour les commandes
+smbmount, smbumount et smbmnt), soit le support système de fichier smbfs,
+doit être installé pour faire fonctionner LinNeighborhood.
+
+Voir les fichiers README et CONFIGURATION dans %{_docdir}/%{name}-%{version}.
+
+######################################################################
+
+%prep
+%setup -q
+
+######################################################################
+
+%build
+
+# this is to make sure all translations are included in the build
+unset LINGUAS || :
+
+%configure
+
+make
+
+######################################################################
+
+%install
+rm -fr $RPM_BUILD_ROOT
+
+%makeinstall
+
+strip $RPM_BUILD_ROOT%{_prefix}/bin/* ||:
+strip $RPM_BUILD_ROOT%{_prefix}/lib/*.so.* ||:
+
+mkdir -p $RPM_BUILD_ROOT/usr/share/pixmaps
+mkdir -p $RPM_BUILD_ROOT/usr/share/gnome/apps/Applications
+mkdir -p $RPM_BUILD_ROOT/usr/share/applnk/Applications/
+
+install -m 644 LinNeighborhood.xpm $RPM_BUILD_ROOT/usr/share/pixmaps
+install -m 644 LinNeighborhood.desktop \
+		$RPM_BUILD_ROOT/usr/share/gnome/apps/Applications
+install -m 644 LinNeighborhood.kdelnk \
+		$RPM_BUILD_ROOT/usr/share/applnk/Applications
+
+######################################################################
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+######################################################################
+
+%files
+%defattr(-,root,root)
+%doc ABOUT-NLS AUTHORS BUGS ChangeLog CONFIGURATION COPYING
+%doc INSTALL NEWS README TODO THANKS LinNeighborhood.lsm
+
+%{_bindir}/LinNeighborhood
+%{_datadir}/pixmaps/LinNeighborhood.xpm
+%{_datadir}/locale/*/*/*
+%{_datadir}/gnome/apps/Applications/LinNeighborhood.desktop
+%{_datadir}/applnk/Applications/LinNeighborhood.kdelnk
+%{_datadir}/icons/*
+
+#####################################################################
+
+%changelog
+* Fri Dec 13 2001 Patrick Monnerat <patrick.monnerat@econophone.ch>
+- Updated the configure scripts for automatic directory and spec configuration.
+- Added french summary and description to the spec file.
+- Adapted the spec script to RedHat 7.1.
+
+* Sun May 6 2001 Richard Torkar <ds98rito@thn.htu.se>
+- Upgraded to 0.6.3
+- New language added (turkish)
+
+* Tue Jan 9 2001 Richard Torkar <ds98rito@thn.htu.se>
+- Changed some things in the .spec file so that it will be easier to maintain.
+
+* Sun Jan 7 2001 Richard Torkar <ds98rito@thn.htu.se>
+- Updated to 0.6.2
+- Added language support for pt_BR and es
+
+* Wed Jan 3 2001 Richard Torkar <ds98rito@thn.htu.se>
+- Removed LinNeighbor from /etc/X11/wmconfig/
+- Stripped the binary
+- Added Vendor and Distribution tag
+
+* Fri Sep 1 2000 Richard Torkar <ds98rito@thn.htu.se>
+- Built 0.6.1 and added russian language support
+
+* Fri Jul 14 2000 Richard Torkar <ds98rito@thn.htu.se>
+- Rebuilt with KDE support. Thanx to Gregoire Barbier <barbier@sycomore.fr>
+
+* Wed Jun 21 2000 Richard Torkar <ds98rito@thn.htu.se>
+- Built stable 0.6.0 and added ja, fr & sv to locale
+
+* Sat Jun 1 2000 Richard Torkar <ds98rito@thn.htu.se>
+- Built the new pre1 version and started including locale
+
+* Wed Mar 15 2000 Richard Torkar <ds98rito@thn.htu.se>
+- Changed to new version and added it to the gnome menu

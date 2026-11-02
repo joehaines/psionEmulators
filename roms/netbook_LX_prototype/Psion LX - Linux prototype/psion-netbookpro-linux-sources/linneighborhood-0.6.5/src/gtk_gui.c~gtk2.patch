@@ -1,0 +1,1031 @@
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+#include <gtk/gtk.h>
+#include <gdk/gdkprivate.h>
+#include <gdk/gdkkeysyms.h>
+#include <stdio.h>
+#include "gtk_gui.h"
+#include "gtk_tree.h"
+#include "gtk_dialog.h"
+#include "preferences.h"
+#include "utility.h"
+#include "data.h"
+#include "gtk_sharewindow.h"
+
+#include "picture/LinNeighborhood.xpm"
+#ifndef NO_SMBMOUNT
+#include "picture/mount.xpm"
+#include "picture/umount.xpm"
+#endif
+#include "picture/close.xpm"
+#include "picture/favourites.xpm"
+#include "picture/log.xpm"
+#include "picture/edit.xpm"
+#include "picture/help.xpm"
+
+/* ------------------------------------------------------------------------- */
+
+/* main window */
+GtkWidget *main_window = NULL;
+
+/* id of the key sniffer */
+static guint key_snoop_id = 0;
+
+/* static function declaratiorns */
+static void main_quit (GtkWidget * widget, int *data);
+
+/*--------------------------------------------------------------------------*/
+
+int scan_mouse_press (GdkEventButton *event, guint32 *last_time)
+{
+  int mouse_event;
+  guint32 delta_time;
+  
+  mouse_event = MOUSE_NO_EVENT;
+  delta_time = event->time - *last_time;
+  *last_time = event->time;		/* -- actualize press time -- */
+  switch ( event->button )
+  {
+    case 1:		/* left button */
+        if ( !delta_time )	/* if press time == last time -> double click */
+          mouse_event = MOUSE_LEFT_DOUBLE;
+        else
+          mouse_event = MOUSE_LEFT_SINGLE;
+        break;
+
+    case 2:		/* middle button */
+       	if ( !delta_time )
+          mouse_event = MOUSE_MIDDLE_DOUBLE;
+        else
+          mouse_event = MOUSE_MIDDLE_SINGLE;
+        break;
+
+    case 3:		/* right button */
+       	if ( !delta_time )
+          mouse_event = MOUSE_RIGHT_DOUBLE;
+        else
+          mouse_event = MOUSE_RIGHT_SINGLE;
+        break;
+  }
+  return mouse_event;
+}
+
+void show_popup_menu (GtkItemFactoryEntry *menu_item, int items, int x, int y)
+{
+  GtkItemFactory *factory;
+  
+  factory = gtk_item_factory_new(GTK_TYPE_MENU, "<main>", NULL);
+  gtk_item_factory_create_items(factory, items, menu_item, NULL);
+  gtk_item_factory_popup(factory, x, y, 0, 0);
+}
+
+void change_win_cursor ( GdkWindow * win, GdkCursorType cursortype )
+{
+  GdkCursor *cursor;
+  
+  cursor = gdk_cursor_new(cursortype);
+  gdk_window_set_cursor(win, cursor);
+  gdk_cursor_destroy(cursor);
+}
+
+/*****************************************************************************
+*
+* This function shows a modal MessageBox, which must be confirmed by 'Ok'.
+* The parameters are the text of the frame caption (*title),
+* the shown text in the box (*text) and the width and height of the box
+*
+*****************************************************************************/
+
+void ShowMessageBox (char *title, char *text)
+{
+  GtkWidget *message_dlg;
+  GtkWidget *vbox;
+  GtkWidget *label;
+  GtkWidget *button;
+  
+  message_dlg = gtk_dialog_new();
+  gtk_window_set_wmclass(GTK_WINDOW(message_dlg),
+                         "ShowMessageBox", "LinNeighborhood");
+  gtk_window_set_modal(GTK_WINDOW(message_dlg), TRUE);
+  if ( title != NULL )
+    gtk_window_set_title (GTK_WINDOW (message_dlg), title);
+  else
+    gtk_window_set_title (GTK_WINDOW (message_dlg), _("Message"));
+  gtk_window_set_policy(GTK_WINDOW(message_dlg), 0, 0, 0);
+  gtk_signal_connect(GTK_OBJECT(message_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroyed), &message_dlg);
+  gtk_window_set_position(GTK_WINDOW(message_dlg), GTK_WIN_POS_CENTER);
+        
+  vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_border_width(GTK_CONTAINER(vbox), 8);
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->vbox),
+                      	vbox, TRUE, TRUE, 0);
+  gtk_widget_show(vbox);
+  
+  label = gtk_label_new("");
+  if ( text != NULL )
+  {
+    gtk_label_set_text(GTK_LABEL(label), text);
+  }
+  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+  gtk_widget_show(label);
+  
+  gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(message_dlg)->action_area), 4);
+
+  button = gtk_button_new_with_label(_("OK"));
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(message_dlg));
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                  	button, TRUE, TRUE, 0);
+  gtk_widget_grab_default(button);
+  gtk_widget_show(button);
+
+  gtk_widget_show(message_dlg);
+}
+
+/*****************************************************************************
+*
+* This function shows a modal MessageDialog. You can choice between several
+* Push Buttons shown by parameter 'buttons', e.g. Yes/No, Ok/Cancel...
+* The buttons will invoke a callback function which does tell you the button
+* you've pressed.
+* Other parameters are the text of the frame caption (*title),
+* the shown text in the box (*text) and the width and height of the box
+*
+*****************************************************************************/
+
+static GtkWidget *message_dlg = NULL;
+
+static void message_dlg_button_click (GtkWidget *widget, gpointer data)
+{
+  unsigned int button;
+  msgdlg_callback callback;
+  
+  button = (unsigned int)data;
+  if ( message_dlg )
+  {
+    callback = (msgdlg_callback)(gtk_object_get_user_data(GTK_OBJECT(message_dlg)));
+    gtk_widget_destroy(message_dlg);
+    message_dlg = NULL;
+    if ( callback )
+      callback(button);
+  }
+}
+
+void ShowMessageDialog (char *title,
+                        char *text,
+                        unsigned int buttons,
+                        msgdlg_callback callback)
+{
+  GtkWidget *vbox;
+  GtkWidget *label;
+  GtkWidget *button;
+  
+  message_dlg = gtk_dialog_new();
+  gtk_object_set_user_data(GTK_OBJECT(message_dlg), callback);
+  gtk_window_set_wmclass(GTK_WINDOW(message_dlg),
+                         "ShowMessageDialog", "LinNeighborhood");
+  gtk_window_set_modal(GTK_WINDOW(message_dlg), TRUE);
+  if ( title != NULL )
+    gtk_window_set_title (GTK_WINDOW (message_dlg), title);
+  else
+    gtk_window_set_title (GTK_WINDOW (message_dlg), _("Message"));
+  gtk_window_set_policy(GTK_WINDOW(message_dlg), 0, 0, 0);
+  gtk_signal_connect(GTK_OBJECT(message_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroyed), &message_dlg);
+  gtk_window_set_position(GTK_WINDOW(message_dlg), GTK_WIN_POS_CENTER);
+        
+  vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_border_width(GTK_CONTAINER(vbox), 8);
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->vbox),
+                      	vbox, TRUE, TRUE, 0);
+  gtk_widget_show(vbox);
+  
+  label = gtk_label_new("");
+  if ( text != NULL )
+    gtk_label_set_text(GTK_LABEL(label), text);
+  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+  gtk_widget_show(label);
+  
+  gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(message_dlg)->action_area), 4);
+
+  if ( buttons & OK_B )
+  {
+    button = gtk_button_new_with_label(_("OK"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(message_dlg_button_click), (gpointer)OK_B);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                      	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+  }
+
+  if ( buttons & YES_B )
+  {
+    button = gtk_button_new_with_label(_("Yes"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(message_dlg_button_click), (gpointer)YES_B);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                      	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+  }
+
+  if ( buttons & CONTINUE_B )
+  {
+    button = gtk_button_new_with_label(_("Continue"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(message_dlg_button_click), (gpointer)CONTINUE_B);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                      	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+  }
+
+  if ( buttons & RETRY_B )
+  {
+    button = gtk_button_new_with_label(_("Retry"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(message_dlg_button_click), (gpointer)RETRY_B);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                      	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+  }
+
+  if ( buttons & CANCEL_B )
+  {
+    button = gtk_button_new_with_label(_("Cancel"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(message_dlg_button_click), (gpointer)CANCEL_B);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                      	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+  }
+
+  if ( buttons & NO_B )
+  {
+    button = gtk_button_new_with_label(_("No"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(message_dlg_button_click), (gpointer)NO_B);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                      	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+  }
+
+  if ( buttons & ABORT_B )
+  {
+    button = gtk_button_new_with_label(_("Abort"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                	GTK_SIGNAL_FUNC(message_dlg_button_click), (gpointer)ABORT_B);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (message_dlg)->action_area),
+                      	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+  }
+
+  gtk_widget_show(message_dlg);
+}
+
+/*****************************************************************************
+*
+* This function shows a modal TextInputDialog.
+* Parameters are a default text in the input field and the max len of input.
+* Other parameters are the text of the frame caption (*title),
+* the shown text in the box (*text) and the width and height of the box
+*
+*****************************************************************************/
+
+static GtkWidget *text_dlg = NULL;
+static GtkWidget *text_entry = NULL;
+static GtkWidget *text_dialog_ok_button = NULL;
+
+static void text_dlg_ok_click (GtkWidget *widget, gpointer data)
+{
+  txtdlg_callback callback;
+  char *input;
+  int len;
+  
+  if ( text_dlg )
+  {
+    callback = (txtdlg_callback)(gtk_object_get_user_data(GTK_OBJECT(text_dlg)));
+    len = strlen(gtk_entry_get_text(GTK_ENTRY(text_entry)));
+    len++;
+    input = (char*)g_malloc(len);
+    strcpy(input, gtk_entry_get_text(GTK_ENTRY(text_entry)));
+    gtk_widget_destroy(text_dlg);
+    text_dlg = NULL;
+    if ( callback )
+      callback(input);
+    g_free(input);
+  }
+}
+
+static void text_dialog_key_press_callback (GtkWidget *widget, GdkEventKey *event)
+{
+  if ( event->keyval == GDK_Return )
+  {
+    if ( (GTK_WINDOW(text_dlg))->default_widget == text_dialog_ok_button )
+      text_dlg_ok_click(NULL, NULL);
+  }
+}
+
+void TextInputDialog (char *title,
+                      char *text,
+                      char *input,
+                      int input_maxlen,
+                      int w,
+                      int h,
+                      txtdlg_callback callback)
+{
+  GtkWidget *vbox;
+  GtkWidget *label;
+  GtkWidget *button;
+  
+  text_dlg = gtk_dialog_new();
+  gtk_object_set_user_data(GTK_OBJECT(text_dlg), callback);
+  gtk_window_set_wmclass(GTK_WINDOW(text_dlg),
+                         "TextInputDialog", "LinNeighborhood");
+  gtk_window_set_modal(GTK_WINDOW(text_dlg), TRUE);
+  if ( title != NULL )
+    gtk_window_set_title (GTK_WINDOW (text_dlg), title);
+  else
+    gtk_window_set_title (GTK_WINDOW (text_dlg), _("Input"));
+  gtk_window_set_policy(GTK_WINDOW(text_dlg), 0, 0, 0);
+  gtk_signal_connect(GTK_OBJECT(text_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroyed), &text_dlg);
+  gtk_window_set_position(GTK_WINDOW(text_dlg), GTK_WIN_POS_CENTER);
+  gtk_widget_set_usize(text_dlg, w, h);
+        
+  vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_border_width(GTK_CONTAINER(vbox), 5);
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (text_dlg)->vbox),
+                      	vbox, TRUE, TRUE, 0);
+  gtk_widget_show(vbox);
+  
+  label = gtk_label_new("");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  if ( text != NULL )
+    gtk_label_set_text(GTK_LABEL(label), text);
+  gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+  gtk_widget_show(label);
+  
+  text_entry = gtk_entry_new_with_max_length(input_maxlen);
+  if ( input )
+  {
+    if ( strlen(input) > input_maxlen )
+      input[input_maxlen] = 0;
+    gtk_entry_set_text(GTK_ENTRY(text_entry), input);
+  }
+  gtk_signal_connect_object(GTK_OBJECT(text_entry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(text_dialog_key_press_callback), NULL);
+  gtk_box_pack_start(GTK_BOX(vbox), text_entry, TRUE, TRUE, 0);
+  gtk_widget_show(text_entry);
+
+  text_dialog_ok_button = gtk_button_new_with_label(_("OK"));
+  GTK_WIDGET_SET_FLAGS(text_dialog_ok_button, GTK_CAN_DEFAULT);
+  gtk_signal_connect(GTK_OBJECT(text_dialog_ok_button), "clicked",
+                	GTK_SIGNAL_FUNC(text_dlg_ok_click), NULL);
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (text_dlg)->action_area),
+                      text_dialog_ok_button, TRUE, TRUE, 0);
+  gtk_widget_grab_default(text_dialog_ok_button);
+  gtk_widget_show(text_dialog_ok_button);
+
+  button = gtk_button_new_with_label(_("Cancel"));
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(text_dlg));
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (text_dlg)->action_area),
+                      button, TRUE, TRUE, 0);
+  gtk_widget_show(button);
+
+  gtk_widget_grab_focus(text_entry);
+
+  gtk_widget_show(text_dlg);
+}
+
+/*****************************************************************************
+*
+* This function does change the default color of a toolbar tooltips
+* from an ugly grey to a pastel yellow (Win$ like)
+*
+*****************************************************************************/
+
+/*
+ * there are pieces of code written by Maxim Koshelev
+ * and Oleg V.Andrjushenko in this function
+ */
+
+const GdkColor LYELLOW = {0, 0xffff, 0xffff, 0xdddd};
+
+void set_toolbar_tooltip_color (GtkToolbar *toolbar)
+{
+  GtkStyle *tooltipsStyle;
+  
+  gtk_tooltips_force_window(toolbar->tooltips);
+  tooltipsStyle=gtk_style_copy(toolbar->tooltips->tip_window->style);
+    
+  gdk_font_unref(tooltipsStyle->font);
+  tooltipsStyle->font = main_window->style->font;
+    
+  tooltipsStyle->bg[GTK_STATE_NORMAL] = LYELLOW;
+    
+  gtk_widget_set_style(toolbar->tooltips->tip_window,tooltipsStyle); 
+}
+
+/* ------------------------------------------------------------------------- */
+
+/* ----------------- */
+/* --- main menu --- */
+/* ----------------- */
+
+static GtkWidget *filew;
+
+static void import_lmhosts_cancel_callback (GtkWidget *widget)
+{
+  gtk_widget_destroy(widget);
+}
+
+static void import_lmhosts_ok_callback (GtkWidget *widget)
+{
+  unsigned char ok;
+
+  ok = load_lmhosts_file(gtk_file_selection_get_filename(GTK_FILE_SELECTION(filew)));
+
+  gtk_widget_destroy(widget);
+  
+  if ( !ok )
+  {
+    /* error loading file */
+    ShowMessageBox(_("Error"),
+                   _("Error loading lmhosts file !"));
+  }
+}
+
+static void import_lmhosts_callback()
+{
+  char filename[MASTER_LEN+1];
+
+  filew = gtk_file_selection_new(_("Import lmhosts File"));
+  gtk_window_set_modal(GTK_WINDOW(filew), TRUE);
+
+  strcpy(filename, "/etc/lmhosts");
+  if ( file_exist(filename) )
+  {
+    gtk_file_selection_set_filename(GTK_FILE_SELECTION(filew), filename);
+  }
+  else
+  {
+    /* samba's default installation path */
+    strcpy(filename, "/usr/local/samba/lib/lmhosts");
+    if ( file_exist(filename) )
+    {
+      gtk_file_selection_set_filename(GTK_FILE_SELECTION(filew), filename);
+    }
+    else
+    {
+      gtk_file_selection_set_filename(GTK_FILE_SELECTION(filew), "/");
+    }
+  }
+
+  gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(filew)->ok_button),
+           "clicked", (GtkSignalFunc)import_lmhosts_ok_callback, GTK_OBJECT(filew));
+  gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(filew)->cancel_button),
+           "clicked", (GtkSignalFunc)import_lmhosts_cancel_callback, GTK_OBJECT(filew));
+  gtk_widget_show(filew);
+}
+
+static void remove_fav_machines_msgdlg_callback(unsigned int button)
+{
+  if ( button == CONTINUE_B )
+  {
+    data_hosts_delete_all();
+  }
+}
+
+static void remove_fav_machines_callback()
+{
+  ShowMessageDialog(_("Warning"),
+                    _("Do you really want to remove\n all favourite hosts ?"),
+                    CONTINUE_B | CANCEL_B,
+                    remove_fav_machines_msgdlg_callback);
+}
+
+static void preferences_save_callback()
+{
+  preferences_save(&pref);
+}
+
+static void separator (GtkWidget * menu)
+{
+  GtkWidget *item;
+
+  item = gtk_menu_item_new();
+  gtk_menu_append( GTK_MENU(menu), item);
+  gtk_widget_set_sensitive(item, FALSE);
+  gtk_widget_show(item);
+}
+
+/* ---------- */
+
+static void main_menu_create (GtkWidget * vbox)
+{
+  GtkWidget *menu_bar;
+  GtkWidget *main_menu;
+  GtkWidget *main_item;
+  GtkWidget *menu_item;
+
+  /* -- create menu bar -- */
+  menu_bar = gtk_menu_bar_new();
+  gtk_widget_set_usize(menu_bar, -1, 25);
+  gtk_box_pack_start( GTK_BOX(vbox), menu_bar, FALSE, TRUE, 0);
+  gtk_widget_show(menu_bar);
+ 
+  /* -- File menu -- */
+  main_item = gtk_menu_item_new_with_label(_("File"));
+  gtk_widget_show(main_item);
+
+  main_menu = gtk_menu_new();
+
+#ifndef NO_SMBMOUNT
+  menu_item = gtk_menu_item_new_with_label(_("Mount..."));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(callback_mount), NULL);
+  gtk_widget_show(menu_item);
+
+  menu_item = gtk_menu_item_new_with_label(_("UnMount..."));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(callback_umount), NULL);
+  gtk_widget_show(menu_item);
+
+  separator(main_menu);
+#endif
+
+  menu_item = gtk_menu_item_new_with_label(_("Exit"));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(main_quit), NULL);
+  gtk_widget_show(menu_item);
+
+  gtk_menu_item_set_submenu( GTK_MENU_ITEM(main_item), main_menu);
+  gtk_menu_bar_append( GTK_MENU_BAR(menu_bar), main_item);
+
+  /* -- Edit menu -- */
+  main_item = gtk_menu_item_new_with_label(_("Edit"));
+  gtk_widget_show(main_item);
+  
+  main_menu = gtk_menu_new();
+  
+  menu_item = gtk_menu_item_new_with_label(_("Additional Master Browsers..."));
+  gtk_menu_append(GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object(GTK_OBJECT(menu_item), "activate",
+                            GTK_SIGNAL_FUNC(master_browser_dialog), NULL);
+  gtk_widget_show(menu_item);
+  
+  menu_item = gtk_menu_item_new_with_label(_("Group Masters..."));
+  gtk_menu_append(GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object(GTK_OBJECT(menu_item), "activate",
+                            GTK_SIGNAL_FUNC(group_master_dialog), NULL);
+  gtk_widget_show(menu_item);
+
+  separator(main_menu);
+
+  menu_item = gtk_menu_item_new_with_label(_("Remove all favourite hosts"));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(remove_fav_machines_callback), NULL);
+  gtk_widget_show(menu_item);
+  
+  separator(main_menu);
+  
+  menu_item = gtk_menu_item_new_with_label(_("Preferences..."));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(preferences_dialog), NULL);
+  gtk_widget_show(menu_item);
+  
+  menu_item = gtk_menu_item_new_with_label(_("Save Preferences"));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(preferences_save_callback), NULL);
+  gtk_widget_show(menu_item);
+
+  gtk_menu_item_set_submenu( GTK_MENU_ITEM(main_item), main_menu);
+  gtk_menu_bar_append( GTK_MENU_BAR(menu_bar), main_item);
+  
+  /* -- Options menu --- */
+  main_item = gtk_menu_item_new_with_label(_("Options"));
+  gtk_widget_show(main_item);
+
+  main_menu = gtk_menu_new();
+
+  menu_item = gtk_menu_item_new_with_label(_("Import lmhosts File..."));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(import_lmhosts_callback), NULL);
+  gtk_widget_show(menu_item);
+
+#ifndef NO_SMBMOUNT
+  menu_item = gtk_menu_item_new_with_label(_("Export Mountscript..."));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(export_mountscript_dialog), NULL);
+  gtk_widget_show(menu_item);
+#endif
+
+  separator(main_menu);
+  
+  menu_item = gtk_menu_item_new_with_label(_("Browse entire network..."));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(browse_network_image_dialog), NULL);
+  gtk_widget_show(menu_item);
+  
+  menu_item = gtk_menu_item_new_with_label(_("Export network image..."));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(export_network_image_dialog), NULL);
+  gtk_widget_show(menu_item);
+
+  gtk_menu_item_set_submenu( GTK_MENU_ITEM(main_item), main_menu);
+  gtk_menu_bar_append( GTK_MENU_BAR(menu_bar), main_item);
+
+  /* -- Help menu -- */
+  main_item = gtk_menu_item_new_with_label(_("Help"));
+  gtk_widget_show(main_item);
+
+  main_menu = gtk_menu_new();
+
+  menu_item = gtk_menu_item_new_with_label(_("About"));
+  gtk_menu_append( GTK_MENU(main_menu), menu_item);
+  gtk_signal_connect_object( GTK_OBJECT(menu_item), "activate",
+                             GTK_SIGNAL_FUNC(about_dialog), NULL);
+  gtk_widget_show(menu_item);
+
+  gtk_menu_item_set_submenu( GTK_MENU_ITEM(main_item), main_menu);
+  gtk_menu_bar_append( GTK_MENU_BAR(menu_bar), main_item);
+}
+
+/* ------------------------------------------------------------------------- */
+
+/* --------------- */
+/* --- toolbar --- */
+/* --------------- */
+
+static GtkWidget *toolbar;
+
+static void log_callback(GtkWidget *widget, gpointer data)
+{
+  log_window_toggle();
+  status_set_logging_text();
+}
+
+GtkWidget * new_pixmap (GtkWidget * widget, char **data)
+{
+  GdkPixmap *gdkpixmap;
+  GdkBitmap *mask;
+  GtkWidget *pixmap;
+
+  gdkpixmap = gdk_pixmap_create_from_xpm_d (widget->window, &mask,
+                               &widget->style->bg[GTK_STATE_NORMAL], data);
+  pixmap = gtk_pixmap_new(gdkpixmap, mask);
+  return pixmap;
+}
+
+static GtkWidget * toolbar_create (GtkWidget * window, GtkWidget * vbox)
+{
+#ifndef NO_SMBMOUNT
+  static GtkWidget *icon_mount;
+  static GtkWidget *icon_umount;
+#endif
+  static GtkWidget *icon_stop;
+  static GtkWidget *icon_favourites;
+  static GtkWidget *icon_preferences;
+  static GtkWidget *icon_log;
+  static GtkWidget *icon_about;
+
+  toolbar = gtk_toolbar_new( GTK_ORIENTATION_HORIZONTAL, GTK_TOOLBAR_BOTH);
+  gtk_box_pack_start( GTK_BOX(vbox), toolbar, FALSE, TRUE, 0);
+  gtk_widget_show(toolbar);
+  
+#ifndef NO_SMBMOUNT
+  icon_mount = new_pixmap(window, mount_xpm);
+  gtk_toolbar_append_item( GTK_TOOLBAR(toolbar), _(" Mount "), _("Mount Share"), "",
+                      icon_mount, GTK_SIGNAL_FUNC(callback_mount), NULL);
+
+  icon_umount = new_pixmap(window, umount_xpm);
+  gtk_toolbar_append_item( GTK_TOOLBAR(toolbar), _(" Unmount "), _("Unmount Share"), "",
+                      icon_umount, GTK_SIGNAL_FUNC(callback_umount), NULL);
+#endif
+
+  icon_stop = new_pixmap(window, close_xpm);
+  gtk_toolbar_append_item( GTK_TOOLBAR(toolbar), _(" Stop "), _("Stop Actions"), "",
+                      icon_stop, GTK_SIGNAL_FUNC(callback_stop), NULL);
+
+  icon_log = new_pixmap(window, log_xpm);
+  gtk_toolbar_append_item( GTK_TOOLBAR(toolbar), _(" Log "), _("Start / Stop Logging"), "",
+                      icon_log, GTK_SIGNAL_FUNC(log_callback), NULL);
+
+  icon_favourites = new_pixmap(window, favourites_xpm);
+  gtk_toolbar_append_item( GTK_TOOLBAR(toolbar), _(" Add "), _("Add favourite machine"), "",
+                      icon_favourites, GTK_SIGNAL_FUNC(enter_pref_machine), NULL);
+
+  icon_preferences = new_pixmap(window, edit_xpm);
+  gtk_toolbar_append_item( GTK_TOOLBAR(toolbar), _(" Prefs "), _("Edit Preferences"), "",
+                      icon_preferences, GTK_SIGNAL_FUNC(preferences_dialog), NULL);
+
+  icon_about = new_pixmap(window, help_xpm);
+  gtk_toolbar_append_item( GTK_TOOLBAR(toolbar), _(" About "), _("About LinNeighborhood"), "",
+                      icon_about, GTK_SIGNAL_FUNC(about_dialog), NULL);
+
+  set_toolbar_tooltip_color(GTK_TOOLBAR(toolbar));
+
+  return toolbar;
+}
+
+/* ------------------------------------------------------------------------- */
+
+/* -------------- */
+/* --- status --- */
+/* -------------- */
+
+#define STATUS_NUM      3       /* number of tailors in statusbar */
+
+static GtkWidget *statusbar[STATUS_NUM];
+static int context_id[STATUS_NUM];
+
+static void status_create (GtkWidget * vbox)
+{
+  GtkWidget *table;
+  int i;
+  
+  /* create statusbar with STATUS_NUM columns */
+  
+  for ( i = 0; i < STATUS_NUM; i++ )
+  {
+    statusbar[i] = gtk_statusbar_new();
+    context_id[i] = gtk_statusbar_get_context_id( GTK_STATUSBAR(statusbar[i]),
+                            	"LinNeighborhood StatusBar");
+    gtk_widget_show(statusbar[i]);
+  }
+  
+  table = gtk_table_new(1, 5, TRUE);
+  gtk_table_set_col_spacings( GTK_TABLE(table), 1);
+
+  gtk_table_attach( GTK_TABLE(table), statusbar[0], 0, 3, 0, 1,
+                    	GTK_FILL | GTK_EXPAND, GTK_FILL, 0, 0);
+  gtk_table_attach( GTK_TABLE(table), statusbar[1], 3, 4, 0, 1,
+                    	GTK_FILL | GTK_EXPAND, GTK_FILL, 0, 0);
+  gtk_table_attach( GTK_TABLE(table), statusbar[2], 4, 5, 0, 1,
+                    	GTK_FILL | GTK_EXPAND, GTK_FILL, 0, 0);
+
+  gtk_box_pack_end( GTK_BOX(vbox), table, FALSE, TRUE, 0);
+  gtk_widget_set_usize(table, -1, 20);
+  
+  status_set_logging_text();
+  gtk_widget_show(table);
+}
+
+void status_set_status_scan (unsigned char scan)
+{
+  char buff[32];
+  
+  string_ncopy(buff, _(" Scanning..."), 31);
+  if ( scan )
+  {
+    gtk_statusbar_pop( GTK_STATUSBAR(statusbar[STATUS_NUM - 1]),
+                          context_id[STATUS_NUM - 1]);
+    gtk_statusbar_push( GTK_STATUSBAR(statusbar[STATUS_NUM - 1]),
+                          context_id[STATUS_NUM - 1], buff);
+  }
+  else
+    gtk_statusbar_pop( GTK_STATUSBAR(statusbar[STATUS_NUM - 1]),
+                      	  context_id[STATUS_NUM - 1]);
+}
+
+void status_set_status_scan_text (char *text)
+{
+  gtk_statusbar_pop( GTK_STATUSBAR(statusbar[STATUS_NUM - 1]),
+                          context_id[STATUS_NUM - 1]);
+  gtk_statusbar_push( GTK_STATUSBAR(statusbar[STATUS_NUM - 1]),
+                          context_id[STATUS_NUM - 1], text);
+}
+
+void status_set_status_text (unsigned int text)
+{
+  switch ( text )
+  {
+    case TEXT_IDLE:
+        status_set_status(_("Ready"));
+        break;
+    case TEXT_SMBERR:
+        status_set_status(_("samba error : cannot browse"));
+        break;
+    case TEXT_EXEERR:
+        status_set_status(_("execution error : command not found"));
+        break;
+    default:
+        status_set_status("");
+        break;
+  }
+}
+
+void status_set_status (char * status)
+{
+  char buff[128];
+  
+  sprintf(buff, "  %s", status);
+  gtk_statusbar_pop( GTK_STATUSBAR(statusbar[0]), context_id[0]);
+  gtk_statusbar_push( GTK_STATUSBAR(statusbar[0]), context_id[0], buff);
+}
+
+void status_set_object_text (unsigned int objects)
+{
+  char text[32];
+  
+  sprintf(text, _("%i Object(s)"), objects);
+  status_set_status(text);
+}
+
+void status_set_logging_text (void)
+{
+  if ( log_window_active() )
+  {
+    gtk_statusbar_pop( GTK_STATUSBAR(statusbar[STATUS_NUM - 2]),
+                         context_id[STATUS_NUM - 2]);
+    gtk_statusbar_push( GTK_STATUSBAR(statusbar[STATUS_NUM - 2]),
+                         context_id[STATUS_NUM - 2], _(" Logging On"));
+  }
+  else
+  {
+    gtk_statusbar_pop( GTK_STATUSBAR(statusbar[STATUS_NUM - 2]),
+                         context_id[STATUS_NUM - 2]);
+    gtk_statusbar_push( GTK_STATUSBAR(statusbar[STATUS_NUM - 2]),
+                         context_id[STATUS_NUM - 2], _(" Logging Off"));
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------ */
+
+/* -- signal handlers ------------------------------------------------------------ */
+
+static void main_size_allocate (GtkWidget *widget, GtkAllocation *allocation)
+{
+  size.main_w = allocation->width;
+  size.main_h = allocation->height;
+}
+
+static void main_quit (GtkWidget * widget, int *data)
+{
+  /* save window geometries */
+  size_save(&size);
+    
+  /* delete key snooper */
+  if ( key_snoop_id )
+    gtk_key_snooper_remove(key_snoop_id);
+  
+  /* exit GUI */
+  gtk_main_quit ();
+}
+
+/* ------------------------------ */
+/* initializes the GUI using gtk+ */
+/* ------------------------------ */
+
+void gtk_gui_set_locale (void)
+{
+  /* localization */
+  gtk_set_locale();
+}
+
+gint key_snooper(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+  //g_print("keysnoop: %i ,  state %i  %s\n", event->keyval, event->state, event->string);
+  return 0;
+}
+
+static gint uposition_configure (GtkWidget *window)
+{
+  gdk_window_get_root_origin(window->window, &(size.main_x), &(size.main_y));
+
+  return FALSE;
+}
+
+gint main_events (GtkWidget *main, GdkEvent *event)
+{
+  gint ret_value = FALSE;
+
+  switch ( event->type )
+  {
+    case GDK_KEY_PRESS:
+        g_print("button press");
+        ret_value = TRUE;
+        break;
+    
+    case GDK_KEY_RELEASE:
+        g_print("button release");
+        ret_value = TRUE;
+        break;
+    
+    default:
+        break;
+  }
+
+  return ret_value;
+}
+
+void gtk_gui_init (int argc, char *argv[])
+{
+  GdkWindowPrivate *_private;
+  GtkWidget *vbox;
+  GdkPixmap *icon_pixmap;
+  GdkBitmap *icon_mask;
+  
+  /* -- gtk initialization -- */
+  gtk_init (&argc, &argv);
+
+  /* -- load window geometries -- */
+  size_load (&size);
+  
+  /* create key snooper */
+  key_snoop_id = gtk_key_snooper_install(key_snooper, NULL);
+  
+  /* -- create main window -- */
+  //main_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  main_window = gtk_widget_new (GTK_TYPE_WINDOW,
+                                "type", GTK_WINDOW_TOPLEVEL,
+                                "signal::configure_event", uposition_configure, NULL,
+                                NULL);
+  
+  gtk_window_set_default_size(GTK_WINDOW(main_window), size.main_w, size.main_h);
+  gtk_widget_set_uposition (GTK_WIDGET(main_window), size.main_x, size.main_y);
+  gtk_widget_set_usize (GTK_WIDGET(main_window), MAIN_W_MIN, MAIN_H_MIN);
+  gtk_window_set_title (GTK_WINDOW(main_window), _("LinNeighborhood"));
+  gtk_container_border_width (GTK_CONTAINER(main_window), 0);
+
+  /* keyboard test */
+  //gtk_signal_connect(GTK_OBJECT(main_window), "event",(GtkSignalFunc)main_events, NULL);
+  
+  /* -- show main window -- */
+  gtk_widget_show (main_window);
+
+  gtk_widget_realize (main_window);
+  
+  if ( startup.v.start_iconify )
+  {
+    _private = (GdkWindowPrivate*)(main_window->window);
+    if ( !_private->destroyed )
+      XIconifyWindow(_private->xdisplay, _private->xwindow, 0);
+  }
+	
+  gtk_signal_connect (GTK_OBJECT(main_window), "delete_event",
+                        GTK_SIGNAL_FUNC(main_quit), NULL);
+	
+  gtk_signal_connect (GTK_OBJECT(main_window), "size_allocate",
+                        GTK_SIGNAL_FUNC(main_size_allocate), NULL);
+	
+  icon_pixmap = gdk_pixmap_create_from_xpm_d (main_window->window, &icon_mask,
+                     &main_window->style->bg[GTK_STATE_NORMAL], LinNeighborhood_xpm);
+  gdk_window_set_icon (main_window->window, NULL, icon_pixmap, icon_mask);
+  
+  /* -- V-Box -- */
+  vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add( GTK_CONTAINER(main_window), vbox);
+  gtk_widget_show(vbox);
+
+  main_menu_create(vbox);
+  toolbar_create(main_window, vbox);
+  status_create(vbox);
+  tree_create(vbox);
+}
+
+/* ------------------------------------------------------------------------- */

@@ -1,0 +1,32 @@
+--- main.c.orig	2004-11-12 12:49:12.000000000 +0100
++++ main.c	2004-11-12 12:57:20.000000000 +0100
+@@ -174,6 +174,7 @@
+   { "error", "error" },
+   { "list-view" },
+   { "icon-view" },
++  { "help", "help" },
+   { "icon", PREFIX "/share/pixmaps/gpe-filemanager.png" },
+   {NULL, NULL}
+ };
+@@ -239,7 +240,7 @@
+   { N_("/_Settings/My Files only"), NULL, on_myfiles_setting_changed, 0, "<CheckItem>"},
+   { N_("/_Go To"),         NULL,         NULL,           0, "<Branch>" },
+   { N_("/_Help"),         NULL,         NULL,           0, "<Branch>" },
+-  { N_("/_Help/Index"),   NULL,         on_help_clicked,    0, "<StockItem>",GTK_STOCK_HELP },
++  { N_("/_Help/Index"),   "F1",         on_help_clicked,    0, "<StockItem>",GTK_STOCK_HELP },
+   { N_("/_Help/About"),   NULL,         on_about_clicked,    0, "<Item>" },
+ };
+ 
+@@ -2216,6 +2217,12 @@
+ 
+   gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
+ 
++  pw = gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_HELP,
++		  						_("Get Help"), NULL,
++								G_CALLBACK (on_help_clicked), NULL, -1);
++  
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar)); 
++
+   p = gpe_find_icon ("icon-view");
+   pw = gtk_image_new_from_pixbuf(p);
+   btnIconView = gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Icon view"), 

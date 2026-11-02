@@ -1,0 +1,157 @@
+%!
+% Copyright (C) 2001 Masatake YAMATO, Taiji Yamada and gs-cjk project
+%
+% This file is part of GNU Ghostscript.
+% 
+% GNU Ghostscript is distributed in the hope that it will be useful, but
+% WITHOUT ANY WARRANTY.  No author or distributor accepts responsibility
+% to anyone for the consequences of using it or for whether it serves any
+% particular purpose or works at all, unless he says so in writing. Refer
+% to the GNU General Public License for full details.
+% 
+% Everyone is granted permission to copy, modify and redistribute GNU
+% Ghostscript, but only under the conditions described in the GNU General
+% Public License.  A copy of this license is supposed to have been given
+% to you along with GNU Ghostscript so you can know your rights and
+% responsibilities.  It should be in a file named COPYING.  Among other
+% things, the copyright notice and this notice must be preserved on all
+% copies.
+
+% $Id: CIDFnmap,v 1.3 2002/04/23 11:58:33 easysw Exp $
+% CIDFnmap - sample CID-keyed font catalog for Ghostscript.
+
+% ----------------------------------------------------------------
+
+% This file is a catalog of CID-keyed fonts, TrueType fonts (TTF), and also
+% TrueType Collection fonts (TTC) known to Ghostscript.
+%
+% There are two ways to make a CID-keyed font loaded automatically when named:
+% C1. Put the CID-keyed font as a resource file to /Resource/CIDFont(*1).
+%    (*1) A path concatenated with GenericResourceDir defined in 
+%        gs_res.ps and "CIDFont". The default value of GenericResourceDir 
+%        is "/Resource/".
+% C2. Put the CID-keyed font file to Ghostscript's font path(*2)
+%    and write an entry for the CID-keyed font to this catalog.
+%    (*2) Somewhere in Ghostscript font search path, which is generally
+%        /usr/local/share/ghostscript/fonts. See output of `gs -h` or Use.htm,
+%        Ghostscript's document.
+%
+% There are two ways to make a TrueType font loaded automatically when named:
+% T1. Write a wrapper script file for the TrueType font and put the
+%    wrapper file to /Resource/CIDFont. The wrapper has to translate a
+%    TrueType font file to Type 2 CID-keyed on demand. Some examples of the
+%    wrapper file named "CIDFontName" as follows:
+%	
+%	(e1) TTF translated to Type 2 CID-keyed font
+%	%!PS-Adobe-3.0 Resource-CIDFont
+%	%%BeginResource: CIDFont (CIDFontName)
+%	/CIDFontName (filename.ttf) .openttcidfont
+%	dup length dict begin {def} forall currentdict end
+%	/CIDFont defineresource pop
+%	%%EndResource
+%	%%EOF
+%	
+%	(e2) TTC with an index translated to Type 2 CID-keyed font
+%	%!PS-Adobe-3.0 Resource-CIDFont
+%	%%BeginResource: CIDFont (CIDFontName)
+%	/CIDFontName (filename.ttc) 2 .openttcidfont
+%	dup length dict begin {def} forall currentdict end
+%	/CIDFont defineresource pop
+%	%%EndResource
+%	%%EOF
+%
+%	(e3) TTC with an index and a name of RO(Registry-Ordering)-Code
+%	%!PS-Adobe-3.0 Resource-CIDFont
+%	%%BeginResource: CIDFont (CIDFontName)
+%	/CIDFontName (filename.ttc) 2 /Adobe-GB1-Unicode .openttcidfont
+%	dup length dict begin {def} forall currentdict end
+%	/CIDFont defineresource pop
+%	%%EndResource
+%	%%EOF
+%
+%    for details about the names of RO-Code written in (e3), see below.
+%
+% T2. Put the CID-keyed font file to Ghostscript's font path(*2)
+%    and write an entry for the TrueType font to this catalog.
+
+% The Syntax of CIDFnmap is very similar to Fontmap.
+% Each CID-keyed font has an entry consisting of three items:
+%
+%	i1. The name by which the CID-keyed font is known inside Ghostscript
+%	(a Ghostscript name preceded by a `/', or a string enclosed
+%	in parentheses).  This is used to find the file from which
+%	a font of a given name should be loaded.
+%
+%	i2. Information depending on whether this is a real CID-keyed font or a
+%	CID-keyed font alias:
+%
+%		- For real CID-keyed fonts, the name of the CID-keyed font
+%		file (a Ghostscript string, enclosed in parentheses).
+%		The filename should include the extension if the CID-keyed font
+%		 name has.
+%
+%		- For CID-keyed font aliases, the name of the CID font
+%		which should be used when this one is requested,
+%		preceded by a `/'. Note that an alias name cannot be enclosed
+%		in parentheses.
+%
+%	i3. At least one space or tab, and a terminating semicolon.
+%
+% Each CID-keyed font has an entry consisting of three essential items and
+% two optional items. The three essential items are the same to the items of
+% CID-keyed Font. Two optional items are put between i2 and i3.
+% Two optional items are:
+%
+%	i4. the number that specifies TTC font index
+%
+%       i5. the name of CIDs mapping to Codes
+%         ``The kind of CIDs mapping to Codes'' is listed as follows:
+%
+%	<RO-Code>		<Comment>
+%	/Adobe-CNS1-Big5	Traditional Chinese, for Big5 TrueType fonts
+%	/Adobe-CNS1-Unicode	Traditional Chinese, for Unicode TrueType fonts
+%	/Adobe-CNS1		Traditional Chinese, for TrueType fonts (*3)
+%	/Adobe-GB1-PRC		Simplified Chinese, for PRC TrueType fonts
+%	/Adobe-GB1-Unicode	Simplified Chinese, for Unicode TrueType fonts
+%	/Adobe-GB1		Simplified Chinese, for TrueType fonts (*3)
+%	/Adobe-Japan1-ShiftJIS	Japanese, for ShiftJIS TrueType fonts
+%	/Adobe-Japan1-Unicode	Japanese, for Unicode TrueType fonts
+%	/Adobe-Japan1		Japanese, for TrueType fonts (*3)
+%	/Adobe-Japan2-Unicode	JIS Supplement, for Unicode TrueType fonts
+%	/Adobe-Japan2		JIS Supplement, for TrueType fonts (*3)
+%	/Adobe-Korea1-Johab	Korean, for Johab TrueType fonts
+%	/Adobe-Korea1-Unicode	Korean, for Unicode TrueType fonts
+%	/Adobe-Korea1-Wansung	Korean, for Wansung TrueType fonts
+%	/Adobe-Korea1		Korean, for TrueType fonts (*3)
+%	(*3) Code is automatically detected by cmap table of a TrueType file.
+%       If an optional item for the kind of mapping is omitted, then
+%       Code of TTF and RO(Registry-Ordering) of CIDFont are automatically
+%       detected by OS/2 table and cmap table of TTF, respectively.
+
+% Like Fontmap, .runlibfile is used in CIDFnmap to include other CIDFnmaps.
+
+% The following table is actually a Ghostscript data structure.
+% If you add new entries, be sure to copy the punctuation accurately;
+% in particular, you must leave at least one space or tab between each
+% field in the entry.  
+
+%(CIDFnmap.Ore) .runlibfile
+%(CIDFnmap.ARP) .runlibfile
+%(CIDFnmap.Bae) .runlibfile
+%(CIDFnmap.Koc) .runlibfile
+%(CIDFnmap.Sol) .runlibfile
+%(CIDFnmap.Win) .runlibfile
+
+%(CIDFnmap.CJK) .runlibfile
+
+% native CIDFontName (BIG5) in traditional Chinese
+%(CIDFnmap.b5) .runlibfile
+
+% native CIDFontName (GB2312) in simplified Chinese
+%(CIDFnmap.gb) .runlibfile
+
+% native CIDFontName (Shift_JIS) in Japanese
+%(CIDFnmap.sj) .runlibfile
+
+% native CIDFontName (euc-kr) in Korean
+%(CIDFnmap.ksx) .runlibfile

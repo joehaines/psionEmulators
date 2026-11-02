@@ -1,0 +1,200 @@
+Index: ipaqscreen/callbacks.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/ipaqscreen/callbacks.c,v
+retrieving revision 1.9
+diff -u -r1.9 callbacks.c
+--- ipaqscreen/callbacks.c	18 Aug 2004 09:49:22 -0000	1.9
++++ ipaqscreen/callbacks.c	2 Sep 2004 17:40:06 -0000
+@@ -60,6 +60,7 @@
+ on_rotation_entry_changed              (GtkWidget     *menu,
+                                         gpointer         user_data)
+ {
++#ifndef DISABLE_XRANDR
+   char val[10];
+   // it seems that it is the only way to have the nb of the selected item..
+ 
+@@ -73,6 +74,7 @@
+     }
+   snprintf(val,9,"%d",i);
+   suid_exec("SCRR",val);
++#endif	
+ }
+ 
+ 
+Index: ipaqscreen/callbacks.h
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/ipaqscreen/callbacks.h,v
+retrieving revision 1.7
+diff -u -r1.7 callbacks.h
+--- ipaqscreen/callbacks.h	27 Jun 2004 22:46:41 -0000	1.7
++++ ipaqscreen/callbacks.h	2 Sep 2004 17:40:06 -0000
+@@ -11,8 +11,10 @@
+   GtkWidget *screensaver;
+   GtkWidget *screensaverbt1;
+   GtkWidget *screensaverbt2;
++#ifndef DISABLE_XRANDR
+   GtkWidget *rotation;
+   GtkWidget *rotationl;
++#endif	
+   GtkWidget *touchscreen;
+   GtkWidget *calibrate;
+   GtkObject* adjSaver;
+Index: ipaqscreen/main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/ipaqscreen/main.c,v
+retrieving revision 1.17
+diff -u -r1.17 main.c
+--- ipaqscreen/main.c	21 Aug 2004 10:09:57 -0000	1.17
++++ ipaqscreen/main.c	2 Sep 2004 17:40:06 -0000
+@@ -26,7 +26,9 @@
+ #include <gpe/spacing.h>
+ 
+ #include "brightness.h"
++#ifndef DISABLE_XRANDR
+ #include "rotation.h"
++#endif
+ #include "callbacks.h"
+ #include "xset.h"
+ 
+@@ -87,8 +89,9 @@
+ 
+   ss_sec = xset_get_ss_sec();
+   initval.screensaver = ss_sec;
++#ifndef DISABLE_XRANDR  
+   rotation_available = check_init_rotation();
+-  
++#endif  
+   /* ======================================================================== */
+   /* draw the GUI */
+ 
+@@ -143,6 +146,7 @@
+   gtk_scale_set_digits (GTK_SCALE (self.screensaver), 2);
+   gtk_scale_set_draw_value (GTK_SCALE (self.screensaver), TRUE);
+ 
++#ifndef DISABLE_XRANDR
+   self.rotationl = gtk_label_new(NULL);
+   gtk_misc_set_alignment(GTK_MISC(self.rotationl),0.0,0.5);
+   tstr = g_strdup_printf ("<b>%s</b>", _("Orientation"));
+@@ -162,6 +166,7 @@
+     }
+   gtk_option_menu_set_menu (GTK_OPTION_MENU (self.rotation),menu);
+   gtk_option_menu_set_history(GTK_OPTION_MENU (self.rotation),get_rotation());
++#endif	
+  
+   self.touchscreen = gtk_label_new(NULL);
+   gtk_misc_set_alignment(GTK_MISC(self.touchscreen),0.0,0.5);
+@@ -213,6 +218,7 @@
+                     (GtkAttachOptions) (table_attach_right_col_x),
+                     (GtkAttachOptions) (table_attach_right_col_y), 0, gpe_boxspacing);
+ 
++#ifndef DISABLE_XRANDR
+   gtk_table_attach (GTK_TABLE (self.table), self.rotationl, 0, 1, 7, 8,
+                     (GtkAttachOptions) (table_attach_left_col_x),
+                     (GtkAttachOptions) (table_attach_left_col_y), 0, gpe_boxspacing);
+@@ -221,7 +227,7 @@
+   gtk_table_attach (GTK_TABLE (self.table), self.rotation, 1, 2, 7, 8,
+                     (GtkAttachOptions) (table_attach_right_col_x),
+                     (GtkAttachOptions) (table_attach_right_col_y), 0, gpe_boxspacing);
+-
++#endif
+   gtk_table_attach (GTK_TABLE (self.table), self.touchscreen, 0, 1, 8, 9,
+                     (GtkAttachOptions) (table_attach_left_col_x),
+                     (GtkAttachOptions) (table_attach_left_col_y), 0, gpe_boxspacing);
+@@ -240,17 +246,19 @@
+                       GTK_SIGNAL_FUNC (change_screen_saver_label),
+                       NULL);
+ 
++#ifndef DISABLE_XRANDR
+   gtk_signal_connect (GTK_OBJECT (gtk_option_menu_get_menu(GTK_OPTION_MENU (self.rotation))), "selection-done",
+                       GTK_SIGNAL_FUNC (on_rotation_entry_changed),
+                       NULL);
+-
++#endif
+   gtk_signal_connect (GTK_OBJECT (self.calibrate), "clicked",
+                       GTK_SIGNAL_FUNC (on_calibrate_button_clicked),
+                       NULL);
+   
+   initval.brightness = get_brightness();
++#ifndef DISABLE_XRANDR
+   initval.orientation = get_rotation();
+-    
++#endif    
+   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self.screensaverbt1), ss_sec ? TRUE : FALSE);
+   gtk_timeout_add(2000,(GtkFunction)on_light_check,(gpointer)adjLight);
+     
+@@ -316,5 +324,7 @@
+ void ipaqscreen_Restore()
+ {
+   set_brightness(initval.brightness);
++#ifndef DISABLE_XRANDR	
+   set_rotation(initval.orientation);
++#endif	
+ }
+Index: ipaqscreen/rotation.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/ipaqscreen/rotation.c,v
+retrieving revision 1.9
+diff -u -r1.9 rotation.c
+--- ipaqscreen/rotation.c	14 Aug 2004 21:35:15 -0000	1.9
++++ ipaqscreen/rotation.c	2 Sep 2004 17:40:06 -0000
+@@ -26,6 +26,8 @@
+ #include "gpe/errorbox.h"
+ #include "../applets.h"
+ 
++#ifndef DISABLE_XRANDR
++
+ extern char *RotationLabels;
+ static Display *dpy = NULL;
+ static int screen;
+@@ -154,3 +156,4 @@
+     system_printf("/usr/X11R6/bin/xmodmap %s",xmodmaps[rotation]);
+ #endif  
+ }
++#endif
+Index: suid.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/suid.c,v
+retrieving revision 1.46
+diff -u -r1.46 suid.c
+--- suid.c	29 Aug 2004 13:20:25 -0000	1.46
++++ suid.c	2 Sep 2004 17:46:34 -0000
+@@ -34,7 +34,9 @@
+ #include "cfgfile.h"
+ #include "ownerinfo.h"
+ #include "ipaqscreen/brightness.h"
++#ifndef DISABLE_XRANDR
+ #include "ipaqscreen/rotation.h"
++#endif
+ #ifdef PACKAGETOOL		
+ #include "packages.h"
+ #include "keyboard.h"
+@@ -66,13 +68,14 @@
+ 	set_brightness (br);
+ }
+ 
++#ifndef DISABLE_XRANDR
+ void
+ update_screen_rotation (int rotation)
+ {
+ 	if ((rotation >= 0) && (rotation <= 3))
+ 		set_rotation (rotation);
+ }
+-
++#endif
+ 
+ void
+ update_dns_server (const gchar * server)
+@@ -411,11 +414,13 @@
+ 					fscanf (in, "%d", &numarg);
+ 					update_screen_brightness (numarg);
+ 				}
++#ifndef DISABLE_XRANDR
+ 				else if (strcmp (cmd, "SCRR") == 0)  // rotate screen
+ 				{
+ 					fscanf (in, "%d", &numarg);
+ 					update_screen_rotation (numarg);
+ 				}
++#endif				
+ 				else if (strcmp (cmd, "CRHD") == 0)  // create a users home directory
+ 				{
+ 					fscanf (in, "%100s", arg1);	// directory

@@ -1,0 +1,23 @@
+--- matchbox-panel-0.8.1/applets/mb-applet-launcher.c	Wed Feb  4 19:04:48 2004
++++ matchbox-panel-0.8.1/applets/mb-applet-launcher.c	Mon Oct 25 22:58:18 2004
+@@ -351,19 +351,7 @@
+ void
+ resize_callback ( MBTrayApp *app, int w, int h )
+ {
+-  if ((w) != mb_pixbuf_img_get_width(img_icon) 
+-      || (h) != mb_pixbuf_img_get_width(img_icon) ) 
+-    {
+-      MBPixbufImage *tmp_img = NULL;
+-
+-      tmp_img = mb_pixbuf_img_scale(pb, img_icon, w, h);
+-      mb_pixbuf_img_free(pb, img_icon);
+-      img_icon = tmp_img;
+-
+-      tmp_img = mb_pixbuf_img_scale(pb, img_icon_active, w, h);
+-      mb_pixbuf_img_free(pb, img_icon_active);
+-      img_icon_active = tmp_img;
+-    }
++  mb_tray_app_request_size (TrayApp, mb_pixbuf_img_get_width(img_icon), mb_pixbuf_img_get_height(img_icon));
+ }
+ 
+ int action            = ACTION_TOGGLE_WIN_STATE;

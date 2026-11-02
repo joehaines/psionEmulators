@@ -1,0 +1,33 @@
+Index: hw/kdrive/src/kaa.c
+===================================================================
+RCS file: /cvs/xserver/xserver/hw/kdrive/src/kaa.c,v
+retrieving revision 1.26
+diff -u -r1.26 kaa.c
+--- hw/kdrive/src/kaa.c	17 May 2004 07:19:48 -0000	1.26
++++ hw/kdrive/src/kaa.c	15 Jun 2004 16:12:50 -0000
+@@ -988,20 +988,12 @@
+     /*
+      * Hookup offscreen pixmaps
+      */
+-    if ((pKaaScr->info->flags & KAA_OFFSCREEN_PIXMAPS) &&
+-	screen->off_screen_base < screen->memory_size)
+-    {
+-	if (!AllocatePixmapPrivate(pScreen, kaaPixmapPrivateIndex,
++    if (!AllocatePixmapPrivate(pScreen, kaaPixmapPrivateIndex,
+ 				   sizeof (KaaPixmapPrivRec)))
+-	    return FALSE;
+-	pScreen->CreatePixmap = kaaCreatePixmap;
+-	pScreen->DestroyPixmap = kaaDestroyPixmap;
+-    }
+-    else
+-    {
+-	if (!AllocatePixmapPrivate(pScreen, kaaPixmapPrivateIndex, 0))
+-	    return FALSE;
+-    }
++      return FALSE;
++
++    pScreen->CreatePixmap = kaaCreatePixmap;
++    pScreen->DestroyPixmap = kaaDestroyPixmap;
+ 
+     return TRUE;
+ }

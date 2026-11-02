@@ -1,0 +1,56 @@
+
+AC_INIT(src/main.c)
+
+AM_INIT_AUTOMAKE(LinNeighborhood,0.6.5)
+
+AM_CONFIG_HEADER(config.h)
+
+ALL_LINGUAS="de sv ja fr ru es pt_BR tr pl it zh_TW"
+LINGUAS="de sv ja fr ru es pt_BR tr pl it zh_TW"
+
+dnl check for programs
+AC_PROG_CC
+AC_ISC_POSIX
+
+dnl check for headers
+AC_STDC_HEADERS
+
+dnl internationalization macros
+AM_GNU_GETTEXT
+
+if test "x${prefix}" = "xNONE"; then
+	localedir="${ac_default_prefix}/${DATADIRNAME}/locale"
+else
+	localedir="${prefix}/${DATADIRNAME}/locale"
+fi
+
+AC_SUBST(localedir)
+AC_DEFINE_UNQUOTED(LOCALEDIR, "${localedir}")
+
+iconsdir='${datadir}/icons'
+AC_SUBST(iconsdir)
+
+dnl gtk+ libraries
+AM_PATH_GTK(1.2.0)
+
+
+# posix thread libraries required
+
+AC_CHECK_HEADER(pthread.h, hdr_pthead=yes, hdr_pthread=no )
+
+if test "x$hdr_pthread" = "xno" ; then
+  AC_MSG_ERROR([
+    *** pthread.h: posix thread headers not found ***
+  ])
+fi
+
+AC_CHECK_LIB(pthread, pthread_exit, lib_pthread=yes, lib_pthread=no )
+
+if test "x$lib_pthread" = "xno" ; then
+  AC_MSG_ERROR([
+    *** libpthread.so: posix thread library no found ***
+  ])
+fi
+
+AC_OUTPUT(Makefile po/Makefile.in src/Makefile intl/Makefile
+	LinNeighborhood.spec LinNeighborhood.lsm)

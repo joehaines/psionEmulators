@@ -1,0 +1,171 @@
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+
+#include "guiwrap.h"
+#include "gtk_gui.h"
+#include "gtk_dialog.h"
+#include "gtk_mountdlg.h"
+#include "gtk_tree.h"
+#include "gtk_sharewindow.h"
+
+/* ------------------------------------------------------------------------- */
+
+static guint timer_id;
+static gui_timer_function timer_callback;
+
+static gint timer_intervall_handler (gpointer data)
+{
+  timer_callback(data);
+  return 1;
+}
+
+void gui_timer_start (guint32 interval, gui_timer_function callback, gpointer data)
+{
+  timer_callback = callback;
+  timer_id = gtk_timeout_add(interval, timer_intervall_handler, data);
+}
+
+void gui_timer_stop (void)
+{
+  gtk_timeout_remove(timer_id);
+}
+
+/* ------------------------------------------------------------------------- */
+
+void gui_set_cursor (cursor_type cursor)
+{
+  switch ( cursor )
+  {
+    case cursor_normal:
+        change_win_cursor(main_window->window, GDK_TOP_LEFT_ARROW);
+        break;
+    
+    case cursor_watch:
+        change_win_cursor(main_window->window, GDK_WATCH);
+        break;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+
+void gui_mount_dialog (char *resource, char *ip, char *group, unsigned char show_gui)
+{
+  smb_mount_dialog(resource, ip, group, show_gui);
+}
+
+void gui_umount_dialog (char *mountpoint)
+{
+  smb_umount_dialog(mountpoint);
+}
+
+void gui_mount_dialog_init(void)
+{
+  smb_mount_dialog_init();
+}
+
+void gui_smbumount_done(char *mount_point,char *errstr,char smbmountState,int tag)
+{
+  gtk_smbumount_done(mount_point,errstr,smbmountState,tag);
+}
+
+/* ------------------------------------------------------------------------- */
+
+unsigned char gui_log_window_active (void)
+{
+  return log_window_active();
+}
+
+void gui_log_window_toggle (void)
+{
+  log_window_toggle();
+}
+
+void gui_log_window_open (void)
+{
+  log_window_dialog();
+}
+
+void gui_log_window_insert_string (char *str, unsigned char add_linefeed)
+{
+  insert_log_string(str, add_linefeed);
+}
+
+/* ------------------------------------------------------------------------- */
+
+void gui_message_box (char *title, char *message)
+{
+  ShowMessageBox(title, message);
+}
+
+void gui_message_box2 (char *message)
+{
+  message_box(message, NULL, NULL);
+}
+
+/* ------------------------------------------------------------------------- */
+
+void gui_remove_entire_tree (void)
+{
+  /* the root tree item must get the focus, otherwise SIGSEGV possible */
+  /* bug in gtk+ ? */
+  tree_focus_root_item();
+  
+  group_delete_all();
+}
+
+void gui_share_window_clean (void)
+{
+  share_window_clean();
+}
+
+void gui_set_files (char *group, char *machine, char *share, char *path,
+                      GSList *files)
+{
+  GtkWidget *window;
+
+  window = share_window_get_window(group, machine, share, path, 1);
+  
+  while ( window != NULL )
+  {
+    /* update all windows viewing this share path */
+    share_window_add_files(window, files);
+    window = share_window_get_window(group, machine, share, path, 0);
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+
+void gui_set_locale (void)
+{
+  gtk_gui_set_locale();
+}
+
+
+void gui_init (int argc, char *argv[])
+{
+  gtk_gui_init(argc, argv);
+}
+
+void gui_start (void)
+{
+  /* -- main loop -- */
+  gtk_main ();
+}
+
+/* ------------------------------------------------------------------------- */

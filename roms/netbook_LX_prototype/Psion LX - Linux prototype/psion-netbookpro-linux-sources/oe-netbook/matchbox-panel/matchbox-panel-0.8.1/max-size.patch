@@ -1,0 +1,22 @@
+--- matchbox-panel-0.8.1/src/panel_app.c	Tue Feb  3 15:11:25 2004
++++ matchbox-panel-0.8.1/src/panel_app.c	Wed Sep 29 23:31:42 2004
+@@ -299,7 +299,9 @@
+ 
+   if (panel->orientation == North || panel->orientation == South)
+     {
+-      papp->h = panel->h - 4;
++      int h = panel->h - 4;
++      if (papp->h > panel->h || papp->h < h)
++        papp->h = panel->h - 4;
+       papp->y = (panel->h - papp->h) / 2;
+       papp->x = papp->offset + padding;
+     }
+@@ -343,7 +345,7 @@
+       if (panel->orientation == North || panel->orientation == South)
+ 	{
+ 	  xwc.width  = ev->width;
+-	  xwc.height = panel->h - 4;
++	  xwc.height = papp->h;
+ 
+ 	  papp->y = (panel->h - papp->h) / 2;
+ 

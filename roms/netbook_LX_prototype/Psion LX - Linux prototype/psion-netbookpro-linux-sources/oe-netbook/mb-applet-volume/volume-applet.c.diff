@@ -1,0 +1,134 @@
+--- volume-applet.c.orig	2004-09-14 15:10:23.000000000 +0200
++++ volume-applet.c	2004-09-14 18:12:42.000000000 +0200
+@@ -150,11 +150,11 @@
+ resize_callback (MBTrayApp *app, int w, int h )
+ {
+   int i;
+-
++printf("resized %i %i \n",w,h);
+   for (i=0; i<4; i++)
+     {
+       if (ImgsScaled[i] != NULL) mb_pixbuf_img_free(pb, ImgsScaled[i]);
+-      ImgsScaled[i] = mb_pixbuf_img_scale(pb, Imgs[i], w, h);
++      ImgsScaled[i] = mb_pixbuf_img_scale(pb, Imgs[i], w - 12, h);
+     }
+ }
+ 
+@@ -168,7 +168,7 @@
+     {
+       if (Imgs[i] != NULL) mb_pixbuf_img_free(pb, Imgs[i]);
+       icon_path = mb_dot_desktop_icon_get_full_path (ThemeName, 
+-						     32, 
++						     16, 
+ 						     ImgLookup[i]);
+       
+       if (icon_path == NULL 
+@@ -291,34 +291,24 @@
+ popup_init(MBTrayApp *app)
+ {
+   GtkWidget     *vbox;
+-  GtkWidget     *hbox;
+   GtkWidget     *label;
++  GtkWidget		*img;
+   GtkWidget     *button_mute, *button_ok;
+   GtkAdjustment *adj;
+ 
+   vbox = gtk_vbox_new (FALSE, 2);
+ 
+-  /* hbox for text */
+-  hbox = gtk_hbox_new (FALSE, 2);
+-
+-  label = gtk_label_new(NULL);
+-  gtk_label_set_markup (GTK_LABEL(label), "<b>Low</b>");
+-
+-  gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 0);
+-
+   label = gtk_label_new(NULL);
+   gtk_label_set_markup (GTK_LABEL(label), "<b>High</b>");
+ 
+-  gtk_box_pack_end (GTK_BOX (hbox), label, TRUE, TRUE, 0);
+-
+-  gtk_box_pack_start (GTK_BOX (vbox), hbox, TRUE, TRUE, 0);
++  gtk_box_pack_start (GTK_BOX (vbox), label, TRUE, TRUE, 0);
+ 
+   slider_window = gtk_window_new (GTK_WINDOW_POPUP);
+ 
+   slider = gtk_vscale_new_with_range (0, 100, 1);
+ 
+   gtk_scale_set_draw_value (GTK_SCALE (slider), FALSE);
+-  gtk_widget_set_usize (slider_window, -1, SLIDER_HEIGHT);
++  gtk_widget_set_usize (slider, -1, SLIDER_HEIGHT);
+   gtk_range_set_inverted (GTK_RANGE (slider), TRUE);
+ 
+   adj = gtk_range_get_adjustment (GTK_RANGE (slider)); 
+@@ -326,17 +316,35 @@
+   g_signal_connect (G_OBJECT (adj), "value-changed", 
+ 		    G_CALLBACK (popup_vol_changed_cb), (gpointer)app);
+   
+-  gtk_container_add (GTK_CONTAINER (slider_window), slider);
++  gtk_box_pack_start (GTK_BOX (vbox), slider, TRUE, TRUE, 0);
+ 
+-  /*
+-  g_signal_connect (G_OBJECT (window), "button-press-event", G_CALLBACK (clicked), NULL);
+-  */
++  gtk_container_add (GTK_CONTAINER (slider_window), vbox);
+ 
+   g_signal_connect (G_OBJECT (slider_window), "button-press-event", G_CALLBACK (slider_clicked), NULL);
+ 
+   gtk_widget_add_events (slider_window, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
+ 
++  label = gtk_label_new(NULL);
++  gtk_label_set_markup (GTK_LABEL(label), "<b>Low</b>");
++
++  gtk_box_pack_start (GTK_BOX (vbox), label, TRUE, TRUE, 0);
++
++  img = gtk_image_new_from_stock(GTK_STOCK_OK, GTK_ICON_SIZE_BUTTON);
++
++  button_ok = gtk_button_new();
++  gtk_container_add(GTK_CONTAINER(button_ok), img);
++
++  gtk_box_pack_start (GTK_BOX (vbox), button_ok, FALSE, FALSE, 0);
++
++  /* XXX mute callback */
++
++  gtk_container_set_border_width (GTK_CONTAINER (slider_window), 3);
++
++  g_signal_connect (G_OBJECT (button_ok), "clicked", 
++		    G_CALLBACK (popup_close), NULL);
+ 
++  gtk_widget_realize (slider_window);
++  
+   /*
+   gtk_window_set_decorated (GTK_WINDOW(slider_window), FALSE);
+ 
+@@ -365,22 +373,6 @@
+   gtk_box_pack_start (GTK_BOX (hbox), button_mute, TRUE, TRUE, 0);
+   */
+ 
+-  button_ok = gtk_button_new_from_stock(GTK_STOCK_OK);
+-
+-  gtk_box_pack_end (GTK_BOX (hbox), button_ok, FALSE, FALSE, 0);
+-
+-  /* XXX mute callback */
+-
+-  gtk_box_pack_end (GTK_BOX (vbox), hbox, TRUE, TRUE, 0);
+-
+-  gtk_container_set_border_width (GTK_CONTAINER (slider_window), 6);
+-
+-  gtk_container_add (GTK_CONTAINER (slider_window), vbox);
+-
+-  g_signal_connect (G_OBJECT (button_ok), "clicked", 
+-		    G_CALLBACK (popup_close), NULL);
+-
+-  gtk_widget_realize (slider_window);
+ }
+ 
+ 
+@@ -472,6 +464,7 @@
+ 
+   popup_init(app);
+ 
++  mb_tray_app_request_size( app, 10, 10);
+   mb_tray_app_main_init (app);
+   
+   gdk_window_add_filter (NULL, event_filter, (gpointer)app );

@@ -1,0 +1,53 @@
+--- src/main.orig	2004-10-22 15:33:47.000000000 +0200
++++ src/main.c	2004-10-22 15:45:56.000000000 +0200
+@@ -69,6 +69,7 @@
+ # include <libsn/sn-launchee.h>
+ # include <gdk/gdkx.h>
+ #endif
++#include <gdk/gdkkeysyms.h>
+ 
+ static GtkWidget *name;
+ static GtkWidget *pass;
+@@ -114,6 +115,21 @@
+ 	return FALSE;
+ }
+ 
++void 
++show_help (void)
++{
++	system("gpe-helpviewer /usr/share/help/gaim/index.html");
++}
++
++static gboolean
++key_press (GtkWidget *window, GdkEventKey *event)
++{
++	if(event->keyval == GDK_F1)
++	{
++		show_help();
++	}
++	return FALSE;
++}
+ /* we need to do this for Oscar because serv_login only starts the login
+  * process, it doesn't end there. gaim_setup will be called later from
+  * oscar.c, after the buddy list is made and serv_finish_login is called */
+@@ -288,6 +304,12 @@
+ 					 G_CALLBACK(gaim_gtk_prefs_show), mainwindow);
+ 	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+ 
++	button = gaim_pixbuf_button_from_stock(_("_Help"), GTK_STOCK_HELP, GAIM_BUTTON_VERTICAL);
++	gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
++	g_signal_connect(G_OBJECT(button), "clicked",
++					 G_CALLBACK(show_help), NULL);
++	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
++
+ 	button = gaim_pixbuf_button_from_stock(_("_Sign on"), GAIM_STOCK_SIGN_ON, GAIM_BUTTON_VERTICAL);
+ 	gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
+ 	g_signal_connect(G_OBJECT(button), "clicked",
+@@ -295,6 +317,7 @@
+ 	g_signal_connect(G_OBJECT(button), "button-press-event", G_CALLBACK(domiddleclick), NULL);
+ 	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+ 
++	g_signal_connect(G_OBJECT(mainwindow), "key_press_event", G_CALLBACK(key_press), NULL);
+ 	/* Now grab the focus that we need */
+ 	if (gaim_accounts_get_all()) {
+ 		GaimAccount *account = gaim_accounts_get_all()->data;

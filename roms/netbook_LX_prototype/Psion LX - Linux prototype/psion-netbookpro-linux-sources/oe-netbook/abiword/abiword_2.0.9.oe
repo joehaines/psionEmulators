@@ -1,0 +1,54 @@
+DEPENDS = "cdump-native libfribidi aspell jpeg libpng perl"
+
+DESCRIPTION = "PSION version of AbiWord Word Processor"
+
+MAINTAINER = "Alex Loveday <Alex.Loveday@psion.com>"
+
+inherit autotools
+
+PR = "r3"
+
+S = "${WORKDIR}/abiword-${PV}/abi"
+
+SRC_URI = "http://download.sourceforge.net/abiword/abiword-${PV}.tar.bz2 \
+	   http://download.sourceforge.net/abiword/abispell-en-GB.i386.tar.gz \
+           file://abiword-${PV}/cdump-cross.patch;patch=1 \
+	   file://abiword-${PV}/abiword-psion.patch;patch=1;pnum=0"
+
+PACKAGES += "${PN}-dict"
+
+FILES_${PN} += " ${datadir}/icons/* \
+${datadir}/AbiSuite-2.0/AbiWord/glade \
+${datadir}/AbiSuite-2.0/AbiWord/scripts \
+${datadir}/AbiSuite-2.0/AbiWord/system.profile-en \
+${datadir}/AbiSuite-2.0/AbiWord/system.profile-en_GB \
+${datadir}/AbiSuite-2.0/templates/A4.awt \
+${datadir}/AbiSuite-2.0/templates/US-Letter.awt \
+${datadir}/AbiSuite-2.0/templates/normal.awt \
+${datadir}/AbiSuite-2.0/templates/normal.awt-en_GB \	
+${datadir}/AbiSuite-2.0/templates/Business-Report.awt \
+${datadir}/AbiSuite-2.0/templates/Fax-Coversheet.awt \
+${datadir}/AbiSuite-2.0/templates/Resume.awt \
+${datadir}/AbiSuite-2.0/templates/Two-Columns.awt \
+${datadir}/AbiSuite-2.0/templates/Memo.awt \
+${datadir}/AbiSuite-2.0/templates/Press-Release.awt"
+
+FILES_${PN}-dict = "${datadir}/AbiSuite-2.0/dictionary/"
+
+#abiword needs this native tool
+export BUILD_CDUMPTOOL=${STAGING_BINDIR}/cdump
+
+do_configure () {
+	cd ${S}
+	./autogen.sh
+	./configure --prefix=/usr --host=${TARGET_SYS}
+#--enable-debug
+}
+
+do_install_append() {
+	install -d ${D}${datadir}/pixmaps/
+	mv ${D}${datadir}/icons/* ${D}${datadir}/pixmaps/
+	install -d ${D}${datadir}/AbiSuite-2.0/dictionary/
+	mv ${S}/../../usr/share/AbiSuite/dictionary/* ${D}${datadir}/AbiSuite-2.0/dictionary/
+}
+

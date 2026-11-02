@@ -12,7 +12,10 @@
 //   - every device's default ROM (core/device_registry.cpp romFilename);
 //   - every ROM choice Settings offers (frontend/src/lib/romCatalog.ts);
 //   - every image the frontend loads by a fixed roms/ path (the factory
-//     SSD packs, the ESHELL and Quartz OS images the easter-egg boots use).
+//     SSD packs, the ESHELL and Quartz OS images the easter-egg boots use);
+//   - every factory image of built-in flash a profile names
+//     (internalFlashImage, the registry's .gz paths — the Psion LX's NAND,
+//     which scripts/build-lx-nand.mts generates and this runs if missing).
 //
 // The same three lists tests/unit/rom-catalog-sync.mts checks, so a path
 // the site asks for and the deploy leaves out fails there first.
@@ -21,6 +24,7 @@
 //   node --experimental-strip-types scripts/stage-deploy-roms.mts <out-dir>
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROM_CATALOG } from '../frontend/src/lib/romCatalog.ts';
@@ -35,6 +39,13 @@ for (const m of read('core/device_registry.cpp')
   .matchAll(/^\s+"([a-z0-9_]+)",\n\s+"[^"\n]*",\n(?:\s*\/\/.*\n)*\s+"([^"\n]+)",/gm))
   served.add(m[2]);
 for (const set of Object.values(ROM_CATALOG)) for (const o of set.options) served.add(o.path);
+// Built-in flash images (internalFlashImage): the registry's .gz paths.
+for (const m of read('core/device_registry.cpp').matchAll(/^\s+"([^"\n]+\.gz)",/gm)) {
+  served.add(m[1]);
+  if (!existsSync(join(ROOT, 'roms', m[1])) && m[1].endsWith('lx-nand.img.gz'))
+    execFileSync(process.execPath, ['--experimental-strip-types', join(ROOT, 'scripts/build-lx-nand.mts')],
+                 { cwd: ROOT, stdio: 'inherit' });
+}
 for (const f of ['frontend/src/hooks/useEmulator.ts', 'frontend/public/emulator-worker.js'])
   for (const m of read(f).matchAll(/roms\/([A-Za-z0-9_./()$-]+\.(?:bin|BIN|img|IMG|ssd|rom))/g))
     served.add(m[1]);

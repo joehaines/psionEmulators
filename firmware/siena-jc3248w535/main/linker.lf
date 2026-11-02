@@ -1,0 +1,17 @@
+# Run the V30 interpreter and the ASIC9 from internal RAM rather than through
+# the 32 KiB flash cache: they run for every emulated instruction, and a
+# cache miss stalls the whole machine. About 38 KiB. From the rest of the
+# Series 3c machine, only the loop that drives them (about 1 KiB).
+[mapping:siena_hot]
+archive: libmain.a
+entries:
+    v30 (noflash)
+    v30_ops_mov (noflash)
+    v30_ops_arith (noflash)
+    v30_ops_ctrl (noflash)
+    v30_ops_misc (noflash)
+    psion_asic9 (noflash)
+    series3c:_ZN8Series3c8Emulator12executeUntilEx (noflash)
+    # Saving the machine state is rare: those stay in flash.
+    v30:_ZN3V3014serializeStateER12StateArchive (default)
+    psion_asic9:_ZN10PsionAsic914serializeStateER12StateArchive (default)

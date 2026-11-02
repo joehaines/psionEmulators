@@ -1,0 +1,100 @@
+
+ LinNeighborhood Configuration
+ =============================
+ 
+ Quick Start
+ -----------
+ 
+ In most cases it isn't necessary to configure every detail
+ in the preferences to start browsing.
+ In fact, there's only one 'must' in the preferences dialog:
+ 
+  - workgroup
+ 
+ It's very important to insert your machine's workgroup
+ in this field. After doing you likely can start browsing.
+ Sometimes you must do more ( -> master browsers ), take
+ a look at the README for further details.
+ 
+ 
+ 
+ Here are some global hints to configure LinNeighborhood:
+ -------------------------------------------------------
+
+ In fact, you have two possibilities to configure LinNeighborhood:
+ 
+   *) local configuration (done by the users)
+   *) global configuration (done by sysadmin)
+ 
+ 
+ 
+ Local (user's) configuration files
+ ==================================
+ 
+ Normally LinNeighborhood does store the user's configuration
+ in a subdirectory ".linneighborhood" in the user's home
+ directory. For example if user schmidj's home is
+ "/home/schmidj", the configuration parameters will be stored in
+ the directory "/home/schmidj/.linneighborhood/" in
+ several files. These files are:
+ 
+ - 'hosts' -  storage place for the user's preferred hosts
+ - 'masterbrowsers' - list of the user's additional master browsers
+ - 'mountpoints' - list of memorized mounts
+ - 'preferences' - parameters edited in the preferences dialog
+ - 'size' - GUI parameters like window size + height ...
+ 
+ Please don't edit this files, that's the job of
+ LinNeighborhood.
+ 
+ 
+ 
+ Global (sysadmin's) configuration file
+ ======================================
+ 
+ To make it more easy for SysAdmins to preconfigure something
+ there's a global system configuration file.
+ The path is "DATADIR/LinNeighborhood/preferences" with
+ DATADIR = "/usr/local/share" as default. You can change it by
+ defining the --datadir=... parameter while configuring of
+ the source package.
+ 
+ A user can change the pre definition to his own one, user's definitions
+ have higher priority as global definitions.
+ 
+ Example:
+ If you want as SysAdmin to add a special preferred host to every
+ user's GUI, just type the following line to the configuration file:
+ 
+ pref_host = mozart
+ 
+ After that the host 'mozart' will be inserted to every user's GUI.
+ For more configuration parameters take a look to the local config files.
+ 
+ 
+ 
+ Environment Variables in configuration
+ ======================================
+ 
+ In configuration parameters containing strings, like
+ 'root mount directory', it's possible to use system environment variables.
+ 
+ Syntax:     "$ENV(variable_name)"
+ 
+ It can be useful for global configurations, for example if you want
+ to preset the user's default root mount directories in a special way:
+ 
+ The SysAdmin has created a directory "/smbmount/" where the users should
+ mount their directories in a manner like "/smbmount/user1/...." and so on.
+ To do this just type the following into the global prefs file:
+ 
+ root_mnt_directory = /smbmount/$ENV(USER)/
+ 
+ The statement $ENV(USER) will be replaced by the value of the environment
+ variable USER. If user schmidj mounts a share "mail" of the host "beethoven",
+ it will be mounted by default to "/smbmount/schmidj/beethoven/mail/".
+ 
+ 
+ 
+ For more aspects of configuration see the README file.
+ 

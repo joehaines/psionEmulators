@@ -1,0 +1,89 @@
+SECTION = "x11/utils"
+DEPENDS = "xt libxi zip-native gtk+ orbit2"
+PR = "r0"
+
+SRC_URI = "http://ftp.mozilla.org/pub/mozilla.org/firefox/releases/${PV}/source/firefox-${PV}-source.tar.bz2 \
+	file://mozconfig \
+	file://xptcstubs.patch;patch=1 \
+	file://no-xmb.patch;patch=1 \
+	file://extensions-hack.patch;patch=1 \
+	file://default-check.patch;patch=1 \
+	file://fastload.patch;patch=1 \
+	file://compreg.patch;patch=1 \
+	file://var-tmp.patch;patch=1 \
+	file://startup-page.patch;patch=1 \
+	file://start.html file://psion_lx_logo.jpg \
+	file://mozilla-firefox.png file://mozilla-firefox.desktop"
+
+S = "${WORKDIR}/mozilla"
+
+PACKAGES =+ "firefox-inspector mozilla-libs"
+
+FILES_firefox-inspector = "${libdir}/firefox-${PV}/chrome/inspector"
+FILES_mozilla-libs = "${libdir}/*.so"
+FILES_${PN} = "${bindir}/firefox ${datadir}/applications ${datadir}/pixmaps ${libdir}/firefox-${PV} ${bindir}/defaults ${datadir}/firefox"
+FILES_${PN}-dev += "${datadir}/idl ${bindir}/firefox-config"
+
+RDEPENDS_mozilla-libs = "firefox"
+SELECTED_OPTIMIZATION = "-Os -fsigned-char -fno-strict-aliasing"
+
+export CROSS_COMPILE=1
+export HOST_LIBIDL_CONFIG="libIDL-config-2"
+export CONFIGURE_ARGS="--target=${TARGET_SYS} --host=${BUILD_SYS} --build=${BUILD_SYS} --prefix=${prefix}"
+
+export HOST_CFLAGS="${BUILD_CFLAGS}"
+export HOST_CXXFLAGS="${BULID_CXXFLAGS}"
+export HOST_LDFLAGS="${BUILD_LDFLAGS}"
+export HOST_RANLIB="${BUILD_RANLIB}"
+export HOST_AR="${BUILD_AR}"
+
+do_configure() {
+	cp ${WORKDIR}/mozconfig .mozconfig
+}
+
+do_compile() {
+	make -f client.mk build_all
+}
+
+MOZ_LIBS="libnspr4 libplc4 libplds4 libnss3 libsmime3 libsoftokn3 libssl3 libnssckbi"
+
+do_install() {
+	make DESTDIR="${D}" destdir="${D}" install
+	install -d ${D}${datadir}/applications
+	install -d ${D}${datadir}/pixmaps
+	install -m 0644 ${WORKDIR}/mozilla-firefox.desktop ${D}${datadir}/applications/
+	install -m 0644 ${WORKDIR}/mozilla-firefox.png ${D}${datadir}/pixmaps/
+	rm -f ${D}${libdir}/firefox-${PV}/TestGtkEmbed
+
+	for lib in ${MOZ_LIBS}; do
+          ln -s /usr/lib/firefox-${PV}/$lib.so ${D}${libdir}/$lib.so
+        done
+
+	install -d ${D}${datadir}/firefox
+	install -m 0644 ${WORKDIR}/start.html ${D}${datadir}/firefox/
+        install -m 0644 ${WORKDIR}/psion_lx_logo.jpg ${D}${datadir}/firefox/
+}
+
+pkg_postinst_firefox() {
+	# work around requirement for root access on first startup
+	chmod -R a+w ${libdir}/firefox*
+}
+
+do_stage() {
+	mkdir -p ${STAGING_INCDIR}/mozilla/nspr/private
+        mkdir -p ${STAGING_INCDIR}/mozilla/nspr/md
+	mkdir -p ${STAGING_INCDIR}/mozilla/nspr/obsolete
+
+	install -m 0644 ${S}/dist/include/nspr/*.h ${STAGING_INCDIR}/mozilla/nspr
+        install -m 0644 ${S}/dist/include/nspr/md/*.h ${STAGING_INCDIR}/mozilla/nspr/md
+        install -m 0644 ${S}/dist/include/nspr/private/*.h ${STAGING_INCDIR}/mozilla/nspr/private
+        install -m 0644 ${S}/dist/include/nspr/obsolete/*.h ${STAGING_INCDIR}/mozilla/nspr/obsolete
+
+        mkdir -p ${STAGING_INCDIR}/mozilla/nss
+
+	install -m 0644 ${S}/dist/public/nss/*.h ${STAGING_INCDIR}/mozilla/nss/
+
+        for lib in ${MOZ_LIBS}; do
+          install -m 0644 ${S}/dist/lib/$lib.so ${STAGING_LIBDIR}
+	done
+}

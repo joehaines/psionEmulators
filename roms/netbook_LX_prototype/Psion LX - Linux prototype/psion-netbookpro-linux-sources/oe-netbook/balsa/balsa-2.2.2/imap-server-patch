@@ -1,0 +1,25 @@
+--- libbalsa/imap-server.c.orig	2004-09-12 23:40:40.511733893 +0200
++++ libbalsa/imap-server.c	2004-09-12 23:43:51.570710696 +0200
+@@ -125,13 +125,15 @@
+ static void libbalsa_imap_server_set_host(LibBalsaServer * server,
+                       const gchar * host, gboolean use_ssl)
+ {
+-    LibBalsaImapServer *imap_server = LIBBALSA_IMAP_SERVER(server);
+-    G_LOCK(imap_servers);
+-    g_hash_table_steal(imap_servers, imap_server->key);
+-    g_free(imap_server->key);
+-    imap_server->key = g_strdup_printf("%s@%s", server->user, host);
+-    g_hash_table_insert(imap_servers, imap_server->key, imap_server);
+-    G_UNLOCK(imap_servers);
++    if(server->user && host) { /* we have been initialized... */
++        LibBalsaImapServer *imap_server = LIBBALSA_IMAP_SERVER(server);
++        G_LOCK(imap_servers);
++        g_hash_table_steal(imap_servers, imap_server->key);
++        g_free(imap_server->key);
++        imap_server->key = g_strdup_printf("%s@%s", server->user, host);
++        g_hash_table_insert(imap_servers, imap_server->key, imap_server);
++        G_UNLOCK(imap_servers);
++    }
+     (parent_class)->set_host(server, host, use_ssl);
+ }
+ static void

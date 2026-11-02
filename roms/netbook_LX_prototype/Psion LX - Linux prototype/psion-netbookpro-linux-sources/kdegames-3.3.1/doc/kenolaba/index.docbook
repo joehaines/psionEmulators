@@ -1,0 +1,866 @@
+<?xml version="1.0" ?>
+<!DOCTYPE book PUBLIC "-//KDE//DTD DocBook XML V4.2-Based Variant V1.1//EN" "dtd/kdex.dtd" [
+  <!ENTITY kappname "&kenolaba;">
+  <!ENTITY package "kdegames">
+  <!ENTITY % English "INCLUDE">
+  <!ENTITY % addindex "IGNORE">
+]>
+
+<book lang="&language;">
+<bookinfo>
+<title>The &kenolaba; Handbook</title>
+
+<authorgroup>
+<author>
+&Josef.Weidendorfer;
+</author>
+
+<author>
+&Philip.Rodrigues; &Philip.Rodrigues.mail;
+</author>
+
+<othercredit role="reviewer">
+&Lauri.Watts; &Lauri.Watts.mail;
+<!-- Uncomment this when xslt bug is fixed
+<contrib>Reviewer</contrib>
+-->
+</othercredit>
+
+<!-- TRANS:ROLES_OF_TRANSLATORS -->
+
+</authorgroup>
+
+<date>2003-09-18</date>
+<releaseinfo>1.06b</releaseinfo>
+
+<copyright>
+<year>2001</year>
+<holder>Philip Rodrigues</holder>
+</copyright>
+
+<legalnotice>&FDLNotice;</legalnotice>
+
+<abstract><para>&kenolaba; is a simple board strategy game that is
+played by two players.</para> </abstract>
+
+
+<keywordset>
+<keyword>KDE</keyword>
+<keyword>game</keyword>
+<keyword>kenolaba</keyword>
+<keyword>linux</keyword>
+</keywordset>
+</bookinfo>
+
+<chapter id="introduction">
+<title>Introduction</title>
+
+<para>&kenolaba; is a simple board strategy game that is played by two
+players. There are red and yellow pieces for each player. Beginning from
+a position where each player has 14 pieces, moves are drawn until
+one player has pushed 6 of his opponent's pieces out of the
+board.</para>
+
+<para>The original program was developed in 1993 for DOS and pure
+Xlib. For &kde; there was a major rewrite.</para>
+
+<note><para> If you know the board game called Abalone, you will like this
+program. In fact, this program was inspired by the mentioned game.
+Abalone is a trademark of Abalone SA, France.</para></note>
+
+</chapter>
+
+<chapter id="rules-of-the-game">
+<title>Rules of the Game</title>
+
+<para>Red always moves first.</para>
+
+<para>Two types of moves are allowed:</para>
+
+<variablelist>
+<varlistentry>
+<term>Normal</term>
+<listitem><para>One, two or three of your pieces in a row can be moved by one
+space in the 6 directions. Side moves are also allowed.</para>
+
+<para>Press the &LMB; on the first piece you want to move.
+The piece will then be highlighted. Now drag the mouse in the desired
+direction. If the move is valid, the cursor will change to an arrow in
+that direction and all the pieces of the move will be highlighted. If
+this is the move you want to draw, release the mouse button.</para>
+
+<para>Side moves are handled another way: For two adjacent pieces click between
+them and drag; for three pieces press the &MMB; on the middle piece - if a side
+move is allowed for the pieces they will be highlighted. Otherwise only the
+middle one is highlighted and you draw a normal move. </para>
+
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>Pushing</term>
+
+<listitem><para>You can push a maximum of two pieces of the opponent in
+front of your own pieces as long as the number of pieces you move is
+greater than the number of the opponent's pieces that you push. That
+means with three of your pieces you can push one or two of the
+opponent's and with two pieces one.</para>
+        
+<para>Special pushing moves are those which push a piece of the opponent
+out of the board.  If you have pushed six of your opponent's pieces out
+of the board you have won. </para>
+
+</listitem>
+</varlistentry>
+</variablelist>
+
+<para>If you still do not know what &kenolaba; is all about, look at a
+game where the computer plays both sides. After starting &kenolaba;,
+select <menuchoice><guimenu>Settings</guimenu><guisubmenu>Computer
+Play</guisubmenu><guimenuitem>Both</guimenuitem></menuchoice> and start
+a new game. </para>
+
+</chapter>
+
+<chapter id="network-play">
+<title>Network Play</title>
+<sect1 id="general-network-play">
+<title>General Network Play</title>
+
+<para>
+&kenolaba; supports playing across a network. This allows two people to
+play against each other on different computers, or one person to observe
+the game play of another &kenolaba; program. To use &kenolaba;'s network
+features, &kenolaba; must be set to Network Mode by selecting
+<menuchoice><guimenu>Game</guimenu><guimenuitem>Network Play</guimenuitem></menuchoice>.</para>
+
+
+<para>
+All running &kenolaba; programs which are in Network Mode broadcast
+changed positions to each other.</para>
+
+<para>To exchange positions, the &kenolaba; programs have to be told
+about each other. If they are running on the same machine, nothing is
+needed (apart from switching to Network Mode). If running on different
+computers you have to specify the other's machine on the command line
+with the <option>-h</option> switch, as so:</para>
+
+<screen width="40"><prompt>%</prompt><userinput><command>kenolaba</command> <option>-h</option> <parameter><replaceable>SomeHostName</replaceable></parameter></userinput></screen>
+
+<note><para> For insiders: &kenolaba;, when in Network Mode, listens on
+a <acronym>TCP</acronym> socket for position change commands by other
+&kenolaba; programs. You can specify the port number with the
+<option>-p</option> command line switch.  You need this if you want to
+play two different &kenolaba; Network games.</para></note>
+
+<sect2 id="network-examples">
+<title>Examples</title>
+
+<itemizedlist>
+<listitem>
+<para>Chris on <systemitem class="systemname">machine1</systemitem> and
+Mary on <systemitem class="systemname">machine2</systemitem> want to
+play against each other: Mary simply starts &kenolaba;, sets
+<menuchoice><guimenu>Options</guimenu><guisubmenu>Computer
+plays</guisubmenu></menuchoice> to <guimenuitem>None</guimenuitem> and
+switches to Network Mode. Chris starts &kenolaba; with
+
+<screen width="40"><prompt>%</prompt><userinput><command>kenolaba</command> <option>-h</option> <parameter><replaceable>machine2</replaceable></parameter></userinput></screen>
+
+and then does the same as Mary.
+Now one of the two can start the game and draw a red move. Each time the
+position is changed in one program, it automatically changes in the other one
+too.</para>
+</listitem>
+
+<listitem>
+<para>John wants to observe the game: He does the same as Chris, but
+doesn't draw a move himself.</para>
+</listitem>
+
+<listitem>
+<para>Two different &kenolaba; Network Games will run among machines
+<systemitem class="systemname">m1</systemitem> and <systemitem
+class="systemname">m2</systemitem>. To distinguish the games, we choose
+port number 12345 for one. On <systemitem
+class="systemname">m1</systemitem> we start as usual:
+
+<screen width="40"><prompt>%</prompt><userinput><command>kenolaba</command></userinput></screen>
+
+for the first game, and (not so usual):
+
+<screen width="40"><prompt>%</prompt><userinput><command>kenolaba</command> <option>-p</option> <parameter><replaceable>12345</replaceable></parameter></userinput></screen>
+
+for the second.  On <systemitem class="systemname">m2</systemitem> we
+start the first game with:
+
+<screen width="40"><prompt>%</prompt><userinput><command>kenolaba</command> <option>-h</option> <parameter><replaceable>m1</replaceable></parameter></userinput></screen>
+
+and the second with:
+
+<screen width="40"><prompt>%</prompt><userinput><command>kenolaba</command> <option>-h</option> <parameter><replaceable>m1:12345</replaceable></parameter></userinput></screen>
+
+(The colon separates host and port as in a &URL;).</para> </listitem>
+</itemizedlist>
+
+</sect2>
+
+</sect1>
+</chapter>
+
+<chapter id="advanced-options">
+<title>Advanced Options</title>
+
+<sect1 id="modify-mode">
+<title>Modify Mode</title>
+
+<para>
+You can edit the current board position by selecting
+<menuchoice><guimenu>Edit</guimenu><guimenuitem>Modify</guimenuitem></menuchoice> 
+to put &kenolaba; in Modify Mode.You can add red or yellow pieces or
+delete them. The status line shows the number of red and yellow pieces,
+the move number, the side which is to draw the next move, and whether
+the position is valid: An exclamation sign means no, a checked symbol
+yes.
+</para>
+
+<important>
+<para>
+If the position is invalid and you switch back to normal Play Mode, you
+can't play! Only valid positions can be used as a starting position for
+a game.
+</para>
+</important>
+
+<para><menuchoice><guimenu>Move</guimenu><guimenuitem>Take back</guimenuitem>
+</menuchoice>and
+<menuchoice><guimenu>Move</guimenu><guimenuitem>Forward</guimenuitem>
+</menuchoice> simply decrement and increment the move number, but don't change
+any pieces.</para>
+
+<sect2 id="modify-mode-usage">
+<title>Usage</title>
+
+<para>By pressing the <mousebutton>left</mousebutton> or
+<mousebutton>right</mousebutton> mouse button on an empty or yellow
+field, you enter <quote>Red piece Adding</quote> mode. By pressing the
+<mousebutton>middle</mousebutton> button on an empty or red field, you
+enter <quote>Yellow piece Adding</quote> mode. Finally by pressing the
+<mousebutton>left</mousebutton> or the <mousebutton>right</mousebutton>
+mouse button on a red piece, or the <mousebutton>middle</mousebutton>
+mouse button on an yellow piece, you enter <quote>Piece Deleting</quote>
+Mode. Any piece that the mouse passes over with the button pressed will
+be deleted.
+</para>
+
+<para>To exit Modify Mode and re-enter Play Mode, just uncheck
+<guimenuitem>Modify</guimenuitem> in the <guimenu>Edit</guimenu>
+menu.</para>
+
+<sect3 id="clipboard-features">
+<title>Using the Clipboard</title>
+
+<para>The current &kenolaba; board can be copied to the clipboard using
+the <guimenuitem>Copy</guimenuitem> command in the
+<guimenu>Edit</guimenu> menu, and then pasted back in using
+<guimenuitem>Paste</guimenuitem>.  This way you can copy the board
+positions of one &kenolaba; program to another by pressing
+<guimenuitem>Copy</guimenuitem> in one program and
+<guimenuitem>Paste</guimenuitem> in the other, but this is better done
+with Network Mode (see above). Another usage is to save positions into a
+text file (using <guimenuitem>Copy</guimenuitem> and your Editor of
+choice) and retrieve a position later by selecting it in the editor and
+pasting in &kenolaba;.</para>
+</sect3>
+</sect2>
+</sect1>
+
+<sect1 id="computer-level">
+<title>Computer Level</title>
+<para>The computer can play at four different levels, namely:</para>
+<itemizedlist>
+<listitem><para><guimenuitem>Easy</guimenuitem></para>
+</listitem>
+<listitem><para><guimenuitem>Normal</guimenuitem></para>
+</listitem>
+<listitem><para><guimenuitem>Hard</guimenuitem></para>
+</listitem>
+<listitem><para><guimenuitem>Challenge</guimenuitem></para>
+</listitem>
+</itemizedlist>
+
+<para>The harder the setting, the longer the computer searches for a
+move. You can interrupt the search by pressing the <keycap>S</keycap>
+key.</para>
+
+</sect1>
+
+<sect1 id="spying">
+<title>Spying</title>
+
+<para>
+<quote>Spying</quote> can be turned on and off from the
+<guimenu>Settings</guimenu> menu, and the <guimenuitem>Spy</guimenuitem>
+option.  If it is your turn, you can see the computer's rating of the
+move you want to play in the status bar. If it's the computer's turn you
+can see (in status bar and highlighted pieces) the move he actually
+thinks is the best to play. Of course this changes along his
+search.</para>
+</sect1>
+
+<sect1 id="computer-plays">
+<title>Selecting what color the computer plays</title>
+
+<para>
+You can make the computer play Red, Yellow or both sides. Choose between
+these options before starting a new game. Of course it works in a game
+too if you want to change sides. Choose <guimenuitem>None</guimenuitem>
+to play against another human. This is very useful in Network
+Mode.</para>
+</sect1>
+
+</chapter>
+
+<chapter id="advanced-config">
+<title>Advanced Configuration</title>
+
+<para>&kenolaba; offers advanced configuration options for the daring, enabling
+you to change the whole scoring system if you wish. To access these advanced
+options, select <menuchoice><guimenu>Settings</guimenu><guimenuitem>Configure
+Kenolaba...</guimenuitem></menuchoice>. As you change settings, the score that
+your modified settings give for the current move is displayed at the bottom of
+the dialog, next to <guilabel>Evaluation of actual Position</guilabel>.</para>
+
+<sect1 id="the-moves-tab">
+<title>The <guilabel>Moves</guilabel> Tab</title>
+<para>The number of points added to the total for each type of move can be
+modified here, depending on the type of move, and how many pieces are
+involved. The moves are divided into three types:</para>
+
+<variablelist>
+
+<varlistentry>
+<term><guilabel>Normal</guilabel></term>
+<listitem><para>A normal move is one in which you move one or more pieces of
+your own, but do not push any of your opponent's pieces.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><guilabel>Push</guilabel></term>
+<listitem><para>A push move is one in which you push one or more of your
+opponent's pieces, but they remain on the board.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><guilabel>Push Out</guilabel></term>
+<listitem><para>A push out move is one in which you push one or more of your
+opponent's pieces off the board.</para>
+</listitem>
+</varlistentry>
+
+</variablelist>
+
+</sect1>
+
+<sect1 id="the-position-tab">
+<title>The <guilabel>Position</guilabel> Tab</title>
+
+<para>The number of points added to the total score for a board position is
+dependent on which ring on the board the pieces are on. For each ring, from the
+center out, an average score to add can be set, with a +/- range. The score
+given for a particular position is varied randomly within the +/- range. This
+is to stop computer-computer games going into an infinite loop.
+</para>
+</sect1>
+
+<sect1 id="the-in-a-row-tab">
+<title>The <guilabel>In-A-Row</guilabel> Tab</title>
+
+<para>For each time the number of pieces in a row occurs, the given number of points
+is added to the score, &eg;
+	<inlinemediaobject>
+	  <imageobject>
+	    <imagedata fileref="kenolaba-pieces.png" format="PNG"/>
+	  </imageobject>
+	   <textobject>
+	    <phrase>X O O O</phrase>
+	  </textobject>
+	</inlinemediaobject>
+adds the score for three in a row, and also two times the score for two in a row.</para>
+</sect1>
+
+<sect1 id="the-count-tab">
+<title>The <guilabel>Count</guilabel> Tab</title>
+
+<para>
+Adds the given amount of points based on the difference in the number of balls
+on both sides, from <guilabel>1 Ball more</guilabel> up to <guilabel>5 Balls
+more</guilabel>. If there is a difference of 6 balls, the game is over.
+</para>
+
+</sect1>
+
+</chapter>
+
+<chapter id="menu-reference">
+<title>Menu Reference</title>
+
+<para>Drawing moves is explained under <link
+linkend="rules-of-the-game">Rules of the Game</link>. The buttons in the
+toolbar have the same meaning as entries in the <guimenu>Game</guimenu>
+or <guimenu>Edit</guimenu> menu.</para>
+
+<sect1 id="the-game-menu">
+<title>The <guimenu>Game</guimenu> Menu</title>
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>N</keycap>
+</keycombo>
+</shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>New</guimenuitem>
+</menuchoice></term>
+<listitem><para><action>Starts a new game</action> even if a game is
+currently in play.</para></listitem>
+</varlistentry>
+
+
+<varlistentry>
+<term>
+<menuchoice>
+<shortcut>
+<keycombo><keycap>N</keycap></keycombo>
+</shortcut>
+<guimenu>Game</guimenu><guimenuitem>Network Play</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>
+If this toggle is switched on, the application is in Network Mode.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>Q</keycap></keycombo>
+</shortcut>
+<guimenu>Game</guimenu><guimenuitem>Quit</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para><action>Quits</action> &kenolaba;.</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect1>
+
+<sect1 id="the-edit-menu">
+<title>The <guimenu>Edit</guimenu> Menu</title>
+
+<variablelist>
+
+<varlistentry>
+<term>
+<menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>C</keycap></keycombo>
+</shortcut>
+<guimenu>Edit</guimenu><guimenuitem>Copy</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>Copy a representation of the &kenolaba; board to the clipboard</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>V</keycap></keycombo>
+</shortcut>
+<guimenu>Edit</guimenu><guimenuitem>Paste</guimenuitem>
+</menuchoice></term>
+<listitem><para>
+Interpret the content of the X clipboard as an ASCII representation of
+a &kenolaba; board, and copy it to the current board. A valid
+ASCII representation is generated by <guimenuitem>Copy</guimenuitem>.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>Ins</keycap></keycombo>
+</shortcut>
+<guimenu>Edit</guimenu><guimenuitem>Modify</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>Switches &kenolaba; to Modify Mode.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>S</keycap></keycombo>
+</shortcut>
+<guimenu>Edit</guimenu><guimenuitem>Save Position</guimenuitem>
+</menuchoice></term>
+<listitem><para>
+Save the actual position to be retrieved later with
+<menuchoice><guimenu>Edit</guimenu> <guimenuitem>Restore Position</guimenuitem>
+</menuchoice>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>O</keycap></keycombo>
+</shortcut>
+<guimenu>Edit</guimenu><guimenuitem>Restore Position</guimenuitem>
+</menuchoice></term>
+<listitem><para>
+Restore the board position stored in the &kenolaba; Configuration file
+by <guimenu>Edit</guimenu> <guimenuitem>Save
+Position</guimenuitem>.</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect1>
+
+<sect1 id="the-move-menu">
+<title>The <guimenu>Move</guimenu> Menu</title>
+
+<variablelist>
+
+<varlistentry>
+<term>
+<menuchoice>
+<shortcut>
+<keycombo><keycap>H</keycap></keycombo>
+</shortcut>
+<guimenu>Move</guimenu><guimenuitem>Hint</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para>
+A hint for your next move is shown. Only possible if you play at level
+normal or above, the move number is 2 or greater and you have not undone
+your move.</para>
+</listitem>
+</varlistentry>
+
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo><keycap>S</keycap></keycombo>
+</shortcut>
+<guimenu>Move</guimenu>
+<guimenuitem>Stop Search</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para>
+When the computer is thinking, his depth search is interrupted and he
+draws the best move he has found so far.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<menuchoice>
+<shortcut>
+<keycombo><keycap>PgUp</keycap></keycombo>
+</shortcut>
+<guimenu>Move</guimenu><guimenuitem>Take Back</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para>
+Take back your previous move. Two (!) moves are undone: the opponents
+move and your last move.  So it's your turn again. 100 moves are
+remembered; so don't hesitate to take back moves until you are at the
+beginning of the game (faster with the <keycap>F2</keycap> key).  When
+in Modify mode (see
+<menuchoice><guimenu>Edit</guimenu><guimenuitem>Modify</guimenuitem></menuchoice>
+below), decrement move number of this position.</para>
+</listitem>
+</varlistentry>
+
+
+<varlistentry>
+<term>
+<menuchoice>
+<shortcut>
+<keycombo><keycap>PgDown</keycap></keycombo>
+</shortcut>
+<guimenu>Move</guimenu><guimenuitem>Forward</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para>Only useful in Modify mode: Increment move number of this
+position.</para>
+</listitem>
+</varlistentry>
+
+</variablelist>
+
+</sect1>
+
+<sect1 id="the-settings-menu">
+<title>The <guimenu>Settings</guimenu> Menu</title>
+
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl; <keycap>M</keycap>
+</keycombo>
+</shortcut>
+<guimenu>Settings</guimenu>
+<guimenuitem>Show Menubar</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para>Shows or hides the &kenolaba; Menubar.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Show Toolbar</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para>Shows or hides the &kenolaba; Toolbar.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Show Statusbar</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>Shows or hides the &kenolaba; Statusbar at the base of the screen.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Save Settings</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>
+Saves the current settings to become the default for &kenolaba;.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guisubmenu>Choose Game Type</guisubmenu>
+</menuchoice></term>
+<listitem><para>
+Select the level that the computer plays at. Can be one of:
+<itemizedlist>
+<listitem><para><guimenuitem>Easy</guimenuitem></para>
+</listitem>
+<listitem><para><guimenuitem>Normal</guimenuitem></para>
+</listitem>
+<listitem><para><guimenuitem>Hard</guimenuitem></para>
+</listitem>
+<listitem><para><guimenuitem>Challenge</guimenuitem></para>
+</listitem>
+</itemizedlist>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guisubmenu>Computer
+Plays</guisubmenu>
+</menuchoice></term>
+<listitem><para>
+Choose which colors the computer plays. Can be one of:
+<itemizedlist>
+<listitem>
+<para><guimenuitem>Red</guimenuitem></para>
+</listitem>
+<listitem>
+<para><guimenuitem>Yellow</guimenuitem></para>
+</listitem>
+<listitem>
+<para><guimenuitem>Both</guimenuitem></para>
+</listitem>
+<listitem>
+<para><guimenuitem>None</guimenuitem></para>
+</listitem>
+</itemizedlist>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Move Slow</guimenuitem>
+</menuchoice></term>
+<listitem><para> A move drawn by the computer when this option is
+checked is shown by blinking and highlighting the pieces used in this
+move. Uncheck this option if you don't want to wait for this animation:
+Then only a quick highlighting is done.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Render Balls</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>
+If checked, the pieces are rendered online by an internal simple ray
+tracer when needed (&eg; when resizing the window).</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Spy</guimenuitem>
+</menuchoice></term>
+<listitem><para>
+If checked, turns on <quote>spying</quote>.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Configure Shortcuts...</guimenuitem>
+</menuchoice></term>
+<listitem><para>
+Brings up the standard &kde; key bindings configuration dialog to customize the key bindings used by &kenolaba;.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Configure Toolbars...</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>Brings up the standard &kde; toolbar configuration dialog to customize the &kenolaba; toolbar.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu><guimenuitem>Configure Kenolaba...</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>Brings up the &kenolaba; configuration dialog to change &kenolaba;
+settings. See <xref linkend="advanced-config"/>.</para>
+</listitem>
+</varlistentry>
+
+
+</variablelist>
+
+</sect1>
+
+<sect1 id="help-menu">
+<title>The <guimenuitem>Help</guimenuitem> Menu</title>
+
+&help.menu.documentation;
+
+</sect1>
+</chapter>
+
+
+<chapter id="commandline-options">
+<title>Command line options</title>
+
+<cmdsynopsis>
+<command>kenolaba</command>
+<group>
+<option>-p</option>
+<replaceable>MyPortNumber</replaceable>
+</group>
+<group>
+<option>-h</option>
+<replaceable>host:port</replaceable>
+</group>
+</cmdsynopsis>
+
+<para>With <option>-p</option> you specify the port number of the
+listening TCP socket when in Network Mode.</para>
+
+<para>With <option>-h</option> you specify a remote &kenolaba; process
+(with optional port number, when not using the default port on the
+remote machine) to communicate with when in Network mode. You can
+specify multiple remote processes.</para>
+</chapter>
+
+<chapter id="credits-and-licenses">
+<title>Credits &amp; Licenses</title>
+
+<para>&kenolaba;</para>
+
+<para>Program copyright 1997-2000 &Josef.Weidendorfer;
+&Josef.Weidendorfer.mail;
+</para>
+
+<para>Original Documentation by Robert Williams
+<email>rwilliams@kde.org</email> and Josef Weidendorfer</para>
+
+<para>Documentation maintained by &Philip.Rodrigues; &Philip.Rodrigues.mail;.</para>
+
+<!-- TRANS:CREDIT_FOR_TRANSLATORS -->
+
+&underFDL;
+&underGPL;
+
+</chapter>
+
+<appendix id="installation">
+<title>Installation</title>
+<sect1 id="getting-kenolaba">
+<title>How to obtain &kenolaba;</title>
+
+&install.intro.documentation;
+
+</sect1>
+
+<sect1 id="compilation">
+<title>Compilation and Installation</title>
+
+&install.compile.documentation;
+
+</sect1>
+
+</appendix>
+
+</book>
+<!--
+Local Variables:
+mode: sgml
+sgml-minimize-attributes:nil
+sgml-general-insert-case:lower
+sgml-indent-step:0
+sgml-indent-data:nil
+End:
+
+// vim:ts=0:sw=2:tw=78:noet
+-->
+
+
+
+
+
+

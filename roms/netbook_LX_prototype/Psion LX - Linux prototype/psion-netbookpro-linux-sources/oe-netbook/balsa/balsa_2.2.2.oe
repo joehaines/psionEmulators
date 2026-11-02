@@ -1,0 +1,23 @@
+PR = "r31"
+DEPENDS = "libesmtp glib-2.0 libgnome libgnomeui gtk+ gnome-vfs libbonobo aspell pcre libtool openssl gtkhtml-3.0 libgmime sqlite psion-help"
+RDEPENDS = "aspell"
+RRECOMMENDS = "help-balsa"
+
+inherit autotools gnome
+
+SRC_URI = "http://balsa.gnome.org/balsa-${PV}.tar.bz2 \
+	   file://netbook-20041110.patch;patch=1 \
+	   file://email.png \
+	   file://printing-fonts.patch;patch=1;pnum=0"
+
+   
+EXTRA_OECONF = "--with-ssl --enable-touch-ui  --with-sqlite"
+
+do_configure_prepend() {
+	# aclocal seems to insist on looking in here.  Make sure it exists.
+	mkdir -p ${S}/m4
+}
+ 
+do_compile_prepend() { 
+        mv -f ${S}/../email.png ${S}/images/balsa_icon.png
+}

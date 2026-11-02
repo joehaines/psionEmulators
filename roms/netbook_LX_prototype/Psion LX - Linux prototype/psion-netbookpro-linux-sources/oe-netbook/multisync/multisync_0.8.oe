@@ -1,0 +1,113 @@
+DESCRIPTION = "Multisync"
+PR = "r0"
+DEPENDS = "libglade libnsqlc libgpewidget"
+SECTION = "gpe"
+
+FILES_${PN} += " ${datadir}/gpe-multisync"
+
+SRC_URI = "file://multisync-0.8.tar.gz"
+
+inherit autotools libtool
+
+autotools_do_configure_and_compile() {
+	for ac in `cat ${S}/files`; do
+	case ${PN} in
+	autoconf*)
+	;;
+	automake*)
+	;;
+	*)
+		# WARNING: gross hack follows:
+		# An autotools built package generally needs these scripts, however only
+		# automake or libtoolize actually install the current versions of them.
+		# This is a problem in builds that do not use libtool or automake, in the case
+		# where we -need- the latest version of these scripts.  e.g. running a build
+		# for a package whose autotools are old, on an x86_64 machine, which the old
+		# config.sub does not support.  Work around this by installing them manually
+		# regardless.
+		( for ac in `find ${S} -name configure.in -o -name configure.ac`; do
+			rm -f `dirname $ac`/configure
+			done )
+		if [ -e $ac/configure.in -o -e $ac/configure.ac ]; then
+			cd $ac
+			if [ x"${acpaths}" = xdefault ]; then
+				acpaths=
+				for i in `find ${S} -maxdepth 2 -name \*.m4|grep -v 'aclocal.m4'| \
+					grep -v 'acinclude.m4' | sed -e 's,\(.*/\).*$,\1,'|sort -u`; do
+					acpaths="$acpaths -I $i"
+				done
+			else
+				acpaths="${acpaths}"
+			fi
+			install -d ${STAGING_DIR}/${HOST_SYS}/share/aclocal
+			acpaths="$acpaths -I ${STAGING_DIR}/${HOST_SYS}/share/aclocal"
+			# autoreconf is too shy to overwrite aclocal.m4 if it doesn't look
+			# like it was auto-generated.  Work around this by blowing it away
+			# by hand, unless the package specifically asked not to run aclocal.
+			if ! echo ${EXTRA_AUTORECONF} | grep -q "aclocal"; then
+				rm -f aclocal.m4
+			fi
+			oenote Executing autoreconf --verbose --install --force ${EXTRA_AUTORECONF} $acpaths
+			autoreconf -Wcross --verbose --install --force ${EXTRA_AUTORECONF} $acpaths || oefatal "autoreconf execution failed."
+		fi
+	;;
+	esac
+	cd $ac
+	if [ -e $ac/configure ]; then
+		cfgcmd="$ac/configure \
+		    --build=${BUILD_SYS} \
+		    --host=${HOST_SYS} \
+		    --target=${TARGET_SYS} \
+		    --prefix=${prefix} \
+		    --exec_prefix=${exec_prefix} \
+		    --bindir=${bindir} \
+		    --sbindir=${sbindir} \
+		    --libexecdir=${libexecdir} \
+		    --datadir=${datadir} \
+		    --sysconfdir=${sysconfdir} \
+		    --sharedstatedir=${sharedstatedir} \
+		    --localstatedir=${localstatedir} \
+		    --libdir=${libdir} \
+		    --includedir=${includedir} \
+		    --oldincludedir=${oldincludedir} \
+		    --infodir=${infodir} \
+		    --mandir=${mandir} \
+			${EXTRA_OECONF} \
+		    $@"
+		oenote "Running $cfgcmd..."
+		$cfgcmd || oefatal "oe_runconf failed" 
+	else
+		oenote "nothing to configure"
+	fi
+	base_do_compile
+	done
+}
+
+do_configure() {
+}
+
+do_compile() {
+	echo ${S} >${S}/files
+	echo ${S}/plugins/irmc_sync >>${S}/files
+	echo ${S}/plugins/syncml_plugin >>${S}/files
+	echo ${S}/plugins/gpe_plugin >>${S}/files
+	autotools_do_configure_and_compile
+}
+
+do_install() {
+	install -d ${D}/${libdir}/multisync ${D}/${bindir} ${D}/${datadir}/gpe-multisync
+	install -m 0755 ${S}/src/.libs/multisync ${D}/${bindir}/multisync
+	install -m 0755 plugins/irmc_sync/src/.libs/libirmc_sync.so.0.0.0 ${D}/${libdir}/multisync/libirmc_sync.so.0.0.0
+	ln -sf libirmc_sync.so.0.0.0 ${D}/${libdir}/multisync/libirmc_sync.so
+        ln -sf libirmc_sync.so.0.0.0 ${D}/${libdir}/multisync/libirmc_sync.so.0
+        ln -sf libirmc_sync.so.0.0.0 ${D}/${libdir}/multisync/libirmc_sync.so.0.0
+	install -m 0755 plugins/syncml_plugin/src/.libs/libsyncml_plugin.so.0.0.0 ${D}/${libdir}/multisync/libsyncml_plugin.so.0.0.0
+	ln -sf libsyncml_plugin.so.0.0.0 ${D}/${libdir}/multisync/libsyncml_plugin.so
+        ln -sf libsyncml_plugin.so.0.0.0 ${D}/${libdir}/multisync/libsyncml_plugin.so.0
+        ln -sf libsyncml_plugin.so.0.0.0 ${D}/${libdir}/multisync/libsyncml_plugin.so.0.0
+	install -m 0755 plugins/gpe_plugin/src/.libs/libgpe_sync.so.0.0.0 ${D}/${libdir}/multisync/libgpe_sync.so.0.0.0
+	ln -sf libgpe_sync.so.0.0.0 ${D}/${libdir}/multisync/libgpe_sync.so
+        ln -sf libgpe_sync.so.0.0.0 ${D}/${libdir}/multisync/libgpe_sync.so.0
+        ln -sf libgpe_sync.so.0.0.0 ${D}/${libdir}/multisync/libgpe_sync.so.0.0
+        install -m 0644 plugins/gpe_plugin/gpe_sync.glade ${D}/${datadir}/gpe-multisync/gpe_sync.glade
+}

@@ -20,6 +20,7 @@
 // 16550 driver, so this does not storm.
 
 #include "psion_condor.h"
+#include "state_archive.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -30,6 +31,14 @@ bool condorTraceEnabled() {
     return t && t[0] && t[0] != '0';
 }
 } // namespace
+
+void PsionCondor::serializeState(StateArchive &a) {
+    a(m_ier); a(m_lcr); a(m_mcr); a(m_divisor);
+    a(m_cts); a(m_dsr); a(m_ri); a(m_dcd); a(m_msrDelta);
+    a(m_rxFifo); a(m_rxHead); a(m_rxTail); a(m_rxCount);
+    a(m_paraData); a(m_paraDir); a(m_intStatus); a(m_threPending);
+    a(m_intMask); a(m_ctrl1); a(m_ctrl2); a(m_irqAsserted); a(m_plain16550Irq);
+}
 
 void PsionCondor::reset() {
     m_ier = 0;

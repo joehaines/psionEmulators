@@ -1,0 +1,351 @@
+2004-04-14  William Jon McCann  <mccann@jhu.edu>
+
+	* src/hand.cpp (bj_hand_new5): Return when hand is finished.
+	Fixes #137430.
+
+	* src/game.cpp (bj_game_new): Cancel game unconditionally
+	when starting a new one.
+
+2004-03-19  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/game.cpp
+	* src/hand.cpp	
+	* src/hand.h: Fix a crasher (#137525) by explicitly removing
+	timeouts. Mysteriously the warning described in #137513 is also
+	fixed :).
+
+2004-02-22  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/events.cpp: 	
+	* src/blackjack.cpp: Move the intialisation of draw_gc to the
+	configure callback and remove the explicit call to
+	gtk_widget_realize. This avoids the (erratic) warnings when the
+	expose event (from the explicit realize) gets called before the
+	configure event.
+
+2004-02-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/menu.cpp: Removed warning about unused function by removing
+	it with #if 0.
+
+2004-02-20  William Jon McCann  <mccann@jhu.edu>
+
+	* src/hand.cpp (bj_hand_finish_play): Only set the player to
+	the next player if it is not NULL.  Fixes bug #134488.
+
+	* src/events.cpp: Properly initialize variables.  Fixes bug #125523.
+	(handle_slot_pressed): Remove debug print statement.
+
+2004-02-14  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/game.cpp: 
+	* src/dialog.cpp: 
+	* src/card.cpp: Removed the has_separator call from the message
+	dialogs.
+
+2004-02-12  William Jon McCann  <mccann@jhu.edu>
+
+	* data/Makefile.am: Don't install binary cache file.
+
+2004-02-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/menu.cpp (help_about_callback): Add translator credits.
+
+2004-02-04  William Jon McCann  <mccann@jhu.edu>
+
+	* src/player.cpp (reset): Load new XML cache file.
+
+	* src/game.cpp (bj_game_get_config_dir) 
+	(bj_game_ensure_config_dir_exists): New functions
+	(bj_game_eval_installed_file): Generate cache file if it
+	is not found.  
+
+2004-02-03  William Jon McCann  <mccann@jhu.edu>
+
+	* src/player.cpp (LoadablePlayer, reset):
+	Use and check return value.
+	(saveHandXML, savePlayerHandCountXML, saveCountXML) 
+	(saveValueSplitXML, saveResplitXML, saveOverallValuesXML) 
+	(saveOverallValueXML, savePlayerHandsXML, saveXML) 
+	(load_array_from_string, parse_hand, parse_hands) 
+	(parse_hand_count, parse_value_split, parse_resplit) 
+	(parse_overall_values, parse_overall_value, parse_document) 
+	(loadXML): New functions to support saving and loading XML
+	cache files.
+
+	* src/hand.cpp (bj_hand_show_options) 
+	(bj_hand_get_best_option_string, bj_hand_new5): Add some checks
+	for NULL strategy.
+
+2004-01-12  William Jon McCann  <mccann@jhu.edu>
+
+	* src/card.cpp (bj_card_load_pixmaps): Added error checking and
+	report dialog.
+
+2003-12-28  William Jon McCann  <mccann@jhu.edu>
+
+	* src/hand.cpp (bj_hand_show_options):
+	(bj_hand_new5, bj_hand_new, bj_hand_finish, bj_hand_split):
+	* src/events.cpp (drop_moving_chips): 
+	* src/dialog.cpp (pref_dialog_response, show_preferences_dialog): 
+	* src/slot.cpp (bj_slot_add_before_slot): 
+	* src/blackjack.cpp (bj_gconf_init): 
+	* src/game.cpp (bj_game_new): 
+	Remove unused variables.
+	
+	* src/hand.cpp (bj_hand_new5): Always set the playing area text
+	whether it is displayed or not.  Fixes a bug introduced by last
+	change.
+	 
+
+2003-12-20  William Jon McCann  <mccann@jhu.edu>
+
+	* src/hand.cpp (bj_hand_hit, bj_hand_double, bj_hand_finish_play): 
+	* src/draw.cpp (bj_draw_set_dealer_text, bj_draw_set_player_text) 
+	(bj_draw_paint_text, bj_draw_take_snapshot, bj_draw_refresh_screen):
+	Use new approach for creating the text on the playing area.  Instead
+	of having the hand and dealer methods called to update the text
+	on screen for every screen update, have the hand and dealer set
+	the markup text after every play and let the screen update render
+	that when needed.  This allows the positioning of the pango layout
+	to happen in draw.cpp.  And that allows positioning to scale with
+	font size.
+
+	* src/player.cpp (showProbabilities, showOptions):
+	(showCount):
+	Use monospace font family instead of fixed.  Use non-white color so
+	that text will show up against white card if necessary.  Make
+	headings bold.  Make best option bold.  Don't use a fixed font
+	size.
+
+	* src/dialog.cpp (get_insurance_choice): Insurance is for suckers or
+	counters.  Make the default answer no.
+
+2003-12-18  William Jon McCann  <mccann@jhu.edu>
+
+	* src/menu.cpp (help_about_callback): Remove email addresses from main
+	screen for space reasons.  Use angle brackets around email in credits.
+
+	* src/game.cpp (bj_game_new): Fix leaks.
+
+2003-12-12  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/strategy.cpp: Removed the #include of <iostream> since it
+	doesn't seem to be used and was causing some people compile
+	problems. Fixes bug #128729.
+
+	* src/Makefile.am (INCLUDES): Use GNOME_GAMES_CXXFLAGS rather than
+	GNOME_GAMES_CFLAGS.
+
+2003-11-19  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* data/Makefile.am (CLEANFILES): Make sure we clean up after
+	ourselves.
+
+2003-11-13  William Jon McCann  <mccann@jhu.edu>
+
+	* help/C/blackjack.xml: Document keyboard controls.
+
+	* src/hand.cpp (bj_hand_show_dealer_probabilities): Add a check
+	to make sure the dealer has a card first.
+
+	* src/player.cpp (showOptions): 
+	(showProbabilities): Add labels, reduce precision, and use percentage
+	symbols as suggested by Damon Brodie.
+
+2003-10-30  Callum McKenzie  <callum@localhost.localdomain>
+
+	* src/Makefile.am: Removed *_DISABLE_DEPRECATED.
+
+2003-10-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* data/Makefile.am (install-data-local): Change the way gconf files are
+	installed. This should improve things for people building outside
+	the source tree. See bug #123192.
+
+2003-08-25  William Jon McCann  <mccann@jhu.edu>
+
+	* help/C/figures/blackjack_start_window.png:
+	* help/C/figures/blackjack_win_window.png: Updated screenshots
+	to use simple theme.  It seems like this is the de facto standard
+	for 2.4.
+
+2003-08-12  William Jon McCann  <mccann@jhu.edu>
+
+	* help/C/figures/blackjack_start_window.png:
+	* help/C/figures/blackjack_win_window.png: Updated screenshots
+	to use crux theme.
+
+2003-07-10  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* data/blackjack.desktop.in: Update name to fit HIG (bug 116916).
+
+2003-07-07  William Jon McCann  <mccann@jhu.edu>
+
+	* src/events.cpp (bj_event_expose_callback) 
+	(bj_event_enter_notify): 
+	* src/blackjack.cpp (bj_quit_app): Added return values to fix
+	Sun build errors.
+
+	* src/strategy.h: One more line for the Sun Forte build fix.
+
+	* src/game.cpp (bj_game_find_rules): Rewrote function to remove
+	scandir/alphasort dependency.
+
+2003-07-06  William Jon McCann  <mccann@jhu.edu>
+
+	* src/strategy.h: Fix for Sun Forte build errors from Eric.
+
+2003-07-04  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* data/Makefile.am (install-data-local): Use a tab rather than
+	spaces in the Makefile.
+
+2003-07-03  William Jon McCann  <mccann@jhu.edu>
+
+	* src/strategy.h: Removed dos line endings.
+
+2003-06-22  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* data/blackjack.schemas.in: Remove full-stop from the end of
+	short descriptions.
+
+2003-06-19  William Jon McCann  <mccann@jhu.edu>
+
+	* src/card.cpp (bj_card_load_pixmaps): 
+	* src/slot.cpp (bj_slot_load_pixmaps): Use g_build_filename to make paths.
+
+	* src/blackjack.cpp (main): g_build_filename needs to be NULL terminated.
+
+2003-06-18  William Jon McCann  <mccann@jhu.edu>
+
+	* BUGS: 
+	* TODO: Update.
+
+2003-06-17  William Jon McCann  <mccann@jhu.edu>
+
+	* src/blackjack.c:
+	* src/blackjack.h (BJ_RULES_DIR): Remove slash from directory.
+	We will let g_build_filename add directory separators.
+
+	* src/game.cpp (bj_game_find_and_read_rules)
+	(bj_game_eval_installed_file): Use g_build_filename to construct
+	paths.
+
+	* src/strategy.cpp: Fixed compiler warning and converted
+	to UNIX format line ending.
+
+	* src/splash.cpp (expose_event): 
+	* src/player.cpp (showOptions): 
+	* src/hand.cpp (bj_hand_get_best_option_string): 
+	* src/game.cpp (bj_game_find_rules): 
+	* src/draw.cpp (bj_draw_chips): Fixed compiler warnings.
+
+	* src/menu.cpp: 
+	* src/dialog.cpp: 
+	* src/blackjack.cpp: 
+	* src/game.cpp: Only use splash window when we aren't
+	using a cache file.
+
+2003-06-16  William Jon McCann  <mccann@jhu.edu>
+
+	* src/blackjack.h: Fix typo.
+
+	* src/dialog.cpp (show_preferences_dialog): Use mnemonics
+	in preferences notebook tab labels.
+
+2003-06-13  William Jon McCann  <mccann@jhu.edu>
+
+	* src/dialog.cpp (select_rule_cb): Make dialog insensitive
+	while loading new rules.
+
+	* data/blackjack.schemas.in: 
+	* data/Makefile.am (schemadir): Install gconf schemas.
+	
+	* src/blackjack.cpp: #define gconf key names.
+
+2003-06-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/menu.cpp: 
+	* src/blackjack.cpp: i18n fixes from Christian Neumair (bug #114875).
+
+2003-06-09  William Jon McCann  <mccann@jhu.edu>
+
+	* src/dialog.cpp: 
+	* src/game.cpp: Removed separator from dialogs as in HIG.
+
+2003-06-07  William Jon McCann  <mccann@jhu.edu>
+
+	* src/game.cpp (bj_game_eval_installed_file): Use HIG
+	markup in error dialog.
+
+	* src/dialog.cpp (show_preferences_dialog): HIG spacing
+	tweak.
+
+	* src/player.cpp (showOptions): Fixed i18n string issue.
+
+	* src/blackjack.cpp: Keep local state information,
+	removed quit confirmation dialog, use toolbar setting
+	at startup.
+
+	* src/dialog.cpp (pref_dialog_response): Make card
+	preferences instant apply.
+
+2003-06-07  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/menu.cpp: 
+	* src/dialog.cpp:
+	Fixes to make dialogs be presented properly. Fixes bug #114623.
+
+	* src/dialog.cpp: Updated to use the revised
+	gtk_card_deck_blah_blah API.
+	
+
+2003-06-06  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* data/.cvsignore: Oops, should be blackjack.desktop, not
+	blackjack.desktop.in .
+
+2003-06-04  William Jon McCann  <mccann@jhu.edu>
+
+	* src/dialog.cpp: Added all rule fields to tree view in pref
+	dialog so that rules should be mostly self documented.  Also
+	removed unused functions and HIGified alerts.
+
+	* src/game.h: 
+	* src/game.cpp: Added new functions to load rules from file.
+	Added new BJGameRules class derived from BJRules that holds
+	all rule attributes.
+
+	* src/strategy.h: 
+	* src/strategy.cpp: Added get methods for private variables.
+
+	* data/Vegas_Strip.rules: Change to allow double after split,
+	surrender, and resplitting aces.  This should not affect the
+	cached rules file.
+
+2003-06-03  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/Makefile.am: 
+	Authors is in the next directory down, not here.
+
+	* src/dialog.cpp:
+	* src/game.cpp:
+	* src/hand.cpp:
+	* src/menu.cpp:
+	* src/player.cpp:
+	* src/blackjack.cpp: 
+	* src/events.cpp: Fixes to remove compiler warnings.  Also made
+	i18n changes as per Christian Rose's suggestions. Also removed
+	score stuff since it isn't used.
+
+2003-06-02  William Jon McCann  <mccann@jhu.edu>
+
+	* src/events.cpp: Improved appbar text tips shown when hovering
+	over objects in playing area.
+
+2003-06-02  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* src/chips.cpp: If we're going to use sqrt, we'd better include
+	math.h.
+

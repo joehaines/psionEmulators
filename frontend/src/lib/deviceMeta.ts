@@ -75,6 +75,8 @@ export const DEVICE_RELEASE_YEARS: Record<string, number> = {
                        // and its splash reads "Psion Digital 2001")
   conanv001:   2001,   // the earlier engineering image (TRomHeader: 2001-05-12)
   netpad:      2001,
+  psionlx:     2005,   // a prototype that never shipped: its OS image was
+                       // built 2005-01-04 (Linux 2.6.9-rc1-bk18-nb1)
 };
 
 // Devices whose ROM speaks the ER3/ER4 CL-PS711x dialect of the PLP link

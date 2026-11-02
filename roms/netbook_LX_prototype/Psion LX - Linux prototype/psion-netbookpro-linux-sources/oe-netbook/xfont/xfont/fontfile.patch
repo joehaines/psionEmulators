@@ -1,0 +1,22 @@
+--- xfont/fontfile/fontdir.c	7 Jul 2003 16:40:11 -0000	3.22
++++ xfont/fontfile/fontdir.c	27 Sep 2004 12:11:37 -0000
+@@ -699,6 +699,11 @@
+      */
+     if (isscale)
+     {
++      /* If the fontname says it is scalable, make sure that the
++       * renderer supports OpenScalable and GetInfoScalable.
++       */
++      if (renderer->OpenScalable && renderer->GetInfoScalable)
++      {
+ 	if (vals.values_supplied & SIZE_SPECIFY_MASK)
+ 	{
+ 	    bzero((char *)&zeroVals, sizeof(zeroVals));
+@@ -798,6 +803,7 @@
+                                            bitmap->name.name);
+             }
+ 	}
++      }
+     }
+     return TRUE;
+ }

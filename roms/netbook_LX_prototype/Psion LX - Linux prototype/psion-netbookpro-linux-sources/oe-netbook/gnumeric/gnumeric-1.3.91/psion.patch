@@ -1,0 +1,678 @@
+Index: configure.in
+===================================================================
+RCS file: /cvs/gnome/gnumeric/configure.in,v
+retrieving revision 1.665
+diff -u -w -r1.665 configure.in
+--- configure.in	6 Oct 2004 03:27:26 -0000	1.665
++++ configure.in	6 Oct 2004 03:31:25 -0000
+@@ -4,7 +4,7 @@
+ m4_define([gnumeric_version_epoch], [1])
+ m4_define([gnumeric_version_major], [3])
+ m4_define([gnumeric_version_minor], [91])
+-m4_define([gnumeric_version_extra], [])
++m4_define([gnumeric_version_extra], [-psion])
+ m4_define([gnumeric_full_version],
+     [gnumeric_version_epoch.gnumeric_version_major.gnumeric_version_minor()gnumeric_version_extra])
+ 
+Index: plugins/excel/plugin.xml.in
+===================================================================
+RCS file: /cvs/gnome/gnumeric/plugins/excel/plugin.xml.in,v
+retrieving revision 1.23
+diff -u -w -r1.23 plugin.xml.in
+--- plugins/excel/plugin.xml.in	24 Sep 2004 01:33:18 -0000	1.23
++++ plugins/excel/plugin.xml.in	6 Oct 2004 03:31:25 -0000
+@@ -32,7 +32,7 @@
+ 			</information>
+ 		</service>
+ 		<service type="file_saver" id="excel_biff8" file_extension="xls"
+-		         format_level="auto" overwrite_files="TRUE">
++		         format_level="auto" overwrite_files="TRUE" default_saver_priority="100">
+ 			<information>
+ 				<_description>MS Excel (tm) 97/2000/XP</_description>
+ 			</information>
+Index: schemas/gnumeric-dialogs.schemas.in
+===================================================================
+RCS file: /cvs/gnome/gnumeric/schemas/gnumeric-dialogs.schemas.in,v
+retrieving revision 1.16
+diff -u -w -r1.16 gnumeric-dialogs.schemas.in
+--- schemas/gnumeric-dialogs.schemas.in	29 Jan 2004 00:32:49 -0000	1.16
++++ schemas/gnumeric-dialogs.schemas.in	6 Oct 2004 03:31:25 -0000
+@@ -241,7 +241,7 @@
+         <owner>Gnumeric</owner>
+         <type>string</type>
+         <locale name="C">
+-	<default>Sans</default>
++	<default>Albany</default>
+         <short>Default header/footer font name</short>
+         <long>The default font name for headers and footers.</long>
+         </locale>
+Index: schemas/gnumeric-general.schemas.in
+===================================================================
+RCS file: /cvs/gnome/gnumeric/schemas/gnumeric-general.schemas.in,v
+retrieving revision 1.27
+diff -u -w -r1.27 gnumeric-general.schemas.in
+--- schemas/gnumeric-general.schemas.in	17 Jul 2004 06:17:40 -0000	1.27
++++ schemas/gnumeric-general.schemas.in	6 Oct 2004 03:31:25 -0000
+@@ -74,7 +74,7 @@
+         <owner>Gnumeric</owner>
+         <type>string</type>
+         <locale name="C">
+-	<default>Sans</default>
++	<default>Albany</default>
+         <short>Default font name</short>
+         <long>The default font name for new workbooks.</long>
+         </locale>
+Index: src/GNOME_Gnumeric-psion.xml
+===================================================================
+RCS file: src/GNOME_Gnumeric-psion.xml
+diff -N src/GNOME_Gnumeric-psion.xml
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ src/GNOME_Gnumeric-psion.xml	6 Oct 2004 03:31:25 -0000
+@@ -0,0 +1,302 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<ui>
++  <menubar>
++    <menu name="File" action="MenuFile">
++      <menuitem action="FileNew"/>
++      <menuitem action="FileOpen"/>
++      <separator name="file-sep1"/>
++      <menuitem action="FileSave"/>
++      <menuitem action="FileSaveAs"/>
++      <separator name="file-sep2"/>
++      <menuitem action="FilePageSetup"/>
++      <menuitem action="FilePrintPreview"/>
++      <menuitem action="FilePrint"/>
++      <separator name="file-sep3"/>
++      <menuitem action="FileSend"/>
++      <menuitem action="FileSummary"/>
++      <separator name="file-sep4"/>
++      <placeholder name="FileHistory" />
++      <separator name="file-sep5"/>
++      <menuitem action="FileClose"/>
++      <menuitem action="FileQuit"/>
++    </menu>
++    <menu name="Edit" action="MenuEdit">
++      <menuitem action="Undo"/>
++      <menuitem action="Redo"/>
++      <separator name="edit-sep1"/>
++      <menuitem action="EditCut"/>
++      <menuitem action="EditCopy"/>
++      <menuitem action="EditPaste"/>
++      <menuitem action="EditPasteSpecial"/>
++<!--TODO  menuitem action="EditPasteLink" -->
++      <separator name="edit-sep2"/>
++      <menu name="Fill" action="MenuEditFill">
++        <menuitem action="EditFillAutofill"/>
++        <menuitem action="ToolsMerge"/>
++        <menuitem action="ToolsTabulate"/>
++        <menuitem action="EditFillSeries"/>
++        <menuitem action="RandomGenerator"/>
++      </menu>
++      <menu name="Clear" action="MenuEditClear">
++        <menuitem action="EditClearAll"/>
++        <menuitem action="EditClearFormats"/>
++        <menuitem action="EditClearComments"/>
++        <menuitem action="EditClearContent"/>
++      </menu>
++      <menu name="Delete" action="MenuEditDelete">
++	<menuitem action="EditDeleteRows"/>
++	<menuitem action="EditDeleteColumns"/>
++	<menuitem action="EditDeleteCells"/>
++      </menu>
++      <menuitem action="InsertComment"/>
++      <separator name="edit-sep3"/>
++      <menu name="EditSheet" action="MenuEditSheet">
++        <menuitem action="SheetReorder"/>
++        <separator/>
++        <menuitem action="InsertSheet"/>
++        <menuitem action="InsertSheetAtEnd"/>
++        <menuitem action="EditDuplicateSheet"/>
++        <menuitem action="SheetRemove"/>
++        <menuitem action="SheetChangeName"/>
++      </menu>
++      <menu name="Select" action="MenuEditSelect">
++        <menuitem action="EditSelectAll"/>
++        <menuitem action="EditSelectRow"/>
++        <menuitem action="EditSelectColumn"/>
++        <menuitem action="EditSelectArray"/>
++        <menuitem action="EditSelectDepends"/>
++        <menuitem action="EditSelectInputs"/>
++      </menu>
++      <menuitem action="EditFind"/>
++      <menuitem action="EditReplace"/>
++      <menuitem action="EditGoto"/>
++      <menuitem action="EditRecalc"/>
++      <placeholder name="ops"/>
++    </menu>
++    <menu name="View" action="MenuView">
++      <menu name="Toolbars" action="MenuViewToolbars">
++      </menu>
++      <menuitem action="ViewStatusbar"/>
++      <menuitem action="ViewFullScreen"/>
++      <menuitem action="ViewZoom"/>
++      <menuitem action="ViewZoomIn"/>
++      <menuitem action="ViewZoomOut"/>
++    </menu>
++    <menu name="Insert" action="MenuInsert">
++      <menuitem action="InsertCells"/>
++      <menuitem action="InsertRows"/>
++      <menuitem action="InsertColumns"/>
++      <menuitem action="SheetInsert"/>
++      <separator/>
++      <menuitem action="ChartGuru"/>
++      <menuitem action="InsertFormula"/>
++      <menu name="Names" action="MenuInsertNames">
++        <menuitem action="EditNames"/>
++      </menu>
++      <menuitem action="InsertImage"/>
++      <menuitem action="InsertHyperlink"/>
++      <menu name="Drawing" action="MenuInsertDrawing">
++	<menuitem action="CreateLabel"/>
++	<menuitem action="CreateFrame"/>
++    <!-- Not useful until we have scripts
++	<menuitem action="CreateButton"/> -->
++    <!-- think about how to handle groups
++	<menuitem action="CreateRadioButton"/> -->
++	<menuitem action="CreateCheckbox"/>
++	<menuitem action="CreateScrollbar"/>
++	<menuitem action="CreateSpinButton"/>
++	<menuitem action="CreateSlider"/>
++	<menuitem action="CreateList"/>
++	<menuitem action="CreateCombo"/>
++	<menuitem action="CreateLine"/>
++	<menuitem action="CreateArrow"/>
++	<menuitem action="CreateRectangle"/>
++	<menuitem action="CreateEllipse"/>
++      </menu>
++      <menu name="Special" action="MenuInsertSpecial">
++        <menuitem action="InsertCurrentDate"/>
++        <menuitem action="InsertCurrentTime"/>
++        <menuitem action="InsertCurrentDateTime"/>
++      </menu>
++    </menu>
++    <menu name="Format" action="MenuFormat">
++      <menuitem action="FormatCells"/>
++      <menu name="FormatRow" action="MenuFormatRow">
++        <menuitem action="RowSize"/>
++        <menuitem action="RowAutoSize"/>
++        <menuitem action="RowHide"/>
++        <menuitem action="RowUnhide"/>
++        <menuitem action="RowDefaultSize"/>
++      </menu>
++      <menu name="FormatColumn" action="MenuFormatColumn">
++        <menuitem action="ColumnSize"/>
++        <menuitem action="ColumnAutoSize"/>
++        <menuitem action="ColumnHide"/>
++        <menuitem action="ColumnUnhide"/>
++        <menuitem action="ColumnDefaultSize"/>
++      </menu>
++      <menu name="FormatSheets" action="MenuFormatSheet">
++        <menuitem action="SheetReorder"/>
++        <menuitem action="SheetChangeName"/>
++        <separator/>
++        <menuitem action="SheetDisplayFormulas"/>
++        <menuitem action="SheetHideZeros"/>
++        <menuitem action="SheetHideGridlines"/>
++        <menuitem action="SheetHideColHeader"/>
++        <menuitem action="SheetHideRowHeader"/>
++      </menu>
++      <menuitem action="FormatAuto"/>
++    </menu>
++    <menu name="Tools" action="MenuTools">
++      <menuitem action="ToolsPlugins"/>
++      <separator name="tools-sep1"/>
++      <menuitem action="ToolsAutoCorrect"/>
++      <menuitem action="ToolsAutoSave"/>
++      <separator name="tools-sep2"/>
++      <menuitem action="ToolsGoalSeek"/>
++      <menuitem action="ToolsSolver"/>
++      <menu name="Scenarios" action="MenuToolsScenarios">
++        <menuitem action="ToolsScenarios"/>
++        <menuitem action="ToolsScenarioAdd"/>
++      </menu>
++      <menuitem action="ToolsSimulation"/>
++      <separator/>
++      <menu name="ToolStatisticalAnalysis" action="MenuToolStatisticalAnalysis">
++        <menu name="ANOVA" action="MenuANOVA">
++          <menuitem action="ToolsANOVAoneFactor"/>
++          <menuitem action="ToolsANOVAtwoFactor"/>
++        </menu>
++        <menuitem action="ToolsCorrelation"/>
++        <menuitem action="ToolsCovariance"/>
++        <menuitem action="ToolsDescStatistics"/>
++        <menu name="ToolForecast" action="MenuToolForecast">
++          <menuitem action="ToolsExpSmoothing"/>
++          <menuitem action="ToolsAverage"/>
++        </menu>
++        <menuitem action="ToolsFourier"/>
++        <menuitem action="ToolsHistogram"/>
++        <menuitem action="ToolsRanking"/>
++        <menuitem action="ToolsRegression"/>
++        <menuitem action="ToolsSampling"/>
++        <menu name="ToolTTest" action="MenuToolTTest">
++          <menuitem action="ToolTTestPaired"/>
++          <menuitem action="ToolTTestEqualVar"/>
++          <menuitem action="ToolTTestUnequalVar"/>
++          <menuitem action="ToolZTest"/>
++        </menu>
++        <menuitem action="ToolsFTest"/>
++      </menu>
++      <menuitem action="FormatWorkbook"/>
++      <menuitem action="FilePreferences"/>
++    </menu>
++    <menu name="Data" action="MenuData">
++      <menuitem action="DataSort"/>
++      <menu name="Filter" action="MenuFilter">
++        <menuitem action="DataAutoFilter"/>
++        <menuitem action="DataFilterShowAll"/>
++        <menuitem action="DataFilterAdvancedfilter"/>
++      </menu>
++      <menuitem action="DataValidate"/>
++      <separator/>
++      <menuitem action="DataTextToColumns"/>
++      <menuitem action="DataConsolidate"/>
++      <menu name="Outline" action="MenuOutline">
++        <menuitem action="DataOutlineHideDetail"/>
++        <menuitem action="DataOutlineShowDetail"/>
++        <menuitem action="DataOutlineGroup"/>
++        <menuitem action="DataOutlineUngroup"/>
++        <separator/>
++        <menuitem action="SheetDisplayOutlines"/>
++        <menuitem action="SheetOutlineBelow"/>
++        <menuitem action="SheetOutlineRight"/>
++      </menu>
++<!--
++	    <menuitem action="PivotTable" />
++	    -->
++      <menu name="ExternalData" action="MenuExternalData">
++        <menuitem action="DataImportText"/>
++      </menu>
++    </menu>
++    <menu name="Windows" action="MenuViewWindows">
++      <menuitem action="ViewNew"/>
++      <menuitem action="ViewFreezeThawPanes"/>
++      <separator/>
++    </menu>
++    <menu name="Help" action="MenuHelp">
++      <menuitem action="HelpDocs"/>
++      <menuitem action="HelpWeb"/>
++      <menuitem action="HelpIRC"/>
++      <menuitem action="HelpBug"/>
++      <separator/>
++      <menuitem action="HelpAbout"/>
++    </menu>
++  </menubar>
++  <toolbar name="StandardToolbar">
++    <toolitem action="FileNew"/>
++    <toolitem action="FileOpen"/>
++    <toolitem action="FileSave"/>
++    <separator name="std-sep1"/>
++    <toolitem action="FilePrint"/>
++    <toolitem action="FilePrintPreview"/>
++    <separator name="std-sep2"/>
++    <toolitem action="EditCut"/>
++    <toolitem action="EditCopy"/>
++    <toolitem action="EditPaste"/>
++    <separator name="std-sep3"/>
++    <toolitem action="Undo"/>
++    <toolitem action="Redo"/>
++    <separator name="std-sep4"/>
++    <toolitem action="InsertHyperlink"/>
++    <toolitem action="AutoSum"/>
++    <toolitem action="InsertFormula"/>
++    <toolitem action="SortAscending"/>
++    <toolitem action="SortDescending"/>
++    <separator name="std-sep5"/>
++    <toolitem action="ChartGuru" />
++    <toolitem action="ViewZoomIn"/>
++    <toolitem action="Zoom"/>
++    <toolitem action="ViewZoomOut"/>
++  </toolbar>
++  <toolbar name="FormatToolbar">
++    <toolitem action="FontName"/>
++    <toolitem action="FontSize"/>
++    <toolitem action="FontBold"/>
++    <toolitem action="FontItalic"/>
++    <toolitem action="FontUnderline"/>
++    <separator name="fmt-sep1"/>
++    <toolitem action="HAlignmentSelector"/>
++    <toolitem action="FormatMergeCells"/>
++    <toolitem action="FormatUnmergeCells"/>
++    <separator name="fmt-sep2"/>
++    <toolitem action="FormatAsAccounting"/>
++    <toolitem action="FormatAsPercentage"/>
++    <toolitem action="FormatWithThousands"/>
++    <toolitem action="FormatIncreasePrecision"/>
++    <toolitem action="FormatDecreasePrecision"/>
++    <separator name="fmt-sep3"/>
++    <toolitem action="FormatDecreaseIndent"/>
++    <toolitem action="FormatIncreaseIndent"/>
++    <separator name="fmt-sep4"/>
++    <toolitem action="BorderSelector"/>
++    <toolitem action="ColorBack"/>
++    <toolitem action="ColorFore"/>
++  </toolbar>
++
++  <accelerator name="CopyRight"		 action="CopyRight"/>
++  <accelerator name="CopyDown"		 action="CopyDown"/>
++  <accelerator name="FontBold"		 action="FontBold"/>
++  <accelerator name="FontItalic"	 action="FontItalic"/>
++  <accelerator name="FontUnderline"	 action="FontUnderline"/>
++  <accelerator name="FontDoubleUnderline" action="FontDoubleUnderline"/>
++  <accelerator name="FontStrikeThrough"  action="FontStrikeThrough"/>
++  <accelerator name="FormatAsNumber"	 action="FormatAsNumber"/>
++  <accelerator name="FormatAsCurrency"	 action="FormatAsCurrency"/>
++  <accelerator name="FormatAsAccounting" action="FormatAsAccounting"/>
++  <accelerator name="FormatAsPercentage" action="FormatAsPercentage"/>
++  <accelerator name="FormatAsScientific" action="FormatAsScientific"/>
++  <accelerator name="FormatAsDate"	 action="FormatAsDate"/>
++  <accelerator name="FormatAsTime"	 action="FormatAsTime"/>
++  <accelerator name="FormatAddBorders"	 action="FormatAddBorders"/>
++  <accelerator name="FormatClearBorders" action="FormatClearBorders"/>
++  <accelerator name="Repeat"		 action="Repeat"/>
++</ui>
+Index: src/Makefile.am
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/Makefile.am,v
+retrieving revision 1.352
+diff -u -w -r1.352 Makefile.am
+--- src/Makefile.am	29 Sep 2004 19:58:37 -0000	1.352
++++ src/Makefile.am	6 Oct 2004 03:31:25 -0000
+@@ -375,7 +375,7 @@
+ 
+ # include conditional files to ensure everything gets distributed no matter
+ # what the build
+-EXTRA_DIST = GNOME_Gnumeric-gtk.xml				\
++EXTRA_DIST = GNOME_Gnumeric-psion.xml				\
+ 	    gnm-marshalers.list	                        	\
+ 	    main-application.c 					\
+ 	    main-component.c					\
+@@ -391,7 +391,7 @@
+ #	$(INTLLIBS)
+ 
+ gtkactiondir=$(gnumeric_datadir)
+-gtkaction_DATA = GNOME_Gnumeric-gtk.xml
++gtkaction_DATA = GNOME_Gnumeric-psion.xml
+ 
+ # Bonobo requires things to be in a subdir of this form
+ #bonobo_component_uidir=$(gnumeric_datadir)/gnome-2.0/ui
+Index: src/item-bar.c
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/item-bar.c,v
+retrieving revision 1.200
+diff -u -w -r1.200 item-bar.c
+--- src/item-bar.c	29 Aug 2004 15:42:55 -0000	1.200
++++ src/item-bar.c	6 Oct 2004 03:31:26 -0000
+@@ -703,11 +703,12 @@
+ 		}
+ 
+ 		if (cri->visible) {
++			int const threshold = ib->is_col_header ? 4 : 1;
+ 			total += cri->size_pixels;
+ 
+ 			if (wbcg_edit_get_guru (ib->gcanvas->simple.scg->wbcg) == NULL &&
+ 			    !wbcg_is_editing (ib->gcanvas->simple.scg->wbcg) &&
+-			    (total - 4 < pos) && (pos < total + 4)) {
++			    (total - threshold < pos) && (pos < total + threshold)) {
+ 				if (the_total)
+ 					*the_total = total;
+ 				if (the_element)
+Index: src/item-cursor.c
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/item-cursor.c,v
+retrieving revision 1.204
+diff -u -w -r1.204 item-cursor.c
+--- src/item-cursor.c	7 Sep 2004 05:49:47 -0000	1.204
++++ src/item-cursor.c	6 Oct 2004 03:31:26 -0000
+@@ -583,13 +583,13 @@
+ 		? ic->canvas_item.y1 + AUTO_HANDLE_WIDTH
+ 		: ic->canvas_item.y2 - AUTO_HANDLE_WIDTH;
+ 
+-	if ((y_test-AUTO_HANDLE_SPACE) <= y &&
+-	    y <= (y_test+AUTO_HANDLE_SPACE)) {
++	if ((y_test-(AUTO_HANDLE_SPACE*2)) <= y &&
++	    y <= (y_test+(AUTO_HANDLE_SPACE*2))) {
+ 		int const x_test = ic->auto_fill_handle_at_left
+ 			? ic->canvas_item.x1 + AUTO_HANDLE_WIDTH
+ 			: ic->canvas_item.x2 - AUTO_HANDLE_WIDTH;
+-		return (x_test-AUTO_HANDLE_SPACE) <= x &&
+-			x <= (x_test+AUTO_HANDLE_SPACE);
++		return (x_test-(AUTO_HANDLE_SPACE*2)) <= x &&
++			x <= (x_test+(AUTO_HANDLE_SPACE*2));
+ 	 }
+ 	return FALSE;
+ }
+Index: src/style.h
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/style.h,v
+retrieving revision 1.79
+diff -u -w -r1.79 style.h
+--- src/style.h	21 Feb 2004 17:16:45 -0000	1.79
++++ src/style.h	6 Oct 2004 03:31:26 -0000
+@@ -5,7 +5,7 @@
+ #include <libgnomeprint/gnome-font.h>
+ #include "gnumeric.h"
+ 
+-#define DEFAULT_FONT "Sans"
++#define DEFAULT_FONT "Albany"
+ #define DEFAULT_SIZE 10.0
+ 
+ /* Alignment definitions */
+Index: src/wbc-gtk.c
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/wbc-gtk.c,v
+retrieving revision 1.54
+diff -u -w -r1.54 wbc-gtk.c
+--- src/wbc-gtk.c	28 Sep 2004 02:56:10 -0000	1.54
++++ src/wbc-gtk.c	6 Oct 2004 03:31:27 -0000
+@@ -1067,7 +1067,7 @@
+ 	while (i-- > 1) {
+ 		char *name = g_strdup_printf ("WindowListEntry%d", i);
+ 		gtk_ui_manager_add_ui (gtk->ui, gtk->windows.merge_id,
+-			"/menubar/View/Windows", 
++			"/menubar/Windows", 
+ 			name, name, GTK_UI_MANAGER_AUTO, TRUE);
+ 		g_free (name);
+ 	}
+@@ -1313,7 +1313,7 @@
+ 	gtk_window_add_accel_group (wbcg->toplevel, 
+ 		gtk_ui_manager_get_accel_group (gtk->ui));
+ 	uifile = g_build_filename (gnm_sys_data_dir (NULL),
+-				   "GNOME_Gnumeric-gtk.xml", NULL);
++				   "GNOME_Gnumeric-psion.xml", NULL);
+ 	if (!gtk_ui_manager_add_ui_from_file (gtk->ui, uifile, &error)) {
+ 		g_message ("building menus failed: %s", error->message);
+ 		g_error_free (error);
+Index: src/wbcg-actions.c
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/wbcg-actions.c,v
+retrieving revision 1.64
+diff -u -w -r1.64 wbcg-actions.c
+--- src/wbcg-actions.c	28 Sep 2004 02:56:10 -0000	1.64
++++ src/wbcg-actions.c	6 Oct 2004 03:31:28 -0000
+@@ -1439,6 +1439,7 @@
+ 		{ "MenuViewToolbars",		NULL, N_("_Toolbars") },
+ 	{ "MenuInsert",		NULL, N_("_Insert") },
+ 		{ "MenuInsertNames",		NULL, N_("_Names") },
++		{ "MenuInsertDrawing",		NULL, N_("_Drawing") },
+ 		{ "MenuInsertSpecial",		NULL, N_("S_pecial") },
+ 	{ "MenuFormat",		NULL, N_("F_ormat") },
+ 		{ "MenuFormatColumn",		NULL, N_("C_olumn") },
+@@ -1550,7 +1551,7 @@
+ 		NULL, N_("Delete the column(s) containing the selected cells"),
+ 		G_CALLBACK (cb_edit_delete_columns) },
+ 	{ "EditDeleteCells", NULL, N_("C_ells..."),
+-		  "<control>minus", N_("Delete the selected cells, shifting others into their place"),
++		  NULL, N_("Delete the selected cells, shifting others into their place"),
+ 		  G_CALLBACK (cb_edit_delete_cells) },
+ 
+ 
+@@ -1635,11 +1636,11 @@
+ 		G_CALLBACK (cb_edit_goto) },
+ 
+ 	{ "EditRecalc", NULL, N_("Recalculate"),
+-		"F9", N_("Recalculate the spreadsheet"),
++		"<alt>9", N_("Recalculate the spreadsheet"),
+ 		G_CALLBACK (cb_edit_recalc) },
+ 
+ /* View */
+-	{ "ViewNew", NULL, N_("_New View..."),
++	{ "ViewNew", NULL, N_("_New Window..."),
+ 		NULL, N_("Create a new view of the workbook"),
+ 		G_CALLBACK (cb_view_new) },
+ 	{ "ViewFreezeThawPanes", NULL, N_("_Freeze Panes"),
+@@ -1649,15 +1650,15 @@
+ 		NULL, N_("Zoom the spreadsheet in or out"),
+ 		G_CALLBACK (cb_view_zoom) },
+ 	{ "ViewZoomIn", GTK_STOCK_ZOOM_IN, N_("Zoom _In"),
+-		NULL, N_("Increase the zoom to make things larger"),
++		"<control>plus", N_("Increase the zoom to make things larger"),
+ 		G_CALLBACK (cb_view_zoom_in) },
+ 	{ "ViewZoomOut", GTK_STOCK_ZOOM_OUT, N_("Zoom _Out"),
+-		NULL, N_("Decrease the zoom to make things smaller"),
++		"<control>minus", N_("Decrease the zoom to make things smaller"),
+ 		G_CALLBACK (cb_view_zoom_out) },
+ 
+ /* Insert */
+ 	{ "InsertCells", NULL, N_("C_ells..."),
+-		"<control>plus", N_("Insert new cells"),
++		NULL, N_("Insert new cells"),
+ 		G_CALLBACK (cb_insert_cells) },
+ 	{ "InsertColumns", "Gnumeric_ColumnAdd", N_("_Columns"),
+ 		NULL, N_("Insert new columns"),
+@@ -1691,7 +1692,7 @@
+ 
+ /* Insert -> Name */
+ 	{ "EditNames", NULL, N_("_Define..."),
+-		"<control>F3", N_("Edit sheet and workbook names"),
++		"<alt>3", N_("Edit sheet and workbook names"),
+ 		G_CALLBACK (cb_define_name) },
+ #if 0
+ 	GNOMEUIINFO_ITEM_NONE (N_("_Auto generate names..."),
+@@ -1703,7 +1704,7 @@
+ 	{ "FormatCells", NULL, N_("_Cells..."),
+ 		"<control>1", N_("Modify the formatting of the selected cells"),
+ 		G_CALLBACK (cb_format_cells) },
+-	{ "FormatWorkbook", NULL, N_("_Workbook..."),
++	{ "FormatWorkbook", NULL, N_("_Workbook Preferences..."),
+ 		NULL, N_("Modify the workbook attributes"),
+ 		G_CALLBACK (cb_workbook_attr) },
+ 	{ "FormatGnumeric", GTK_STOCK_PREFERENCES, N_("_Gnumeric..."),
+@@ -2098,7 +2099,7 @@
+ 	        G_CALLBACK (cb_view_statusbar), TRUE },
+ 
+ 	{ "ViewFullScreen", GTK_STOCK_ZOOM_FIT,
+-		N_("F_ull Screen..."), "F11",
++		N_("F_ull Screen..."), "<alt>1",
+ 		N_("in or out"), G_CALLBACK (cb_view_fullscreen), FALSE }
+ };
+ 
+Index: src/dialogs/dialog-col-width.c
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/dialogs/dialog-col-width.c,v
+retrieving revision 1.15
+diff -u -w -r1.15 dialog-col-width.c
+--- src/dialogs/dialog-col-width.c	6 Mar 2004 23:10:16 -0000	1.15
++++ src/dialogs/dialog-col-width.c	6 Oct 2004 03:31:28 -0000
+@@ -69,6 +69,8 @@
+ static void
+ dialog_col_width_button_sensitivity (ColWidthState *state)
+ {
++	gboolean changed_info = TRUE;
++#if 0
+ 	gnm_float value = gtk_spin_button_get_value (state->spin);
+ 	gboolean use_default = gtk_toggle_button_get_active
+ 		(GTK_TOGGLE_BUTTON (state->default_check));
+@@ -82,6 +84,7 @@
+ 				|| (use_default && !state->orig_is_default));
+ 
+ 	}
++#endif
+ 	gtk_widget_set_sensitive (state->ok_button, changed_info);
+ 	gtk_widget_set_sensitive (state->apply_button, changed_info);
+ }
+Index: src/dialogs/dialog-row-height.c
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/dialogs/dialog-row-height.c,v
+retrieving revision 1.15
+diff -u -w -r1.15 dialog-row-height.c
+--- src/dialogs/dialog-row-height.c	6 Mar 2004 23:10:16 -0000	1.15
++++ src/dialogs/dialog-row-height.c	6 Oct 2004 03:31:28 -0000
+@@ -69,6 +69,8 @@
+ static void
+ dialog_row_height_button_sensitivity (RowHeightState *state)
+ {
++	gboolean changed_info = TRUE;
++#if 0
+ 	gnm_float value = gtk_spin_button_get_value (state->spin);
+ 	gboolean use_default = gtk_toggle_button_get_active
+ 		(GTK_TOGGLE_BUTTON (state->default_check));
+@@ -82,6 +84,7 @@
+ 				|| (use_default && !state->orig_is_default));
+ 
+ 	}
++#endif
+ 	gtk_widget_set_sensitive (state->ok_button, changed_info);
+ 	gtk_widget_set_sensitive (state->apply_button, changed_info);
+ }
+Index: src/dialogs/dialog-workbook-attr.c
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/dialogs/dialog-workbook-attr.c,v
+retrieving revision 1.43
+diff -u -w -r1.43 dialog-workbook-attr.c
+--- src/dialogs/dialog-workbook-attr.c	29 Dec 2003 19:18:38 -0000	1.43
++++ src/dialogs/dialog-workbook-attr.c	6 Oct 2004 03:31:28 -0000
+@@ -106,11 +106,12 @@
+ static void
+ cb_widget_changed (G_GNUC_UNUSED GtkWidget *widget, AttrState *state)
+ {
+-	gboolean changed;
++	gboolean changed = TRUE;
+ 	int max_iterations;
+ 	double iteration_tolerance;
+ 
+ 	get_entry_values (state, &max_iterations, &iteration_tolerance);
++#if 0
+ 	changed =
+ 		!((gtk_toggle_button_get_active (state->view.show_hsb) == state->old.show_hsb) &&
+ 		  (gtk_toggle_button_get_active (state->view.show_vsb) == state->old.show_vsb) &&
+@@ -121,6 +122,7 @@
+ 		  (gtk_toggle_button_get_active (state->view.iteration_enabled) == state->old.iteration_enabled) &&
+ 		  (max_iterations == state->old.max_iterations) &&
+ 		  (iteration_tolerance == state->old.iteration_tolerance));
++#endif
+ 
+ 	gtk_widget_set_sensitive (state->ok_button, changed);
+ 	gtk_widget_set_sensitive (state->apply_button, changed);
+Index: src/dialogs/preferences.glade
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/dialogs/preferences.glade,v
+retrieving revision 1.7
+diff -u -w -r1.7 preferences.glade
+--- src/dialogs/preferences.glade	9 Feb 2004 19:45:58 -0000	1.7
++++ src/dialogs/preferences.glade	6 Oct 2004 03:31:28 -0000
+@@ -5,7 +5,7 @@
+ 
+ <widget class="GtkDialog" id="preferences">
+   <property name="border_width">6</property>
+-  <property name="title" translatable="yes">Gnumeric Preferences</property>
++  <property name="title" translatable="yes">Preferences</property>
+   <property name="type">GTK_WINDOW_TOPLEVEL</property>
+   <property name="window_position">GTK_WIN_POS_NONE</property>
+   <property name="modal">False</property>
+Index: src/dialogs/workbook-attr.glade
+===================================================================
+RCS file: /cvs/gnome/gnumeric/src/dialogs/workbook-attr.glade,v
+retrieving revision 1.17
+diff -u -w -r1.17 workbook-attr.glade
+--- src/dialogs/workbook-attr.glade	24 Apr 2003 15:26:17 -0000	1.17
++++ src/dialogs/workbook-attr.glade	6 Oct 2004 03:31:28 -0000
+@@ -4,7 +4,7 @@
+ <glade-interface>
+ 
+ <widget class="GtkDialog" id="WorkbookAttr">
+-  <property name="title" translatable="yes">Format Workbook</property>
++  <property name="title" translatable="yes">Workbook Preferences</property>
+   <property name="type">GTK_WINDOW_TOPLEVEL</property>
+   <property name="window_position">GTK_WIN_POS_NONE</property>
+   <property name="modal">False</property>

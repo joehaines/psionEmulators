@@ -1,0 +1,39 @@
+PR = "r3nb14"
+DESCRIPTION = "Matchbox panel"
+LICENSE = "GPL"
+DEPENDS = "libmatchbox x11 xext xpm apmd startup-notification"
+
+SRC_URI = "ftp://ftp.handhelds.org/matchbox/sources/matchbox-panel/0.8/matchbox-panel-${PV}.tar.bz2 \
+	file://automake-lossage.patch;patch=1 \
+	file://more-automake-lossage.patch;patch=1 \
+	file://battery-monitor.patch;patch=1 \
+	file://wireless.patch;patch=1 \
+	file://max-size.patch;patch=1 \
+	file://panel-padding.patch;patch=1 \
+	file://hours-minutes.patch;patch=1 \
+	file://sizeomatic.patch;patch=1 \
+	file://wifi-location.patch;patch=1 \
+	file://battery_empty.png file://battery_25%.png \
+	file://battery_12.5%.png file://battery_37.5%.png \
+	file://battery_50%.png file://battery_75%.png \
+	file://battery_62.5%.png file://battery_87.5%.png \
+	file://battery_full.png file://plug.png \
+	file://wifi1.png file://wifi2.png file://wifi3.png \
+	file://wifi4.png file://wifi5.png file://wifi6.png"
+
+S = "${WORKDIR}/matchbox-panel-${PV}"
+
+inherit autotools pkgconfig
+
+EXTRA_OECONF = "--enable-startup-notification --enable-dnotify --enable-nls"
+
+FILES_${PN} = "${bindir} \
+	       ${datadir}/applications \
+	       ${datadir}/pixmaps"
+
+do_install_append() {
+	install -d ${D}${datadir}/pixmaps/battery/
+	for i in empty 12.5% 25% 37.5% 50% 62.5% 75% 87.5% full; do install -m 0644 ${WORKDIR}/battery_$i.png ${D}${datadir}/pixmaps/battery/; done
+	install -m 0644 ${WORKDIR}/plug.png ${D}${datadir}/pixmaps/battery/
+	for i in 1 2 3 4 5 6; do install -m 0644 ${WORKDIR}/wifi$i.png ${D}${datadir}/pixmaps/; done
+}

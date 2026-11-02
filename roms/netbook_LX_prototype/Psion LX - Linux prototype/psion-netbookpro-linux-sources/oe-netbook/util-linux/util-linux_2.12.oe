@@ -1,0 +1,35 @@
+LICENSE = "GPL"
+DEPENDS = "zlib ncurses gettext-native"
+DESCRIPTION = "Mount and umount from Util-linux."
+
+PR="r0nb1"
+
+SRC_URI = "http://ftp.cwi.nl/aeb/util-linux/util-linux-${PV}.tar.gz \
+           file://MCONFIG \
+           file://make_include \
+           file://swapargs.h \
+           file://defines.h \
+           file://my_dev_t.h.diff;patch=1"
+
+EXTRA_OEMAKE = ""
+
+FILES_${PN} = "/bin/mount /bin/umount /etc"
+
+do_compile () {
+	set -e
+	install ${WORKDIR}/MCONFIG ${S}/MCONFIG
+	install ${WORKDIR}/make_include ${S}/make_include
+	install ${WORKDIR}/swapargs.h ${S}/mount/swapargs.h
+	install ${WORKDIR}/defines.h ${S}/defines.h
+	oe_runmake ARCH=${TARGET_ARCH} CPU= CPUOPT= \
+		'OPT=${CFLAGS}' 'CC=${CC}' 'LD=${LD}' \
+		'LDFLAGS=${LDFLAGS}'
+}
+
+do_install () {
+        install -d -m 755 ${D}/bin
+        install -m 4755 ${WORKDIR}/${PN}-${PV}/mount/mount ${D}/bin/mount
+        install -m 4755 ${WORKDIR}/${PN}-${PV}/mount/umount ${D}/bin/umount
+	install -d -m 755 ${D}/etc
+	ln -s /proc/mounts ${D}/etc/mtab
+}

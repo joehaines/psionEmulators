@@ -1,0 +1,38 @@
+--- mozilla/xpcom/io/nsFastLoadService.cpp.old	Sat Nov  6 17:05:41 2004
++++ mozilla/xpcom/io/nsFastLoadService.cpp	Sat Nov  6 17:10:47 2004
+@@ -36,6 +36,8 @@
+  *
+  * ***** END LICENSE BLOCK ***** */
+ 
++#include <stdlib.h>
++
+ #include "prtypes.h"
+ #include "prio.h"
+ #include "prtime.h"
+@@ -48,6 +50,7 @@
+ #include "nsFastLoadPtr.h"
+ #include "nsFastLoadService.h"
+ #include "nsString.h"
++#include "nsLocalFile.h"
+ 
+ #include "nsIComponentManager.h"
+ #include "nsIEnumerator.h"
+@@ -137,10 +140,18 @@
+     nsresult rv;
+     nsCOMPtr<nsIFile> file;
+ 
++#if 0
+     rv = NS_GetSpecialDirectory(NS_APP_USER_PROFILE_50_DIR,
+                                 getter_AddRefs(file));
+     if (NS_FAILED(rv))
+         return rv;
++#else
++    nsLocalFile *localfile = new nsLocalFile;
++    char buf[256];
++    sprintf(buf, "/var/tmp/mozilla.%s", getenv("USER"));
++    localfile->InitWithNativePath(nsDependentCString(buf));
++    file = localfile;
++#endif
+ 
+     nsCAutoString name(aBaseName);
+     MASSAGE_BASENAME(name);

@@ -1,0 +1,15 @@
+DEPENDS = "aspell aspell-native"
+
+SRC_URI = "ftp://ftp.gnu.org/gnu/aspell/dict/en/aspell-en-${PV}.tar.bz2 \
+	   file://configure.patch;patch=1;pnum=0"
+
+DESCRIPTION = "GNU Aspell English (UK, US, CN) dictionary"
+
+inherit autotools
+
+FILES_${PN} = "/usr/lib/aspell/* /usr/share/aspell/*"
+
+do_configure() {
+	./configure --vars DICT_DIR="/usr/lib/aspell" DATA_DIR="/usr/share/aspell"
+}
+

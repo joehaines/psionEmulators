@@ -1,0 +1,22 @@
+PR = "r2nb2"
+
+inherit gpe
+
+DESCRIPTION = "GPE session startup scripts"
+SECTION = "gpe"
+PRIORITY = "optional"
+MAINTAINER = "Philip Blundell <pb@handhelds.org>"
+RDEPENDS = "matchbox-wm matchbox-panel gpe-session-starter gpe-bluetooth xstroke xtscal gpe-question gpe-clock matchbox-applet-inputmanager xrandr"
+# more rdepends: keylaunch ipaq-sleep apmd blueprobe
+DEPENDS = "matchbox-wm matchbox-panel gpe-bluetooth xstroke xtscal gpe-question matchbox-applet-inputmanager gpe-clock xrandr"
+
+SRC_URI = "http://gpe.handhelds.org/pub/projects/gpe/source/gpe-session-scripts-${PV}.tar.gz \
+	file://gpe-xcalibrate.sh file://30xTs_Calibrate"
+
+do_install_append() {
+	install ${WORKDIR}/30xTs_Calibrate ${D}/etc/X11/Xsession.d/
+	install ${WORKDIR}/gpe-xcalibrate.sh ${D}${bindir}/
+	rm ${D}${datadir}/applications/gpe-logout.desktop
+	rm ${D}${datadir}/pixmaps/gpe-logout.png
+}
+

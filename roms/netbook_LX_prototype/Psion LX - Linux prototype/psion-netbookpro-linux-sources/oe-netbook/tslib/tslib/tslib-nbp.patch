@@ -1,0 +1,542 @@
+diff -ur tslib~/plugins/dejitter.c tslib/plugins/dejitter.c
+--- tslib~/plugins/dejitter.c	2004-06-16 07:39:41.000000000 +0100
++++ tslib/plugins/dejitter.c	2004-07-23 11:24:57.000000000 +0100
+@@ -32,143 +32,74 @@
+ #include "tslib.h"
+ #include "tslib-filter.h"
+ 
+-/**
+- * This filter works as follows: we keep track of latest N samples,
+- * and average them with certain weights. The oldest samples have the
+- * least weight and the most recent samples have the most weight.
+- * This helps remove the jitter and at the same time doesn't influence
+- * responsivity because for each input sample we generate one output
+- * sample; pen movement becomes just somehow more smooth.
+- */
+-
+-#define NR_SAMPHISTLEN	4
+-
+-/* To keep things simple (avoiding division) we ensure that
+- * SUM(weight) = power-of-two. Also we must know how to approximate
+- * measurements when we have less than NR_SAMPHISTLEN samples.
+- */
+-static const unsigned char weight [NR_SAMPHISTLEN - 1][NR_SAMPHISTLEN + 1] =
+-{
+-	/* The last element is pow2(SUM(0..3)) */
+-	{ 5, 3, 0, 0, 3 },	/* When we have 2 samples ... */
+-	{ 8, 5, 3, 0, 4 },	/* When we have 3 samples ... */
+-	{ 6, 4, 3, 3, 4 },	/* When we have 4 samples ... */
+-};
+-
+-struct ts_hist {
+-	int x;
+-	int y;
+-	int p;
+-};
++#define NR_LAST	4
+ 
+-struct tslib_dejitter {
+-	struct tslib_module_info module;
+-	unsigned int delta;
+-	unsigned int x;
+-	unsigned int y;
+-	unsigned int down;
+-	unsigned int nr;
+-	unsigned int head;
+-	struct ts_hist hist[NR_SAMPHISTLEN];
++struct tslib_threshold {
++	struct tslib_module_info	module;
++	int			pthreshold;
++	int			xdelta;
++	int			ydelta;
++	int			delta2;
++	unsigned int			x;
++	unsigned int			y;
++	unsigned int			down;
+ };
+ 
+-static int sqr (int x)
+-{
+-	return x * x;
+-}
+-
+-static void average (struct tslib_dejitter *djt, struct ts_sample *samp)
++static int threshold_read(struct tslib_module_info *info, struct ts_sample *samp, int nr)
+ {
+-	const unsigned char *w;
+-	int sn = djt->head;
+-	int i, x = 0, y = 0, p = 0;
+-
+-        w = weight [djt->nr - 2];
+-
+-	for (i = 0; i < djt->nr; i++) {
+-		x += djt->hist [sn].x * w [i];
+-		y += djt->hist [sn].y * w [i];
+-		p += djt->hist [sn].p * w [i];
+-		sn = (sn - 1) & (NR_SAMPHISTLEN - 1);
+-	}
+-
+-	samp->x = x >> w [NR_SAMPHISTLEN];
+-	samp->y = y >> w [NR_SAMPHISTLEN];
+-	samp->pressure = p >> w [NR_SAMPHISTLEN];
+-#ifdef DEBUG
+-	fprintf(stderr,"DEJITTER----------------> %d %d %d\n",
+-		samp->x, samp->y, samp->pressure);
+-#endif
+-}
+-
+-static int dejitter_read(struct tslib_module_info *info, struct ts_sample *samp, int nr)
+-{
+-        struct tslib_dejitter *djt = (struct tslib_dejitter *)info;
++	struct tslib_threshold *thr = (struct tslib_threshold *)info;
+ 	struct ts_sample *s;
+-	int count = 0, ret;
++	int ret;
+ 
+ 	ret = info->next->ops->read(info->next, samp, nr);
+-	for (s = samp; ret > 0; s++, ret--) {
+-		if (s->pressure == 0) {
+-			/*
+-			 * Pen was released. Reset the state and
+-			 * forget all history events.
+-			 */
+-			djt->nr = 0;
+-			samp [count++] = *s;
+-                        continue;
+-		}
++	if (ret >= 0) {
++		int nr = 0;
+ 
+-                /* If the pen moves too fast, reset the backlog. */
+-		if (djt->nr) {
+-			int prev = (djt->head - 1) & (NR_SAMPHISTLEN - 1);
+-			if (sqr (s->x - djt->hist [prev].x) +
+-			    sqr (s->y - djt->hist [prev].y) > djt->delta) {
++		for (s = samp; s < samp + ret; s++) {
++			int dr2;
+ #ifdef DEBUG
+-	fprintf (stderr, "DEJITTER: pen movement exceeds threshold\n");
+-#endif
+-                                djt->nr = 0;
++			fprintf(stderr,"BEFORE DEJITTER---------------> %d %d %d\n",s->x,s->y,s->pressure);
++#endif /*DEBUG*/
++			thr->down = (s->pressure >= thr->pthreshold);
++			if (thr->down) {
++				dr2 = (thr->x - s->x)*(thr->x - s->x) 
++					+ (thr->y - s->y)*(thr->y - s->y);
++				if(dr2 < thr->delta2) {
++					s->x = thr->x;
++					s->y = thr->y;
++				} else {
++					thr->x = s->x;
++					thr->y = s->y;
++				}
++
++			} else {
++				s->x = thr->x;
++				s->y = thr->y;
+ 			}
+-		}
+ 
+-		djt->hist[djt->head].x = s->x;
+-		djt->hist[djt->head].y = s->y;
+-		djt->hist[djt->head].p = s->pressure;
+-		if (djt->nr < NR_SAMPHISTLEN)
+-			djt->nr++;
+-
+-		/* We'll pass through the very first sample since
+-		 * we can't average it (no history yet).
+-		 */
+-		if (djt->nr == 1)
+-			samp [count] = *s;
+-		else {
+-			average (djt, samp + count);
+-			samp [count].tv = s->tv;
++
++			samp[nr++] = *s;
+ 		}
+-		count++;
+ 
+-		djt->head = (djt->head + 1) & (NR_SAMPHISTLEN - 1);
++		ret = nr;
+ 	}
+-
+-	return count;
++	return ret;
+ }
+ 
+-static int dejitter_fini(struct tslib_module_info *info)
++static int threshold_fini(struct tslib_module_info *info)
+ {
+ 	free(info);
+-	return 0;
+ }
+ 
+-static const struct tslib_ops dejitter_ops =
++static const struct tslib_ops threshold_ops =
+ {
+-	.read	= dejitter_read,
+-	.fini	= dejitter_fini,
++	read:	threshold_read,
++	fini:	threshold_fini,
+ };
+ 
+-static int dejitter_limit(struct tslib_module_info *inf, char *str, void *data)
++static int threshold_limit(struct tslib_module_info *inf, char *str, void *data)
+ {
+-	struct tslib_dejitter *djt = (struct tslib_dejitter *)inf;
++	struct tslib_threshold *thr = (struct tslib_threshold *)inf;
+ 	unsigned long v;
+ 	int err = errno;
+ 
+@@ -180,7 +111,15 @@
+ 	errno = err;
+ 	switch ((int)data) {
+ 	case 1:
+-		djt->delta = v;
++		thr->xdelta = v;
++		break;
++
++	case 2:
++		thr->ydelta = v;
++		break;
++
++	case 3:
++		thr->pthreshold = v;
+ 		break;
+ 
+ 	default:
+@@ -189,31 +128,35 @@
+ 	return 0;
+ }
+ 
+-static const struct tslib_vars dejitter_vars[] =
++static const struct tslib_vars threshold_vars[] =
+ {
+-	{ "delta",	(void *)1, dejitter_limit },
++	{ "xdelta",	(void *)1, threshold_limit },
++	{ "ydelta",	(void *)2, threshold_limit },
++	{ "pthreshold",	(void *)3, threshold_limit }
+ };
+ 
+-#define NR_VARS (sizeof(dejitter_vars) / sizeof(dejitter_vars[0]))
++//#define NR_VARS (sizeof(threshold_vars) / sizeof(threshold_vars[0]))
++#define NR_VARS 3
+ 
+ struct tslib_module_info *mod_init(struct tsdev *dev, const char *params)
+ {
+-	struct tslib_dejitter *djt;
++	struct tslib_threshold *thr;
+ 
+-	djt = malloc(sizeof(struct tslib_dejitter));
+-	if (djt == NULL)
++	thr = malloc(sizeof(struct tslib_threshold));
++	if (thr == NULL)
+ 		return NULL;
+ 
+-	djt->module.ops = &dejitter_ops;
++	thr->module.ops = &threshold_ops;
+ 
+-	djt->delta = 100;
+-        djt->head = 0;
++	thr->xdelta = 10;
++	thr->ydelta = 10;
++	thr->pthreshold = 100;
+ 
+-	if (tslib_parse_vars(&djt->module, dejitter_vars, NR_VARS, params)) {
+-		free(djt);
++	if (tslib_parse_vars(&thr->module, threshold_vars, NR_VARS, params)) {
++		free(thr);
+ 		return NULL;
+ 	}
+-	djt->delta = sqr (djt->delta);
++	thr->delta2 = (thr->xdelta)*(thr->xdelta) + (thr->ydelta)*(thr->ydelta);
+ 
+-	return &djt->module;
++	return &thr->module;
+ }
+diff -ur tslib~/plugins/variance.c tslib/plugins/variance.c
+--- tslib~/plugins/variance.c	2004-06-16 07:39:42.000000000 +0100
++++ tslib/plugins/variance.c	2004-07-23 11:24:57.000000000 +0100
+@@ -31,104 +31,159 @@
+ #include "tslib.h"
+ #include "tslib-filter.h"
+ 
++#define NR_LAST	4
++
+ struct tslib_variance {
+-	struct tslib_module_info module;
+-	unsigned int delta;
+-        struct ts_sample last;
+-        struct ts_sample noise;
+-	unsigned int flags;
+-#define VAR_PENDOWN		0x00000001
+-#define VAR_LASTVALID		0x00000002
+-#define VAR_NOISEVALID		0x00000004
+-#define VAR_SUBMITNOISE		0x00000008
++	struct tslib_module_info	module;
++	int				nr;
++	unsigned int			pthreshold;
++	unsigned int			xlimit;
++	unsigned int			ylimit;
++	struct ts_sample		last[NR_LAST];
+ };
+ 
+-static int sqr (int x)
+-{
+-	return x * x;
++/*
++ * We have 4 complete samples.  Calculate the variance between each,
++ * treating X and Y values separately.  Then pick the two with the
++ * least variance, and average them.
++ */
++static int
++variance_calculate(struct tslib_variance *var, struct ts_sample *samp,
++		   struct ts_sample *s)
++{
++	int i, j;
++	int diff_x, min_x, i_x, j_x;
++	int diff_y, min_y, i_y, j_y;
++	int diff_p, min_p, i_p, j_p;
++
++	min_x = INT_MAX;
++	min_y = INT_MAX;
++	min_p = INT_MAX;
++
++	for (i = 0; i < var->nr - 1; i++) {
++		for (j = i + 1; j < var->nr; j++) {
++			/*
++			 * Calculate the variance between sample 'i'
++			 * and sample 'j'.  X and Y values are treated
++			 * separately.
++			 */
++			diff_x = var->last[i].x - var->last[j].x;
++			if (diff_x < 0)
++				diff_x = -diff_x;
++
++			diff_y = var->last[i].y - var->last[j].y;
++			if (diff_y < 0)
++				diff_y = -diff_y;
++
++			diff_p = var->last[i].pressure - var->last[j].pressure;
++			if (diff_p < 0)
++				diff_p = -diff_p;
++
++			/*
++			 * Is the variance between any two samples too large?
++			 */
++			if (diff_x > var->xlimit || diff_y > var->ylimit)
++				return 0;
++
++			/*
++			 * Find the minimum X variance.
++			 */
++			if (min_x > diff_x) {
++				min_x = diff_x;
++				i_x = i;
++				j_x = j;
++			}
++
++			/*
++			 * Find the minimum Y variance.
++			 */
++			if (min_y > diff_y) {
++				min_y = diff_y;
++				i_y = i;
++				j_y = j;
++			}
++
++			if (min_p > diff_p) {
++				min_p = diff_p;
++				i_p = i;
++				j_p = j;
++			}
++		}
++	}
++
++	samp->x		 = (var->last[i_x].x + var->last[j_x].x) / 2;
++	samp->y		 = (var->last[i_y].y + var->last[j_y].y) / 2;
++	samp->pressure   = (var->last[i_p].pressure + var->last[j_p].pressure) / 2;
++	samp->tv.tv_sec  = s->tv.tv_sec;
++	samp->tv.tv_usec = s->tv.tv_usec;
++
++	return 1;
+ }
+ 
+ static int variance_read(struct tslib_module_info *info, struct ts_sample *samp, int nr)
+ {
+ 	struct tslib_variance *var = (struct tslib_variance *)info;
+-	struct ts_sample cur;
+-	int count = 0, dist;
++	struct ts_sample *s;
++	int ret;
+ 
+-	while (count < nr) {
+-		if (var->flags & VAR_SUBMITNOISE) {
+-			cur = var->noise;
+-			var->flags &= ~VAR_SUBMITNOISE;
+-		} else {
+-			if (info->next->ops->read(info->next, &cur, 1) < 1)
+-				return count;
+-		}
+-
+-		if (cur.pressure == 0) {
+-			/* Flush the queue immediately when the pen is just
+-			 * released, otherwise the previous layer will
+-			 * get the pen up notification too late. This 
+-			 * will happen if info->next->ops->read() blocks.
+-			 */
+-			if (var->flags & VAR_PENDOWN) {
+-				var->flags |= VAR_SUBMITNOISE;
+-				var->noise = cur;
+-			}
+-			/* Reset the state machine on pen up events. */
+-			var->flags &= ~(VAR_PENDOWN | VAR_NOISEVALID | VAR_LASTVALID);
+-			goto acceptsample;
+-		} else
+-			var->flags |= VAR_PENDOWN;
+-
+-		if (!(var->flags & VAR_LASTVALID)) {
+-			var->last = cur;
+-			var->flags |= VAR_LASTVALID;
+-			continue;
+-		}
++	ret = info->next->ops->read(info->next, samp, nr);
++	if (ret >= 0) {
++		int nr = 0;
++
++		for (s = samp; s < samp + ret; s++) {
++			if (s->pressure < var->pthreshold) {
++				/*
++				 * Pen was released.  Reset our state and
++				 * pass up the release information.
++				 */
++//				samp[nr].x = 0;
++//				samp[nr].y = 0;
++				samp[nr].pressure = s->pressure;
++				samp[nr].tv.tv_sec = s->tv.tv_sec;
++				samp[nr].tv.tv_usec = s->tv.tv_usec;
+ 
+-		if (var->flags & VAR_PENDOWN) {
+-			/* Compute the distance between last sample and current */
+-			dist = sqr (cur.x - var->last.x) +
+-			       sqr (cur.y - var->last.y);
+-
+-			if (dist > var->delta) {
+-				/* Do we suspect the previous sample was a noise? */
+-				if (var->flags & VAR_NOISEVALID) {
+-					/* Two "noises": it's just a quick pen movement */
+-					samp [count++] = var->last = var->noise;
+-					var->flags = (var->flags & ~VAR_NOISEVALID) |
+-						VAR_SUBMITNOISE;
+-				} else
+-					var->flags |= VAR_NOISEVALID;
++				nr++;
+ 
+-				/* The pen jumped too far, maybe it's a noise ... */
+-				var->noise = cur;
++				var->nr = 0;
+ 				continue;
+-			} else
+-				var->flags &= ~VAR_NOISEVALID;
++			} else if (var->nr == -1) {
++				/*
++				 * Pen was pressed.  Inform upper layers
++				 * immediately.
++				 */
++				samp[nr] = *s;
++				nr++;
++			}
++
++			if (var->nr >= 0) {
++				var->last[var->nr].x = s->x;
++				var->last[var->nr].y = s->y;
++				var->last[var->nr].pressure = s->pressure;
++			}
++
++			var->nr++;
++
++			if (var->nr == NR_LAST) {
++				if (variance_calculate(var, samp + nr, s))
++					nr++;
++				var->nr = 0;
++			}
+ 		}
+ 
+-acceptsample:
+-#ifdef DEBUG
+-	fprintf(stderr,"VARIANCE----------------> %d %d %d\n",
+-		var->last.x, var->last.y, var->last.pressure);
+-#endif
+-		samp [count++] = var->last;
+-		var->last = cur;
++		ret = nr;
+ 	}
+-
+-	return count;
++	return ret;
+ }
+ 
+ static int variance_fini(struct tslib_module_info *info)
+ {
+ 	free(info);
+-        return 0;
+ }
+ 
+ static const struct tslib_ops variance_ops =
+ {
+-	.read	= variance_read,
+-	.fini	= variance_fini,
++	read:	variance_read,
++	fini:	variance_fini,
+ };
+ 
+ static int variance_limit(struct tslib_module_info *inf, char *str, void *data)
+@@ -145,7 +200,15 @@
+ 	errno = err;
+ 	switch ((int)data) {
+ 	case 1:
+-		var->delta = v;
++		var->xlimit = v;
++		break;
++
++	case 2:
++		var->ylimit = v;
++		break;
++
++	case 3:
++		var->pthreshold = v;
+ 		break;
+ 
+ 	default:
+@@ -156,7 +219,9 @@
+ 
+ static const struct tslib_vars variance_vars[] =
+ {
+-	{ "delta",	(void *)1, variance_limit },
++	{ "xlimit",	(void *)1, variance_limit },
++	{ "ylimit",	(void *)2, variance_limit },
++	{ "pthreshold",	(void *)3, variance_limit }
+ };
+ 
+ #define NR_VARS (sizeof(variance_vars) / sizeof(variance_vars[0]))
+@@ -171,15 +236,15 @@
+ 
+ 	var->module.ops = &variance_ops;
+ 
+-	var->delta = 30;
+-	var->flags = 0;
++	var->nr = -1;
++	var->xlimit = 160;
++	var->ylimit = 160;
++	var->pthreshold = 100;
+ 
+ 	if (tslib_parse_vars(&var->module, variance_vars, NR_VARS, params)) {
+ 		free(var);
+ 		return NULL;
+ 	}
+ 
+-        var->delta = sqr (var->delta);
+-
+ 	return &var->module;
+ }

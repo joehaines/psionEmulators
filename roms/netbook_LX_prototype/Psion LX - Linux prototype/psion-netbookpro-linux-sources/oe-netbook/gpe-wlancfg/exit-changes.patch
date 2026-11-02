@@ -1,0 +1,74 @@
+Index: callbacks.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-wlancfg2/callbacks.c,v
+retrieving revision 1.11
+diff -b -B -u -r1.11 callbacks.c
+--- callbacks.c	19 Aug 2004 19:56:55 -0000	1.11
++++ callbacks.c	20 Aug 2004 17:10:23 -0000
+@@ -389,8 +389,6 @@
+ 
+ void get_changes_simple(void)
+ {
+-	
+-	
+ 	GtkWidget 	*widget;
+ 	GtkWidget 	*menu;
+ 	gchar 		tempmode[20];
+@@ -444,6 +442,7 @@
+ 	{
+ 		if (strncmp(CurrentScheme->EncMode, "open", 16)!=0)
+ 		{
++			if (strlen(CurrentScheme->EncMode)) 
+ 			HasChanged = TRUE;
+ 			if (CurrentScheme->lines[L_EncMode]==LINE_NOT_PRESENT)
+ 				CurrentScheme->lines[L_EncMode]=LINE_NEW;
+@@ -521,6 +520,7 @@
+ 	{
+ 		if (strncmp(CurrentScheme->Encryption, "off", 4)!=0)
+ 		{
++			if (CurrentScheme->lines[L_Encryption]!=LINE_NOT_PRESENT)			
+ 			HasChanged = TRUE;
+ 			if (CurrentScheme->lines[L_Encryption]==LINE_NOT_PRESENT)
+ 				CurrentScheme->lines[L_Encryption]=LINE_NEW;
+@@ -530,6 +530,7 @@
+ 		
+ 		if (strncmp(CurrentScheme->ActiveKey, "0", 4)!=0)
+ 		{
++			if (CurrentScheme->lines[L_ActiveKey]!=LINE_NOT_PRESENT)
+ 			HasChanged = TRUE;
+ 			if (CurrentScheme->lines[L_ActiveKey]==LINE_NOT_PRESENT)
+ 				CurrentScheme->lines[L_ActiveKey]=LINE_NEW;
+@@ -810,7 +811,7 @@
+ 		
+ 		EditSimple();
+ 	}
+-
++    HasChanged = FALSE;
+ }
+ 
+ void on_btnDelete_clicked(GtkButton *button, gpointer user_data)
+@@ -1199,7 +1200,7 @@
+ 	}
+ 	
+ 	/* scroll to first line of text */
+-gtk_widget_show_all(HelpWin);	
++	gtk_widget_show_all(HelpWin);	
+ 	gtk_text_buffer_get_start_iter(buffer,&iter);
+ 	mark = gtk_text_buffer_create_mark(buffer,"start0",&iter,FALSE);
+ 	gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(textview),mark,0,FALSE,0,0);
+Index: config-parser.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-wlancfg2/config-parser.c,v
+retrieving revision 1.4
+diff -b -B -u -r1.4 config-parser.c
+--- config-parser.c	20 Aug 2004 15:19:26 -0000	1.4
++++ config-parser.c	20 Aug 2004 17:10:23 -0000
+@@ -361,7 +361,7 @@
+ 	if (fd == NULL)
+ 	{
+ 		perror(_("Can't open stab file, is PCMCIA running? "));
+-		exit(-2);
++		return;
+ 	}
+ 	
+         if (flock (fileno (fd), LOCK_SH) != 0)

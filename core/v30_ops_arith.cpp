@@ -137,7 +137,7 @@ inline uint16_t aluGrp16(V30& c, unsigned sel, uint16_t a, uint16_t b) {
 //   0: r/m8, r8     1: r/m16, r16
 //   2: r8, r/m8     3: r16, r/m16
 //   4: AL, imm8     5: AX, imm16
-inline int64_t doAluStd(V30& c, unsigned sel, unsigned variant) {
+inline int32_t doAluStd(V30& c, unsigned sel, unsigned variant) {
     bool isCmp = (sel == 7);
     switch (variant) {
     case 0: { // r/m8, r8
@@ -202,7 +202,7 @@ inline int64_t doAluStd(V30& c, unsigned sel, unsigned variant) {
 
 namespace V30Detail {
 
-int64_t dispatchArith(V30& c, uint8_t op) {
+int32_t dispatchArith(V30& c, uint8_t op) {
     // The 0x00..0x3D block is a tidy 6-way pattern within each 8-opcode
     // row; 0x06/0x07/0x0E/0x16/0x17/0x1E/0x1F/0x26/0x27/0x2E/0x2F/0x36/
     // 0x37/0x3E/0x3F are segment-override or BCD ops handled elsewhere.
@@ -352,8 +352,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             uint16_t dvd = c.regs.w[0];
@@ -364,8 +364,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             c.regs.b[0] = uint8_t(q);
@@ -378,8 +378,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             int16_t dvd = int16_t(c.regs.w[0]);
@@ -391,8 +391,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             c.regs.b[0] = uint8_t(q);
@@ -452,8 +452,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             uint32_t dvd = (uint32_t(c.regs.w[2]) << 16) | c.regs.w[0];
@@ -464,8 +464,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             c.regs.w[0] = uint16_t(q);
@@ -478,8 +478,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             int32_t dvd = int32_t((uint32_t(c.regs.w[2]) << 16) | c.regs.w[0]);
@@ -491,8 +491,8 @@ int64_t dispatchArith(V30& c, uint8_t op) {
                 push16(c, c.sregs[1]);
                 push16(c, c.ip);
                 c.iflag = 0; c.tf = 0;
-                c.ip       = c.busRef().readMemWord(0);
-                c.sregs[1] = c.busRef().readMemWord(2);
+                c.ip       = c.busRef().read16(0);
+                c.sregs[1] = c.busRef().read16(2);
                 return 25;
             }
             c.regs.w[0] = uint16_t(q);
@@ -503,7 +503,7 @@ int64_t dispatchArith(V30& c, uint8_t op) {
         return -1;
     }
 
-    default: return -1;
+    default: return kNotMine;
     }
 }
 

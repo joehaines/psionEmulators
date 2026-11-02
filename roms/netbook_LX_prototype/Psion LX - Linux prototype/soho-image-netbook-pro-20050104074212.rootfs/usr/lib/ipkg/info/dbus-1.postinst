@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# can't do adduser stuff offline
+if [ "x$D" != "x" ]; then
+  exit 1
+fi
+
+MESSAGEUSER=messagebus
+MESSAGEHOME=/var/run/dbus
+
+mkdir -p $MESSAGEHOME || true
+chgrp "$MESSAGEUSER" "$MESSAGEHOME" 2>/dev/null || addgroup "$MESSAGEUSER"
+chown "$MESSAGEUSER"."$MESSAGEUSER" "$MESSAGEHOME" 2>/dev/null || adduser --system --home "$MESSAGEHOME" --no-create-home --disabled-password --ingroup "$MESSAGEUSER" "$MESSAGEUSER"
+if test "x$D" != "x"; then
+	D="-r $D"
+else
+	D="-s"
+fi
+update-rc.d $D dbus-1 defaults
+if [ x"$D" = "x" ]; then
+	ldconfig
+fi

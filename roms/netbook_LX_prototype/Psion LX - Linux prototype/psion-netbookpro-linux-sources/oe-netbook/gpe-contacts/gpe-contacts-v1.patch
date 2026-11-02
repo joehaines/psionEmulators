@@ -1,0 +1,747 @@
+Index: editing.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/editing.c,v
+retrieving revision 1.50
+diff -u -r1.50 editing.c
+--- editing.c	19 Sep 2004 22:05:38 -0000	1.50
++++ editing.c	5 Oct 2004 16:20:55 -0000
+@@ -163,7 +163,7 @@
+             g_free (markup);
+             pop_singles (vbox, singles, pw, visible);
+             singles = NULL;
+-            gtk_box_pack_start (GTK_BOX (vbox), w, TRUE, TRUE, 0);
++            gtk_box_pack_start (GTK_BOX (vbox), w, FALSE, TRUE, 0);
+             /* hidden group */
+             build_children (vbox, e->children, pw, !e->hidden);
+             if (e->hidden)
+@@ -201,7 +201,7 @@
+             }
+           else
+             w = ww;
+-          gtk_box_pack_start (GTK_BOX (vbox), w, TRUE, TRUE, 0);
++          gtk_box_pack_start (GTK_BOX (vbox), w, FALSE, TRUE, 0);
+           add_tag (e->tag, ww, pw);
+         break;
+       
+@@ -223,10 +223,7 @@
+           datecombo = gtk_date_combo_new ();
+           gtk_box_pack_start (GTK_BOX (hbox), datecombo, TRUE, TRUE, 0);
+           gtk_date_combo_clear(GTK_DATE_COMBO(datecombo));
+-/*          cbsched = gtk_check_button_new_with_label (_("Schedule"));
+-          gtk_widget_set_sensitive (cbsched, FALSE);
+-          gtk_box_pack_start (GTK_BOX (hbox), cbsched, TRUE, TRUE, 0);
+-*/          cbnoyear = gtk_check_button_new_with_label (_("no year"));
++          cbnoyear = gtk_check_button_new_with_label (_("no year"));
+           gtk_box_pack_start (GTK_BOX (hbox), cbnoyear, TRUE, TRUE, 0);
+           g_signal_connect (G_OBJECT (cbnoyear), "toggled",
+ 		    G_CALLBACK (on_unknown_year_toggled), datecombo);
+@@ -242,7 +239,7 @@
+         case ITEM_IMAGE:
+         {
+           GtkWidget *l = gtk_label_new (e->name);
+-          GtkWidget *hbox, *image, *btn;
++          GtkWidget *hbox, *image, *btn, *sw, *vp;
+           pop_singles (vbox, singles, pw, visible);
+           singles = NULL;
+           
+@@ -252,13 +249,20 @@
+ 
+           btn = gtk_button_new();
+           image = gtk_image_new();
+-          gtk_container_add(GTK_CONTAINER(btn),image);
+-          gtk_box_pack_start (GTK_BOX (hbox), btn, TRUE, TRUE, 0);
++          vp = gtk_viewport_new(NULL, NULL);
++          gtk_viewport_set_shadow_type(GTK_VIEWPORT(vp), GTK_SHADOW_NONE);
++          sw = gtk_scrolled_window_new(NULL, NULL);
++          gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), 
++                                         GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
++          gtk_container_add(GTK_CONTAINER(vp), btn);
++          gtk_container_add(GTK_CONTAINER(sw), vp);
++          gtk_container_add(GTK_CONTAINER(btn), image);
++          gtk_box_pack_start (GTK_BOX (hbox), sw, TRUE, TRUE, 0);
+           gtk_widget_show_all(hbox);
+           gtk_box_pack_start (GTK_BOX (vbox), hbox, TRUE, TRUE, 
+-            gpe_get_boxspacing());
++                              gpe_get_boxspacing());
+           g_signal_connect (G_OBJECT (btn), "clicked",
+-		    G_CALLBACK (on_edit_bt_image_clicked), image);
++		                    G_CALLBACK (on_edit_bt_image_clicked), image);
+           
+           add_tag (e->tag, image, pw);
+         }
+@@ -430,7 +434,7 @@
+           gtk_misc_set_alignment (GTK_MISC (catlabel), 0.0, 0.5);  
+           gtk_box_pack_start (GTK_BOX (cathbox), catbutton, FALSE, FALSE, gpe_get_boxspacing());
+           gtk_box_pack_start (GTK_BOX (cathbox), catlabel, TRUE, TRUE, 0);
+-          gtk_box_pack_start (GTK_BOX (vbox), cathbox, TRUE, FALSE, gpe_get_border());
++          gtk_box_pack_start (GTK_BOX (vbox), cathbox, FALSE, TRUE, gpe_get_border());
+           g_signal_connect (G_OBJECT (catbutton), "clicked",
+ 		    G_CALLBACK (on_categories_clicked), w);
+           g_object_set_data (G_OBJECT (w), "categories-label", catlabel);
+@@ -462,7 +466,7 @@
+   return list;
+ }
+ 
+-static gchar *
++gchar *
+ build_categories_string (struct person *p)
+ {
+   gchar *s = NULL;
+@@ -573,9 +577,11 @@
+                 }
+               else if (GTK_IS_IMAGE(w))
+                 {
+-                  g_object_set_data(G_OBJECT(w),"filename",v->value);
+-                  if ((v->value) && !access(v->value,R_OK))
+-                    gtk_image_set_from_file(GTK_IMAGE(w), v->value);
++                  if ((v->value) && !access(v->value,R_OK)) 
++                    {
++                      g_object_set_data(G_OBJECT(w),"filename",v->value);
++                      gtk_image_set_from_file(GTK_IMAGE(w), v->value);
++                    }
+                   else
+                     gtk_image_set_from_stock(GTK_IMAGE(w), 
+                       GTK_STOCK_MISSING_IMAGE, GTK_ICON_SIZE_BUTTON);
+@@ -723,7 +729,6 @@
+    
+   if (!nametext) return;
+   if (strlen(nametext) < 3) return;
+-      
+     sp = g_strdup(nametext);
+ 
+     /* scan first element for title */
+@@ -746,7 +751,7 @@
+         if (!has_title) /* find user defined title */
+           {
+             v = db_find_tag(p, "TITLE");
+-            if (v && !strcasecmp(e[0], v->value))
++            if (v && v->value && !strcasecmp(e[0], v->value))
+               {
+                 has_title = TRUE;
+                 title = sp;
+@@ -792,6 +797,7 @@
+     switch (num_elements)
+       {
+         case 0: 
++        case EOF:
+         break;
+         case 1: 
+           last = e[0];
+@@ -830,15 +836,18 @@
+             }
+           else
+             {
+-              first = sp;
+-              last = strrchr(sp, ' ') + 1;
+-              while (strlen(last) && isblank(last[0]))
+-                last++;
+-              strrchr(sp, ' ')[0] = 0;
+-              middle = strrchr(first, ' ') + 1;
+-              while (strlen(middle) && isblank(middle[0]))
+-                middle++;
+-              strrchr(first, ' ')[0] = 0;
++              if (strlen(g_strstrip(sp)))
++                {
++                  first = sp;
++                  last = strrchr(sp, ' ') + 1;
++                  while (strlen(last) && isblank(last[0]))
++                    last++;
++                  strrchr(sp, ' ')[0] = 0;
++                  middle = strrchr(first, ' ') + 1;
++                  while (strlen(middle) && isblank(middle[0]))
++                    middle++;
++                  strrchr(first, ' ')[0] = 0;
++                }
+             }
+         break;
+       }
+@@ -886,7 +895,7 @@
+         }
+         else if (GTK_IS_IMAGE(w))
+           {
+-            text = g_object_get_data(G_OBJECT(w),"filename");
++            text = g_strdup(g_object_get_data(G_OBJECT(w), "filename"));
+           }
+         else
+         {
+@@ -934,15 +943,13 @@
+ {
+   GtkWidget *selector = GTK_WIDGET(user_data);
+   GtkWidget *image = g_object_get_data(G_OBJECT(selector), "image");
+-  gchar *old_file;
+   const gchar *selected_filename =
+     gtk_file_selection_get_filename (GTK_FILE_SELECTION (selector));
+   
+   if (selected_filename)
+     {
+-       old_file = g_object_get_data(G_OBJECT(image),"filename");
+-       g_free(old_file);
+-       g_object_set_data(G_OBJECT(image),"filename",g_strdup(selected_filename));
++       g_object_set_data(G_OBJECT(image), "filename", 
++                         g_strdup(selected_filename));
+        gtk_image_set_from_file(GTK_IMAGE(image), selected_filename);
+     }
+ }
+@@ -950,11 +957,11 @@
+ void
+ on_edit_bt_image_clicked (GtkWidget *bimage, gpointer user_data)
+ {
+-  GtkWidget *filesel = gtk_file_selection_new ("Select image");
++  GtkWidget *filesel = gtk_file_selection_new (_("Select image"));
+   
+   gtk_window_set_transient_for(GTK_WINDOW(filesel),
+                                GTK_WINDOW(gtk_widget_get_toplevel(bimage)));
+-  gtk_window_set_modal(GTK_WINDOW(filesel),TRUE);
++  gtk_window_set_modal(GTK_WINDOW(filesel), TRUE);
+   gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filesel));
+   
+   g_signal_connect (G_OBJECT (GTK_FILE_SELECTION (filesel)->ok_button),
+@@ -968,7 +975,7 @@
+ 		    "clicked", G_CALLBACK (gtk_widget_destroy),
+ 		    (gpointer) filesel);
+   
+-  g_object_set_data(G_OBJECT(filesel),"image",user_data);
++  g_object_set_data(G_OBJECT(filesel),"image", user_data);
+   
+   gtk_widget_show_all (filesel);
+ }
+@@ -1055,6 +1062,6 @@
+   name = gtk_editable_get_chars(GTK_EDITABLE(e), 0, -1);
+   store_name_fields(p, name);
+   g_free(name);
+-
+-  do_edit_name_detail(edit, p);
++  if (do_edit_name_detail(edit, p))
++    update_edit(p, GTK_WIDGET(edit));
+ }
+Index: main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/main.c,v
+retrieving revision 1.90
+diff -u -r1.90 main.c
+--- main.c	16 Sep 2004 16:57:47 -0000	1.90
++++ main.c	5 Oct 2004 16:20:55 -0000
+@@ -21,6 +21,7 @@
+ #include <locale.h>
+ #include <time.h>
+ #include <gdk/gdkkeysyms.h>
++#include <ctype.h>
+ 
+ #include <gpe/init.h>
+ #include <gpe/pixmaps.h>
+@@ -255,6 +256,170 @@
+   return NULL;
+ }
+ 
++static gboolean
++pop_singles (GtkWidget *vbox, GSList *list, struct person *p)
++{
++  if (list)
++    {
++      guint length = g_slist_length (list);
++      GtkWidget *table = NULL;
++      guint x = 0;
++    
++      while (list)
++        {
++          GSList *next = list->next;
++          edit_thing_t e = list->data;
++          struct tag_value *tv = NULL;
++          GtkWidget *w;
++          GtkWidget *l;
++          gchar *name;
++
++          if (e->tag) 
++             tv = db_find_tag(p, e->tag);
++          if (tv && tv->value)
++            {
++              if (table == NULL) 
++                 table = gtk_table_new (length, 2, FALSE);
++              w = gtk_label_new (NULL);
++              gtk_misc_set_alignment(GTK_MISC(w),0.0,0.5);
++              gtk_label_set_text(GTK_LABEL(w), tv->value);
++              gtk_label_set_line_wrap(GTK_LABEL(w), TRUE);
++          
++              if (e->name[0] && e->name[strlen(e->name)-1] != ':')
++                {
++                  name = g_strdup_printf("%s:", e->name);
++                  l = gtk_label_new (name);
++                  g_free(name);
++                }
++              else
++                l = gtk_label_new (e->name);
++              
++              gtk_misc_set_alignment(GTK_MISC(l),0.0,0.0);
++              
++              gtk_table_attach (GTK_TABLE (table),
++                        l,
++                        0, 1, x, x + 1,
++                        GTK_FILL, GTK_FILL, 0, 0);
++              gtk_table_attach (GTK_TABLE (table),
++                        w,
++                        1, 2, x, x + 1,
++                        GTK_EXPAND | GTK_SHRINK | GTK_FILL,
++                        0, 0, 0);
++              x++;
++            }
++          g_slist_free_1 (list);
++          list = next;
++        }
++    if (table)
++      {
++        gtk_table_set_col_spacings (GTK_TABLE (table), gpe_get_boxspacing());
++        gtk_table_set_row_spacings (GTK_TABLE (table), gpe_get_boxspacing());
++        gtk_container_set_border_width (GTK_CONTAINER (table), 0);
++  
++        gtk_widget_show_all(table);
++        gtk_box_pack_start (GTK_BOX (vbox), table, TRUE, TRUE, 4);
++        return TRUE;
++      }
++    }
++  return FALSE;
++}
++
++static gboolean
++build_children (GtkWidget *vbox, GSList *children, struct person *p)
++{
++  gboolean result = FALSE;
++  GSList *child;
++  GSList *singles = NULL;
++
++  for (child = children; child; child = child->next)
++    {
++      edit_thing_t e = child->data;
++      struct tag_value *tv = NULL;
++      GtkWidget *w;
++      
++      if (e && e->tag)
++        {
++          tv = db_find_tag(p, e->tag);
++        }
++      if (!e->hidden)
++        switch (e->type)
++        {
++          case GROUP:
++            {
++              gchar *markup;
++              gboolean res;
++              if (e->children) /* ignore empty groups */
++                {
++                  markup = g_strdup_printf ("<b>%s</b>", e->name);
++                  w = gtk_label_new (NULL);
++                  gtk_label_set_markup (GTK_LABEL (w), markup);
++                  gtk_misc_set_alignment (GTK_MISC (w), 0, 0.5);
++                  g_free (markup);
++                  result = pop_singles (vbox, singles, p);
++                  singles = NULL;
++                  gtk_box_pack_start (GTK_BOX (vbox), w, TRUE, TRUE, 0);
++                  res = build_children (vbox, e->children, p);
++                  if (!res)
++                    {
++                      gtk_container_remove(GTK_CONTAINER(vbox), w);
++                    }
++                  result |= res;
++                }
++            }
++          break;
++        
++          case ITEM_MULTI_LINE:
++          case ITEM_SINGLE_LINE:
++            singles = g_slist_append (singles, e);
++          break;
++        
++          case ITEM_DATE:
++          {
++            GtkWidget *l;
++            GtkWidget *hbox;
++            result |= pop_singles (vbox, singles, p);
++            singles = NULL;
++            if (tv && tv->value)
++              {
++                int year,month,day;
++                struct tm tm;
++                char buf[32];
++                
++                result = TRUE;
++                l = gtk_label_new (e->name);
++                gtk_misc_set_alignment(GTK_MISC(l), 0.0, 0.5);
++                memset(&tm, 0, sizeof(tm));
++                sscanf(tv->value,"%04d%02d%02d",&year,&month,&day);
++                if (year)
++                  { 
++                    tm.tm_year = year - 1900;
++                    tm.tm_mon = month;
++                    tm.tm_mday = day;
++                    strftime(buf, sizeof(buf), "%x", &tm);
++                  }
++                else 
++                  snprintf(buf,sizeof(buf),"%02d/%02d",month+1,day);
++                w = gtk_label_new(buf);
++                gtk_misc_set_alignment(GTK_MISC(w), 0.0, 0.5);
++                hbox = gtk_hbox_new(FALSE, gpe_get_boxspacing());
++                gtk_box_pack_start (GTK_BOX (hbox), l, FALSE, TRUE, 0);
++                gtk_box_pack_start (GTK_BOX (hbox), w, FALSE, TRUE, 0);
++                gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, TRUE, 0);
++              }
++          }
++          break;
++          default:
++            /* just ignore */
++          break;
++        }
++    }
++
++  result |= pop_singles (vbox, singles, p);
++  singles = NULL;
++  
++  return result;
++}
++
+ static int
+ show_details (struct person *p)
+ {
+@@ -264,13 +429,13 @@
+   gpointer pchild;
+   gchar *tagname;
+   struct tag_value *curtag;
+-  GSList *iter;
+   GList *wlist, *witer;
+-  gchar *fieldname, *fielddesc;
++  GSList *page;
++  GtkWidget *label;
++  gchar *text;
+ 
+   table = GTK_TABLE (lookup_widget (mainw, "tabDetail"));
+   
+-  
+   if (mode_landscape) /* we show all available data */
+     {
+       wlist = gtk_container_get_children (GTK_CONTAINER (table));
+@@ -282,88 +447,40 @@
+           g_list_free (wlist);
+         }
+       i = 1;
+-      if (p != NULL)
+-        for (iter = p->data; iter; iter = iter->next)
+-          {
+-            struct tag_value *id = (struct tag_value *) iter->data;
+-            fieldname = get_tag_name(id->tag);
+-            /* exception list... */
+-            if ((fieldname) 
+-                 && strcasecmp(id->tag,"NAME")
+-                 && strcasecmp(id->tag,"GIVEN_NAME")
+-                 && strcasecmp(id->tag,"MIDDLE_NAME")
+-                 && strcasecmp(id->tag,"FAMILY_NAME")
+-                 && strcasecmp(id->tag,"HONORIFIC_SUFFIX")
+-                 && strcasecmp(id->tag,"TITLE")
+-                 && strcasecmp(id->tag,"BIRTHDAY")
+-                 && strcasecmp(id->tag,"PHOTO")
+-               )
+-              {
+-                if (fieldname[strlen(fieldname)-1] == ':')
+-                  fieldname[strlen(fieldname)-1] = 0;
+-                if (strstr(id->tag,"HOME"))
+-                  fielddesc = g_strdup_printf("%s (%s):",fieldname,_("home"));
+-                else if (strstr(id->tag,"WORK"))
+-                  fielddesc = g_strdup_printf("%s (%s):",fieldname,_("work"));
+-                else
+-                  fielddesc = g_strdup_printf("%s:",fieldname);
+-                lleft = gtk_label_new(fielddesc);
+-                gtk_misc_set_alignment(GTK_MISC(lleft),0,0);
+-                gtk_table_attach(table, lleft, 0, 1, i, i+1, GTK_FILL, GTK_FILL, 0, 0);
+-                lright = gtk_label_new(id->value);
+-                gtk_misc_set_alignment(GTK_MISC(lright),0,0);
+-                gtk_table_attach(table, lright, 1, 2, i, i+1, GTK_FILL, GTK_FILL, 0, 0);
+-                i++;
+-                g_free(fieldname);
+-                g_free(fielddesc);
+-              }
+-            else /* handle special fields */
+-              {
+-                gchar *ts;
+-                if (!strcmp(id->tag,"NAME")) 
+-                 {
+-                    if (fieldname[strlen(fieldname)-1] == ':')
+-                      fieldname[strlen(fieldname)-1] = 0;
+-                    lleft = gtk_label_new(NULL);
+-                    ts = g_strdup_printf("<b>%s:</b>",_("Name"));
+-                    gtk_label_set_markup(GTK_LABEL(lleft),ts);
+-                    g_free(ts);
+-                    gtk_misc_set_alignment(GTK_MISC(lleft),0,0);
+-                    gtk_table_attach(table, lleft, 0, 1, 0, 1, GTK_FILL, GTK_FILL, 0, 0);
+-                    lright = gtk_label_new(NULL);
+-                    ts = g_strdup_printf("<b>%s</b>",id->value);
+-                    gtk_label_set_markup(GTK_LABEL(lright),ts);
+-                    g_free(ts);
+-                    gtk_misc_set_alignment(GTK_MISC(lright),0,0);
+-                    gtk_table_attach(table, lright, 1, 2, 0, 1, GTK_FILL, GTK_FILL, 0, 0);
+-                 }
+-                if (!strcmp(id->tag,"BIRTHDAY") && strlen(id->value)>=8) 
+-                  {
+-                    int year,month,day;
+-                    struct tm tm;
+-                    char buf[32];
+-
+-                    memset(&tm, 0, sizeof(tm));
+-                    sscanf(id->value,"%04d%02d%02d",&year,&month,&day);
+-                    if (year)
+-                      { 
+-                        tm.tm_year = year - 1900;
+-                        tm.tm_mon = month;
+-                        tm.tm_mday = day;
+-                        strftime(buf, sizeof(buf), "%x", &tm);
+-                      }
+-                    else 
+-                      snprintf(buf,sizeof(buf),"%02d/%02d",month+1,day);
+-                    lleft = gtk_label_new(_("Birthday:"));
+-                    gtk_misc_set_alignment(GTK_MISC(lleft),0,0);
+-                    gtk_table_attach(table, lleft, 0, 1, i, i+1, GTK_FILL, GTK_FILL, 0, 0);
+-                    lright = gtk_label_new(buf);
+-                    gtk_misc_set_alignment(GTK_MISC(lright),0,0);
+-                    gtk_table_attach(table, lright, 1, 2, i, i+1, GTK_FILL, GTK_FILL, 0, 0);
+-                    i++;
+-                  }
+-              }                
+-          }
++      if (p != NULL) /* add contact data */
++        {
++          GtkWidget *vbox = gtk_vbox_new(FALSE, gpe_get_boxspacing());
++          gchar *catstring = build_categories_string(p);
++        
++          gtk_table_attach(GTK_TABLE(table), vbox, 0, 1, 0, 1, GTK_FILL, GTK_FILL, 0, 0);
++          for (page = edit_pages; page; page = page->next) /* we use data layout to structure widgets */
++            {
++               edit_thing_t e = page->data;
++               /* add section content */
++               if (!e->hidden)
++                 build_children (vbox, e->children, p);
++            }
++          if (catstring)
++            {
++              text = g_strdup_printf("%s: %s", _("Categories"), catstring);
++              label = gtk_label_new(NULL);
++              gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
++              gtk_label_set_markup(GTK_LABEL(label), text);
++              gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2, 
++                               GTK_FILL, GTK_FILL, 0, 0);
++              g_free(text);
++            }
++        }
++      else  /* just add some feedback */
++        {
++          text = g_strdup_printf("<b>%s</b>", _("No contact selected."));
++          label = gtk_label_new(NULL);
++          gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5);
++          gtk_label_set_markup(GTK_LABEL(label), text);
++          gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, 
++                           GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
++          g_free(text);
++        }
+       gtk_widget_show_all(GTK_WIDGET(table));
+     }
+   else /* show configured fields only */
+@@ -448,6 +565,9 @@
+   gchar *name;
+   gchar *company;
+   
++  if ((text == NULL) && (cat == NULL)) /* some speedup */
++    return TRUE;
++  
+   if (p->given_name)
+     gn = g_utf8_strdown(p->given_name, -1);
+   else
+@@ -492,22 +612,6 @@
+   if (name) g_free(name);
+   if (company) g_free(company);
+     
+-/* alternate method if nothing found 
+-  if ...
+-    
+-  else
+-    {
+-      gchar *lname = g_utf8_strdown (p->name, -1);
+-    
+-      if (strstr (lname, text) == NULL)
+-        {
+-          g_free (lname);
+-          return FALSE;
+-        }
+-    }
+-
+-  g_free (lname);
+-*/
+   if (cat)
+     {
+       GSList *l;
+@@ -539,8 +643,9 @@
+ {
+   gchar *text = g_utf8_strdown (gtk_entry_get_text (GTK_ENTRY (entry)), -1);
+   guint category = gtk_option_menu_get_history (GTK_OPTION_MENU (categories_smenu));
+-  GSList *all_entries = db_get_entries (), *iter;
++  GSList *all_entries = db_get_entries (), *iter = NULL;
+   struct gpe_pim_category *c = NULL;
++  GtkTreePath *path;
+ 
+   if (category)
+     {
+@@ -561,19 +666,25 @@
+   for (iter = all_entries; iter; iter = iter->next)
+     {
+       struct person *p = iter->data;
+-      GtkTreeIter iter;
++      GtkTreeIter titer;
+       
+       if (match_for_search (p, text, c))
+         {
+-	      gtk_list_store_append (list_store, &iter);
+-	      gtk_list_store_set (list_store, &iter, 0, p->name, 1, p->id, -1);
++	      gtk_list_store_append (list_store, &titer);
++	      gtk_list_store_set (list_store, &titer, 0, p->name, 1, p->id, -1);
+         }
+ 
+       discard_person (p);
+     }
+   
+   g_slist_free (all_entries);
+-  g_free (text);
++  if (text) 
++    g_free (text);
++  
++  /* select first */
++  path = gtk_tree_path_new_first();
++  gtk_tree_view_set_cursor(GTK_TREE_VIEW(list_view), path, NULL, FALSE);
++  gtk_tree_path_free(path);
+ }
+ 
+ #define SEARCH_DELAY  200
+@@ -616,7 +727,8 @@
+ {
+   GtkTreeSelection *sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(list_view));
+   update_categories ();
+-  selection_made(sel, G_OBJECT(gtk_widget_get_toplevel(search_entry)));
++  if (sel)
++    selection_made(sel, G_OBJECT(gtk_widget_get_toplevel(search_entry)));
+   do_search (G_OBJECT (search_entry), search_entry);
+ }
+ 
+@@ -747,10 +859,27 @@
+       return TRUE;
+     }
+ 
++  if ((k->keyval == GDK_Delete) 
++      && (!GTK_WIDGET_HAS_FOCUS(search_entry) 
++          || !strlen(gtk_entry_get_text(GTK_ENTRY(search_entry)))))
++    {
++      delete_contact(widget, NULL);
++      return TRUE;
++    }
++  
+   if (k->keyval == GDK_Return)
+     {
+       edit_contact(NULL, NULL);
+-    }  
++    }
++  
++  /* automatic search */
++  if (!k->state && k->string && isalpha(k->string[0]))
++    {
++      if (!GTK_WIDGET_HAS_FOCUS(search_entry))
++        gtk_widget_grab_focus(search_entry);
++      return FALSE;
++    }
++  
+   return FALSE;
+ }
+ 
+@@ -1048,7 +1177,21 @@
+   tabDetail = gtk_table_new (1, 2, FALSE);
+   gtk_table_set_col_spacings(GTK_TABLE(tabDetail),gpe_get_boxspacing()*2);
+   gtk_container_set_border_width(GTK_CONTAINER(tabDetail),gpe_get_border());
+-  gtk_container_add (GTK_CONTAINER (pDetail), tabDetail);
++  if (mode_large_screen)
++    {
++      GtkWidget *vport;
++      scrolled_window = gtk_scrolled_window_new(NULL, NULL);
++      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
++                                     GTK_POLICY_NEVER,
++                                     GTK_POLICY_AUTOMATIC);
++      vport = gtk_viewport_new(NULL, NULL);
++      gtk_viewport_set_shadow_type(GTK_VIEWPORT(vport), GTK_SHADOW_NONE);
++      gtk_container_add(GTK_CONTAINER(vport), tabDetail);
++      gtk_container_add (GTK_CONTAINER (scrolled_window), vport);
++      gtk_container_add (GTK_CONTAINER (pDetail), scrolled_window);
++    }
++  else
++    gtk_container_add (GTK_CONTAINER (pDetail), tabDetail);
+   g_object_set_data (G_OBJECT (main_window), "tabDetail", tabDetail);
+   g_object_set_data (G_OBJECT (main_window), "entry", entry1);
+ 
+Index: namedetail.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/namedetail.c,v
+retrieving revision 1.7
+retrieving revision 1.8
+diff -u -r1.7 -r1.8
+--- namedetail.c	15 Sep 2004 16:35:44 -0000	1.7
++++ namedetail.c	4 Oct 2004 17:07:01 -0000	1.8
+@@ -27,10 +27,9 @@
+ #define N_(z) (z)
+ 
+ /* TRANSLATORS: These abbreviations are a list of common titles used in a name */
+-gchar *titles[] = {N_("Mr."), N_("Mrs."), N_("Sir"), N_("Dr."), NULL};
++gchar *titles[] = {N_("Dr."), N_("Miss"), N_("Mr."), N_("Mrs."), N_("Ms."), N_("Prof."), N_("Sir"), NULL};
+ /* TRANSLATORS: This is a list of common name suffixes */
+-gchar *suffixes[] = {N_("Sr."), N_("Jr."), N_("I"), N_("II"), N_("III"), N_("Esq."), NULL};
+-
++gchar *suffixes[] = {N_("Jr."), N_("Esq."), N_("Sr."), N_("I"), N_("II"), N_("III"), NULL};
+ 
+ gboolean
+ do_edit_name_detail(GtkWindow *parent, struct person *p)
+@@ -59,13 +58,14 @@
+     }
+     
+   /* create dialog window */
+-  dialog = gtk_dialog_new_with_buttons(_("Edit Name Details"),parent,
++  dialog = gtk_dialog_new_with_buttons(_("Edit Name Details"), parent,
+                                        GTK_DIALOG_MODAL,
+                                        GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                        NULL);
+-  btnOK = gtk_dialog_add_button(GTK_DIALOG(dialog),GTK_STOCK_OK, 
++  gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
++  btnOK = gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_OK, 
+                                 GTK_RESPONSE_OK);
+-  GTK_WIDGET_SET_FLAGS(btnOK,GTK_CAN_DEFAULT);
++  GTK_WIDGET_SET_FLAGS(btnOK, GTK_CAN_DEFAULT);
+   gtk_widget_grab_default(btnOK);
+   gtk_widget_grab_focus(btnOK);
+   
+@@ -149,13 +149,11 @@
+       db_set_data(p, "FAMILY_NAME", g_strdup(gtk_entry_get_text(GTK_ENTRY(efamily))));
+       db_set_data(p, "HONORIFIC_SUFFIX", g_strdup(gtk_entry_get_text(GTK_ENTRY(esuffix))));
+       db_set_data(p, "NAME", g_strdup(""));
+-      update_edit(p, parent);
+       gtk_widget_destroy(dialog);
+       g_list_free(l_titles);
+       g_list_free(l_suffixes);
+       return TRUE;
+     }
+-
+   gtk_widget_destroy(dialog);
+   g_list_free(l_titles);
+   g_list_free(l_suffixes);
+Index: proto.h
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/proto.h,v
+retrieving revision 1.5
+diff -u -r1.5 proto.h
+--- proto.h	14 Sep 2004 23:16:24 -0000	1.5
++++ proto.h	5 Oct 2004 16:20:55 -0000
+@@ -5,6 +5,7 @@
+ extern void configure (GtkWidget * widget, gpointer d);
+ extern void edit_person (struct person *p, gboolean isnew);
+ extern void load_panel_config ();
+-void update_edit (struct person *p, GtkWidget *w);
++extern void update_edit (struct person *p, GtkWidget *w);
++extern gchar *build_categories_string (struct person *p);
+ 
+ #endif

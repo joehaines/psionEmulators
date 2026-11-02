@@ -1,0 +1,47 @@
+--- mozilla/toolkit/xre/nsXREDirProvider.cpp~	Fri Sep 10 05:12:29 2004
++++ mozilla/toolkit/xre/nsXREDirProvider.cpp	Sat Nov  6 19:08:56 2004
+@@ -40,6 +40,7 @@
+ 
+ #include "nsAppRunner.h"
+ #include "nsXREDirProvider.h"
++#include "nsLocalFile.h"
+ 
+ #include "jsapi.h"
+ 
+@@ -218,6 +219,11 @@
+   return 0;
+ }
+ 
++void
++GetRAMDiskDirectory (nsIFile **aFile)
++{
++}
++
+ NS_IMETHODIMP
+ nsXREDirProvider::GetFile(const char* aProperty, PRBool* aPersistent,
+ 			  nsIFile** aFile)
+@@ -264,12 +270,20 @@
+   }
+   else if (mProfileDir) {
+     if (!strcmp(aProperty, NS_XPCOM_COMPONENT_REGISTRY_FILE)) {
+-      rv = mProfileDir->Clone(getter_AddRefs(file));
+-      rv |= file->AppendNative(nsDependentCString("compreg.dat"));
++      nsLocalFile *localfile = new nsLocalFile;
++      char buf[256];
++      sprintf(buf, "/var/tmp/mozilla.%s", getenv("USER"));
++      localfile->InitWithNativePath(nsDependentCString(buf));
++      file = localfile;
++      rv = file->AppendNative(nsDependentCString("compreg.dat"));
+     }
+     else if (!strcmp(aProperty, NS_XPCOM_XPTI_REGISTRY_FILE)) {
+-      rv = mProfileDir->Clone(getter_AddRefs(file));
+-      rv |= file->AppendNative(nsDependentCString("xpti.dat"));
++      nsLocalFile *localfile = new nsLocalFile;
++      char buf[256];
++      sprintf(buf, "/var/tmp/mozilla.%s", getenv("USER"));
++      localfile->InitWithNativePath(nsDependentCString(buf));
++      file = localfile;
++      rv = file->AppendNative(nsDependentCString("xpti.dat"));
+     }
+     if (mProfileNotified) {
+       if (!strcmp(aProperty, NS_APP_USER_PROFILE_50_DIR) ||

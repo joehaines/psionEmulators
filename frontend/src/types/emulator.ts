@@ -46,6 +46,10 @@ export interface DeviceProfile {
   // hasCFSlot — either way the user hands the device a raw FAT16 image
   // — but the labels say MMC. No device has both.
   hasMmcSlot: boolean;
+  // Factory image of built-in flash storage (a path under roms/, gzipped when
+  // it ends in .gz), or '' — the Psion LX's NAND, which holds its root
+  // filesystem. Loaded into the device on a cold boot.
+  internalFlashImage?: string;
   // Number of Psion SSD pack slots. 0 for ARM-based machines that
   // never had SSD hardware; 2 for Series 3/3a/3c/3mx; 1 for Siena
   // (single Honda-connector slot). The frontend renders the SSD
@@ -104,6 +108,13 @@ export interface PsionModule {
   // pre-dates the binding still loads (missing = never rotated).
   getScreenOrientation?(): number;
   prepareCFImageUpload(size: number): number;
+  // Built-in flash (EmuBase::attachInternalFlash). Optional so an older
+  // cached module without the bindings still type-checks at call sites.
+  prepareInternalFlashUpload?(size: number): number;
+  attachInternalFlash?(size: number): boolean;
+  getInternalFlashSize?(): number;
+  readInternalFlash?(bufferPtr: number): void;
+  getInternalFlashGeneration?(): number;
   attachCFImage(size: number): boolean;
   // In-place CF content update (Series 7): replaces the card bytes without an
   // eject/insert and refreshes the OS's cached directory listing. Optional so

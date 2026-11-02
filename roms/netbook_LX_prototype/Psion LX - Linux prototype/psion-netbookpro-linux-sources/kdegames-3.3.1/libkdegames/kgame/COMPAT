@@ -1,0 +1,55 @@
+06.09.2001:  replace the signal signalCreatePlayer by the virtual function
+             createPlayer. It has the same arguments but the return value
+             is the new player
+06.09.2001:  the KGameConfig dialog changes the parameter initConfigs from bool
+             to long. Use the ConfigOptions to specify what options you want
+             to have enabled. Default is all
+06.09.2001:  some int->Q_UINT32 in sender, receiver and player parameters. maybe
+             more will follow.
+06.09.2001:  KGameIO::signalPrepareMove(..., bool&) ->
+             KGameIO::signalPrepareMove(..., bool*): don't know why this was
+             necessary but it didn't work anymore...
+16.09.2001:  KGamePropertyHandler uses bool* for the sent parameter now. This is
+             because QT3 obviously doesn't honor referneces in signals/slots.
+             This might even be a QT bug. Bad situation - we use references
+             everywhere in KGame... hope nothing else is affecterd by this
+             problem (signalPrepareMove was fixed already by me)
+18.09.2001:  bool* for Key/Mouseevents and IOAdded in kgameio.h too
+19.09.2001:  Kgame:nextPlayer retunrs the KPlayer *nextplayer instead of bool              
+19.09.2001:  gameOver() renamed to checkGameOver() !!!!!
+18.09.2001:  Question: Should the signal signalPlayerInput(QDataStream &,KPlayer *))
+             be made a virtual function? 
+             MH: This is done now. As this is a central function your programs will
+             not run anymore. Fix: rename your slot which is connected to the above
+             signal to playerInput() and return TRUE in it. This will make it 100%
+             compatible to the old version. I think this chagne is necessary especially
+             as a signal is of no use here as you cannot read twice from the same stream.
+             Therefore there can be only one function processing the input. If you really
+             need a signal, you can of course simply emit it in the overwritten playerInput
+             function
+20.09.2001  playerInputFinished(void->KPlayer *)
+--------------------- KGAME_ALPHA_1 --------------------- 
+06.10.2001  adding KGameNetwork::signalAdminStatusChanged - needed for
+            KGameDialog
+06.10.2001  KGame::loadGame() doesn't call setPolicy() anymore!
+08.10.2001  KGamePropertyList now honor policies! Use setPolicy(PolicyDirty) to
+            get the old behavior!
+            The behavior of KGamePropertyArray may have changed in this turn,
+            too!
+            The API stays the same.
+11.10.2001  KGameDialogGeneralConfig now doesn't provide setMin/maxPlayers()
+            anymore. The game should manage this internally. layout() is
+            obsolete as well 
+18.10.2001  KPlayer::signalNetworkData contained QDataStream& instead of const
+            QByteArray& parameter (oops!). This is fixed now. All apps which
+            used this signal must be changed.
+18.10.2001  KGame::sendProperty(), KGame::sendPlayerProperty(),
+            KPlayer::sendProperty() and related functions contain a "int msgid"
+            parameter. This is the id() of the property handler. This parameter
+            enables us to easily add any number of property handler to a game
+            just by connecting it to existing send slots and call
+            processMessage() in slotNetworkData()
+03.11.2001  KPlayer::signalNetworkData now emits msgid-KGameMessage::IdUser just
+            like KGame::signalNetworkData does
+06.11.2001  KGameDialog has some small improvements - easier and IMHO better
+            constructor code. Most code should be compatible :-)

@@ -1,0 +1,99 @@
+--- util/nandwrite.c.orig	2004-09-11 23:00:13.000000000 +0100
++++ util/nandwrite.c	2004-09-24 01:41:18.000000000 +0100
+@@ -79,6 +79,7 @@
+ 	       "  -o, --oob    	 	image contains oob data\n"
+ 	       "  -s addr, --start=addr set start address (default is 0)\n"
+ 	       "  -p, --pad             pad to page size\n"
++	       "  -b, --blockalign=1|2|4 set multiple of 16K blocks to align to\n"
+ 	       "  -q, --quiet    	don't display progress messages\n"
+ 	       "      --help     	display this help and exit\n"
+ 	       "      --version  	output version information and exit\n");
+@@ -109,6 +110,7 @@
+ int	forceyaffs = 0;
+ int	noecc = 0;
+ int	pad = 0;
++int	blockalign = 1; /*default to using 16K block size */
+ 
+ void process_options (int argc, char *argv[])
+ {
+@@ -128,6 +130,7 @@
+ 			{"noecc", no_argument, 0, 'n'},
+ 			{"quiet", no_argument, 0, 'q'},
+ 			{"pad", no_argument, 0, 'p'},
++		   	{"blockalign", required_argument, 0, 'b'},
+ 			{0, 0, 0, 0},
+ 		};
+ 
+@@ -172,6 +175,9 @@
+ 		case 's':
+ 			mtdoffset = atoi (optarg);
+ 			break;
++		case 'b':
++			blockalign = atoi (optarg);
++			break;
+ 		case '?':
+ 			error = 1;
+ 			break;
+@@ -190,7 +196,7 @@
+  */
+ int main(int argc, char **argv)
+ {
+-	int cnt, fd, ifd, imglen = 0, pagelen, blockstart = -1;
++	int cnt, fd, ifd, imglen = 0, pagelen, baderaseblock, blockstart = -1;
+ 	struct mtd_info_user meminfo;
+ 	struct mtd_oob_buf oob;
+ 	loff_t offs;
+@@ -218,6 +224,9 @@
+ 		exit(1);
+ 	}
+ 
++        /* Set erasesize to specified number of blocks - to match jffs2 (virtual) block size */
++        meminfo.erasesize *= blockalign;
++     
+ 	/* Make sure device page sizes are valid */
+ 	if (!(meminfo.oobsize == 16 && meminfo.oobblock == 512) &&
+ 	    !(meminfo.oobsize == 8 && meminfo.oobblock == 256) && 
+@@ -303,22 +312,32 @@
+ 	
+ 	/* Get data from input and write to the device */
+ 	while (imglen && (mtdoffset < meminfo.size)) {
+-		// new eraseblock , check for bad block
++		// new eraseblock , check for bad block(s)
+ 		if (blockstart != (mtdoffset & (~meminfo.erasesize + 1))) {
+ 			blockstart = mtdoffset & (~meminfo.erasesize + 1);
+ 			offs = blockstart;
++		        baderaseblock = 0;
+ 			if (!quiet)
+ 				fprintf (stdout, "Writing data to block %x\n", blockstart);
+-			if ((ret = ioctl(fd, MEMGETBADBLOCK, &offs)) < 0) {
+-				perror("ioctl(MEMGETBADBLOCK)");
+-				goto closeall;
+-			}
+-			if (ret == 1) {
+-				if (!quiet)
+-					fprintf (stderr, "Bad block at %x, will be skipped\n", blockstart);
+-				mtdoffset = blockstart + meminfo.erasesize;
+-				continue;					
+-			}
++		   
++		        /* Check all the blocks in an erase block for bad blocks */
++			do {
++			   	if ((ret = ioctl(fd, MEMGETBADBLOCK, &offs)) < 0) {
++					perror("ioctl(MEMGETBADBLOCK)");
++					goto closeall;
++				}
++				if (ret == 1) {
++					baderaseblock = 1;
++				   	if (!quiet)
++						fprintf (stderr, "Bad block at %x, %u block(s) from %x will be skipped\n", (int) offs, blockalign, blockstart);
++					}
++			   
++				if (baderaseblock) {		   
++					mtdoffset = blockstart + meminfo.erasesize;
++				}
++			        offs +=  meminfo.erasesize / blockalign ;
++			} while ( offs < blockstart + meminfo.erasesize );
++ 
+ 		}
+ 
+ 		readlen = meminfo.oobblock;

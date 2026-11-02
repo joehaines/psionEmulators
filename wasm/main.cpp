@@ -527,6 +527,42 @@ void readCFImage(uintptr_t bufferPtr) {
     std::memcpy(reinterpret_cast<uint8_t *>(bufferPtr), src, len);
 }
 
+// ── Built-in flash (EmuBase::attachInternalFlash) ──
+// Same staging pattern as the CF image: prepareInternalFlashUpload() sizes a
+// buffer, JS writes the image into it, attachInternalFlash() hands it over.
+// The emulator copies it, so the buffer is released straight after.
+static std::vector<uint8_t> g_flashBuffer;
+
+uintptr_t prepareInternalFlashUpload(unsigned size) {
+    g_flashBuffer.resize(size);
+    return reinterpret_cast<uintptr_t>(g_flashBuffer.data());
+}
+
+bool attachInternalFlash(unsigned size) {
+    bool ok = g_emu && size != 0 && g_emu->attachInternalFlash(g_flashBuffer.data(), size);
+    std::vector<uint8_t>().swap(g_flashBuffer);
+    return ok;
+}
+
+unsigned getInternalFlashSize() {
+    return g_emu ? static_cast<unsigned>(g_emu->getInternalFlashSize()) : 0;
+}
+
+// Copies the flash contents (with whatever the guest wrote) into a buffer
+// the caller allocated with at least getInternalFlashSize() bytes.
+void readInternalFlash(uintptr_t bufferPtr) {
+    if (!g_emu) return;
+    const uint8_t *src = g_emu->getInternalFlashData();
+    size_t len = g_emu->getInternalFlashSize();
+    if (src && len) std::memcpy(reinterpret_cast<uint8_t *>(bufferPtr), src, len);
+}
+
+// Changes whenever the guest programs or erases the flash, so the frontend
+// can skip saving an unchanged image.
+unsigned getInternalFlashGeneration() {
+    return g_emu ? g_emu->getInternalFlashGeneration() : 0;
+}
+
 // CF diagnostic counters: ATA commands issued by the OS driver and sectors
 // drained.  Lets a browser test measure whether the OS actually reads an
 // attached card (ata climbs) vs. ignoring it (flat) — drive-mount verification
@@ -873,6 +909,9 @@ std::string getAllDeviceProfilesJSON() {
         out += ",";
         out += "\"hiddenFromPicker\":";
         out += (p->hiddenFromPicker ? "true" : "false");
+        out += ",\"internalFlashImage\":\"";
+        out += (p->internalFlashImage ? p->internalFlashImage : "");
+        out += "\"";
         out += "}";
     }
     out += "]";
@@ -968,6 +1007,11 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("getSimCycles",             &getSimCycles);
     emscripten::function("getClockHz",               &getClockHz);
     emscripten::function("getAllDeviceProfilesJSON", &getAllDeviceProfilesJSON);
+    emscripten::function("prepareInternalFlashUpload", &prepareInternalFlashUpload);
+    emscripten::function("attachInternalFlash",      &attachInternalFlash);
+    emscripten::function("getInternalFlashSize",     &getInternalFlashSize);
+    emscripten::function("readInternalFlash",        &readInternalFlash);
+    emscripten::function("getInternalFlashGeneration", &getInternalFlashGeneration);
     emscripten::function("readAudioOutput",          &readAudioOutput);
     emscripten::function("writeAudioInput",          &writeAudioInput);
     emscripten::function("setHostAudioEnabled",      &setHostAudioEnabled);

@@ -38,6 +38,7 @@
 #include "psion_honda.h"
 #include "psion_ssd.h"
 #include "sibo_audio.h"
+#include "state_archive.h"
 #include "v30.h"
 
 #include <algorithm>
@@ -131,6 +132,13 @@ public:
     void     loadRamSnapshot(const uint8_t *bytes, size_t size) override {
         std::memcpy(ram.data(), bytes, std::min(size, ram.size()));
     }
+
+    // The running machine apart from its RAM and ROM: CPU, ASIC9, the other
+    // chips and the emulator's own clocks, so a machine built the same way
+    // and given the same RAM carries on exactly where this one was. Call
+    // between executeUntil() slices. Loading releases every key, since the
+    // host's keyboard starts with nothing held.
+    void serializeState(StateArchive &a);
 
     // ── LCD backlight ───────────────────────────────────────────────────
     // Each machine's ROM has the same EPOC16 backlight service (AL = 0 off,
@@ -244,6 +252,10 @@ public:
     bool attachSSD(int slot, const uint8_t *bytes, size_t size,
                    int ssdType = 0) override;
     void detachSSD(int slot) override;
+    // A Flash pack used in place, not copied (PsionSSD::attachInPlace).
+    bool attachSSDInPlace(int slot, const uint8_t *bytes, size_t size);
+    // What the Psion has written to an in-place pack.
+    void serializeSSDOverlay(int slot, StateArchive &a);
     bool   isSSDInserted(int slot) const override;
     size_t getSSDImageSize(int slot) const override;
     const uint8_t *getSSDImageData(int slot) const override;
@@ -423,6 +435,21 @@ private:
     // misleading name "...IvtUnderMirror" is historic — see the comment
     // on the implementation in series3c.cpp.)
     bool writeAliasesIvtUnderMirror(uint32_t addr) const;
+
+    // Point V30Bus's direct pages at the RAM and ROM behind each segment,
+    // for the memory map as it now stands. Called whenever that can
+    // change: page selects and RAM type are ASIC9 registers, so after
+    // every ASIC9 write, and at the start of each run.
+    void refreshFastPages();
+    bool m_plainWrites = false;   // nothing watches RAM writes (refreshFastPages)
+
+    // Batched runs (see executeUntil): while the CPU runs a batch,
+    // passedCycles and the ASIC9 lag it by the cycles since m_batchSynced;
+    // anything the CPU reaches mid-batch that cares catches them up.
+    void syncBatch();
+    void limitBatchToTimers();
+    bool    m_inBatch = false;
+    int32_t m_batchSynced = 0;
 };
 
 } // namespace Series3c

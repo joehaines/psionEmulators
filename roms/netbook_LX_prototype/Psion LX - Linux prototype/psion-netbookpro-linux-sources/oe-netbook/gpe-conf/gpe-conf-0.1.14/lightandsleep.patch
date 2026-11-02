@@ -1,0 +1,73 @@
+Index: ipaqscreen/brightness.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/ipaqscreen/brightness.c,v
+retrieving revision 1.18
+diff -b -B -u -r1.18 brightness.c
+--- ipaqscreen/brightness.c	8 Aug 2004 13:39:45 -0000	1.18
++++ ipaqscreen/brightness.c	17 Aug 2004 14:12:09 -0000
+@@ -356,6 +356,10 @@
+ 		brightness = 0;
+ 	if (brightness > 255)
+ 		brightness = 255;
++	
++	if (platform == P_NONE)
++		init_light();
++	
+ 	switch (platform)
+ 	{
+ 	case P_IPAQ:
+@@ -387,6 +391,10 @@
+ 
+ int get_brightness ()
+ {
++	
++	if (platform == P_NONE)
++		init_light();
++	
+ 	switch (platform)
+ 	{
+ 	case P_IPAQ:
+Index: ipaqscreen/callbacks.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/ipaqscreen/callbacks.c,v
+retrieving revision 1.8
+diff -b -B -u -r1.8 callbacks.c
+Index: ipaqscreen/main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/ipaqscreen/main.c,v
+retrieving revision 1.15
+diff -b -B -u -r1.15 main.c
+--- ipaqscreen/main.c	21 Jul 2004 08:43:28 -0000	1.15
++++ ipaqscreen/main.c	17 Aug 2004 14:12:09 -0000
+@@ -87,7 +87,6 @@
+ 
+   ss_sec = xset_get_ss_sec();
+   initval.screensaver = ss_sec;
+-  
+   rotation_available = check_init_rotation();
+   
+   /* ======================================================================== */
+@@ -133,8 +132,11 @@
+   g_free(tstr);
+   
+   self.screensaverbt1 = gtk_radio_button_new_with_label (NULL,_("on"));
+-  self.screensaverbt2 = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(self.screensaverbt1),_("off"));
+-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self.screensaverbt1), (gboolean)ss_sec);
++  self.screensaverbt2 = 
++    gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(self.screensaverbt1),_("off"));
++  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self.screensaverbt1), ss_sec ? TRUE : FALSE);
++  //why is this necessary?!?!?
++  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self.screensaverbt2), !ss_sec ? TRUE : FALSE);
+ 
+   self.adjSaver = gtk_adjustment_new ( ss_sec ? log((float)ss_sec)*2.8208 : 0, 2, 20, 0, 0, 0);
+   self.screensaver = GTK_WIDGET(gtk_hscale_new(GTK_ADJUSTMENT (self.adjSaver)));
+@@ -249,6 +251,7 @@
+   initval.brightness = get_brightness();
+   initval.orientation = get_rotation();
+     
++  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self.screensaverbt1), ss_sec ? TRUE : FALSE);
+   gtk_timeout_add(2000,(GtkFunction)on_light_check,(gpointer)adjLight);
+     
+   initialising = 0;
+Index: ipaqscreen/xset.c
+===================================================================

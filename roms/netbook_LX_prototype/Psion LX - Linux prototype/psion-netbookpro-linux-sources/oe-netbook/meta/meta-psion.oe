@@ -1,0 +1,70 @@
+DESCRIPTION = "Meta-packages for Psion Netbook LX"
+ALLOW_EMPTY = 1
+PACKAGES = psion psion-apps psion-net psion-media psion-games psion-debug
+
+PR = "r23"
+
+RDEPENDS_psion = psion-apps psion-net psion-media psion-games
+
+# gnome-vfs-extras needed for SMB support in file manager
+psion-apps = "\
+	abiword \
+	agfa-fonts \
+	application-registry \
+	aspell-en \
+	evolution-helper \
+	gaby \
+	gpdf \
+	gnumeric \
+	galculator \
+	gnome-vfs \
+	gnome-cups-manager \
+	esp-gs \
+	zenity \
+	infoprint \
+	"
+
+RDEPENDS_psion-apps = "${psion-apps}"
+DEPENDS += " ${psion-apps}"
+
+# need a serial console?
+psion-net = "\
+	balsa \
+	firefox \
+	gaim \
+	gkdial \
+	psion-sierra \
+	linneighborhood \
+	gpe-beam \
+	grdesktop \
+	bluez-utils \
+	gpe-bluetooth \
+	"
+
+RDEPENDS_psion-net = "${psion-net}"
+DEPENDS += " ${psion-net}"
+
+# need a volume control
+psion-media = "\
+	totem \
+	aumix \
+	minimix \
+	"
+
+RDEPENDS_psion-media = "${psion-media}"
+DEPENDS += " ${psion-media}"
+
+psion-debug = "\
+	strace \
+	mtd \
+	xprop \
+	xhost \
+	scap \
+	"
+
+RDEPENDS_psion-debug := "${psion-debug} ldd gdbserver catchsegv"
+DEPENDS += " ${psion-debug} gdb"
+
+# want minesweeper :P
+RDEPENDS_psion-games := "gnome-games-sol"
+DEPENDS += " gnome-games"

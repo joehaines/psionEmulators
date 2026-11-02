@@ -1,0 +1,23 @@
+Index: sysinfo.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/sysinfo.c,v
+retrieving revision 1.17
+diff -u -r1.17 sysinfo.c
+--- sysinfo.c	21 Aug 2004 10:09:57 -0000	1.17
++++ sysinfo.c	2 Sep 2004 19:16:00 -0000
+@@ -450,7 +450,15 @@
+ 
+ 			/* create widgets */
+ 			if (device_is_wlan(ife->name))
++			{
++				gchar *p = strstr(nwshort,"Ethernet");
++				if (p)
++				{
++					sprintf(p,_("Wireless"));
++					p[strlen(_("Wireless"))] = '\n';
++				}
+ 				tw = gtk_image_new_from_file(PIC_WLAN); 
++			}
+ 			else
+ 				tw = gtk_image_new_from_file(PIC_NET);
+ 			gtk_misc_set_alignment(GTK_MISC(tw),0.0,0.0);

@@ -15,7 +15,7 @@ using namespace V30Detail;
 
 namespace V30Detail {
 
-int64_t dispatchCtrl(V30& c, uint8_t op) {
+int32_t dispatchCtrl(V30& c, uint8_t op) {
     switch (op) {
 
     // JMP short (disp8)
@@ -110,8 +110,8 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         push16(c, c.ip);
         c.iflag = 0;
         c.tf = 0;
-        c.ip       = c.busRef().readMemWord(0x0C);
-        c.sregs[1] = c.busRef().readMemWord(0x0E);
+        c.ip       = c.busRef().read16(0x0C);
+        c.sregs[1] = c.busRef().read16(0x0E);
         return 50;
     }
 
@@ -124,8 +124,8 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         c.iflag = 0;
         c.tf = 0;
         uint32_t vec = uint32_t(v) * 4;
-        c.ip       = c.busRef().readMemWord(vec);
-        c.sregs[1] = c.busRef().readMemWord(vec + 2);
+        c.ip       = c.busRef().read16(vec);
+        c.sregs[1] = c.busRef().read16(vec + 2);
         return 50;
     }
 
@@ -136,8 +136,8 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         push16(c, c.sregs[1]);
         push16(c, c.ip);
         c.iflag = 0; c.tf = 0;
-        c.ip       = c.busRef().readMemWord(0x10);
-        c.sregs[1] = c.busRef().readMemWord(0x12);
+        c.ip       = c.busRef().read16(0x10);
+        c.sregs[1] = c.busRef().read16(0x12);
         return 50;
     }
 
@@ -260,8 +260,8 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         }
         case 3: { // CALL far (indirect, m32)
             if (o.isReg) return -1;
-            uint16_t offNew = c.busRef().readMemWord(o.linear);
-            uint16_t segNew = c.busRef().readMemWord((o.linear + 2) & 0xFFFFF);
+            uint16_t offNew = c.busRef().read16(o.linear);
+            uint16_t segNew = c.busRef().read16((o.linear + 2) & 0xFFFFF);
             push16(c, c.sregs[1]);
             push16(c, c.ip);
             c.ip = offNew;
@@ -275,8 +275,8 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         }
         case 5: { // JMP far (indirect, m32)
             if (o.isReg) return -1;
-            uint16_t offNew = c.busRef().readMemWord(o.linear);
-            uint16_t segNew = c.busRef().readMemWord((o.linear + 2) & 0xFFFFF);
+            uint16_t offNew = c.busRef().read16(o.linear);
+            uint16_t segNew = c.busRef().read16((o.linear + 2) & 0xFFFFF);
             c.ip = offNew;
             c.sregs[1] = segNew;
             return 24;
@@ -289,7 +289,7 @@ int64_t dispatchCtrl(V30& c, uint8_t op) {
         }
     }
 
-    default: return -1;
+    default: return kNotMine;
     }
 }
 

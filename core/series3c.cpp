@@ -10,12 +10,22 @@
 // analogue this file mirrors.
 
 #include "series3c.h"
+#include "state_archive.h"
 #include "series3c_mdrive_blob.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
+// Cache std::getenv() lookups on the hot paths (every memory write, IRQ and
+// instruction step consults one). getenv() scans the whole environment on
+// each call — a JS-side lookup under WASM, and a locked scan in the ESP32
+// build's newlib — so an uncached check costs more than the instruction it
+// guards. Same idiom as core/sa1100.cpp.
+#define PSION_ENV_BOOL(name)  ([] { static const bool _v = std::getenv(name) != nullptr; return _v; }())
+#define PSION_ENV_CSTR(name)  ([] { static const char *const _v = std::getenv(name); return _v; }())
 
 namespace Series3c {
 
@@ -363,7 +373,7 @@ void Emulator::executeUntil(int64_t cycles) {
     // PSION_AUTO_WAKE=1 env-var override for other devices. Interactive
     // front-ends drive the keyboard matrix themselves so neither path
     // fires during normal use.
-    const char *autoWakeEnv = std::getenv("PSION_AUTO_WAKE");
+    const char *autoWakeEnv = PSION_ENV_CSTR("PSION_AUTO_WAKE");
     const bool autoWakeEnabled = m_cfg.autoWakeOnBoot ||
         (autoWakeEnv && autoWakeEnv[0] != 0 && autoWakeEnv[0] != '0');
 
@@ -373,6 +383,7 @@ void Emulator::executeUntil(int64_t cycles) {
     // latches so a single tap is all the user ever sees.
     constexpr int64_t DISMISS_PRESS_AT  = 53'760'000; // ~7.0 s @ 7.68 MHz
     constexpr int64_t DISMISS_PRESS_DUR =    384'000; // ~50 ms @ 7.68 MHz
+    refreshFastPages();
     while (passedCycles < cycles) {
         if (m_cfg.dismissColdBootDialog && !m_dismissDone) {
             if (passedCycles >= DISMISS_PRESS_AT && !m_dismissPressed) {
@@ -409,6 +420,27 @@ void Emulator::executeUntil(int64_t cycles) {
         if (consumed <= 0) consumed = 1;
         passedCycles += consumed;
         asic9.tick(consumed);
+        // Once the boot-time hooks above have stood down, nothing below can
+        // fire before the next of these deadlines (door pulses and host
+        // serial bytes arrive between runs), so run straight to it.
+        if (!autoWakeEnabled && m_plainWrites && m_hostRxStage.empty() &&
+            (!m_cfg.dismissColdBootDialog || m_dismissDone)) {
+            int64_t stop = std::min(cycles, m_nextAudioTickAt);
+            if (m_doorNmiClearAt >= 0) stop = std::min(stop, m_doorNmiClearAt);
+            while (passedCycles < stop) {
+                // In batches, each up to the next ASIC9 timer event, with
+                // no per-instruction bookkeeping; the instruction boundary
+                // where each deadline falls is the same as stepping.
+                const int64_t room = std::min<int64_t>(stop - passedCycles, asic9.cyclesUntilDue());
+                m_batchSynced = 0;
+                m_inBatch = true;
+                const int32_t ran = cpu.runBatch(int32_t(room));
+                m_inBatch = false;
+                const int32_t rest = ran - m_batchSynced;
+                passedCycles += rest;
+                asic9.tick(rest);
+            }
+        }
         // Pump the buzzer square wave at ~64 Hz (125 samples per call at
         // 8 kHz). Active while the buzzer pin is high or the click
         // envelope is still holding — see AudioCodecModel docstring.
@@ -432,6 +464,8 @@ void Emulator::executeUntil(int64_t cycles) {
             constexpr int64_t kCheckInterval = 122'880; // ~16 ms @ 7.68 MHz
             if ((passedCycles % kCheckInterval) < consumed) {
                 maybeInjectMDriveSubdirs();
+                // Once it stands down, RAM writes can go direct.
+                if (m_mDriveInjectAttempted) refreshFastPages();
             }
         }
     }
@@ -841,6 +875,84 @@ uint8_t Emulator::readMemByte(uint32_t linear) {
     return rom[romOff];
 }
 
+void Emulator::syncBatch() {
+    if (!m_inBatch) return;
+    const int32_t delta = cpu.batchCycles() - m_batchSynced;
+    m_batchSynced += delta;
+    passedCycles += delta;
+    asic9.tick(delta);
+}
+
+void Emulator::limitBatchToTimers() {
+    // A register write can bring the next timer event closer.
+    if (m_inBatch) cpu.limitBatch(cpu.batchCycles() + asic9.cyclesUntilDue());
+}
+
+void Emulator::serializeState(StateArchive &a) {
+    assert(!m_inBatch);
+    a(passedCycles); a(nextTickAt);
+    cpu.serializeState(a);
+    asic9.serializeState(a);
+    for (PsionSSD &ssd : m_ssd) ssd.serializeState(a);
+    a(m_doorNmiClearAt);
+    m_condor.serializeState(a);
+    m_mxUart0.serializeState(a);
+    a(m_mxBoardLatch);
+    m_mxEeprom.serializeState(a);
+    a(m_buzzerLevel); a(m_nextAudioTickAt); a(m_pcmOutCount); a(m_pcmInCount);
+    a(initialised);
+    a(m_key_row); a(m_key_col_mask);
+    a(m_autoWakePressed); a(m_autoWakeReleased);
+    a(m_dismissPressed); a(m_dismissDone);
+    a(m_mDriveInjectAttempted);
+    if (a.loading()) {
+        std::memset(m_key_row, 0, sizeof m_key_row);
+        refreshFastPages();   // the page pointers follow the restored mapping
+    }
+}
+
+void Emulator::refreshFastPages() {
+    constexpr uint32_t kPage = 0x10000;
+    for (int i = 0; i < 16; ++i) {
+        readPage[i] = nullptr;
+        writePage[i] = nullptr;
+    }
+    // Writes go direct once nothing is watching them: the M:-drive hook
+    // has stood down and no write trace is on. Reads have no side effects.
+    const bool plainWrites = m_mDriveInjectAttempted && !ramTraceOn() &&
+        !PSION_ENV_BOOL("PSION_VRAM_TRACE") && !PSION_ENV_BOOL("PSION_WAKE_TRACE") &&
+        !PSION_ENV_BOOL("PSION_MEM_WATCH");
+    m_plainWrites = plainWrites;
+    // Unpaged RAM, 0x00000-0x5FFFF.
+    for (uint32_t i = 0; i < 6 && (i + 1) * kPage <= ram.size(); ++i) {
+        readPage[i] = ram.data() + i * kPage;
+        if (plainWrites) writePage[i] = ram.data() + i * kPage;
+    }
+    // Unpaged ROM, 0xA0000-0xFFFFF: the top 384 KiB of the image.
+    if (rom.size() >= 0x60000) {
+        for (uint32_t i = 0xA; i < 0x10; ++i)
+            readPage[i] = rom.data() + (rom.size() - 0x60000) + (i - 0xA) * kPage;
+    }
+    // The paged windows, decoded as readMemByte and writeMemByte do: 6 and
+    // 7 are RAM space, 8 and 9 ROM space. The 3a's window writes keep the
+    // slow path for its open-bus check.
+    const uint8_t psel[4] = { asic9.psel6000(), asic9.psel7000(),
+                              asic9.psel8000(), asic9.psel9000() };
+    for (int w = 0; w < 4; ++w) {
+        const uint32_t bank = uint32_t(psel[w]) << 16;
+        if (w < 2) {
+            const int32_t lo = translateRamAddr(bank);
+            if (lo < 0 || translateRamAddr(bank + 0xFFFF) != lo + 0xFFFF) continue;
+            readPage[6 + w] = ram.data() + lo;
+            if (plainWrites && m_cfg.model != Model::Series3a) writePage[6 + w] = ram.data() + lo;
+        } else {
+            const bool romPow2 = rom.size() >= kPage && (rom.size() & (rom.size() - 1)) == 0;
+            if (bank < 0x800000 || !romPow2) continue;
+            readPage[6 + w] = rom.data() + ((bank - 0x800000) & uint32_t(rom.size() - 1));
+        }
+    }
+}
+
 uint16_t Emulator::readMemWord(uint32_t linear) {
     uint16_t lo = readMemByte(linear);
     uint16_t hi = readMemByte((linear + 1) & 0xFFFFF);
@@ -852,7 +964,7 @@ void Emulator::writeMemByte(uint32_t linear, uint8_t v) {
     // Count writes to VRAM (RAM[0x0400..0x5FFF] spans both planes for a
     // 480×160×2-plane framebuffer with A9WLcdSize=0x7257). Gated by an
     // env var so production builds pay nothing.
-    if (std::getenv("PSION_VRAM_TRACE")) {
+    if (PSION_ENV_BOOL("PSION_VRAM_TRACE")) {
         static uint64_t vramP1 = 0;     // plane 1 (black) writes 0x400..0x2980
         static uint64_t vramP2 = 0;     // plane 2 (grey)  writes 0x2980..0x4f00
         static uint64_t vramHi = 0;     // 0x4f00..0x6000 (post-FB scratch)
@@ -901,7 +1013,7 @@ void Emulator::writeMemByte(uint32_t linear, uint8_t v) {
         // Write-watch: trace every write to [0x043c] (the idle-loop wake flag).
         // 0x4F3C is the same variable as seen from the kernel's DS=0x4b0
         // (the record-loop wake flag at ds:[0x43c]).
-        if (std::getenv("PSION_WAKE_TRACE") && (linear == 0x043cu || linear == 0x4F3Cu)) {
+        if (PSION_ENV_BOOL("PSION_WAKE_TRACE") && (linear == 0x043cu || linear == 0x4F3Cu)) {
             uint32_t pc = (uint32_t(cpu.sregs[1]) << 4) + cpu.ip;
             std::fprintf(stderr,
                 "[wake] cyc=%lld pc=%05X [0x043c]<=%02x mask=%02x status=%02x\n",
@@ -996,7 +1108,7 @@ void Emulator::writeMemByte(uint32_t linear, uint8_t v) {
         if (off2 >= 0) {
             ram[uint32_t(off2)] = v;
             // Write-watch: paged-window writes to [0x043c].
-            if (std::getenv("PSION_WAKE_TRACE") && uint32_t(off2) == 0x043cu) {
+            if (PSION_ENV_BOOL("PSION_WAKE_TRACE") && uint32_t(off2) == 0x043cu) {
                 uint32_t pc = (uint32_t(cpu.sregs[1]) << 4) + cpu.ip;
                 std::fprintf(stderr,
                     "[wake-pg] cyc=%lld pc=%05X [0x043c]<=%02x psel6=%02x ia=%05x mask=%02x status=%02x\n",
@@ -1004,7 +1116,7 @@ void Emulator::writeMemByte(uint32_t linear, uint8_t v) {
                     asic9.interruptMask(), asic9.interruptStatus());
             }
             // Track paged-window writes that land in VRAM (black or grey plane).
-            if (std::getenv("PSION_VRAM_TRACE") && uint32_t(off2) >= 0x400u) {
+            if (PSION_ENV_BOOL("PSION_VRAM_TRACE") && uint32_t(off2) >= 0x400u) {
                 static uint64_t pagedP1 = 0, pagedP2 = 0, pagedHi = 0;
                 if      (uint32_t(off2) < 0x2980u)  pagedP1++;
                 else if (uint32_t(off2) < 0x4f00u)  pagedP2++;
@@ -1176,6 +1288,7 @@ void Emulator::condorWrite(uint16_t port, uint8_t v) {
 }
 
 uint8_t  Emulator::readIoByte(uint16_t port) {
+    syncBatch();
     if (isMxBoardLatch(port)) return m_mxBoardLatch;
     if (portIsCondor(port)) {
         uint8_t b = condorRead(port);
@@ -1197,6 +1310,7 @@ uint8_t  Emulator::readIoByte(uint16_t port) {
     return b;
 }
 uint16_t Emulator::readIoWord(uint16_t port) {
+    syncBatch();
     if (isMxBoardLatch(port)) return m_mxBoardLatch;
     if (PsionCondor *u = mxUartAt(port)) {
         return u->readReg(uint8_t((port & 0x0F) >> 1));
@@ -1213,6 +1327,7 @@ uint16_t Emulator::readIoWord(uint16_t port) {
     return v;
 }
 void     Emulator::writeIoByte(uint16_t port, uint8_t v) {
+    syncBatch();
     if (isMxBoardLatch(port)) {
         if (ioDebugEnabled())
             std::fprintf(stderr, "[IO] w8  mxlatch port=%03X <= %02X\n", port, v);
@@ -1238,8 +1353,11 @@ void     Emulator::writeIoByte(uint16_t port, uint8_t v) {
     } else {
         asic9.ioWrite(port, v, 0x00FF);
     }
+    refreshFastPages();
+    limitBatchToTimers();
 }
 void     Emulator::writeIoWord(uint16_t port, uint16_t v) {
+    syncBatch();
     if (isMxBoardLatch(port)) { m_mxBoardLatch = uint8_t(v); return; }
     if (PsionCondor *u = mxUartAt(port)) {
         u->writeReg(uint8_t((port & 0x0F) >> 1), uint8_t(v & 0xFF));
@@ -1271,9 +1389,12 @@ void     Emulator::writeIoWord(uint16_t port, uint16_t v) {
         }
     }
     asic9.ioWrite(port, v, 0xFFFF);
+    refreshFastPages();
+    limitBatchToTimers();
 }
 
 uint8_t Emulator::ackInterrupt() {
+    syncBatch();
     return asic9.inta();
 }
 
@@ -1293,7 +1414,7 @@ void Emulator::readLCDIntoBuffer(uint8_t **lines, bool is32BitOutput) const {
     // screenshot and the frontend canvas.
     std::vector<uint8_t> fb(size_t(w) * size_t(h), 0);
     asic9.readLCD(fb.data(), w, h);
-    if (std::getenv("PSION_VRAM_TRACE")) {
+    if (PSION_ENV_BOOL("PSION_VRAM_TRACE")) {
         uint32_t planeSize = uint32_t(((asic9.lcdSizeReg() & 0x07FFu) + 1u) * 16u);
         if (planeSize == 16u) planeSize = uint32_t(((w + 7) / 8) * h);
         uint32_t fbBase = (uint32_t(asic9.psel6000()) << 16) + 0x0400u;
@@ -1730,6 +1851,19 @@ bool Emulator::attachSSD(int slot, const uint8_t *bytes, size_t size,
                          int ssdType) {
     if (slot < 0 || slot >= int(m_ssd.size())) return false;
     return m_ssd[slot].attach(bytes, size, static_cast<PsionSSD::Type>(ssdType));
+}
+
+bool Emulator::attachSSDInPlace(int slot, const uint8_t *bytes, size_t size) {
+    if (slot < 0 || slot >= int(m_ssd.size())) return false;
+    return m_ssd[slot].attachInPlace(bytes, size);
+}
+
+void Emulator::serializeSSDOverlay(int slot, StateArchive &a) {
+    if (slot < 0 || slot >= int(m_ssd.size()) || !m_ssd[slot].isInPlace()) {
+        a.fail();
+        return;
+    }
+    m_ssd[slot].serializeOverlay(a);
 }
 
 void Emulator::detachSSD(int slot) {

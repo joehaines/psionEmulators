@@ -1,0 +1,43 @@
+--- gpe-clock/clock.c	14 Jul 2004 11:06:22 -0000	1.28
++++ gpe-clock/clock.c	12 Aug 2004 19:15:55 -0000
+@@ -650,7 +650,7 @@
+ int
+ main (int argc, char *argv[])
+ {
+-  GtkWidget *menu_set_time, *menu_alarm, *menu_remove, *menu_prefs;
++  GtkWidget *menu_set_time, *menu_alarm, *menu_prefs;
+   GtkTooltips *tooltips;
+ 
+   if (gpe_application_init (&argc, &argv) == FALSE)
+@@ -704,22 +704,18 @@
+   menu_prefs = gtk_menu_item_new_with_label (_("Preferences"));
+   menu_set_time = gtk_menu_item_new_with_label (_("Set the time"));
+   menu_alarm = gtk_menu_item_new_with_label (_("Alarm ..."));
+-  menu_remove = gtk_menu_item_new_with_label (_("Remove from panel"));
+ 
+   gtk_widget_show (menu_prefs);
+   gtk_widget_show (menu_set_time);
+   gtk_widget_show (menu_alarm);
+-  gtk_widget_show (menu_remove);
+ 
+   gtk_menu_append (GTK_MENU (menu), menu_alarm);
+   gtk_menu_append (GTK_MENU (menu), menu_set_time);
+   gtk_menu_append (GTK_MENU (menu), menu_prefs);
+-  gtk_menu_append (GTK_MENU (menu), menu_remove);
+ 
+   g_signal_connect (G_OBJECT (menu_prefs), "activate", G_CALLBACK (prefs_window), time_label);
+   g_signal_connect (G_OBJECT (menu_set_time), "activate", G_CALLBACK (set_time_window), NULL);
+   g_signal_connect (G_OBJECT (menu_alarm), "activate", G_CALLBACK (alarm_window), NULL);
+-  g_signal_connect (G_OBJECT (menu_remove), "activate", G_CALLBACK (gtk_main_quit), NULL);
+ 
+   panel_window = gtk_plug_new (0);
+ 
+@@ -766,7 +762,7 @@
+   gpe_system_tray_dock (panel_window->window);
+ 
+   tooltips = gtk_tooltips_new ();
+-  gtk_tooltips_set_tip (GTK_TOOLTIPS (tooltips), panel_window, _("This is the clock.\nTap here to set the alarm, set the time, change the display format, or remove this program from the panel."), NULL);
++  gtk_tooltips_set_tip (GTK_TOOLTIPS (tooltips), panel_window, _("This is the clock.\nTap here to set the alarm, set the time, or change the display format."), NULL);
+ 
+   g_timeout_add (1000, (GtkFunction) update_time, NULL);
+ 

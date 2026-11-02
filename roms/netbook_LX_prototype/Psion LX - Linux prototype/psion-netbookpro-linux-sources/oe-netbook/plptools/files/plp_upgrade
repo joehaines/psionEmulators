@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# Extracts and moves files from previous versions of Psion Product over to
+# the LX
+#
+DST=$HOME/plp
+SRC=$HOME/plpbackup
+#
+# Create Target Directories
+#
+if ! [ -d $DST ]
+then
+	mkdir $DST
+fi
+touch $DST/.tx
+#
+# Start the Protocol
+#
+echo "Connecting"
+ncpd -s/dev/ttyS0
+sleep 5
+echo "Transfering Files"
+plpbackup -fb
+#
+# Extract the data
+#
+cd $DST
+for A in `find $SRC -type f -newer $DST/.tx`
+do
+	echo "Extracting Files"
+	tar zxvf $A
+done
+#
+# Clean up
+#
+killall ncpd
+rm -fR $SRC $DST/.tx

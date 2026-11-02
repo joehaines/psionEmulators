@@ -1,0 +1,33 @@
+#!/bin/sh
+
+module_id() {
+    # Get model name
+    echo `grep "^Hardware" /proc/cpuinfo | sed -e "s/.*: *//" | tr a-z A-Z`
+}
+
+chvt 2
+
+mount /proc
+
+case $1 in
+'start')
+	case `module_id` in
+		"HP IPAQ H3100" )
+			ARGS="--mono --force-portrait" ;;
+		"HP IPAQ H3600" | "HP IPAQ H3700" | "HP IPAQ H3900" | *COLLIE)
+		    	ARGS="--flip --force-portrait" ;;
+		"HP IPAQ H3800")
+			ARGS="--force-portrait" ;;
+		"SHARP SHEPHERD" | "SHARP HUSKY" | "SHARP CORGI")
+			ARGS="--force-landscape --flip" ;;
+		"HP IPAQ H5400" | "HP IPAQ H2200" )
+			;;
+	esac
+	gdk-pixbuf-query-loaders > /etc/gtk-2.0/gdk-pixbuf.loaders
+	sync
+	/usr/bin/gpe-bootsplash $ARGS
+	;;
+'stop')
+;;
+*)
+esac

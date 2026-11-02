@@ -1,0 +1,105 @@
+/* -*- Mode: IDL; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*- */
+/*
+ * Interface for the HTML Editor.
+ *
+ * Authors:
+ *   Larry Ewing <lewing@ximian.com>
+ *   Radek Doulik <rodo@ximian.com>
+ *
+ * Copyright (C) 2000 Helix Code, Inc.
+ * Copyright (C) 2000, 2001 Ximian, Inc.
+ */
+
+#include <Bonobo.idl>
+
+module GNOME {
+module GtkHTML {
+module Editor {
+	interface Listener : Bonobo::Unknown {
+		any event (in string name, in any arg);
+	};
+
+	interface Engine : Bonobo::Unknown {
+		attribute Listener listener;
+
+		/*
+		 * execute editor command
+		 *
+		 * return value: TRUE if command is done FALSE if command failed
+		 */
+		boolean runCommand (in string command);
+
+		/*
+		 * return data of current paragraph
+		 */
+		string getParagraphData (in string key);
+
+		/*
+		 * sets data on current paragraph
+		 */
+		void setParagraphData (in string key, in string value);
+
+		/*
+		 * set data which are set to objects of given type while inserting
+		 * we will use that to mark original text paragraph(s) in composer
+		 * and use that data later in editing to implement better reply
+		 * editing
+		 */
+		void setObjectDataByType (in string type_name, in string key, in string data);
+
+		/*
+		 * goes thru document from current position and searches for data specified
+		 * by key/value. level tells in which parent level to look for data. it goes
+		 * thru by moving cursor forward and stops when data are found.
+		 *
+		 * returns true when data found.
+		 */
+		boolean searchByData (in long level, in string klass, in string key, in string value);
+
+		/*
+		 * returns TRUE if current paragraph is empty (will be possibly replaced
+		 * by more general iface)
+		 */
+		boolean isParagraphEmpty ();
+
+		/*
+		 * return TRUE if previous paragraph is empty (will be possibly replaced
+		 * by more general iface)
+		 */
+		boolean isPreviousParagraphEmpty ();
+
+		/*
+		 * insert (parsed) html at current cursor position
+		 */
+		void insertHTML (in string html);
+
+		void freeze ();
+		void thaw ();
+
+		void undoBegin (in string undo_name, in string redo_name);
+		void undoEnd ();
+
+		void ignoreWord (in string word);
+
+		/*
+		 * drop undo drops all undo/redo queues
+		 */
+		void dropUndo ();
+
+		/*
+		 * is there any undo event in undo queue?
+		 */
+		boolean hasUndo ();
+	};
+	
+	struct URLRequestEvent {
+		string url;
+		Bonobo::Stream stream;
+	};
+};
+};
+};
+
+
+
+

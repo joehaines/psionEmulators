@@ -37,6 +37,8 @@
 #include <cstdint>
 #include <functional>
 
+class StateArchive;
+
 class PsionAsic9 {
 public:
     PsionAsic9();
@@ -76,10 +78,21 @@ public:
     // ------------------------------------------------------------------
 
     void reset();
+    // Registers, timers and pending cycles; not the host wiring or settings.
+    void serializeState(StateArchive &a);
 
     // Advance the chip's internal scheduler by the given number of host
-    // cycles. Safe to call with 0 or negative values (no-op).
-    void tick(int64_t cycles);
+    // cycles. Safe to call with 0 or negative values (no-op). Called after
+    // every instruction, so it only adds up cycles until a timer is due to
+    // do something; register reads and writes catch the timers up first.
+    void tick(int64_t cycles) {
+        if (cycles <= 0) return;
+        m_pending_cycles += int32_t(cycles);
+        if (m_pending_cycles >= m_next_timer_event) runDueTimers();
+    }
+    // How many more cycles tick() can be given before a timer is due to
+    // do something.
+    int32_t cyclesUntilDue() const { return m_next_timer_event - m_pending_cycles; }
 
     // ------------------------------------------------------------------
     // Bus access. Offsets are byte offsets within the relevant window:
@@ -268,6 +281,14 @@ private:
     void reloadRtcTimer();
     void reloadSndTimer();
 
+    void advanceTimers(int64_t cycles);
+    void syncTimers();
+    void runDueTimers();
+    void scheduleTimers();
+    void fireFrc1Times(int64_t n);
+    void fireFrc2Times(int64_t n);
+    void writeRegister(uint32_t offset, uint16_t data, uint16_t mask);
+
     void fireTick();
     void fireFrc1();
     void fireFrc2();
@@ -306,6 +327,11 @@ private:
     int64_t m_rtc_remaining      = 0;
     int64_t m_snd_remaining      = 0;
     int64_t m_sib_scan_remaining = 75'000; // only used when m_sib_heartbeat == true
+
+    // Cycles tick() has been given but not yet run through the timers, and
+    // how many more can be gathered before a fire with side effects is due.
+    int32_t m_pending_cycles   = 0;
+    int32_t m_next_timer_event = 0;
 
     // ------------------------------------------------------------------
     // Register file state (mirrors MAME's psion_asic9_device members)

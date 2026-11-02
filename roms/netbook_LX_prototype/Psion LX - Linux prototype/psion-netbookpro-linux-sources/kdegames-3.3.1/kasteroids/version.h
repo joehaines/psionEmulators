@@ -1,0 +1,1 @@
+#define KASTEROIDS_VERSION	"2.3"

@@ -14,6 +14,15 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+
+// Cache std::getenv() lookups on the hot paths (every memory write, IRQ and
+// instruction step consults one). getenv() scans the whole environment on
+// each call — a JS-side lookup under WASM, and a locked scan in the ESP32
+// build's newlib — so an uncached check costs more than the instruction it
+// guards. Same idiom as core/sa1100.cpp.
+#define PSION_ENV_BOOL(name)  ([] { static const bool _v = std::getenv(name) != nullptr; return _v; }())
+#define PSION_ENV_CSTR(name)  ([] { static const char *const _v = std::getenv(name); return _v; }())
 
 using namespace V30Detail;
 
@@ -26,8 +35,8 @@ namespace V30Detail {
 
 static inline void stringMovsb(V30& c) {
     uint16_t srcSeg = resolveSeg(c, 3);
-    uint8_t v = c.busRef().readMemByte(lin(srcSeg, c.regs.w[6]));
-    c.busRef().writeMemByte(lin(c.sregs[0], c.regs.w[7]), v);
+    uint8_t v = c.busRef().read8(lin(srcSeg, c.regs.w[6]));
+    c.busRef().write8(lin(c.sregs[0], c.regs.w[7]), v);
     int16_t step = c.df ? -1 : +1;
     c.regs.w[6] = uint16_t(c.regs.w[6] + step);
     c.regs.w[7] = uint16_t(c.regs.w[7] + step);
@@ -35,8 +44,8 @@ static inline void stringMovsb(V30& c) {
 
 static inline void stringMovsw(V30& c) {
     uint16_t srcSeg = resolveSeg(c, 3);
-    uint16_t v = c.busRef().readMemWord(lin(srcSeg, c.regs.w[6]));
-    c.busRef().writeMemWord(lin(c.sregs[0], c.regs.w[7]), v);
+    uint16_t v = c.busRef().read16(lin(srcSeg, c.regs.w[6]));
+    c.busRef().write16(lin(c.sregs[0], c.regs.w[7]), v);
     int16_t step = c.df ? -2 : +2;
     c.regs.w[6] = uint16_t(c.regs.w[6] + step);
     c.regs.w[7] = uint16_t(c.regs.w[7] + step);
@@ -44,8 +53,8 @@ static inline void stringMovsw(V30& c) {
 
 static inline void stringCmpsb(V30& c) {
     uint16_t srcSeg = resolveSeg(c, 3);
-    uint8_t a = c.busRef().readMemByte(lin(srcSeg, c.regs.w[6]));
-    uint8_t b = c.busRef().readMemByte(lin(c.sregs[0], c.regs.w[7]));
+    uint8_t a = c.busRef().read8(lin(srcSeg, c.regs.w[6]));
+    uint8_t b = c.busRef().read8(lin(c.sregs[0], c.regs.w[7]));
     setSubFlags8(c, a, b, uint16_t(a - b));
     int16_t step = c.df ? -1 : +1;
     c.regs.w[6] = uint16_t(c.regs.w[6] + step);
@@ -54,8 +63,8 @@ static inline void stringCmpsb(V30& c) {
 
 static inline void stringCmpsw(V30& c) {
     uint16_t srcSeg = resolveSeg(c, 3);
-    uint16_t a = c.busRef().readMemWord(lin(srcSeg, c.regs.w[6]));
-    uint16_t b = c.busRef().readMemWord(lin(c.sregs[0], c.regs.w[7]));
+    uint16_t a = c.busRef().read16(lin(srcSeg, c.regs.w[6]));
+    uint16_t b = c.busRef().read16(lin(c.sregs[0], c.regs.w[7]));
     setSubFlags16(c, a, b, uint32_t(a - b));
     int16_t step = c.df ? -2 : +2;
     c.regs.w[6] = uint16_t(c.regs.w[6] + step);
@@ -63,34 +72,34 @@ static inline void stringCmpsw(V30& c) {
 }
 
 static inline void stringStosb(V30& c) {
-    c.busRef().writeMemByte(lin(c.sregs[0], c.regs.w[7]), c.regs.b[0]);
+    c.busRef().write8(lin(c.sregs[0], c.regs.w[7]), c.regs.b[0]);
     int16_t step = c.df ? -1 : +1;
     c.regs.w[7] = uint16_t(c.regs.w[7] + step);
 }
 
 static inline void stringStosw(V30& c) {
-    c.busRef().writeMemWord(lin(c.sregs[0], c.regs.w[7]), c.regs.w[0]);
+    c.busRef().write16(lin(c.sregs[0], c.regs.w[7]), c.regs.w[0]);
     int16_t step = c.df ? -2 : +2;
     c.regs.w[7] = uint16_t(c.regs.w[7] + step);
 }
 
 static inline void stringLodsb(V30& c) {
     uint16_t srcSeg = resolveSeg(c, 3);
-    c.regs.b[0] = c.busRef().readMemByte(lin(srcSeg, c.regs.w[6]));
+    c.regs.b[0] = c.busRef().read8(lin(srcSeg, c.regs.w[6]));
     int16_t step = c.df ? -1 : +1;
     c.regs.w[6] = uint16_t(c.regs.w[6] + step);
 }
 
 static inline void stringLodsw(V30& c) {
     uint16_t srcSeg = resolveSeg(c, 3);
-    c.regs.w[0] = c.busRef().readMemWord(lin(srcSeg, c.regs.w[6]));
+    c.regs.w[0] = c.busRef().read16(lin(srcSeg, c.regs.w[6]));
     int16_t step = c.df ? -2 : +2;
     c.regs.w[6] = uint16_t(c.regs.w[6] + step);
 }
 
 static inline void stringScasb(V30& c) {
     uint8_t a = c.regs.b[0];
-    uint8_t b = c.busRef().readMemByte(lin(c.sregs[0], c.regs.w[7]));
+    uint8_t b = c.busRef().read8(lin(c.sregs[0], c.regs.w[7]));
     setSubFlags8(c, a, b, uint16_t(a - b));
     int16_t step = c.df ? -1 : +1;
     c.regs.w[7] = uint16_t(c.regs.w[7] + step);
@@ -98,7 +107,7 @@ static inline void stringScasb(V30& c) {
 
 static inline void stringScasw(V30& c) {
     uint16_t a = c.regs.w[0];
-    uint16_t b = c.busRef().readMemWord(lin(c.sregs[0], c.regs.w[7]));
+    uint16_t b = c.busRef().read16(lin(c.sregs[0], c.regs.w[7]));
     setSubFlags16(c, a, b, uint32_t(a - b));
     int16_t step = c.df ? -2 : +2;
     c.regs.w[7] = uint16_t(c.regs.w[7] + step);
@@ -140,7 +149,7 @@ static int stringStep(V30& c, uint8_t op) {
 // Execute a REP-prefixed string op. `repZ` is true for REPE/REPZ (0xF3),
 // false for REPNE/REPNZ (0xF2). For MOVS/STOS/LODS the ZF condition is
 // ignored; for CMPS/SCAS the loop terminates when ZF no longer matches.
-static int64_t repString(V30& c, uint8_t op, bool repZ) {
+static int32_t repString(V30& c, uint8_t op, bool repZ) {
     bool checksZ = (op == 0xA6 || op == 0xA7 || op == 0xAE || op == 0xAF);
     uint32_t count = 0;
     while (c.regs.w[1] != 0) {
@@ -158,7 +167,7 @@ static int64_t repString(V30& c, uint8_t op, bool repZ) {
     // STOS 10. Charging the un-REPed figure per iteration plus the 9-cycle
     // prefix is within a cycle of that across the set.
     i8086Exact(c, int(9 + int64_t(i8086StringCycles(op)) * int64_t(count)));
-    return int64_t(8) * int64_t(count) + 14;
+    return 8 * int32_t(count) + 14;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -333,7 +342,7 @@ static inline uint16_t shiftRotateWord(V30& c, uint8_t op, uint16_t val, uint8_t
     return val;
 }
 
-int64_t dispatchMisc(V30& c, uint8_t op) {
+int32_t dispatchMisc(V30& c, uint8_t op) {
     switch (op) {
 
     // NOP
@@ -341,7 +350,7 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
 
     // HLT
     case 0xF4:
-        if (std::getenv("PSION_WAKE_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_WAKE_TRACE")) {
             uint32_t pc = (uint32_t(c.sregs[1]) << 4) + uint16_t(c.ip - 1);
             static uint64_t hltCount = 0;
             if (++hltCount <= 10 || hltCount % 100 == 0)
@@ -615,8 +624,8 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
             uint8_t  cf_in = 0;
             uint8_t  zf_any = 0;
             for (uint8_t i = 0; i < count; ++i) {
-                uint8_t src = c.busRef().readMemByte(lin(seg, uint16_t(si + i)));
-                uint8_t dst = c.busRef().readMemByte(lin(c.sregs[0], uint16_t(di + i)));
+                uint8_t src = c.busRef().read8(lin(seg, uint16_t(si + i)));
+                uint8_t dst = c.busRef().read8(lin(c.sregs[0], uint16_t(di + i)));
                 uint16_t al = src & 0x0F;
                 uint16_t bl = dst & 0x0F;
                 uint16_t ah = (src >> 4) & 0x0F;
@@ -626,7 +635,7 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
                     lo = bl + al + cf_in; cf_in = (lo >= 10); if (cf_in) lo -= 10;
                     hi = bh + ah + cf_in; cf_in = (hi >= 10); if (cf_in) hi -= 10;
                     uint8_t r = uint8_t((hi << 4) | (lo & 0xF));
-                    if (sub != 0x26) c.busRef().writeMemByte(lin(c.sregs[0], uint16_t(di + i)), r);
+                    if (sub != 0x26) c.busRef().write8(lin(c.sregs[0], uint16_t(di + i)), r);
                     if (r) zf_any = 1;
                 } else { // SUB4S / CMP4S
                     int16_t dlo = int16_t(bl) - int16_t(al) - int16_t(cf_in);
@@ -636,7 +645,7 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
                     cf_in = (dhi < 0) ? 1 : 0;
                     if (cf_in) dhi += 10;
                     uint8_t r = uint8_t((dhi << 4) | (dlo & 0xF));
-                    if (sub == 0x22) c.busRef().writeMemByte(lin(c.sregs[0], uint16_t(di + i)), r);
+                    if (sub == 0x22) c.busRef().write8(lin(c.sregs[0], uint16_t(di + i)), r);
                     if (r) zf_any = 1;
                 }
             }
@@ -676,17 +685,17 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
             uint8_t tmp2 = (getReg8(c, rg) & 0x0F) + 1;
             uint16_t iy = c.regs.w[7];     // DI/IY
             uint16_t aw = c.regs.w[0];
-            uint16_t w = c.busRef().readMemWord(lin(c.sregs[0], iy));
+            uint16_t w = c.busRef().read16(lin(c.sregs[0], iy));
             uint16_t mask1 = uint16_t((1u << tmp2) - 1);
             w = uint16_t((w & ~(mask1 << tmp)) | ((aw & mask1) << tmp));
-            c.busRef().writeMemWord(lin(c.sregs[0], iy), w);
+            c.busRef().write16(lin(c.sregs[0], iy), w);
             if (tmp + tmp2 > 15) {
                 iy = uint16_t(iy + 2);
-                uint16_t w2 = c.busRef().readMemWord(lin(c.sregs[0], iy));
+                uint16_t w2 = c.busRef().read16(lin(c.sregs[0], iy));
                 uint16_t len2 = uint16_t(tmp2 - (16 - tmp));
                 uint16_t mask2 = uint16_t((1u << len2) - 1);
                 w2 = uint16_t((w2 & ~mask2) | ((aw >> (16 - tmp)) & mask2));
-                c.busRef().writeMemWord(lin(c.sregs[0], iy), w2);
+                c.busRef().write16(lin(c.sregs[0], iy), w2);
                 c.regs.w[7] = iy;
             }
             setReg8(c, rm, uint8_t((tmp + tmp2) & 0x0F));
@@ -702,11 +711,11 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
             uint8_t tmp2 = (getReg8(c, rg) & 0x0F) + 1;
             uint16_t ix = c.regs.w[6];     // SI/IX
             uint16_t srcSeg = resolveSeg(c, 3);
-            uint32_t aw = c.busRef().readMemWord(lin(srcSeg, ix));
+            uint32_t aw = c.busRef().read16(lin(srcSeg, ix));
             aw >>= tmp;
             if (tmp + tmp2 > 15) {
                 ix = uint16_t(ix + 2);
-                uint32_t hi = c.busRef().readMemWord(lin(srcSeg, ix));
+                uint32_t hi = c.busRef().read16(lin(srcSeg, ix));
                 aw |= hi << (16 - tmp);
                 c.regs.w[6] = ix;
             }
@@ -723,17 +732,17 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
             uint8_t tmp2 = (fetch8(c) & 0x0F) + 1;
             uint16_t iy = c.regs.w[7];
             uint16_t aw = c.regs.w[0];
-            uint16_t w = c.busRef().readMemWord(lin(c.sregs[0], iy));
+            uint16_t w = c.busRef().read16(lin(c.sregs[0], iy));
             uint16_t mask1 = uint16_t((1u << tmp2) - 1);
             w = uint16_t((w & ~(mask1 << tmp)) | ((aw & mask1) << tmp));
-            c.busRef().writeMemWord(lin(c.sregs[0], iy), w);
+            c.busRef().write16(lin(c.sregs[0], iy), w);
             if (tmp + tmp2 > 15) {
                 iy = uint16_t(iy + 2);
-                uint16_t w2 = c.busRef().readMemWord(lin(c.sregs[0], iy));
+                uint16_t w2 = c.busRef().read16(lin(c.sregs[0], iy));
                 uint16_t len2 = uint16_t(tmp2 - (16 - tmp));
                 uint16_t mask2 = uint16_t((1u << len2) - 1);
                 w2 = uint16_t((w2 & ~mask2) | ((aw >> (16 - tmp)) & mask2));
-                c.busRef().writeMemWord(lin(c.sregs[0], iy), w2);
+                c.busRef().write16(lin(c.sregs[0], iy), w2);
                 c.regs.w[7] = iy;
             }
             setReg8(c, rm, uint8_t((tmp + tmp2) & 0x0F));
@@ -747,11 +756,11 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
             uint8_t tmp2 = (fetch8(c) & 0x0F) + 1;
             uint16_t ix = c.regs.w[6];
             uint16_t srcSeg = resolveSeg(c, 3);
-            uint32_t aw = c.busRef().readMemWord(lin(srcSeg, ix));
+            uint32_t aw = c.busRef().read16(lin(srcSeg, ix));
             aw >>= tmp;
             if (tmp + tmp2 > 15) {
                 ix = uint16_t(ix + 2);
-                uint32_t hi = c.busRef().readMemWord(lin(srcSeg, ix));
+                uint32_t hi = c.busRef().read16(lin(srcSeg, ix));
                 aw |= hi << (16 - tmp);
                 c.regs.w[6] = ix;
             }
@@ -806,8 +815,8 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
         push16(c, c.ip);
         c.iflag = 0;
         c.tf = 0;
-        c.ip       = c.busRef().readMemWord(0x04);
-        c.sregs[1] = c.busRef().readMemWord(0x06);
+        c.ip       = c.busRef().read16(0x04);
+        c.sregs[1] = c.busRef().read16(0x06);
         return 50;
     }
 
@@ -971,8 +980,8 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
             push16(c, c.sregs[1]);
             push16(c, c.ip);
             c.iflag = 0; c.tf = 0;
-            c.ip       = c.busRef().readMemWord(0);
-            c.sregs[1] = c.busRef().readMemWord(2);
+            c.ip       = c.busRef().read16(0);
+            c.sregs[1] = c.busRef().read16(2);
             return 15;
         }
         c.regs.b[1] = uint8_t(c.regs.b[0] / base);
@@ -1003,8 +1012,8 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
         uint8_t mrm = fetch8(c);
         Operand o = decodeModRM(c, mrm);
         if (!o.isReg) {
-            (void)c.busRef().readMemWord(o.linear);
-            (void)c.busRef().readMemWord(o.linear + 2);
+            (void)c.busRef().read16(o.linear);
+            (void)c.busRef().read16(o.linear + 2);
         }
         return 13;
     }
@@ -1049,27 +1058,27 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
     // advance SI/DI as MAME does so any caller that checks post-increment
     // behaviour stays consistent.
     case 0x6C: { // INSB — ES:[DI] <- port DX
-        c.busRef().writeMemByte(lin(c.sregs[0], c.regs.w[7]), 0);
+        c.busRef().write8(lin(c.sregs[0], c.regs.w[7]), 0);
         int16_t step = c.df ? -1 : +1;
         c.regs.w[7] = uint16_t(c.regs.w[7] + step);
         return 8;
     }
     case 0x6D: { // INSW
-        c.busRef().writeMemWord(lin(c.sregs[0], c.regs.w[7]), 0);
+        c.busRef().write16(lin(c.sregs[0], c.regs.w[7]), 0);
         int16_t step = c.df ? -2 : +2;
         c.regs.w[7] = uint16_t(c.regs.w[7] + step);
         return 8;
     }
     case 0x6E: { // OUTSB — port DX <- DS:[SI]
         uint16_t srcSeg = resolveSeg(c, 3);
-        (void)c.busRef().readMemByte(lin(srcSeg, c.regs.w[6]));
+        (void)c.busRef().read8(lin(srcSeg, c.regs.w[6]));
         int16_t step = c.df ? -1 : +1;
         c.regs.w[6] = uint16_t(c.regs.w[6] + step);
         return 8;
     }
     case 0x6F: { // OUTSW
         uint16_t srcSeg = resolveSeg(c, 3);
-        (void)c.busRef().readMemWord(lin(srcSeg, c.regs.w[6]));
+        (void)c.busRef().read16(lin(srcSeg, c.regs.w[6]));
         int16_t step = c.df ? -2 : +2;
         c.regs.w[6] = uint16_t(c.regs.w[6] + step);
         return 8;
@@ -1103,7 +1112,7 @@ int64_t dispatchMisc(V30& c, uint8_t op) {
         return 8;
     }
 
-    default: return -1;
+    default: return kNotMine;
     }
 }
 

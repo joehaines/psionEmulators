@@ -1,0 +1,276 @@
+--- gpe-calendar-0.58/globals.h~	Thu Oct  7 19:30:24 2004
++++ gpe-calendar-0.58/globals.h	Wed Oct 27 22:39:09 2004
+@@ -32,8 +32,6 @@
+ 
+ extern GtkWidget *main_window, *pop_window;
+ 
+-extern GdkFont *yearfont, *datefont;
+-
+ #define SECONDS_IN_DAY (24*60*60)
+ 
+ /* stuff that could perhaps be configurable */
+--- gpe-calendar-0.58/Makefile~	Sat Oct  9 20:17:22 2004
++++ gpe-calendar-0.58/Makefile	Wed Oct 27 22:41:12 2004
+@@ -19,7 +19,7 @@
+ PACKAGE_CFLAGS += $(STANDARD_CFLAGS) $(GPECFLAGS) `pkg-config --cflags mimedir-1.0` `$(LIBGPEVTYPE_PC_EXTRA) pkg-config --cflags $(LIBGPEVTYPE_PC)`
+ PACKAGE_LDFLAGS += $(STANDARD_LDFLAGS) $(GPELIBS) -lXsettings-client -ldisplaymigration -leventdb -lschedule -lgpepimc `pkg-config --libs mimedir-1.0` `$(LIBGPEVTYPE_PC_EXTRA) pkg-config --libs $(LIBGPEVTYPE_PC)`
+ 
+-MEMBERS = main day_view week_view event-ui month_view day_popup xsettings gtkdatesel import-vcal
++MEMBERS = main day_view week_view year_view event-ui month_view day_popup xsettings gtkdatesel import-vcal
+ 
+ .SUFFIXES: .d
+ 
+--- gpe-calendar-0.58/main.c~	Wed Oct 27 22:29:39 2004
++++ gpe-calendar-0.58/main.c	Wed Oct 27 22:52:11 2004
+@@ -33,6 +33,7 @@
+ #include "day_view.h"
+ #include "week_view.h"
+ #include "month_view.h"
++#include "year_view.h"
+ #include "import-vcal.h"
+ #include "gtkdatesel.h"
+ 
+@@ -58,6 +59,7 @@
+   { "day_view", "day_view" },
+   { "week_view", "week_view" },
+   { "month_view", "month_view" },
++  { "year_view", "year_view" },
+   { "bell", "bell" },
+   { "recur", "recur" },
+   { "bell_recur", "bell_recur" },
+@@ -72,8 +74,8 @@
+ 	system("gpe-helpviewer /usr/share/help/calendar/index.html");
+ }
+ 
+-static GtkWidget *day, *week, *month, *current_view;
+-static GtkWidget *day_button, *week_button, *month_button, *today_button;
++static GtkWidget *day, *week, *month, *year, *current_view;
++static GtkWidget *day_button, *week_button, *month_button, *year_button, *today_button;
+ 
+ guint window_x = 240, window_y = 310;
+ 
+@@ -489,6 +491,7 @@
+   week = week_view ();
+   day = day_view ();
+   month = month_view ();
++  year = year_view ();
+   toolbar = gtk_toolbar_new ();
+ 
+   gtk_toolbar_set_orientation (GTK_TOOLBAR (toolbar), GTK_ORIENTATION_HORIZONTAL);
+@@ -544,6 +547,15 @@
+ 					     pw, GTK_SIGNAL_FUNC (button_toggled), month);
+   GTK_WIDGET_UNSET_FLAGS(month_button, GTK_CAN_FOCUS);
+ 
++  p = gpe_find_icon_scaled ("year_view", gtk_toolbar_get_icon_size (GTK_TOOLBAR (toolbar)));
++  pw = gtk_image_new_from_pixbuf (p);
++  year_button = gtk_toolbar_append_element (GTK_TOOLBAR (toolbar),
++					     GTK_TOOLBAR_CHILD_RADIOBUTTON, week_button,
++					     _("Year"),
++					     _("Tap here to select year-at-a-time view."), NULL,
++					     pw, GTK_SIGNAL_FUNC (button_toggled), year);
++  GTK_WIDGET_UNSET_FLAGS(year_button, GTK_CAN_FOCUS);
++
+   pw = gtk_image_new_from_stock(GTK_STOCK_OPEN, 
+                                 gtk_toolbar_get_icon_size(GTK_TOOLBAR (toolbar)));
+   pw = gtk_toolbar_append_item (GTK_TOOLBAR (toolbar),
+@@ -569,10 +581,12 @@
+   gtk_widget_show (day);
+   gtk_widget_show (week);
+   gtk_widget_show (month);
++  gtk_widget_show (year);
+ 
+   gtk_notebook_append_page (GTK_NOTEBOOK (notebook), day, NULL);
+   gtk_notebook_append_page (GTK_NOTEBOOK (notebook), week, NULL);
+   gtk_notebook_append_page (GTK_NOTEBOOK (notebook), month, NULL);
++  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), year, NULL);
+ 
+   g_signal_connect(G_OBJECT(notebook),"switch-page",
+                    G_CALLBACK(notebook_switch_page),NULL);
+--- gpe-calendar-0.58/year_view.c~	Thu Apr  3 01:52:25 2003
++++ gpe-calendar-0.58/year_view.c	Wed Oct 27 22:38:33 2004
+@@ -33,22 +33,35 @@
+ static guint day_pitch, month_width, yoff;
+ static guint months_across, month_height, space;
+ static guint day_vpitch;
+-static guint old_x;
++
++/* Pixels between months */
++#define MONTH_SPACING 20
+ 
+ static void
+ calc_geometry (GtkWidget *widget)
+ {
++  static guint old_x;
+   guint rows;
+   guint x = widget->allocation.width;
+-  guint y;
++  guint y = widget->allocation.height;
+ 
+   if (x == old_x)
+     return;
+ 
+   old_x = x;
+ 
+-  months_across = x / month_width;
++  /* Assume 4x3 for Netbook display */
++  /* months_across = x / month_width; */
++  months_across = 4;
++
++ space = yoff = MONTH_SPACING;
++ month_width  = (x - ((months_across + 1) * MONTH_SPACING)) / months_across;
++ month_height = (y - ((12 / months_across + 1) * MONTH_SPACING)) / (12 / months_across);
++
++ day_pitch = month_width / 7;
++ day_vpitch = month_height / 7;
+ 
++#if 0
+   if (months_across == 0)
+     months_across = 1;
+ 
+@@ -58,6 +71,7 @@
+ 
+   if (widget->allocation.height != y)
+     gtk_widget_set_usize (widget, -1, y);
++#endif    
+ }
+ 
+ static guint
+@@ -82,6 +96,7 @@
+ 		   gpointer user_data)
+ {
+   GtkDrawingArea *darea;
++  GtkStyle *text_style;
+   GdkDrawable *drawable;
+   GdkGC *black_gc;
+   GdkGC *grey_gc;
+@@ -96,6 +111,7 @@
+   time_t t;
+   guint m;
+   guint dn = 0;
++  PangoLayout *pl = gtk_widget_create_pango_layout (GTK_WIDGET (widget), NULL);
+ 
+   static guint days[] = { 31, 28, 31, 30, 31, 30, 
+ 			  31, 31, 30, 31, 30, 31 };
+@@ -140,19 +156,34 @@
+ 
+   gdk_draw_rectangle (drawable, white_gc, TRUE, 0, 0, max_width, max_height);
+ 
++  text_style = gtk_style_copy(widget->style);
++
+   for (m = 0; m < 12; m++)
+     {
+       const char *s = nl_langinfo(months[m]);
+       guint i = m % months_across, j = m / months_across;
+       guint x = space + (i * (space + month_width));
+-      guint y = 4 + (j * month_height);
+-      guint w = gdk_string_width (datefont, s);
++      guint y = 4 + (j * (month_height + yoff));
++      guint w;
+       guint d, dy;
+-      guint y1 = y + yoff;
++      guint y1 = y + yoff + day_vpitch;
++      PangoRectangle pr;
++
++      pango_layout_set_width (pl, max_width * PANGO_SCALE);
++      pango_layout_set_markup (pl, s, strlen (s));
++      pango_layout_get_pixel_extents (pl, &pr, NULL);
++      w = pr.width;
+ 
+       /* Draw the month label */
+-      gdk_draw_string (drawable, datefont, black_gc, 
+-		       x + (month_width / 2) - (w / 2), y + datefont->ascent, s);
++      gtk_paint_layout (widget->style,
++			widget->window,
++			GTK_WIDGET_STATE (widget),
++			FALSE,
++			&event->area,
++			widget,
++			"label",
++		        x + (month_width / 2) - (w / 2), y + yoff,
++			pl);
+ 
+       /* Draw the weekend highlight */
+       gdk_draw_rectangle (drawable, grey_gc, 1,
+@@ -166,7 +197,12 @@
+ 	  char buf[32];
+ 	  guint x1, w;
+ 	  snprintf (buf, sizeof (buf), "%d", d);
+-	  w = gdk_string_width (yearfont, buf);
++
++          pango_layout_set_width (pl, day_pitch * PANGO_SCALE);
++          pango_layout_set_markup (pl, buf, strlen (buf));
++          pango_layout_get_pixel_extents (pl, &pr, NULL);
++
++	  w = pr.width;
+ 	  x1 = x + (dy * day_pitch);
+ 
+ 	  if (day_event_bits[dn / sizeof(unsigned int)] & (1 << (dn % sizeof(unsigned int))))
+@@ -179,9 +215,18 @@
+ 	  if (d == today.tm_mday && m == today.tm_mon  && tm.tm_year == today.tm_year)
+ 	    fg_gc = red_gc;
+ 
+-	  gdk_draw_string (drawable, yearfont, fg_gc, 
+-			 x1 + ((day_pitch - w) / 2), y1 + yearfont->ascent, 
+-			 buf);
++          text_style->fg_gc[0] = fg_gc;
++
++          gtk_paint_layout (text_style,
++            widget->window,
++            GTK_WIDGET_STATE (widget),
++            FALSE,
++            &event->area,
++            widget,
++            "label",
++            x1 + ((day_pitch - w) / 2), y1,
++            pl);
++
+ 	  if (++dy == 7)
+ 	    {
+ 	      dy = 0;
+@@ -254,6 +299,10 @@
+   GtkWidget *scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+   char buf[32];
+   guint d, maxw = 0;
++#if 0
++  PangoLayout *pl = gtk_widget_create_pango_layout (GTK_WIDGET (scrolled_window), NULL);
++  PangoRectangle pr;
++#endif
+ 
+   g_draw = gtk_drawing_area_new ();
+ 
+@@ -275,21 +324,28 @@
+   g_object_set_data (G_OBJECT (vbox), "update_hook",
+                      (gpointer) year_view_update);
+ 
++#if 0
++  pango_layout_set_width (pl, vbox->allocation.width * PANGO_SCALE);
++
+   for (d = 10; d < 32; d++)
+     {
+-      guint w;
+       snprintf (buf, sizeof (buf), "%d", d);
+-      w = gdk_string_width (yearfont, buf);
+-      if (w > maxw)
+-        maxw = w;
++
++      pango_layout_set_markup (pl, buf, strlen (buf));
++      pango_layout_get_pixel_extents (pl, &pr, NULL);
++
++      if (pr.width > maxw)
++        maxw = pr.width;
+     }
+ 
+   day_pitch = maxw + 4;
+-  day_vpitch = yearfont->ascent + yearfont->descent;
+-  yoff = datefont->ascent + datefont->descent + 1;
++  day_vpitch = pr.height;
++  yoff = pr.height + 1;
+   month_width = (day_pitch * 7) + 4;
+   month_height = (day_vpitch * 5) + 4 + yoff;
+-  calc_geometry (g_draw);
++#endif
++
++  year_view_update();
+ 
+   gtk_widget_show (g_draw);
+   gtk_widget_show (datesel);

@@ -1,0 +1,105 @@
+Index: list-ui.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/list-ui.c,v
+retrieving revision 1.48
+diff -u -r1.48 list-ui.c
+--- list-ui.c	21 Sep 2004 23:01:00 -0000	1.48
++++ list-ui.c	11 Oct 2004 12:18:22 -0000
+@@ -40,7 +40,7 @@
+ static void
+ item_do_edit (void)
+ {
+-  gtk_widget_show_all (edit_item (current_menu_item, -1));
++  gtk_widget_show_all (edit_item (current_menu_item, -1, GTK_WINDOW(window)));
+ 
+   current_menu_item = NULL;
+ }
+@@ -102,7 +102,7 @@
+ static void
+ new_todo_item (GtkWidget *w, gpointer user_data)
+ {
+-  GtkWidget *todo = edit_item (NULL, selected_category);
++  GtkWidget *todo = edit_item (NULL, selected_category, GTK_WINDOW(window));
+ 
+   gtk_widget_show_all (todo);
+ }
+@@ -157,7 +157,7 @@
+ 
+   gtk_tree_model_get (GTK_TREE_MODEL (list_store), &iter, 3, &i, -1);
+ 
+-  gtk_widget_show_all (edit_item (i, -1));
++  gtk_widget_show_all (edit_item (i, -1, GTK_WINDOW(window)));
+ }
+ 
+ void
+Index: todo-ui.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/todo-ui.c,v
+retrieving revision 1.43
+diff -u -r1.43 todo-ui.c
+--- todo-ui.c	21 Sep 2004 17:22:41 -0000	1.43
++++ todo-ui.c	11 Oct 2004 12:18:22 -0000
+@@ -247,7 +247,7 @@
+  * if item=NULL, you may pass the item's initial category.
+  */
+ GtkWidget *
+-edit_item (struct todo_item *item, gint initial_category)
++edit_item (struct todo_item *item, gint initial_category, GtkWindow *parent)
+ {
+   GtkWidget *window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+   GtkWidget *top_vbox;
+@@ -267,7 +267,7 @@
+   GtkWidget *entry_summary = gtk_entry_new ();
+   GtkWidget *hbox_summary = gtk_hbox_new (FALSE, 0);
+   GtkWidget *hbox_categories = NULL;
+-  GtkWidget *scrolled_window;
++  GtkWidget *scrolled_window, *viewport;
+   struct edit_todo *t;
+   guint i;
+   struct tm tm;
+@@ -275,6 +275,8 @@
+ 
+   t = g_malloc (sizeof (struct edit_todo));
+ 
++  gtk_window_set_transient_for(GTK_WINDOW(window), parent);
++  gtk_window_set_modal(GTK_WINDOW(window), TRUE);
+   displaymigration_mark_window (window);
+ 
+   top_vbox = gtk_vbox_new (FALSE, 0);
+@@ -284,6 +286,9 @@
+   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
+ 				  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+ 
++  viewport = gtk_viewport_new(NULL, NULL);
++  gtk_viewport_set_shadow_type(GTK_VIEWPORT(viewport), GTK_SHADOW_NONE);
++  
+   buttonok = gtk_button_new_from_stock (GTK_STOCK_SAVE);
+   buttoncancel = gtk_button_new_from_stock (GTK_STOCK_CANCEL);
+   buttondelete = gtk_button_new_from_stock (GTK_STOCK_DELETE);
+@@ -394,7 +399,8 @@
+ 
+   gtk_container_set_border_width (GTK_CONTAINER (window),
+ 				  gpe_get_border ());
+-  gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolled_window), vbox);
++  gtk_container_add (GTK_CONTAINER (viewport), vbox);
++  gtk_container_add (GTK_CONTAINER (scrolled_window), viewport);
+ 
+   gtk_box_pack_start (GTK_BOX (top_vbox), scrolled_window, TRUE, TRUE, 2);
+   gtk_box_pack_start (GTK_BOX (top_vbox), buttonbox, FALSE, FALSE, 2);
+Index: todo.h
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/todo.h,v
+retrieving revision 1.17
+diff -u -r1.17 todo.h
+--- todo.h	22 Feb 2004 13:01:20 -0000	1.17
++++ todo.h	11 Oct 2004 12:18:22 -0000
+@@ -18,7 +18,8 @@
+ extern GtkWidget *the_notebook;
+ 
+ extern GtkWidget *edit_item (struct todo_item *item,
+-                             gint initial_category);
++                             gint initial_category,
++                             GtkWindow *parent);
+ 
+ extern void categories_menu (void);
+ extern void refresh_items (void);

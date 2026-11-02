@@ -1,0 +1,3 @@
+#define KPOKER_VERSION 	"0.8"
+#define KPOKER_RELEASE_DATE "2004-09-30"
+

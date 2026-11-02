@@ -1,0 +1,44 @@
+--- gnome-cups-manager/gnome-printer-list.c~addinfoprint.patch	Wed Aug 18 21:55:59 2004
++++ gnome-cups-manager/gnome-printer-list.c	Thu Nov 11 13:29:13 2004
+@@ -41,6 +41,9 @@
+ #include <libgnomecups/gnome-cups-ui-util.h>
+ #include <libgnomecups/gnome-cups-permission.h>
+ 
++#include <X11/Xatom.h>
++#include <gdk/gdkx.h>
++
+ struct _GnomePrinterListDetails {
+ 	EggIconListItem *add_item;
+ 
+@@ -60,6 +63,23 @@
+ 		icon_name, 48, GTK_ICON_LOOKUP_USE_BUILTIN, NULL);
+ }
+ 
++ 
++static void gpe_popup_infoprint (Display *dpy, char *s)                                                    
++{
++    Window w;                                                                                    
++    static Atom infoprint_atom;                                                                  
++                                                                                                 
++    if (infoprint_atom == None)                                                                  
++        infoprint_atom = XInternAtom (dpy, "_GPE_INFOPRINT", False);                               
++	                                                                                                 
++    w = XGetSelectionOwner (dpy, infoprint_atom);                                                
++    if (w != None)                   
++    {
++             XChangeProperty (dpy, w, infoprint_atom, XA_STRING, 8,                                   
++			               PropModeReplace, s, strlen (s));                                                      
++    }
++}
++
+ static void
+ add_new_printer_icon (GnomePrinterList *list)
+ {
+@@ -543,6 +563,7 @@
+ void
+ gnome_printer_list_new_printer (GnomePrinterList *list)
+ {
++        gpe_popup_infoprint (  gdk_x11_get_default_xdisplay(), "Starting New Printer Wizard");
+ 	gnome_cups_spawn ("gnome-cups-add", 0, NULL,
+ 		TRUE, gtk_widget_get_toplevel (GTK_WIDGET (list)));
+ }

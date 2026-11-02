@@ -1,0 +1,93 @@
+#!/bin/sh
+#
+# MMC hotplug agent for 2.5 kernels 
+#
+#	ACTION=add or remove
+#	DEVPATH=block/mmcblk0/mmcblk0p1
+
+
+cd /etc/hotplug
+. ./hotplug.functions
+
+#monitored partitions, devices and mount points  
+MMCMNT1=/media/mmc
+MMCDEV1=/dev/mmcblk0p1
+MMCBLK1=/block/mmcblk0/mmcblk0p1
+MMCLNK1="My MMC Card"
+
+CFMNT1=/media/cf
+CFDEV1=/dev/hda1
+CFBLK1=/block/hda
+CFLNK1="My CF Card"
+CFMNT2=/media/cf2
+CFDEV2=/dev/hda2
+CFLNK2="My CF Card (part2)"
+
+case $ACTION in
+
+add)
+    # 2.5.50 kernel bug: this happens sometimes
+    if [ ! -d /sys/$DEVPATH ]; then
+	mesg "bogus sysfs DEVPATH=$DEVPATH"
+	exit 1
+    fi
+
+
+    if [ -d /sys/$DEVPATH ]; then
+        if [ "$DEVPATH" = "$MMCBLK1" ]; then
+            mesg "$DEVPATH partition found, mounting as $MMCMNT1"
+	     if mount -o sync,noatime,noexec,nodev,fmask=0,dmask=0 $MMCDEV1 $MMCMNT1; then
+                mv "/home/lx/.$MMCLNK1" "/home/lx/$MMCLNK1"
+                chmod 777 "/home/lx/$MMCLNK1"
+            fi
+        fi
+#        if [ "$DEVPATH" = "$CFBLK1" ]; then 
+#            mesg "$DEVPATH device found, mounting as $CFMNT1 and $CFMNT2"  
+#            if mount -o sync,noatime,noexec,nodev,fmask=0,dmask=0 $CFDEV1 $CFMNT1; then
+#	        mesg "$CFDEV1 Mounted OK"
+#               mv "/home/lx/.$CFLNK1" "/home/lx/$CFLNK1" 
+#               chmod 777 "/home/lx/$CFLNK1"             
+#	     else
+#	     	mesg "$CFDEV1 mount failed"
+#	     fi
+#            if mount -o sync,noatime,noexec,nodev,fmask=0,dmask=0 $CFDEV2 $CFMNT2; then
+#	        mesg "$CFDEV2 Mounted OK"
+#              mv "/home/lx/.$CFLNK2" "/home/lx/$CFLNK2" 
+#               chmod 777 "/home/lx/$CFLNK2"             
+#	     else
+#	     	mesg "$CFDEV2 mount failed"
+#	     fi
+#	 fi			 
+    else 
+	debug_mesg "$DEVPATH not found"
+    fi
+    ;;
+    
+remove)
+    #no point checking for device - it's already gone
+    if [ "$DEVPATH" = "$MMCBLK1" ]; then 
+        if umount -f $MMCMNT1; then     
+            mv "/home/lx/$MMCLNK1" "/home/lx/.$MMCLNK1" 
+            chmod 000 "/home/lx/.$MMCLNK1"            
+            mesg "Umounted MMC card succesfully"                                
+        else 
+            mesg "MMC unmount failed"         
+        fi                     
+    fi                             
+#    if [ "$DEVPATH" = "$CFBLK1" ]; then 
+#        if umount -f $CFMNT1; then 
+#            mv "/home/lx/$CFLNK1" "/home/lx/.$CFLNK1"                           
+#            chmod 000 "/home/lx/.$CFLNK1" 
+#            mesg "Umounted CF card succesfully"
+#    	 else
+#    	     mesg "CF unmount failed"
+#    	 fi
+#    fi
+    ;;
+
+*)
+    debug_mesg MMC $ACTION event not supported
+    exit 1
+    ;;
+
+esac

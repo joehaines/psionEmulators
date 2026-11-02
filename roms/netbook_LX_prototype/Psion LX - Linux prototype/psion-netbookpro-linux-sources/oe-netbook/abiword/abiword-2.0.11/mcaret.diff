@@ -1,0 +1,83 @@
+--- abi/src/af/gr/xp/gr_Caret.cpp	2004-09-12 09:42:18.000000000 +1000
++++ abi/src/af/gr/xp/gr_Caret.cpp	2004-09-13 01:43:48.132906816 +1000
+@@ -394,4 +394,12 @@
+ 	m_pG->flush();
+ }
+ 
++
++/*!
++ * Only call this is you are absolutely certain you need it!
++ */
++void GR_Caret::forceDraw(void)
++{
++	_blink(true);
++}
+ //////////////////////////////////////////////////////////////////////////////////////
+--- abi/src/af/gr/xp/gr_Caret.h	2004-09-12 09:42:18.000000000 +1000
++++ abi/src/af/gr/xp/gr_Caret.h	2004-09-13 01:43:22.241842856 +1000
+@@ -46,6 +46,7 @@
+ 	inline bool isEnabled() const { return m_nDisableCount == 0; }
+ 	
+ 	void setBlink(bool bBlink);
++	void forceDraw(void);
+ 
+ 	// When you call setCoords, the cursor is explicitly shown
+ 	// and the timer restarts from 0 for the next 500ms cycle.
+--- abi/src/wp/ap/xp/ap_EditMethods.cpp	2004-09-12 09:42:38.000000000 +1000
++++ abi/src/wp/ap/xp/ap_EditMethods.cpp	2004-09-13 01:42:44.666555168 +1000
+@@ -3443,6 +3443,13 @@
+ 	CHECK_FRAME;
+ 	ABIWORD_VIEW;
+ 	pView->cmdCharMotion(pView->getCurrentBlock()->getDominantDirection() == FRIBIDI_TYPE_RTL,1);
++	if(pView->getGraphics() && pView->getGraphics()->getCaret())
++	{
++//
++// Draw fsking caret for sure!!!
++//
++		pView->getGraphics()->getCaret()->forceDraw();
++	}
+ 	return true;
+ }
+ 
+@@ -3451,6 +3458,13 @@
+ 	CHECK_FRAME;
+ 	ABIWORD_VIEW;
+ 	pView->cmdCharMotion(pView->getCurrentBlock()->getDominantDirection() != FRIBIDI_TYPE_RTL,1);
++	if(pView->getGraphics() && pView->getGraphics()->getCaret())
++	{
++//
++// Draw fsking caret for sure!!!
++//
++		pView->getGraphics()->getCaret()->forceDraw();
++	}
+ 	return true;
+ }
+ 
+@@ -3612,6 +3626,13 @@
+ 	CHECK_FRAME;
+ 	ABIWORD_VIEW;
+ 	pView->warpInsPtNextPrevLine(false);
++	if(pView->getGraphics() && pView->getGraphics()->getCaret())
++	{
++//
++// Draw fsking caret for sure!!!
++//
++		pView->getGraphics()->getCaret()->forceDraw();
++	}
+ 	return true;
+ }
+ 
+@@ -3620,6 +3641,13 @@
+ 	CHECK_FRAME;
+ 	ABIWORD_VIEW;
+ 	pView->warpInsPtNextPrevLine(true);
++	if(pView->getGraphics() && pView->getGraphics()->getCaret())
++	{
++//
++// Draw fsking caret for sure!!!
++//
++		pView->getGraphics()->getCaret()->forceDraw();
++	}
+ 	return true;
+ }
+ 

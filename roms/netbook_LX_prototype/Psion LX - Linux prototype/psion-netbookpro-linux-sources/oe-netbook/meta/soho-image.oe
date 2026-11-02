@@ -1,0 +1,32 @@
+export IMAGE_BASENAME = "soho-image"
+
+DEPENDS = "task-bootstrap meta-gpe meta-psion ttf-bitstream-vera"
+
+export IPKG_INSTALL = "task-bootstrap gpe psion psion-debug \
+		      pango-module-basic-x pango-module-basic-fc \
+		      glibc-gconv glibc-gconv-iso8859-1 \
+		      gdk-pixbuf-loader-png gdk-pixbuf-loader-xpm \
+		      gdk-pixbuf-loader-gif gdk-pixbuf-loader-bmp \
+		      gdk-pixbuf-loader-ico gdk-pixbuf-loader-jpeg \
+		      gnome-theme-grand-canyon gnome-theme-lighthouseblue \
+		      ttf-bitstream-vera agfa-fonts glibc-localedata-translit-neutral"
+
+add_netbook_tweaks() {
+	# add lx user, group and homedir, and add it to sys group for printer admin
+	echo "lx::1000:1000:LX Default User:/home/lx:/bin/sh" >>${IMAGE_ROOTFS}/etc/passwd
+	echo "lx:*:1000:" >>${IMAGE_ROOTFS}/etc/group
+	sed -i -e "s/^sys:.:3:$/sys:*:3:lx/" ${IMAGE_ROOTFS}/etc/group
+	#this is the 'emergency' home dir - normally overwritten by /home mount 
+	install -o 1000 -g 1000 -d ${IMAGE_ROOTFS}/home/lx
+	#install -o 1000 -g 1000 -d ${IMAGE_ROOTFS}/home/lx/My\ Documents
+
+	# point /lib/modules to the initrd, and have i2c and i2ckbd loaded
+	if [ ! -e ${IMAGE_ROOTFS}/lib/modules ]; then
+		ln -s ../initrd/lib/modules ${IMAGE_ROOTFS}/lib/modules
+	fi
+}
+
+#IMAGE_POSTPROCESS_COMMAND = "zap_root_password"
+IMAGE_POSTPROCESS_COMMAND = "add_netbook_tweaks"
+
+inherit image_ipk

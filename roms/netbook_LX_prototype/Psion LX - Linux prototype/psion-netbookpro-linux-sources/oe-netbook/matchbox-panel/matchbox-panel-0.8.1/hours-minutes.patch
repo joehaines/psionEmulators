@@ -1,0 +1,14 @@
+--- matchbox-panel-0.8.1/applets/mb-applet-battery.c~hours-minutes.patch	2004-10-23 01:56:29.000000000 +0200
++++ matchbox-panel-0.8.1/applets/mb-applet-battery.c	2004-10-23 02:01:38.000000000 +0200
+@@ -322,9 +322,9 @@
+ 	  && apm_vals[TIME_LEFT] > 0)
+ 	{
+ 	  sprintf(tray_msg, 
+-		  _("Battery Power\nCharge: %.2i %%\nTime left: %.2i mins\n"), apm_vals[PERCENTAGE], apm_vals[TIME_LEFT]);
++		  _("Battery Power\nCharge: %.2i %%\nTime left: %.2i hours %.2i mins\n"), apm_vals[PERCENTAGE], (apm_vals[TIME_LEFT]/60), (apm_vals[TIME_LEFT]%60));
+ 	}
+-      else sprintf(tray_msg, _("Battery Power\n Device read error.\n"));
++      else sprintf(tray_msg, _("Battery Power\n Refreshing battery information.\n"));
+     }
+   mb_tray_app_tray_send_message(app, tray_msg, 5000);
+ 

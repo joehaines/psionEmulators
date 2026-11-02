@@ -1,0 +1,51 @@
+--- gmime/gmime/gmime-multipart-encrypted.c	2004-05-01 17:47:36.000000000 +0200
++++ gmime-patched/gmime/gmime-multipart-encrypted.c	2004-08-01 16:22:09.000000000 +0200
+@@ -283,7 +283,6 @@
+ 	g_mime_data_wrapper_set_stream (wrapper, ciphertext);
+ 	g_object_unref (ciphertext);
+ 	g_mime_part_set_content_object (encrypted_part, wrapper);
+-	g_mime_part_set_filename (encrypted_part, "encrypted.asc");
+ 	g_mime_part_set_encoding (encrypted_part, GMIME_PART_ENCODING_7BIT);
+ 	g_object_unref (wrapper);
+ 	
+--- gmime/gmime/gmime-multipart-signed.c	2004-06-23 19:56:52.000000000 +0200
++++ gmime-patched/gmime/gmime-multipart-signed.c	2004-08-01 16:23:01.000000000 +0200
+@@ -37,7 +37,7 @@
+ #include "gmime-parser.h"
+ #include "gmime-part.h"
+ 
+-#define d(x) x
++#define d(x)
+ 
+ /* GObject class methods */
+ static void g_mime_multipart_signed_class_init (GMimeMultipartSignedClass *klass);
+@@ -340,8 +340,12 @@
+ 	
+ 	/* set the content-type of the signature part */
+ 	content_type = g_mime_content_type_new_from_string (mps->protocol);
++	if (!g_ascii_strcasecmp(mps->protocol, "application/pkcs7-signature")) {
++		g_mime_content_type_set_parameter(content_type, "name", "smime.p7s");
++		g_mime_part_set_filename (GMIME_PART (signature), "smime.p7s");
++		g_mime_part_set_encoding (GMIME_PART (signature), GMIME_PART_ENCODING_BASE64);
++	}
+ 	g_mime_object_set_content_type (signature, content_type);
+-	g_mime_part_set_filename (GMIME_PART (signature), "signature.asc");
+ 	
+ 	/* save the content and signature parts */
+ 	/* FIXME: make sure there aren't any other parts?? */
+@@ -434,7 +438,13 @@
+ 	
+ 	/* get the signature stream */
+ 	wrapper = g_mime_part_get_content_object (GMIME_PART (signature));
+-	sigstream = g_mime_data_wrapper_get_stream (wrapper);
++	if (!g_ascii_strcasecmp(protocol, "application/pkcs7-signature")) {
++		/* S/MIME signatures are base64 encoded - gpgsm can handle
++		 * that, but to be safe, use the decoded stream here... */
++		sigstream = g_mime_stream_mem_new ();
++		g_mime_data_wrapper_write_to_stream (wrapper, sigstream);
++	} else
++		sigstream = g_mime_data_wrapper_get_stream (wrapper);
+ 	g_mime_stream_reset (sigstream);
+ 	g_object_unref (signature);
+ 	g_object_unref (wrapper);
+

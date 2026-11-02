@@ -1,0 +1,1 @@
+#define KENOLABA_VERSION	"1.06b"

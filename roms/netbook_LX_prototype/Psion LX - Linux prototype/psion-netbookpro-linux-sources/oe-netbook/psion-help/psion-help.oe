@@ -1,0 +1,77 @@
+PV = "1.1"
+PR = "r1"
+PACKAGES= "help-abiword help-balsa help-calendar help-contacts help-firefox help-gaim help-gnumeric \ 
+		   help help-main help-calculator help-filemanager help-firststeps help-internet help-alarm help-todo \
+		   help-gallery help-sketchbook help-editor" 
+
+
+FILES_${PN} = "${datadir}/help"
+SRC_URI = "file://*.html file://*.png file://abiword file://balsa file://calendar file://contacts \
+            file://firefox file://gaim file://gnumeric file://help file://calculator file://filemanager \
+			file://firststeps file://internet file://alarm file://todo file://gallery file://sketchbook \
+			file://editor"
+
+
+FILES_help = "/usr/share/help/home.png /usr/share/help/back.png \
+/usr/share/help/forward.png /usr/share/help/search.png \
+/usr/share/help/help-index.html /usr/share/help/doc-not-installed.html" 
+FILES_help-abiword = "/usr/share/help/abiword/* /usr/share/AbiSuite-2.0/AbiWord/help/en-US/index.html"
+FILES_help-balsa = "/usr/share/help/balsa/*"
+FILES_help-calendar = "/usr/share/help/calendar/*"
+FILES_help-contacts = "/usr/share/help/contacts/*"
+FILES_help-firefox = "/usr/share/help/firefox/*"
+FILES_help-gaim = "/usr/share/help/gaim/*"
+FILES_help-gnumeric = "/usr/share/help/gnumeric/* /usr/share/gnumeric/1.3.93-psion/doc/C/gnumeric.xml"
+FILES_help-main = "/usr/share/help/help/*"
+FILES_help-calculator = "/usr/share/help/calculator/*"
+FILES_help-filemanager = "/usr/share/help/filemanager/*"
+FILES_help-firststeps = "/usr/share/help/firststeps/*"
+FILES_help-internet = "/usr/share/help/internet/*"
+FILES_help-alarm = "/usr/share/help/alarm/*"
+FILES_help-todo = "/usr/share/help/todo/*"
+FILES_help-gallery = "/usr/share/help/gallery/*"
+FILES_help-sketchbook = "/usr/share/help/sketchbook/*"
+FILES_help-editor = "/usr/share/help/editor/*"
+
+do_install() {
+	install -d ${D}${datadir}/help/
+	install -m 0644 ${WORKDIR}/*.html ${WORKDIR}/*.png ${D}${datadir}/help/
+	install -d ${D}${datadir}/help/abiword
+	install -m 0644 ${WORKDIR}/abiword/*.html ${D}${datadir}/help/abiword
+	install -d ${D}${datadir}/AbiSuite-2.0/AbiWord/help/en-US
+	ln -s ${datadir}/help/abiword/index.html ${D}${datadir}/AbiSuite-2.0/AbiWord/help/en-US/index.html
+	install -d ${D}${datadir}/help/balsa
+	install -m 0644 ${WORKDIR}/balsa/*.html ${D}${datadir}/help/balsa
+	install -d ${D}${datadir}/help/calendar
+	install -m 0644 ${WORKDIR}/calendar/*.html ${D}${datadir}/help/calendar
+	install -d ${D}${datadir}/help/contacts
+	install -m 0644 ${WORKDIR}/contacts/*.html ${D}${datadir}/help/contacts
+	install -d ${D}${datadir}/help/firefox
+	install -m 0644 ${WORKDIR}/firefox/*.html ${D}${datadir}/help/firefox
+	install -d ${D}${datadir}/help/gaim
+	install -m 0644 ${WORKDIR}/gaim/*.html ${D}${datadir}/help/gaim
+	install -d ${D}${datadir}/help/gnumeric
+	install -m 0644 ${WORKDIR}/gnumeric/*.html ${D}${datadir}/help/gnumeric
+	install -d ${D}${datadir}/gnumeric/1.3.93-psion/doc/C
+	ln -s ${datadir}/help/gnumeric/index.html ${D}${datadir}/gnumeric/1.3.93-psion/doc/C/gnumeric.xml
+	install -d ${D}${datadir}/help/help
+	install -m 0644 ${WORKDIR}/help/*.html ${D}${datadir}/help/help
+	install -d ${D}${datadir}/help/calculator
+	install -m 0644 ${WORKDIR}/calculator/*.html ${D}${datadir}/help/calculator
+	install -d ${D}${datadir}/help/filemanager
+	install -m 0644 ${WORKDIR}/filemanager/*.html ${D}${datadir}/help/filemanager
+	install -d ${D}${datadir}/help/firststeps
+	install -m 0644 ${WORKDIR}/firststeps/*.html ${D}${datadir}/help/firststeps
+    install -d ${D}${datadir}/help/internet
+    install -m 0644 ${WORKDIR}/internet/*.html ${D}${datadir}/help/internet
+	install -d ${D}${datadir}/help/alarm
+    install -m 0644 ${WORKDIR}/alarm/*.html ${D}${datadir}/help/alarm
+	install -d ${D}${datadir}/help/todo
+    install -m 0644 ${WORKDIR}/todo/*.html ${D}${datadir}/help/todo
+	install -d ${D}${datadir}/help/gallery
+    install -m 0644 ${WORKDIR}/gallery/*.html ${D}${datadir}/help/gallery
+	install -d ${D}${datadir}/help/sketchbook
+    install -m 0644 ${WORKDIR}/sketchbook/*.html ${D}${datadir}/help/sketchbook
+	install -d ${D}${datadir}/help/editor
+    install -m 0644 ${WORKDIR}/editor/*.html ${D}${datadir}/help/editor
+}

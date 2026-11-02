@@ -1,0 +1,37 @@
+Index: libbalsa/address-book-gpe.c
+===================================================================
+RCS file: /cvs/gnome/balsa/libbalsa/address-book-gpe.c,v
+retrieving revision 1.3
+diff -u -r1.3 address-book-gpe.c
+--- libbalsa/address-book-gpe.c	27 Aug 2004 16:31:18 -0000	1.3
++++ libbalsa/address-book-gpe.c	27 Aug 2004 22:36:55 -0000
+@@ -281,6 +281,10 @@
+     sqlite_exec_printf (gc->gpe->db,
+                         "select tag,value from contacts where urn=%d",
+                         gpe_read_attr, a, NULL, uid);
++    if(!a->address_list) { /* entry without address: ignore! */
++        g_object_unref(a);
++        return 0;
++    }
+     if(!a->full_name)
+         a->full_name = create_name(a->first_name, a->last_name);
+     g_object_set_data(G_OBJECT(a), "urn", GUINT_TO_POINTER(uid));
+@@ -480,11 +484,16 @@
+     sqlite_exec_printf (gc->db,
+                         "select tag,value from contacts where urn=%d",
+                         gpe_read_attr, a, NULL, uid);
++    if(!a->address_list) { /* entry without address: ignore! */
++        g_object_unref(a);
++        return 0;
++    }
+     if(!a->full_name)
+         a->full_name = create_name(a->first_name, a->last_name);
+     g_object_set_data(G_OBJECT(a), "urn", GUINT_TO_POINTER(uid));
+-    if(!*gc->new_prefix) 
++    if(!*gc->new_prefix)
+         *gc->new_prefix = libbalsa_address_to_gchar(a, 0);
++    printf("new prefix: %s\n", *gc->new_prefix);
+     gc->res = g_list_prepend(gc->res, a);
+ 
+     return 0;
+

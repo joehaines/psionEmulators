@@ -1,0 +1,56 @@
+# this desc is for cgi scripts that want to show every user 's addressbooks.
+#
+# a minimal cgi could be :
+#
+#	#! /bin/sh
+#	
+#	echo Content-type: text/html
+#	echo
+#
+#	gabyprint --as gaby-cgi --subtable "Address Book" --format HTML
+#
+# the funky part is in locations : ~*/.gaby/ means 'every home directories'
+# (excepted /tmp/)
+
+
+Begin tables
+	AddressBook:AB
+		First Name:string
+		Last Name:string
+		(More...):string
+		Street:string
+		Zip:string
+		City:string
+		State / Province:string
+		Country:string
+		Birthday:date
+		Private Phone:string
+		Work Phone:string
+		Cell Phone:string
+		Fax:string
+		E-Mail:string
+			format=email
+		Web Site:string
+			format=website
+		Category:string
+		Remarks:strings
+End
+
+Begin subtables
+	Phone Book:AddressBook
+		viewable as form, xlist.
+		with only the following fields
+			First Name:
+			Last Name:
+			Private Phone:Phone
+	Address Book:AddressBook
+		viewable as form, xlist.
+		with every fields.
+End
+
+Begin locations
+	AddressBook
+		~*/.gaby/
+		/var/state/gaby/
+End
+

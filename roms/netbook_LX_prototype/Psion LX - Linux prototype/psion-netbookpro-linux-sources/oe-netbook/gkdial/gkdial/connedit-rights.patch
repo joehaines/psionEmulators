@@ -1,0 +1,32 @@
+--- gkdial-1.8.1.orig/src/connedit.c	2003-06-27 01:14:51.000000000 +0200
++++ gkdial-1.8.1/src/connedit.c	2004-08-19 19:19:07.000000000 +0200
+@@ -1,7 +1,9 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-
++#include <sys/types.h>
++#include <sys/stat.h>
++ 
+ #ifdef HAVE_CONFIG_H
+ #  include <config.h>
+ #endif
+@@ -617,7 +619,6 @@
+       g_free (file_name);
+       return;
+     }
+-  g_free (file_name);
+   /*
+    * FIXME: need to get the modem device from somewhere 
+    */
+@@ -631,7 +632,10 @@
+ 	   PACKAGE, VERSION, connection->name, "/dev/modem",
+ 	   connection->user, connection->name);
+   fclose (file);
++  if (chmod (file_name, S_IWUSR | S_IRGRP | S_IRUSR | S_IROTH))
++	  perror("err");
+ 
++  g_free (file_name);
+   /*
+    * writes /etc/chatscripts/${peer} 
+    */

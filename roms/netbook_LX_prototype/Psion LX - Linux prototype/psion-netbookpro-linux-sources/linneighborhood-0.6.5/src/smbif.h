@@ -1,0 +1,93 @@
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+#ifndef _smbif_h_
+#define _smbif_h_
+
+
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include "browsewrap.h"
+
+#define MAXSMBLINEL          200
+#define MAXLOGSTRLEN         300
+#define GDK_INPUT_READ_      ( GDK_INPUT_READ | GDK_INPUT_EXCEPTION ) 
+/* I need GDK_INPUT_EXCEPTION with GTK 1.2 and Kernel 2.2, don't know why */
+/* no longer needed for gtk 1.2.2, but leave it in for a while!*/
+
+/* == global (DEBUG) == */
+#ifdef DEBUG
+FILE *debug_log;
+#endif
+
+
+//Neue Prototypen fuer die _done - Funktionen in browsewrap.h ( ohne '_' )
+
+extern void GetSMBGroups ( const char *group_name,
+                           const char *master_browser,
+                           const char *user,
+                           const char *passwd,
+                           const char *wins_name,
+                           char first_master,
+                           int port,
+                           GROUPS_BROWSE_INFO *browse_info );
+
+extern void GetSMBMachines ( const char *group_name,
+                             const char *master_browser,
+                             const char *user,
+                             const char *passwd,
+                             const char *domain,
+                             int port,
+                             MACHINES_BROWSE_INFO *browse_info );
+
+
+extern void GetSMBShares ( const char *group_name,
+                           const char *machine_name,
+                           const char *domain,
+                           const char *ipaddr,
+                           const char *user,
+                           const char *passwd,
+                           int port,
+                           SHARES_BROWSE_INFO *browse_info );
+
+
+extern void LookupByName ( const char * machine_name, const char * wins_name);
+extern void LookupByIP( const char *ipaddr);
+
+extern void smbmount(const char *servicename, const char *mount_point, const char *clientname, const char *ipaddr,
+              const char *group_name, const char *smbuser, const char *smbpasswd,uid_t uid,gid_t gid,
+              mode_t filemode,mode_t dirmode,int port,const char *supasswd);
+extern void smb_mount_memorized(char *mount_point,char ** arglist,char gui_mode);
+extern void stop_all_browse ( void );
+extern void stop_all_mount ( void );
+
+/*if (supasswd!=NULL) use su-command for mount/umount*/ 
+//extern smbmountStateType smbumount(char *mount_point,char *supasswd,char **errstr);
+//extern smbmountStateType rootumount(char *mount_point,char *supasswd,char **errstr);
+void smbumount(const char *mount_point,const char *supasswd,char smb,int tag);
+extern void init_smbmount(void);
+
+
+extern int fdread_line_ok(int fd,int *linec,int *linepos,char *linebuf);
+extern char *escape_str(const char *s,GSList **strlist);
+extern void log_execvp_str(const char *path, char *const argv[]);
+
+
+#endif		/* _smbif_h_ */

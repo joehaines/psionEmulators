@@ -35,7 +35,7 @@ using namespace V30Detail;
 
 namespace V30Detail {
 
-int64_t dispatchMov(V30& c, uint8_t op) {
+int32_t dispatchMov(V30& c, uint8_t op) {
     switch (op) {
 
     // MOV r/m8, r8  — ModR/M: reg -> r/m
@@ -110,25 +110,25 @@ int64_t dispatchMov(V30& c, uint8_t op) {
     // MOV AL, moffs8
     case 0xA0: {
         uint16_t off = fetch16(c);
-        c.regs.b[0] = c.busRef().readMemByte(lin(resolveSeg(c, 3), off));
+        c.regs.b[0] = c.busRef().read8(lin(resolveSeg(c, 3), off));
         return 10;
     }
     // MOV AX, moffs16
     case 0xA1: {
         uint16_t off = fetch16(c);
-        c.regs.w[0] = c.busRef().readMemWord(lin(resolveSeg(c, 3), off));
+        c.regs.w[0] = c.busRef().read16(lin(resolveSeg(c, 3), off));
         return 10;
     }
     // MOV moffs8, AL
     case 0xA2: {
         uint16_t off = fetch16(c);
-        c.busRef().writeMemByte(lin(resolveSeg(c, 3), off), c.regs.b[0]);
+        c.busRef().write8(lin(resolveSeg(c, 3), off), c.regs.b[0]);
         return 10;
     }
     // MOV moffs16, AX
     case 0xA3: {
         uint16_t off = fetch16(c);
-        c.busRef().writeMemWord(lin(resolveSeg(c, 3), off), c.regs.w[0]);
+        c.busRef().write16(lin(resolveSeg(c, 3), off), c.regs.w[0]);
         return 10;
     }
 
@@ -170,8 +170,8 @@ int64_t dispatchMov(V30& c, uint8_t op) {
         uint8_t reg = (mrm >> 3) & 7;
         Operand o   = decodeModRM(c, mrm);
         if (o.isReg) return -1;
-        uint16_t lo = c.busRef().readMemWord(o.linear);
-        uint16_t hi = c.busRef().readMemWord((o.linear + 2) & 0xFFFFF);
+        uint16_t lo = c.busRef().read16(o.linear);
+        uint16_t hi = c.busRef().read16((o.linear + 2) & 0xFFFFF);
         setReg16(c, reg, lo);
         c.sregs[0] = hi; // ES
         return 16;
@@ -183,8 +183,8 @@ int64_t dispatchMov(V30& c, uint8_t op) {
         uint8_t reg = (mrm >> 3) & 7;
         Operand o   = decodeModRM(c, mrm);
         if (o.isReg) return -1;
-        uint16_t lo = c.busRef().readMemWord(o.linear);
-        uint16_t hi = c.busRef().readMemWord((o.linear + 2) & 0xFFFFF);
+        uint16_t lo = c.busRef().read16(o.linear);
+        uint16_t hi = c.busRef().read16((o.linear + 2) & 0xFFFFF);
         setReg16(c, reg, lo);
         c.sregs[3] = hi; // DS
         return 16;
@@ -193,7 +193,7 @@ int64_t dispatchMov(V30& c, uint8_t op) {
     // XLAT — AL = [BX + AL]
     case 0xD7: {
         uint16_t off = uint16_t(c.regs.w[3] + c.regs.b[0]);
-        c.regs.b[0] = c.busRef().readMemByte(lin(resolveSeg(c, 3), off));
+        c.regs.b[0] = c.busRef().read8(lin(resolveSeg(c, 3), off));
         return 11;
     }
 
@@ -237,7 +237,7 @@ int64_t dispatchMov(V30& c, uint8_t op) {
         return o.isReg ? 4 : 17;
     }
 
-    default: return -1;
+    default: return kNotMine;
     }
 }
 

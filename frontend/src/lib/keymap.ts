@@ -112,6 +112,7 @@ export const keymap: Record<string, number> = {
 export type KeyboardLayout =
   | 'epoc32'         // Series 5 / 5mx / 5mxPro / MC218 / Osaris / Revo
   | 'sa1100'         // Series 7 / netBook
+  | 'netbookpro'     // Psion LX (netBook Pro running Linux)
   | 'mc400'          // MC400
   | 'sibo-classic'   // Series 3
   | 'sibo-3a'        // Series 3a / 3c / 3mx / Pocket Book / Pocket Book II
@@ -140,6 +141,7 @@ export function keyboardLayoutForDevice(deviceId: string | null | undefined): Ke
     case 'workaboutmx':           return 'sibo-workabout';
     case 'series7':
     case 'netbook':               return 'sa1100';
+    case 'psionlx':               return 'netbookpro';
     default:
       return deviceId && SIBO_3A_IDS.has(deviceId) ? 'sibo-3a' : 'epoc32';
   }
@@ -254,6 +256,22 @@ const SIBO_WORKABOUT: Record<string, SymEntry> = {
   '{': [_P, D['5']], '}': [_P, D['6']], "'": [_P, D['7']], '[': [_P, D['8']], ']': [_P, D['9']],
 };
 
+// Psion LX (netBook Pro keyboard under Linux). The base keys are the ones
+// the kernel's keymap gives a code (drivers/input/keyboard/netbookpro.c), and
+// the Shift and Fn (AltGr / Mode_switch) legends come from the image's own
+// /etc/X11/xmodmap-netbookpro. The core turns these EPOC codes into the
+// keyboard's scan codes (core/netbookpro.cpp).
+const NETBOOKPRO: Record<string, SymEntry> = {
+  ',': [_N, 121], '.': [_N, 122], '/': [_N, 123], '\\': [_N, 124], ';': [_N, 125],
+  "'": [_N, 126], '-': [_N, 130], '=': [_N, 131],
+  '!': [_S, 49], '@': [_S, 50], '#': [_S, 51], '$': [_S, 52], '%': [_S, 53],
+  '^': [_S, 54], '&': [_S, 55], '*': [_S, 56], '(': [_S, 57], ')': [_S, 48],
+  '<': [_S, 121], '>': [_S, 122], '?': [_S, 123], '~': [_S, 124], ':': [_S, 125],
+  '"': [_S, 126], '_': [_S, 130], '+': [_S, 131],
+  '£': [_F, 51], '€': [_F, 52], '`': [_F, 53], '{': [_F, 55], '}': [_F, 56],
+  '[': [_F, 57], ']': [_F, 48], '|': [_F, 124],
+};
+
 // MC400.  Full laptop keyboard, standard UK Shift legends, no Psion layer.
 const MC400: Record<string, SymEntry> = {
   ';': [_N, 59], "'": [_N, 126], ',': [_N, C_COMMA], '.': [_N, C_STOP],
@@ -308,6 +326,7 @@ const ORGANISER1: Record<string, SymEntry> = {
 const LAYOUT_SYMBOLS: Record<KeyboardLayout, Record<string, SymEntry>> = {
   'epoc32':         EPOC32,
   'sa1100':         SA1100,
+  'netbookpro':     NETBOOKPRO,
   'mc400':          MC400,
   'sibo-classic':   SIBO_CLASSIC,
   'sibo-3a':        SIBO_3A,

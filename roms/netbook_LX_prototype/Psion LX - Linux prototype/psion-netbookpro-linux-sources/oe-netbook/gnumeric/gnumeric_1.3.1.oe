@@ -1,0 +1,19 @@
+PR = "r6"
+S = "${WORKDIR}/gnumeric-${PV}"
+DEPENDS = "libgsf gtk+ libxml2 libglade libart-lgpl intltool-native libgnomecanvas libgnomeprint libgnomeprintui"
+DESCRIPTION = "Gnumeric spreadsheet for GNOME"
+
+inherit gnome flow-lossage
+
+SRC_URI += "file://1.3.1-20040809.patch;patch=1;pnum=0 \
+	    file://desktop-nobble.patch;patch=1 \
+	    file://motion-cursor-compress.patch;patch=1;pnum=0 \
+	    file://gnumeric-pixbufs-create.patch;patch=1;pnum=0"
+
+EXTRA_OEMAKE_prepend = ' ORBIT_IDL=`which orbit-idl-2` '
+
+python populate_packages_prepend () {
+	gnumeric_libdir = oe.data.expand('${libdir}/gnumeric/1.3.2/plugins', d)
+
+	do_split_packages(d, gnumeric_libdir, '(.*)', 'gnumeric-plugin-%s', 'Gnumeric plugin for %s', allow_dirs=True)
+}

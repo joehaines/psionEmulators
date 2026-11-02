@@ -1,0 +1,50 @@
+--- gcc-3.4.1/gcc/Makefile.in.old	Thu Sep 16 11:42:37 2004
++++ gcc-3.4.1/gcc/Makefile.in	Thu Sep 16 11:45:16 2004
+@@ -2920,7 +2920,7 @@
+ 	-$(INSTALL_PROGRAM) xgcc$(exeext) $(DESTDIR)$(bindir)/$(GCC_INSTALL_NAME)$(exeext)
+ 	-rm -f $(DESTDIR)$(bindir)/$(target_noncanonical)-gcc-$(version)
+ 	-( cd $(DESTDIR)$(bindir) && \
+-	   $(LN) $(GCC_INSTALL_NAME)$(exeext) $(target_noncanonical)-gcc-$(version) )
++	   $(LN_S) $(GCC_INSTALL_NAME)$(exeext) $(target_noncanonical)-gcc-$(version) )
+ 	-if [ -f gcc-cross$(exeext) ] ; then \
+ 	  if [ -d $(DESTDIR)$(gcc_tooldir)/bin/. ] ; then \
+ 	    rm -f $(DESTDIR)$(gcc_tooldir)/bin/gcc$(exeext); \
+@@ -2929,7 +2929,7 @@
+ 	else \
+ 	  rm -f $(DESTDIR)$(bindir)/$(target_noncanonical)-gcc-tmp$(exeext); \
+ 	  ( cd $(DESTDIR)$(bindir) && \
+-	    $(LN) $(GCC_INSTALL_NAME)$(exeext) $(target_noncanonical)-gcc-tmp$(exeext) && \
++	    $(LN_S) $(GCC_INSTALL_NAME)$(exeext) $(target_noncanonical)-gcc-tmp$(exeext) && \
+ 	    mv -f $(target_noncanonical)-gcc-tmp$(exeext) $(GCC_TARGET_INSTALL_NAME)$(exeext) ); \
+ 	fi
+ 
+--- gcc-3.4.1/gcc/cp/Make-lang.in.old	Fri Sep 17 14:00:53 2004
++++ gcc-3.4.1/gcc/cp/Make-lang.in	Fri Sep 17 14:09:02 2004
+@@ -138,7 +138,7 @@
+ 	-chmod a+x $(DESTDIR)$(bindir)/$(GXX_INSTALL_NAME)$(exeext)
+ 	-rm -f $(DESTDIR)$(bindir)/$(CXX_INSTALL_NAME)$(exeext)
+ 	-( cd $(DESTDIR)$(bindir) && \
+-	      $(LN) $(GXX_INSTALL_NAME)$(exeext) $(CXX_INSTALL_NAME)$(exeext) )
++	      $(LN_S) $(GXX_INSTALL_NAME)$(exeext) $(CXX_INSTALL_NAME)$(exeext) )
+ 	-if [ -f cc1plus$(exeext) ] ; then \
+ 	  if [ -f g++-cross$(exeext) ] ; then \
+ 	    if [ -d $(DESTDIR)$(gcc_tooldir)/bin/. ] ; then \
+@@ -146,15 +146,15 @@
+ 	      $(INSTALL_PROGRAM) g++-cross$(exeext) $(DESTDIR)$(gcc_tooldir)/bin/g++$(exeext); \
+ 	      rm -f $(DESTDIR)$(gcc_tooldir)/bin/c++$(exeext); \
+ 	      ( cd $(DESTDIR)$(gcc_tooldir)/bin && \
+-	        $(LN) g++$(exeext) c++$(exeext) ); \
++	        $(LN_S) g++$(exeext) c++$(exeext) ); \
+ 	    else true; fi; \
+ 	  else \
+ 	    rm -f $(DESTDIR)$(bindir)/$(GXX_TARGET_INSTALL_NAME)$(exeext); \
+ 	    ( cd $(DESTDIR)$(bindir) && \
+-	      $(LN) $(GXX_INSTALL_NAME)$(exeext) $(GXX_TARGET_INSTALL_NAME)$(exeext) ); \
++	      $(LN_S) $(GXX_INSTALL_NAME)$(exeext) $(GXX_TARGET_INSTALL_NAME)$(exeext) ); \
+ 	    rm -f $(DESTDIR)$(bindir)/$(CXX_TARGET_INSTALL_NAME)$(exeext); \
+ 	    ( cd $(DESTDIR)$(bindir) && \
+-	      $(LN) $(CXX_INSTALL_NAME)$(exeext) $(CXX_TARGET_INSTALL_NAME)$(exeext) ); \
++	      $(LN_S) $(CXX_INSTALL_NAME)$(exeext) $(CXX_TARGET_INSTALL_NAME)$(exeext) ); \
+ 	  fi ; \
+ 	fi
+ 

@@ -1,0 +1,73 @@
+Index: gpe-login.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-login/gpe-login.c,v
+retrieving revision 1.84
+diff -u -r1.84 gpe-login.c
+--- gpe-login.c	29 Aug 2004 18:31:43 -0000	1.84
++++ gpe-login.c	9 Sep 2004 10:01:16 -0000
+@@ -55,6 +55,7 @@
+ #define GPE_LOCALE_ALIAS "/etc/gpe/locales/"
+ #define GPE_LOCALE_DEFAULT "/etc/gpe/locale.default"
+ #define GPE_LOCALE_USER_FILE ".gpe/locale"
++#define GPE_OWNERINFO_DONTSHOW_FILE "/etc/gpe/gpe-ownerinfo.dontshow"
+ #define DEBUG 0
+ 
+ #define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
+@@ -79,6 +80,7 @@
+ static GtkWidget *focus;
+ static GtkWidget *socket = NULL;
+ static GtkWidget *socket_box;
++static GtkWidget *ownerinfo = NULL;
+ 
+ static guint xkbd_xid;
+ 
+@@ -470,7 +472,7 @@
+ {
+   gchar *pwstr = gtk_editable_get_chars (GTK_EDITABLE (entry), 0, -1);
+   gtk_entry_set_text (GTK_ENTRY (entry), "");
+-
++  
+   if (login_correct (pwstr, NULL))
+     {
+       gdk_keyboard_ungrab (GDK_CURRENT_TIME);
+@@ -520,6 +522,13 @@
+ 	  gtk_label_set_markup (GTK_LABEL (label_result), "");
+ 	  gtk_widget_set_usize (window, gdk_screen_width (), gdk_screen_height ());
+ 	  gtk_widget_show_all (window);
++      if (ownerinfo)
++        {  
++          if (access(GPE_OWNERINFO_DONTSHOW_FILE, F_OK))
++            gtk_widget_show(ownerinfo);
++          else
++            gtk_widget_hide(ownerinfo);
++         }
+ 	  gtk_widget_grab_focus (focus);
+ 	  gdk_keyboard_grab (focus->window, TRUE, GDK_CURRENT_TIME);
+ 	  if (xkbd_xid)
+@@ -1406,7 +1415,7 @@
+ main (int argc, char *argv[])
+ {
+   GtkWidget *option, *menu;
+-  GtkWidget *calibrate_hint, *ownerinfo;
++  GtkWidget *calibrate_hint;
+   Display *dpy;
+   Window root;
+   gboolean geometry_set = FALSE;
+@@ -1839,6 +1848,8 @@
+     {
+       ownerinfo = gpe_owner_info ();
+       gtk_box_pack_start (GTK_BOX (vbox2), ownerinfo, TRUE, TRUE, 0);
++      if (!access(GPE_OWNERINFO_DONTSHOW_FILE, F_OK))
++		gtk_widget_hide(ownerinfo);  
+     }
+ 
+   gtk_container_add (GTK_CONTAINER (window), vbox2);
+@@ -1856,7 +1867,7 @@
+       gtk_widget_show_all (window);
+       gtk_widget_grab_focus (focus);
+       if (xkbd_xid && socket)
+-	gtk_socket_steal (GTK_SOCKET (socket), xkbd_xid);
++         gtk_socket_steal (GTK_SOCKET (socket), xkbd_xid);
+     }
+ 
+   gtk_main ();

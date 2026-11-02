@@ -1,0 +1,29 @@
+Index: guitools.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-filemanager/guitools.c,v
+retrieving revision 1.8
+diff -u -r1.8 guitools.c
+--- guitools.c	28 Oct 2004 16:59:58 -0000	1.8
++++ guitools.c	1 Nov 2004 17:23:22 -0000
+@@ -40,6 +40,7 @@
+ static t_storage *storages = NULL;
+ static int num_storage = 0;
+ static time_t mtab_time = 0;
++static size_t mtab_size = -1;
+ 
+ /* checks if a tree is mounted */
+ static gboolean
+@@ -204,10 +205,12 @@
+   
+   if (!stat(FILE_MTAB, &sdat))
+     {
+-      if (mtab_time != sdat.st_ctime)
++      if ((mtab_time != sdat.st_ctime) ||
++          (mtab_size != sdat.st_size))
+         {
+           do_scheduled_update();
+           mtab_time = sdat.st_ctime;
++          mtab_size = sdat.st_size;
+         }
+     }
+   return TRUE;	

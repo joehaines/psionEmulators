@@ -1,0 +1,16 @@
+#!/bin/sh
+# $Id: pfbtopfa,v 1.3 2002/04/23 11:58:36 easysw Exp $
+# Convert .pfb fonts to .pfa format
+
+if [ $# -eq 2 ] 
+then
+    outfile=$2
+elif [ $# -eq 1 ]
+then
+    outfile=`basename "$1" \.pfb`.pfa
+else
+    echo "Usage: `basename $0` input.pfb [output.pfa]" 1>&2
+    exit 1
+fi
+
+exec gs -q -dNODISPLAY -- pfbtopfa.ps "$1" "$outfile"

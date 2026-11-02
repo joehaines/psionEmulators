@@ -1,0 +1,38 @@
+--- vpnc-0.2-rm+zomb.1/vpnc-connect	Sun May  2 04:13:07 2004
++++ vpnc-0.2-rm+zomb.1_patch/vpnc-connect	Sat Sep 11 19:28:38 2004
+@@ -43,6 +43,14 @@
+ 		fi
+ 	fi
+ 	
++	if [ ! -e /dev/net ]; then
++		mkdir /dev/net
++	fi
++
++	if [ ! -e /dev/net/tun ]; then
++		mknod /dev/net/tun c 10 200
++	fi
++
+ 	exec "$VPNC" --pid-file "$pid" --script "$0" "$@" || exit 1
+ fi
+ 
+@@ -52,9 +60,8 @@
+ 	pointopoint $INTERNAL_IP4_ADDRESS \
+ 	netmask 255.255.255.255 mtu 1412 up
+ ip route add $(ip route get $VPNGATEWAY | fix_ip_get_output)
+-ip route | grep '^default' | fix_ip_get_output > "$defr"
++ip route show | grep '^default' | fix_ip_get_output > "$defr"
+ echo "$VPNGATEWAY" > "$gateway"
+ ip route del default
+ ip route add default dev $TUNDEV
+-ip route flush cache
+ exit 0
+--- vpnc-0.2-rm+zomb.1/vpnc-disconnect	Thu May 13 17:28:18 2004
++++ vpnc-0.2-rm+zomb.1_patch/vpnc-disconnect	Sat Sep 11 19:28:38 2004
+@@ -31,7 +31,6 @@
+ 	ip route del default > /dev/null 2>&1
+ 	ip route add $(cat "$defr")
+ 	test -r "$gateway" && ip route del $(cat "$gateway")
+-	ip route flush cache
+ fi
+ 
+ rm -f -- "$defr" "$pid" "$gateway"

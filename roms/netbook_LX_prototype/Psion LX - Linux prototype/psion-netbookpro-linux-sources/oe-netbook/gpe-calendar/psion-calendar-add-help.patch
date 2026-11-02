@@ -1,0 +1,43 @@
+--- main.orig	2004-10-20 15:32:25.000000000 +0200
++++ main.c	2004-10-20 16:27:52.000000000 +0200
+@@ -62,9 +62,16 @@
+   { "recur", "recur" },
+   { "bell_recur", "bell_recur" },
+   { "icon", PREFIX "/share/pixmaps/gpe-calendar.png" },
++  { "help", "help" },
+   { NULL, NULL }
+ };
+ 
++static void
++show_help (void)
++{
++	system("gpe-helpviewer /usr/share/help/calendar/index.html");
++}
++
+ static GtkWidget *day, *week, *month, *current_view;
+ static GtkWidget *day_button, *week_button, *month_button, *today_button;
+ 
+@@ -363,6 +370,10 @@
+         ccpos++;
+         return TRUE;
+     }
++  if (k->keyval == GDK_F1)
++  {
++	  show_help();
++  }
+     
+   return FALSE;
+ }
+@@ -542,6 +553,12 @@
+               
+   gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
+ 
++  pw = gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_HELP,
++		  						 _("Help"), NULL,
++								 G_CALLBACK (show_help), NULL, -1);
++
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
++  
+   pw = gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_QUIT,
+ 		                 	     _("Tap here to exit the program"), NULL, 
+ 			                     G_CALLBACK (gpe_cal_exit), NULL, -1);

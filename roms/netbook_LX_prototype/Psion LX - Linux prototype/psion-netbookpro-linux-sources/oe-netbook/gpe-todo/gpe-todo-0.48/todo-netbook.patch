@@ -1,0 +1,296 @@
+Index: Makefile
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/Makefile,v
+retrieving revision 1.62
+diff -u -r1.62 Makefile
+--- Makefile	28 Aug 2004 10:58:01 -0000	1.62
++++ Makefile	10 Sep 2004 14:19:04 -0000
+@@ -47,6 +47,8 @@
+ 	mkdir -p $(DESTDIR)$(PREFIX)/share/$(PACKAGE)
+ 	install -m 644 tick-box.png $(DESTDIR)$(PREFIX)/share/$(PACKAGE)/tick-box.png
+ 	install -m 644 notick-box.png $(DESTDIR)$(PREFIX)/share/$(PACKAGE)/notick-box.png
++	install -m 644 dot-box.png $(DESTDIR)$(PREFIX)/share/$(PACKAGE)/dot-box.png
++	install -m 644 bar-box.png $(DESTDIR)$(PREFIX)/share/$(PACKAGE)/bar-box.png
+ 
+ include $(BUILD)/Makefile.translation
+ include $(BUILD)/Makefile.dpkg_ipkg
+Index: list-ui.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/list-ui.c,v
+retrieving revision 1.44
+diff -u -r1.44 list-ui.c
+--- list-ui.c	22 Aug 2004 20:01:41 -0000	1.44
++++ list-ui.c	10 Sep 2004 14:19:04 -0000
+@@ -32,7 +32,7 @@
+ GtkListStore *list_store;
+ GtkWidget *item_menu;
+ 
+-GdkPixbuf *tick_icon, *no_tick_icon;
++GdkPixbuf *tick_icon, *no_tick_icon, *bar_icon, *dot_icon;
+ 
+ static struct todo_item *current_menu_item;
+ 
+@@ -114,23 +114,61 @@
+   GtkTreeIter iter;
+   struct todo_item *i;
+   gboolean complete;
+-
++  gchar *priority, time[20] = {0};
++  struct tm *ti;
++  GdkPixbuf *sicon;
++	  
+   gtk_tree_model_get_iter (GTK_TREE_MODEL (list_store), &iter, path);
+ 
+   gtk_tree_model_get (GTK_TREE_MODEL (list_store), &iter, 3, &i, -1);
+-		      
+-  if (i->state == COMPLETED)
+-    i->state = NOT_STARTED;
+-  else
+-    i->state = COMPLETED;
++
++  i->state = (i->state + 1) % 4;
+   
+-  complete = (i->state == COMPLETED) ? TRUE : FALSE;
++  switch (i->state)
++    {
++    case IN_PROGRESS:
++      sicon = dot_icon;
++    break;
++    case COMPLETED:
++      sicon = tick_icon;
++    break;
++    case ABANDONED:
++      sicon = bar_icon;
++    break;
++    default:
++      sicon = no_tick_icon;
++    break;
++    }
++  complete = ((i->state == COMPLETED) || (i->state == ABANDONED)) ? TRUE : FALSE;
++
++  switch (i->priority)
++    {
++    case PRIORITY_STANDARD:
++		priority = _("standard");
++	break;
++    case PRIORITY_HIGH:
++		priority = _("high");
++	break;
++    case PRIORITY_LOW:
++		priority = _("low");
++	break;
++    default:
++		priority = _("none");
++	break;
++    }
++	if (i->time)
++      {		
++        ti = localtime(&i->time);
++        strftime(time, 20, "%x", ti);
++	  }
+ 
+   gtk_list_store_set (list_store, &iter, 
+-		      0, complete ? tick_icon : no_tick_icon,
++		      0, sicon,
+ 		      1, i->summary,  
+ 		      2, complete, 
+ 		      3, i,
++		      4, priority,
++		      5, time,
+ 		      -1);
+ 
+   todo_db_push_item (i);
+@@ -151,6 +189,7 @@
+ refresh_items (void)
+ {
+   GSList *list, *iter;
++  GdkPixbuf *sicon;
+ 
+   gtk_list_store_clear (list_store);
+ 
+@@ -166,16 +205,58 @@
+ 	{
+ 	  GtkTreeIter iter;
+ 	  gboolean complete;
++	  gchar *priority, time[20] = {0};
++	  struct tm *ti;
+ 
+-	  complete = (i->state == COMPLETED) ? TRUE : FALSE;
+-
++	  switch (i->priority)
++	    {
++	    case PRIORITY_STANDARD:
++			priority = _("standard");
++		break;
++	    case PRIORITY_HIGH:
++			priority = _("high");
++		break;
++	    case PRIORITY_LOW:
++			priority = _("low");
++		break;
++	    default:
++			priority = _("none");
++		break;
++	    }
++		
++	  if (i->time)
++	    {		  
++	      ti = localtime(&i->time);
++	      strftime(time, 20, "%x", ti);
++		}
++		
++	  complete = ((i->state == COMPLETED) || (i->state == ABANDONED)) ? TRUE : FALSE;
++
++      switch (i->state)
++        {
++        case IN_PROGRESS:
++          sicon = dot_icon;
++        break;
++        case COMPLETED:
++          sicon = tick_icon;
++        break;
++        case ABANDONED:
++          sicon = bar_icon;
++        break;
++        default:
++          sicon = no_tick_icon;
++        break;
++        }
++        
+ 	  gtk_list_store_append (list_store, &iter);
+ 
+ 	  gtk_list_store_set (list_store, &iter, 
+-			      0, complete ? tick_icon : no_tick_icon,
++			      0, sicon,
+ 			      1, i->summary,  
+ 			      2, complete, 
+ 			      3, i,
++			      4, priority,
++			      5, time,
+ 			      -1);
+ 	}
+     }
+@@ -271,6 +352,8 @@
+ 
+   no_tick_icon = gpe_find_icon ("notick-box");
+   tick_icon = gpe_find_icon ("tick-box");
++  bar_icon = gpe_find_icon ("bar-box");
++  dot_icon = gpe_find_icon ("dot-box");
+ 
+   g_option = option;
+   categories_menu ();
+@@ -287,10 +370,9 @@
+   /* New | Conf | Purge Down | List | Exit */
+   toolbar = gtk_toolbar_new ();
+   gtk_toolbar_set_orientation (GTK_TOOLBAR (toolbar), GTK_ORIENTATION_HORIZONTAL);
+-  gtk_toolbar_set_style (GTK_TOOLBAR (toolbar), GTK_TOOLBAR_ICONS);
+ 
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_NEW,
+-			    _("New item"), _("Tap here to add a new item."),
++			    _("Tap here to add a new item."), NULL,
+ 			    G_CALLBACK (new_todo_item), NULL, -1);
+ 
+   /* New */
+@@ -307,7 +389,6 @@
+ 
+   toolbar = gtk_toolbar_new ();
+   gtk_toolbar_set_orientation (GTK_TOOLBAR (toolbar), GTK_ORIENTATION_HORIZONTAL);
+-  gtk_toolbar_set_style (GTK_TOOLBAR (toolbar), GTK_TOOLBAR_ICONS);
+ 
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_QUIT,
+ 			    _("Quit"), _("Tap here to quit the program."),
+@@ -318,15 +399,21 @@
+ 
+   gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
+ 
+-  list_store = gtk_list_store_new (4, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER);
+-  list_view = gtk_tree_view_new_with_model (GTK_TREE_MODEL (list_store));
++  list_store = gtk_list_store_new (6, 
++                                   GDK_TYPE_PIXBUF, 
++                                   G_TYPE_STRING, 
++ 								   G_TYPE_BOOLEAN, 
++								   G_TYPE_POINTER,
++                                   G_TYPE_STRING, 
++                                   G_TYPE_STRING);
++ list_view = gtk_tree_view_new_with_model (GTK_TREE_MODEL (list_store));
+ 
+   {
+     GtkCellRenderer *renderer;
+     GtkTreeViewColumn *col;
+ 
+     renderer = gtk_cell_renderer_pixbuf_new ();
+-    col = gtk_tree_view_column_new_with_attributes ("...", renderer,
++    col = gtk_tree_view_column_new_with_attributes (_("Status"), renderer,
+ 						    "pixbuf", 0,
+ 						    NULL);
+ 
+@@ -335,14 +422,30 @@
+     g_object_set_data (G_OBJECT (list_view), "pixmap-column", col);
+ 
+     renderer = gtk_cell_renderer_text_new ();
+-    col = gtk_tree_view_column_new_with_attributes ("...", renderer,
++    col = gtk_tree_view_column_new_with_attributes (_("Summary"), renderer,
+ 						    "text", 1,
+ 						    "strikethrough", 2,
+ 						    NULL);
+ 
+     gtk_tree_view_insert_column (GTK_TREE_VIEW (list_view), col, -1);
+ 
+-    gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (list_view), FALSE);
++    renderer = gtk_cell_renderer_text_new ();
++    col = gtk_tree_view_column_new_with_attributes (_("Priority"), renderer,
++						    "text", 4,
++						    "strikethrough", 2,
++						    NULL);
++
++    gtk_tree_view_insert_column (GTK_TREE_VIEW (list_view), col, -1);
++	
++    renderer = gtk_cell_renderer_text_new ();
++    col = gtk_tree_view_column_new_with_attributes (_("Due Date"), renderer,
++						    "text", 5,
++						    "strikethrough", 2,
++						    NULL);
++
++    gtk_tree_view_insert_column (GTK_TREE_VIEW (list_view), col, -1);
++	
++    gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (list_view), TRUE);
+     gtk_tree_view_set_reorderable (GTK_TREE_VIEW (list_view), TRUE);
+   }
+ 
+Index: main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/main.c,v
+retrieving revision 1.41
+diff -u -r1.41 main.c
+--- main.c	22 Feb 2004 13:01:20 -0000	1.41
++++ main.c	10 Sep 2004 14:19:04 -0000
+@@ -30,6 +30,8 @@
+   { "icon", PREFIX "/share/pixmaps/gpe-todo.png" },
+   { "tick-box", MY_PIXMAPS_DIR "/tick-box.png" },
+   { "notick-box", MY_PIXMAPS_DIR "/notick-box.png" },
++  { "bar-box", MY_PIXMAPS_DIR "/bar-box.png" },
++  { "dot-box", MY_PIXMAPS_DIR "/dot-box.png" },
+   { NULL, NULL }
+ };
+ 
+Index: todo-ui.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-todo/todo-ui.c,v
+retrieving revision 1.42
+diff -u -r1.42 todo-ui.c
+--- todo-ui.c	29 Feb 2004 21:46:43 -0000	1.42
++++ todo-ui.c	10 Sep 2004 14:19:04 -0000
+@@ -370,7 +370,7 @@
+ 
+   hbox_state = gtk_hbox_new (FALSE, 0);
+ 
+-  priority_label = gtk_label_new (_("Pri:"));
++  priority_label = gtk_label_new (_("Priority:"));
+   priority_optionmenu = gtk_option_menu_new ();
+   gtk_option_menu_set_menu (GTK_OPTION_MENU (priority_optionmenu), priority_menu);
+ 
+@@ -458,4 +458,3 @@
+ 
+   return window;
+ }
+-

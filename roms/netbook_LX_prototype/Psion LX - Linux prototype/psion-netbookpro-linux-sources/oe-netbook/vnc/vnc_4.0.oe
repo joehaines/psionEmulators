@@ -1,0 +1,20 @@
+PR=r0
+
+S = "${WORKDIR}/vnc-${PV}-unixsrc"
+DEPENDS = "x11"
+DESCRIPTION = "Virtual Networking Computing Client"
+MAINTAINER = "Peter Naulls <peter@chocky.org>"
+
+SRC_URI = "http://www.realvnc.com/dist/vnc-${PV}-unixsrc.tar.gz \
+	   file://min-max.patch;patch=1"
+
+EXTRA_OECONF = "--with-installed-zlib --x-includes=${STAGING_INCDIR} \
+		--x-libraries=${STAGING_LIBDIR}"
+
+inherit autotools 
+
+do_install() {
+	mkdir -p ${D}/${bindir}/
+	install ${S}/vncviewer/vncviewer ${D}/${bindir}/
+}
+

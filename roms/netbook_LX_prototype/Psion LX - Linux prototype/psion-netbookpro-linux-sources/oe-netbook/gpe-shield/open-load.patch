@@ -1,0 +1,80 @@
+Index: backend.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-shield/backend.c,v
+retrieving revision 1.9
+diff -u -r1.9 backend.c
+--- backend.c	21 Sep 2004 16:32:49 -0000	1.9
++++ backend.c	21 Sep 2004 16:54:49 -0000
+@@ -35,7 +35,6 @@
+ static rule_t *rule_info = NULL;
+ static int rule_count = 0;
+ 
+-#define CONFIGFILE	"/etc/access.conf"
+ #define DEFAULT_INTERFACE "!lo"
+ 
+ #define IPTABLES_CMD1 "/usr/sbin/iptables"
+Index: interface.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-shield/interface.c,v
+retrieving revision 1.8
+diff -u -r1.8 interface.c
+--- interface.c	21 Sep 2004 16:32:49 -0000	1.8
++++ interface.c	21 Sep 2004 16:54:49 -0000
+@@ -114,7 +114,7 @@
+ 
+ static GtkItemFactoryEntry mMain_items[] = {
+   { N_("/_File"),         NULL,         NULL, MI_FILE, "<Branch>" },
+-  { N_("/File/_Open"), "", on_load_clicked, MI_OPEN, "<StockItem>", GTK_STOCK_OPEN},
++  { N_("/File/_Load"), "", on_load_clicked, MI_OPEN, "<StockItem>", GTK_STOCK_OPEN},
+   { N_("/File/_Save"), "", on_save_clicked, MI_SAVE, "<StockItem>", GTK_STOCK_SAVE},
+   { N_("/_File/s1"), NULL , NULL,    0, "<Separator>"},
+   { N_("/File/_Close"),  NULL, do_safe_exit, 0, "<StockItem>", GTK_STOCK_QUIT },
+@@ -203,6 +203,15 @@
+ 
+ /* --- local intelligence --- */
+ 
++static gboolean
++rules_can_load(void)
++{
++	if (access(CONFIGFILE, F_OK))
++		return FALSE;
++	else
++		return TRUE;
++}
++
+ 
+ static void
+ do_shutdown(void)
+@@ -542,7 +551,7 @@
+ 
+ void do_end_command()
+ {
+-    gtk_widget_set_sensitive(miLoad,TRUE);
++    gtk_widget_set_sensitive(miLoad, rules_can_load());
+     gtk_widget_set_sensitive(miSave,TRUE);
+     gtk_widget_set_sensitive(miApply,get_network_control());
+     gtk_widget_set_sensitive(bApply,get_network_control());
+@@ -908,6 +917,7 @@
+ 			  G_CALLBACK (change_network_control), NULL);
+   
+   g_signal_connect(G_OBJECT (fMain),"destroy",gtk_main_quit,NULL);
++  gtk_widget_set_sensitive(miLoad, rules_can_load());
+   
+   gtk_widget_show_all(fMain);
+ }
+Index: backend.h
+===================================================================
+RCS file: /cvs/gpe/base/gpe-shield/backend.h,v
+retrieving revision 1.5
+retrieving revision 1.6
+diff -u -r1.5 -r1.6
+--- backend.h	21 Jun 2004 08:54:53 -0000	1.5
++++ backend.h	21 Sep 2004 16:57:51 -0000	1.6
+@@ -108,6 +108,7 @@
+ 
+ #define PK_SOCKET "/tmp/.gpe_shield_icm"
+ #define LOADRULES_MARK "/etc/gpe/gpe-shield-load"
++#define CONFIGFILE	"/etc/access.conf"
+ 
+ extern int suidloop (int sock);
+ extern void do_rules_apply();

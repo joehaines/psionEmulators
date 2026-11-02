@@ -1,0 +1,30 @@
+PR = "r0nb1"
+DESCRIPTION = "Matchbox window manager"
+LICENSE = "GPL"
+DEPENDS = "libmatchbox x11 xext xcomposite libxfixes xdamage libxrender startup-notification expat gconf matchbox-common"
+RDEPENDS = "matchbox-common"
+
+SRC_URI = "cvs://anoncvs:anoncvs@cvs.handhelds.org/cvs;module=apps/matchbox/matchbox-window-manager;date=20040821 \
+        file://kbdconfig_keylaunch_simpad.patch;patch=1;pnum=0 \
+        file://kbdconfig-netbook.patch;patch=1 \
+        file://kbdconfig-netbook-again.patch;patch=1 \
+        file://sn-timeout.patch;patch=1"
+S = "${WORKDIR}/matchbox-window-manager"
+
+inherit autotools  pkgconfig
+
+FILES_${PN} = "${bindir} \
+	       ${datadir}/matchbox \
+	       ${datadir}/themes/blondie/matchbox \
+	       ${datadir}/themes/bluebox/matchbox \
+	       ${datadir}/themes/borillo/matchbox"
+
+EXTRA_OECONF = "--disable-composite --enable-startup-notification --enable-expat"
+
+pkg_postinst() {
+update-alternatives --install /usr/bin/x-window-manager x-window-manager /usr/bin/matchbox-session 10
+}
+
+pkg_postrm() {
+update-alternatives --remove x-window-manager /usr/bin/matchbox-session
+}

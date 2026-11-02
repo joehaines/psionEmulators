@@ -1,0 +1,22 @@
+--- xserver/hw/kdrive/linux/tslib.c	2 Jul 2004 21:30:00 -0000	1.10
++++ xserver/hw/kdrive/linux/tslib.c	24 Oct 2004 18:32:19 -0000
+@@ -156,6 +162,7 @@
+ TslibDisable (int fd, void *closure)
+ {
+   ts_close(tsDev);
++  tsDev = NULL;
+ }
+ 
+ static int
+@@ -237,7 +244,10 @@
+     {
+ 	if (mi->inputType == TsInputType)
+ 	{
+-	    if(mi->driver) ts_close(tsDev);
++	    if(mi->driver) {
++		ts_close(tsDev);
++		tsDev = NULL;
++	    }
+ 	    mi->driver = 0;
+ 	    mi->inputType = 0;
+ 	}

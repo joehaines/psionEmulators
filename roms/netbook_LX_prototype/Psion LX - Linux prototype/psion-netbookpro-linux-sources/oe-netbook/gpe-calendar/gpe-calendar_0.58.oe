@@ -1,0 +1,23 @@
+PR = "r3"
+
+inherit gpe
+
+DEPENDS = "libeventdb libschedule libxsettings libxsettings-client libgpepimc libdisplaymigration libgpevtype psion-help"
+SECTION = "gpe"
+RDEPENDS = "gpe-icons"
+RRECOMMENDS = "help-calendar"
+DESCRIPTION = "GPE calendar"
+
+		
+SRC_URI = "${GPE_MIRROR}/${PN}-${PV}.tar.gz  \
+           file://psion-calendar-add-help.patch;patch=1;pnum=0 \
+           file://day-view.patch;patch=1 \
+           file://week-view.patch;patch=1 \
+           file://month-view.patch;patch=1 \
+           file://year-view.patch;patch=1 \
+	   file://calendar.png"
+
+do_compile_prepend() { 
+        mv -f ${S}/../calendar.png ${S}/gpe-calendar.png
+}
+

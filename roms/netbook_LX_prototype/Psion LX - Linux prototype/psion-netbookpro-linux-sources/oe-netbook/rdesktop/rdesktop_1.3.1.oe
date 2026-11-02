@@ -1,0 +1,28 @@
+PR=r1
+
+DEPENDS = "openssl x11"
+DESCRIPTION = "Remote Desktop Client"
+MAINTAINER = "Peter Naulls <peter@chocky.org>"
+
+SRC_URI = "http://voxel.dl.sourceforge.net/sourceforge/rdesktop/rdesktop-${PV}.tar.gz \
+	   file://configure.patch;patch=1 \
+           file://dietx.patch;patch=1 \
+           file://strip.patch;patch=1 \
+           file://keymap-path.patch;patch=1"
+
+inherit autotools 
+
+oe_runconf () {
+        cfgcmd="${S}/configure \
+            --prefix=${prefix} \
+            --exec-prefix=${exec_prefix} \
+            --bindir=${bindir} \
+            --mandir=${mandir} \
+            --with-x=${STAGING_LIBDIR}/.. \
+            --with-openssl=${STAGING_LIBDIR}/.. \
+            $@"
+        oenote "Running $cfgcmd..."
+        $cfgcmd || oefatal "oe_runconf failed"
+}
+
+

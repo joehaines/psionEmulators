@@ -1,0 +1,13 @@
+PR = "r0"
+DESCRIPTION = "GNOME library for CUPS interaction"
+inherit gnome pkgconfig
+
+DEPENDS = "glib-2.0 cups gnome-common"
+
+EXTRA_AUTORECONF = "-I ${STAGING_DIR}/${HOST_SYS}/share/aclocal/gnome2-macros"
+EXTRA_OECONF = "--disable-gtk-doc"
+
+do_stage() {
+	gnome_stage_includes
+	oe_libinstall -C libgnomecups -a -so libgnomecups-1.0 ${STAGING_LIBDIR}
+}

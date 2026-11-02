@@ -1,0 +1,15 @@
+--- gpe-gallery-0.95/main.c~	Tue Oct  5 22:09:10 2004
++++ gpe-gallery-0.95/main.c	Tue Nov  9 15:23:47 2004
+@@ -1270,8 +1270,10 @@
+   gtk_box_pack_start (GTK_BOX (vbox), loading_toolbar, FALSE, FALSE, 0);
+   gtk_box_pack_start (GTK_BOX (vbox), tools_toolbar, FALSE, FALSE, 0);
+ 
+-  if (gpe_find_icon_pixmap ("icon", &pmap, &bmap))
+-    gdk_window_set_icon (window->window, NULL, pmap, bmap);
++  {
++    GdkPixbuf *icon = gpe_find_icon ("icon");
++    if (icon) gtk_window_set_icon(window, icon);
++  }
+ 
+   gtk_widget_show (window);
+   gtk_widget_show (vbox);

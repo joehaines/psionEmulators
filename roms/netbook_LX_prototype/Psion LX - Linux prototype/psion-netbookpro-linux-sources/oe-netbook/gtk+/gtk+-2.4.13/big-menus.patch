@@ -1,0 +1,24 @@
+--- gtk+-2.4.10/gtk/gtkmenuitem.c.old	Wed Oct 20 00:22:25 2004
++++ gtk+-2.4.10/gtk/gtkmenuitem.c	Wed Oct 20 00:22:26 2004
+@@ -519,6 +519,9 @@
+       
+       gtk_widget_size_request (bin->child, &child_requisition);
+ 
++      if (child_requisition.height < 19)
++	child_requisition.height = 19;
++
+       requisition->width += child_requisition.width;
+       requisition->height += child_requisition.height;
+ 
+--- gtk+-2.4.10/gtk/gtkmenubar.c.old	Wed Oct 20 00:22:33 2004
++++ gtk+-2.4.10/gtk/gtkmenubar.c	Wed Oct 20 00:23:03 2004
+@@ -222,6 +222,9 @@
+ 	      gtk_widget_size_request (child, &child_requisition);
+               gtk_menu_item_toggle_size_request (GTK_MENU_ITEM (child),
+                                                  &toggle_size);
++
++	      if (child_requisition.height < 19)
++		child_requisition.height = 19;
+               
+ 	      requisition->width += child_requisition.width;
+               requisition->width += toggle_size;

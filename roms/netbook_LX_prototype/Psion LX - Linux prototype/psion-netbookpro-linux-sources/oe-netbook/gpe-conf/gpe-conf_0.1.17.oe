@@ -1,0 +1,43 @@
+PR = "r8"
+
+inherit gpe pkgconfig
+
+DEPENDS = "gtk+ libgpewidget libxsettings libxsettings-client pcmcia-cs xst xset ipaq-sleep ntp gpe-login"
+RDEPENDS = "xst xset ipaq-sleep ntpdate gpe-login"
+SECTION = "gpe"
+PRIORITY = "optional"
+FILES_${PN} = "${sysconfdir} ${bindir} ${datadir}/pixmaps ${datadir}/applications"
+FILES_${PN} += " ${datadir}/gpe/pixmaps"
+
+SRC_URI = "${GPE_MIRROR}/gpe-conf-${PV}.tar.gz \
+            file://netbook.png \
+            file://desktop.patch;patch=1 \
+            file://sleep-netbook.patch;patch=1;pnum=0 \
+            file://gpe-info-netbooklogo.patch;patch=1;pnum=0 \
+            file://lf-simple.patch;patch=1;pnum=0 \
+            file://disable-xrandr.patch;patch=1;pnum=0 \
+            file://info-wl.patch;patch=1;pnum=0 \
+            file://useredit.patch;patch=1;pnum=0 \
+            file://login-path.patch;patch=1;pnum=0"
+
+# disable wifi support, enable limited capabilities appmgr interface
+CPPFLAGS_append = " -D NO_WIFI -D APPMGR_INTERFACE -DDISABLE_XRANDR"
+
+do_configure_prepend () {
+	install ${WORKDIR}/netbook.png ${S}/pixmaps/
+}
+
+do_compile () {
+	oe_runmake PREFIX=${prefix}
+	oe_runmake all-desktop PREFIX=${prefix}
+}
+
+do_install () {
+        oe_runmake PREFIX=${prefix} DESTDIR=${D} install-program
+}
+
+do_install_append () {
+  rm ${D}/${datadir}/applications/gpe-conf-kbd.desktop
+  rm ${D}/${datadir}/applications/gpe-conf-keyctl.desktop
+  rm ${D}/${datadir}/applications/gpe-conf-admin.desktop
+}

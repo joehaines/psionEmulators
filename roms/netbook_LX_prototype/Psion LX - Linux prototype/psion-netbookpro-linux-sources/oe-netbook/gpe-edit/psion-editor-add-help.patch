@@ -1,0 +1,62 @@
+--- main.c~psion-editor-add-help.patch	2004-10-18 21:14:14.000000000 +0200
++++ main.c	2004-10-19 13:08:06.000000000 +0200
+@@ -59,12 +59,19 @@
+   { "dir-closed", "dir-closed" },
+   { "dir-up", "dir-up" },
+   { "stop", "stop" },
++  { "help", "help" },
+   { "icon", PREFIX "/share/pixmaps/gpe-edit.png" },
+   {NULL, NULL}
+ };
+ 
+ guint window_x = 240, window_y = 310;
+ 
++static void 
++show_help (void)
++{
++	system("gpe-helpviewer /usr/share/help/editor/index.html");
++}
++
+ static void
+ clear_text_area (void)
+ {
+@@ -553,6 +560,7 @@
+                          GtkWidget *main_vbox)
+ {
+   if (event->state & GDK_CONTROL_MASK)
++  {
+     switch (event->keyval)
+       {
+         case GDK_n:
+@@ -574,6 +582,14 @@
+           ask_save_before_exit();
+         break;	
+       }
++  }
++  else
++  {
++	  if(event->keyval == GDK_F1)
++	  {
++		  show_help();
++	  }
++  }
+   return FALSE;
+ }
+ 
+@@ -684,6 +700,16 @@
+       gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Paste"), 
+ 			   _("Paste from clipboard"), _("Paste from clipboard"), toolbar_icon, paste_clipboard, vbox);
+ 	}			   
++  
++  /* adding help button and spacer */
++  gtk_toolbar_append_space(GTK_TOOLBAR (toolbar));
++  
++  toolbar_icon = gtk_image_new_from_stock (GTK_STOCK_HELP, GTK_ICON_SIZE_SMALL_TOOLBAR);
++  gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Help"),
++		  		_("Get help"), _("Get help"), toolbar_icon, show_help, vbox);
++
++  gtk_toolbar_append_space(GTK_TOOLBAR (toolbar));
++  
+   toolbar_icon = gtk_image_new_from_stock (GTK_STOCK_QUIT, GTK_ICON_SIZE_SMALL_TOOLBAR);
+   gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Quit"), 
+ 			   _("Exit gpe-edit"), _("Exit gpe-edit"), toolbar_icon, ask_save_before_exit, vbox);

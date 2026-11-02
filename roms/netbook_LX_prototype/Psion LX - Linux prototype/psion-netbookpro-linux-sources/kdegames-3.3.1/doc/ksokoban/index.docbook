@@ -1,0 +1,449 @@
+<?xml version="1.0" ?>
+<!DOCTYPE book PUBLIC "-//KDE//DTD DocBook XML V4.2-Based Variant V1.1//EN" "dtd/kdex.dtd" [
+  <!ENTITY kappname "&ksokoban;">
+  <!ENTITY package "kdegames">
+  <!ENTITY % English "INCLUDE" > <!-- change language only here -->
+  <!ENTITY % addindex "IGNORE">
+]>
+	
+<book lang="&language;">
+<bookinfo>
+<title>The &ksokoban; Handbook</title>
+
+<authorgroup>
+<author>
+<firstname>Anders</firstname>
+<surname>Widell</surname>
+<affiliation>
+<address><email>awl@passagen.se</email></address>
+</affiliation>
+</author>
+</authorgroup>
+
+<!-- TRANS:ROLES_OF_TRANSLATORS -->
+
+<copyright>
+<year>2000</year>
+<holder>Anders Widell</holder>
+</copyright>
+
+<legalnotice>&FDLNotice;</legalnotice>
+
+<date>2003-09-17</date>
+<releaseinfo>0.4.2</releaseinfo>
+
+<abstract>
+<para>
+&ksokoban; is a &kde; implementation of the Japanese warehouse keeper
+game <quote>sokoban</quote>. This document describes &ksokoban;
+version 0.4.2.
+</para>
+</abstract>
+
+<keywordset>
+<keyword>KDE</keyword>
+<keyword>kdegames</keyword>
+<keyword>game</keyword>
+<keyword>sokoban</keyword>
+<keyword>ksokoban</keyword>
+</keywordset>
+</bookinfo>
+
+<chapter id="introduction">
+<title>Introduction</title>
+
+<para>
+The first sokoban game was created in 1982 by Hiroyuki Imabayashi at
+the Japanese company Thinking Rabbit, Inc.  <quote>Sokoban</quote> is
+japanese for <quote>warehouse keeper</quote>.  The idea is that you
+are a warehouse keeper trying to push crates to their proper locations
+in a warehouse.
+</para>
+
+<para>
+The problem is that you cannot pull the crates or step over them. If
+you are not careful, some of the crates can get stuck in wrong places
+and/or block your way.
+</para>
+
+<para>
+It can be rather difficult just to solve a level. But if you want to
+make it even harder, you can try to minimize the number of moves
+and/or pushes you use to solve the level.
+</para>
+
+<para>
+To make the game more fun for small kids (below 10 years or so), some
+collections with easier levels are also included in &ksokoban;. These
+are marked <emphasis>(easy)</emphasis> in the level collection menu.
+Of course, these levels can be fun for adults too, for example if you
+don't want to expose yourself to too much mental strain.
+</para>
+</chapter>
+
+<chapter id="how-to-play">
+<title>The Game</title>
+
+<para>
+The objective of the game is to push all the red gems to the goal
+squares, which are marked with green glassy round things on the floor.
+</para>
+
+<para>
+Use the cursor keys or the mouse to move about. If you move onto a gem
+using the cursor keys or the <mousebutton>middle</mousebutton> mouse
+button, and there is nothing blocking it on the opposite side, then you
+will push the gem.  It isn't possible to pull the gems, so if you push
+a gem into a corner it will be stuck there. You can't step over the
+gems either, so you can also get trapped in a part of the maze by
+blocking the way with gems.  Also note that it isn't possible to push
+more than one gem at a time.
+</para>
+
+<para>
+If you notice that you have moved the gems in such a way that the
+level is impossible to solve, then you can always use the undo feature
+to go back to a position where the mistake has not yet been made. You
+can of course also restart the level from the very beginning.
+</para>
+
+<sect1 id="controls">
+<title>Controls</title>
+
+<para>
+<informaltable>
+<tgroup cols="2">
+<thead>
+<row><entry>Key</entry><entry>Action</entry></row>
+</thead>
+
+<tbody>
+<row><entry>Cursor keys </entry><entry>Move one square in a direction </entry></row>
+<row><entry><keycombo action="simul">&Ctrl;<keycap>Cursor</keycap></keycombo> keys </entry><entry>Move as far as possible in a direction without pushing any gems </entry></row>
+<row><entry><keycombo action="simul">&Shift;<keycap>Cursor</keycap></keycombo> keys </entry><entry>Move as far as possible in a direction, pushing any gem in the way </entry></row>
+<row><entry><mousebutton>Left</mousebutton> mouse button </entry><entry>Move to any place in the maze that can be reached without pushing any gems </entry></row>
+<row><entry><mousebutton>Middle</mousebutton> mouse button or <keycombo action="simul">&Ctrl;<keycap>Z</keycap></keycombo></entry><entry>Undo the last move </entry></row>
+<row><entry><mousebutton>Right</mousebutton> mouse button </entry><entry>Move up/down/left/right in a straight line, pushing any gem in the way </entry></row>
+<row><entry><mousebutton>Mouse wheel</mousebutton></entry><entry>Traverse the history </entry></row>
+<row><entry><keycombo action="simul">&Ctrl;&Shift;<keycap>Z</keycap></keycombo></entry><entry>Redo the last undone move </entry></row>
+<row><entry><keycap>N</keycap> </entry><entry>Go to the next level in the current level collection </entry></row>
+<row><entry><keycap>P</keycap> </entry><entry>Go to the previous level in the current level collection </entry></row>
+<row><entry>&Esc; </entry><entry>Restart the current level </entry></row>
+<row><entry><keycombo action="simul">&Ctrl;<keycap>Q</keycap></keycombo></entry><entry>Quit the game </entry></row>
+</tbody>
+</tgroup>
+</informaltable>
+</para>
+</sect1>
+
+<sect1 id="loading-external-levels">
+<title>Loading external levels</title>
+
+<para>
+&ksokoban; has the ability to load external sokoban levels from text
+files.  You can load levels using the menu entry
+<menuchoice><guimenu>Game</guimenu> <guimenuitem>Load
+Levels...</guimenuitem> </menuchoice>, or by specifying the level file
+&URL; as a command line argument when starting &ksokoban; from a
+shell.
+</para>
+
+<para>
+The external levels must be defined using the standard characters
+shown in the table below. If the file contains more than one level,
+the levels should be separated by blank lines. The file may also
+contain text between the levels.
+</para>
+
+<informaltable>
+<tgroup cols="2">
+<thead>
+<row><entry>Character</entry><entry>Meaning</entry></row>
+</thead>
+
+<tbody>
+<row><entry><literal>#</literal></entry><entry>Wall</entry></row>
+<row><entry><emphasis>(space)</emphasis></entry><entry>Empty square</entry></row>
+<row><entry><literal>.</literal></entry><entry>Goal square</entry></row>
+<row><entry><literal>$</literal></entry><entry>Object on an empty square</entry></row>
+<row><entry><literal>*</literal></entry><entry>Object on a goal square</entry></row>
+<row><entry><literal>@</literal></entry><entry>Start position on an empty square</entry></row>
+<row><entry><literal>+</literal></entry><entry>Start position on a goal square</entry></row>
+</tbody>
+</tgroup>
+</informaltable>
+
+<para>
+As an example, below is a text representation of the first level in the
+<emphasis>Microban</emphasis> level collection:
+</para>
+
+<para>
+<screen>
+####
+# .#
+#  ###
+#*@  #
+#  $ #
+#  ###
+####
+</screen>
+</para>
+</sect1>
+</chapter>
+
+<chapter id="menu-reference">
+<title>Menu Reference</title>
+
+<para>This is a complete guide to the menus of &ksokoban;.</para>
+
+<sect1 id="game-menu">
+<title>The <guimenu>Game</guimenu> menu</title>
+
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<guimenu>Game</guimenu>
+<guimenuitem>Load Levels...</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Load an external level.</action> See the section <link
+linkend="loading-external-levels">Loading External Levels</link> for
+more information.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut><keycap>N</keycap></shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Next Level</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Load the next level.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut><keycap>P</keycap></shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Previous Level</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Go back to the previous level.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>&Esc;</shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Restart Level</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Restart the current level.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Game</guimenu>
+<guisubmenu>Level Collection</guisubmenu>
+</menuchoice></term>
+<listitem>
+<para><action>Change to a different set of levels.</action> &ksokoban;
+comes with several level sets, and you can load more that you can find
+on the internet.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut><keycombo action="simul">&Ctrl;<keycap>Z</keycap></keycombo></shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Undo</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Undo the last move</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut><keycombo action="simul">&Ctrl;&Shift;<keycap>Z</keycap></keycombo></shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Redo</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Redo the last move you undid with the menu item
+above.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut><keycombo action="simul">&Ctrl;<keycap>Q</keycap></keycombo></shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Quit</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Exit</action> &ksokoban;.</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</sect1>
+
+<sect1 id="animation-menu">
+<title>The <guimenu>Animation</guimenu> Menu</title>
+
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<guimenu>Animation</guimenu>
+<guimenuitem>Slow</guimenuitem>
+</menuchoice>
+<menuchoice>
+<guimenu>Animation</guimenu>
+<guimenuitem>Medium</guimenuitem>
+</menuchoice>
+<menuchoice>
+<guimenu>Animation</guimenu>
+<guimenuitem>Fast</guimenuitem>
+</menuchoice>
+<menuchoice>
+<guimenu>Animation</guimenu>
+<guimenuitem>Off</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Change the speed of the animations.</action>  The
+default setting is <guimenuitem>Medium</guimenuitem>.</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect1>
+
+<sect1 id="bookmarks">
+<title>The <guimenu>Bookmarks</guimenu> Menu</title>
+
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<guimenu>Bookmarks</guimenu>
+<guisubmenu>Set Bookmark</guisubmenu>
+</menuchoice></term>
+<listitem>
+<para>&ksokoban; allows you to <action>set bookmarks with a level at a
+particular state.</action> You might use this to save yourself
+repeating the same initial steps in a level.</para>
+<para>You can have up to ten bookmarks at a time, and access them via the
+hotkey <keycombo action="simul">&Ctrl;<keycap><replaceable>X</replaceable></keycap></keycombo>,
+where <replaceable>X</replaceable> is any digit between 0 and 9.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Bookmarks</guimenu>
+<guisubmenu>Go to Bookmark</guisubmenu>
+</menuchoice></term>
+<listitem>
+<para><action>Jump to a state you have previously saved as a
+bookmark</action>.</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect1>
+
+<sect1 id="help-menu">
+<title>The <guimenu>Help</guimenu> Menu</title>
+<variablelist>
+<varlistentry>
+<term>
+<menuchoice>
+<shortcut>
+<keycombo action="simul"><keycap>F1</keycap></keycombo>
+</shortcut>
+<guimenu>Help</guimenu>
+<guimenuitem>&kappname; Handbook...</guimenuitem>
+</menuchoice>
+</term>
+<listitem><para><action>Invokes the KDE Help system</action> starting at the
+&kappname; help pages. (this document).</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Help</guimenu>
+<guimenuitem>Report Bug...</guimenuitem>
+</menuchoice></term>
+<listitem><para><action>Opens the Bug report dialog</action> where you can
+report a bug or request a <quote>wishlist</quote> feature.</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Help</guimenu>
+<guimenuitem>About &kappname;</guimenuitem>
+</menuchoice></term>
+<listitem><para><action>This will display version and author
+information.</action></para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Help</guimenu>
+<guimenuitem>About KDE</guimenuitem>
+</menuchoice></term>
+<listitem><para><action>This displays the KDE version and other basic
+information.</action></para></listitem>
+</varlistentry>
+</variablelist>
+
+</sect1>
+</chapter>
+
+<chapter id="credits">
+<title>Credits and License</title>
+
+<para>
+&ksokoban; is copyright &copy; 1998-2000 by Anders Widell
+<email>awl@passagen.se</email>.  For
+the latest info on &ksokoban;, see the &ksokoban; home page at
+<ulink url="http://hem.passagen.se/awl/ksokoban/">
+http://hem.passagen.se/awl/ksokoban/</ulink>
+</para>
+
+<para>
+The background graphics <quote>starfield</quote> was taken from the
+<ulink url="http://www.gimp.org/">Gimp</ulink>. All other graphics
+were created by Anders Widell <email>awl@passagen.se</email> using
+the <ulink url="http://www.povray.org/">Povray</ulink> ray tracer.
+</para>
+
+<para>
+All the currently included sokoban levels were created by David W.
+Skinner <email>sasquatch@bentonrea.com</email>. See his sokoban page
+at <ulink url="http://users.bentonrea.com/~sasquatch/sokoban/">
+http://users.bentonrea.com/~sasquatch/sokoban/</ulink>
+</para>
+
+<!-- TRANS:CREDIT_FOR_TRANSLATORS -->
+&underFDL;
+&underGPL;
+</chapter>
+
+<appendix id="installation">
+<title>Installation</title>
+
+&install.intro.documentation;
+
+&install.compile.documentation;
+
+</appendix>
+
+&documentation.index; 
+</book>
+

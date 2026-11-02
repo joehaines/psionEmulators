@@ -1,0 +1,40 @@
+PR = "r27"
+SRC_URI = "\
+	   file://95psion-apps \
+	   file://99psion-session \
+	   file://psion.mbdock \
+	   file://psion-xsettings \
+	   file://session \
+	   file://pretend-stylus \
+	   file://xmodmap-netbookpro \
+	   file://90map-keyboard \
+	   file://default-locale \
+	   file://reset.sh \
+	  "
+
+DESCRIPTION = "session bits for Netbook"
+
+DEPENDS = "xmodmap gpe-soundserver psion-card-ejector gpe-question"
+RDEPENDS = "matchbox-common xmodmap gpe-soundserver psion-card-ejector gpe-question"
+RPROVIDES = "gpe-session-starter"
+
+do_install() {
+	install -d ${D}/etc/X11/Xinit.d/
+	install -d ${D}/etc/X11/Xsession.d/
+	install -d ${D}/etc/gpe/
+	install -d ${D}/etc/gpe/xsettings-default.d/
+	install -d ${D}/etc/matchbox/
+	install -d ${D}/etc/profile.d/
+	install ${WORKDIR}/99psion-session ${D}/etc/X11/Xinit.d/
+	install ${WORKDIR}/95psion-apps ${D}/etc/X11/Xsession.d/
+	install -m 644 ${WORKDIR}/psion.mbdock ${D}/etc/gpe/
+	install -m 644 ${WORKDIR}/psion-xsettings ${D}/etc/gpe/xsettings-default.d/
+	install ${WORKDIR}/session ${D}/etc/matchbox/
+	install ${WORKDIR}/pretend-stylus ${D}/etc/profile.d/
+	install -m 644 ${WORKDIR}/xmodmap-netbookpro ${D}/etc/X11/
+	install ${WORKDIR}/90map-keyboard ${D}/etc/X11/Xinit.d/
+	install -d ${D}/etc/profile.d
+	install ${WORKDIR}/default-locale ${D}/etc/profile.d/default-locale
+	install -d ${D}${bindir}
+	install ${WORKDIR}/reset.sh ${D}${bindir}/
+}

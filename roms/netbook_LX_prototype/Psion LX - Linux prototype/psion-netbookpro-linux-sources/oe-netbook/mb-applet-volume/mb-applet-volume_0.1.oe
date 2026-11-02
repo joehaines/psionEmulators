@@ -1,0 +1,25 @@
+
+PR = "r2"
+DESCRIPTION = "Matchbox volume applet"
+LICENSE = "GPL"
+DEPENDS = "gtk+ matchbox-wm libmatchbox"
+
+SRC_URI = "http://matchbox.handhelds.org/sources/mb-applet-volume/${PV}/mb-applet-volume-${PV}.tar.bz2 \
+           file://volume-applet.c.diff;patch=1;pnum=0 \
+           file://zero.png \
+           file://low.png \
+           file://mid.png \
+           file://high.png"
+
+S = "${WORKDIR}/mb-applet-volume-${PV}"
+
+inherit autotools  pkgconfig
+
+FILES_${PN} = "${bindir} ${datadir}/applications ${datadir}/pixmaps"
+
+do_compile_prepend () {
+  install -m 644 ${WORKDIR}/zero.png ${S}/mbvol-zero.png
+  install -m 644 ${WORKDIR}/low.png ${S}/mbvol-low.png
+  install -m 644 ${WORKDIR}/mid.png ${S}/mbvol-mid.png
+  install -m 644 ${WORKDIR}/high.png ${S}/mbvol-high.png
+} 

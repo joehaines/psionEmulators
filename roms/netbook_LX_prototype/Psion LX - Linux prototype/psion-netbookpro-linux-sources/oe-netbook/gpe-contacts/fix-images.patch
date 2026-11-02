@@ -1,0 +1,217 @@
+Index: editing.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/editing.c,v
+retrieving revision 1.50
+diff -u -r1.50 editing.c
+--- editing.c	19 Sep 2004 22:05:38 -0000	1.50
++++ editing.c	27 Sep 2004 12:23:18 -0000
+@@ -252,13 +252,13 @@
+ 
+           btn = gtk_button_new();
+           image = gtk_image_new();
+-          gtk_container_add(GTK_CONTAINER(btn),image);
++          gtk_container_add(GTK_CONTAINER(btn), image);
+           gtk_box_pack_start (GTK_BOX (hbox), btn, TRUE, TRUE, 0);
+           gtk_widget_show_all(hbox);
+           gtk_box_pack_start (GTK_BOX (vbox), hbox, TRUE, TRUE, 
+-            gpe_get_boxspacing());
++                              gpe_get_boxspacing());
+           g_signal_connect (G_OBJECT (btn), "clicked",
+-		    G_CALLBACK (on_edit_bt_image_clicked), image);
++		                    G_CALLBACK (on_edit_bt_image_clicked), image);
+           
+           add_tag (e->tag, image, pw);
+         }
+@@ -573,9 +573,11 @@
+                 }
+               else if (GTK_IS_IMAGE(w))
+                 {
+-                  g_object_set_data(G_OBJECT(w),"filename",v->value);
+-                  if ((v->value) && !access(v->value,R_OK))
+-                    gtk_image_set_from_file(GTK_IMAGE(w), v->value);
++                  if ((v->value) && !access(v->value,R_OK)) 
++                    {
++                      g_object_set_data(G_OBJECT(w),"filename",v->value);
++                      gtk_image_set_from_file(GTK_IMAGE(w), v->value);
++                    }
+                   else
+                     gtk_image_set_from_stock(GTK_IMAGE(w), 
+                       GTK_STOCK_MISSING_IMAGE, GTK_ICON_SIZE_BUTTON);
+@@ -723,7 +725,6 @@
+    
+   if (!nametext) return;
+   if (strlen(nametext) < 3) return;
+-      
+     sp = g_strdup(nametext);
+ 
+     /* scan first element for title */
+@@ -792,6 +793,7 @@
+     switch (num_elements)
+       {
+         case 0: 
++        case EOF:
+         break;
+         case 1: 
+           last = e[0];
+@@ -830,15 +832,18 @@
+             }
+           else
+             {
+-              first = sp;
+-              last = strrchr(sp, ' ') + 1;
+-              while (strlen(last) && isblank(last[0]))
+-                last++;
+-              strrchr(sp, ' ')[0] = 0;
+-              middle = strrchr(first, ' ') + 1;
+-              while (strlen(middle) && isblank(middle[0]))
+-                middle++;
+-              strrchr(first, ' ')[0] = 0;
++              if (strlen(g_strstrip(sp)))
++                {
++                  first = sp;
++                  last = strrchr(sp, ' ') + 1;
++                  while (strlen(last) && isblank(last[0]))
++                    last++;
++                  strrchr(sp, ' ')[0] = 0;
++                  middle = strrchr(first, ' ') + 1;
++                  while (strlen(middle) && isblank(middle[0]))
++                    middle++;
++                  strrchr(first, ' ')[0] = 0;
++                }
+             }
+         break;
+       }
+@@ -886,7 +891,7 @@
+         }
+         else if (GTK_IS_IMAGE(w))
+           {
+-            text = g_object_get_data(G_OBJECT(w),"filename");
++            text = g_strdup(g_object_get_data(G_OBJECT(w), "filename"));
+           }
+         else
+         {
+@@ -934,15 +939,13 @@
+ {
+   GtkWidget *selector = GTK_WIDGET(user_data);
+   GtkWidget *image = g_object_get_data(G_OBJECT(selector), "image");
+-  gchar *old_file;
+   const gchar *selected_filename =
+     gtk_file_selection_get_filename (GTK_FILE_SELECTION (selector));
+   
+   if (selected_filename)
+     {
+-       old_file = g_object_get_data(G_OBJECT(image),"filename");
+-       g_free(old_file);
+-       g_object_set_data(G_OBJECT(image),"filename",g_strdup(selected_filename));
++       g_object_set_data(G_OBJECT(image), "filename", 
++                         g_strdup(selected_filename));
+        gtk_image_set_from_file(GTK_IMAGE(image), selected_filename);
+     }
+ }
+@@ -950,11 +953,11 @@
+ void
+ on_edit_bt_image_clicked (GtkWidget *bimage, gpointer user_data)
+ {
+-  GtkWidget *filesel = gtk_file_selection_new ("Select image");
++  GtkWidget *filesel = gtk_file_selection_new (_("Select image"));
+   
+   gtk_window_set_transient_for(GTK_WINDOW(filesel),
+                                GTK_WINDOW(gtk_widget_get_toplevel(bimage)));
+-  gtk_window_set_modal(GTK_WINDOW(filesel),TRUE);
++  gtk_window_set_modal(GTK_WINDOW(filesel), TRUE);
+   gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filesel));
+   
+   g_signal_connect (G_OBJECT (GTK_FILE_SELECTION (filesel)->ok_button),
+@@ -968,7 +971,7 @@
+ 		    "clicked", G_CALLBACK (gtk_widget_destroy),
+ 		    (gpointer) filesel);
+   
+-  g_object_set_data(G_OBJECT(filesel),"image",user_data);
++  g_object_set_data(G_OBJECT(filesel),"image", user_data);
+   
+   gtk_widget_show_all (filesel);
+ }
+Index: main.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-contacts/main.c,v
+retrieving revision 1.90
+diff -u -r1.90 main.c
+--- main.c	16 Sep 2004 16:57:47 -0000	1.90
++++ main.c	27 Sep 2004 12:23:18 -0000
+@@ -448,6 +448,9 @@
+   gchar *name;
+   gchar *company;
+   
++  if ((text == NULL) && (cat == NULL)) /* some speedup */
++    return TRUE;
++  
+   if (p->given_name)
+     gn = g_utf8_strdown(p->given_name, -1);
+   else
+@@ -492,22 +495,6 @@
+   if (name) g_free(name);
+   if (company) g_free(company);
+     
+-/* alternate method if nothing found 
+-  if ...
+-    
+-  else
+-    {
+-      gchar *lname = g_utf8_strdown (p->name, -1);
+-    
+-      if (strstr (lname, text) == NULL)
+-        {
+-          g_free (lname);
+-          return FALSE;
+-        }
+-    }
+-
+-  g_free (lname);
+-*/
+   if (cat)
+     {
+       GSList *l;
+@@ -539,7 +526,7 @@
+ {
+   gchar *text = g_utf8_strdown (gtk_entry_get_text (GTK_ENTRY (entry)), -1);
+   guint category = gtk_option_menu_get_history (GTK_OPTION_MENU (categories_smenu));
+-  GSList *all_entries = db_get_entries (), *iter;
++  GSList *all_entries = db_get_entries (), *iter = NULL;
+   struct gpe_pim_category *c = NULL;
+ 
+   if (category)
+@@ -561,19 +548,20 @@
+   for (iter = all_entries; iter; iter = iter->next)
+     {
+       struct person *p = iter->data;
+-      GtkTreeIter iter;
++      GtkTreeIter titer;
+       
+       if (match_for_search (p, text, c))
+         {
+-	      gtk_list_store_append (list_store, &iter);
+-	      gtk_list_store_set (list_store, &iter, 0, p->name, 1, p->id, -1);
++	      gtk_list_store_append (list_store, &titer);
++	      gtk_list_store_set (list_store, &titer, 0, p->name, 1, p->id, -1);
+         }
+ 
+       discard_person (p);
+     }
+   
+   g_slist_free (all_entries);
+-  g_free (text);
++  if (text) 
++    g_free (text);
+ }
+ 
+ #define SEARCH_DELAY  200
+@@ -616,7 +604,8 @@
+ {
+   GtkTreeSelection *sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(list_view));
+   update_categories ();
+-  selection_made(sel, G_OBJECT(gtk_widget_get_toplevel(search_entry)));
++  if (sel)
++    selection_made(sel, G_OBJECT(gtk_widget_get_toplevel(search_entry)));
+   do_search (G_OBJECT (search_entry), search_entry);
+ }
+ 

@@ -22,6 +22,8 @@
 #include <cstdint>
 #include <functional>
 
+class StateArchive;
+
 class V30Bus {
 public:
     virtual ~V30Bus() = default;
@@ -46,6 +48,36 @@ public:
     // half of ASIC1/ASIC9) drives this. Return 0xFF if no vector is
     // available (treated as spurious).
     virtual uint8_t  ackInterrupt() { return 0xFF; }
+
+    // Optional direct path, for memory where an access is just a load or
+    // a store: one 64 KiB page per segment of the 1 MiB space
+    // (linear >> 16), or null to go through the calls above. A machine
+    // fills in only pages with no side effects, and keeps them current as
+    // its memory map changes. The CPU reaches memory through these.
+    const uint8_t *readPage[16]  = {};
+    uint8_t       *writePage[16] = {};
+
+    uint8_t read8(uint32_t linear) {
+        const uint8_t *p = readPage[(linear >> 16) & 0xF];
+        return p ? p[linear & 0xFFFF] : readMemByte(linear);
+    }
+    uint16_t read16(uint32_t linear) {
+        const uint8_t *p = readPage[(linear >> 16) & 0xF];
+        const uint32_t o = linear & 0xFFFF;
+        if (p && o != 0xFFFF) return uint16_t(p[o] | (p[o + 1] << 8));
+        return readMemWord(linear);
+    }
+    void write8(uint32_t linear, uint8_t v) {
+        uint8_t *p = writePage[(linear >> 16) & 0xF];
+        if (p) p[linear & 0xFFFF] = v;
+        else   writeMemByte(linear, v);
+    }
+    void write16(uint32_t linear, uint16_t v) {
+        uint8_t *p = writePage[(linear >> 16) & 0xF];
+        const uint32_t o = linear & 0xFFFF;
+        if (p && o != 0xFFFF) { p[o] = uint8_t(v); p[o + 1] = uint8_t(v >> 8); }
+        else                  writeMemWord(linear, v);
+    }
 };
 
 enum class V30Variant {
@@ -136,11 +168,14 @@ public:
     // figure set it here through i8086Exact().
     int32_t absCycles = -1;
 
-    V30(V30Bus& bus, V30Variant v = V30Variant::V30) : busRef_(bus), variant(v) {}
+    V30(V30Bus& bus, V30Variant v = V30Variant::V30)
+        : busRef_(bus), variant(v), scale_(i8086CycleScale(v)) {}
 
     V30Bus& busRef() { return busRef_; }
 
     void reset();
+    // Registers, flags and pin state; call between slices.
+    void serializeState(StateArchive &a);
 
     // Executes one instruction. Returns cycles consumed (1 cycle ~ one internal
     // clock; Series 3 V30 runs at 3.84 MHz, 3a/3c at 7.68 / 13.82 / 27.68 MHz).
@@ -151,6 +186,16 @@ public:
     // just calls step() in a loop.
     int64_t run(int64_t budget);
 
+    // Executes instructions back to back, exactly as that many step()
+    // calls would (a step of 0 cycles counting as 1), until at least
+    // `budget` cycles have run; returns the cycles run. For a driver whose
+    // peripherals have nothing due before then. A peripheral reached
+    // mid-batch can read batchCycles() to catch up to the instruction
+    // boundary, and limitBatch() to stop at an earlier one.
+    int32_t runBatch(int32_t budget);
+    int32_t batchCycles() const { return batchCycles_; }
+    void    limitBatch(int32_t budget) { if (budget < batchBudget_) batchBudget_ = budget; }
+
     void setIrqLine(bool state)  { irqLine  = state; }
     void setNmiLine(bool state)  { nmiLine  = state; }
     void setPollLine(bool state) { pollLine = state; }
@@ -158,7 +203,16 @@ public:
     V30Variant getVariant() const { return variant; }
 
 private:
+    inline int32_t stepInline();
+    void    traceIrq();
+    void    tracePc();
+    void    traceWildJump();
+    int64_t unimplementedOpcode(uint8_t op);
+
     V30Bus&    busRef_;
+    int32_t    batchCycles_ = 0, batchBudget_ = 0;
+    // Per opcode, the first dispatcher with a case for it (see step()).
+    uint8_t    firstDispatch_[256] = {};
     // Where the instruction currently executing was fetched from. Only
     // read by the PSION_OPCODE_DEBUG report in step(), where it is the
     // difference between "this opcode is unimplemented" and "we are
@@ -168,4 +222,5 @@ private:
     uint32_t   dbgFetchPc_ = 0;
     uint16_t   dbgFetchCs_ = 0, dbgFetchIp_ = 0;
     V30Variant variant;
+    int32_t    scale_;   // i8086CycleScale(variant), looked up once
 };

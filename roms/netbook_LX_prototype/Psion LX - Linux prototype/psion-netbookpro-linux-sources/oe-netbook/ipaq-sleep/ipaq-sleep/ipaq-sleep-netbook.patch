@@ -1,0 +1,119 @@
+diff -ur /home/fuchs/Projekte/gpe/gpe/base/ipaq-sleep/ipaq-sleep.c ipaq-sleep/ipaq-sleep.c
+--- /home/fuchs/Projekte/gpe/gpe/base/ipaq-sleep/ipaq-sleep.c	2004-08-18 09:32:00.000000000 +0200
++++ ipaq-sleep/ipaq-sleep.c	2004-08-18 10:22:40.000000000 +0200
+@@ -27,7 +27,6 @@
+ #include <X11/Xlib.h>
+ #include <X11/extensions/scrnsaver.h>
+ 
+-#undef DEBUG
+ 
+ int irqs[MAX_IRQS]; /* irqs to examine have a value of 1 */
+ long v, irq_count[MAX_IRQS]; /* holds previous counters of the irq's */
+@@ -88,11 +87,11 @@
+ int set_backlight (int val)
+ {
+   if (val < 0)
+-    return system (BL " off");
++    return system ("echo 0 > " PROC_BL);
+   else
+     {
+       char command[256];
+-      snprintf(command, sizeof (command), BL " %i\n", val);
++      snprintf(command, sizeof (command), "echo %i > %s\n", val, PROC_BL);
+       return system(command);
+     }
+ }
+@@ -102,20 +101,17 @@
+   int r = 32;
+   FILE *input;
+ 
+-  if ((input=popen(BL, "r")) != NULL)
++  if ((input = fopen(PROC_BL, "r")) != NULL)
+     {
+       char buf[32];
+-      if (fgets (buf, 32, input))
+-	{
+-	  if (!strncmp (buf, "on ", 3))
+-	    r = atoi (buf + 4);
+-	  else
+-	    r = -1;
+-	}
+-      pclose (input);
++      if (fgets (buf, 5, input))
++        r = atoi (buf);
++      else
++        r = -1;
++      fclose (input);
+     }
+   else
+-    fprintf(stderr, "Cannot Open Stdin for bl command\n");
++    fprintf(stderr, "Cannot open backlight interface\n");
+ 
+   return r;
+ }
+@@ -211,8 +207,8 @@
+ #endif
+ 				}
+ 				if (strcmp(func, dflag)==0) {
+-					debug=atoi(value);
+ #ifdef DEBUG
++					debug=atoi(value);
+ 					if (debug) fprintf(dgfp, "debug=%d\n", cpu);
+ #endif
+ 				}
+@@ -301,8 +297,8 @@
+ #endif
+ 				}
+ 				if (strcmp(func, dflag)==0) {
+-					debug=atoi(value);
+ #ifdef DEBUG
++					debug=atoi(value);
+ 					if (debug) fprintf(dgfp, "debug=%d\n", cpu);
+ #endif
+ 				}
+@@ -758,7 +754,6 @@
+ 	int try=0, tmpX=0, checkinit=0;
+ 	
+ 	signal (SIGCHLD, SIG_IGN);
+-	parse_command_line(argc, argv);
+ 
+ #ifdef DEBUG
+ 	if (debug) {
+@@ -769,6 +764,7 @@
+ 		}
+ 	}
+ #endif
++	parse_command_line(argc, argv);
+ 	
+ 	if (daemonize) {
+ 		if (daemon(1,1) == -1) {
+diff -ur /home/fuchs/Projekte/gpe/gpe/base/ipaq-sleep/ipaq-sleep.h ipaq-sleep/ipaq-sleep.h
+--- /home/fuchs/Projekte/gpe/gpe/base/ipaq-sleep/ipaq-sleep.h	2004-08-18 09:54:25.000000000 +0200
++++ ipaq-sleep/ipaq-sleep.h	2004-08-18 10:22:40.000000000 +0200
+@@ -7,7 +7,7 @@
+ #define NO_SLEEP_DIR "/var/run/no-sleep"
+ #define NO_SLEEP "/var/run/no-sleep/ 2> /dev/null"
+ #define DEFAULT_SLEEP_TIME 2
+-#define BL "/usr/bin/bl"
++#define PROC_BL "/proc/driver/backlight"
+ 
+ #define uflag	"auto-sleep_time"
+ #define oflag	"dim_time"
+diff -ur /home/fuchs/Projekte/gpe/gpe/base/ipaq-sleep/ipaq-sleep.init ipaq-sleep/ipaq-sleep.init
+--- /home/fuchs/Projekte/gpe/gpe/base/ipaq-sleep/ipaq-sleep.init	2004-08-12 16:37:25.000000000 +0200
++++ ipaq-sleep/ipaq-sleep.init	2004-08-13 13:33:11.000000000 +0200
+@@ -9,7 +9,7 @@
+        ;;
+   stop)
+        echo -n "Stopping sleep daemon: ipaq-sleep"
+-       /sbin/start-stop-daemon --stop --quiet --oknodo --exec /usr/bin/ipaq-sleep
++       /sbin/start-stop-daemon --stop --quiet --exec /usr/bin/ipaq-sleep
+        echo "."
+        ;;
+   *)
+@@ -17,4 +17,4 @@
+        exit 1
+ esac
+ 
+-exit 0                                                                         
++exit 0

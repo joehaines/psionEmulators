@@ -1,0 +1,29 @@
+PR=r1
+
+DESCRIPTION = "multi-protocol instant messaging client"
+MAINTAINER = "Phil Blundell <pb@handhelds.org>"
+
+DEPENDS = "gtk+ gettext-native firefox psion-help"
+RDEPENDS = "mozilla-libs"
+RRECOMMENDS = "help-gaim"
+
+SRC_URI = "${SOURCEFORGE_MIRROR}/${PN}/${PN}-${PV}.tar.bz2 \
+			file://psion-gaim-add-help.patch;patch=1;pnum=0"
+
+PREMIRRORS_prepend = "${SOURCEFORGE_MIRROR}   http://unc.dl.sourceforge.net/sourceforge"
+EXTRA_OECONF = "--disable-audio --disable-perl --disable-tcl --disable-deprecated \
+		--with-nspr-includes=${STAGING_INCDIR}/mozilla/nspr \ 
+	        --with-nspr-libs=${STAGING_LIBDIR} \
+		--with-nss-includes=${STAGING_INCDIR}/mozilla/nss \
+		--with-nss-libs=${STAGING_LIBDIR} "
+
+
+inherit autotools 
+
+python populate_packages_prepend () {
+	root = oe.data.expand('${libdir}/gaim', d)
+
+        do_split_packages( d, root, '^lib(.*).so$',
+			   output_pattern='libgaim-protocol-%s',
+			   description='GAIM protocol plugin for %s' )
+}

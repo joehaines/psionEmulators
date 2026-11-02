@@ -1,0 +1,26 @@
+DESCRIPTION = "WPA Supplicant"
+SECTION = "base"
+PRIORITY = "optional"
+LICENSE = "GPL"
+DEPENDS = "openssl"
+
+SRC_URI = "file://wpa-supplicant-${PV}.tar.gz \
+	file://dotconfig"
+
+do_configure () {
+	install ${WORKDIR}/dotconfig .config
+}
+
+do_compile () {
+	export LIBS="-L${STAGING_LIBDIR} -lssl -lcrypto"
+	export LIBS_p="-L${STAGING_LIBDIR} -lcrypto"
+	unset CFLAGS
+	base_do_compile
+}
+
+do_install () {
+        install -d ${D}/${sbindir}
+	install -m 0755 wpa_supplicant ${D}/${sbindir}
+	install -m 0755 wpa_cli ${D}/${sbindir}
+	install -m 0755 wpa_passphrase ${D}/${sbindir}
+}

@@ -1,0 +1,1105 @@
+
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+
+#include <unistd.h>
+#include <string.h>
+#include <glib.h>
+#include "browsewrap.h"
+#include "preferences.h"
+#include "smbif.h"
+#include "utility.h"
+#include "data.h"
+#include "guiwrap.h"
+#include "libsmb.h"
+
+/* ------------------------------------------------------------------------- */
+
+#define BROWSE_JOB_MASK                 0x0003
+#define BROWSE_JOB_GROUPS                    0
+#define BROWSE_JOB_MACHINES                  1
+#define BROWSE_JOB_SHARES                    2
+#define BROWSE_JOB_PATH                      3
+
+#define BROWSE_USER_MASK                0x0004
+
+#define BROWSE_PRIMARY_MASK             0x0008
+#define BROWSE_WINS_MASK                0x0010
+#define BROWSE_ADDITIONAL_MASK          0x0020
+
+/* variables */
+static browse_type_t browse_type = bt_smb;
+
+/* static function declarations */
+static guint browse_job_len (void);
+static BROWSE_LIST_ENTRY* browse_job_from_queue (void);
+static void browse_job_start_from_entry (BROWSE_LIST_ENTRY *entry);
+static unsigned char browse_network_dec_jobs (void);
+static void browse_network_done (void);
+
+/* ------------------------------------------------------------------------- */
+
+unsigned int max_browse_jobs = MAX_BROWSE_JOBS; /* max numbers of browse jobs */
+static unsigned int browse_jobs = 0;            /* current numbers of browse jobs */
+static GSList *browse_list = (GSList*)NULL;     /* list for pending browse_jobs */
+static char dummy[] = "";
+static char *usr, *passwd;
+
+static browse_network_wait_callback browse_callback; /* callback when network browse is finished */
+
+/* ---------- */
+
+/* call this function before using the job counter */
+void browse_init ()
+{
+  browse_clean();
+  /* stops all pending browse actions */
+  stop_all_browse();
+  lib_smb_stop_all_browse();
+  browse_jobs = 0;
+}
+
+/* call this function after using the job counter */
+void browse_clean ()
+{
+  if ( browse_list != NULL )
+    slist_free_with_data(&browse_list);
+  browse_list = (GSList*)NULL;
+}
+
+/* ---------- */
+
+/* increment job counter */
+static unsigned char browse_job_inc ()
+{
+  unsigned char breturn;
+
+  if ( browse_jobs < max_browse_jobs )
+  {
+    browse_jobs++;
+    breturn = 1;
+  }
+  else
+  {
+    breturn = 0;
+  }
+  
+  return breturn;
+}
+
+/* decrement job counter */
+static void browse_job_dec ()
+{
+  BROWSE_LIST_ENTRY *entry;
+
+  if ( browse_jobs > 0 )
+  {
+    browse_jobs--;
+  }
+  
+  /* waiting browse job in queue ? */
+  if ( browse_job_len() > 0 )
+  {
+    if ( browse_job_inc() )
+    {
+      /* push another browse job */
+      entry = browse_job_from_queue();
+      browse_job_start_from_entry(entry);
+      g_free(entry);
+    }
+  }
+}
+
+unsigned int browse_job_get_max ()
+{
+  return max_browse_jobs;
+}
+
+void browse_job_set_max (unsigned int jobs)
+{
+  max_browse_jobs = jobs;
+}
+
+/* returns the number of waiting browse jobs */
+static guint browse_job_len ()
+{
+  if ( browse_list != NULL )
+  {
+    return g_slist_length(browse_list);
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+/* adds a browse job to the waiting queue */
+static void browse_job_to_queue (BROWSE_LIST_ENTRY* entry)
+{
+  if ( entry != NULL )
+    browse_list = g_slist_append(browse_list, entry);
+}
+
+/* returns a browse job from the waiting queue */
+static BROWSE_LIST_ENTRY* browse_job_from_queue ()
+{
+  BROWSE_LIST_ENTRY *entry;
+
+  if ( browse_job_len() > 0 )
+  {
+    entry = (BROWSE_LIST_ENTRY*)(browse_list->data);
+    browse_list = g_slist_remove(browse_list, entry);
+    return entry;
+  }
+  else
+  {
+    return (BROWSE_LIST_ENTRY*)NULL;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* --- Callbacks for GetSMBGroups(), GetSMBMachines(), GetSMBShares() --------- */
+/* ------------------------------------------------------------------------- */
+
+static void browse_job_start_from_entry (BROWSE_LIST_ENTRY *entry)
+{
+  BROWSE_INFO *browse_info;
+  int port = -1;
+  
+  if ( entry->r_entry.type & BROWSE_USER_MASK )
+  {
+    usr = globals.browse_user;
+    passwd = globals.browse_password;
+  }
+  else
+  {
+    usr = dummy;
+    passwd = dummy;
+  }
+  
+  if ( pref.v.use_smb_port )
+  {
+    port = pref.v.smb_port;
+  }
+  
+  browse_info = (BROWSE_INFO*)g_malloc(sizeof(BROWSE_INFO));
+  browse_info->g_info.mode = entry->r_entry.mode;
+  browse_info->g_info.browse_id = browse_jobs;
+
+  switch ( entry->r_entry.type & BROWSE_JOB_MASK )
+  {
+    case BROWSE_JOB_GROUPS:
+        
+        browse_info->g_info.callback = (browse_groups_callback)(entry->g_entry.callback);
+        
+        if ( entry->g_entry.type & BROWSE_PRIMARY_MASK )
+        {
+          /* browse with primary master browser */
+          if ( browse_type == bt_smb )
+          {
+            GetSMBGroups ( entry->g_entry.group,
+                           entry->g_entry.browser,
+                           usr,
+                           passwd,
+                           "",
+                           1,
+                           port,
+                           &(browse_info->g_info));
+          }
+          else
+          {
+          }
+        }
+        else if ( entry->g_entry.type & BROWSE_WINS_MASK )
+        {
+          /* browse with WINS server */
+          if ( browse_type == bt_smb )
+          {
+            GetSMBGroups ( entry->g_entry.group,
+                           "",
+                           usr,
+                           passwd,
+                           entry->g_entry.browser,
+                           0,
+                           port,
+                           &(browse_info->g_info));
+          }
+          else
+          {
+          }
+        }
+        else if ( entry->g_entry.type & BROWSE_ADDITIONAL_MASK )
+        {
+          /* browse with additional master browser */
+          if ( browse_type == bt_smb )
+          {
+            GetSMBGroups ( entry->g_entry.group,
+                           entry->g_entry.browser,
+                           usr,
+                           passwd,
+                           "",
+                           0,
+                           port,
+                           &(browse_info->g_info));
+          }
+          else
+          {
+          }
+        }
+        else
+        {
+          g_free(browse_info);
+        }
+        break;
+    
+    case BROWSE_JOB_MACHINES:
+        browse_info->h_info.callback = entry->h_entry.callback;
+        if ( browse_type == bt_smb )
+        {
+          GetSMBMachines ( entry->h_entry.group,
+                          entry->h_entry.master,
+                          usr,
+                          passwd,
+                          entry->h_entry.domain,
+                          port,
+                          &(browse_info->h_info));
+        }
+        else
+        {
+        }
+        break;
+    
+    case BROWSE_JOB_SHARES:
+        browse_info->s_info.callback = entry->s_entry.callback;
+        if ( browse_type == bt_smb )
+        {
+          GetSMBShares ( entry->s_entry.group,
+                         entry->s_entry.machine,
+                         entry->s_entry.domain,
+                         entry->s_entry.ip,
+                         usr,
+                         passwd,
+                         port,
+                         &(browse_info->s_info));
+        }
+        else
+        {
+        }
+        break;
+    
+    case BROWSE_JOB_PATH:
+        browse_info->p_info.callback = entry->p_entry.callback;
+        if ( browse_type == bt_smb )
+        {
+          /*GetSMBPath ( entry->p_entry.group,
+                       entry->p_entry.machine,
+                       entry->p_entry.path,
+                       entry->p_entry.domain,
+                       entry->p_entry.ip,
+                       entry->p_entry.user,
+                       entry->p_entry.password,
+                       &(browse_info->p_info));*/
+        }
+        else
+        {
+        }
+        break;
+    
+    default:
+        g_free(browse_info);
+        break;
+  }
+}
+
+/* this are the callbacks for browsing with the
+   samba command line tools (smbbrowse.c) */
+
+void GetSMBGroups_done ( GSList *groupmasterlist,
+                         GROUPS_BROWSE_INFO *browse_info,
+                         GetSMBStateType state )
+{
+  browse_job_dec();
+
+  switch ( state )
+  {
+    case SMB_STATE_OK:
+        browse_info->callback (groupmasterlist,
+                               browse_info->mode);
+        break;
+    
+    default:
+        browse_info->callback (NULL, browse_info->mode);
+        break;
+  }
+  
+  if ( browse_info )
+    g_free(browse_info);
+}
+
+void GetSMBMachines_done  ( char *group_name,
+                         GSList *machinecommentlist,
+                         MACHINES_BROWSE_INFO *browse_info,
+                         GetSMBStateType state )
+{
+  browse_job_dec();
+  
+  switch ( state )
+  {
+    case SMB_STATE_OK:
+        browse_info->callback (group_name,
+                               machinecommentlist,
+                               browse_info->mode);
+        break;
+        
+    default:
+        browse_info->callback (group_name, NULL, browse_info->mode);
+        break;
+  }
+
+  if ( browse_info )
+    g_free(browse_info);
+}
+
+void GetSMBShares_done ( char *group_name,
+                         char *machine_name,
+                         char *user,
+                         char *password,
+                         MACHINEINFO_STRUCT *machineinfo,
+                         GSList *sharecommenttypelist,
+                         SHARES_BROWSE_INFO *browse_info,
+                         GetSMBStateType state )
+{
+  browse_job_dec();
+  
+  switch ( state )
+  {
+    case SMB_STATE_OK:
+        browse_info->callback (group_name,
+                               machine_name,
+                               user,
+                               password,
+                               machineinfo,
+                               sharecommenttypelist,
+                               browse_info->mode);
+        break;
+    
+    default:
+        browse_info->callback (0, 0, 0, 0, NULL, NULL, browse_info->mode);
+        break;
+  }
+
+  if ( browse_info )
+    g_free(browse_info);
+}
+
+void GetSMBPath_done (char *group_name,
+                      char *machine_name,
+                      char *share_name,
+                      char *path_name,
+                      GSList *files,
+                      PATH_BROWSE_INFO *browse_info,
+                      GetSMBStateType state)
+{
+  browse_job_dec();
+  
+  switch ( state )
+  {
+    case SMB_STATE_OK:
+        (browse_info->callback) (group_name,
+                               machine_name,
+                               share_name,
+                               path_name,
+                               files,
+                               browse_info->mode);
+        break;
+    
+    default:
+        browse_info->callback (0, 0, 0, 0, NULL, browse_info->mode);
+        break;
+  }
+
+  if ( browse_info )
+    g_free(browse_info);
+}
+
+/* ------------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+static unsigned int network_pending_jobs;       /* pending browse jobs in network browse */
+
+static unsigned char first_group_browse_ended;  /* first group browse process has ended */
+static unsigned int groups_pending_jobs;        /* number of pending groups browse jobs */
+
+static void browse_groups_first_started (void)
+{
+  first_group_browse_ended = 0;
+  notify_stop();
+}
+
+static void browse_groups_enumerate (group_struct *group, gpointer data)
+{
+  BROWSE_MODE mode;
+
+  mode = (BROWSE_MODE)data;
+  if ( group != NULL )
+  {
+    browse_machines(group->name, mode);
+  }
+}
+
+static void browse_groups_notify (BROWSE_MODE mode)
+{
+  /* no browse process pending -> notify gui clients */
+  notify_start();
+  notify_group_change();
+
+  /* do an entire network browse */
+  if ( mode & (BROWSE_MODE_QUICK | BROWSE_MODE_NETWORK) )
+  {
+    /* initialize job counter to detect finish */
+    group_list_enumerate(browse_groups_enumerate, (gpointer)mode);
+  }
+}
+
+static void add_groupmasters_enumerate (group_struct *group, gpointer data)
+{
+  if ( group != NULL )
+  {
+    /* add additional group masters */
+    group_list_append_additional_master(group->name);
+  }
+}
+
+static void browse_groups_done ( GSList *groupmasterlist,
+                                 BROWSE_MODE mode)
+{
+  if ( groups_pending_jobs )
+    groups_pending_jobs--;
+
+  if ( groupmasterlist != NULL )
+  {
+    data_groups_add(groupmasterlist, first_group_browse_ended);
+  }
+  first_group_browse_ended = 1;
+  
+  /* groups browse finished ? */
+  if ( !groups_pending_jobs )
+  {
+    /* add additional group masters */
+    group_list_enumerate(add_groupmasters_enumerate, NULL);
+    
+    browse_groups_notify(mode);
+  }
+  
+  /* network browse finished ? */
+  if ( browse_network_dec_jobs() )
+  {
+    browse_network_done();
+  }
+}
+
+/* return value != 0 : browse was started
+                 = 0 : browse wasn't started */
+
+static void browse_groups_start ( char *master_browser,
+                                  char first_master,
+                                  BROWSE_MODE mode,
+                                  browse_groups_callback callback )
+{
+  GROUPS_BROWSE_INFO *browse_info;
+  BROWSE_LIST_ENTRY *entry;
+  char *group_name, *usr, *passwd, *wins_name;
+  int port = -1;
+  
+  if ( pref.v.use_smb_port )
+  {
+    port = pref.v.smb_port;
+  }
+  group_name = pref.v.workgroup;
+  usr = cempty;
+  passwd = cempty;
+  wins_name = cempty;
+  if ( mode & BROWSE_MODE_WINS )
+    wins_name = pref.v.wins_server;
+  if ( mode & BROWSE_MODE_USER )
+  {
+    usr = globals.browse_user;
+    passwd = globals.browse_password;
+  }
+  
+  if ( browse_job_inc() )
+  {
+    /* start browse job */
+    browse_info = (GROUPS_BROWSE_INFO*)g_malloc(sizeof(GROUPS_BROWSE_INFO));
+    browse_info->mode = mode;
+    browse_info->browse_id = browse_jobs;
+    browse_info->callback = callback;
+
+    if ( browse_type == bt_smb )
+    {
+      /* browse with samba tools */
+      GetSMBGroups ( group_name,
+                     master_browser,
+                     usr,
+                     passwd,
+                     wins_name,
+                     first_master,
+                     port,
+                     browse_info);
+    }
+    else
+    {
+      /* browse using libsmb */
+    }
+  }
+  else
+  {
+    /* too much browse jobs, put browse job to waiting queue */
+    entry = (BROWSE_LIST_ENTRY*)g_malloc(sizeof(BROWSE_LIST_ENTRY));
+    entry->g_entry.type = BROWSE_JOB_GROUPS;
+    if ( mode & BROWSE_MODE_USER )
+      entry->g_entry.type |= BROWSE_USER_MASK;
+    if ( first_master )
+      entry->g_entry.type |= BROWSE_PRIMARY_MASK;
+    if ( mode & BROWSE_MODE_WINS )
+      entry->g_entry.type |= BROWSE_WINS_MASK;
+    if ( (master_browser[0] != 0) && !first_master )
+      entry->g_entry.type |= BROWSE_ADDITIONAL_MASK;
+    string_ncopy(entry->g_entry.group, group_name, MAXGROUPNAMEL);
+    string_ncopy(entry->g_entry.browser, master_browser, MAXMACHNAMEL);
+    entry->g_entry.mode = mode;
+    entry->g_entry.callback = callback;
+    browse_job_to_queue(entry);
+  }
+}
+
+static void browse_groups_master_enumerate (master_struct *master, gpointer data)
+{
+  BROWSE_MODE mode;
+  
+  mode = (BROWSE_MODE)data | BROWSE_MODE_ADD_MASTER;
+  browse_groups_start(master->name, 0, mode, browse_groups_done);
+}
+
+void browse_groups (BROWSE_MODE mode)
+{
+  BROWSE_MODE temp_mode;
+
+  /* set groups browsing flags */
+  browse_groups_first_started();
+
+  /* calculate number of groups browse jobs */
+  groups_pending_jobs = 1;
+  if ( pref.v.master_browser_scan == YES )
+    groups_pending_jobs++;
+  if ( pref.v.wins_server_scan == YES )
+    groups_pending_jobs++;
+  groups_pending_jobs += master_list_count();
+  
+  network_pending_jobs = groups_pending_jobs;
+  
+  /* browse without master browser or WINS server */
+  browse_groups_start("", 0, mode, browse_groups_done);
+
+  /* browse with primary master browser */
+  if ( pref.v.master_browser_scan == YES )
+  {
+    temp_mode = mode | BROWSE_MODE_PRIM_MASTER;
+    browse_groups_start(pref.v.master, 1, temp_mode, browse_groups_done);
+  }
+
+  /* browse with WINS server */
+  if ( pref.v.wins_server_scan == YES )
+  {
+    temp_mode = mode | BROWSE_MODE_WINS;
+    browse_groups_start("", 0, mode, browse_groups_done);
+  }
+
+  /* browse with additional master browser(s) */
+  master_list_enumerate(browse_groups_master_enumerate, (gpointer)mode);
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void browse_machines_enumerate (machine_struct *machine, gpointer data)
+{
+  BROWSE_MODE mode;
+  
+  mode = (BROWSE_MODE)data;
+  browse_shares(machine->group->name, machine->name, mode);
+}
+
+static void browse_machines_done ( char *group_name,
+                                   GSList * machinecommentlist,
+                                   BROWSE_MODE mode)
+{
+  unsigned char success;
+
+  /* success ? */
+  success = data_machines_add(group_name, machinecommentlist, mode);
+
+  if ( success )
+  {
+    /* doing a complete network browse ? */
+    if ( mode & BROWSE_MODE_NETWORK )
+    {
+      /* enumerate machines for further browsing */
+      machine_list_enumerate(group_name, browse_machines_enumerate, (gpointer)mode);
+      if ( browse_network_dec_jobs() )
+      {
+        browse_network_done();
+      }
+    }
+  }
+  if ( !(mode & BROWSE_MODE_NETWORK) )
+  {
+    gui_set_cursor(cursor_normal);
+  }
+}
+
+static void browse_machines_start ( char *group_name,
+                                    char *master_browser,
+                                    BROWSE_MODE mode,
+                                    browse_machines_callback callback )
+{
+  MACHINES_BROWSE_INFO *browse_info;
+  BROWSE_LIST_ENTRY *entry;
+  char *usr, *passwd, *domain;
+  int port = -1;
+  
+  usr = cempty;
+  passwd = cempty;
+  domain = cempty;
+  
+  if ( pref.v.use_group_browse )
+    domain = group_name;
+  
+  if ( pref.v.use_smb_port )
+  {
+    port = pref.v.smb_port;
+  }
+  
+  if ( mode & BROWSE_MODE_USER )
+  {
+    usr = globals.browse_user;
+    passwd = globals.browse_password;
+  }
+  if ( mode & BROWSE_MODE_DOMAIN )
+    domain = globals.domain_name;
+  
+  if ( browse_job_inc() )
+  {
+    /* start browse job */
+    browse_info = (MACHINES_BROWSE_INFO*)g_malloc(sizeof(MACHINES_BROWSE_INFO));
+    browse_info->mode = mode;
+    browse_info->browse_id = browse_jobs;
+    browse_info->callback = callback;
+    
+    if ( browse_type == bt_smb )
+    {
+      GetSMBMachines ( group_name,
+                       master_browser,
+                       usr,
+                       passwd,
+                       domain,
+                       port,
+                       browse_info);
+    }
+    else
+    {
+    }
+  }
+  else
+  {
+    /* too much browse jobs, put browse job to waiting queue */
+    entry = (BROWSE_LIST_ENTRY*)g_malloc(sizeof(BROWSE_LIST_ENTRY));
+    entry->h_entry.type = BROWSE_JOB_MACHINES;
+    if ( mode & BROWSE_MODE_USER )
+      entry->h_entry.type |= BROWSE_USER_MASK;
+    string_ncopy(entry->h_entry.group, group_name, MAXGROUPNAMEL);
+    string_ncopy(entry->h_entry.master, master_browser, MAXMACHNAMEL);
+    string_ncopy(entry->h_entry.domain, domain, MAXGROUPNAMEL);
+    entry->h_entry.mode = mode;
+    entry->h_entry.callback = callback;
+    browse_job_to_queue(entry);
+  }
+}
+
+/* 1 = browse started, 0 = not started */
+unsigned char browse_machines ( char *groupname,
+                                BROWSE_MODE mode )
+{
+  group_struct *group;
+  group_master_struct *master;
+  GSList *list;
+  
+  group = group_list_search_by_name(groupname);
+  if ( group != NULL )
+  {
+    machine_list_delete_all(&(group->machinelist));
+    /* number of group masters */
+    group->pending_jobs = g_slist_length(group->masterlist);
+    network_pending_jobs += group->pending_jobs;
+    if ( !group->pending_jobs )
+    {
+      /* no master, no browse (no woman, no cry - hihihi) */
+      return 0;
+    }
+    list = group->masterlist;
+    while ( list != NULL )
+    {
+      master = (group_master_struct*)(list->data);
+      if ( master != NULL )
+      {
+        browse_machines_start(group->name, master->name, mode, browse_machines_done);
+      }
+      else
+        group->pending_jobs--;
+      list = list->next;
+    }
+    return 1;
+  }
+  else
+    return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void browse_shares_done ( char *group_name,
+                                 char *machine_name,
+                                 char *user,
+                                 char *password,
+                                 MACHINEINFO_STRUCT *machineinfo,
+                                 GSList *sharecommenttypelist,
+                                 BROWSE_MODE mode)
+{
+  if ( mode & BROWSE_MODE_PREF_HOST )
+  {
+    if ( sharecommenttypelist != NULL )
+      data_hosts_shares_add(machine_name, user, password, sharecommenttypelist);
+    if ( machineinfo != NULL )
+      data_hosts_machineinfo_set(machine_name, machineinfo);
+  }
+  else
+  {
+    if ( sharecommenttypelist != NULL )
+      data_shares_add(group_name, machine_name, user, password, sharecommenttypelist, mode);
+    if ( machineinfo != NULL )
+      data_machines_machineinfo_set(group_name, machine_name, machineinfo);
+  }
+
+  if ( sharecommenttypelist != NULL )
+  {
+    if ( mode & BROWSE_MODE_NETWORK )
+    {
+      /* finished ? */
+      if ( browse_network_dec_jobs() )
+      {
+        browse_network_done();
+      }
+    }
+  }
+  gui_set_cursor(cursor_normal);
+}
+
+static void browse_shares_start ( char *group_name,
+                                  char *machine_name,
+                                  char *domain_name,
+                                  char *ip,
+                                  BROWSE_MODE mode,
+                                  browse_shares_callback callback )
+{
+  SHARES_BROWSE_INFO *browse_info;
+  BROWSE_LIST_ENTRY *entry;
+  char *usr, *passwd, *domain;
+  int port = -1;
+  
+  usr = cempty;
+  passwd = cempty;
+  domain = cempty;
+  
+  if ( pref.v.use_smb_port )
+  {
+    port = pref.v.smb_port;
+  }
+  
+  if ( pref.v.use_group_browse )
+    domain = domain_name;
+  
+  if ( mode & BROWSE_MODE_USER )
+  {
+    usr = globals.browse_user;
+    passwd = globals.browse_password;
+  }
+  
+  if ( browse_job_inc() )
+  {
+    /* start browse job */
+    browse_info = (SHARES_BROWSE_INFO*)g_malloc(sizeof(SHARES_BROWSE_INFO));
+    browse_info->mode = mode;
+    browse_info->browse_id = browse_jobs;
+    browse_info->callback = callback;
+  
+    if ( browse_type == bt_smb )
+    {
+      GetSMBShares ( group_name,
+                     machine_name,
+                     domain,
+                     ip,
+                     usr,
+                     passwd,
+                     port,
+                     browse_info);
+    }
+    else
+    {
+    }
+  }
+  else
+  {
+    /* too much browse jobs, put browse job to waiting queue */
+    entry = (BROWSE_LIST_ENTRY*)g_malloc(sizeof(BROWSE_LIST_ENTRY));
+    entry->s_entry.type = BROWSE_JOB_SHARES;
+    if ( mode & BROWSE_MODE_USER )
+      entry->s_entry.type |= BROWSE_USER_MASK;
+    string_ncopy(entry->s_entry.group, group_name, MAXGROUPNAMEL);
+    string_ncopy(entry->s_entry.machine, machine_name, MAXMACHNAMEL);
+    string_ncopy(entry->s_entry.domain, domain, MAXGROUPNAMEL);
+    string_ncopy(entry->s_entry.ip, ip, MAXIPL);
+    entry->s_entry.mode = mode;
+    entry->s_entry.callback = callback;
+    browse_job_to_queue(entry);
+  }
+}
+
+void browse_shares ( char *groupname, char *machinename,
+                     BROWSE_MODE mode)
+{
+  group_struct *g_struct;
+  machine_struct *m_struct;
+  host_struct *h_struct;
+  char *group, *machine, *domain, *ip;
+  
+  machine = cempty;
+  group = cempty;
+  domain = cempty;
+  ip = cempty;
+  
+  if ( mode & BROWSE_MODE_PREF_HOST )
+  {
+    h_struct = host_list_search_by_name(machinename);
+    if ( h_struct != NULL )
+    {
+      group = h_struct->group;
+      domain = group;
+      machine = h_struct->name;
+      ip = h_struct->ipaddr;
+      if ( mode & BROWSE_MODE_DOMAIN )
+      {
+        if ( !is_empty_string(h_struct->domain) )
+          domain = h_struct->domain;
+      }
+    }
+  }
+  else
+  {
+    g_struct = group_list_search_by_name(groupname);
+    if ( g_struct != NULL )
+    {
+      group = g_struct->name;
+      domain = group;
+      m_struct = machine_list_search_by_name(g_struct->machinelist, machinename);
+      if ( m_struct != NULL )
+      {
+        machine = m_struct->name;
+        ip = m_struct->ipaddr;
+        if ( mode & BROWSE_MODE_DOMAIN )
+        {
+          if ( !is_empty_string(m_struct->domain) )
+            domain = m_struct->domain;
+        }
+      }
+    }
+  }
+
+  network_pending_jobs++;
+  browse_shares_start(group, machine, domain, ip, mode, browse_shares_done);
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void browse_path_done ( char *group_name,
+                               char *machine_name,
+                               char *share_name,
+                               char *path_name,
+                               GSList *files,
+                               BROWSE_MODE mode)
+{
+  /* add files list to window(s) */
+  gui_set_files(group_name, machine_name, share_name, path_name, files);
+    
+  /* delete files list */
+  if ( files != NULL )
+  {
+    lib_smb_file_list_delete(&files);
+  }
+  
+  gui_set_cursor(cursor_normal);
+}
+
+static void browse_path_start ( char *group,
+                                char *machine,
+                                char *share,
+                                char *path,
+                                char *ip,
+                                char *user,
+                                char *password,
+                                BROWSE_MODE mode,
+                                browse_path_callback callback )
+{
+  PATH_BROWSE_INFO *browse_info;
+  BROWSE_LIST_ENTRY *entry;
+  char *usr, *passwd, *domain;
+  char share_path[MAXSHAREPATHL+1];
+  
+  usr = cempty;
+  passwd = cempty;
+  domain = cempty;
+  
+  if ( pref.v.use_group_browse )
+    domain = group;
+  
+  if ( mode & BROWSE_MODE_USER )
+  {
+    usr = user;
+    passwd = password;
+  }
+  if ( mode & BROWSE_MODE_DOMAIN )
+    domain = globals.domain_name;
+  
+  strncpy(share_path, share, MAXSHAREPATHL);
+  string_ncat(share_path, "/", MAXSHAREPATHL);
+  string_ncat(share_path, path, MAXSHAREPATHL);
+  share_path[MAXSHAREPATHL] = 0;
+  
+  if ( browse_job_inc() )
+  {
+    /* start browse job */
+    browse_info = (PATH_BROWSE_INFO*)g_malloc(sizeof(PATH_BROWSE_INFO));
+    browse_info->mode = mode;
+    browse_info->browse_id = browse_jobs;
+    browse_info->callback = callback;
+  
+    if ( browse_type == bt_smb )
+    {
+      /* add user+password to authentication database */
+      lib_smb_auth_database_add(group,machine,user,password);
+      
+      GetLibSMBPath ( group,
+                      machine,
+                      share,
+                      path,
+                      user,
+                      password,
+                      browse_info);
+                      
+      /*GetSMBPath ( machine,
+                   share,
+                   path,
+                   domain,
+                   ip,
+                   usr,
+                   passwd,
+                   browse_info);*/
+    }
+    else
+    {
+    }
+  }
+  else
+  {
+    /* too much browse jobs, put browse job to waiting queue */
+    entry = (BROWSE_LIST_ENTRY*)g_malloc(sizeof(BROWSE_LIST_ENTRY));
+    entry->p_entry.type = BROWSE_JOB_PATH;
+    if ( mode & BROWSE_MODE_USER )
+      entry->p_entry.type |= BROWSE_USER_MASK;
+    string_ncopy(entry->p_entry.group, group, MAXGROUPNAMEL);
+    string_ncopy(entry->p_entry.machine, machine, MAXMACHNAMEL);
+    string_ncopy(entry->p_entry.domain, domain, MAXGROUPNAMEL);
+    string_ncopy(entry->p_entry.ip, ip, MAXIPL);
+    string_ncopy(entry->p_entry.ip, path, MAXSHAREPATHL);
+    string_ncopy(entry->p_entry.ip, usr, USER_LEN);
+    string_ncopy(entry->p_entry.ip, passwd, PASSWORD_LEN);
+    entry->p_entry.mode = mode;
+    entry->p_entry.callback = callback;
+    browse_job_to_queue(entry);
+  }
+}
+
+void browse_path ( share_window_struct *sw, BROWSE_MODE mode)
+{
+  if ( sw != NULL )
+  {
+    browse_path_start(sw->group, sw->machine, sw->share, sw->path, sw->ip,
+                        sw->user, sw->password, mode, browse_path_done);
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+
+void browse_network (BROWSE_MODE mode)
+{
+  network_pending_jobs = 0;
+  if ( !(mode & BROWSE_MODE_NO_GUI) )
+    gui_remove_entire_tree();
+  browse_callback = NULL;
+  browse_groups(mode | BROWSE_MODE_NETWORK);
+}
+
+/* 1 = counter 0, 0 = counter not 0 */
+static unsigned char browse_network_dec_jobs (void)
+{
+  if ( network_pending_jobs )
+    network_pending_jobs--;
+  return ( network_pending_jobs ) ? 0 : 1;
+}
+
+static void browse_network_done (void)
+{
+  if ( browse_callback != NULL )
+  {
+    browse_callback();
+  }
+}
+
+void browse_network_wait_done (browse_network_wait_callback callback)
+{
+  /* already finished ? */
+  if ( !network_pending_jobs )
+  {
+    callback();
+  }
+  else
+  {
+    browse_callback = callback;
+  }
+}
+
+/* ------------------------------------------------------------------------- */

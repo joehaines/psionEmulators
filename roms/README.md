@@ -44,6 +44,8 @@ utilities, SIS packages) is not copied: it holds no ROM images.
 | `netBook/ESHELL_v0.01_eng/` | netBook ESHELL test OS (easter-egg boot) |
 | `netBook/Quartz_v6.0_eng/` | netBook build of Quartz (`docs/netbook-quartz.md`) |
 | `netBook/Quartz_v6.0_b_eng/` | A second, larger Quartz image; not currently used |
+| `netbook_LX_prototype/` | The Psion LX (Linux on netBook Pro hardware): its OS image, root filesystem tree, kernel and OpenEmbedded sources, the User Manual and ActiveSync |
+| `netbook_LX_prototype/LX_boot/` | What the `psionlx` device loads: `nBkProOs.img` (a byte-for-byte copy of the OS image in the source tree) and `lx-nand.img.gz`, the NAND image `scripts/build-lx-nand.mts` builds from the rootfs (generated, not committed — see docs/psion-lx.md) |
 
 Name note: the Series 5 image this site used to call `series5_v1.01(144)_eng.bin`
 is byte-identical to upstream's `S5_v1.01(145)_eng`, whose header says

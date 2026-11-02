@@ -763,7 +763,7 @@ const NETPAD_PANEL_LAYOUT: SkinLayout = {
 // picture on a machine that actually paints in colour, so these opt out
 // and keep their RGB pixels.  (The netpad's 640×240 panel is 8 bpp with a
 // 6×6×6 colour cube — see readLCDIntoBuffer in core/sa1100.cpp.)
-const COLOUR_SCREEN_DEVICES = new Set(['series7', 'netbook', 'netpad']);
+const COLOUR_SCREEN_DEVICES = new Set(['series7', 'netbook', 'netpad', 'psionlx']);
 
 // ── Closed-lid artwork ─────────────────────────────────────────────────
 // A clamshell whose `device-skins/` folder also carries a shot of the

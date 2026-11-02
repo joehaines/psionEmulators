@@ -1,0 +1,48 @@
+--- pcmcia-cs/etc/network.old	2004-07-01 00:31:59.000000000 +0100
++++ pcmcia-cs/etc/network	2004-07-01 00:32:57.000000000 +0100
+@@ -31,16 +31,39 @@
+ 
+ RESOLV=/etc/resolv.conf
+ 
++# if this interface has an entry in /etc/network/interfaces, let ifupdown
++# handle it
++if grep -q "iface \+$DEVICE" /etc/network/interfaces; then
++  case $ACTION in
++    start)
++    	ifup $DEVICE
++    	;;
++    stop)
++    	ifdown $DEVICE
++    	;;
++    restart)
++    	ifdown $DEVICE
++    	ifup $DEVICE
++    	;;
++  esac
++  
++  exit 0
++fi
++
++## see if it is a wireless card. Jamey and AntiProxy
++CHECK_WIRELESS=`grep "$DEVICE" /proc/net/wireless`
++if [ -n "$CHECK_WIRELESS" ] ; then
+ # Now, run the specific script for Wireless LAN interfaces
+ # Note : we need the wireless parameters to be set up before IP parameters,
+ # so that we can perform DHCP over the Wireless link if needed. Jean II
+-O_INFO=$INFO ; INFO=
+-if [ -x ./wireless ] ; then
+-    . ./wireless
+-else
+-    . /etc/pcmcia/wireless
++    O_INFO=$INFO ; INFO=
++    if [ -x ./wireless ] ; then
++	. ./wireless
++    else
++	. /etc/pcmcia/wireless
++    fi
++    INFO=$O_INFO
+ fi
+-INFO=$O_INFO
+ 
+ bootp_setup ()
+ {

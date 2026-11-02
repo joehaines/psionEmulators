@@ -1,0 +1,77 @@
+--- main.c~psion-gallery-add-help.patch	2004-10-19 13:37:51.000000000 +0200
++++ main.c	2004-10-19 13:42:42.000000000 +0200
+@@ -5,6 +5,11 @@
+  * modify it under the terms of the GNU General Public License
+  * as published by the Free Software Foundation; either version
+  * 2 of the License, or (at your option) any later version.
++ *
++ * Modification for Psion Netbook LX help by
++ *
++ * Philippe De Swert, for Aleph One Ltd.
++ * 
+  */
+ 
+ #include <sys/types.h>
+@@ -23,6 +28,7 @@
+ 
+ #include <gtk/gtk.h>
+ #include <gdk/gdk.h>
++#include <gdk/gdkkeysyms.h>
+ 
+ #include <gpe/init.h>
+ #include <gpe/errorbox.h>
+@@ -95,6 +101,7 @@
+   { "stop", "stop" },
+   { "question", "question" },
+   { "error", "error" },
++  { "help", "help" },
+   { "icon", PREFIX "/share/pixmaps/gpe-gallery.png" },
+   {NULL, NULL}
+ };
+@@ -225,6 +232,22 @@
+ }
+ 
+ static void
++show_help (void)
++{
++	system("gpe-helpviewer /usr/share/help/gallery/index.html");
++}
++
++static gboolean
++key_press (GtkWidget *win, GdkEventKey *event)
++{
++	if (event->keyval == GDK_F1)
++	{
++		show_help();
++	}
++	return FALSE;
++}
++
++static void
+ show_image (GtkWidget *widget, GList *image_filename)
+ {
+   gint width, height;
+@@ -1204,6 +1227,14 @@
+   gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("List view"), 
+ 			   _("List view"), _("List view"), toolbar_icon, GTK_SIGNAL_FUNC (render_view), (gpointer) 1);
+ 
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
++  
++  toolbar_icon = gtk_image_new_from_stock (GTK_STOCK_HELP, GTK_ICON_SIZE_SMALL_TOOLBAR);
++  gtk_toolbar_append_item (GTK_TOOLBAR (toolbar), _("Help"),
++		  		_("Help"), _("Help"), toolbar_icon, GTK_SIGNAL_FUNC (show_help), NULL);
++
++  gtk_toolbar_append_space (GTK_TOOLBAR (toolbar));
++  
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_QUIT,
+ 			    _("Exit"), _("Tap here to exit the program"),
+ 			    G_CALLBACK (gtk_main_quit), NULL, -1);
+@@ -1263,6 +1294,8 @@
+   gtk_toolbar_append_item (GTK_TOOLBAR (loading_toolbar), _("Stop Loading"), 
+ 			   _("Stop Loading"), _("Stop Loading"), toolbar_icon, NULL, NULL);
+ 
++  g_signal_connect (G_OBJECT(window), "key_press_event", G_CALLBACK(key_press), NULL);
++
+   gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (vbox));
+   gtk_box_pack_start (GTK_BOX (vbox), toolbar, FALSE, FALSE, 0);
+   gtk_box_pack_start (GTK_BOX (vbox), vbox2, TRUE, TRUE, 0);

@@ -1,0 +1,60 @@
+--- xserver/hw/kdrive/src/kdrive.h.old	Sat Nov 13 15:39:22 2004
++++ xserver/hw/kdrive/src/kdrive.h	Sat Nov 13 15:39:34 2004
+@@ -410,6 +410,7 @@
+ extern Bool		kdSwitchPending;
+ extern Bool		kdEmulateMiddleButton;
+ extern Bool		kdDisableZaphod;
++extern Bool		kdDontZap;
+ extern int		kdVirtualTerminal;
+ extern char		*kdSwitchCmd;
+ extern KdOsFuncs	*kdOsFuncs;
+--- xserver/hw/kdrive/src/kdrive.c.old	Sat Nov 13 15:36:49 2004
++++ xserver/hw/kdrive/src/kdrive.c	Sat Nov 13 15:36:51 2004
+@@ -68,6 +68,7 @@
+ Bool		    kdEmulateMiddleButton;
+ Bool		    kdRawPointerCoordinates;
+ Bool		    kdDisableZaphod;
++Bool                kdDontZap;
+ Bool		    kdEnabled;
+ int		    kdSubpixelOrder;
+ int		    kdVirtualTerminal = -1;
+@@ -673,6 +674,7 @@
+     ErrorF("\nTinyX Device Dependent Usage:\n");
+     ErrorF("-card pcmcia     Use PCMCIA card as additional screen\n");
+     ErrorF("-screen WIDTH[/WIDTHMM]xHEIGHT[/HEIGHTMM][@ROTATION][X][Y][xDEPTH/BPP{,DEPTH/BPP}[xFREQ]]  Specify screen characteristics\n");
++    ErrorF("-rgba rgb/bgr/vrgb/vbgr/none   Specify subpixel ordering for LCD panels\n");
+     ErrorF("-zaphod          Disable cursor screen switching\n");
+     ErrorF("-2button         Emulate 3 button mouse\n");
+     ErrorF("-3button         Disable 3 button mouse emulation\n");
+@@ -683,6 +685,7 @@
+     ErrorF("-origin X,Y      Locates the next screen in the the virtual screen (Xinerama)\n");
+     ErrorF("-mouse path[,n]  Filename of mouse device, n is number of buttons\n");
+     ErrorF("-switchCmd       Command to execute on vt switch\n");
++    ErrorF("-nozap           Don't terminate server on Ctrl+Alt+Backspace\n");
+     ErrorF("vtxx             Use virtual terminal xx instead of the next available\n");
+     /* XXX: what does -rgba do? */
+ #ifdef PSEUDO8
+@@ -727,6 +730,11 @@
+     if (!strcmp (argv[i], "-zaphod"))
+     {
+ 	kdDisableZaphod = TRUE;
++	return 1;
++    }
++    if (!strcmp (argv[i], "-nozap"))
++    {
++	kdDontZap = TRUE;
+ 	return 1;
+     }
+     if (!strcmp (argv[i], "-3button"))
+--- xserver/hw/kdrive/src/kinput.c.old	Sat Nov 13 15:36:56 2004
++++ xserver/hw/kdrive/src/kinput.c	Sat Nov 13 15:37:18 2004
+@@ -1209,7 +1209,8 @@
+ 	 * Set the dispatch exception flag so the server will terminate the
+ 	 * next time through the dispatch loop.
+ 	 */
+-	dispatchException |= DE_TERMINATE;
++	if (kdDontZap == FALSE)
++	    dispatchException |= DE_TERMINATE;
+ 	break;
+     }
+ }

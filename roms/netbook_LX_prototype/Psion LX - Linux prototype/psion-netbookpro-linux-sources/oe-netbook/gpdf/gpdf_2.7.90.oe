@@ -1,0 +1,22 @@
+PR = "r2nb1"
+
+inherit gnome
+
+DEPENDS = "gtk+ libgnomeui libbonoboui gnome-vfs gconf gettext libglade \
+	libgnomeprint libgnomeprintui"
+
+EXTRA_OECONF = "--disable-schemas-install"
+
+SRC_URI += "file://compiler-flags.m4 \
+	file://aclocal-lossage.patch;patch=1 \
+	file://desktop.patch;patch=1 \
+	file://pdf_viewer.png"
+
+do_configure_prepend() {
+	install -d ${S}/m4
+	install -m 0644 ${WORKDIR}/compiler-flags.m4 ${S}/m4/
+}
+
+do_compile_prepend() { 
+        mv -f ${S}/../pdf_viewer.png ${S}/gnome-pdf.png
+}

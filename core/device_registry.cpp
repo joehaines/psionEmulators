@@ -15,6 +15,7 @@
 #include "series7.h"
 #include "organiser1.h"
 #include "organiser2.h"
+#include "netbookpro.h"
 #include <cstring>
 
 // Per-device Windermere factories. Each one stamps the variant on the
@@ -322,6 +323,8 @@ static EmuBase *makePocketBook2() {
 static EmuBase *makeSeries7() { return new Series7::Emulator("Psion Series 7"); }
 static EmuBase *makeNetBook() { return new Series7::NetBookEmulator; }
 static EmuBase *makeNetpad() { return new Series7::NetpadEmulator; }
+// Psion LX — the netBook Pro (PXA255) running Psion's Linux prototype.
+static EmuBase *makePsionLX() { return new NetbookPro::Emulator; }
 
 // Psion Organiser II (1986) — Hitachi HD6303X + HD44780 character LCD +
 // two Datapak/Rampak slots. Scaffold landing: the HD6303 core in
@@ -877,6 +880,37 @@ static const DeviceProfile kProfiles[] = {
         1, 1,   // EPOC32 PLP + RFSV32 over the cable; IrDA + Eikon-IR beam
         false,  // shown in the device picker
         true,   // MMC card slot (drive D:)
+    },
+    {
+        // The Psion LX: Psion Teklogix and Simtec's 2004-05 Linux prototype
+        // on netBook Pro hardware — an Intel PXA255 (XScale) with 128 MB of
+        // SDRAM, an Epson S1D13806 driving the 800x600 panel, and 64 MB of
+        // NAND. It runs on its own core: the XScale CPU (core/xscale.*), the
+        // PXA255 peripherals (core/pxa255.*) and the board (core/
+        // netbookpro.*). The "ROM" is the OS image the netBook Pro
+        // bootloader loads, nBkProOs.img: a 2.6.9 kernel and its initrd,
+        // which are self-relocating, so the emulator does no more than the
+        // bootloader did — inflate it to 0xA0408000 and jump. The root
+        // filesystem lives on the internal NAND; its factory image
+        // (internalFlashImage, built from the rootfs tree by
+        // scripts/build-lx-nand.mts) is loaded into the NAND on a cold
+        // boot. Selection is by id or the image's exact size. See
+        // docs/psion-lx.md.
+        "psionlx",
+        "Psion LX",
+        "netbook_LX_prototype/LX_boot/nBkProOs.img",
+        3613045,                // exact image size (unique -> size auto-detect)
+        0,
+        nullptr,
+        DeviceStatus::Supported,
+        makePsionLX,
+        false,  // CompactFlash / PC-Card sockets not emulated yet
+        0, 0,
+        -1, -1, // no Remote Link / IrDA host bridge
+        0, 0,
+        false,  // shown in the device picker
+        false,  // no MMC slot emulated
+        "netbook_LX_prototype/LX_boot/lx-nand.img.gz",
     },
     {
         "series3",

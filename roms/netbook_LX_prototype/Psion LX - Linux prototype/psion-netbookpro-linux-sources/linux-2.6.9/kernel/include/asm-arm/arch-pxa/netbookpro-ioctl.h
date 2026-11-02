@@ -1,0 +1,2 @@
+
+#define NVRAM_UNLOCK_TOUCH_CALIBRATION  _IO('p', 0x42)

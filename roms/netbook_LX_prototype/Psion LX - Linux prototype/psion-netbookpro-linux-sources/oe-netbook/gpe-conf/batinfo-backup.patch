@@ -1,0 +1,190 @@
+Index: battery.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/battery.c,v
+retrieving revision 1.19
+diff -u -r1.19 battery.c
+--- battery.c	23 Aug 2004 16:43:27 -0000	1.19
++++ battery.c	29 Sep 2004 16:14:49 -0000
+@@ -45,6 +45,7 @@
+ #define TS_DEV "/dev/touchscreen/0raw"
+ #define PROC_BATTERY "/proc/asic/battery"
+ #define PROC_APM "/proc/apm"
++#define PROC_BATTERY_GENERIC "/proc/driver/battery"
+ 
+ /* local types and structs */
+ 
+@@ -74,6 +75,7 @@
+ 
+ static int TSfd;
+ FILE *file_apm = NULL;
++gboolean have_generic = FALSE;
+ 
+ /* local functions */
+ 
+@@ -81,15 +83,19 @@
+ void init_device()
+ {
+ 	/* check if there is an iPaq touchscreen device, open it */
+-	TSfd=open(TS_DEV, O_RDWR);
++	TSfd = open(TS_DEV, O_RDWR);
+ 	if (TSfd < 0) {
+  		g_print(_("could not open touchscreen device '%s'\n"), TS_DEV);
+  		perror("open");
+ 	};
+ 	
+-	/* then check if we have apm support available*/
+-	if (!access(PROC_APM,R_OK))
+-		file_apm = fopen(PROC_APM,"r");
++	/* then check if we have apm support available */
++	if (!access(PROC_APM, R_OK))
++		file_apm = fopen(PROC_APM, "r");
++	
++	/* then check if we have generic battery */
++	if (!access(PROC_BATTERY_GENERIC, R_OK))
++		have_generic = TRUE;
+ }
+ 
+ 
+@@ -249,6 +255,65 @@
+ 		return TRUE;
+ 	}
+ #endif
++	
++	if (!have_generic)
++	{
++		/* apm knows only about one battery */
++		gtk_widget_hide(batt_ext.bar);
++		gtk_widget_hide(batt_ext.label);
++		gtk_widget_hide(batt_ext.lstate);
++		gtk_widget_hide(batt_ext.lchem);
++		gtk_widget_hide(batt_ext.lvoltage);
++		gtk_widget_hide(batt_ext.llifetime);
++	}
++	else
++	{
++		int percent = 0;
++		int remaining = 0; 
++		int status; 
++		int barstate = 0;
++		
++		/* read data from proc entry */
++		
++		parse_file(PROC_BATTERY_GENERIC, " Backup Battery Capacity %%: %d", &percent);
++		parse_file(PROC_BATTERY_GENERIC, " Backup Battery mV: %d", &remaining);
++
++		if (percent > 30) 
++			status = 0x00;
++		else if (percent > 15)
++			status = 0x01;
++		else 
++			status = 0x02;
++		
++		switch (status)
++		{
++			case 0x00:
++				sprintf(tmp, "%s", _("Status: high"));
++				barstate = 0;
++			break;
++			case 0x01:
++				sprintf(tmp, "%s", _("Status: low"));
++				barstate = 85;
++			break;
++			case 0x02:
++				sprintf(tmp, "%s", _("Status: critical"));
++			    barstate = 99;
++			break;
++		}
++			
++		gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (batt_ext.bar),
++		                               (float)percent/100.0);
++		toolbar_set_style(batt_ext.bar, barstate);
++		sprintf(percstr, "%d %%", percent);
++		gtk_progress_bar_set_text(GTK_PROGRESS_BAR(batt_ext.bar), percstr);
++		
++		gtk_label_set_text(GTK_LABEL(batt_ext.lstate), tmp);
++		
++		sprintf(tmp, "%s: %d mV.",_("Voltage"), remaining);
++		gtk_label_set_text(GTK_LABEL(batt_ext.llifetime), tmp);
++	}
++	
++	
+ 	if (file_apm)
+ 	{
+ 		int percent;
+@@ -259,14 +324,6 @@
+ 		char unit[5];
+ 		int barstate = 0;
+ 		
+-		/* apm knows only about one battery */
+-		gtk_widget_hide(batt_ext.bar);
+-		gtk_widget_hide(batt_ext.label);
+-		gtk_widget_hide(batt_ext.lstate);
+-		gtk_widget_hide(batt_ext.lchem);
+-		gtk_widget_hide(batt_ext.lvoltage);
+-		gtk_widget_hide(batt_ext.llifetime);
+-		
+ 		/* read data from proc entry */
+ 		fclose(file_apm);
+ 		file_apm = fopen(PROC_APM,"r");
+@@ -335,7 +392,7 @@
+ 			gtk_label_set_text(GTK_LABEL(batt_int.llifetime),tmp);
+ 		}
+ 	}
+-	else /* nothing we know available: hide widgets */
++	else if (!have_generic) /* nothing we know available: hide widgets */
+ 	{
+ 		gtk_widget_hide(batt_ext.bar);
+ 		gtk_widget_hide(batt_ext.label);
+@@ -388,13 +445,24 @@
+ 	for (i=0;i<2;i++)
+ 	{
+ 		if (i==0) 
+-			fstr = g_strdup_printf ("%s%s %s",
+-					"<b><span foreground=\"black\">",
+-					_("Internal battery"), "</span></b>");
++			if (have_generic)
++				fstr = g_strdup_printf ("%s%s %s",
++				                        "<b><span foreground=\"black\">",
++					                    _("Main battery"), "</span></b>");
++			else
++				fstr = g_strdup_printf ("%s%s %s",
++				                        "<b><span foreground=\"black\">",
++					                    _("Internal battery"), "</span></b>");
+ 		else
+-			fstr = g_strdup_printf ("%s%s %s",
+-					"<b><span foreground=\"black\">",
+-					_("Jacket battery"), "</span></b>");
++			if (have_generic)
++				fstr = g_strdup_printf("%s%s %s",
++				                       "<b><span foreground=\"black\">",
++					                   _("Backup battery"), "</span></b>");
++			else
++				fstr = g_strdup_printf("%s%s %s",
++				                       "<b><span foreground=\"black\">",
++					                   _("Jacket battery"), "</span></b>");
++			
+ 		label1 = gtk_label_new (NULL);
+ 		batt.label = label1;
+ 		gtk_label_set_markup (GTK_LABEL (label1), fstr);
+@@ -439,12 +507,15 @@
+ 	gtk_widget_show_all(sw);
+ 	
+ 	/* they will be activated if necessary */
+-	gtk_widget_hide(batt_ext.bar);
+-	gtk_widget_hide(batt_ext.label);
+-	gtk_widget_hide(batt_ext.lstate);
+-	gtk_widget_hide(batt_ext.lchem);
+-	gtk_widget_hide(batt_ext.lvoltage);
+-	gtk_widget_hide(batt_ext.llifetime);
++	if (!have_generic)
++	{
++		gtk_widget_hide(batt_ext.bar);
++		gtk_widget_hide(batt_ext.label);
++		gtk_widget_hide(batt_ext.lstate);
++		gtk_widget_hide(batt_ext.lchem);
++		gtk_widget_hide(batt_ext.lvoltage);
++		gtk_widget_hide(batt_ext.llifetime);
++	}
+ 	
+ 	update_bat_values(NULL);
+ 	

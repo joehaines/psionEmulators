@@ -1,0 +1,18 @@
+#include aspell_${PV}.oe
+inherit autotools native
+
+SRC_URI = "ftp://ftp.gnu.org/gnu/aspell/aspell-${PV}.tar.gz"
+
+S = "${WORKDIR}/aspell-${PV}/"
+
+DEPENDS = "automake-native"
+
+FILES = "${bindir}/word-list-compress ${bindir}/aspell"
+ 
+do_stage() {
+	oe_libinstall -C lib -so libaspell ${STAGING_LIBDIR}
+	install -m 0755 prog/word-list-compress ${STAGING_BINDIR}/
+	install -m 0755 prog/aspell ${STAGING_BINDIR}/
+	install -d ${STAGING_DIR}/${BUILD_ARCH}-${BUILD_OS}/share/aspell/
+        install -m 0644 data/* ${STAGING_DIR}/${BUILD_ARCH}-${BUILD_OS}/share/aspell/
+}

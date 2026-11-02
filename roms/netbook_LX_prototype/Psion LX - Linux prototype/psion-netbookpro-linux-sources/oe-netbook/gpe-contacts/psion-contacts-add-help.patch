@@ -1,0 +1,61 @@
+--- main.c~psion-contacts-add-help.patch	2004-10-17 00:21:17.000000000 +0200
++++ main.c	2004-10-19 13:52:57.000000000 +0200
+@@ -5,6 +5,10 @@
+  * modify it under the terms of the GNU General Public License
+  * as published by the Free Software Foundation; either version
+  * 2 of the License, or (at your option) any later version.
++ *
++ * Added help button for psion LX
++ *
++ * Philippe De Swert, for Aleph One Ltd.
+  */
+ 
+ /*
+@@ -65,6 +69,7 @@
+   {"edit"},
+   {"delete"},
+   {"cancel"},
++  {"help", "help" },
+   {"frame", MY_PIXMAPS_DIR "frame"},
+   {"notebook", MY_PIXMAPS_DIR "notebook"},
+   {"entry", MY_PIXMAPS_DIR "entry"},
+@@ -81,6 +86,12 @@
+ }
+ 
+ static void
++show_help (void)
++{
++	system("gpe-helpviewer /usr/share/help/contacts/index.html");
++}
++
++static void
+ menu_do_delete (void)
+ {
+   if (gpe_question_ask (_("Really delete this contact?"), _("Confirm"), 
+@@ -1020,6 +1031,11 @@
+         gtk_widget_grab_focus(search_entry);
+       return FALSE;
+     }
++  /*call help*/
++  if(k->keyval == GDK_F1)
++  {
++	  show_help();
++  }
+   
+   return FALSE;
+ }
+@@ -1232,7 +1248,13 @@
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_PROPERTIES,
+ 			    _("Properties"), _("Tap here to configure this program."),
+   			    G_CALLBACK (configure), (gpointer)edit_structure, -1);
+-				
++  
++  gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
++  
++  gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_HELP,
++		  	_("Help"), _("Help"),
++			G_CALLBACK (show_help), NULL, -1);
++  
+   gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
+ 
+   gtk_toolbar_insert_stock (GTK_TOOLBAR (toolbar), GTK_STOCK_QUIT,

@@ -1,0 +1,125 @@
+--- gkdial.glade.orig	2004-10-27 23:21:21.000000000 +0200
++++ gkdial.glade	2004-10-27 23:31:18.000000000 +0200
+@@ -150,6 +150,15 @@
+ 
+ 	      <child>
+ 		<widget class="GtkMenu" id="help1_menu">
++		  <child>
++            <widget class="GtkMenuItem" id="menu_help">
++              <property name="visible">True</property>
++              <property name="label" translatable="yes">_Help</property>
++              <property name="use_underline">True</property>
++              <signal name="activate" handler="show_help" last_modification_time="Fri, 25 Oct 2002 21:07:15 GMT"/>
++			  <accelerator key="F1" signal="activate"/>
++            </widget>
++          </child>
+ 
+ 		  <child>
+ 		    <widget class="GtkMenuItem" id="menu_about">
+@@ -222,6 +231,36 @@
+ 	    </packing>
+ 	  </child>
+ 
++	 <child>
++      <widget class="GtkToolButton" id="button_help">
++        <property name="visible">True</property>
++        <property name="stock_id">gtk-help</property>
++        <property name="visible_horizontal">True</property>
++        <property name="visible_vertical">True</property>
++        <property name="is_important">False</property>
++      </widget>
++      <packing>
++       <property name="expand">False</property>
++       <property name="homogeneous">True</property>
++      </packing>
++    </child>
++																												 
++	  
++
++	  <child>
++       <widget class="GtkSeparatorToolItem" id="separatortoolitem1">
++        <property name="visible">True</property>
++        <property name="draw">True</property>
++        <property name="visible_horizontal">True</property>
++        <property name="visible_vertical">True</property>
++       </widget>
++       <packing>
++        <property name="expand">False</property>
++        <property name="homogeneous">False</property>
++       </packing>
++     </child>
++																										
++
+ 	  <child>
+ 	    <widget class="GtkToolButton" id="button_quit">
+ 	      <property name="visible">True</property>
+--- src/gkdial.h.orig	2004-10-27 23:21:10.000000000 +0200
++++ src/gkdial.h	2004-10-27 23:22:56.000000000 +0200
+@@ -76,12 +76,14 @@
+   GtkWidget *menu_preferences;
+ 
+   GtkWidget *menu_about;
++  GtkWidget *menu_help;
+ 
+   /*
+    * connection handling buttons 
+    */
+   GtkWidget *button_connect;
+   GtkWidget *button_disconnect;
++  GtkWidget *button_help;
+   GtkWidget *button_quit;
+   GtkWidget *button_preferences;
+ 
+--- src/main.c.orig	2004-10-27 23:21:10.000000000 +0200
++++ src/main.c	2004-10-27 23:21:10.000000000 +0200
+@@ -53,6 +53,12 @@
+   g_free (translator_credits);
+ }
+ 
++void 
++show_help (void)
++{
++	system("gpe-helpviewer /usr/share/help/internet/index.html");
++}
++
+ 
+ int
+ gkdial_defaults_init (GkDial * gkdial)
+@@ -115,6 +121,7 @@
+ 						   "menu_preferences");
+ 
+   gkdial->menu_about = glade_xml_get_widget (gkdial->gui, "menu_about");
++  gkdial->menu_help = glade_xml_get_widget (gkdial->gui, "menu_help");
+ 
+   /*
+    * connection handling buttons 
+@@ -123,7 +130,9 @@
+ 						 "button_connect");
+   gkdial->button_disconnect = glade_xml_get_widget (gkdial->gui,
+ 						    "button_disconnect");
+-  gkdial->button_quit = glade_xml_get_widget (gkdial->gui,
++  gkdial->button_help = glade_xml_get_widget (gkdial->gui,
++		                              "button_help");
++    gkdial->button_quit = glade_xml_get_widget (gkdial->gui,
+ 						    "button_quit");
+   gkdial->button_preferences = glade_xml_get_widget (gkdial->gui,
+ 						    "button_preferences");
+@@ -333,6 +342,9 @@
+   g_signal_connect (G_OBJECT (gkdial->menu_preferences), "activate",
+ 		    G_CALLBACK (gkdial_prefs_show), gkdial);
+ 
++  g_signal_connect (G_OBJECT (gkdial->menu_help), "activate",
++		    G_CALLBACK (show_help), gkdial);
++
+   g_signal_connect (G_OBJECT (gkdial->menu_about), "activate",
+ 		    G_CALLBACK (gkdial_show_about), gkdial);
+ 
+@@ -341,6 +353,8 @@
+ 			
+   g_signal_connect (G_OBJECT (gkdial->button_quit), "clicked",
+ 		    G_CALLBACK (gtk_main_quit), NULL);
++  g_signal_connect (G_OBJECT (gkdial->button_help), "clicked",
++		              G_CALLBACK (show_help), NULL);
+ 
+   g_signal_connect (G_OBJECT (gkdial->button_preferences), "clicked",
+ 		    G_CALLBACK (gkdial_prefs_show), gkdial);

@@ -1,0 +1,618 @@
+0.7.1
+-----
+
+- Don't show warning dialog when exiting a game that ended. (#88617)
+
+0.7.0
+-----
+
+- Event log
+- Use of KStatusBar
+- Game master can boot other players to lounge during game setup (#52631)
+- Support gameupdate tag, deprecate updategamelist (requires monopd >= 0.9.0)
+- Support individual configupdate tags
+- Show estate names on board (#61858)
+- Properly withdraw from a game prior to intended client exits, to avoid
+  triggering monopd's reconnection timeout.
+
+0.6.3
+-----
+
+- bugfix: avoid crash when unresolvable hosts are in the meta server list
+- bugfix: fix crash when network core is reset while readbuffer isn't empty
+- bugfix: chat view can be cleared (#69044)
+
+0.6.1
+-----
+
+- hide development servers identifying themselves with "-dev"
+
+0.6.0
+-----
+
+- support for custom tokens
+- don't connect to meta server unless user has configured to do so
+- support for KNotify events
+- option to hide development servers (on by default)
+- gui to connect to custom server
+- klatencytimer: support for server ping times
+- option to show timestamp in chat messages
+
+0.5.5
+-----
+
+- bugfix: fix wild pointer when removing trade items (#68589)
+- bugfix: set proper palette color for EstateDetails so Keramik buttons
+  don't look out of place
+
+0.5.4
+-----
+
+- bugfix: don't interrupt token movement when player leaves jail on doubles
+- bugfix: add m_atlanticCore checks in Board, fixes some Atlantik Designer
+  crashes
+- bugfix: don't show players from other games in auction and trade widgets
+  on monopd 0.9.0 servers
+- bugfix: valgrind found two crash conditions when leaving game
+  configuration widget or auction widget (#66498)
+
+0.5.3
+-----
+
+- fix problem where sometimes the select game widget appears
+  after starting a game
+- removed buggy trademap in network code for decent ptrlist in core
+- memory management: reset complete core when going to select server page
+- store reconnection cookie
+- hide token when player goes bankrupt
+- prevent player from building/unmortgaging when in debt
+- disable auction/usecard menu item when not available (requires monopd >= 0.8.1)
+- make use of trade revisions (monopd >= 0.8.2 recommended)
+- don't tell game has started when it has not
+- sort user column in server list by number, not alphabetically
+- show non-game users when not in a game
+- prevent double close buttons on estate details
+
+0.5.2
+-----
+
+- correctly handle utf-8 over the network
+- only show localhost server when it is available
+- leaving a game and starting a new game correctly reinits atlanticCore
+- use disability to join game when size == MAX in gameupdate (games in
+  updategamelist now have canbejoined boolean attribute)
+- using playerupdate for player list in SelectConfiguration
+- use portfolioview instead of klistview for players during config
+- better handling of display messages from server
+- fixed token animation
+
+0.5.1
+-----
+
+- fixed potential double initialization of gameboard
+- don't crash when removing money from a trade
+- properly quote arguments given to KProcess in kio_atlantik
+- valgrind leak and unitialised memory access fixes
+
+0.5.0
+-----
+
+- fixed dangling pointer for removeGUI(Trade *) in AtlanticCore
+- player name change doesn't make it to trade money items
+- fixed token positioning on game start
+- fixes to work with monopd 0.6.0 API
+
+0.4.0
+-----
+
+- token geometry is now aware of estate colour captions
+- queue display widgets
+  - fix buttons, they have specific targets, not just the current widget
+  - delete buttons in EstateDetails::newUpdate()
+- commandline parameters host, port and game supported (for auto-join)
+- kio_atlantik allows for easy connecting from other applications
+  (kopete/kmail)
+- leave game and leave server options
+- pre-game configuration
+
+2002-07-08 (kaper)
+----------
+
+- support for auto-connect and auto-join
+
+2002-07-07 (kaper)
+----------
+
+- request full update when getting invalid data from the network
+- gui bugfixes
+
+2002-07-04 (kaper) (atlantik-0.3.0)
+----------
+
+- clear display on <display/>
+
+2002-07-03 (kaper)
+----------
+
+- removing trade money works again, fixed possible crashes in trade and
+  auction deletion within network API
+
+2002-06-30 (kaper)
+----------
+
+- monopd no longer sends gamelist on connect, so request it
+- more intelligent EstateDetails, shows no useless info anymore and added
+  groupname, price and isMortgaged
+- 10% or $200 taxes finally implemented! (requires monopd CVS >= 20020701)
+- removed <br> from messagewindow, apparently Qt autowraps (again??)
+
+2002-06-27 (kaper)
+----------
+
+- recently committed some changes to be up-to-date with some API monopd
+  changes
+- generalised BoardDisplay::displayCard() into displayText() so I can fix
+  the missing jail notification bug
+
+2002-04-29 (kaper)
+----------
+
+- dropped QSocket for KExtendedSocket
+
+2002-03-30 (kaper)
+----------
+
+- monopd API: support for estategroupupdate
+- build portfolioview upon game start for better layouting
+
+2002-02-19 (kaper)
+----------
+
+- Trading done except for small esthetic TODOs.
+
+2002-02-13 (kaper)
+----------
+
+- Nicer button layouts (QSpacerItems, KIcon::SizeSmall, margin/spacingHints)
+
+2002-02-11 (kaper)
+----------
+
+- Gametypes no longer hardcoded but fetched from monopd server
+- Trading money, rejecting trades!
+
+2002-01-31 (kaper)
+----------
+
+- Bugfixes
+- Trades! (ok, just the estates and no way to accept, but still ;)
+
+2002-01-08 (kaper)
+----------
+
+- Auctions!
+- Board resize updates tokens again
+
+2001-12-22 (katz)
+---------
+
+- Add support for setting AtlantikBoard's size in its ctor;
+  simply tell it maxEstates. Right now for Atlantik's board
+  it simply uses a hard-coded 40
+- in Designer, implement 'smaller' nad 'larger' menu entries,
+  now able to save and load boards with any size!!!
+- add boardinfo.[h/cpp] that has a BoardInfo class that has board information,
+  and a class to View/Edit it
+- designer uses it, doesn't read/write the info yet tho
+
+2001-12-20 (katz)
+---------
+
+- fix using user's colors for openNew in designer
+
+2001-12-20 (katz)
+---------
+
+Designer:
+- gets its first entry in ChangeLog, because designer has been
+  on the whole useless before this
+- supports chance and cc cards; loads and saves properly
+- doesn't crash in random places
+- loads and saves in Cap's new format
+- fix probs with the swallowed dialogs
+- don't use defaultcity.conf in openNew(); make board with
+  user's KDE colors! pretty :-) doesn'twork tho, neil will fix
+- use KComboBox now QComboBox
+- maybe some other things?
+
+2001-12-20 (kaper)
+----------
+
+- Moved network stuff to libatlantiknetwork
+
+2001-12-19 (kaper)
+----------
+
+- Better toolbar disable/enable code (API changes in monopd)
+- Bugfixes for m_playerSelf
+- preparations to use KExtendedSocket instead of QSocket
+- using KPushButton instead of QPushButton
+
+2001-12-18 (kaper)
+----------
+
+- moved Trade to libatlantic
+- libatlantic now includes AtlanticCore wrapper
+
+2001-12-17 (kaper)
+----------
+
+- moved object management to Network class
+- moved Estate and Player to libatlantic
+
+2001-12-16 (kaper)
+----------
+
+- monopd no longer 'includes' estates in trades, but has a proper
+  targetplayer for them. added support for this API update, as well as the
+  update regarding money trades
+
+2001-12-14 (kaper)
+----------
+
+- better looking portfolios
+- support for displaying game types in game list
+- ability to choose between city or atlantic gametype 
+- GUI to create a trade
+
+2001-11-29 (kaper)
+----------
+
+- Portfolios are _truly_ dynamic now. :-)
+
+2001-11-27 (kaper)
+----------
+
+- Set version to 0.1.2 CVS.
+
+2001-11-27 (kaper) (0.1.1 release)
+----------
+
+- PortfolioViews and PortfolioEstates work again!
+- Tagged 0.1.1 release.
+
+2001-11-23 (kaper)
+----------
+
+- Trading skeleton
+- Better implementation of connection between Player and PortfolioView
+- Various code cleanups
+
+2001-11-21 (kaper)
+----------
+
+- Very basic skeleton for atlanticd (monopd-compatible server)
+
+2001-11-15 (kaper)
+----------
+
+- Even more dynamic thinking: estateview actions now completely depend on
+  server data instead of own checks.
+
+2001-11-14 (kaper)
+----------
+
+- Tokens are correctly positioned at startup and token animation is working
+  again.
+- Chance/community cards are displayed in board center.
+
+2001-11-12 (kaper)
+----------
+
+- EstateViews have correct orientation again.
+- Fixed weird Quartz behavior on large resolutions.
+
+2001-11-11 (kaper)
+----------
+
+- First changes to replace KMessageBox with in-window widget.
+- Starting games is possible again.
+- Connected Estate::changed to EstateView::estateChanged.
+- Added informational message at game startup regarding current Atlantik
+  state (buggy, at least).
+- No longer using fixed geometry.
+- Dynamic (server guided) colour support for estates.
+- Board configuration settings update properly again.
+- Starting Player / Token relationship as we did for Estate / EstateView
+- Tokens move again (animation not in operation yet).
+- Right Mouse Button actions on estates are properly working again.
+
+2001-11-05 (kaper)
+----------
+
+- SelectGame and SelectConfiguration KWizard replacement widgets done.
+- Better icon loading.
+- Better error checking when connecting to a server.
+
+2001-10-19 (kaper)
+----------
+
+- Rewriting new game wizard into regular widgets, SelectServer done.
+- Internal changes.
+
+2001-10-10 (kaper)
+----------
+
+- Estates are created dynamically now!
+- Lots of internal changes regarding player and estateupdates.
+- monopd API change: mortgages are now a toggle.
+
+2001-10-09 (kaper)
+----------
+
+- Portfolioviews are now generated dynamically. The Atlantik class manages
+  the creation and updates of the content are done by the (new) Player
+  class. Atlantik does act as intermediate here, though, eventually being
+  responsible for both player and widget management.
+- Player objects/views are only created when playerupdate contains init=1
+- Estate class created, simplified grid layout code for board.
+- Temporarily removed gameboard spacer code.
+
+2001-10-05 (kaper)
+----------
+
+- Qt3 updates.
+- Small monopd API updates.
+
+2001-09-04 (kaper)
+----------
+
+- Been a while since the last update, due to the renaming to Atlantik (now
+  mostly taken care of, thus this entry), new game concept (in progress) and
+  my vacation to San Francisco (unfortunately no longer in progress).
+
+2001-08-06 (kaper)
+----------
+
+- Monopigator works! :-)
+
+2001-07-30 (kaper)
+----------
+
+- Estateupdate visual update fixes.
+- Using can_be_mortgaged and can_be_unmortgaged attributes of monopd's
+  estateupdate.
+- New app icons by Bart Szyszka :-)
+- Token confirmation disabled for jumpToken when resizing gameboard or after
+  directmove instrution from server.
+
+2001-07-19 (kaper)
+----------
+
+- Network interface for trades completed, all commands and signals are in
+  place.
+
+2001-07-17 (kaper)
+----------
+
+- Encapsulated actual monopd API commands in gameNetwork
+- Extended gameNetwork to support trading API commands
+- RMB actions on estates only available when owned by player respresented by
+  this client
+
+2001-07-16 (kaper)
+----------
+
+- Small bugfix connecting standard roll action to correct slot.
+- Code documentation! (at least for the KMonop class)
+- Quartz effects! (configurable)
+
+2001-07-13 (neil)
+----------
+
+- UI: make the SelectGame widgets respond as the user may expect them to
+
+2001-07-01 (kaper)
+----------
+
+- Using KStdGameAction more and more (requires kdenonbeta version for roll
+  action)
+- Updated to be compatible with recent monopd API changes
+
+2001-06-29 (kaper)
+----------
+
+- Bugfix: when owner=-1 in estateupdate, KMonop now clears the
+  portfolio/board estateviews.
+- Added icon for Go.
+- New config option to highlite unowned properties.
+- Seperated server messages from chat.
+
+2001-06-27 (kaper)
+----------
+
+- Updated TODO (some wishlist items, changed version roadmap)
+- Added a lot of i18n strings!
+
+2001-06-26 (kaper)
+----------
+
+- New config option: mortgaged properties can be grayed out on the gameboard
+- Slightly increased size of portfolio estates
+- Added RMB popup to estates with mortgage/unmortgage and build/sell house
+  actions
+- Added luxury tax and community chest icons.
+ 
+2001-06-24 (kaper)
+----------
+
+- Server port no longer hardcoded, added extra default server (running
+  monopd CVS).
+- Game board visualization of houses and hotels!
+
+2001-06-21 (kaper)
+----------
+
+- Network code parses <estateupdate> attribs houses and mortgaged.
+
+2001-06-19 (kaper)
+----------
+
+- Added "end turn" button.
+- Added "pay to leave jail" button.
+- Added playername to config dialog.
+- Updated parsing of <updateplayerlist> changes in monopd.
+
+2001-06-17 (kaper)
+----------
+
+- Upgraded version to pre-0.2.0
+
+2001-06-17 (kaper) (0.1.0 release)
+----------
+
+- Happy birthday Katy. Love, Rob.
+- Integrated recent monopd updates.
+- Some internal code changes.
+- Added support for <updategamelist type="edit">
+- Added support for <updateplayerlist> which replaced <playerlist>
+- Tagged 0.1.0 release
+
+2001-06-10
+----------
+
+- Portfolioestate/board recognize utilities as ownable estates.
+- Prepared utilities for icons.
+
+2001-06-09
+----------
+
+- Configuration works!
+- Location confirmation upon jumpToken.
+- Unowned indication also for railroads.
+
+2001-06-05
+----------
+
+- More PlayerUpdate* changes.
+
+2001-06-05
+----------
+
+- Added parsing of <msg type="chat"> message which is new in monopd.
+  Chatting can thus be done through the console (lineedit field) now.
+- Some changes to configure dialog, none that influence behavior though.
+- Got tired of passing netw through all classes, it's pretty general anyway
+  so I made it a general variable.
+- PlayerUpdate* changes (movetoken was removed from monopd API)
+
+2001-06-01
+----------
+
+- Added parsing of <movetoken> command which is new in monopd
+- Sending .t# command to monopd which is now required during token movement
+
+2001-05-30
+----------
+
+- Token is now a nice icon (not yet transparent though, unfortunately I
+  couldn't get that to work right)
+
+2001-05-28
+----------
+
+- Added board icons for train and chance estates
+- Token which has turn is raised to make sure it's on top
+
+2001-05-27
+----------
+
+- Moved some of the XML parsing code back to GameNetwork::processNode
+- Changed version (back.. ssht!) to pre-0.0.2
+- Internal improvements to network/newgamewizard code (more accurate slots
+  and button validation)
+
+2001-05-27 (0.0.1 release)
+----------
+
+- Visual feedback showing who's turn it is
+- Roll/buy buttons only enabled during turn
+- Tagged 0.0.1 release
+
+2001-05-20
+----------
+
+- Small cosmetic changes.
+- New application icons, icons installdir changed.
+- Configure dialog (looks nice, doesn't load/save yet)
+
+2001-05-16
+----------
+
+- Message view autoscrolls.
+- Small (cosmetic) portfolioview updates.
+- Visual display on board showing which properties are still for sale
+
+2001-05-15
+----------
+
+- New game dialog improvements (select game page checks network status and
+  gamelist availability
+- Tokens are actually moving over the board! (instead of jumping)
+
+2001-05-08
+----------
+
+- Portfolios built upon "playerupdate" message instead of final playerlist,
+  since we'll get plenty more updates anyway.
+- Token placed on location hinted by playerupdate.
+- Input box at bottom left corner can be used to send messages to the server
+  to compensate for any commands not yet implemented. Such as .n to set your
+  name and .r to roll.
+- Cash and estates in portfolio get updated after purchase/rent.
+
+2001-05-07
+----------
+
+- Wizard notifies game server we're starting the game upon finish. Bugfix in
+  KMonop::slotStartNewGame which checks whether wizard still exists before
+  trying to hide it.
+- Portfolio overviews are built upon game start, requires monopd which sends
+  final attribute along with playerlist.
+- Framework for token class.
+- Informational messages from server are shown in output textbox.
+- Only sending start game command when wizard is finished, not when it is
+  cancelled.
+
+2001-05-03
+----------
+
+- Various code cleanups, keeping things neat.
+- Playerlist and gamelist are automatically sent by server, manual request
+  no longer required.
+
+2001-05-02
+----------
+
+- Playerlist is fetched from server.
+- Playerlist is interpreted and updated when someone enters.
+- Option to finish setup and launch game, closes all wizards.
+- Network object moved to KMonop, where it belongs. Wizard and its pages use
+  pointers.
+
+2001-04-30
+----------
+
+- NewGameDialog is now a wizard. A connection to the server is made and a
+  list of available games to join fetched, using Qt's XML parsing
+  capabilities.
+
+2001-04-27
+----------
+
+- Turned NewGameDialog into modal dialog.
+
+2001-04-26
+----------
+
+- Initial ChangeLog entry.

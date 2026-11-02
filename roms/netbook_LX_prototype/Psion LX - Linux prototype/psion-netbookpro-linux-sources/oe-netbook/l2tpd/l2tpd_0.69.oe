@@ -1,0 +1,21 @@
+DESCRIPTION = "A L2TP Daemon"
+SECTION = "base"
+PRIORITY = "optional"
+LICENSE = "GPL"
+
+FILES_${PN} += " ${sysconfdir}/l2tp"
+
+SRC_URI = "file://l2tpd-0.69-oe.tar.gz \
+	   file://l2tpd.conf \
+	   file://l2tp-secrets \
+	   file://options.l2tp"
+
+EXTRA_OEMAKE = '"CC=${CC}" "CFLAGS=-O2 -DLINUX -DIP_ALLOCATION -DSANITY"'
+
+do_install () {
+        install -d ${D}/${sbindir} ${D}/${sysconfdir}/l2tp
+	install -m 0755 l2tpd ${D}/${sbindir}
+	install -m 0644 ${WORKDIR}/l2tpd.conf ${D}/${sysconfdir}/l2tp
+	install -m 0644 ${WORKDIR}/l2tp-secrets ${D}/${sysconfdir}/l2tp
+	install -m 0644 ${WORKDIR}/options.l2tp ${D}/${sysconfdir}/l2tp
+}

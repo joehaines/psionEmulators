@@ -1972,6 +1972,30 @@ export function useEmulator(options: UseEmulatorOptions = {}): EmulatorControls 
       if (usesBootloaderOsCard) {
         void prefetchOsPayload(deviceId);
       }
+      // Built-in flash that is not removable media (the Psion LX's NAND,
+      // which holds its root filesystem): a cold boot loads the factory image
+      // the profile names. A restored heap already carries it. (The worker
+      // path also keeps the user's own copy of the flash across Resets.)
+      if (!restoredFromIDB && mod.attachInternalFlash) {
+        const prof = (JSON.parse(mod.getAllDeviceProfilesJSON()) as DeviceProfile[])
+          .find(p => p.id === deviceId);
+        if (prof?.internalFlashImage) {
+          setLoadStatus('Downloading internal flash…');
+          const at = romUrl.indexOf('roms/');
+          const base = at >= 0 ? romUrl.slice(0, at + 5) : `${import.meta.env.BASE_URL}roms/`;
+          const resp = await fetch(base + prof.internalFlashImage);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${prof.internalFlashImage}`);
+          let flash = new Uint8Array(await resp.arrayBuffer());
+          if (flash[0] === 0x1f && flash[1] === 0x8b && typeof DecompressionStream !== 'undefined') {
+            const ds = new Blob([flash]).stream().pipeThrough(new DecompressionStream('gzip'));
+            flash = new Uint8Array(await new Response(ds).arrayBuffer());
+          }
+          if (superseded()) return;
+          const fptr = mod.prepareInternalFlashUpload!(flash.byteLength);
+          mod.HEAPU8.set(flash, fptr);
+          if (!mod.attachInternalFlash(flash.byteLength)) throw new Error('internal flash image rejected');
+        }
+      }
       const autoAttachOsAfterLoad = false;
       const savedCard = await idbGet<Uint8Array>(idbCardKey(deviceId));
       // A newer load may have started during the IDB read above; if so, stop

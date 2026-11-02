@@ -38,6 +38,7 @@ function eqLayout(id: string, want: KeyboardLayout) {
 }
 eqLayout('5mx', 'epoc32');     eqLayout('revo', 'epoc32');    eqLayout('osaris', 'epoc32');
 eqLayout('series7', 'sa1100'); eqLayout('netbook', 'sa1100');
+eqLayout('psionlx', 'netbookpro');
 eqLayout('mc400', 'mc400');    eqLayout('mc400v126', 'mc400');
 eqLayout('series3', 'sibo-classic');
 eqLayout('series3a', 'sibo-3a'); eqLayout('series3c', 'sibo-3a'); eqLayout('series3mx', 'sibo-3a');
@@ -48,7 +49,7 @@ eqLayout('organiser2', 'organiser2');
 check(keyboardLayoutForDevice(null) === 'epoc32', 'layout(null) defaults epoc32');
 
 // ── Letters, digits, whitespace (every non-Organiser layout) ──────────────
-for (const layout of ['epoc32', 'sa1100', 'mc400', 'sibo-classic', 'sibo-3a', 'sibo-siena', 'sibo-workabout'] as KeyboardLayout[]) {
+for (const layout of ['epoc32', 'sa1100', 'netbookpro', 'mc400', 'sibo-classic', 'sibo-3a', 'sibo-siena', 'sibo-workabout'] as KeyboardLayout[]) {
   chord(layout, 'a', [], 65, 'lowercase');
   chord(layout, 'A', [SHIFT], 65, 'uppercase');
   chord(layout, ' ', [], 5, 'space');
@@ -153,6 +154,16 @@ chord('organiser2', '+', [SHIFT], 88, 'Shift+X');
 chord('organiser2', ' ', [], 5, 'space');
 isNull('organiser2', '#', 'no hash on the Organiser keypad');
 isNull('organiser2', '[', 'no bracket on the Organiser keypad');
+
+// ── Psion LX (netbookpro): netBook Pro keys, Linux xmodmap legends ────────
+chord('netbookpro', '-', [], 130, 'minus key');
+chord('netbookpro', '_', [SHIFT], 130, 'Shift+minus');
+chord('netbookpro', '@', [SHIFT], 50, 'Shift+2 (xmodmap: 2 at)');
+chord('netbookpro', '"', [SHIFT], 126, 'Shift+apostrophe');
+chord('netbookpro', '?', [SHIFT], 123, 'Shift+slash');
+chord('netbookpro', '[', [24], 57, 'Fn+9 (Mode_switch)');
+chord('netbookpro', '£', [24], 51, 'Fn+3');
+chord('netbookpro', '|', [24], 124, 'Fn+backslash');
 
 if (failures === 0) {
   console.log('PASS keymap (device-aware symbol coverage)');

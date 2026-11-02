@@ -164,6 +164,18 @@ writeFileSync(out, img);
 EOF
     fi
 
+    # The Psion LX's factory NAND image (its root filesystem) is generated
+    # from the rootfs tree, not committed: build it on first use. The harness
+    # loads it from the profile's internalFlashImage path next to the ROM.
+    if [ "$device_id" = "psionlx" ] \
+       && [ ! -f "$ROMS/netbook_LX_prototype/LX_boot/lx-nand.img.gz" ]; then
+        if ! command -v node >/dev/null 2>&1; then
+            echo "SKIP $id: cannot build the LX NAND image (need node)" >&2
+            return 77
+        fi
+        (cd "$REPO_ROOT" && node --experimental-strip-types scripts/build-lx-nand.mts) >&2
+    fi
+
     echo "=== Testing $id (ROM: $rom, boot: ${boot_s}s${extra:+, extra=$extra}) ===" >&2
     local exit_code=0
     # If the extra args include --card-path, the test wants a CF card

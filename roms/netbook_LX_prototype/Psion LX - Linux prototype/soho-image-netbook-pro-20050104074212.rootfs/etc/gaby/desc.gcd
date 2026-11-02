@@ -1,0 +1,140 @@
+# desc.gcd
+# Author: Frederic Peters <fpeters@tiscalinet.be>
+# Purpose: CDs
+# Translations: Dutch, Finnish, French, German, Norwegian, Swedish
+# Comment:
+#   It is a complex descfile designed for CDs (or other music media), it
+#   provides three tables (for authors, tracks and disks), relations between
+#   them (so it is possible to view a disk and the tracks he has) and support
+#   for importing new records from cddb (local-file only).
+
+Begin tables
+	Authors
+		Name:String
+			i18n_fr=Nom
+			i18n_fi=Nimi
+			i18n_no=Navn
+			i18n_sv=Namn
+			i18n_de=Name
+	CDs
+		Title:String
+			i18n_fr=Titre
+			i18n_fi=Levyn nimi
+			i18n_no=Tittel
+			i18n_sv=Titel
+			i18n_de=Titel
+		Author:Record from Authors
+			i18n_fr=Auteur
+			i18n_fi=Esittäjä
+			i18n_no=Forfatter
+			i18n_sv=Författare
+			i18n_de=Autor
+		Genre:String
+			i18n_fr=Genre
+			i18n_fi=Tyylilaji
+			i18n_no=Genre
+			i18n_sv=Genre
+			i18n_de=Titel
+		Company:String
+			i18n_fr=Compagnie
+			i18n_fi=Levy-yhtiö
+			i18n_no=Firma
+			i18n_sv=Företag
+			i18n_de=Firma
+		Remarks:Strings
+			i18n_fr=Remarques
+			i18n_fi=Kommentteja
+			i18n_no=Kommentarer
+			i18n_sv=Kommentarer
+			i18n_de=Bemerkungen
+	Tracks
+		Number:Integer
+			i18n_fr=NumÃ©ro
+			i18n_fi=Numero
+			i18n_no=Nummer
+			i18n_sv=Nummer
+			i18n_de=Titel
+			min=1
+			max=99
+		Title:String
+			i18n_fr=Titre
+			i18n_fi=Nimi
+			i18n_no=Tittel
+			i18n_sv=Titel
+			i18n_de=Titel
+		Duration:String
+			i18n_fr=DurÃ©e
+			i18n_fi=Kesto
+			i18n_no=Lengde
+			i18n_sv=Längd
+			i18n_de=Länge
+		CD:Record from CDs
+End
+
+Begin locations
+	others
+		~/.gaby/
+End
+
+Begin subtables
+	Authors:Authors
+		i18n_fr=Auteurs
+		i18n_fi=Esittäjät
+		i18n_no=Forfattere
+		i18n_sv=Författare
+		viewable as form, miniform.
+		with every fields.
+	Tracks:Tracks
+		i18n_fr=Pistes
+		i18n_fi=Kappaleet
+		i18n_no=Spor
+		i18n_sv=Spår
+		i18n_de=Spuren
+		viewable as list, miniform.
+		with only the following fields
+			Title:
+			Duration:
+	Tracks with CDs:Tracks
+		i18n_fr=Pistes avec CDs
+		i18n_fi=Kappaleet ja CD:t
+		i18n_no=Spor med CDer
+		i18n_sv=Spår med CDs
+		i18n_de=Spuren mit CDs
+		viewable as form.
+		with every fields.
+	CDs:CDs
+		viewable as xlist, miniform.
+		with only the following fields
+			Title:
+			Author_Name:
+			Genre:
+			Company:
+	CDs and tracks:CDs
+		i18n_fr=CDs et leurs pistes
+		i18n_fi=CD:t ja kappaleet
+		i18n_no=CDer og spor
+		i18n_sv=CDs och spår
+		i18n_de=CDs und Spuren
+		viewable as form.
+		with only the following fields
+			Title:
+			Author_Name:
+			Genre:
+			Company:
+			List of Tracks:
+				where I am CD
+End
+
+Begin misc
+	Main window
+		form:CDs and tracks
+	Other windows
+		form:Tracks with CDs
+			visible = no
+End
+
+Begin actions
+	Import from CDDB ...
+		cd_import_cddb(CDs, Tracks)
+End
+

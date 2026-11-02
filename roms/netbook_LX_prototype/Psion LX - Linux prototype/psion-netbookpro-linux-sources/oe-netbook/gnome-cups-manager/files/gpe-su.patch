@@ -1,0 +1,80 @@
+--- gnome-cups-manager-0.22/gnome-cups-add/add-printer.c~	2004-08-24 14:21:53.000000000 +0100
++++ gnome-cups-manager-0.22/gnome-cups-add/add-printer.c	2004-08-24 15:02:36.000000000 +0100
+@@ -1242,7 +1242,7 @@
+ 	gtk_main_quit ();
+ }
+ 
+-#define SU_APP	"gnomesu"
++#define SU_APP	"gpe-su"
+ 
+ int
+ main (int argc, char *argv[])
+@@ -1264,16 +1264,21 @@
+ 	textdomain (GETTEXT_PACKAGE);
+ 
+ 	if (geteuid () != 0) {
+-		char **args = g_new (char *, argc+2);
++		char *args[] = { SU_APP, "-c", NULL, NULL };
++		GString *cmd = g_string_new (argv[0]);
+ 		unsigned i;
+ 		GError *err = NULL;
+ 
+-		args[0] = SU_APP;
+-		for (i = 0 ; i < argc ; i++)
+-			args[i+1] = argv[i];
+-		args[i+1] = NULL;
++		for (i = 1 ; i < argc ; i++) {
++			cmd = g_string_append_c (cmd, ' ');
++			cmd = g_string_append (cmd, argv[i]);
++		}
++		args[2] = g_shell_quote (cmd->str);
++		g_string_free (cmd, TRUE);
++
+ 		g_spawn_async (NULL, args, NULL, G_SPAWN_SEARCH_PATH,
+ 			NULL, NULL, NULL, &err);
++
+ 		if (err != NULL) {
+ 			GtkWidget *dialog = gtk_message_dialog_new_with_markup (NULL, 
+ 				 GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL, 
+@@ -1285,6 +1290,8 @@
+ 			gtk_widget_destroy (dialog); 
+ 			g_error_free (err);
+ 		}
++
++		g_free (args[2]);
+ 		exit (0);
+ 	}
+ 
+--- gnome-cups-manager-0.22/gnome-cups-manager/printer-properties.c~	2004-08-20 17:22:10.000000000 +0100
++++ gnome-cups-manager-0.22/gnome-cups-manager/printer-properties.c	2004-08-24 15:01:19.000000000 +0100
+@@ -619,14 +619,18 @@
+ 
+ }
+ 
+-#define SU_APP	"gnomesu"
++#define SU_APP	"gpe-su"
+ static void
+ cb_become_admin (GnomeCupsPrinter *printer)
+ {
+ 	GError *err = NULL;
+-	char *argv[] = { NULL, "gnome-cups-manager", "-p", NULL, NULL };
+-	argv[0] = (char *)SU_APP;
+-	argv[2] = (char *)gnome_cups_printer_get_name (printer);
++	GString *cmd = g_string_new("gnome-cups-manager -p ");
++	char *argv[] = { SU_APP, "-c", NULL, NULL };
++
++	cmd = g_string_append (cmd, gnome_cups_printer_get_name (printer));
++	argv[2] = g_shell_quote (cmd->str);
++	g_string_free (cmd, TRUE);
++
+ 	g_spawn_async (NULL, argv, NULL, G_SPAWN_SEARCH_PATH,
+ 		NULL, NULL, NULL, &err);
+ 
+@@ -641,6 +645,7 @@
+ 		gtk_widget_destroy (dialog); 
+ 		g_error_free (err);
+ 	}
++	g_free (argv[2]);
+ 	gtk_main_quit ();
+ }
+ 

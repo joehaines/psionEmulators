@@ -1,0 +1,2944 @@
+/* LinNeighborhood
+ * Copyright (c) 1999-2002 Richard Stemmer and Hans Schmid
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+#include <limits.h>
+#include <gtk/gtk.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/stat.h>
+#include <gdk/gdkkeysyms.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "gtk_dialog.h"
+#include "gtk_gui.h"
+#include "gtk_tree.h"
+#include "preferences.h"
+#include "data.h"
+#include "utility.h"
+#include "browsewrap.h"
+#include "io.h"
+#include "smbif.h"
+
+#include "picture/neighborhood-logo.xpm"
+#include "picture/add.xpm"
+#include "picture/remove.xpm"
+#include "picture/edit.xpm"
+#include "picture/close.xpm"
+#include "picture/arrow_down_button.xpm"
+
+
+/*
+ * Change to 1 to enable fixed width dialogs.
+ * Else the width will be computed at run-time.
+ */
+
+#if 0
+#define ADD_MACHINE_DIALOG_WIDTH      270 /* Add dialog. */
+
+#define ADD_MACHINE_WIDTH_1           100
+
+#define PREF_DIALOG_WIDTH	            420 /* Preference dialog. */
+
+#define SCAN_TAB_WIDTH_1              200
+#define PROG_TAB_WIDTH_1               90
+#define MISC_TAB_WIDTH_1              110
+
+#define USER_BROWSE_DIALOG_WIDTH      230 /* User browse dialog. */
+#define USER_BROWSE_DIALOG_HEIGHT     135
+#define USER_BROWSE_LABEL_WIDTH       115
+#else
+#define ADD_MACHINE_DIALOG_WIDTH       -1
+
+#define ADD_MACHINE_WIDTH_1            -1
+
+#define PREF_DIALOG_WIDTH              -1
+
+#define SCAN_TAB_WIDTH_1               -1
+#define PROG_TAB_WIDTH_1               -1
+#define MISC_TAB_WIDTH_1               -1
+
+#define USER_BROWSE_DIALOG_WIDTH       -1
+#define USER_BROWSE_DIALOG_HEIGHT      -1
+#define USER_BROWSE_LABEL_WIDTH        -1
+#endif
+
+
+/* -------------------------------- */
+/* -- username + password dialog -- */
+/* -------------------------------- */
+
+static GtkWidget *user_browse_dlg = (GtkWidget*)NULL;
+static GtkWidget *domain_entry;
+static GtkWidget *user_entry;
+static GtkWidget *password_entry;
+static GtkWidget *user_browse_ok_button;
+static unsigned char user_browse_with_domain;
+
+static void user_browse_ok_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  BROWSE_MODE mode;
+
+  string_ncopy(globals.domain_name, gtk_entry_get_text(GTK_ENTRY(domain_entry)), MAXGROUPNAMEL);
+  string_ncopy(globals.browse_user, gtk_entry_get_text(GTK_ENTRY(user_entry)), USER_LEN);
+  string_ncopy(globals.browse_password,gtk_entry_get_text(GTK_ENTRY(password_entry)), PASSWORD_LEN);
+  
+  if ( is_empty_string(globals.domain_name) )
+    globals.domain_name[0] = 0;
+  if ( is_empty_string(globals.browse_user) )
+    globals.browse_user[0] = 0;
+  if ( is_empty_string(globals.browse_password) )
+    globals.browse_password[0] = 0;
+  
+  gtk_widget_destroy(dlg);
+  user_browse_dlg = (GtkWidget*)NULL;
+  
+  is_password_once = 1;
+  mode = BROWSE_MODE_USER;
+  if ( user_browse_with_domain )
+    mode |= BROWSE_MODE_DOMAIN;
+  tree_scan_item(mode);
+}
+
+static void user_browse_key_press_callback (GtkWidget *widget, GdkEventKey *event)
+{
+  if ( event->keyval == GDK_Return )
+  {
+    if ( (GTK_WINDOW(user_browse_dlg))->default_widget == user_browse_ok_button )
+      user_browse_ok_callback(user_browse_ok_button, user_browse_dlg);
+  }
+}
+
+void user_browse_dialog (unsigned char with_domain)
+{
+  GtkWidget *vbox;
+  GtkWidget *table;
+  GtkWidget *label;
+  GtkWidget *button;
+  
+  user_browse_with_domain = with_domain;
+
+  if ( !user_browse_dlg )
+  {
+    user_browse_dlg = gtk_dialog_new();
+    gtk_window_set_wmclass(GTK_WINDOW(user_browse_dlg), "user_browse", "LinNeighborhood");
+    gtk_window_set_policy(GTK_WINDOW(user_browse_dlg), 0, 0, 0);
+    gtk_window_set_title(GTK_WINDOW(user_browse_dlg), _(" Insert User"));
+    gtk_signal_connect(GTK_OBJECT(user_browse_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroyed), &user_browse_dlg);
+    gtk_widget_set_usize(user_browse_dlg, USER_BROWSE_DIALOG_WIDTH, USER_BROWSE_DIALOG_HEIGHT);
+    gtk_widget_realize(user_browse_dlg);
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(user_browse_dlg)->action_area), 5);
+    
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(vbox), 5);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (user_browse_dlg)->vbox),
+                      	vbox, TRUE, TRUE, 0);
+    gtk_widget_show(vbox);
+    
+    table = gtk_table_new(3, 2, FALSE);
+    gtk_table_set_col_spacing( GTK_TABLE(table), 0, 10);
+    gtk_table_set_row_spacings( GTK_TABLE(table), 3);
+    
+    label = gtk_label_new(_("domain:"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 0, 1);
+    gtk_widget_show(label);
+    label = gtk_label_new(_("username:"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 1, 2);
+    gtk_widget_show(label);
+    label = gtk_label_new(_("password:"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 2, 3);
+    gtk_widget_show(label);
+    
+    domain_entry = gtk_entry_new_with_max_length(MAXGROUPNAMEL);
+    gtk_entry_set_text(GTK_ENTRY(domain_entry), globals.domain_name);
+    gtk_widget_set_usize(domain_entry, 120, -1);
+    gtk_widget_set_sensitive(domain_entry, with_domain);
+    gtk_signal_connect_object(GTK_OBJECT(domain_entry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(user_browse_key_press_callback), NULL);
+    gtk_table_attach_defaults(GTK_TABLE(table), domain_entry, 1, 2, 0, 1);
+    gtk_widget_show(domain_entry);
+    user_entry = gtk_entry_new_with_max_length(USER_LEN);
+    gtk_entry_set_text(GTK_ENTRY(user_entry), globals.browse_user);
+    gtk_widget_set_usize(user_entry, 120, -1);
+    gtk_signal_connect_object(GTK_OBJECT(user_entry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(user_browse_key_press_callback), NULL);
+    gtk_table_attach_defaults(GTK_TABLE(table), user_entry, 1, 2, 1, 2);
+    gtk_widget_show(user_entry);
+    password_entry = gtk_entry_new_with_max_length(PASSWORD_LEN);
+    gtk_entry_set_visibility(GTK_ENTRY(password_entry), 0);	
+    gtk_entry_set_text(GTK_ENTRY(password_entry), globals.browse_password);
+    gtk_widget_set_usize(password_entry, 120, -1);
+    gtk_signal_connect_object(GTK_OBJECT(password_entry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(user_browse_key_press_callback), NULL);
+    gtk_table_attach_defaults(GTK_TABLE(table), password_entry, 1, 2, 2, 3);
+    gtk_widget_show(password_entry);
+    
+    gtk_box_pack_start(GTK_BOX(vbox), table, TRUE, TRUE, 0);
+    gtk_widget_show(table);
+    
+    user_browse_ok_button = gtk_button_new_with_label(_("OK"));
+    GTK_WIDGET_SET_FLAGS(user_browse_ok_button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(user_browse_ok_button), "clicked",
+                  	GTK_SIGNAL_FUNC(user_browse_ok_callback), GTK_OBJECT(user_browse_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (user_browse_dlg)->action_area),
+                    	user_browse_ok_button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(user_browse_ok_button);
+    gtk_widget_show(user_browse_ok_button);
+    
+    button = gtk_button_new_with_label(_("Cancel"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(user_browse_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (user_browse_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+    
+    gtk_widget_grab_focus(user_entry);
+  }
+    
+  if ( !GTK_WIDGET_VISIBLE(user_browse_dlg) )
+    gtk_widget_show(user_browse_dlg);
+}
+
+/* ------------------ */
+/* -- about dialog -- */
+/* ------------------ */
+
+
+void about_dialog (void)
+{
+  static GtkWidget *window = (GtkWidget*)NULL;
+  GtkWidget *button,*pixmapwid;
+  static GdkPixmap *pixmap = (GdkPixmap*)NULL;
+  static GdkBitmap *mask;
+  GtkStyle *style;
+  GdkGC *gc;
+  GdkFont *font;
+  GdkColor color;
+  char versionsstr[32];
+  int tw;
+  GtkWidget *vbox;
+
+  string_ncopy(versionsstr, _("Version "), 31);
+  string_ncat(versionsstr, VERSION, 31);
+  
+  if (!window )
+  {
+    window = gtk_dialog_new();
+    gtk_window_set_wmclass(GTK_WINDOW(window), "about", "LinNeighborhood");
+    gtk_window_set_policy(GTK_WINDOW(window), 0, 0, 0);
+    gtk_window_set_title(GTK_WINDOW(window), _(" About LinNeighborhood"));
+    gtk_signal_connect(GTK_OBJECT(window), "destroy",
+                    GTK_SIGNAL_FUNC(gtk_widget_destroyed), &window);
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(window)->action_area), 7);
+    style = gtk_widget_get_style(window );
+    if (!pixmap)
+    {
+      pixmap = gdk_pixmap_create_from_xpm_d( main_window->window,  &mask,
+                                           &style->bg[GTK_STATE_NORMAL],
+                                           (gchar **)neighborhood_logo_xpm );
+      color.red =   0 * (65535/255);
+      color.green = 0 * (65535/255);
+      color.blue =  0 * (65535/255);
+      color.pixel = 0;
+      gc = gdk_gc_new(pixmap); 
+      gdk_color_alloc(gtk_widget_get_colormap(main_window),&color);   
+      gdk_gc_set_foreground(gc,&color);
+      font = gdk_fontset_load ("-*-times-bold-r-*-*-*-120-*-*-*-*-*-*");
+      tw = gdk_text_width(font ? font:window->style->font, versionsstr, strlen(versionsstr));
+      gdk_draw_text(pixmap,font ? font:window->style->font,gc,178-(tw/2),115,
+                                                versionsstr,strlen(versionsstr));
+      if ( font ) gdk_font_unref(font);
+      gdk_gc_unref(gc); 
+    }
+    
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(vbox), 5);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG(window)->vbox), vbox, TRUE, TRUE, 0);
+    gtk_widget_show(vbox);
+    
+    /* a pixmap widget to contain the pixmap */
+    pixmapwid = gtk_pixmap_new( pixmap, mask );
+    gtk_widget_show( pixmapwid );
+    gtk_box_pack_start(GTK_BOX(vbox), pixmapwid , FALSE, FALSE, 0);
+
+    /*label = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(label), "http://www.bnro.de/~schmidjo");
+    gtk_entry_set_editable(GTK_ENTRY(label), 0);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),label,TRUE,FALSE,0);
+    gtk_widget_show(label);*/
+    
+    button = gtk_button_new_with_label(_("Close"));
+    gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                    GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(window));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (window)->action_area),
+                  	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+  
+  }
+  if ( !GTK_WIDGET_VISIBLE(window) )
+    gtk_widget_show(window);
+  else
+    gtk_widget_destroy(window);
+}
+
+/* ----------------------- */
+/* -- log window dialog -- */
+/* ----------------------- */
+
+static unsigned char do_logging = 0;
+static GtkWidget *log_window_dlg = (GtkWidget*)NULL;
+static GtkWidget *log_text;
+static GdkFont *log_text_font;
+
+static void log_window_close_callback (GtkButton *button)
+{
+  if ( log_window_dlg )
+    gtk_widget_destroy(log_window_dlg);
+  log_window_dlg = (GtkWidget*)NULL;
+  do_logging = 0;
+  status_set_logging_text();
+}
+
+static void log_window_clear_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  guint len;
+  
+  len = gtk_text_get_length(GTK_TEXT(log_text));
+  gtk_text_backward_delete(GTK_TEXT(log_text), len);
+}
+
+static unsigned char log_window_visible (void)
+{
+  return ( log_window_dlg != NULL ) ? 1 : 0;
+}
+
+unsigned char log_window_active (void)
+{
+  return do_logging;
+}
+
+void log_window_toggle (void)
+{
+  do_logging = ( do_logging ) ? 0 : 1;
+}
+
+void log_window_dialog (void)
+{
+  GtkWidget *button;
+  GtkWidget *table;
+  GtkWidget *vscrollbar;
+
+  if ( !(log_window_visible()) )
+  {
+    log_window_dlg = gtk_dialog_new();
+    gtk_window_set_wmclass(GTK_WINDOW(log_window_dlg), "log", "LinNeighborhood");
+    gtk_window_set_title(GTK_WINDOW(log_window_dlg), _(" Log Window"));
+    gtk_signal_connect(GTK_OBJECT(log_window_dlg), "destroy",
+                    GTK_SIGNAL_FUNC(gtk_widget_destroyed), &log_window_dlg);
+    gtk_widget_set_usize(log_window_dlg, 500, 400);
+  
+    table = gtk_table_new(1, 2, FALSE);
+
+    log_text = gtk_text_new(NULL, NULL);
+    gtk_text_set_editable(GTK_TEXT(log_text), 0);
+    gtk_text_set_word_wrap(GTK_TEXT(log_text), 1);
+    gtk_table_attach(GTK_TABLE(table), log_text, 0, 1, 0, 1,
+                    	GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND | GTK_SHRINK, 0, 0);
+    gtk_widget_show(log_text);
+                      
+    vscrollbar = gtk_vscrollbar_new(GTK_TEXT(log_text)->vadj);
+    gtk_table_attach(GTK_TABLE(table), vscrollbar, 1, 2, 0, 1,
+                    	GTK_FILL, GTK_EXPAND | GTK_FILL | GTK_SHRINK, 0, 0);
+    gtk_widget_show(vscrollbar);
+    gtk_box_pack_start( GTK_BOX(GTK_DIALOG (log_window_dlg)->vbox), table, TRUE, TRUE, 0);
+
+
+    gtk_widget_show(table);
+    
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(log_window_dlg)->action_area), 3);
+
+    button = gtk_button_new_with_label(_("Clear"));
+    gtk_signal_connect_object(GTK_OBJECT(button), "released",
+                  	GTK_SIGNAL_FUNC(log_window_clear_callback), GTK_OBJECT(log_window_dlg));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (log_window_dlg)->action_area),
+                  	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+    
+    button = gtk_button_new_with_label(_("Close"));
+    gtk_signal_connect(GTK_OBJECT(button), "released",
+                      GTK_SIGNAL_FUNC(log_window_close_callback), NULL);
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (log_window_dlg)->action_area),
+                  	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+    
+    log_text_font = gdk_fontset_load("-misc-fixed-medium-r-*-*-13-120-75-75-c-60-*-*");
+  }
+  if ( !GTK_WIDGET_VISIBLE(log_window_dlg) )
+    gtk_widget_show(log_window_dlg);
+}
+
+void insert_log_string (char * log, unsigned char add_linefeed)
+{
+  if ( do_logging )
+  {
+    if ( !(log_window_visible()) )
+      log_window_dialog();
+    
+    gtk_text_insert(GTK_TEXT(log_text), log_text_font, NULL, NULL, log, strlen(log));
+    if ( add_linefeed )
+    {
+      gtk_text_insert(GTK_TEXT(log_text), log_text_font, NULL, NULL, "\n", 1);
+    }
+  }
+}
+
+/* ------------------------------ */
+/* -- preferred machine dialog -- */
+/* ------------------------------ */
+
+
+static GtkWidget *pref_machine_dlg = NULL;
+static GtkWidget *machine_entry;
+static GtkWidget *group_entry;
+static GtkWidget *ip_entry;
+static GtkWidget *query_label;
+
+static char add_machine_prefname[MAXMACHNAMEL+1];    /* previous name if edited */
+
+static PREF_MACHINE_DIALOG_STRUCT prefstruct;
+
+void LookupByName_done (char *machine_name, char *group_name,
+                        char *ipaddr, GetSMBStateType state)
+{
+  switch ( state )
+  {
+    case SMB_STATE_OK:
+        gtk_entry_set_text(GTK_ENTRY(machine_entry), machine_name);
+        gtk_entry_set_text(GTK_ENTRY(group_entry), group_name);
+        gtk_entry_set_text(GTK_ENTRY(ip_entry), ipaddr);
+        gtk_label_set_text(GTK_LABEL(query_label), _("query host...done"));
+        break;
+
+    case SMB_STATE_SMBERR:
+        gtk_label_set_text(GTK_LABEL(query_label), _("query error !"));
+        break;
+
+    case SMB_STATE_EXEERR:
+        gtk_label_set_text(GTK_LABEL(query_label), _("samba execution error !"));
+        break;
+  }
+}
+
+void LookupByIP_done (char *ipaddr, char *machine_name,
+                      char *group_name, GetSMBStateType state)
+{
+  switch ( state )
+  {
+    case SMB_STATE_OK:
+        gtk_entry_set_text(GTK_ENTRY(machine_entry), machine_name);
+        gtk_entry_set_text(GTK_ENTRY(group_entry), group_name);
+        gtk_entry_set_text(GTK_ENTRY(ip_entry), ipaddr);
+        gtk_label_set_text(GTK_LABEL(query_label), _("query host...done"));
+        break;
+
+    case SMB_STATE_SMBERR:
+        gtk_label_set_text(GTK_LABEL(query_label), _("query error !"));
+        break;
+
+    case SMB_STATE_EXEERR:
+        gtk_label_set_text(GTK_LABEL(query_label), _("samba execution error !"));
+        break;
+  }
+}
+
+/* -- destroy the dialog properly -- */
+static void add_machine_dialog_destroy (GtkWidget *widget, GtkWidget *dlg)
+{
+  gpointer *ptr;
+
+  if ( pref_machine_dlg )
+  {
+    ptr = gtk_object_get_user_data(GTK_OBJECT(pref_machine_dlg));
+    if ( ptr )
+      g_free(ptr);
+    gtk_widget_destroy(pref_machine_dlg);
+  }
+  pref_machine_dlg = NULL;
+}
+
+/* -- ok, add/change the favourite host -- */
+static void add_machine_ok (void)
+{
+  host_struct *host;
+
+  add_machine_dialog_destroy(NULL, NULL);
+  
+  if ( is_empty_string(prefstruct.prefhost.machine) )
+  {
+    string_ncopy(prefstruct.prefhost.machine, prefstruct.prefhost.ip, MAXMACHNAMEL);
+  }
+  
+  if ( prefstruct.is_edit )
+  {
+    /* --- favourite host was edited --- */
+    host = host_list_search_by_name(add_machine_prefname);
+    /* has machine name changed ? */
+    if ( !compare_smb_machinename(add_machine_prefname, prefstruct.prefhost.machine) )
+    {
+      /* yes, new name already exists ? */
+      if ( (host_list_search_by_name(prefstruct.prefhost.machine)) != NULL )
+      {
+        ShowMessageBox(_("Error"),
+                       _("Machine already exists in list !"));
+        return;
+      }
+    }
+    /* name is ok */
+    if ( host != NULL )
+    {
+      /* change properties */
+      string_ncopy(host->name, prefstruct.prefhost.machine, MAXMACHNAMEL);
+      string_ncopy(host->group, prefstruct.prefhost.group, MAXGROUPNAMEL);
+      string_ncopy(host->ipaddr, prefstruct.prefhost.ip, MAXIPL);
+      notify_host_change();
+    }
+  }
+  else
+  {
+    if ( !is_empty_string(prefstruct.prefhost.machine) ||
+         !is_empty_string(prefstruct.prefhost.ip) )
+    {
+      /* --- add new favourite host --- */
+      data_hosts_add(prefstruct.prefhost.machine,
+                     prefstruct.prefhost.group,
+                     prefstruct.prefhost.ip,
+                     host_local);
+    }
+  }
+}
+
+/* -- callback function for MessageDlg -- */
+static void add_machine_msgdlg_callback (unsigned int button)
+{
+  /* continue pressed ? */
+  if ( button == CONTINUE_B )
+  {
+    add_machine_ok();
+  }
+}
+
+/* -- callback for OK-Button -- */
+static void add_machine_ok_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  unsigned char ok;
+  unsigned char error = 0;
+  unsigned char no_name = 0;
+  PREF_MACHINE_DIALOG_STRUCT *ptr;
+
+  ptr = (PREF_MACHINE_DIALOG_STRUCT*)gtk_object_get_user_data(GTK_OBJECT(dlg));
+  memcpy(&prefstruct, ptr, sizeof(PREF_MACHINE_DIALOG_STRUCT));
+  
+  string_ncopy(prefstruct.prefhost.machine, gtk_entry_get_text(GTK_ENTRY(machine_entry)),MAXMACHNAMEL);
+  string_ncopy(prefstruct.prefhost.group,gtk_entry_get_text(GTK_ENTRY(group_entry)),MAXGROUPNAMEL);
+  string_ncopy(prefstruct.prefhost.ip, gtk_entry_get_text(GTK_ENTRY(ip_entry)),MAXIPL);
+
+  /* test name string */
+  ok = is_empty_string(prefstruct.prefhost.machine);
+  if ( ok )
+  {
+    strcpy(prefstruct.prefhost.machine, "");
+    no_name = 1;
+  }
+  /* test group string */
+  ok = is_empty_string(prefstruct.prefhost.group);
+  if ( ok )
+  {
+    strcpy(prefstruct.prefhost.group, "");
+  }
+  /* test ip string */
+  ok = is_empty_string(prefstruct.prefhost.ip);
+  if ( ok )
+  {
+    strcpy(prefstruct.prefhost.ip, "");
+  }
+  else
+  {
+    if ( !is_ipv4_address(prefstruct.prefhost.ip) )
+    {
+      error = 1;
+      ShowMessageBox(_("Error"),
+                     _("Error in IP string !"));
+    }
+  }
+  
+  if ( !error )
+  {
+    if ( no_name )
+    {
+      error = 1;
+      ShowMessageDialog(_("Warning"),
+                        _("No machine name !\n"
+                          "There may be browse problems."),
+                        CONTINUE_B | ABORT_B,
+                        add_machine_msgdlg_callback);
+    }
+  }
+  
+  /* if !error -> close dialog */
+  if ( !error )
+  {
+    add_machine_ok();
+  }
+}
+
+/* -- callback for Query-Button -- */
+static void add_machine_query_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  PREF_MACHINE_DIALOG_STRUCT *pstruct;
+
+  pstruct = (PREF_MACHINE_DIALOG_STRUCT*)gtk_object_get_user_data(GTK_OBJECT(dlg));
+  string_ncopy(pstruct->prefhost.machine, gtk_entry_get_text(GTK_ENTRY(machine_entry)),MAXMACHNAMEL);
+  string_ncopy(pstruct->prefhost.group,gtk_entry_get_text(GTK_ENTRY(group_entry)),MAXGROUPNAMEL);
+  string_ncopy(pstruct->prefhost.ip, gtk_entry_get_text(GTK_ENTRY(ip_entry)),MAXIPL);
+
+  gtk_label_set_text(GTK_LABEL(query_label), _("query host..."));
+  if ( !is_empty_string(pstruct->prefhost.ip) )
+  {
+    if ( is_ipv4_address(pstruct->prefhost.ip) )
+    {
+      pstruct->query_ok = 1;
+      LookupByIP(pstruct->prefhost.ip);
+    }
+    else
+    {
+      gtk_label_set_text(GTK_LABEL(query_label), _("error in ip string !"));
+      gtk_widget_grab_focus(ip_entry);
+    }
+  }
+  else
+  {
+    if ( !is_empty_string(pstruct->prefhost.machine) )
+    {
+      pstruct->query_ok = 1;
+      if ( is_empty_string(pref.v.wins_server) )
+        LookupByName(pstruct->prefhost.machine, "");
+      else
+        LookupByName(pstruct->prefhost.machine, pref.v.wins_server);
+    }
+    else
+    {
+      gtk_label_set_text(GTK_LABEL(query_label), _("enter name or ip address !"));
+      gtk_widget_grab_focus(machine_entry);
+    }
+  }
+}
+
+static void add_machine_dialog (PREF_MACHINE_DIALOG_STRUCT *pstruct)
+{
+  GtkWidget *vbox;
+  GtkWidget *table;
+  GtkWidget *label;
+  GtkWidget *button;
+  
+  if ( !pref_machine_dlg )
+  {
+    pref_machine_dlg = gtk_dialog_new();
+    gtk_object_set_user_data(GTK_OBJECT(pref_machine_dlg), pstruct);
+    gtk_window_set_wmclass(GTK_WINDOW(pref_machine_dlg), "add_machine", "LinNeighborhood");
+    gtk_window_set_modal(GTK_WINDOW(pref_machine_dlg), TRUE);
+    gtk_window_set_policy(GTK_WINDOW(pref_machine_dlg), 0, 0, 0);
+    gtk_window_set_title(GTK_WINDOW(pref_machine_dlg), _(" Add Machine"));
+    gtk_signal_connect(GTK_OBJECT(pref_machine_dlg), "destroy",
+                    GTK_SIGNAL_FUNC(gtk_widget_destroyed), &pref_machine_dlg);
+    gtk_widget_set_usize(pref_machine_dlg, ADD_MACHINE_DIALOG_WIDTH, 155);
+    gtk_widget_realize(pref_machine_dlg);
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(pref_machine_dlg)->action_area), 5);
+    
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(vbox), 5);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (pref_machine_dlg)->vbox),
+                      	vbox, TRUE, TRUE, 0);
+    gtk_widget_show(vbox);
+    
+    table = gtk_table_new(4, 2, FALSE);
+    gtk_table_set_col_spacing(GTK_TABLE(table), 0, 12);
+    
+    label = gtk_label_new(_("machine:"));
+    gtk_widget_set_usize(label, ADD_MACHINE_WIDTH_1, -1);
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 0, 1);
+    gtk_widget_show(label);
+    label = gtk_label_new(_("group:"));
+    gtk_widget_set_usize(label, ADD_MACHINE_WIDTH_1, -1);
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 1, 2);
+    gtk_widget_show(label);
+    label = gtk_label_new(_("IP-address:"));
+    gtk_widget_set_usize(label, ADD_MACHINE_WIDTH_1, -1);
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 2, 3);
+    gtk_widget_show(label);
+    label = gtk_label_new(_("query status:"));
+    gtk_widget_set_usize(label, ADD_MACHINE_WIDTH_1, -1);
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 3, 4);
+    gtk_widget_show(label);
+    
+    machine_entry = gtk_entry_new_with_max_length(MAXMACHNAMEL);
+    gtk_entry_set_text(GTK_ENTRY(machine_entry), pstruct->prefhost.machine);
+    gtk_widget_set_usize(machine_entry, 150, -1);
+    gtk_table_attach_defaults(GTK_TABLE(table), machine_entry, 1, 2, 0, 1);
+    gtk_widget_show(machine_entry);
+    group_entry = gtk_entry_new_with_max_length(MAXGROUPNAMEL);
+    gtk_entry_set_text(GTK_ENTRY(group_entry), pstruct->prefhost.group);
+    gtk_widget_set_usize(group_entry, 150, -1);
+    gtk_table_attach_defaults(GTK_TABLE(table), group_entry, 1, 2, 1, 2);
+    gtk_widget_show(group_entry);
+    ip_entry = gtk_entry_new_with_max_length(MAXIPL);
+    gtk_widget_set_usize(ip_entry, 150, -1);
+    gtk_entry_set_text(GTK_ENTRY(ip_entry), pstruct->prefhost.ip);
+    gtk_table_attach_defaults(GTK_TABLE(table), ip_entry, 1, 2, 2, 3);
+    gtk_widget_show(ip_entry);
+    
+    query_label = gtk_label_new("");
+    gtk_misc_set_alignment(GTK_MISC(query_label), 0.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), query_label, 1, 2, 3, 4);
+    gtk_widget_show(query_label);
+
+    gtk_box_pack_start(GTK_BOX(vbox), table, TRUE, TRUE, 0);
+    gtk_widget_show(table);
+    
+    button = gtk_button_new_with_label(_("Query"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(add_machine_query_callback), GTK_OBJECT(pref_machine_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (pref_machine_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+    
+    button = gtk_button_new_with_label(_("OK"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(add_machine_ok_callback), GTK_OBJECT(pref_machine_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (pref_machine_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+    
+    button = gtk_button_new_with_label(_("Cancel"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(add_machine_dialog_destroy), GTK_OBJECT(pref_machine_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (pref_machine_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+    
+    gtk_widget_grab_focus(machine_entry);
+  }
+    
+  if ( !GTK_WIDGET_VISIBLE(pref_machine_dlg) )
+    gtk_widget_show(pref_machine_dlg);
+}
+
+void enter_pref_machine (void)
+{
+  PREF_MACHINE_DIALOG_STRUCT *pstruct;
+
+  pstruct = g_malloc(sizeof(PREF_MACHINE_DIALOG_STRUCT));
+  pstruct->is_edit = 0;
+  pstruct->pref_machine = NULL;
+  pstruct->query_ok = 0;
+  strcpy(pstruct->prefhost.machine, cempty);
+  strcpy(pstruct->prefhost.group, cempty);
+  strcpy(pstruct->prefhost.ip, cempty);
+  
+  add_machine_dialog(pstruct);
+}
+
+void edit_pref_machine (GtkTreeItem *item, char *name, char *group, char *ip)
+{
+  PREF_MACHINE_DIALOG_STRUCT *pstruct;
+
+  /* save previous name */
+  string_ncopy(add_machine_prefname, name, MAXMACHNAMEL);
+  
+  pstruct = g_malloc(sizeof(PREF_MACHINE_DIALOG_STRUCT));
+  pstruct->is_edit = 1;
+  pstruct->pref_machine = item;
+  pstruct->query_ok = 0;
+  string_ncopy(pstruct->prefhost.machine, name, MAXMACHNAMEL);
+  string_ncopy(pstruct->prefhost.group, group, MAXGROUPNAMEL);
+  string_ncopy(pstruct->prefhost.ip, ip, MAXIPL);
+  
+  add_machine_dialog(pstruct);
+}
+
+/* ------------------------- */
+/* -- machine info dialog -- */
+/* ------------------------- */
+
+#define MACHINE_INFO_WIDTH              150
+
+static char info[MAXCOMMENTL+3];
+
+void machine_info_dialog (char *name, MACHINEINFO_STRUCT *machineinfo)
+{
+  GtkWidget *machine_info_dlg;
+  GtkWidget *table;
+  GtkWidget *label;
+  GtkWidget *button;
+  GtkWidget *frame;
+  char ndstring[] = " n.d.";
+  
+  machine_info_dlg = gtk_dialog_new();
+  gtk_window_set_wmclass(GTK_WINDOW(machine_info_dlg), "machine_info", "LinNeighborhood");
+  gtk_window_set_modal(GTK_WINDOW(machine_info_dlg), TRUE);
+  gtk_window_set_policy(GTK_WINDOW(machine_info_dlg), 0, 0, 0);
+  gtk_window_set_title(GTK_WINDOW(machine_info_dlg), _(" Machine Info"));
+  gtk_signal_connect(GTK_OBJECT(machine_info_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroyed), &machine_info_dlg);
+  gtk_widget_realize(machine_info_dlg);
+  gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(machine_info_dlg)->action_area), 5);
+    
+  table = gtk_table_new(5, 2, FALSE);
+  gtk_container_set_border_width(GTK_CONTAINER(table), 10);
+  gtk_table_set_col_spacing(GTK_TABLE(table), 0, 18);
+  /* bug in gtk+ ? */
+  gtk_table_set_row_spacings(GTK_TABLE(table), 5);
+    
+  label = gtk_label_new(_("Name:"));
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+  gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 0, 1);
+  gtk_widget_show(label);
+
+  label = gtk_label_new(_("Domain:"));
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+  gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 1, 2);
+  gtk_widget_show(label);
+
+  label = gtk_label_new(_("OS:"));
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+  gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 2, 3);
+  gtk_widget_show(label);
+
+  label = gtk_label_new(_("Server:"));
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+  gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 3, 4);
+  gtk_widget_show(label);
+
+  label = gtk_label_new(_("IP Address:"));
+  gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+  gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 4, 5);
+  gtk_widget_show(label);
+    
+  strcpy(info, " ");
+  string_ncat(info, name, MAXCOMMENTL+1);
+
+  frame = gtk_frame_new(NULL);
+  label = gtk_label_new(info);
+  gtk_widget_set_usize(label, MACHINE_INFO_WIDTH, -1);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_container_add(GTK_CONTAINER(frame), label);
+  gtk_widget_show(label);
+  gtk_table_attach_defaults(GTK_TABLE(table), frame, 1, 2, 0, 1);
+  gtk_widget_show(frame);
+
+  if ( is_empty_string(machineinfo->Domain) )
+    strcpy(info, ndstring);
+  else
+  {
+    strcpy(info, " ");
+    string_ncat(info, machineinfo->Domain, MAXCOMMENTL+1);
+  }
+  
+  frame = gtk_frame_new(NULL);
+  gtk_table_attach_defaults(GTK_TABLE(table), frame, 1, 2, 1, 2);
+  gtk_widget_show(frame);
+  label = gtk_label_new(info);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_container_add(GTK_CONTAINER(frame), label);
+  gtk_widget_show(label);
+
+  if ( is_empty_string(machineinfo->OS) )
+    strcpy(info, ndstring);
+  else
+  {
+    strcpy(info, " ");
+    string_ncat(info, machineinfo->OS, MAXCOMMENTL+1);
+  }
+
+  frame = gtk_frame_new(NULL);
+  gtk_table_attach_defaults(GTK_TABLE(table), frame, 1, 2, 2, 3);
+  gtk_widget_show(frame);
+  label = gtk_label_new(info);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_container_add(GTK_CONTAINER(frame), label);
+  gtk_widget_show(label);
+
+  if ( is_empty_string(machineinfo->Server) )
+    strcpy(info, ndstring);
+  else
+  {
+    strcpy(info, " ");
+    string_ncat(info, machineinfo->Server, MAXCOMMENTL+1);
+  }
+
+  frame = gtk_frame_new(NULL);
+  gtk_table_attach_defaults(GTK_TABLE(table), frame, 1, 2, 3, 4);
+  gtk_widget_show(frame);
+  label = gtk_label_new(info);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_container_add(GTK_CONTAINER(frame), label);
+  gtk_widget_show(label);
+
+  if ( is_empty_string(machineinfo->ipaddr) )
+    strcpy(info, ndstring);
+  else
+  {
+    strcpy(info, " ");
+    string_ncat(info, machineinfo->ipaddr, MAXIPL+1);
+  }
+
+  frame = gtk_frame_new(NULL);
+  gtk_table_attach_defaults(GTK_TABLE(table), frame, 1, 2, 4, 5);
+  gtk_widget_show(frame);
+  label = gtk_label_new(info);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_container_add(GTK_CONTAINER(frame), label);
+  gtk_widget_show(label);
+    
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (machine_info_dlg)->vbox),
+                                      table, FALSE, TRUE, 0);
+  gtk_widget_show(table);
+    
+  button = gtk_button_new_with_label(_("Close"));
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(machine_info_dlg));
+  gtk_box_pack_start(GTK_BOX (GTK_DIALOG (machine_info_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+  gtk_widget_grab_default(button);
+  gtk_widget_show(button);
+    
+  gtk_widget_show(machine_info_dlg);
+}
+
+/* ------------------------------------------------------------------------ */
+
+/* --------------------------- */
+/* -- master browser dialog -- */
+/* --------------------------- */
+
+static GtkWidget *mb_clist;
+static gint focus_row;
+static void master_browser_data_change_callback (data_notify_struct *notify);
+
+static char master_browser_prefname[MAXMACHNAMEL+1];    /* previous name if edited */
+
+static void master_browser_delete_all (void)
+{
+  gtk_clist_clear(GTK_CLIST(mb_clist));
+}
+
+/* -- callback functions for Dialog(s) -- */
+
+static void add_mb_txtdlg_callback(char *input)
+{
+  if ( !is_empty_string(input) )
+  {
+    data_master_add(input, master_browser_local);
+  }
+}
+
+static void remove_mb_msgdlg_callback (unsigned int button)
+{
+  char *master;
+
+  /* "Yes" pressed ? */
+  if ( button == YES_B )
+  {
+    gtk_clist_get_text(GTK_CLIST(mb_clist), focus_row, 0, &master);
+    data_master_delete(master);
+  }
+}
+
+static void replace_mb_txtdlg_callback(char *input)
+{
+  master_struct *master;
+  
+  master = master_list_search_by_name(master_browser_prefname);
+  /* has machine name changed ? */
+  if ( !compare_smb_machinename(master_browser_prefname, input) )
+  {
+    /* yes, new name already exists ? */
+    if ( (master_list_search_by_name(input)) != NULL )
+    {
+      ShowMessageBox(_("Error"),
+                     _("Machine already exists in list !"));
+      return;
+    }
+  }
+  /* name is ok */
+  if ( master != NULL )
+  {
+    /* change properties */
+    string_ncopy(master->name, input, MAXMACHNAMEL);
+    notify_master_change();
+  }
+}
+
+/* -- callbacks for dialog buttons -- */
+
+static void mb_add_callback(GtkWidget *widget, gpointer data)
+{
+  TextInputDialog(_("Add Master"),
+                  _("Enter Master Browser:"),
+                  "",
+                  MAXMACHNAMEL,
+                  200, 110,
+                  add_mb_txtdlg_callback);
+}
+
+static void mb_remove_callback (GtkWidget *widget, gpointer data)
+{
+  char *text;
+  
+  if ( GTK_CLIST(mb_clist)->selection )
+  {
+    if ( gtk_clist_get_text(GTK_CLIST(mb_clist), GTK_CLIST(mb_clist)->focus_row, 0, &text) )
+    {
+      focus_row = GTK_CLIST(mb_clist)->focus_row;
+
+      ShowMessageDialog(_("Warning"),
+                        _("Remove Master Browser ?"),
+                        YES_B | NO_B,
+                        remove_mb_msgdlg_callback);
+    }
+  }
+}
+
+static void mb_edit_callback (GtkWidget *widget, gpointer data)
+{
+  char *text;
+
+  if ( GTK_CLIST(mb_clist)->selection )
+  {
+    if ( gtk_clist_get_text(GTK_CLIST(mb_clist), GTK_CLIST(mb_clist)->focus_row, 0, &text) )
+    {
+      focus_row = GTK_CLIST(mb_clist)->focus_row;
+      string_ncopy(master_browser_prefname, text, MAXMACHNAMEL);
+      
+      TextInputDialog(_("Edit Master"),
+                      _("Edit Master Browser:"),
+                      text,
+                      MAXMACHNAMEL,
+                      200,110,
+                      replace_mb_txtdlg_callback);
+    }
+  }
+}
+
+static void mb_close_callback(GtkWidget *widget, GtkWidget *dlg)
+{
+  notify_delete_callback(master_browser_data_change_callback);
+  gtk_widget_destroy(dlg);
+}
+
+static gint mb_press_event (GtkWidget *widget, GdkEventButton *event,
+                                  	gpointer data)
+{
+  return 0;
+}
+
+static gint mb_release_event (GtkWidget *widget, GdkEventButton *event,
+                                    	gpointer data)
+{
+  return 0;
+}
+
+static void master_browser_edit_insert_enumerate (master_struct *master, gpointer data)
+{
+  GtkCList *clist;
+  char *row[1];
+  
+  clist = GTK_CLIST(data);
+  if ( (master != NULL) && (clist != NULL) )
+  {
+    row[0] = master->name;
+    gtk_clist_append(clist, row);
+  }
+}
+
+static void master_browser_retrigger (void)
+{
+  master_browser_delete_all();
+  /* enumerate + insert all master browsers */
+  master_list_enumerate(master_browser_edit_insert_enumerate, (gpointer)(mb_clist));
+}
+
+static void master_browser_data_change_callback (data_notify_struct *notify)
+{
+  switch ( notify->dt )
+  {
+    case dt_master:
+        master_browser_retrigger();
+        break;
+    
+    default:
+        break;
+  }
+}
+
+void master_browser_dialog ()
+{
+  GtkWidget *mb_dlg;
+  GtkWidget *vbox;
+  GtkWidget *toolbar;
+  GtkWidget *icon_add;
+  GtkWidget *icon_remove;
+  GtkWidget *icon_edit;
+  GtkWidget *icon_close;
+  GtkWidget *clist_win;
+  
+  mb_dlg = gtk_window_new(GTK_WINDOW_DIALOG);
+  gtk_window_set_wmclass(GTK_WINDOW(mb_dlg), "master_browser", "LinNeighborhood");
+  gtk_window_set_modal(GTK_WINDOW(mb_dlg), TRUE);
+  gtk_window_set_policy(GTK_WINDOW(mb_dlg), 0, 0, 0);
+  gtk_window_set_title(GTK_WINDOW(mb_dlg), _(" Master Browsers"));
+  gtk_signal_connect(GTK_OBJECT(mb_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(mb_close_callback), mb_dlg);
+  gtk_widget_set_usize(mb_dlg, 350, 220);
+  gtk_widget_realize(mb_dlg);
+  
+  /* main vbox */
+  vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add( GTK_CONTAINER(mb_dlg), vbox);
+  gtk_widget_show(vbox);
+  
+  /* button toolbar */
+  toolbar = gtk_toolbar_new( GTK_ORIENTATION_HORIZONTAL, GTK_TOOLBAR_BOTH);
+  gtk_box_pack_start( GTK_BOX(vbox), toolbar, FALSE, TRUE, 0);
+  gtk_widget_show(toolbar);
+
+  icon_add = new_pixmap(mb_dlg, add_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("Add"), _("Add Master Browser"), "",
+                           icon_add, GTK_SIGNAL_FUNC(mb_add_callback), NULL);
+
+  icon_remove = new_pixmap(mb_dlg, remove_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("  Remove  "), _("Remove Master Browser"), "",
+                           icon_remove, GTK_SIGNAL_FUNC(mb_remove_callback), NULL);
+
+  icon_edit = new_pixmap(mb_dlg, edit_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("Edit"), _("Edit Master Browser"), "",
+                           icon_edit, GTK_SIGNAL_FUNC(mb_edit_callback), NULL);
+
+  icon_close = new_pixmap(mb_dlg, close_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("Close"), _("Close Dialog"), "",
+                           icon_close, GTK_SIGNAL_FUNC(mb_close_callback), GTK_OBJECT(mb_dlg));
+
+  set_toolbar_tooltip_color(GTK_TOOLBAR(toolbar));
+  
+  /* scrolled win with CList within */
+  clist_win = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW(clist_win),
+                                 GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+  gtk_box_pack_start( GTK_BOX(vbox), clist_win, TRUE, TRUE, 0);
+  gtk_widget_show(clist_win);
+  
+  mb_clist = gtk_clist_new(1);
+  gtk_clist_set_column_title(GTK_CLIST(mb_clist), 0, _(" Name"));
+  gtk_clist_column_titles_show(GTK_CLIST(mb_clist));
+  gtk_clist_set_selection_mode( GTK_CLIST(mb_clist), GTK_SELECTION_SINGLE);
+  gtk_clist_column_titles_passive( GTK_CLIST(mb_clist) );
+  gtk_signal_connect(GTK_OBJECT(mb_clist), "button_press_event",
+                     GTK_SIGNAL_FUNC(mb_press_event), NULL);
+  gtk_signal_connect(GTK_OBJECT(mb_clist), "button_release_event",
+                     GTK_SIGNAL_FUNC(mb_release_event), NULL);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(clist_win), mb_clist);
+  gtk_widget_show(mb_clist);
+  
+  /* enumerate + insert all master browsers */
+  master_list_enumerate(master_browser_edit_insert_enumerate, (gpointer)(mb_clist));
+  
+  gtk_widget_set_uposition (GTK_WIDGET(mb_dlg), 120, 100);
+  gtk_widget_show(mb_dlg);
+
+  notify_add_callback(master_browser_data_change_callback);
+}
+
+/* ------------------------------------------------------------------------ */
+
+/* ---------------------------------------- */
+/* -- browse entire network image dialog -- */
+/* ---------------------------------------- */
+
+static GtkWidget *network_browse_dlg = NULL;
+
+static GtkWidget *ni_user_checkbox;
+static GtkWidget *ni_password_entry;
+static GtkWidget *ni_user_entry;
+static GtkWidget *network_browse_ok_button;
+
+static void network_image_ok_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  BROWSE_MODE mode;
+
+  mode = BROWSE_MODE_NONE;
+  if ( GTK_TOGGLE_BUTTON(ni_user_checkbox)->active )
+  {
+    string_ncopy(globals.browse_user, gtk_entry_get_text(GTK_ENTRY(ni_user_entry)), USER_LEN);
+    string_ncopy(globals.browse_password,gtk_entry_get_text(GTK_ENTRY(ni_password_entry)), PASSWORD_LEN);
+    mode |= BROWSE_MODE_USER;
+  }
+  
+  gtk_widget_destroy(dlg);
+  network_browse_dlg = NULL;
+  
+  browse_network(mode);
+}
+
+static void network_image_key_press_callback (GtkWidget *widget, GdkEventKey *event)
+{
+  if ( event->keyval == GDK_Return )
+  {
+    if ( (GTK_WINDOW(network_browse_dlg))->default_widget == network_browse_ok_button )
+      network_image_ok_callback(network_browse_ok_button, network_browse_dlg);
+  }
+}
+
+static void ni_user_checkbox_toggled(GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(ni_password_entry, button->active);
+  gtk_widget_set_sensitive(ni_user_entry, button->active);
+}
+
+void browse_network_image_dialog (void)
+{
+  GtkWidget *vbox;
+  GtkWidget *table;
+  GtkWidget *label;
+  GtkWidget *separator;
+  GtkWidget *button;
+  
+  if ( !network_browse_dlg )
+  {
+    network_browse_dlg = gtk_dialog_new();
+    gtk_window_set_wmclass(GTK_WINDOW(network_browse_dlg), "network_browse", "LinNeighborhood");
+    gtk_window_set_policy(GTK_WINDOW(network_browse_dlg), 0, 0, 0);
+    gtk_window_set_title(GTK_WINDOW(network_browse_dlg), _(" Entire Network Browse"));
+    gtk_signal_connect(GTK_OBJECT(network_browse_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroyed), &network_browse_dlg);
+    gtk_widget_realize(network_browse_dlg);
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(network_browse_dlg)->action_area), 5);
+    
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(vbox), 5);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (network_browse_dlg)->vbox),
+                      	vbox, TRUE, TRUE, 0);
+    gtk_widget_show(vbox);
+    
+    label = gtk_label_new(_("You are to browse the entire network for all workgroups, "
+                          "machines and shares exported by these machines. This may "
+                          "cause some network traffic."));
+    gtk_widget_set_usize(label, 230, -1);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
+    gtk_widget_show(label);
+    
+    separator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(vbox), separator, FALSE, TRUE, 2);
+    gtk_widget_show(separator);
+    
+    ni_user_checkbox = gtk_check_button_new_with_label(_("Browse as user"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(ni_user_checkbox), 0);
+    gtk_signal_connect(GTK_OBJECT(ni_user_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(ni_user_checkbox_toggled), NULL);
+    gtk_box_pack_start(GTK_BOX(vbox), ni_user_checkbox, TRUE, TRUE, 3);
+    gtk_widget_show(ni_user_checkbox);
+    
+    table = gtk_table_new(2, 2, FALSE);
+    gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, TRUE, 0);
+    gtk_table_set_col_spacing( GTK_TABLE(table), 0, 5);
+    gtk_widget_show(table);
+    
+    label = gtk_label_new(_(" username:"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+    
+    ni_user_entry = gtk_entry_new_with_max_length(MASTER_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(ni_user_entry), globals.browse_user);
+    gtk_signal_connect_object(GTK_OBJECT(ni_user_entry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(network_image_key_press_callback), NULL);
+    gtk_widget_set_sensitive(ni_user_entry, 0);
+    gtk_table_attach_defaults(GTK_TABLE(table), ni_user_entry, 1, 2, 0, 1);
+    gtk_widget_show(ni_user_entry);
+    
+    label = gtk_label_new(_(" password:"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+
+    ni_password_entry = gtk_entry_new_with_max_length(MASTER_LEN-1);
+    gtk_entry_set_visibility(GTK_ENTRY(ni_password_entry), 0);	
+    gtk_entry_set_text(GTK_ENTRY(ni_password_entry), globals.browse_password);
+    gtk_signal_connect_object(GTK_OBJECT(ni_password_entry), "key_press_event",
+                  	GTK_SIGNAL_FUNC(network_image_key_press_callback), NULL);
+    gtk_widget_set_sensitive(ni_password_entry, 0);
+    gtk_table_attach_defaults(GTK_TABLE(table), ni_password_entry, 1, 2, 1, 2);
+    gtk_widget_show(ni_password_entry);
+    
+    network_browse_ok_button = gtk_button_new_with_label(_("OK"));
+    GTK_WIDGET_SET_FLAGS(network_browse_ok_button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(network_browse_ok_button), "clicked",
+                  	GTK_SIGNAL_FUNC(network_image_ok_callback), GTK_OBJECT(network_browse_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (network_browse_dlg)->action_area),
+                    	network_browse_ok_button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(network_browse_ok_button);
+    gtk_widget_show(network_browse_ok_button);
+    
+    button = gtk_button_new_with_label(_("Cancel"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(network_browse_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (network_browse_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+    
+    gtk_widget_grab_focus(ni_user_entry);
+  }
+  
+  if ( !GTK_WIDGET_VISIBLE(network_browse_dlg) )
+    gtk_widget_show(network_browse_dlg);
+}
+
+/* --------------------------------- */
+/* -- export network image dialog -- */
+/* --------------------------------- */
+
+static GtkWidget *network_image_dialog;
+static char network_image_filename[PATH_LEN+1];
+
+static void network_image_msgdlg_callback (unsigned int button)
+{
+  /* abort ? */
+  if ( button == NO_B )
+    return;
+
+  network_image_export(network_image_filename);
+}
+
+static void export_networkimage_ok_callback (GtkWidget *widget)
+{
+  string_ncopy(network_image_filename, gtk_file_selection_get_filename(GTK_FILE_SELECTION(network_image_dialog)), PATH_LEN);
+  
+  if ( file_exist(network_image_filename) )
+  {
+    ShowMessageDialog(_("Warning"),
+                      _("File exists, overwrite ?"),
+                      YES_B | NO_B,
+                      network_image_msgdlg_callback);
+  }
+  else
+  {
+    network_image_msgdlg_callback(0);
+  }
+  gtk_widget_destroy(widget);
+}
+
+static void export_networkimage_cancel_callback (GtkWidget *widget)
+{
+  gtk_widget_destroy(widget);
+}
+
+void export_network_image_dialog (void)
+{
+  network_image_dialog = gtk_file_selection_new(_("Export Network Image"));
+  gtk_window_set_modal(GTK_WINDOW(network_image_dialog), TRUE);
+  gtk_file_selection_set_filename(GTK_FILE_SELECTION(network_image_dialog), SMBNETWORK_FILE);
+  gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(network_image_dialog)->ok_button),
+           "clicked", (GtkSignalFunc)export_networkimage_ok_callback, GTK_OBJECT(network_image_dialog));
+  gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(network_image_dialog)->cancel_button),
+           "clicked", (GtkSignalFunc)export_networkimage_cancel_callback, GTK_OBJECT(network_image_dialog));
+  gtk_widget_show(network_image_dialog);
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+/* ------------------------ */
+/* -- preferences dialog -- */
+/* ------------------------ */
+
+static GtkWidget *preferences_dlg = NULL;
+static GtkWidget *quick_browse_checkbox;
+static GtkWidget *startup_browse_checkbox;
+static GtkWidget *user_scan_checkbox;
+static GtkWidget *group_name_entry;
+static GtkWidget *master_browser_checkbox;
+static GtkWidget *master_browser_entry;
+static GtkWidget *master_browser_button;
+static GtkWidget *wins_server_checkbox;
+static GtkWidget *wins_server_entry;
+static GtkWidget *group_userscan_checkbox;
+static GtkWidget *groups_userscan_checkbox;
+static GtkWidget *password_once_checkbox;
+static GtkWidget *group_browse_checkbox;
+static GtkWidget *use_group_checkbox;
+static GtkWidget *smbclient_entry;
+static GtkWidget *nmblookup_entry;
+static GtkWidget *smbmount_entry;
+static GtkWidget *smbumount_entry;
+static GtkWidget *smbmount_204_radio;
+static GtkWidget *smbmount_205_radio;
+static GtkWidget *smbmount_206_radio;
+static GtkWidget *root_mnt_checkbox;
+static GtkWidget *root_mnt_entry;
+static GtkWidget *replace_space_mount_checkbox;
+static GtkWidget *mount_default_no_dialog_checkbox;
+static GtkWidget *memorize_mount_checkbox;
+static GtkWidget *delete_mountpoints_checkbox;
+static GtkWidget *default_user_entry;
+static GtkWidget *default_password_checkbox;
+static GtkWidget *default_password_entry;
+static GtkWidget *run_fm_checkbox;
+static GtkWidget *run_fm_combo;
+static GtkWidget *copy_fm_button;
+static GtkWidget *run_fm_entry;
+static GtkWidget *use_smb_port_checkbox;
+static GtkWidget *smb_port_entry;
+
+static void preferences_dialog_set_bool (unsigned char *done_change, unsigned char value, unsigned char *old_value)
+{
+  if ( value != *old_value )
+  {
+    *old_value = value;
+    *done_change = 1;
+  }
+}
+
+static void preferences_dialog_set_string (unsigned char *done_change, char *value, char **old_value, size_t maxlen)
+{
+  static char ctemp[256];
+  char *ptemp;
+  
+  if ( maxlen > 255 )
+    maxlen = 255;
+  ptemp = ctemp;
+  string_ncopy(ptemp, value, maxlen);
+  string_trim(&ptemp);
+  if ( strcmp(ptemp, *old_value) != 0 )
+  {
+    string_ncopy(*old_value, ptemp, maxlen);
+    *done_change = 1;
+  }
+}
+
+static void preferences_dialog_set_integer (unsigned char *done_change, char *value_string, int *old_value)
+{
+  int value;
+  char *ptemp;
+  
+  value = (int)strtol(value_string, &ptemp, 10);
+  
+  if ( *ptemp == 0 )
+  {
+    if ( value != *old_value )
+    {
+      *old_value = value;
+      *done_change = 1;
+    }
+  }
+}
+
+static void preferences_scan_dialog (void)
+{
+  SMBMOUNT temp_version;
+  char *ptemp;
+
+  preferences_dialog_set_bool(&(pref.b.quick_browse),
+          GTK_TOGGLE_BUTTON(quick_browse_checkbox)->active, &(pref.v.quick_browse));
+  preferences_dialog_set_bool(&(pref.b.startup_browse),
+          GTK_TOGGLE_BUTTON(startup_browse_checkbox)->active, &(pref.v.startup_browse));
+  preferences_dialog_set_bool(&(pref.b.shares_scan_user),
+          GTK_TOGGLE_BUTTON(user_scan_checkbox)->active, &(pref.v.shares_scan_user));
+  preferences_dialog_set_bool(&(pref.b.machines_scan_user),
+          GTK_TOGGLE_BUTTON(group_userscan_checkbox)->active, &(pref.v.machines_scan_user));
+  preferences_dialog_set_bool(&(pref.b.groups_scan_user),
+          GTK_TOGGLE_BUTTON(groups_userscan_checkbox)->active, &(pref.v.groups_scan_user));
+  preferences_dialog_set_bool(&(pref.b.password_once),
+          GTK_TOGGLE_BUTTON(password_once_checkbox)->active, &(pref.v.password_once));
+  ptemp = pref.v.workgroup;
+  preferences_dialog_set_string(&(pref.b.workgroup),
+          gtk_entry_get_text(GTK_ENTRY(group_name_entry)), &ptemp, MAXGROUPNAMEL);
+  preferences_dialog_set_bool(&(pref.b.master_browser_scan),
+          GTK_TOGGLE_BUTTON(master_browser_checkbox)->active, &(pref.v.master_browser_scan));
+  ptemp = pref.v.master;
+  preferences_dialog_set_string(&(pref.b.master),
+          gtk_entry_get_text(GTK_ENTRY(master_browser_entry)), &ptemp, MAXMACHNAMEL);
+  preferences_dialog_set_bool(&(pref.b.wins_server_scan),
+          GTK_TOGGLE_BUTTON(wins_server_checkbox)->active, &(pref.v.wins_server_scan));
+  preferences_dialog_set_bool(&(pref.b.use_group_browse),
+          GTK_TOGGLE_BUTTON(group_browse_checkbox)->active, &(pref.v.use_group_browse));
+  preferences_dialog_set_bool(&(pref.b.use_group_mount),
+          GTK_TOGGLE_BUTTON(use_group_checkbox)->active, &(pref.v.use_group_mount));
+  preferences_dialog_set_bool(&(pref.b.use_smb_port),
+          GTK_TOGGLE_BUTTON(use_smb_port_checkbox)->active, &(pref.v.use_smb_port));
+  preferences_dialog_set_integer(&(pref.b.smb_port),
+          gtk_entry_get_text(GTK_ENTRY(smb_port_entry)), &(pref.v.smb_port));
+  ptemp = pref.v.wins_server;
+  preferences_dialog_set_string(&(pref.b.wins_server),
+          gtk_entry_get_text(GTK_ENTRY(wins_server_entry)), &ptemp, MAXMACHNAMEL);
+  ptemp = pref.v.smbclient_exe;
+  preferences_dialog_set_string(&(pref.b.smbclient_exe),
+          gtk_entry_get_text(GTK_ENTRY(smbclient_entry)), &ptemp, PATH_LEN);
+  ptemp = pref.v.nmblookup_exe;
+  preferences_dialog_set_string(&(pref.b.nmblookup_exe),
+          gtk_entry_get_text(GTK_ENTRY(nmblookup_entry)), &ptemp, PATH_LEN);
+  ptemp = pref.v.smbmount_exe;
+  preferences_dialog_set_string(&(pref.b.smbmount_exe),
+          gtk_entry_get_text(GTK_ENTRY(smbmount_entry)), &ptemp, PATH_LEN);
+  ptemp = pref.v.smbumount_exe;
+  preferences_dialog_set_string(&(pref.b.smbumount_exe),
+          gtk_entry_get_text(GTK_ENTRY(smbumount_entry)), &ptemp, PATH_LEN);
+
+  if ( GTK_TOGGLE_BUTTON(smbmount_204_radio)->active )
+    temp_version = SMBMOUNT_204;
+  else if ( GTK_TOGGLE_BUTTON(smbmount_205_radio)->active )
+    temp_version = SMBMOUNT_205;
+  else if ( GTK_TOGGLE_BUTTON(smbmount_206_radio)->active )
+    temp_version = SMBMOUNT_206;
+  else
+    temp_version = SMBMOUNT_206;
+  if ( temp_version != pref.v.smbmount_version )
+  {
+    pref.v.smbmount_version = temp_version;
+    pref.b.smbmount_version = 1;
+  }
+
+  preferences_dialog_set_bool(&(pref.b.root_mnt_enable),
+          GTK_TOGGLE_BUTTON(root_mnt_checkbox)->active, &(pref.v.root_mnt_enable));
+  ptemp = pref.v.root_mnt_dir;
+  preferences_dialog_set_string(&(pref.b.root_mnt_dir),
+          gtk_entry_get_text(GTK_ENTRY(root_mnt_entry)), &ptemp, PATH_LEN);
+  preferences_dialog_set_bool(&(pref.b.replace_space_mount),
+          GTK_TOGGLE_BUTTON(replace_space_mount_checkbox)->active, &(pref.v.replace_space_mount));
+  preferences_dialog_set_bool(&(pref.b.mount_default_no_dialog),
+          GTK_TOGGLE_BUTTON(mount_default_no_dialog_checkbox)->active, &(pref.v.mount_default_no_dialog));
+  preferences_dialog_set_bool(&(pref.b.memorize_mounts),
+          GTK_TOGGLE_BUTTON(memorize_mount_checkbox)->active, &(pref.v.memorize_mounts));
+  preferences_dialog_set_bool(&(pref.b.delete_mountpoints),
+          GTK_TOGGLE_BUTTON(delete_mountpoints_checkbox)->active, &(pref.v.delete_mountpoints));
+  ptemp = pref.v.default_user;
+  preferences_dialog_set_string(&(pref.b.default_user),
+          gtk_entry_get_text(GTK_ENTRY(default_user_entry)), &ptemp, USER_LEN);
+  preferences_dialog_set_bool(&(pref.b.save_default_password),
+          GTK_TOGGLE_BUTTON(default_password_checkbox)->active, &(pref.v.save_default_password));
+  if ( pref.v.save_default_password )
+  {
+    string_ncopy(globals.default_password, gtk_entry_get_text(GTK_ENTRY(default_password_entry)), PASSWORD_LEN);
+  }
+  else
+  {
+    globals.default_password[0] = 0;
+  }
+  preferences_dialog_set_bool(&(pref.b.run_file_manager),
+          GTK_TOGGLE_BUTTON(run_fm_checkbox)->active, &(pref.v.run_file_manager));
+  ptemp = pref.v.filemanager_exe;
+  preferences_dialog_set_string(&(pref.b.filemanager_exe),
+          gtk_entry_get_text(GTK_ENTRY(run_fm_entry)), &ptemp, PATH_LEN);
+}
+
+static void preferences_ok_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  preferences_scan_dialog();
+  status_set_logging_text();
+  
+  gtk_widget_destroy(dlg);
+  preferences_dlg = NULL;
+}
+
+static void preferences_save_callback (GtkWidget *widget, GtkWidget *dlg)
+{
+  preferences_scan_dialog();
+  
+  preferences_save(&pref);
+}
+
+/* ---------- */
+
+static int preferences_argument_count;
+
+static void preferences_cmd_argument_txtdlg_callback (char *input)
+{
+  char *target_string;
+  unsigned char *target_boolean;
+  
+  switch ( preferences_argument_count )
+  {
+    case 1:
+        target_string = pref.v.smbclient_arg;
+        target_boolean = &(pref.b.smbclient_arg);
+        break;
+    case 2:
+        target_string = pref.v.nmblookup_arg;
+        target_boolean = &(pref.b.nmblookup_arg);
+        break;
+    case 3:
+        target_string = pref.v.smbmount_arg;
+        target_boolean = &(pref.b.smbmount_arg);
+        break;
+    case 4:
+        target_string = pref.v.smbumount_arg;
+        target_boolean = &(pref.b.smbumount_arg);
+        break;
+    default:
+        return;
+  }
+    
+  if ( !is_empty_string(input) )
+  {
+    /* set the argument string */
+    string_ncopy(target_string, input, ARG_LEN);
+    *target_boolean = 1;
+  }
+  else
+  {
+    /* empty string, clear field */
+    target_string[0] = 0;
+    *target_boolean = 0;
+  }
+}
+
+static void preferences_cmd_argument_callback (GtkWidget *widget, gpointer *data)
+{
+  char *header;
+  char *old_value;
+
+  preferences_argument_count = (int)data;
+  
+  switch ( preferences_argument_count )
+  {
+    case 1:
+        header = "smbclient";
+        old_value = pref.v.smbclient_arg;
+        break;
+    case 2:
+        header = "nmblookup";
+        old_value = pref.v.nmblookup_arg;
+        break;
+    case 3:
+        header = "smbmount";
+        old_value = pref.v.smbmount_arg;
+        break;
+    case 4:
+        header = "smbumount";
+        old_value = pref.v.smbumount_arg;
+        break;
+    default:
+        return;
+  }
+
+  TextInputDialog(header,
+                  _("Enter additional arguments:"),
+                  old_value,
+                  ARG_LEN,
+                  250, 120,
+                  preferences_cmd_argument_txtdlg_callback);
+}
+
+/* ---------- */
+
+static void master_browser_toggled (GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(master_browser_entry, button->active);
+}
+
+static void use_smb_port_toggled (GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(smb_port_entry, button->active);
+}
+
+static void wins_server_toggled (GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(wins_server_entry, button->active);
+}
+
+static void user_scan_toggled (GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(password_once_checkbox, button->active);
+  gtk_widget_set_sensitive(group_userscan_checkbox, button->active);
+  gtk_widget_set_sensitive(groups_userscan_checkbox, button->active);
+}
+
+static void root_mnt_toggled (GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(root_mnt_entry, button->active);
+  gtk_widget_set_sensitive(replace_space_mount_checkbox, button->active);
+  gtk_widget_set_sensitive(mount_default_no_dialog_checkbox, button->active);
+}
+
+static void default_password_toggled (GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(default_password_entry, button->active);
+}
+
+static void run_fm_toggled (GtkToggleButton *button)
+{
+  gtk_widget_set_sensitive(run_fm_entry, button->active);
+  gtk_widget_set_sensitive(copy_fm_button, button->active);
+  gtk_widget_set_sensitive(run_fm_combo, button->active);
+}
+
+static void copy_fm_pressed (GtkWidget *widget)
+{
+  GtkWidget *entry;
+  char *text;
+  char *command;
+  char *commstring;
+  int len;
+  
+  entry = GTK_COMBO(run_fm_combo)->entry;
+  if ( entry )
+  {
+    text = gtk_entry_get_text(GTK_ENTRY(entry));
+    command = strchr(text, '\"');
+    if ( command )
+    {
+      len = strlen(command);
+      command++;
+      commstring = g_malloc(len+1);
+      string_ncopy(commstring, command, len-2);
+      gtk_entry_set_text(GTK_ENTRY(run_fm_entry), commstring);
+      g_free(commstring);
+    }
+  }
+}
+
+void preferences_dialog (void)
+{
+  GtkWidget *notebook;
+  GtkWidget *tablabel;
+  GtkWidget *frame;
+  GtkWidget *frame_vbox;
+  GtkWidget *frame_hbox;
+  GtkWidget *table;
+  GtkWidget *button;
+  GtkWidget *label;
+  GtkWidget *entry;
+  GtkWidget *separator;
+  GList *items;
+  GdkBitmap *mask;
+  GdkPixmap *pixmap_data;
+  GtkWidget *pixmap_widget;
+  char ctemp[32];
+  
+  if ( !preferences_dlg )
+  {
+    preferences_dlg = gtk_dialog_new();
+    gtk_window_set_wmclass(GTK_WINDOW(preferences_dlg), "preferences", "LinNeighborhood");
+    gtk_window_set_policy(GTK_WINDOW(preferences_dlg), 0, 0, 0);
+    gtk_window_set_title(GTK_WINDOW(preferences_dlg), _("Preferences"));
+    gtk_signal_connect(GTK_OBJECT(preferences_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroyed), &preferences_dlg);
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(preferences_dlg)->action_area), 5);
+    
+    notebook = gtk_notebook_new();
+    gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (preferences_dlg)->vbox),
+                      	notebook, TRUE, TRUE, 0);
+    gtk_widget_show(notebook);
+
+    /* --------------------------------------------------------------------- */
+    
+    tablabel = gtk_label_new(_(" Scan "));
+    frame = gtk_frame_new(_(" Scan Preferences "));
+    gtk_container_border_width(GTK_CONTAINER(frame), 3);
+    gtk_widget_set_usize(frame, PREF_DIALOG_WIDTH, -1);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, tablabel);
+    gtk_widget_show(frame);
+    
+    frame_vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(frame_vbox), 5);
+    gtk_container_add(GTK_CONTAINER(frame), frame_vbox);
+    gtk_widget_show(frame_vbox);
+    
+    table = gtk_table_new(4, 2, FALSE);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), table, FALSE, TRUE, 0);
+    gtk_table_set_col_spacing( GTK_TABLE(table), 0, 5);
+    gtk_widget_show(table);
+    
+    label = gtk_label_new(_("Workgroup :"));
+    gtk_widget_set_usize(label, SCAN_TAB_WIDTH_1, -1);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+    
+    group_name_entry = gtk_entry_new_with_max_length(MASTER_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(group_name_entry), pref.v.workgroup);
+    gtk_table_attach_defaults(GTK_TABLE(table), group_name_entry, 1, 2, 0, 1);
+    gtk_widget_show(group_name_entry);
+
+    master_browser_checkbox = gtk_check_button_new_with_label(_("Primary master browser :"));
+    gtk_widget_set_usize(master_browser_checkbox, SCAN_TAB_WIDTH_1, -1);
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(master_browser_checkbox), pref.v.master_browser_scan);
+    gtk_signal_connect(GTK_OBJECT(master_browser_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(master_browser_toggled), NULL);
+    gtk_table_attach(GTK_TABLE(table), master_browser_checkbox, 0, 1, 1, 2,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(master_browser_checkbox);
+    
+    master_browser_entry = gtk_entry_new_with_max_length(MASTER_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(master_browser_entry), pref.v.master);
+    gtk_widget_set_sensitive(master_browser_entry, pref.v.master_browser_scan);
+    gtk_table_attach_defaults(GTK_TABLE(table),
+					master_browser_entry, 1, 2, 1, 2);
+    gtk_widget_show(master_browser_entry);
+
+    wins_server_checkbox = gtk_check_button_new_with_label(_("WINS server :"));
+    gtk_widget_set_usize(wins_server_checkbox, SCAN_TAB_WIDTH_1, -1);
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(wins_server_checkbox), pref.v.wins_server_scan);
+    gtk_signal_connect(GTK_OBJECT(wins_server_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(wins_server_toggled), NULL);
+    gtk_table_attach(GTK_TABLE(table), wins_server_checkbox, 0, 1, 2, 3,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(wins_server_checkbox);
+    
+    wins_server_entry = gtk_entry_new_with_max_length(MASTER_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(wins_server_entry), pref.v.wins_server);
+    gtk_widget_set_sensitive(wins_server_entry, pref.v.wins_server_scan);
+    gtk_table_attach_defaults(GTK_TABLE(table),
+					wins_server_entry, 1, 2, 2, 3);
+    gtk_widget_show(wins_server_entry);
+    
+    label = gtk_label_new(_("Additional master browsers :"));
+    gtk_widget_set_usize(label, SCAN_TAB_WIDTH_1, -1);
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_table_attach(GTK_TABLE(table), label, 0, 1, 3, 4,
+                    	GTK_FILL | GTK_SHRINK, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+    
+    master_browser_button = gtk_button_new_with_label(_("Edit Master Browser List"));
+    gtk_signal_connect(GTK_OBJECT(master_browser_button), "clicked",
+                  	GTK_SIGNAL_FUNC(master_browser_dialog), NULL);
+    gtk_table_attach_defaults(GTK_TABLE(table),
+					master_browser_button, 1, 2, 3, 4);
+    gtk_widget_show(master_browser_button);
+    
+    separator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(frame_vbox), separator, FALSE, TRUE, 2);
+    gtk_widget_show(separator);
+
+    frame_hbox = gtk_hbox_new(TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame_hbox, FALSE, TRUE, 0);
+    gtk_widget_show(frame_hbox);
+    
+    user_scan_checkbox = gtk_check_button_new_with_label(_("Always scan as user"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(user_scan_checkbox), pref.v.shares_scan_user);
+    gtk_signal_connect(GTK_OBJECT(user_scan_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(user_scan_toggled), NULL);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), user_scan_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(user_scan_checkbox);
+    
+    groups_userscan_checkbox = gtk_check_button_new_with_label(_("Groups scan as user"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(groups_userscan_checkbox), pref.v.groups_scan_user);
+    gtk_widget_set_sensitive(groups_userscan_checkbox, pref.v.shares_scan_user);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), groups_userscan_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(groups_userscan_checkbox);
+
+    frame_hbox = gtk_hbox_new(TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame_hbox, FALSE, TRUE, 0);
+    gtk_widget_show(frame_hbox);
+    
+    group_userscan_checkbox = gtk_check_button_new_with_label(_("Group scan as user"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(group_userscan_checkbox), pref.v.machines_scan_user);
+    gtk_widget_set_sensitive(group_userscan_checkbox, pref.v.shares_scan_user);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), group_userscan_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(group_userscan_checkbox);
+    
+    password_once_checkbox = gtk_check_button_new_with_label(_("ask user / password once"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(password_once_checkbox), pref.v.password_once);
+    gtk_widget_set_sensitive(password_once_checkbox, pref.v.shares_scan_user);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), password_once_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(password_once_checkbox);
+    
+    separator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(frame_vbox), separator, FALSE, TRUE, 0);
+    gtk_widget_show(separator);
+    
+    frame_hbox = gtk_hbox_new(TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame_hbox, FALSE, TRUE, 0);
+    gtk_widget_show(frame_hbox);
+    
+    group_browse_checkbox = gtk_check_button_new_with_label(_("Use group name on browse"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(group_browse_checkbox), pref.v.use_group_browse);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), group_browse_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(group_browse_checkbox);
+    
+    use_group_checkbox = gtk_check_button_new_with_label(_("Use group name on mount"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(use_group_checkbox), pref.v.use_group_mount);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), use_group_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(use_group_checkbox);
+    
+    frame_hbox = gtk_hbox_new(TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame_hbox, FALSE, TRUE, 0);
+    gtk_widget_show(frame_hbox);
+    
+    startup_browse_checkbox = gtk_check_button_new_with_label(_("Initial browse on startup"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(startup_browse_checkbox), pref.v.startup_browse);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), startup_browse_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(startup_browse_checkbox);
+    
+    quick_browse_checkbox = gtk_check_button_new_with_label(_("Quick Browse"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(quick_browse_checkbox), pref.v.quick_browse);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), quick_browse_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(quick_browse_checkbox);
+    
+    separator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(frame_vbox), separator, FALSE, TRUE, 0);
+    gtk_widget_show(separator);
+    
+    frame_hbox = gtk_hbox_new(TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame_hbox, FALSE, TRUE, 3);
+    gtk_widget_show(frame_hbox);
+    
+    use_smb_port_checkbox = gtk_check_button_new_with_label(_("Use samba port :"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(use_smb_port_checkbox), pref.v.use_smb_port);
+    gtk_signal_connect(GTK_OBJECT(use_smb_port_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(use_smb_port_toggled), NULL);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), use_smb_port_checkbox, TRUE, TRUE, 0);
+    gtk_widget_show(use_smb_port_checkbox);
+    
+    smb_port_entry = gtk_entry_new_with_max_length(5);
+    sprintf(ctemp, "%d", pref.v.smb_port);
+    gtk_entry_set_text(GTK_ENTRY(smb_port_entry), ctemp);
+    gtk_widget_set_sensitive(smb_port_entry, pref.v.use_smb_port);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), smb_port_entry, TRUE, TRUE, 0);
+    gtk_widget_show(smb_port_entry);
+
+    /* --------------------------------------------------------------------- */
+    
+    tablabel = gtk_label_new(_(" Programs "));
+    frame = gtk_frame_new(_(" Program Execution "));
+    gtk_container_border_width(GTK_CONTAINER(frame), 3);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, tablabel);
+    gtk_widget_show(frame);
+
+    frame_vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(frame_vbox), 5);
+    gtk_container_add(GTK_CONTAINER(frame), frame_vbox);
+    gtk_widget_show(frame_vbox);
+    
+    table = gtk_table_new(4, 3, FALSE);
+    gtk_table_set_row_spacings( GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings( GTK_TABLE(table), 7);
+    
+    label = gtk_label_new("smbclient :");
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach( GTK_TABLE(table), label, 0, 1, 0, 1,
+                    	GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+    
+    smbclient_entry = gtk_entry_new_with_max_length(PATH_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(smbclient_entry), pref.v.smbclient_exe);
+   	gtk_table_attach_defaults( GTK_TABLE(table), smbclient_entry, 1, 2, 0, 1);
+    gtk_widget_show(smbclient_entry);
+    
+    button = gtk_button_new_with_label(_("arguments"));
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(preferences_cmd_argument_callback), (gpointer*)1);
+    gtk_table_attach_defaults( GTK_TABLE(table), button, 2, 3, 0, 1);
+    gtk_widget_show(button);
+    
+    label = gtk_label_new("nmblookup :");
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach( GTK_TABLE(table), label, 0, 1, 1, 2,
+                    	GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+    
+    nmblookup_entry = gtk_entry_new_with_max_length(PATH_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(nmblookup_entry), pref.v.nmblookup_exe);
+    gtk_table_attach_defaults( GTK_TABLE(table), nmblookup_entry, 1, 2, 1, 2);
+    gtk_widget_show(nmblookup_entry);
+    
+    button = gtk_button_new_with_label(_("arguments"));
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(preferences_cmd_argument_callback), (gpointer*)2);
+    gtk_table_attach_defaults( GTK_TABLE(table), button, 2, 3, 1, 2);
+    gtk_widget_show(button);
+
+    label = gtk_label_new("smbmount :");
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach( GTK_TABLE(table), label, 0, 1, 2, 3,
+                    	GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+    
+    smbmount_entry = gtk_entry_new_with_max_length(PATH_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(smbmount_entry), pref.v.smbmount_exe);
+#ifdef NO_SMBMOUNT
+    gtk_widget_set_sensitive(smbmount_entry, 0);
+#endif
+   	gtk_table_attach_defaults( GTK_TABLE(table), smbmount_entry, 1, 2, 2, 3);
+    gtk_widget_show(smbmount_entry);
+    
+    button = gtk_button_new_with_label(_("arguments"));
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(preferences_cmd_argument_callback), (gpointer*)3);
+    gtk_table_attach_defaults( GTK_TABLE(table), button, 2, 3, 2, 3);
+    gtk_widget_show(button);
+    
+    label = gtk_label_new("smbumount :");
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach( GTK_TABLE(table), label, 0, 1, 3, 4,
+                    	GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+    gtk_widget_show(label);
+    
+    smbumount_entry = gtk_entry_new_with_max_length(PATH_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(smbumount_entry), pref.v.smbumount_exe);
+#ifdef NO_SMBMOUNT
+    gtk_widget_set_sensitive(smbumount_entry, 0);
+#endif
+    gtk_table_attach_defaults( GTK_TABLE(table), smbumount_entry, 1, 2, 3, 4);
+    gtk_widget_show(smbumount_entry);
+
+    gtk_box_pack_start(GTK_BOX(frame_vbox), table, FALSE, TRUE, 0);
+    gtk_widget_show(table);
+    
+    button = gtk_button_new_with_label(_("arguments"));
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(preferences_cmd_argument_callback), (gpointer*)4);
+    gtk_table_attach_defaults( GTK_TABLE(table), button, 2, 3, 3, 4);
+    gtk_widget_show(button);
+    
+    frame = gtk_frame_new(_(" smbmount version "));
+    gtk_container_border_width(GTK_CONTAINER(frame), 3);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame, FALSE, TRUE, 0);
+    gtk_widget_show(frame);
+    
+    frame_vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(frame_vbox), 5);
+    gtk_container_add(GTK_CONTAINER(frame), frame_vbox);
+    gtk_widget_show(frame_vbox);
+
+    smbmount_204_radio = gtk_radio_button_new_with_label(NULL, _("version <= 2.0.4"));
+    if ( globals.linux_version < LINUX_2_2 )
+      gtk_widget_set_sensitive(smbmount_204_radio, FALSE);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), smbmount_204_radio, FALSE, TRUE, 0);
+    gtk_widget_show(smbmount_204_radio);
+
+    smbmount_205_radio = gtk_radio_button_new_with_label(
+        gtk_radio_button_group(GTK_RADIO_BUTTON(smbmount_204_radio)), _("version = 2.0.5"));
+    if ( globals.linux_version < LINUX_2_2 )
+      gtk_widget_set_sensitive(smbmount_205_radio, FALSE);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), smbmount_205_radio, FALSE, TRUE, 0);
+    gtk_widget_show(smbmount_205_radio);
+
+    smbmount_206_radio = gtk_radio_button_new_with_label(
+        gtk_radio_button_group(GTK_RADIO_BUTTON(smbmount_205_radio)), _("version >= 2.0.6"));
+    if ( globals.linux_version < LINUX_2_2 )
+      gtk_widget_set_sensitive(smbmount_206_radio, FALSE);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), smbmount_206_radio, FALSE, TRUE, 0);
+    gtk_widget_show(smbmount_206_radio);
+    
+    switch ( pref.v.smbmount_version )
+    {
+      case SMBMOUNT_205:
+          gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(smbmount_205_radio), 1);
+          break;
+      case SMBMOUNT_206:
+          gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(smbmount_206_radio), 1);
+          break;
+      default:
+          break;
+    }
+
+    /* --------------------------------------------------------------------- */
+    
+    tablabel = gtk_label_new(_(" Miscellaneous "));
+    frame = gtk_frame_new(_(" Miscellaneous "));
+    gtk_container_border_width(GTK_CONTAINER(frame), 3);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, tablabel);
+    gtk_widget_show(frame);
+    
+    frame_vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(frame_vbox), 5);
+    gtk_container_add(GTK_CONTAINER(frame), frame_vbox);
+    gtk_widget_show(frame_vbox);
+    
+    table = gtk_table_new(2, 2, TRUE);
+
+    label = gtk_label_new(_("Default User :"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 0, 1);
+    gtk_widget_show(label);
+    
+    default_user_entry = gtk_entry_new_with_max_length(USER_LEN);
+    gtk_entry_set_text(GTK_ENTRY(default_user_entry), pref.v.default_user);
+    gtk_table_attach_defaults(GTK_TABLE(table), default_user_entry, 1, 2, 0, 1);
+    gtk_widget_show(default_user_entry);
+    
+    default_password_checkbox = gtk_check_button_new_with_label(_("Save Default Password"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(default_password_checkbox), pref.v.save_default_password);
+    gtk_signal_connect(GTK_OBJECT(default_password_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(default_password_toggled), NULL);
+    gtk_table_attach_defaults(GTK_TABLE(table), default_password_checkbox, 0, 1, 1, 2);
+    gtk_widget_show(default_password_checkbox);
+    
+    default_password_entry = gtk_entry_new_with_max_length(PASSWORD_LEN);
+    gtk_entry_set_visibility(GTK_ENTRY(default_password_entry), 0);	
+    gtk_entry_set_text(GTK_ENTRY(default_password_entry), globals.default_password);
+    gtk_widget_set_sensitive(default_password_entry, GTK_TOGGLE_BUTTON(default_password_checkbox)->active);
+    gtk_table_attach_defaults(GTK_TABLE(table), default_password_entry, 1, 2, 1, 2);
+    gtk_widget_show(default_password_entry);
+    
+    gtk_box_pack_start(GTK_BOX(frame_vbox), table, FALSE, TRUE, 3);
+    gtk_widget_show(table);
+    
+    separator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(frame_vbox), separator, FALSE, TRUE, 0);
+    gtk_widget_show(separator);
+
+    root_mnt_checkbox = gtk_check_button_new_with_label(
+                         _("Use 'RootMountDir/machine/share' as default mount point"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(root_mnt_checkbox), pref.v.root_mnt_enable);
+    gtk_signal_connect(GTK_OBJECT(root_mnt_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(root_mnt_toggled), NULL);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), root_mnt_checkbox, FALSE, TRUE, 0);
+    gtk_widget_show(root_mnt_checkbox);
+    
+    frame_hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame_hbox, FALSE, TRUE, 3);
+    gtk_widget_show(frame_hbox);
+    
+    label = gtk_label_new(_("Root mount dir :"));
+    gtk_widget_set_usize(label, MISC_TAB_WIDTH_1, -1);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), label, TRUE, TRUE, 0);
+    gtk_widget_show(label);
+    
+    root_mnt_entry = gtk_entry_new_with_max_length(PATH_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(root_mnt_entry), pref.v.root_mnt_dir);
+    gtk_widget_set_sensitive(root_mnt_entry, pref.v.root_mnt_enable);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), root_mnt_entry, TRUE, TRUE, 0);
+    gtk_widget_show(root_mnt_entry);
+
+    replace_space_mount_checkbox = gtk_check_button_new_with_label(
+                         _("Replace spaces with underscores in mount path"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(replace_space_mount_checkbox), pref.v.replace_space_mount);
+    gtk_widget_set_sensitive(replace_space_mount_checkbox, pref.v.root_mnt_enable);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), replace_space_mount_checkbox, FALSE, TRUE, 0);
+    gtk_widget_show(replace_space_mount_checkbox);
+    
+    mount_default_no_dialog_checkbox = gtk_check_button_new_with_label(
+                         _("Don't show mount dialog, use defaults"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(mount_default_no_dialog_checkbox), pref.v.mount_default_no_dialog);
+    gtk_widget_set_sensitive(mount_default_no_dialog_checkbox, pref.v.root_mnt_enable);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), mount_default_no_dialog_checkbox, FALSE, TRUE, 0);
+    gtk_widget_show(mount_default_no_dialog_checkbox);
+    
+    separator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(frame_vbox), separator, FALSE, TRUE, 0);
+    gtk_widget_show(separator);
+    
+    memorize_mount_checkbox = gtk_check_button_new_with_label(_("Memorize Mounted Shares / Remount on next Startup"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(memorize_mount_checkbox), pref.v.memorize_mounts);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), memorize_mount_checkbox, FALSE, TRUE, 0);
+    gtk_widget_show(memorize_mount_checkbox);
+    
+    delete_mountpoints_checkbox = gtk_check_button_new_with_label(_("Delete mount points on unmount"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(delete_mountpoints_checkbox), pref.v.delete_mountpoints);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), delete_mountpoints_checkbox, FALSE, TRUE, 0);
+    gtk_widget_show(delete_mountpoints_checkbox);
+    
+    /* --------------------------------------------------------------------- */
+    
+    tablabel = gtk_label_new(_(" Post Mount "));
+    frame = gtk_frame_new(_(" Post Mount Action "));
+    gtk_container_border_width(GTK_CONTAINER(frame), 3);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, tablabel);
+    gtk_widget_show(frame);
+    
+    frame_vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(frame_vbox), 5);
+    gtk_container_add(GTK_CONTAINER(frame), frame_vbox);
+    gtk_widget_show(frame_vbox);
+    
+    run_fm_checkbox = gtk_check_button_new_with_label(_("Run File Manager after Mounting"));
+    gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(run_fm_checkbox), pref.v.run_file_manager);
+    gtk_signal_connect(GTK_OBJECT(run_fm_checkbox), "toggled",
+                  	GTK_SIGNAL_FUNC(run_fm_toggled), NULL);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), run_fm_checkbox, FALSE, TRUE, 0);
+    gtk_widget_show(run_fm_checkbox);
+
+    items = NULL;
+    items = g_list_append(items, " [ MIDNIGHT COMMANDER ] \"xterm -e mc $MOUNTPOINT\"");
+    items = g_list_append(items, " [ KDE ] \"kfmclient exec file:$MOUNTPOINT\"");
+    items = g_list_append(items, " [ GNOME ] \"gmc $MOUNTPOINT\"");
+    items = g_list_append(items, " [ XIMIAN GNOME ] \"nautilus $MOUNTPOINT\"");
+    items = g_list_append(items, " [ X-Files ] \"X-files $MOUNTPOINT\"");
+    items = g_list_append(items, " [ X Window Finder ] \"xwf $MOUNTPOINT\"");
+    items = g_list_append(items, " [ rox ] \"rox -d $MOUNTPOINT\"");
+    items = g_list_append(items, " [ File Runner ] \"fr $MOUNTPOINT\"");
+    items = g_list_append(items, " [ Nautilus ] \"nautilus $MOUNTPOINT\"");
+    
+    run_fm_combo = gtk_combo_new();
+    gtk_combo_set_popdown_strings(GTK_COMBO(run_fm_combo), items);
+    entry = GTK_WIDGET(GTK_COMBO(run_fm_combo)->entry);
+    gtk_entry_set_editable(GTK_ENTRY(entry), FALSE);
+    gtk_widget_set_usize(run_fm_combo, -1, 30);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), run_fm_combo, FALSE, TRUE, 0);
+    gtk_widget_show(run_fm_combo);
+    
+    frame_hbox = gtk_hbox_new(FALSE, 0);
+    gtk_container_border_width(GTK_CONTAINER(frame_hbox), 5);
+    gtk_box_set_spacing(GTK_BOX(frame_hbox), 5);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), frame_hbox, FALSE, TRUE, 0);
+    gtk_widget_show(frame_hbox);
+
+    copy_fm_button = gtk_button_new();
+    pixmap_data = gdk_pixmap_create_from_xpm_d(main_window->window,
+                                &mask, NULL, (gchar **)arrow_down_button_xpm);
+    pixmap_widget = gtk_pixmap_new(pixmap_data, mask);
+    gtk_container_add(GTK_CONTAINER(copy_fm_button), pixmap_widget);
+    gtk_widget_show(pixmap_widget);
+    gtk_signal_connect(GTK_OBJECT(copy_fm_button), "clicked",
+                  	GTK_SIGNAL_FUNC(copy_fm_pressed), NULL);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), copy_fm_button, FALSE, TRUE, 0);
+    gtk_widget_set_usize(copy_fm_button, 45, -1);
+    gtk_widget_show(copy_fm_button);
+    
+    label = gtk_label_new(_("Press Button to move from Combo Box to Edit Field"));
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_box_pack_start(GTK_BOX(frame_hbox), label, FALSE, TRUE, 0);
+    gtk_widget_show(label);
+    
+    run_fm_entry = gtk_entry_new_with_max_length(PATH_LEN-1);
+    gtk_entry_set_text(GTK_ENTRY(run_fm_entry), pref.v.filemanager_exe);
+    gtk_box_pack_start(GTK_BOX(frame_vbox), run_fm_entry, FALSE, TRUE, 0);
+    gtk_widget_show(run_fm_entry);
+
+    run_fm_toggled(GTK_TOGGLE_BUTTON(run_fm_checkbox));
+    
+    /* ----------------------------------------------------------------- */
+    
+    button = gtk_button_new_with_label(_("Close"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(preferences_ok_callback), GTK_OBJECT(preferences_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (preferences_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(button);
+    gtk_widget_show(button);
+    
+    button = gtk_button_new_with_label(_("Save"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(preferences_save_callback), GTK_OBJECT(preferences_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (preferences_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+    
+    button = gtk_button_new_with_label(_("Cancel"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(preferences_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (preferences_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+  }
+    
+  if ( !GTK_WIDGET_VISIBLE(preferences_dlg) )
+    gtk_widget_show(preferences_dlg);
+  else
+    gtk_widget_destroy(preferences_dlg);
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+/* ------------------------- */
+/* export mountscript dialog */
+/* ------------------------- */
+
+static char export_path[PATH_LEN+1];
+
+/* -- callback function for MessageDlg -- */
+static void export_script_msgdlg_callback (unsigned int button)
+{
+  /* abort ? */
+  if ( button &= NO_B )
+    return;
+
+  io_write_mount_script(export_path);
+}
+
+static void export_mount_script (char *filename)
+{
+  string_ncopy(export_path, filename, PATH_LEN);
+
+  if ( file_exist(export_path) ) {
+  
+    ShowMessageDialog(_("Warning"),
+                      _("File exists, overwrite ?"),
+                      YES_B | NO_B,
+                      export_script_msgdlg_callback);
+  }
+  else {
+    export_script_msgdlg_callback(0);
+  }
+}
+
+static GtkWidget *filew;
+
+static void export_mountscript_ok_callback (GtkWidget *widget)
+{
+  export_mount_script(gtk_file_selection_get_filename(GTK_FILE_SELECTION(filew)));
+  gtk_widget_destroy(widget);
+}
+
+static void export_mountscript_cancel_callback (GtkWidget *widget)
+{
+  gtk_widget_destroy(widget);
+}
+
+void export_mountscript_dialog (void)
+{
+  filew = gtk_file_selection_new(_("Export Mount Script"));
+  gtk_window_set_modal(GTK_WINDOW(filew), TRUE);
+  gtk_file_selection_set_filename(GTK_FILE_SELECTION(filew), "mountscript");
+  gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(filew)->ok_button),
+           "clicked", (GtkSignalFunc)export_mountscript_ok_callback, GTK_OBJECT(filew));
+  gtk_signal_connect_object(GTK_OBJECT(GTK_FILE_SELECTION(filew)->cancel_button),
+           "clicked", (GtkSignalFunc)export_mountscript_cancel_callback, GTK_OBJECT(filew));
+  gtk_widget_show(filew);
+}
+
+/* ------------------------------------------------------------------------ */
+
+/* ------------------------- */
+/* -- group master dialog -- */
+/* ------------------------- */
+
+static GtkWidget *gm_clist;
+static gint gm_focus_row;
+static char *group_master_prefname;    /* previous name if edited */
+static char *group_master_prefgroup;
+static void group_master_data_change_callback (data_notify_struct *notify);
+
+static char master_browser_prefname[MAXMACHNAMEL+1];    /* previous name if edited */
+
+static void group_master_delete_all (void)
+{
+  gtk_clist_clear(GTK_CLIST(gm_clist));
+}
+
+static void remove_gm_msgdlg_callback (unsigned int button)
+{
+  char master[MAXMACHNAMEL+1];
+  char group[MAXGROUPNAMEL+1];
+  char *ptemp;
+  group_struct *group_st;
+
+  /* "Yes" pressed ? */
+  if ( button == YES_B )
+  {
+    gtk_clist_get_text(GTK_CLIST(gm_clist), gm_focus_row, 0, &ptemp);
+    string_ncopy(group, ptemp, MAXGROUPNAMEL);
+    gtk_clist_get_text(GTK_CLIST(gm_clist), gm_focus_row, 1, &ptemp);
+    string_ncopy(master, ptemp, MAXMACHNAMEL);
+    data_groupmaster_delete(group, master);
+    /* delete the master from the group master list */
+    group_st = group_list_search_by_name(group);
+    if ( group_st != NULL )
+    {
+      group_list_master_delete_local(&(group_st->masterlist), master);
+    }
+  }
+}
+
+/* -- callback functions for Dialog(s) -- */
+
+static void add_groupmaster_callback (char *group, char *master)
+{
+  if ( !groupmaster_list_search_by_workgroup_name(group, master) )
+  {
+    data_groupmaster_add(group, master, type_user_add_local);
+    /* add the new master to its group master list */
+    group_list_append_additional_master(group);
+  }
+}
+
+static void replace_groupmaster_callback (char *group, char *name)
+{
+  group_master_struct *master;
+  unsigned char has_changed;
+  group_struct *group_st;
+  
+  has_changed = 0;
+  master = groupmaster_list_search_by_workgroup_name(group_master_prefgroup, group_master_prefname);
+  /* has machine name changed ? */
+  if ( !compare_smb_machinename(group_master_prefname, name) )
+  {
+    has_changed = 1;
+  }
+  /* has group name changed ? */
+  if ( !compare_smb_groupname(group_master_prefgroup, group) )
+  {
+    has_changed = 1;
+  }
+  
+  if ( has_changed == 1 )
+  {
+    /* yes, new name already exists ? */
+    if ( (groupmaster_list_search_by_workgroup_name(group, name)) != NULL )
+    {
+      ShowMessageBox(_("Error"),
+                     _("Machine already exists in list !"));
+      return;
+    }
+  }
+  
+  /* name is ok */
+  if ( master != NULL )
+  {
+    /* delete old group master */
+    group_st = group_list_search_by_name(master->group);
+    if ( group_st != NULL )
+    {
+      group_list_master_delete_local(&(group_st->masterlist), master->name);
+    }
+    /* change properties */
+    string_ncopy(master->name, name, MAXMACHNAMEL);
+    string_ncopy(master->group, group, MAXGROUPNAMEL);
+    notify_groupmaster_change();
+    /* add new group master */
+    group_list_append_additional_master(group);
+  }
+}
+
+/* -- callbacks for dialog buttons -- */
+
+static void gm_add_callback(GtkWidget *widget, gpointer data)
+{
+  DUAL_INPUT_DIALOG_STRUCT dialog_struct;
+  
+  dialog_struct.title = _(" Add Group Master");
+  dialog_struct.text1 = _("Workgroup");
+  dialog_struct.text2 = _("Master");
+  dialog_struct.input1 = "";
+  dialog_struct.input2 = "";
+  dialog_struct.maxlen1 = MAXGROUPNAMEL;
+  dialog_struct.maxlen2 = MAXMACHNAMEL;
+  dialog_struct.ok_callback = add_groupmaster_callback;
+  
+  dual_input_dialog(&dialog_struct);
+}
+
+static void gm_remove_callback (GtkWidget *widget, gpointer data)
+{
+  char *text;
+  
+  if ( GTK_CLIST(gm_clist)->selection )
+  {
+    if ( gtk_clist_get_text(GTK_CLIST(gm_clist), GTK_CLIST(gm_clist)->focus_row, 0, &text) )
+    {
+      gm_focus_row = GTK_CLIST(gm_clist)->focus_row;
+
+      ShowMessageDialog(_("Warning"),
+                        _("Remove Group Master Browser ?"),
+                        YES_B | NO_B,
+                        remove_gm_msgdlg_callback);
+    }
+  }
+}
+
+static void gm_edit_callback (GtkWidget *widget, gpointer data)
+{
+  DUAL_INPUT_DIALOG_STRUCT dialog_struct;
+  
+  if ( GTK_CLIST(gm_clist)->selection )
+  {
+    dialog_struct.title = _(" Add Group Master");
+    dialog_struct.text1 = _("Workgroup");
+    dialog_struct.text2 = _("Master");
+    gtk_clist_get_text(GTK_CLIST(gm_clist), GTK_CLIST(gm_clist)->focus_row, 0, &group_master_prefgroup);
+    gtk_clist_get_text(GTK_CLIST(gm_clist), GTK_CLIST(gm_clist)->focus_row, 1, &group_master_prefname);
+    dialog_struct.input1 = group_master_prefgroup;
+    dialog_struct.input2 = group_master_prefname;
+    dialog_struct.maxlen1 = MAXGROUPNAMEL;
+    dialog_struct.maxlen2 = MAXMACHNAMEL;
+    dialog_struct.ok_callback = replace_groupmaster_callback;
+
+    dual_input_dialog(&dialog_struct);
+  }
+}
+
+static void gm_close_callback(GtkWidget *widget, GtkWidget *dlg)
+{
+  notify_delete_callback(group_master_data_change_callback);
+  gtk_widget_destroy(dlg);
+}
+
+static gint gm_press_event (GtkWidget *widget, GdkEventButton *event,
+                                  	gpointer data)
+{
+  return 0;
+}
+
+static gint gm_release_event (GtkWidget *widget, GdkEventButton *event,
+                                    	gpointer data)
+{
+  return 0;
+}
+
+static void group_master_edit_insert_enumerate (group_master_struct *master, gpointer data)
+{
+  GtkCList *clist;
+  char *row[2];
+  
+  clist = GTK_CLIST(data);
+  if ( (master != NULL) && (clist != NULL) )
+  {
+    row[0] = master->group;
+    row[1] = master->name;
+    gtk_clist_append(clist, row);
+  }
+}
+
+static void group_master_retrigger (void)
+{
+  group_master_delete_all();
+  /* enumerate + insert all group master browsers */
+  groupmaster_list_enumerate(group_master_edit_insert_enumerate, (gpointer)(gm_clist));
+}
+
+static void group_master_data_change_callback (data_notify_struct *notify)
+{
+  switch ( notify->dt )
+  {
+    case dt_groupmaster:
+        group_master_retrigger();
+        break;
+    
+    default:
+        break;
+  }
+}
+
+void group_master_dialog (void)
+{
+  GtkWidget *gm_dlg;
+  GtkWidget *vbox;
+  GtkWidget *toolbar;
+  GtkWidget *icon_add;
+  GtkWidget *icon_remove;
+  GtkWidget *icon_edit;
+  GtkWidget *icon_close;
+  GtkWidget *clist_win;
+  
+  gm_dlg = gtk_window_new(GTK_WINDOW_DIALOG);
+  gtk_window_set_wmclass(GTK_WINDOW(gm_dlg), "group_master", "LinNeighborhood");
+  gtk_window_set_modal(GTK_WINDOW(gm_dlg), TRUE);
+  gtk_window_set_policy(GTK_WINDOW(gm_dlg), 0, 0, 0);
+  gtk_window_set_title(GTK_WINDOW(gm_dlg), _(" Additional Group Masters"));
+  gtk_signal_connect(GTK_OBJECT(gm_dlg), "destroy",
+                  	GTK_SIGNAL_FUNC(gm_close_callback), gm_dlg);
+  gtk_widget_set_usize(gm_dlg, 360, 220);
+  gtk_widget_realize(gm_dlg);
+  
+  /* main vbox */
+  vbox = gtk_vbox_new(FALSE, 0);
+  gtk_container_add( GTK_CONTAINER(gm_dlg), vbox);
+  gtk_widget_show(vbox);
+  
+  /* button toolbar */
+  toolbar = gtk_toolbar_new( GTK_ORIENTATION_HORIZONTAL, GTK_TOOLBAR_BOTH);
+  gtk_box_pack_start( GTK_BOX(vbox), toolbar, FALSE, TRUE, 0);
+  gtk_widget_show(toolbar);
+
+  icon_add = new_pixmap(gm_dlg, add_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("Add"), _("Add Master Browser"), "",
+                           icon_add, GTK_SIGNAL_FUNC(gm_add_callback), NULL);
+
+  icon_remove = new_pixmap(gm_dlg, remove_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("  Remove  "), _("Remove Master Browser"), "",
+                           icon_remove, GTK_SIGNAL_FUNC(gm_remove_callback), NULL);
+
+  icon_edit = new_pixmap(gm_dlg, edit_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("Edit"), _("Edit Master Browser"), "",
+                           icon_edit, GTK_SIGNAL_FUNC(gm_edit_callback), NULL);
+
+  icon_close = new_pixmap(gm_dlg, close_xpm);
+  gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), _("Close"), _("Close Dialog"), "",
+                           icon_close, GTK_SIGNAL_FUNC(gm_close_callback), GTK_OBJECT(gm_dlg));
+
+  set_toolbar_tooltip_color(GTK_TOOLBAR(toolbar));
+  
+  /* scrolled win with CList within */
+  clist_win = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW(clist_win),
+                                 GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+  gtk_box_pack_start( GTK_BOX(vbox), clist_win, TRUE, TRUE, 0);
+  gtk_widget_show(clist_win);
+  
+  gm_clist = gtk_clist_new(2);
+  gtk_clist_set_column_title(GTK_CLIST(gm_clist), 0, _(" Workgroup"));
+  gtk_clist_set_column_title(GTK_CLIST(gm_clist), 1, _(" Group Master"));
+  gtk_clist_column_titles_show(GTK_CLIST(gm_clist));
+  gtk_clist_set_selection_mode( GTK_CLIST(gm_clist), GTK_SELECTION_SINGLE);
+  gtk_clist_column_titles_passive( GTK_CLIST(gm_clist) );
+  gtk_signal_connect(GTK_OBJECT(gm_clist), "button_press_event",
+                     GTK_SIGNAL_FUNC(gm_press_event), NULL);
+  gtk_signal_connect(GTK_OBJECT(gm_clist), "button_release_event",
+                     GTK_SIGNAL_FUNC(gm_release_event), NULL);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(clist_win), gm_clist);
+  gtk_clist_set_column_width(GTK_CLIST(gm_clist), 0, 150);
+  gtk_widget_show(gm_clist);
+  
+  /* enumerate + insert all master browsers */
+  groupmaster_list_enumerate(group_master_edit_insert_enumerate, (gpointer)(gm_clist));
+  
+  gtk_widget_set_uposition (GTK_WIDGET(gm_dlg), 120, 100);
+  gtk_widget_show(gm_dlg);
+
+  notify_add_callback(group_master_data_change_callback);
+}
+
+/* ------------------------------------------------------------------------------------- */
+
+/* ----------------------- */
+/* -- dual input dialog -- */
+/* ----------------------- */
+
+static GtkWidget *dual_input_dlg;
+static GtkWidget *dual_input1_entry;
+static GtkWidget *dual_input2_entry;
+static GtkWidget *dual_input_ok_button;
+static dual_input_ok_callback dual_input_callback = NULL;
+
+static void dual_input_ok_cb (GtkWidget *widget, GtkWidget *dlg)
+{
+  char *input1, *input2;
+
+  if ( dual_input_callback != NULL )
+  {
+    input1 = gtk_entry_get_text(GTK_ENTRY(dual_input1_entry));
+    input2 = gtk_entry_get_text(GTK_ENTRY(dual_input2_entry));
+    
+    dual_input_callback(input1, input2);
+  }
+
+  gtk_widget_destroy(dual_input_dlg);
+}
+
+/* check for <Enter> key press */
+static void dual_input_key_press_callback (GtkWidget *widget, GdkEventKey *event)
+{
+  if ( event->keyval == GDK_Return )
+  {
+    if ( (GTK_WINDOW(dual_input_dlg))->default_widget == dual_input_ok_button )
+      dual_input_ok_cb(NULL, NULL);
+  }
+}
+
+void dual_input_dialog (DUAL_INPUT_DIALOG_STRUCT *dialog_struct)
+{
+  GtkWidget *table;
+  GtkWidget *label;
+  GtkWidget *button;
+  char ctemp[MASTER_LEN+1];
+
+  if ( dialog_struct != NULL )
+  {
+    dual_input_callback = dialog_struct->ok_callback;
+  
+    dual_input_dlg = gtk_dialog_new();
+    gtk_window_set_wmclass(GTK_WINDOW(dual_input_dlg), "dual_input", "LinNeighborhood");
+    gtk_window_set_modal(GTK_WINDOW(dual_input_dlg), TRUE);
+    gtk_window_set_policy(GTK_WINDOW(dual_input_dlg), 0, 0, 0);
+    gtk_window_set_title(GTK_WINDOW(dual_input_dlg), dialog_struct->title);
+    gtk_signal_connect(GTK_OBJECT(dual_input_dlg), "destroy",
+                    GTK_SIGNAL_FUNC(gtk_widget_destroyed), &dual_input_dlg);
+    gtk_widget_realize(dual_input_dlg);
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(dual_input_dlg)->vbox), 3);
+    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(dual_input_dlg)->action_area), 3);
+    
+    table = gtk_table_new(2, 2, FALSE);
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 5);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 7);
+    
+    string_ncopy(ctemp, dialog_struct->text1, MASTER_LEN);
+    string_ncat(ctemp, " :", MASTER_LEN);
+    label = gtk_label_new(ctemp);
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 0, 1);
+    gtk_widget_show(label);
+    
+    string_ncopy(ctemp, dialog_struct->text2, MASTER_LEN);
+    string_ncat(ctemp, " :", MASTER_LEN);
+    label = gtk_label_new(ctemp);
+    gtk_misc_set_alignment(GTK_MISC(label), 1.0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 1, 2);
+    gtk_widget_show(label);
+
+    dual_input1_entry = gtk_entry_new_with_max_length(dialog_struct->maxlen1);
+    gtk_entry_set_text(GTK_ENTRY(dual_input1_entry), dialog_struct->input1);
+    gtk_signal_connect_object(GTK_OBJECT(dual_input1_entry), "key_press_event",
+                    	GTK_SIGNAL_FUNC(dual_input_key_press_callback), NULL);
+    gtk_table_attach_defaults(GTK_TABLE(table), dual_input1_entry, 1, 2, 0, 1);
+    gtk_widget_show(dual_input1_entry);
+
+    dual_input2_entry = gtk_entry_new_with_max_length(dialog_struct->maxlen2);
+    gtk_entry_set_text(GTK_ENTRY(dual_input2_entry), dialog_struct->input2);
+    gtk_signal_connect_object(GTK_OBJECT(dual_input2_entry), "key_press_event",
+                    	GTK_SIGNAL_FUNC(dual_input_key_press_callback), NULL);
+    gtk_table_attach_defaults(GTK_TABLE(table), dual_input2_entry, 1, 2, 1, 2);
+    gtk_widget_show(dual_input2_entry);
+    
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (dual_input_dlg)->vbox),
+                      	table, FALSE, TRUE, 0);
+    gtk_widget_show(table);
+    
+    dual_input_ok_button = gtk_button_new_with_label(_("OK"));
+    GTK_WIDGET_SET_FLAGS(dual_input_ok_button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(dual_input_ok_button), "clicked",
+                  	GTK_SIGNAL_FUNC(dual_input_ok_cb), GTK_OBJECT(dual_input_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (dual_input_dlg)->action_area),
+                    	dual_input_ok_button, TRUE, TRUE, 0);
+    gtk_widget_grab_default(dual_input_ok_button);
+    gtk_widget_show(dual_input_ok_button);
+    
+    button = gtk_button_new_with_label(_("Cancel"));
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect_object(GTK_OBJECT(button), "clicked",
+                  	GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(dual_input_dlg));
+    gtk_box_pack_start(GTK_BOX (GTK_DIALOG (dual_input_dlg)->action_area),
+                    	button, TRUE, TRUE, 0);
+    gtk_widget_show(button);
+    
+    gtk_widget_grab_focus(dual_input1_entry);
+
+    gtk_widget_show(dual_input_dlg);
+  }
+}
+
+/* --------------------------------------------------------------------- */
+
+/* ==================================== */
+/*  shows the file copy progress dialog */
+/* ==================================== */
+
+static void dialog_file_copy_progress_close (GtkWidget *widget, gpointer data)
+{
+  file_copy_progress_struct *copy_struct = (file_copy_progress_struct*)data;
+  
+  if ( copy_struct != NULL )
+  {
+    /* indicate abort */
+    *(copy_struct->do_exit) = 1;
+    /* free struct */
+    g_free(copy_struct);
+  }
+}
+
+static void dialog_file_copy_progress_cancel (GtkWidget *widget, gpointer data)
+{
+  file_copy_progress_struct *copy_struct = (file_copy_progress_struct*)data;
+  
+  if ( copy_struct != NULL )
+  {
+    gtk_widget_destroy(GTK_WIDGET(copy_struct->dialog));
+  }
+}
+
+void dialog_file_copy_progress_update (file_copy_progress_struct *copy_struct, gfloat value)
+{
+  if ( copy_struct != NULL )
+  {
+    gtk_progress_set_percentage(GTK_PROGRESS(copy_struct->progress), value);
+  }
+}
+
+/*
+ *  parameter: *cancel -> pointer to 'unsigned char', indicates a cancel action
+ */
+
+file_copy_progress_struct *dialog_file_copy_progress_create (unsigned char *do_cancel)
+{
+  file_copy_progress_struct *copy_struct;
+  GtkWidget *label;
+  GtkWidget *button;
+  
+  copy_struct = (file_copy_progress_struct*)g_malloc( sizeof(file_copy_progress_struct) );
+  
+  copy_struct->dialog = gtk_dialog_new();
+  
+  /* action on dialog closing */
+  gtk_signal_connect(GTK_OBJECT(copy_struct->dialog), "destroy",
+            GTK_SIGNAL_FUNC(dialog_file_copy_progress_close), copy_struct);
+  
+  /* set caption */
+  gtk_window_set_title(GTK_WINDOW(copy_struct->dialog), _("Copy"));
+  
+  /* copy label */
+  label = gtk_label_new(_("Copy File..."));
+  gtk_misc_set_padding(GTK_MISC(label), 5, 5);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(copy_struct->dialog)->vbox), label, TRUE, TRUE, 0);
+  gtk_widget_show(label);
+  
+  /* progress bar */
+  copy_struct->progress = gtk_progress_bar_new();
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(copy_struct->dialog)->vbox), copy_struct->progress, TRUE, TRUE, 0);
+  gtk_widget_show(copy_struct->progress);
+  
+  /* cancel button */
+  button = gtk_button_new_with_label(_("Cancel"));
+  gtk_signal_connect(GTK_OBJECT(button), "clicked",
+                GTK_SIGNAL_FUNC(dialog_file_copy_progress_cancel), copy_struct);
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_widget_grab_default(button);
+  gtk_widget_show(button);
+  
+  gtk_widget_show(copy_struct->dialog);
+  
+  return copy_struct;
+}
+
+/* --------------------------------------------------------------------- */
+
+void dialog_pointer_struct_delete (dialog_pointer_struct *d_struct)
+{
+  if ( d_struct != NULL )
+  {
+    if ( d_struct->data != NULL )
+      g_free(d_struct->data);
+    
+    g_free(d_struct);
+  }
+}
+
+/* dialog's "destroy" event */
+static void dialog_close (GtkWidget *widget, gpointer data)
+{
+  dialog_pointer_struct *d_struct;
+  
+  d_struct = (dialog_pointer_struct*)data;
+  
+  if ( d_struct != NULL )
+  {
+    dialog_pointer_struct_delete(d_struct);
+  }
+}
+
+/*
+ *  shows a dialog, containing an 'Ok' and a 'Cancel' button
+ *
+ */
+
+static void dialog_ok_cancel_callback_cancel (GtkWidget *widget, gpointer data)
+{
+  dialog_pointer_struct *d_struct;
+  
+  d_struct = (dialog_pointer_struct*)data;
+  
+  if ( d_struct != NULL )
+  {
+    gtk_widget_destroy( GTK_WIDGET(d_struct->dialog) );
+  }
+}
+
+void dialog_ok_cancel (char *title, char *text, GtkSignalFunc ok_function, GtkSignalFunc cancel_function, gpointer data, int data_length)
+{
+  dialog_pointer_struct *d_struct;
+  GtkWidget *dialog;
+  GtkWidget *label;
+  GtkWidget *button;
+  gpointer local_data = NULL;
+  
+  d_struct = (dialog_pointer_struct*)g_malloc( sizeof(dialog_pointer_struct) );
+  
+  /* copy the data */
+  if ( data != NULL )
+  {
+    local_data = g_malloc(data_length);
+    memcpy(local_data, data, data_length);
+  }
+  
+  dialog = gtk_dialog_new();
+  
+  d_struct->dialog = dialog;
+  d_struct->data = local_data;
+  
+  gtk_signal_connect(GTK_OBJECT(dialog), "destroy", GTK_SIGNAL_FUNC(dialog_close), d_struct);
+  
+  gtk_window_set_title(GTK_WINDOW(dialog), title);
+  gtk_container_border_width(GTK_CONTAINER(dialog), 5);
+  
+  label = gtk_label_new(text);
+  gtk_misc_set_padding(GTK_MISC(label), 10, 10);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
+  gtk_widget_show(label);
+  
+  button = gtk_button_new_with_label(_("Ok"));
+  gtk_signal_connect(GTK_OBJECT(button), "clicked", ok_function, d_struct);
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
+  gtk_widget_grab_default(button);
+  gtk_widget_show(button);
+  
+  button = gtk_button_new_with_label(_("Cancel"));
+  if ( cancel_function != NULL )
+    gtk_signal_connect(GTK_OBJECT(button), "clicked", cancel_function, d_struct);
+  else
+    gtk_signal_connect(GTK_OBJECT(button), "clicked", dialog_ok_cancel_callback_cancel, d_struct);
+  GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
+  gtk_widget_show(button);
+  
+  gtk_widget_show(dialog);
+  
+  gtk_grab_add(dialog);
+}
+
+/*
+ *  shows a dialog
+ *  question: 'Overwrite File'
+ *
+ */
+
+void dialog_file_overwrite (GtkSignalFunc ok_function, GtkSignalFunc cancel_function, gpointer data, int data_length)
+{
+  dialog_ok_cancel(_("File"), _("File exists, overwrite ?"), ok_function, cancel_function, data, data_length);
+}
+
+/* ------------------------------------------------------------------------------------- */

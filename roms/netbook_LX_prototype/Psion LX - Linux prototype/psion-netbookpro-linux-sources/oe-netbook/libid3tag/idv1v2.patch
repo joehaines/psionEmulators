@@ -1,0 +1,30 @@
+--- libid3tag-0.15.1b/file.c	2004-01-23 09:41:32.000000000 +0000
++++ libid3tag-0.15.1b-new/file.c	2004-08-24 13:39:37.000000000 +0100
+@@ -253,6 +253,7 @@
+ {
+   fpos_t save_position;
+   signed long size;
++  struct id3_tag const *tag = NULL;
+ 
+   /*
+    * save the current seek position
+@@ -272,7 +273,6 @@
+   if (fseek(file->iofile, -128, SEEK_END) == 0) {
+     size = query_tag(file->iofile);
+     if (size > 0) {
+-      struct id3_tag const *tag;
+ 
+       tag = add_tag(file, size);
+ 
+@@ -289,10 +289,9 @@
+ 
+   size = query_tag(file->iofile);
+   if (size > 0) {
+-    struct id3_tag const *tag;
+     struct id3_frame const *frame;
+ 
+-    tag = add_tag(file, size);
++    if (!tag) tag = add_tag(file, size);
+ 
+     /* locate tags indicated by SEEK frames */
+ 

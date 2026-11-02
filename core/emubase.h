@@ -213,8 +213,10 @@ public:
 		if (auto *c = getArmCpu()) return c->lastPcExecuted();
 		if (auto *v = getV30Cpu()) return (uint32_t(v->sregs[1]) << 4) + v->ip;
 		if (auto *h = getHd6303Cpu()) return uint32_t(h->pc);
-		return 0;
+		return otherCpuPc();
 	}
+	// PC of a core that is none of the three above (the XScale of the Psion LX).
+	virtual uint32_t otherCpuPc() const { return 0; }
 	void setProcessorID(uint32_t v) {
 		if (auto *c = getArmCpu()) c->setProcessorID(v);
 	}
@@ -512,6 +514,18 @@ public:
 	// Slot indexing matches the user-visible "Pack A / Pack B" labels.
 	// Series 3 / 3a / 3c / 3mx have 2 slots; Siena has 1; ARM-based
 	// devices have 0. See core/psion_ssd.{h,cpp} for the pack model.
+	// Built-in flash disk that is not removable media (the netBook Pro's
+	// NAND, which holds its root filesystem). The image goes in before the
+	// first executeUntil() and can be read back, with whatever the guest
+	// wrote to it, for saving.
+	virtual bool attachInternalFlash(const uint8_t *bytes, size_t size) {
+		(void)bytes; (void)size; return false;
+	}
+	virtual size_t getInternalFlashSize() const { return 0; }
+	virtual const uint8_t *getInternalFlashData() const { return nullptr; }
+	// Bumped whenever the guest programs or erases the internal flash.
+	virtual uint32_t getInternalFlashGeneration() const { return 0; }
+
 	virtual int  getSsdSlotCount() const { return 0; }
 	// `ssdType` selects the pack type presented in the SIBO info byte:
 	// 0 = auto (sniff 0xF1A5 magic -> Flash, else RAM), 1 = RAM,

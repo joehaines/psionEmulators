@@ -40,6 +40,8 @@
 #include <cstdint>
 #include <functional>
 
+class StateArchive;
+
 class PsionCondor {
 public:
     PsionCondor() = default;
@@ -50,6 +52,7 @@ public:
     // the same posture the previous stub faked, so the kernel's UART
     // probe sees identical bytes.
     void reset();
+    void serializeState(StateArchive &a);
 
     // Register-file accessors (8-bit). Out-of-range writes are ignored;
     // out-of-range reads return 0.

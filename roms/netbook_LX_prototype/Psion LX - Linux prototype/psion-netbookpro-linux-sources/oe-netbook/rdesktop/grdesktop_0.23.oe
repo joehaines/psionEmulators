@@ -1,0 +1,17 @@
+PR=r3
+
+DEPENDS = "libgnome rdesktop"
+RDEPENDS = "rdesktop"
+DESCRIPTION = "Gnome RDesktop FrontEnd"
+MAINTAINER = "Peter Naulls <peter@chocky.org>"
+
+EXTRA_OECONF = "--with-keymap-path=${datadir}"
+
+SRC_URI = "http://savannah.nongnu.org/download/grdesktop/grdesktop-${PV}.tar.gz \
+	   file://desktop-name.patch;patch=1"
+
+inherit autotools 
+
+do_install_append() {
+	ln -s grdesktop/icon.png ${D}${datadir}/pixmaps/grdesktop.png
+}

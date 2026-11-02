@@ -1,0 +1,67 @@
+DESCRIPTION = "Psion theme files"
+MAINTAINER = "Phil Blundell <pb@handhelds.org>"
+PR = "r0"
+PV = "1.6"
+
+DEPENDS = "gnome-themes"
+RDEPENDS = "gtk-engine-mist"
+
+FILES_${PN} += "${datadir}/themes"
+
+MBFILES = "accept.png \
+	close-small.png \
+	close.png \
+	dialogbottomleft.png \
+	dialogbottomright.png \
+	dialogbottomtile.png \
+	dialogtopleft.png \
+	dialogtopleft2.png \
+	dialogtopright.png \
+	dialogtopright2.png \
+	dialogtoptile.png \
+	dialogtoptile2.png \
+	hide.png \
+	menu.png \
+	next.png \
+	prev.png \
+	que.png \
+	theme.desktop \
+	theme.xml \
+	titleleft.png \
+	titleright.png \
+	titlestrip.png \
+"
+
+SRC_URI = "file://gtk-2.0/gtkrc \
+	file://matchbox/accept.png \
+	file://matchbox/close-small.png \
+	file://matchbox/close.png \
+	file://matchbox/dialogbottomleft.png \
+	file://matchbox/dialogbottomright.png \
+	file://matchbox/dialogbottomtile.png \
+	file://matchbox/dialogtopleft.png \
+	file://matchbox/dialogtopleft2.png \
+	file://matchbox/dialogtopright.png \
+	file://matchbox/dialogtopright2.png \
+	file://matchbox/dialogtoptile.png \
+	file://matchbox/dialogtoptile2.png \
+	file://matchbox/hide.png \
+	file://matchbox/menu.png \
+	file://matchbox/next.png \
+	file://matchbox/prev.png \
+	file://matchbox/que.png \
+	file://matchbox/theme.desktop \
+	file://matchbox/theme.xml \
+	file://matchbox/titleleft.png \
+	file://matchbox/titleright.png \
+	file://matchbox/titlestrip.png \
+	"
+
+do_install() {
+	install -d ${D}${datadir}/themes/psion/gtk-2.0
+	install -d ${D}${datadir}/themes/psion/matchbox
+	install -m 0644 ${WORKDIR}/gtk-2.0/gtkrc ${D}${datadir}/themes/psion/gtk-2.0/
+	for i in ${MBFILES}; do
+		install -m 0644 ${WORKDIR}/matchbox/$i ${D}${datadir}/themes/psion/matchbox/
+	done
+}

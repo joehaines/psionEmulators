@@ -1,0 +1,24 @@
+PR = "r12"
+
+inherit autotools pkgconfig gconf
+
+PROVIDES = "galculator"
+DESCRIPTION = "GTK Advanced Calculator"
+DEPENDS = "virtual/libc gtk+ libglade gnome-desktop psion-help"
+RDEPENDS = "gnome-desktop"
+RRECOMMENDS = "help-calculator"
+MAINTAINER = "Florian Boor <florian.boor@kernelconcepts.de>"
+SECTION = "gpe"
+PRIORITY = "optional"
+
+SRC_URI = "${SOURCEFORGE_MIRROR}/${PN}/${PN}-${PV}.tar.bz2 \
+        file://galculator-psion.patch;patch=1;pnum=1 \
+        file://Makefile.am.patch;patch=1;pnum=1 \
+        file://desktop-categories.patch;patch=1;pnum=1 \
+	file://fix-bug-830.patch;patch=1;pnum=1 \
+	file://psion-calculator-add-help1.patch;patch=1;pnum=1 \
+	file://psion-calculator-add-help2.patch;patch=1;pnum=1 \
+	file://psion-icon.patch;patch=1;pnum=1"
+
+LDFLAGS += '-Wl,--export-dynamic'
+

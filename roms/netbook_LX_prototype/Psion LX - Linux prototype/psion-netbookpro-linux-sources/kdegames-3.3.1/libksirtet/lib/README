@@ -1,0 +1,63 @@
+kdemultiplayers library
+-----------------------
+Copyright (c) 1998-2000 Nicolas HADACEK (hadacek@kde.org)
+Distributed under the GNU Library General Public License
+
+Introduction
+------------
+The "kdemultiplayers" library is an attempt to address the realization of
+multiplayer games localy on a computer (the players have each a "board" on
+the screen and they use the same keyboard) or/and by network (between several
+computers). The implementation is not so simple but this library gives
+a basic API which allows a lot of flexibility.
+
+Note: The headers which defines the API have names beginning with "mp".
+
+The library provides three services :
+  * a set of dialog widgets to allow the players to configure/create/join
+    a game.
+  * management of all the sending/receiving data between
+    player boards so you as a game programmer will *not* have to deal with
+	sockets or network programming.
+  * a framework for simple multiplayers game (for instance ksirtet) with a
+    very simple API ("mp_simple" headers).
+
+Semantics
+---------
+"player" : an individual which take part in the game (it can also be an AI).
+"AI"     : artificial intelligence (a game that is played by a program).
+"board"  : there is one board per player ; it is the widget where the player
+           acts in the game.
+"host"   : a computer which hosts one or several players.
+"server" : the host that has created the game.
+"client" : a host that is not the server.
+
+
+Basic description of the API
+----------------------------
+From the game programmer point of view there should be no difference between
+a local multiplayers game (one host with several players) and a network game
+(several hosts with one or more players).
+
+Each player has a board which is a widget inherited from the class "LocalBoard"
+(see "mp_board.h").
+
+On each host there must be a class inherited from "MPInterface"
+which manages local boards and the data transport with other hosts.
+(see "mp_interface.h").
+
+During the game at given intervals of time, the server asks data from clients
+and from its local boards. After treating this data, the server dispatches back
+results to all boards.
+
+General advice
+--------------
+There should be no blocking operation or long computation as it will freeze
+the user front-end and will also block the multiplayers data exchanges
+which operate by timer signals.
+
+There are general rules to avoid such blocking :
+ * answer to X/QT events such as keyboard/mouse/window events with
+   short methods.
+ * use timer(s) to make things evolve in time or to break long
+   computation in shorter parts.

@@ -1,0 +1,304 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+
+AC_PREREQ([2.53])
+AC_INIT([gnome-games], [2.6.2],
+        [http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-games])
+AM_INIT_AUTOMAKE
+AC_CONFIG_SRCDIR([gnomine/gnomine.c])
+AC_CONFIG_HEADERS([config.h])
+AM_MAINTAINER_MODE
+
+# Locate various programs
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_CXX
+AC_PROG_INTLTOOL([0.29])
+AC_PROG_LIBTOOL
+AC_PROG_LN_S
+
+dnl make sure we keep ACLOCAL_FLAGS around for maintainer builds to work
+AC_SUBST(ACLOCAL_AMFLAGS, "$ACLOCAL_FLAGS")
+
+# See if C++ support is actually there and tell automake about it
+# so we can conditionally compile.
+AC_CHECK_PROG(CXX_PRESENT, $CXX, yes, no)
+AM_CONDITIONAL([HAVE_CXX], [test "x$CXX_PRESENT" = xyes])
+
+# See if we have guile
+GAMES_CHECK_GUILE
+
+
+GNOME_COMPILE_WARNINGS(yes)
+GNOME_CXX_WARNINGS(yes)
+
+
+AM_GCONF_SOURCE_2
+AC_PATH_PROG(GCONFTOOL, gconftool-2)
+
+
+## Begin tests for scrollkeeper
+# SCROLLKEEPER_REQUIRED is never used?
+SCROLLKEEPER_REQUIRED=0.3.8
+AC_SUBST(SCROLLKEEPER_REQUIRED)
+
+
+AC_PATH_PROG(SCROLLKEEPER_CONFIG, scrollkeeper-config,no)
+if test x$SCROLLKEEPER_CONFIG = xno; then
+  AC_MSG_ERROR([Couldn't find scrollkeeper-config, please install the scrollkeeper package])
+fi
+
+# Checks for libraries.
+LIBGNOMEUI_REQUIRED=1.105.0
+LIBGNOME_REQUIRED=1.105.0
+GTK_REQUIRED=2.3
+GCONF_REQUIRED=1.1.5
+GNOME_VFS_REQUIRED=1.9.11
+LIBRSVG_REQUIRED=2.0
+
+PKG_CHECK_MODULES(GNOME_GAMES, libglade-2.0 libgnome-2.0 >= $LIBGNOME_REQUIRED libgnomeui-2.0 >= $LIBGNOMEUI_REQUIRED gconf-2.0 >= $GTK_REQUIRED gnome-vfs-module-2.0 >= $GNOME_VFS_REQUIRED gtk+-2.0 >= $GTK_REQUIRED librsvg-2.0 >= $LIBRSVG_REQUIRED)
+
+GNOME_GAMES_CFLAGS="$GNOME_GAMES_CFLAGS -I\$(top_srcdir)/libgames-support $WARN_CFLAGS"
+GNOME_GAMES_LIBS="$GNOME_GAMES_LIBS \$(top_builddir)/libgames-support/libgames-support.la"
+
+## Use a separate set of flags for C++ (so we can exclude -std=gnu89 for
+## example, it doesn't make sense under C++).
+GNOME_GAMES_CXXFLAGS=$GNOME_GAMES_CFLAGS
+AC_SUBST(GNOME_GAMES_CXXFLAGS)
+
+## This should make sure that developers using gcc 3.x will write something
+## that compiles using gcc 2.9x. Straight -ansi is a little tough given the
+## current code base, although what breaks is probably not that portable.
+if test x$CC=xgcc ; then
+  GNOME_GAMES_CFLAGS="-std=gnu89 $GNOME_GAMES_CFLAGS"
+fi
+
+PKG_CHECK_MODULES(ESD, esound)
+AC_SUBST(ESD_CFLAGS)
+AC_SUBST(ESD_LIBS)
+if test "x$ESD_CFLAGS" = "x" ; then
+	CFLAGS="$CFLAGS -DNO_ESD"
+fi
+
+GETTEXT_PACKAGE=gnome-games
+AC_SUBST(GETTEXT_PACKAGE)
+AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [The gettext package name])
+ALL_LINGUAS="am ar az be bg bn ca cs cy da de el en_CA en_GB es et eu fa fi fr ga gl gu he hi hr hu id it ja ko lt lv mk ml mn ms nl nn no pa pl pt pt_BR ro ru sk sl sq sr sr@Latn sv tr uk vi wa zh_CN zh_TW"
+AM_GLIB_GNU_GETTEXT
+# Since there is controversy over using it, we will check for it.
+AC_CHECK_FUNCS(ngettext)
+
+# Check for header files
+AC_HEADER_STDC
+
+
+# Checks for typedefs, structures, and compiler characteristics
+AC_HEADER_STDBOOL
+AC_C_CONST
+AC_C_INLINE
+
+
+# Checks for library functions
+sys_dir_h_found=no
+old_CPPFLAGS="$CPPFLAGS"
+UCB_CFLAGS=
+AC_CHECK_HEADER(sys/dir.h, [sys_dir_h_found=yes],
+  [AC_MSG_CHECKING([for sys/dir.h in /usr/ucbinclude or /usr/ucblib/sparcv9])
+   CPPFLAGS="-I /usr/ucbinclude -I /usr/ucblib/sparcv9"
+   AC_TRY_COMPILE([#include <sys/dir.h>],
+     [scandir(".", 0, 0, 0);],
+     [UCB_CFLAGS="-I/usr/ucbinclude -I/usr/ucblib/sparcv9"
+      AC_MSG_RESULT(yes)
+      sys_dir_h_found=yes
+     ],
+     AC_MSG_RESULT(no))
+  ])
+AC_SUBST(UCB_CFLAGS)
+
+AC_CHECK_HEADERS(sys/dirent.h)
+
+if test x$sys_dir_h_found = xyes; then
+  AC_DEFINE(HAVE_SYS_DIR_H,,[System has sys/dir/h])
+  AC_MSG_CHECKING([if sys/dir.h defines struct direct or dirent])
+  AC_TRY_COMPILE([#include <sys/dir.h>],
+    [struct direct *dummy;],
+    [AC_MSG_RESULT(direct)
+     AC_DEFINE(HAVE_STRUCT_DIRECT,1,[Define if scandir() works with struct direct rather than struct dirent])
+    ],
+    [AC_TRY_COMPILE([#include <sys/dir.h>],
+     [struct dirent *dummy;],
+     [AC_MSG_RESULT(dirent)]
+     [AC_MSG_RESULT(none)])
+    ])
+fi
+CPPFLAGS="$old_CPPFLAGS"
+
+old_LDFLAGS="$LDFLAGS"
+UCB_LDFLAGS=
+AC_CHECK_FUNC(scandir, [], [
+  LDFLAGS="$LDFLAGS -L/usr/ucblib"
+  AC_CHECK_LIB(ucb, scandir,
+    [UCB_LDFLAGS="-L/usr/ucblib -lucb"], [
+      LDFLAGS="$old_LDFLAGS -L/usr/ucblib/sparcv9"
+      AC_CHECK_LIB(ucb, scandir,
+	[UCB_LDFLAGS="-L/usr/ucblib/sparcv9 -lucb"],
+        AC_MSG_ERROR([No implementation of scandir found])
+      )
+    ]
+  )
+])
+LDFLAGS="$old_LDFLAGS"
+AC_SUBST(UCB_LDFLAGS)
+
+if test "x${prefix}" = "xNONE"; then
+   AC_DEFINE_UNQUOTED(GNOME_ICONDIR, "${ac_default_prefix}/share/pixmaps", [Pix
+map directory])
+else
+   AC_DEFINE_UNQUOTED(GNOME_ICONDIR, "${prefix}/share/pixmaps", [Pixmap directo
+ry])
+fi
+
+AC_ARG_ENABLE(setgid,
+  [  --disable-setgid           Disable the use of setgid binaries],
+  [case "${enableval}" in
+    yes) setgid=true ;;
+    no)  setgid=false ;;
+    *) AC_MSG_ERROR(bad value ${enableval} for --disable-setgid) ;;
+   esac],[setgid=true])
+AC_SUBST(setgid)
+
+AC_ARG_WITH(scores-group,
+[  --with-scores-group=group    Group for the high score tables and binaries],
+scores_group="$withval",scores_group="games")
+AC_SUBST(scores_group)
+AC_ARG_WITH(scores-user,
+[  --with-scores-user=user    User for the high score tables],
+scores_user="$withval",scores_user="games")
+AC_SUBST(scores_user)
+
+scoredir='${localstatedir}/games'
+AC_SUBST(scoredir)
+
+AC_CONFIG_FILES([
+gnome-games.spec
+Makefile
+po/Makefile.in
+libgames-support/Makefile
+blackjack/Makefile
+blackjack/data/Makefile
+blackjack/help/Makefile
+blackjack/help/C/Makefile
+blackjack/pixmaps/Makefile
+blackjack/src/Makefile
+gnect/Makefile
+gnect/src/Makefile
+gnect/data/Makefile
+gnect/pixmaps/Makefile
+gnect/help/Makefile
+gnect/help/C/Makefile
+gnomine/Makefile
+gnomine/help/Makefile
+gnomine/help/C/Makefile
+gnome-stones/Makefile
+gnome-stones/graphics/Makefile
+gnome-stones/objects/Makefile
+gnome-stones/sounds/Makefile
+gnome-stones/help/Makefile
+gnome-stones/help/C/Makefile
+same-gnome/Makefile
+same-gnome/help/Makefile
+same-gnome/help/C/Makefile
+mahjongg/Makefile
+mahjongg/help/Makefile
+mahjongg/help/C/Makefile
+gtali/Makefile
+gtali/pix/Makefile
+gtali/help/Makefile
+gtali/help/C/Makefile
+gtali/help/da/Makefile
+iagno/Makefile
+iagno/sounds/Makefile
+iagno/help/Makefile
+iagno/help/C/Makefile
+gataxx/Makefile
+gataxx/sounds/Makefile
+gataxx/help/Makefile
+gataxx/help/C/Makefile
+gnotravex/Makefile
+gnotravex/help/Makefile
+gnotravex/help/C/Makefile
+gnotski/Makefile
+gnotski/help/Makefile
+gnotski/help/C/Makefile
+glines/Makefile
+glines/help/Makefile
+glines/help/C/Makefile
+gdk-card-image/Makefile
+gnometris/Makefile
+gnometris/pix/Makefile
+gnometris/help/Makefile
+gnometris/help/C/Makefile
+gnobots2/Makefile
+gnobots2/help/Makefile
+gnobots2/help/C/Makefile
+gnobots2/help/da/Makefile
+gnobots2/help/es/Makefile
+gnobots2/help/it/Makefile
+gnibbles/Makefile
+gnibbles/help/Makefile
+gnibbles/help/C/Makefile
+gnibbles/sounds/Makefile
+aisleriot/Makefile
+aisleriot/help/Makefile
+aisleriot/help/C/Makefile
+])
+AC_OUTPUT
+
+echo "
+Configuration:
+
+	Source code location:	  	   ${srcdir}
+	Compiler:		  	   ${CC}
+
+	Compile Gnometris, Blackjack
+	(Have c++ compiler):		   ${CXX_PRESENT}
+	Compile AisleRiot (Have guile):	   ${ac_cv_guile_found}
+
+        Use setgid binaries                $setgid
+        Scores user                        $scores_user
+        Scores & setgid group              $scores_group
+"
+if grep -q "$scores_group:" /etc/group ; then
+:;
+else
+echo
+echo "Warning: The $scores_group group does not exist. Installation will"
+echo "         succeed, but high score logging will not work. To specify a"
+echo "         different group use the --with-scores-group option."
+echo
+fi
+
+libgnomeprefix=`pkg-config libgnome-2.0 --variable=prefix`
+if test x$libgnomeprefix = x$prefix -o x$libgnomeprefix = x$prefix/ ; then
+:;
+else
+echo "Warning: This package is not being installed with the same prefix"
+echo "         as libgnome. This may lead to problems with the high"
+echo "         score tables not being found correctly. The solution"
+echo "         is to use the --localstatedir option. For example,"
+echo "         Red Hat 9 and Fedora need --localstatedir=/var/lib if you"
+echo "         are using the default libgnome package since scores are"
+echo "         stored in /var/lib/games/."
+echo
+fi
+
+if echo foo | xgettext --from-code=UTF-8 -LC -o - - 2>/dev/null ; then 
+:; 
+else 
+echo "Warning: Your version of gettext does not support --from-code."
+echo "         This will cause translation of some strings in non US-English"
+echo "         locales to fail. For full support please upgrade to GNU"
+echo "         gettext 0.12 or later."
+echo
+fi 

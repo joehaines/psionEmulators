@@ -1,0 +1,197 @@
+Begin tables
+	AddressView:AB
+		First Name:string
+			i18n_fr=Prénom
+			i18n_nl=Voornaam
+			i18n_no=Fornavn
+			i18n_fi=Etunimi
+			i18n_de=Vorname
+		Last Name:string
+			i18n_fr=Nom
+			i18n_nl=Naam
+			i18n_no=Etternavn
+			i18n_fi=Sukunimi
+			i18n_de=Name
+		Company:string
+			i18n_fr=soci
+			i18n_nl=yritys
+			i18n_no=(Mer...)
+			i18n_fi=Firma
+			i18n_de=Firma
+			description = Title, company, ...
+			description_fr = Titre, société, ...
+			description_fi = Arvonimi, yritys, ...
+			description_de = Titel, Firma, ...
+			description_no = Tittel, firma, ...
+		Street One:string
+			i18n_fr=Rue
+			i18n_nl=Straat Een
+			i18n_no=Gate
+			i18n_fi=Katuosoite
+			i18n_de=Firma
+		Street Two:string
+			i18n_fr=Rue
+			i18n_nl=Straat Twee
+			i18n_no=Gate
+			i18n_fi=Katuosoite
+			i18n_de=Firma
+		Zip:string
+			i18n_fr=Code postal
+			i18n_nl=Postcode
+			i18n_no=Postnummer
+			i18n_fi=Postinumero
+			i18n_de=Postleitzahl
+		City:string
+			i18n_fr=Ville
+			i18n_nl=Stad/gemeente
+			i18n_no=By
+			i18n_fi=Postitoimipaikka
+			i18n_de=Stadt
+		State / Province:string
+			i18n_fr=Etat / Province
+			i18n_nl=Staat / Provincie
+			i18n_no=Stat / Provins
+			i18n_fi=Osavaltio / Provinssi
+			i18n_de=Bundesland / Provinz
+		Country:string
+			i18n_fr=Pays
+			i18n_nl=Land
+			i18n_no=Land
+			i18n_fi=Maa
+			i18n_de=Land
+		Birthday:date
+			i18n_fr=Date de naissance
+			i18n_nl=Geboortedatum
+			i18n_no=Fødselsdag
+			i18n_fi=Syntymäpäivä
+			i18n_de=Geburtsdatum
+		Private Phone:string
+			i18n_fr=Téléphone (privé)
+			i18n_nl=Telefoon (privé)
+			i18n_no=Telefon (privat)
+			i18n_fi=Kotipuhelin
+			i18n_de=Telefon (privat)
+		Work Phone:string
+			i18n_fr=Téléphone (travail)
+			i18n_nl=Telefoon (werk)
+			i18n_no=Telefon (Arbeid)
+			i18n_fi=Työpuhelin
+			i18n_de=Telefon (geschäftl.)
+		Cell Phone:string
+			i18n_fr=GSM
+			i18n_nl=GSM
+			i18n_no=Mobil
+			i18n_fi=Matkapuhelin
+			i18n_de=Mobil-Telefon
+		Fax:string
+			i18n_fr=Fax
+			i18n_nl=Fax
+			i18n_no=Faks
+			i18n_fi=Faksi
+			i18n_de=Fax
+		E-Mail:string
+			i18n_fr=E-Mail
+			i18n_nl=E-Mail
+			i18n_no=E-post
+			i18n_fi=Sähköposti
+			i18n_de=E-Mail
+			format=email
+		Web Site:string
+			i18n_fr=Site web
+			i18n_nl=Web site
+			i18n_no=Hjemmeside
+			i18n_fi=Kotisivu
+			i18n_de=Web Seite
+			format=website
+			default=http://
+		Category:string
+			i18n_fr=Catégorie
+			i18n_nl=Categorie
+			i18n_no=Kategori
+			i18n_fi=Luokitus
+			i18n_de=Kategorie
+		Remarks:strings
+			i18n_fr=Remarques
+			i18n_nl=Opmerkingen
+			i18n_no=Kommentarer
+			i18n_fi=Muistiinpanoja
+			i18n_de=Bemerkungen
+	Zip
+		Zip code:string
+		City:string
+End
+
+Begin subtables
+	Phone Book:AddressView
+		i18n_fr=Répertoire téléphonique
+		i18n_fi=Puhelinmuistio
+		i18n_de=Adreßbuch
+		viewable as xlist.
+		with only the following fields
+			First Name:
+			Last Name:
+			Company:
+	Address Book:AddressView
+		i18n_fr=Carnet d'adresse
+		i18n_fi=Osoitemuistio
+		viewable as gnomecard, form, canvas.
+		with every fields.
+End
+
+Begin actions
+	gnome-pim_init
+		event = startup
+		gnomepim_init(AddressView)
+End
+
+Begin locations
+	AddressView
+		~/.gaby/
+End
+
+Begin misc
+	Main window
+		gnomecard:Address Book
+End
+
+Begin plugins_options
+	Canvas:Address Book
+		<h1> First Name, Last Name
+		<h2> Phone numbers
+			i18n_fr=<h2> Numéros de téléphone
+			i18n_fi=<h2> Puhelinnumerot
+			i18n_de=<h2> Telefonnummern
+			i18n_no=<h2> Telefonnumre
+		<f Private :> Private Phone
+			i18n_fr=<f Privé :> Private Phone
+			i18n_de=<f Privat :> Private Phone
+			i18n_no=<f Privat :> Privat telefon
+		<f Work :> Work Phone
+			i18n_fr=<f Travail :> Work Phone
+			i18n_de=<f Geschäftl. :> Work Phone
+			i18n_no=<f Arbeid :> Jobbtelefon
+		<f Cellullar :> Cell Phone
+			i18n_fr=<f Cellulaire :> Cell Phone
+			i18n_de=<f Mobil :> Cell Phone
+			i18n_no=<f Mobil :> Mobiltelefon
+		<h2> Others
+			i18n_fr=<h2> Autres
+			i18n_de=<h2> Andere
+			i18n_no=<h2> Andre
+		<f Fax :> Fax
+			i18n_no=<f Faks :> Faks
+		<f E-Mail :> E-Mail
+			i18n_no=<f E-post :> E-post
+		<f Web Site :> Web Site
+			i18n_fr=<f Site Web :> Web Site
+			i18n_de=<f Web Seite :> Web Site
+			i18n_no=<f Hjemmeside :> Hjemmeside
+		<h2> Address
+		Street One
+		Street Two
+		Zip, Work City
+		State / Province
+		Country
+End
+
+

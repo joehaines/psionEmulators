@@ -1,0 +1,522 @@
+2004-03-06  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* help/C/.cvsignore: Ignore the correct files not the gtali ones
+	where I copied this from.
+
+2004-02-23  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp (Tetris): Add the help file to the help menu.
+
+	* help/*: Added a help file.
+
+	* tetris.cpp: Changed the <invalid> value for timeoutID from -1 to
+	0 since this is what g_source uses. This may help bug 103787.
+	(timeoutHandler): Change 1 to TRUE to make sure we match glib's
+	expectations.
+
+2004-02-14  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp: Removed the _has_separator calls from message
+	dialogs.
+
+2004-02-12  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp: Replaced a really crufty way of getting the widgets
+	to resize themselves with gtk_widget_queue_resize(). This fixes
+	bug #120444. Also disabled resizing of the window since it wasn't
+	meaningful and aesthetically unpleasing when the block size was
+	reduced.
+
+2004-02-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp (gameAbout): translator_credits ->
+	translator-credits.
+
+2004-02-03  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp (Tetris): Added an awful hack to get around
+	limitations in both pango and gnome canvas. See the comments in
+	the code for the details. This will however allow the text to be
+	the right size regardless of the dpi of the display. See bug
+	#131829.
+
+2004-01-29  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp: Make sure New Game is disabled while the preferences
+	dialog is open (just as the preferences are disabled while the
+	game is in play). Patch from Richard Hoelscher, see bug #130654.
+
+2004-01-02  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gnometris.schemas.in: And make the new graphics the default.
+
+	* pix/Makefile.am: Added a nice (small) background and block set
+	from Graeme Worthy (see bug #130254).
+
+2003-12-22  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp (gameQuit): Check that the games is in progress
+	before getting the score. Fixes bug #129711.
+
+2003-12-12  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (INCLUDES): Use GNOME_GAMES_CXXFLAGS rather than
+	GNOME_GAMES_CFLAGS.
+
+2003-12-08  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp: Avoid duplicate high scores when starting a new game
+	without finishing the old one. Also record the score when we quit
+	the game to be consistent. Fixes bug #128735.
+
+2003-11-03  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp: 
+	* scoreframe.cpp: Repackage the score widgets to avoid the window
+	resizing as the score changes.
+
+	* tetris.cpp: 
+	* preview.h:	
+	* preview.cpp: Reworked the preview pane code to remove drawing
+	glitches and to use GTK+ to do most of the hard work.
+
+2003-10-29  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (INCLUDES): Remove *_DISABLE_DEPRECATED.
+
+2003-10-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (install-data-local): Change the way gconf files are
+	installed. This should improve things for people building outside
+	the source tree. See bug #123192.
+
+2003-10-19  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.h:
+	* tetris.cpp: Replaced deprecated gtk+ functions. Also fixed a
+	warning generated when the bg loading code struck a name that
+	wasn't a .png or a .jpg (like <none>).
+
+2003-08-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp: 
+	* scoreframe.cpp (ScoreFrame): GConf return value checks.
+
+2003-07-27  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gnome-canvas-pimage.c: Removed dead code, gets rid of warnings.
+
+2003-07-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gnometris.desktop.in: Update name to fit HIG (bug 116916).
+
+2003-06-22  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* gnometris.schemas.in: Remove full-stop at the end of the short
+	description and add descriptions for line_fill_* .
+
+2003-06-20  William Jon McCann  <mccann@jhu.edu>
+
+	* gnome-canvas-pimage.c (gnome_canvas_pimage_draw): Convert to
+	pixbufs.  This will allow us to support block images with an
+	alpha layer.
+	(dist_to_mask): Perform some checks for NULL images.
+
+	* tetris.cpp (setupPixmap): Removed unused pix pixmap.
+
+	* preview.cpp (paint): Use pixbuf for preview.
+
+	* tetris.cpp (setupPixmap): Argh, fixed my typo.
+	(setupPixmap): Don't leak fullpixname.
+
+2003-06-19  William Jon McCann  <mccann@jhu.edu>
+
+	* tetris.cpp: #define all the gconf keys for convenience.
+	(setupPixmap):
+	(gameProperties): Use g_build_filename.
+
+	* scoreframe.cpp (ScoreFrame): Convert to gconf.
+
+2003-06-17  William Jon McCann  <mccann@jhu.edu>
+
+	* gnome-canvas-pimage.c: Removed unused vars.
+
+2003-06-10  William Jon McCann  <mccann@jhu.edu>
+
+	* tetris.cpp: 
+	* scoreframe.cpp: Replaced frames with GamesFrames.
+
+2003-06-09  William Jon McCann  <mccann@jhu.edu>
+
+	* tetris.cpp: Removed separator from dialogs as in HIG.
+
+2003-06-08  William Jon McCann  <mccann@jhu.edu>
+
+	* tetris.cpp (endOfGame): Hide paused message before
+	displaying end of game message.
+	(setupScoreState): Make score menu item insensitive if
+	scores are not available.
+	(gameProperties): HIG fixes for preferences
+	dialog.
+	
+	* scoreframe.cpp (ScoreFrame): HIG fixes for score frame.
+
+2003-06-05  William Jon McCann  <mccann@jhu.edu>
+
+	* tetris.cpp (Tetris): Don't exit if schemas are not installed,
+	try to use minimum number of defaults.
+
+	* Makefile.am (install-data-local): Only install schemas
+	if they are requested.
+
+2003-06-01  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp: 
+	* tetris.h: Add indicators for the paused and "game over" states.
+
+	* tetris.cpp (eventHandler, eventHandler): Fix scoring
+	inconsistency and stop the block moving sideways after a drop. 
+
+	* blockops.cpp (dropBlock): Fix scoring inconsistency between
+	fastfall and drop modes.
+
+	* tetris.cpp (Tetris): Fix space bar handling bug.
+
+	* gnometris.schemas.in: Default background has gone from a .png to
+	a .jpg.
+
+	* tetris.cpp: Be smart about the transition from the .png files to
+	.jpg and use a .jpg extension if the .png one can't be found. 
+
+2003-05-31  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am: Undo the score directory
+	changes. It breaks more than it fixes.
+
+	* tetris.cpp (fillMenu): Add support for jpg images as
+	backgrounds.
+
+	* pix/Makefile.am (bg_DATA): Use jpegs for the background
+	images. This saves a *lot* of space. Quality has been carefully
+	adjusted to make sure that the old and new images are visually
+	indistinguishable.
+
+	* Makefile.am (install-data-local): Implement setgid modifications
+	(see gnome-games/ChangeLog).
+
+2003-05-30  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (scoredir): Changed score directory to fix bug
+	#113968.
+
+2003-05-28  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* blocks.cpp (blockTable): Changed the way the I piece rotates. It
+	now rotates about a central block. No more shifting sideways.
+
+	* tetris.cpp (eventHandler): Fiddling to get the key press handling
+	feeling right when a new piece appears.
+
+2003-05-27  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* tetris.cpp (eventHandler): Rearranged so that the block drops
+	when the space bar goes down, not when it comes back up.
+	(timeoutHandler): The down key now works for the new block if it
+	is held down (and keyboard auto-repeat is enabled).
+
+2003-04-15  Ross Burton  <ross@burtonini.com>
+
+	* tetris.cpp: Actually pass a key name to the sanity check
+	function, instead of "". Whoops. Closes #110814.
+
+2003-04-06  Ross Burton  <ross@burtonini.com>
+
+	* tetris.cpp: Remove deprecated calls, fixes Sun builds. Thanks to
+	Rich Burridge, closing #109991.
+
+2003-03-07  Ross Burton  <ross@burtonini.com>
+
+	* Makefile.am: Link to the shared games library.
+
+	* tetris.cpp: Add a GConf sanity check.
+
+2003-02-19  Alex Duggan  <aldug@astrolinux.com>
+
+	* tetris.cpp: use a close button in the preferences dialog
+	instead of an ok button.  Fixes #103835
+
+2002-12-17  Ross Burton  <ross@burtonini.com>
+
+	* Makefile.am (schema_in_files): Fix the GConf schema path.
+
+2002-11-29  Ross Burton  <ross@burtonini.com>
+
+	* Makefile.am (SUBDIRS): Put the source of the schemas in the
+	dist, not the generated files.
+
+2002-11-22  Tim Musson  <trmusson@ihug.co.nz>
+
+	* tetris.cpp: (gameAbout), (showScores): No more multiple About
+	dialogs, and Score dialog is now modal. (#97320)
+	(gameProperties): gtk_window_present if Prefs dialog exists.
+
+2002-11-25  Ross Burton  <ross@burtonini.com>
+
+	* Makefile.am: Fixed the GConf install location, thanks to Loz
+	<gnome2@flower.powernet.co.uk>. Closes #99393.
+
+2002-11-18  Fernando Herrera <fherrera@onirica.com>
+
+	* gnometris.desktop.in: add X-GNOME-BUGZILLA stuff
+
+2002-11-11  Ross Burton  <ross@burtonini.com>
+
+	* pix/gnome-gtetris.png: New icon contributed by Timothy Musson.
+
+2002-06-02  Ross Burton  <ross@burtonini.com>
+
+	* tetris.cpp: Make the about dialog a transient for the main
+	window. Also don't position the Preferences window under the
+	cursor explicitly. If the user wants that, they can tell the WM to
+	do it.
+
+2002-06-03  Bastien Nocera  <hadess@hadess.net>
+
+	* tetris.cpp: disable help menu item
+
+2002-05-31  Bastien Nocera  <hadess@hadess.net>
+
+	* tetris.cpp: /me silently corrects a 1 letter typo and
+	(Closes: #82251)
+
+2002-05-14  Abel Cheung  <maddog@linux.org.hk>
+
+	* tetris.cpp (Tetris::gameAbout): Added translator credits.
+
+2002-05-10  Bastien Nocera  <hadess@hadess.net>
+
+	* Makefile.am: nothing interesting
+	* tetris.cpp: add an icon to the about box, make 'P' be the pause
+	button, make 'Space' drop the block at the bottom (like in all the
+	other implementations) (Closes: #60579)
+
+2002-02-26  Juan Pablo Mendoza <jpablo@gnome.org>
+
+	* tetris.cpp (Tetris::gameAbout): Don't make
+	  the about dialog modal (#72371)
+
+2001-12-19  Seth Nickell  <snickell@stanford.edu>
+
+	* gnometris.desktop:
+
+	Fix Categories field.
+
+2001-12-15  Johan Dahlin  <jdahlin@telia.com>
+
+	* main.cpp, tetris.cpp, gnome-canvas-pimage.[ch]: Ported to GNOME2
+
+2001-12-04  Duarte Loreto <happyguy_pt@hotmail.com>
+
+        * gnometris.desktop: Added Portuguese (pt) translation.
+
+2001-08-18  Marcin Gorycki  <Janusz.Gorycki@intel.com>
+
+	* pix/*: Added 2 great new tiles and 7 great new backgrounds 
+	  (C) Gunther Noack <gnoack@guenthernoack.de>
+	  http://www.guenthernoack.de.
+	  Changed default background to his gnometris-bg.png
+	
+2001-07-27  Abel Cheung  <maddog@linux.org.hk>
+
+	* gnometris.desktop: Added traditional Chinese translation.
+
+2001-07-07  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* blockops.cpp:
+	* field.cpp:
+	* field.h:
+	* preview.cpp:
+	* tetris.cpp:
+	* tetris.h: Good bye imlib, our old ugly friend.
+	* gnome-canvas-pimage.[ch]: Work around gnomecanvaspixbuf slowness.
+
+2001-07-05  Christian Rose  <menthos@menthos.com>
+
+	* gnometris.desktop: Modified Swedish translation.
+
+2001-06-09  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	Apply patch from drk@sgi.com. Bug #52642.
+
+	* Makefile.am: Don't hardcode gcc-specific compiler flags.
+
+2001-05-28  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* tetris.cpp (Tetris::gameProperties): Connect the dialog to the
+	  close signal instead of delete_event.
+	  (Tetris::setupPixmap): I we can't find the theme show a
+	  dialog instead of a printf , also show a dialog if
+	  gdk_imlib_load_image fails.
+
+
+2000-12-03  James M. Frisby <the_gandhi_of_bowling@yahoo.com>
+
+	* scoreframe.cpp, scoreframe.h, tetris.cpp:
+	fixed level change bug.
+	
+2000-11-07  Michael Plump <plumpy@gangstageeks.org>
+
+	* blockops.cpp, scoreframe.cpp, scoreframe.h, tetris.h:
+	scoring updated (variable scores depending on number of lines
+	filled and other things) - patch
+	
+2000-04-27  Marcin Gorycki  <Janusz.Gorycki@intel.com>
+
+	* blockops.cpp, tetris.cpp: gtk warnings fixed
+
+
+2000-04-19  Ian Peters  <itp@gnu.org>
+
+	* field.cpp: push the visual and colormap before creating the
+	  canvas, etc., to fix BadMatch on multi-depth displays.
+
+1999-12-07  Mitchell Perilstein  <mitch@enetis.net>
+
+	* blockops.h, blockops.cpp: Fixed crash in emptyField() wherein it
+	received trash in the blocks newly created by BlockOps::BlockOps()
+	because they were created with new(), which does not zero arrays
+	automatically.
+	
+1999-10-23  Callum McKenzie  <callum@localhost>
+
+	* blockops.h, blockops.cpp, tetris.h, tetris.cpp, TODO : 
+	  added code to allow pre-filling of the field with 
+	  random blocks.
+
+1999-10-04  Marcin Gorycki  <mgo@olicom.dk>
+
+	* pix/Makefile.am, vortex-bg.png: added vortex-bg.png 
+	  by Jon Abbott jca8929@garnet.acns.fsu.edu
+	 
+1999-09-10  pablo  <pablo@???>
+
+	* gnometris.desktop: added estonian descriptions
+
+1999-09-08  nakai  <nakai@???>
+
+	* gnometris.desktop: ja Update from ITANI Eiichoro
+
+1999-07-09  kmaraas  <kmaraas@???>
+
+	* gnometris.desktop: Added Norwegian translation.
+
+
+1999-05-06  Janusz Marcin Gorycki  <mgo@spiderman.pl.olicom.com>
+
+	* tetris.h, tetris.cpp, field.h, field.cpp, blockops.h, blockops.cpp:
+	using canvas widget
+
+	* pix/7blocks-tig.png, pix/Makefile.am: added 7blocks-tig.png
+
+1999-04-17  mawarkus  <mawarkus@???>
+
+	* gnometris.desktop: More German l10n.
+
+1999-04-08  mjr  <mjr@???>
+
+	* gnometris.desktop:
+	Updated and completed finnish translations of messages and desktop files
+
+1999-04-06  kloczek  <kloczek@???>
+
+	* Makefile.am:
+	- fixed all Makefiles.am to allow use DESTDIR in "make install,
+	- fixed perm on gnometris.scores (must be 644 instead 666).
+
+
+1999-03-16  Janusz Marcin Gorycki  <mgo@spiderman.pl.olicom.com>
+
+	* tetris.h, tetris.cpp: patches from Ian applied
+
+1999-03-15  Janusz Marcin Gorycki  <mgo@spiderman.pl.olicom.com>
+
+	* tetris.h, tetris.cpp:
+	changes suggested by Ian Peters - style guid compliance
+
+1999-02-25  Marcin Gorycki  <mgo@olicom.dk>
+
+	* tetris.h, tetris.cpp: "variable gravity" down-arrow key
+
+1999-02-23  Marcin Gorycki  <mgo@olicom.dk>
+
+	* tetris.h, tetris.cpp, blockops.h, blockops.cpp: fast fall fixed
+
+1999-02-21  sipan  <sipan@mit.edu>
+
+	* gnometris.desktop: Added Russian lines to the *.desktop files
+
+
+1999-02-19  Janusz Marcin Gorycki  <mgo@olicom.dk>
+
+	* tetris.h, tetris.cpp, field.cpp: smooth fast fall, backgrounds
+
+	* pix/Makefile.am, pix/*-bg.png: added background pixmaps
+
+1999-02-19  Tuomas Kuosmanen  <tigert@gimp.org>
+
+	* pix/5blocks-tig.png: Added a new tileset - if you like it, make it
+	the default if you want.
+
+1999-02-11  Marcin Gorycki  <mgo@olicom.dk>
+
+	* tetris.h, tetris.cpp, preview.h, preview.cpp, main.cpp, field.h, field.cpp:
+	configurable block shapes
+
+	* pix/Makefile.am: more block pixmaps installed
+
+1999-02-10  Marcin Gorycki  <mgo@olicom.dk>
+
+	* TODO: updated TODO (ideas by Sergey)
+
+1999-02-10  Sergey Panov <sipan@mit.edu>
+
+        * tetris.cpp
+        now it uses macros from gnome-libs to build its menues.
+        and have them automatically translated in to all lang. available in gnome-libs.
+
+1999-02-08  Marcin Gorycki  <mgo@olicom.dk>
+
+	* tetris.cpp:
+	now it compiles without warnings (patch from andrewtv@usa.net)
+
+1999-02-01  Marcin Gorycki  <mgo@olicom.dk>
+
+	* tetris.h, tetris.cpp, scoreframe.cpp, preview.cpp, main.cpp, blockops.h, blockops.cpp, TODO, Makefile.am, ChangeLog:
+	lots of changes for ver 0.2.0
+
+	* changes in pix subdir
+
+1999-01-27  Marcin Gorycki  <mgo@olicom.dk>
+
+	* TODO: updated
+
+	* tetris.h, tetris.cpp, scoreframe.cpp: i18n support fixed
+
+1999-01-20  pablo  <pablo@???>
+
+	* gnometris.desktop: updated *.desktop whith es and fr descriptions
+
+1999-01-20  Marcin Gorycki  <mgo@olicom.dk>
+
+	* COPYING: initial rev.
+
+	* main.cpp, Makefile.am: added i18n support
+
+	* TODO: updated todos
+
+	* pix/5blocks-tim.png: initial rev.
+
+1999-01-19  Marcin Gorycki  <mgo@olicom.dk>
+
+	initial rev. under a name of gnometris
+

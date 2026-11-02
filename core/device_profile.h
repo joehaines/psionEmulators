@@ -68,4 +68,11 @@ struct DeviceProfile {
     // card dialog — either way the user is handing the device a raw
     // FAT16 image — and no device has both.
     bool hasMmcSlot = false;
+    // Factory image of built-in flash storage that is not removable media,
+    // as a path under roms/ (gzipped when it ends in .gz), or nullptr.
+    // The Psion LX keeps its root filesystem on the netBook Pro's internal
+    // NAND; on a cold boot the frontend loads this image into it
+    // (EmuBase::attachInternalFlash) unless the user's own copy of the
+    // flash, saved from an earlier session, is there to restore instead.
+    const char *internalFlashImage = nullptr;
 };

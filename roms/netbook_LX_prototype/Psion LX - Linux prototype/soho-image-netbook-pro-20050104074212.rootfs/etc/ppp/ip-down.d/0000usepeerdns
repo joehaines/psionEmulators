@@ -1,0 +1,19 @@
+#!/bin/sh -e
+
+# exit if the resolvconf package is installed
+[ -x /sbin/resolvconf ] && exit 0
+
+# follow any symlink to find the real file
+REALRESOLVCONF=/etc/resolv.conf
+#REALRESOLVCONF=$(readlink --canonicalize /etc/resolv.conf)
+
+# if an old resolv.conf file exists, restore it
+if [ -e $REALRESOLVCONF.pppd-backup ]; then
+  mv -f $REALRESOLVCONF.pppd-backup $REALRESOLVCONF
+
+  # tell nscd that the file has changed
+  [ -x /usr/sbin/nscd ] && /usr/sbin/nscd -i hosts || true
+fi
+
+exit 0
+

@@ -186,6 +186,9 @@ let currentDeviceId = null;
 // saved session is a RAM image, only valid on the ROM that wrote it, so
 // saves carry it and a load only restores a save made on the same ROM.
 let currentRomTag = '';
+// Generation of the built-in flash (the Psion LX's NAND) last loaded or saved,
+// so saveState() only writes the 66 MB image back when the guest changed it.
+let flashGen = -1;
 
 // Frame-spaced synthetic-key queue (mirrors the main-thread render loop).
 let keyQueue = [];
@@ -639,6 +642,69 @@ function postLoadProgress(value, status) {
 }
 function fmtMB(bytes) { return (bytes / 1048576).toFixed(1); }
 
+// Fetch with the same streamed progress as the ROM download, mapped onto the
+// [from, to] stretch of the load bar.
+async function fetchWithProgress(url, label, from, to) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status + ' fetching ' + url);
+  const total = Number(resp.headers.get('Content-Length') || 0);
+  if (!(total > 0 && resp.body)) {
+    postLoadProgress(null, label + '…');
+    return new Uint8Array(await resp.arrayBuffer());
+  }
+  const reader = resp.body.getReader();
+  const chunks = [];
+  let received = 0, lastPost = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.byteLength;
+    const now = performance.now();
+    if (now - lastPost > 80 || received >= total) {
+      lastPost = now;
+      postLoadProgress(from + (to - from) * Math.min(1, received / total),
+        label + '… ' + fmtMB(received) + ' of ' + fmtMB(total) + ' MB');
+    }
+  }
+  const out = new Uint8Array(received);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+  return out;
+}
+
+// Built-in flash that is not removable media — the Psion LX keeps its root
+// filesystem on the netBook Pro's NAND. A cold boot loads the user's own copy
+// from an earlier session (flash-<device>, gzipped) if there is one, else the
+// factory image the device profile names (internalFlashImage, under roms/).
+// A restored heap already carries the flash, so this is cold-boot only.
+async function loadInternalFlash(deviceId, romUrl) {
+  flashGen = -1;
+  if (!mod.attachInternalFlash) return;
+  const prof = JSON.parse(mod.getAllDeviceProfilesJSON()).find(p => p.id === deviceId);
+  const rel = prof && prof.internalFlashImage;
+  if (!rel) return;
+  let bytes = null;
+  const saved = await idbGet('flash-' + deviceId);
+  if (saved && saved.byteLength) {
+    postLoadProgress(0.86, 'Restoring internal flash…');
+    bytes = await gunzip(saved instanceof Uint8Array ? saved : new Uint8Array(saved));
+  }
+  if (!bytes || !bytes.byteLength) {
+    const at = romUrl.indexOf('roms/');
+    const base = at >= 0 ? romUrl.slice(0, at + 5) : new URL('roms/', self.location.href).href;
+    bytes = await fetchWithProgress(base + rel, 'Downloading internal flash', 0.8, 0.95);
+    // The server may already have undone the gzip (Content-Encoding).
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = await gunzip(bytes);
+  }
+  if (!growHeapToFit(bytes.length + (1 << 20)))
+    throw new Error('not enough memory for the internal flash');
+  const ptr = mod.prepareInternalFlashUpload(bytes.length);
+  mod.HEAPU8.set(bytes, ptr);
+  if (!mod.attachInternalFlash(bytes.length)) throw new Error('internal flash image rejected');
+  flashGen = mod.getInternalFlashGeneration();
+}
+
 // ── EPOC Unique id (see the rpc handlers below) ──
 // The id EPOC shows under System → Information → Machine: the identity chip's
 // half plus the model UID the ROM supplies. The bindings landed together, so
@@ -854,6 +920,14 @@ const rpc = {
       } catch (e) {
         postMessage({ type: 'log', text: 'CF re-attach on load failed: ' + (e && e.message || e), err: true });
       }
+    }
+    if (!restored) {
+      try { await loadInternalFlash(deviceId, romUrl); }
+      catch (e) {
+        postMessage({ type: 'log', text: 'internal flash load failed: ' + (e && e.message || e), err: true });
+      }
+    } else {
+      flashGen = mod.getInternalFlashGeneration ? mod.getInternalFlashGeneration() : -1;
     }
     // Re-attach persisted SSD packs and Datapaks BEFORE the loop starts,
     // for the same reasons as the CF card above — plus one more: a restored
@@ -1204,6 +1278,21 @@ const rpc = {
           await idbPut('datapak-' + currentDeviceId + '-' + slot,
                        new Uint8Array(mod.HEAPU8.subarray(ptr, ptr + size)));
         } finally { mod._free(ptr); }
+      }
+      // The built-in flash (Psion LX NAND), when the guest has written to it
+      // since it was loaded or last saved: what a cold boot comes back to.
+      const flashSize = mod.getInternalFlashSize ? mod.getInternalFlashSize() : 0;
+      if (flashSize > 0 && mod.getInternalFlashGeneration() !== flashGen) {
+        const ptr = mod._malloc(flashSize);
+        if (ptr) {
+          try {
+            mod.readInternalFlash(ptr);
+            const gen = mod.getInternalFlashGeneration();
+            await idbPut('flash-' + currentDeviceId,
+                         await gzip(mod.HEAPU8.slice(ptr, ptr + flashSize)));
+            flashGen = gen;
+          } finally { mod._free(ptr); }
+        }
       }
       const raw = mod.HEAPU8.slice();
       const data = await gzip(raw);

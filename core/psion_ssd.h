@@ -29,8 +29,12 @@
 #include <functional>
 #include <vector>
 
+class StateArchive;
+
 class PsionSSD {
 public:
+    // The pack (contents included) and the ASIC5 side of the slot.
+    void serializeState(StateArchive &a);
     PsionSSD() = default;
 
     // SIBO frame tags (mirror PsionAsic2::NULL_FRAME etc.).
@@ -63,12 +67,23 @@ public:
     // that case the slot remains in its previous state.
     bool attach(const uint8_t *bytes, size_t size, Type type = Type::Auto);
 
+    // A Flash pack read in place from the `size` bytes at `bytes`, which
+    // must outlive the attachment (a pack in the host's own flash, say),
+    // rather than copied. The Psion can still write to it: the first write
+    // to each 4 KiB block takes a copy of that block, and only the copies
+    // change. serializeState carries them, and so does serializeOverlay.
+    bool attachInPlace(const uint8_t *bytes, size_t size);
+    bool isInPlace() const { return m_base != nullptr; }
+    // The blocks the Psion has written to an in-place pack.
+    void serializeOverlay(StateArchive &a);
+
     // Empties the slot; subsequent SerialSelect reads return 0.
     void detach();
 
     bool   isInserted() const  { return m_infoByte != 0; }
-    size_t imageSize()  const  { return m_data.size(); }
-    const uint8_t *imageData() const { return m_data.data(); }
+    size_t imageSize()  const  { return size(); }
+    // The image as attached: for an in-place pack, without its writes.
+    const uint8_t *imageData() const { return m_base ? m_base : m_data.data(); }
 
     // ------------------------------------------------------------------
     // SIBO serial protocol
@@ -141,7 +156,22 @@ private:
     void tickPortAAccess();
     uint8_t readFrameInner();
 
-    std::vector<uint8_t> m_data;
+    // The pack's bytes, wherever they live (see attachInPlace).
+    static constexpr int      kPageBits = 12;
+    static constexpr uint32_t kPage = uint32_t(1) << kPageBits;
+    size_t  size() const { return m_base ? m_size : m_data.size(); }
+    uint8_t byteAt(uint32_t addr) const {
+        if (!m_base) return m_data[addr];
+        const std::vector<uint8_t> &page = m_pages[addr >> kPageBits];
+        return page.empty() ? m_base[addr] : page[addr & (kPage - 1)];
+    }
+    uint8_t &byteRef(uint32_t addr);   // writable; an in-place block is copied first
+    bool finishAttach(size_t size, Type type);
+
+    std::vector<uint8_t> m_data;                // an attached (copied) image
+    const uint8_t *m_base = nullptr;            // an in-place image
+    size_t         m_size = 0;
+    std::vector<std::vector<uint8_t>> m_pages;  // its written blocks
 
     uint8_t  m_infoByte      = 0;   // 0 == empty slot
     // True once the guest's SSD driver has spoken to this slot (any

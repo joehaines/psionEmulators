@@ -1,0 +1,45 @@
+Index: sleep/confGUI.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/sleep/confGUI.c,v
+retrieving revision 1.6
+diff -u -r1.6 confGUI.c
+--- sleep/confGUI.c	18 Aug 2004 09:49:23 -0000	1.6
++++ sleep/confGUI.c	10 Sep 2004 16:12:26 -0000
+@@ -34,11 +34,11 @@
+   wgt = dim_spin;
+   gtk_range_set_value(GTK_RANGE(wgt), (gfloat)ival);
+   gtk_widget_set_sensitive(wgt, (ival > 0));
++  gtk_widget_set_sensitive(dim_scale, (ival > 0));
+ 
+   ival = getConfigInt(conf, "dim_level");
+   wgt = dim_scale;
+   gtk_range_set_value(GTK_RANGE(wgt), (gfloat)ival);
+-  gtk_widget_set_sensitive(wgt, (ival > 0));
+   
+   wgt = sleep_apm;
+   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(wgt), getConfigInt(conf, "check_apm"));  
+Index: sleep/callbacks.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-conf/sleep/callbacks.c,v
+retrieving revision 1.8
+diff -u -r1.8 callbacks.c
+--- sleep/callbacks.c	18 Aug 2004 09:49:23 -0000	1.8
++++ sleep/callbacks.c	10 Sep 2004 16:12:33 -0000
+@@ -20,7 +20,7 @@
+ #include "../ipaqscreen/brightness.h"
+ 
+ extern GtkWidget *sleep_idle_spin;
+-extern GtkWidget *dim_spin;
++extern GtkWidget *dim_spin, *dim_scale;
+ extern GtkWidget *sleep_cpu_spin;
+ 
+ #warning TODO: this file needs cleanups!
+@@ -132,7 +132,7 @@
+   }
+   else setConfigInt(ISconf, "dim_time", (int)gtk_range_get_value(GTK_RANGE(dimSpin)));
+   gtk_widget_set_sensitive(dimSpin, gtk_toggle_button_get_active(togglebutton));
+-
++  gtk_widget_set_sensitive(dim_scale, gtk_toggle_button_get_active(togglebutton));
+ }
+ 
+ void

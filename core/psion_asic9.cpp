@@ -21,12 +21,21 @@
 // without having to re-derive the MMIO map.
 
 #include "psion_asic9.h"
+#include "state_archive.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+
+// Cache std::getenv() lookups on the hot paths (every memory write, IRQ and
+// instruction step consults one). getenv() scans the whole environment on
+// each call — a JS-side lookup under WASM, and a locked scan in the ESP32
+// build's newlib — so an uncached check costs more than the instruction it
+// guards. Same idiom as core/sa1100.cpp.
+#define PSION_ENV_BOOL(name)  ([] { static const bool _v = std::getenv(name) != nullptr; return _v; }())
+#define PSION_ENV_CSTR(name)  ([] { static const char *const _v = std::getenv(name); return _v; }())
 
 namespace {
 
@@ -82,10 +91,35 @@ void PsionAsic9::setBusClock(int64_t hz) {
 }
 
 void PsionAsic9::setAccurateTick(bool enabled) { m_accurate_tick = enabled; }
-void PsionAsic9::enableSibHeartbeat(bool enabled) { m_sib_heartbeat = enabled; }
+void PsionAsic9::enableSibHeartbeat(bool enabled) {
+    syncTimers();
+    m_sib_heartbeat = enabled;
+    scheduleTimers();
+}
 
 void PsionAsic9::setMemReader(std::function<uint8_t(uint32_t)> r) {
     m_mem_reader = std::move(r);
+}
+
+void PsionAsic9::serializeState(StateArchive &a) {
+    a(m_tick_period); a(m_frc1_period); a(m_frc2_period);
+    a(m_watchdog_period); a(m_rtc_period); a(m_snd_period);
+    a(m_tick_remaining); a(m_frc1_remaining); a(m_frc2_remaining);
+    a(m_watchdog_remaining); a(m_rtc_remaining); a(m_snd_remaining);
+    a(m_sib_scan_remaining);
+    a(m_pending_cycles); a(m_next_timer_event);
+    a(m_post); a(m_a9_control); a(m_a9_ram_type); a(m_a9_status);
+    a(m_a9_lcd_size); a(m_a9_interrupt_status); a(m_a9_interrupt_mask);
+    a(m_frc1_count); a(m_frc1_reload); a(m_frc2_count); a(m_frc2_reload);
+    a(m_buz_toggle); a(m_watchdog_count);
+    a(m_a9_protection_mode); a(m_a9_protection_upper); a(m_a9_protection_lower);
+    a(m_a9_port_ab_ddr); a(m_a9_port_ab_data); a(m_a9_port_c_ddr); a(m_a9_port_d_ddr);
+    a(m_a9_port_cd_data);
+    a(m_a9_psel_6000); a(m_a9_psel_7000); a(m_a9_psel_8000); a(m_a9_psel_9000);
+    a(m_a9_control_extra); a(m_rtc);
+    a(m_snd_fifo); a(m_snd_fifo_head); a(m_snd_fifo_tail); a(m_snd_fifo_size); a(m_snd_missed);
+    a(m_a9_serial_data); a(m_a9_serial_control); a(m_a9_channel_select);
+    a(m_int_line); a(m_nmi_line);
 }
 
 void PsionAsic9::reset() {
@@ -204,6 +238,8 @@ void PsionAsic9::reset() {
     reloadWatchdogTimer();
     reloadRtcTimer();
     reloadSndTimer();
+    m_pending_cycles = 0;
+    scheduleTimers();
 }
 
 void PsionAsic9::reloadTickTimer() {
@@ -266,8 +302,11 @@ void PsionAsic9::reloadSndTimer() {
     m_snd_remaining = m_snd_period;
 }
 
-void PsionAsic9::tick(int64_t cycles) {
-    if (cycles <= 0) return;
+// Runs every timer forward by `cycles`, firing as the per-instruction
+// tick() calls would have. The FRCs fire at 512 kHz, every 15 cycles at
+// 7.68 MHz, but a fire only does anything when the count reaches zero or
+// wraps; the decrements in between are taken in one step.
+void PsionAsic9::advanceTimers(int64_t cycles) {
 
     if (m_tick_period > 0) {
         m_tick_remaining -= cycles;
@@ -275,11 +314,19 @@ void PsionAsic9::tick(int64_t cycles) {
     }
     if (m_frc1_period > 0) {
         m_frc1_remaining -= cycles;
-        while (m_frc1_remaining <= 0) { fireFrc1(); m_frc1_remaining += m_frc1_period; }
+        if (m_frc1_remaining <= 0) {
+            const int64_t n = 1 + (-m_frc1_remaining) / m_frc1_period;
+            m_frc1_remaining += n * m_frc1_period;
+            fireFrc1Times(n);
+        }
     }
     if (m_frc2_period > 0) {
         m_frc2_remaining -= cycles;
-        while (m_frc2_remaining <= 0) { fireFrc2(); m_frc2_remaining += m_frc2_period; }
+        if (m_frc2_remaining <= 0) {
+            const int64_t n = 1 + (-m_frc2_remaining) / m_frc2_period;
+            m_frc2_remaining += n * m_frc2_period;
+            fireFrc2Times(n);
+        }
     }
     if (m_watchdog_period > 0) {
         m_watchdog_remaining -= cycles;
@@ -316,6 +363,63 @@ void PsionAsic9::tick(int64_t cycles) {
     }
 }
 
+void PsionAsic9::fireFrc1Times(int64_t n) {
+    while (n > 0) {
+        if (m_frc1_count >= 2) {
+            // Down to 1 at most: neither zero nor the wrap, so no side effects.
+            const int64_t k = std::min<int64_t>(n, m_frc1_count - 1);
+            m_frc1_count = uint16_t(m_frc1_count - k);
+            n -= k;
+        } else {
+            fireFrc1();
+            --n;
+        }
+    }
+}
+
+void PsionAsic9::fireFrc2Times(int64_t n) {
+    while (n > 0) {
+        if (m_frc2_count >= 2) {
+            const int64_t k = std::min<int64_t>(n, m_frc2_count - 1);
+            m_frc2_count = uint16_t(m_frc2_count - k);
+            n -= k;
+        } else {
+            fireFrc2();
+            --n;
+        }
+    }
+}
+
+void PsionAsic9::syncTimers() {
+    if (m_pending_cycles > 0) {
+        // The deadline was counted from the start of the batch.
+        const int32_t c = m_pending_cycles;
+        m_pending_cycles = 0;
+        m_next_timer_event -= c;
+        advanceTimers(c);
+    }
+}
+
+void PsionAsic9::runDueTimers() {
+    syncTimers();
+    scheduleTimers();
+}
+
+// Cycles from now until the next fire that changes anything outside the
+// timers' own counters: tick() can batch everything before it.
+void PsionAsic9::scheduleTimers() {
+    int64_t next = int64_t(1) << 30;
+    auto frcFires = [](uint16_t count) -> int64_t { return count == 0 ? 1 : count; };
+    if (m_tick_period > 0)     next = std::min(next, m_tick_remaining);
+    if (m_frc1_period > 0)     next = std::min(next, m_frc1_remaining + (frcFires(m_frc1_count) - 1) * m_frc1_period);
+    if (m_frc2_period > 0)     next = std::min(next, m_frc2_remaining + (frcFires(m_frc2_count) - 1) * m_frc2_period);
+    if (m_watchdog_period > 0) next = std::min(next, m_watchdog_remaining);
+    if (m_rtc_period > 0)      next = std::min(next, m_rtc_remaining);
+    if (m_sib_heartbeat)       next = std::min(next, m_sib_scan_remaining);
+    if (m_snd_period > 0)      next = std::min(next, m_snd_remaining);
+    m_next_timer_event = int32_t(next);
+}
+
 void PsionAsic9::fireTick() {
     m_a9_interrupt_status |= A9IntTick;
     updateInterrupts();
@@ -334,7 +438,7 @@ void PsionAsic9::fireFrc1() {
             if (m_buz_cb) m_buz_cb(m_buz_toggle != 0);
         }
         m_a9_interrupt_status |= A9IntFrc1;
-        if (std::getenv("PSION_IRQ_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_IRQ_TRACE")) {
             static uint64_t n = 0;
             if (++n % 20 == 0) std::fprintf(stderr,
                 "[asic9] fireFrc1 #%llu status=%02x mask=%02x ctl=%04x\n",
@@ -365,7 +469,7 @@ void PsionAsic9::fireFrc2() {
 void PsionAsic9::fireWatchdog() {
     m_watchdog_count = (m_watchdog_count + 1) & 3;
     if (m_watchdog_count == 3) {
-        if (std::getenv("PSION_SND_TRACE"))
+        if (PSION_ENV_BOOL("PSION_SND_TRACE"))
             std::fprintf(stderr, "[snd] watchdog NMI (ctl=%04x)\n", m_a9_control);
         m_a9_status |= 0x0001; // A9MWatchDogNMI
         updateInterrupts();
@@ -523,6 +627,8 @@ void PsionAsic9::memWrite(uint32_t offset, uint16_t data, uint16_t mask) {
 // literal case labels one-for-one.
 
 uint16_t PsionAsic9::ioRead(uint32_t offset, uint16_t mask) {
+    // The FRC counts are only brought up to date here.
+    syncTimers();
     (void)mask;
     switch (offset & 0xFE) {
     case 0x00: // A9Index — not used
@@ -532,7 +638,7 @@ uint16_t PsionAsic9::ioRead(uint32_t offset, uint16_t mask) {
     case 0x04: { // A9WStatus — side-effect: reading clears A9MReset
         uint16_t v = m_a9_status;
         m_a9_status &= ~0x2000;
-        if (std::getenv("PSION_IRQ_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_IRQ_TRACE")) {
             static uint64_t n = 0;
             if (++n % 100 == 0) std::fprintf(stderr, "[asic9] R status #%llu = %04x\n",
                 (unsigned long long)n, v);
@@ -540,7 +646,7 @@ uint16_t PsionAsic9::ioRead(uint32_t offset, uint16_t mask) {
         return v;
     }
     case 0x06: // A9BInterruptStatus (16-bit on the ASIC9MX)
-        if (std::getenv("PSION_IRQ_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_IRQ_TRACE")) {
             std::fprintf(stderr, "[asic9] R isStatus mask=%04x status=%04x masked=%04x\n",
                 m_a9_interrupt_mask, m_a9_interrupt_status,
                 m_a9_interrupt_status & m_a9_interrupt_mask);
@@ -634,6 +740,14 @@ uint16_t PsionAsic9::ioRead(uint32_t offset, uint16_t mask) {
 }
 
 void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
+    // A write can reload a timer or a count, so the batch before it is
+    // settled first and the next event found again after.
+    syncTimers();
+    writeRegister(offset, data, mask);
+    scheduleTimers();
+}
+
+void PsionAsic9::writeRegister(uint32_t offset, uint16_t data, uint16_t mask) {
     const bool accLo = (mask & 0x00FF) != 0;
     const bool accHi = (mask & 0xFF00) != 0;
     switch (offset & 0xFE) {
@@ -655,7 +769,7 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
         // flow debugging.
         if ((merged ^ prev) & 0x0800) {
             m_snd_missed = 0;
-            if (std::getenv("PSION_SND_TRACE"))
+            if (PSION_ENV_BOOL("PSION_SND_TRACE"))
                 std::fprintf(stderr, "[snd] SoundEnable %d->%d (ctl=%04x extra=%04x fifo=%d)\n",
                              (prev >> 11) & 1, (merged >> 11) & 1,
                              merged, m_a9_control_extra, m_snd_fifo_size);
@@ -697,7 +811,7 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
             m_a9_status &= 0xFFF0;
             m_a9_interrupt_mask = uint16_t((m_a9_interrupt_mask & 0x00FF) | (data & 0xFF00));
         }
-        if (std::getenv("PSION_IRQ_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_IRQ_TRACE")) {
             std::fprintf(stderr, "[asic9] mask <= %04x (data=%04x accLo=%d accHi=%d)\n",
                          m_a9_interrupt_mask, data, accLo, accHi);
         }
@@ -720,7 +834,7 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
         updateInterrupts();
         break;
     case 0x10: // A9WResetWatchDog
-        if (std::getenv("PSION_SND_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_SND_TRACE")) {
             static uint64_t n = 0;
             if (++n % 64 == 1) std::fprintf(stderr, "[snd] wd reset #%llu (count was %d)\n",
                                             (unsigned long long)n, m_watchdog_count);
@@ -778,7 +892,7 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
         break;
     case 0x24: // A9WPortCDData — latched for the port C/D reader
         m_a9_port_cd_data = (m_a9_port_cd_data & ~mask) | (data & mask);
-        if (std::getenv("PSION_PACK_TRACE"))
+        if (PSION_ENV_BOOL("PSION_PACK_TRACE"))
             std::fprintf(stderr, "[a9] PortCD <= %04x mask=%04x\n", data, mask);
         break;
     case 0x26: // A9BPortCDDDR
@@ -798,7 +912,7 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
         // PSION_PSEL_TRACE=1 logs every write that touches psel_8000 or
         // psel_9000 with the resulting full word — used to bisect a
         // mismatch in I/O port 0x2a's read value vs MAME.
-        if (std::getenv("PSION_PSEL_TRACE")) {
+        if (PSION_ENV_BOOL("PSION_PSEL_TRACE")) {
             std::fprintf(stderr,
                 "[psel] OUT 0x2a data=%04x mask=%04x → psel_8000=%02x psel_9000=%02x\n",
                 data, mask, m_a9_psel_8000, m_a9_psel_9000);
@@ -807,7 +921,7 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
     case 0x2c: { // A9WControlExtra (16-bit)
         uint16_t newExtra = (m_a9_control_extra & ~mask) | (data & mask);
         if ((newExtra ^ m_a9_control_extra) & 0x0080) {
-            if (std::getenv("PSION_SND_TRACE"))
+            if (PSION_ENV_BOOL("PSION_SND_TRACE"))
                 std::fprintf(stderr, "[snd] SoundDir -> %s (extra=%04x fifo=%d)\n",
                              (newExtra & 0x0080) ? "playback" : "capture",
                              newExtra, m_snd_fifo_size);
@@ -836,7 +950,7 @@ void PsionAsic9::ioWrite(uint32_t offset, uint16_t data, uint16_t mask) {
         break;
     }
     case 0x2e: // A9WPumpControl — not simulated
-        if (std::getenv("PSION_PACK_TRACE"))
+        if (PSION_ENV_BOOL("PSION_PACK_TRACE"))
             std::fprintf(stderr, "[a9] PumpCtl <= %04x mask=%04x\n", data, mask);
         break;
     case 0x80: { // A9WRtcLSW (16-bit)
@@ -943,7 +1057,7 @@ uint8_t PsionAsic9::inta() {
         if      (active & A9IntMxUart0) vec = 0x76;
         else if (active & A9IntMxUart1) vec = 0x77;
     }
-    if (std::getenv("PSION_WAKE_TRACE")) {
+    if (PSION_ENV_BOOL("PSION_WAKE_TRACE")) {
         static uint64_t n = 0;
         if (++n <= 20 || n % 200 == 0)
             std::fprintf(stderr,

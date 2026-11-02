@@ -1,0 +1,18 @@
+PV = "6"
+PR = "r1"
+
+SRC_URI = "${PDCVS};module=gpe/gpe-helpviewer;method=ext;tag=GPE_HELPVIEWER_${PV}"
+
+DEPENDS = "gtkhtml-3.0"
+
+S = "${WORKDIR}/gpe-helpviewer"
+RDEPENDS += "help help-main help-internet help-firststeps help-firefox" 
+DEPENDS += "psion-help"
+
+inherit autotools
+
+do_install() {
+		autotools_do_install
+		ln -s -f /usr/bin/gpe-helpviewer ${D}/usr/bin/gnome-help-browser
+		ln -s -f /usr/bin/gpe-helpviewer ${D}/usr/bin/yelp
+}

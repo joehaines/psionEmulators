@@ -1,0 +1,12 @@
+--- util/nandwrite.orig	2004-10-24 15:54:40.000000000 +0200
++++ util/nandwrite.c	2004-10-24 15:55:40.000000000 +0200
+@@ -313,7 +313,8 @@
+ 	/* Get data from input and write to the device */
+ 	while (imglen && (mtdoffset < meminfo.size)) {
+ 		// new eraseblock , check for bad block(s)
+-		if (blockstart != (mtdoffset & (~meminfo.erasesize + 1))) {
++		// also retest after skipping a block (or several) to see if that is not a bad one either
++		while (blockstart != (mtdoffset & (~meminfo.erasesize + 1))) {
+ 			blockstart = mtdoffset & (~meminfo.erasesize + 1);
+ 			offs = blockstart;
+ 		        baderaseblock = 0;

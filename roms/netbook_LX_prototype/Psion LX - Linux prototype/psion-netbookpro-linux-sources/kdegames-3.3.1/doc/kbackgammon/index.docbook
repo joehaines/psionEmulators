@@ -1,0 +1,568 @@
+<?xml version="1.0" ?>
+<!DOCTYPE book PUBLIC "-//KDE//DTD DocBook XML V4.2-Based Variant V1.1//EN" "dtd/kdex.dtd" [
+  <!ENTITY kappname "&kbackgammon;">
+  <!ENTITY package "kdegames">
+  <!ENTITY % addindex "IGNORE">
+  <!ENTITY % English "INCLUDE" > <!-- change language only here -->
+]>
+
+<book lang="&language;">
+
+<bookinfo>
+<title>The &kbackgammon; Handbook</title>
+    
+<authorgroup>
+<author>
+<firstname>Jens</firstname>
+<surname>Hoefkens</surname>
+<affiliation><address><email>jens@hoefkens.com</email></address></affiliation>
+</author>
+      
+<othercredit role="developer">
+<firstname>Bo</firstname>
+<surname>Thorsen</surname>
+<affiliation><address><email>gobo@imada.sdu.dk</email></address></affiliation>
+<contrib>Developer</contrib>
+</othercredit>
+</authorgroup>
+
+<!-- TRANS:ROLES_OF_TRANSLATORS -->
+    
+<copyright>
+<year>1999</year><year>2000</year>
+<holder>Jens Hoefkens</holder>
+</copyright>
+    
+<legalnotice>&FDLNotice;</legalnotice>
+    
+<date>2000-12-22</date>
+<releaseinfo>1.96.01</releaseinfo>
+    
+<abstract>
+<para>&kbackgammon; is a graphical backgammon program for &kde;. It
+supports backgammon games with other players, games against computer
+engines like &GNU; <application>bg</application> and even on-line games
+on the <ulink url="http://www.fibs.com/">First Internet Backgammon
+Server</ulink>.</para>
+</abstract>
+    
+<keywordset>
+<keyword>KDE</keyword>
+<keyword>game</keyword>
+<keyword>backgammon</keyword>
+<keyword>FIBS</keyword>
+<keyword>gnubg</keyword>
+</keywordset>
+    
+</bookinfo>
+  
+<chapter id="introduction">
+<title>Introduction</title>
+    
+<para>&kbackgammon; is a graphical backgammon program. The objective
+of backgammon is to move your checkers off the board before your
+opponent does. While the rules of backgammon are moderately difficult
+(the most difficult part apparently being the initial positioning of
+the checkers), this document does not try to teach these rules: please
+refer to the Web, a book, or (probably best) a friend for this.</para>
+
+<para>&kbackgammon; offers you a graphical backgammon board that can
+be used almost entirely by using the mouse (although textual commands
+are also available and it should be possible to play backgammon
+without the mouse, too). Therefore, &kbackgammon; is easy to use and
+allows you to concentrate on the important aspects of playing
+backgammon.</para>
+
+<para>In order to play backgammon, you usually need an
+opponent. &kbackgammon; offers you to play against hundreds of
+different opponents of various strength on the <ulink
+url="http://www.fibs.com/">First Internet Backgammon
+Server</ulink>. If you prefer, you may also use the <link
+linkend="engine-offline">Offline Engine</link> which allows you to
+play against yourself or friends that are with you at your
+computer.</para>
+
+<para>In the near future &kbackgammon; will allow you to play against
+<link linkend="engine-gnubg">&GNU; Backgammon</link>, which is a
+powerful backgammon program that usually runs without a graphical
+frontend. It plays on <acronym>FIBS</acronym> with a rating of about
+2000 (which is quite high).</para>
+
+<para>Additionally, plans are on the way that will allow games over
+the Internet between two &kbackgammon; programs (and their respective
+users). Finally, the architecture of &kbackgammon; is quite open and
+it is possible to include support for other engines easily (if you are
+interested in this, please contact the author).</para>
+
+</chapter>
+
+<chapter id="use-the-board">
+<title>How to use the Board</title>
+
+<para>&kbackgammon; is centered around a graphical backgammon
+board. This board consists of the checkers, the dice, and the
+cube. All these game elements can be conveniently manipulated with the
+mouse.</para>
+
+<para>The following image shows a typical game situation with the
+white player moving from 1 to 24 and the black player moving from 24
+to 1. Currently, the white player owns the cube and has just rolled 3
+and 4.</para>
+
+<screenshot>
+<screeninfo>The backgammon board</screeninfo>
+<mediaobject>
+<imageobject>
+<imagedata fileref="board.png" format="PNG"/>
+</imageobject>
+<textobject>
+<phrase>The Board</phrase>
+</textobject>
+</mediaobject>
+</screenshot>
+
+<para>If it is their turn, players can roll the dice by double
+clicking on the squares representing the dice or by using the
+corresponding menu entry or toolbar icon (if the toolbar is visible
+and rolling has been included in the toolbar).</para>
+
+<para>If they own the cube, players can double the cube by either
+double clicking on the square representing the cube or by using the
+corresponding menu entry or toolbar icon (if the toolbar is visible
+and the cube has been included in the toolbar).</para>
+
+<para>If it is their turn to move, players can move checkers by
+clicking on them and moving the mouse pointer to the desired location
+(while holding the mouse button continuously pressed). This is called
+dragging the checker. Depending on the selection made in the current
+<link linkend="engines">engine's</link> <link
+linkend="prefs">configuration</link>, the move will be finished once
+the maximum number of checkers has been moved (this may be anywhere
+between 1 and 4 checkers, although it will usually be 2
+checkers).</para>
+
+<para>In addition to dragging the checkers, the board offers a feature
+called <firstterm>short move feature</firstterm>. If this has been
+enabled in the board's configuration menu, checkers can be moved by
+simply clicking on them. The board will then automatically make the
+shortest move possible away from the current field. If the short move
+feature <link linkend="prefs">is enabled</link>, it may be set to
+single or double click. This option is very useful for users of
+touchpads that are sometimes difficult to use for dragging.</para>
+
+<para>Finally, the board has a certain smartness: it will only accept
+moves that are allowed (based on the current dice). While the <link
+linkend="engine-offline">offline engine</link> allows this to be
+switched off (for the <guilabel>Edit Mode</guilabel>), this is usually
+very helpful for unexperienced users (and advanced players will
+probably never notice this). This feature can also be used to cancel a
+move in progress: just drop it over an illegal field.</para>
+
+</chapter>
+
+<chapter id="engines">
+<title>Backgammon Engines</title>
+    
+<para>&kbackgammon; is built around the backgammon board, which
+doesn't know anything about how to play backgammon. The whole
+infrastructure (rolling the dice, &etc;) that allows backgammon games
+is handled by backgammon engines.</para>
+    
+<sect1 id="engine-offline">
+<title>The Offline Engine</title>
+      
+<para>The offline engine allows you to play against yourself, or
+probably more fun, another person sitting with you.</para>
+
+</sect1>
+
+<sect1 id="engine-FIBS">
+<title>The <acronym>FIBS</acronym> Engine</title>
+
+<para><acronym>FIBS</acronym> is the <quote>First Internet Backgammon
+Server</quote>, a 24-hour international online community of backgammon
+players of all ages and experience from Beginner to Experts.</para>
+
+<para>As well as playing the game, <acronym>FIBS</acronym> allows you
+to save games, chat with other players, and has a complex rating
+system.</para>
+
+<para>There is also a large <ulink
+url="http://www.fibs.com/">website</ulink> well worth some of your
+time, if you are a backgammon fan.</para>
+      
+</sect1>
+    
+<sect1 id="engine-gnubg">
+<title>The &GNU; Backgammon Engine</title>
+
+<para>The GNUbg engine does not yet exist (although it already has an
+entry in the <guilabel>Engine</guilabel> menu). Therefore, the
+remainder of this section should be taken with a grain of salt.</para>
+      
+<para>Use of the GNUbg engine requires a working installation of the
+actual GNUbg program. &kbackgammon; then starts GNUbg in the
+background and communicates with it. All this is transparent to the
+user (&ie; it is hidden from the user) and all interaction with GNUbg
+is through the &GUI; elements of &kbackgammon;.</para>
+
+<para>If there are other enhancements that can help using GNUbg from
+&kbackgammon;, please contact the author of &kbackgammon; (or better:
+send a patch). Some of the more advanced features will probably be
+position analysis and save/restore functions. However, playing is the
+most pressing issue.</para>
+
+<para>The one thing that will never happen is a combination of the
+GNUbg and the <acronym>FIBS</acronym> engine! Using computer programs
+to enhance user ratings is cheating!</para>
+
+</sect1>
+    
+</chapter>
+  
+<chapter id="prefs">
+<title>Game options</title>
+    
+<para>The options to &kbackgammon; are set by selecting <menuchoice>
+<guimenu>Settings</guimenu> <guimenuitem>Configure KBackgammon...</guimenuitem>
+</menuchoice> from the menubar. This will bring up a dialog
+box.</para>
+
+</chapter>
+  
+<chapter id="command">
+<title>Commands/Keyboard Shortcuts</title>
+    
+<para>The following sections briefly describe each menubar option.</para>
+    
+<sect1 id="file-menu">
+<title><guimenu>File</guimenu> Menu</title>
+      
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>N</keycap></keycombo>
+</shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>New Game</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Start a new game</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>O</keycap></keycombo>
+</shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Load Game</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Load a previously saved game.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>S</keycap></keycombo>
+</shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Save Game</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Save a game so you can finish or replay it
+later.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>P</keycap></keycombo>
+</shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Print...</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Print a picture of the board.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>Q</keycap></keycombo>
+</shortcut>
+<guimenu>Game</guimenu>
+<guimenuitem>Quit</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Quit</action> and close &kbackgammon;</para>
+</listitem>
+</varlistentry>
+</variablelist>
+      
+</sect1>
+
+<sect1 id="move-menu">
+<title><guimenu>Move</guimenu> Menu</title>
+
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<guimenu>Move</guimenu>
+<guisubmenu>Engine</guisubmenu>
+</menuchoice>
+</term>
+<listitem>
+<para>Choose from the various game engines here.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>Z</keycap>
+</keycombo>
+</shortcut>
+<guimenu>Move</guimenu>
+<guimenuitem>Undo</guimenuitem>
+</menuchoice>
+</term>
+<listitem>
+<para><action>Undo the last move you made.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;&Shift;<keycap>Z</keycap></keycombo>
+</shortcut>
+<guimenu>Move</guimenu>
+<guimenuitem>Redo</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>If you have previously undone a move, you can redo it
+here.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Move</guimenu>
+<guimenuitem>Redisplay</guimenuitem>
+</menuchoice></term>
+<listitem><para><action>Redraw the board.</action></para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Move</guimenu>
+<guimenuitem>Roll Dice</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>As you may expect, roll the dice.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Move</guimenu>
+<guimenuitem>Done Moving</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Let the other player know you have finished
+moving.</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Move</guimenu>
+<guimenuitem>Double Cube</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action><!-- FIXME: Someone who knows better than me how to play -->
+<!-- backgammon will have to fix this. LW. -->
+</action></para>
+</listitem>
+</varlistentry>
+</variablelist>
+    
+</sect1>
+
+<sect1 id="command-menu">
+<title><guimenu>Command</guimenu> Menu</title>
+      
+<para>Information missing...</para>
+
+<variablelist>
+<varlistentry><term>
+<menuchoice><guimenu>Command</guimenu>
+<guimenuitem>New Game</guimenuitem>
+</menuchoice></term>
+<listitem><para>
+Information missing...
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<menuchoice><guimenu>Command</guimenu>
+<guimenuitem>Edit Mode</guimenuitem></menuchoice>
+</term>
+<listitem>
+<para>
+Information missing...
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice><guimenu>Command</guimenu>
+<guimenuitem>Swap Colors</guimenuitem></menuchoice>
+</term>
+<listitem>
+<para>
+Information missing...
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+      
+</sect1>
+    
+<sect1 id="settings-menu">
+<title><guimenu>Settings</guimenu> Menu</title>
+
+<variablelist>
+<varlistentry>
+<term><menuchoice>
+<shortcut>
+<keycombo action="simul">&Ctrl;<keycap>M</keycap>
+</keycombo>
+</shortcut>
+<guimenu>Settings</guimenu>
+<guimenuitem>Show Menubar</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para><action>Toggle on and off the menubar</action>.</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu>
+<guimenuitem>Show Toolbar</guimenuitem>
+</menuchoice></term>
+<listitem><para>
+<action>Toggle on and off the toolbar</action></para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><menuchoice>
+<guimenu>Settings</guimenu>
+<guimenuitem>Show Command Line</guimenuitem>
+</menuchoice></term>
+<listitem>
+<para>
+<action>Toggle on and off the Command Line.</action></para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect1>
+    
+<sect1 id="help-menu">
+<title><guimenu>Help</guimenu> Menu</title>
+      
+&help.menu.documentation;
+
+</sect1>
+
+<sect1 id="keys"><title>Default Key Bindings</title>
+
+<para>The following tables show you the default key bindings of
+&kbackgammon;.</para>
+
+<table>
+<title>Key bindings</title>
+<tgroup cols="2">
+<thead><row><entry>Key Combo</entry><entry>Action</entry></row></thead>
+<tbody>
+<row><entry><keycombo action="simul">&Ctrl;<keycap>P</keycap></keycombo></entry><entry>Print Game</entry></row>
+<row><entry><keycombo action="simul">&Ctrl;<keycap>Q</keycap></keycombo></entry><entry>Quit &kbackgammon;</entry></row>
+<row><entry><keycap>F1</keycap></entry><entry>Help Contents</entry></row>
+<row><entry><keycombo action="simul">&Shift;<keycap>F1</keycap></keycombo></entry><entry>Whats This Help</entry></row>
+<row><entry><keycombo action="simul">&Ctrl;<keycap>Z</keycap></keycombo></entry><entry>Undo move</entry></row>
+<row><entry><keycombo action="simul">&Shift;&Ctrl;<keycap>Z</keycap></keycombo></entry><entry>Redo previously undone move</entry></row>
+</tbody>
+</tgroup>
+</table>
+
+<para>These key bindings can be changed by selecting <menuchoice>
+<guimenu>Settings</guimenu> <guimenuitem>Configure Key
+Bindings</guimenuitem> </menuchoice> from the menubar.</para>
+
+</sect1>
+
+</chapter>
+
+<chapter id="credits">
+<title>Credits and License</title>
+ 
+<para>&kbackgammon;</para>
+
+<para>Program copyright 1999-2000 Jens Hoefkens
+<email>jens@hoefkens.com</email></para>
+
+<para>Documentation copyright 2000 Jens Hoefkens
+<email>jens@hoefkens.com</email></para>
+
+<!-- TRANS:CREDIT_FOR_TRANSLATORS -->
+
+&underFDL;
+&underGPL;
+
+</chapter>                  
+
+<appendix id="installation">
+<title>Installation</title>
+ 
+<sect1 id="getting-kbackgammon">
+<title>How to obtain &kbackgammon;</title>
+ 
+&install.intro.documentation;
+
+<para>The home page of &kbackgammon; is located at <ulink
+url="http://backgammon.sourceforge.net/">http://backgammon.sourceforge.net</ulink>.
+It will usually contain the most up-to-date information the program
+available.</para>
+
+</sect1>
+
+<sect1 id="compilation">
+<title>Compilation and Installation</title>
+ 
+&install.compile.documentation;
+
+</sect1>         
+
+</appendix>
+
+</book>
+<!--
+Local Variables:
+mode: sgml
+sgml-omittag: nil
+sgml-shorttag: t
+End:
+-->
+
+

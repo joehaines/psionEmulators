@@ -1,0 +1,60 @@
+Index: guitools.c
+===================================================================
+RCS file: /cvs/gpe/base/gpe-filemanager/guitools.c,v
+retrieving revision 1.9
+diff -u -r1.9 guitools.c
+--- guitools.c	1 Nov 2004 17:56:05 -0000	1.9
++++ guitools.c	4 Nov 2004 16:04:47 -0000
+@@ -39,8 +39,7 @@
+ 
+ static t_storage *storages = NULL;
+ static int num_storage = 0;
+-static time_t mtab_time = 0;
+-static size_t mtab_size = -1;
++/*static time_t mtab_time = 0;*/
+ 
+ /* checks if a tree is mounted */
+ static gboolean
+@@ -70,7 +69,7 @@
+ 
+ 
+ gboolean
+-do_scheduled_update()
++do_scheduled_update(void)
+ {
+   int i;
+   
+@@ -201,18 +200,19 @@
+ gboolean
+ check_mount(void)
+ {
+-  struct stat sdat;
+-  
++/*  struct stat sdat;*/
++
++  do_scheduled_update();
++/*  
+   if (!stat(FILE_MTAB, &sdat))
+     {
+-      if ((mtab_time != sdat.st_ctime) ||
+-          (mtab_size != sdat.st_size))
++      if (mtab_time != sdat.st_ctime) 
+         {
+           do_scheduled_update();
+           mtab_time = sdat.st_ctime;
+-          mtab_size = sdat.st_size;
+         }
+     }
++*/  
+   return TRUE;	
+ }
+ 
+@@ -272,7 +272,7 @@
+   
+   /* set initial activation status */
+     
+-  do_scheduled_update(NULL);
++  do_scheduled_update();
+     
+   /* install monitor to get info if mtab changes */
+   if ((ret = gnome_vfs_monitor_add(&dir_monitor,

@@ -1,0 +1,1762 @@
+2004-06-22  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* menu.c (redo_set_sensitive): Oops, off-by-one menu indexing for
+	undo/redo. Bug #144781.
+
+2004-06-18  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* plait.scm: Backport of the fix for bug #140234.
+
+2004-05-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* valentine.scm (button-clicked): Patch from
+	tom@gentoo.kicks-ass.org to fix the case where there are no cards
+	in the stock, but one on the waster. You can now redeal in that
+	situation.
+
+2004-05-07  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* elevator.scm: A patch from Zohar Kelrich to fix the overlap
+	detection code.
+
+2004-04-26  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* agnes.scm (strip): Backport of the hint function fix.
+
+2004-02-24  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* statistics.glade: Mark the "do not translate this" messages as
+	non-translatable.
+
+2004-02-18  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* aisleriot.schemas.in: Fixed up the schema so it actualy installs.
+	You need CVS intltool for this to work properly.
+
+2004-02-14  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.c: 	
+	* dialog.c: Removed the set_has_separator commands from
+	gtk_message_dialog widgets.
+
+2004-02-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* menu.c (help_about_callback): translator_credits ->
+	translator-credits.
+
+2004-02-10  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* events.c (button_press_event): Allow for a drag on the second
+	click of a double click. Fixes bug #133198.
+
+2004-02-02  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.c: Replaced references to g_basename. See bug
+	#133176. Shouldn't affect anything really, it is in an #if 0 block
+	of otherwise broken code.
+
+2004-01-29  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* menu.c (restart_game): Make sure restarts aren't counted by the
+	statistics.
+
+	* sol.c: Count games that we quit without finishing as failed.
+
+2004-01-25  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* statistics.c: 
+	* statistics.h:	
+	* sol.c: Statistics are saved and even have a gconf-notification
+	so that two games can be open at once. There is an obvious race
+	condition, but you have to be playing two games at once and finish
+	simultaneously, for a single user this is difficult (and if there are
+	multiple users on one account then the statistics are meaningless).
+
+	* aisleriot.schemas.in: Added a statistics entry to store the
+	statistics.
+
+	* sol.c:
+	* sol.h:
+	* events.c:
+	* statistics.c:	
+	* statistics.h: Statistics are now recorded, but not saved between
+	games. The game timer now doesn't start until you press a mouse
+	button. You can cheat by pre-planning all your moves, but that is
+	your choice.
+
+2004-01-24  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* statistics.c: We now have a mechanism for storing and displaying
+	the statistics. We still need to actually update them and save
+	them between games though.
+
+2004-01-20  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* statistics.glade: Marked some strings as not-to-be-translated
+	and removed markup where is is not necessary. I still haven't
+	fixed the case where markup is necessary though.
+
+2004-01-10  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* statistics.c: The selection of the game is now hooked in. Still
+	no actual statistics to show.
+
+	* statistics.glade: Improvements, including the addition of the
+	game label. Should be good for UI review criticism now.
+
+2004-01-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c:
+	* Makefila.am:
+	* statistics.glade:
+	* statistics.h:	
+	* statistics.c: Added a statistics dialog. This uses glade and so
+	there are the accompanying build changes. The dialog doesn't do
+	anything yet.
+
+2004-01-02  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am: Remove splash.c, splash.h and splash.png from the
+	distribution.
+
+	* sol.c: Removed some old commented-out code, removed some
+	deprecated code, removed the splash screen.
+
+2003-12-29  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* seahaven.scm: Added the ability to move sequences of cards
+	directly to the foundation rather than moving them one at a time.
+
+2003-12-28  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c: Double clicking in the select dialog now selects the
+	game. Fixes bug #129442.
+
+2003-11-26  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c: 
+	* menu.c: Edited the menu again, say goodbye to "preferences".
+
+2003-11-24  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* menu.c (create_menus): Rename settings to view.
+
+2003-11-19  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (CLEANFILES): Clean up schema files.
+
+2003-11-19  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+        * freecell.scm: Freecell players rejoice, a patch from Juri
+	Pakaste (juri@iki.fi) to implement supermoves. Bugs 127235 and
+	124522.
+	
+2003-10-29  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (INCLUDES): Removed *_DISABLE_DEPRECATED.
+
+2003-10-27  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* card.c (load_pixmaps): Applied a patch from Mark Schreiber to
+	catch the case where the card images are missing.
+
+2003-10-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (install-data-local): Change the way gconf files are
+	installed. This should improve things for people building outside
+	the source tree. See bug #123192.
+
+2003-10-18  Steve Chaplin
+
+       * dialog.c (show_select_game_dialog): Free memory when finished using
+       it. Update the casting macros used when calling g_signal_connect().
+       (select_rules): Free the old filename (if any) before getting the
+       current filename.
+
+2003-10-12  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* odessa.scm (game-over-helper): Altered the hint function so
+	tableau reshuffling is preferred to building the
+	foundation. i.e. bringing the hints into line with the recommended
+	strategy in the documentation. Fixes bug #51694.
+
+2003-10-01  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.c (create_press_data): Initialise the press_data structure
+	to zero so we can correctly detect when we haven't actually
+	allocated sub-components. Fixes bug #123328.
+
+2003-09-13  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* press_data.h:
+	* press_data.c:
+	* sol.c:
+	* events.c: Clean up the fix for bug #121762.
+
+2003-09-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.c (new_game): Explicitly discard any stacks of cards we may
+	be dragging at the time of a new game. Fixes the symptoms of bug
+	#121762.
+
+2003-07-27  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.h: 
+	* sol.c: Fix compiler warnings. 
+
+	* menu.c (help_about_callback): Use g_str* functions rather than
+	string.h functions.
+
+	* dialog.c (show_select_game_dialog): Fix a compiler warning. It's
+	a bit ugly though.
+
+2003-07-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* freecell.desktop.in: 
+	* sol.desktop.in: Update name to fit HIG (bug 116916).
+
+2003-07-06  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* splash.c (splash_new): Connect our expose callback as an "after"
+	signal to let the normal drawing routines do their thing.
+
+2003-07-05  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* spider.scm: Made the ending condition a little less aggressive
+	and more like spiderette. Patch from Paolo Borelli.
+
+2003-06-22  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* ten_across.scm (less-than-same-cards): Removed some diagnostic
+	code that shouldn't be there.
+
+	* *.scm: Changes to remove trailing spaces in translatable
+	strings.
+
+	* aisleriot.schemas.in: Remove periods from the end of short
+	descriptions.
+
+2003-06-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* menu.c: Remove the dirent.h include since we don't need it
+	anymore and it can upset FreeBSD if we don't also include
+	sys/types.h which is also unneeded.
+
+2003-06-20  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.c (new_game): Fix Jon's crash-at-start bug. If the game was
+	unplayable from the start (fortress could do this) then it 
+	would do weird shit and possibly crash. This would also have
+	caused anti-social behaviour on the occasional new game.
+
+2003-06-19  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* slot.h: 
+	* slot.c:
+	* card.c: 
+	* menu.c: 
+	* press_data.c: 
+	* events.c: 
+	* cscmi.c: 
+	* dialog.c: 
+	* sol.c: 
+	* slot.c:
+	* splash.c: Compile fixes.
+
+2003-06-16  William Jon McCann  <mccann@jhu.edu>
+
+	* slot.c: 
+	* card.h: 
+	* card.c:
+	* draw.c: Use pixbuf for slot image.  This solves the problem of
+	unmasked pixels in the corners of the slot pixmaps.
+
+	* dialog.c: Fix compiler warning.
+	
+2003-06-13  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.scm (redo): Horrific thinko. #f is a little different from #t.
+
+2003-06-11  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* menu.c:
+	* sol.c: i18n fixes from Christian Neumair (bug #114875).
+	
+	* valentine.scm (button-clicked): () is not actually valid
+	scheme. 1.3.4 allowed it 1.6 doesn't. Replaced with the equivalent
+	'(). Fixes bug #114850.
+
+	* dialog.c (show_preferences_dialog): Use games_frame because it
+	looks cool.
+
+2003-06-10  Christian Neumair  <chris@gnome-de.org>
+
+	* *.scm: Replace ":  " by ": ". There is no reason to lengthen the
+	status bar messages by one space.
+
+2003-06-09  William Jon McCann  <mccann@jhu.edu>
+
+	* dialog.c: 
+	* sol.c: Removed separator from dialogs as in HIG.
+
+2003-06-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* events.c: Re-implement the third-button-reveals-card
+	thing. Fixes bugs 103646.
+
+2003-06-07  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c: Make the preferences dialog auto-apply and HIG
+	compliant. The options are still there, they just look prettier.
+
+2003-06-06  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c: Change the game over/won dialog to be an information
+	box rather than a question since the message isn't actually a
+	question (although the player does have a choice). Also changed
+	the wording to use sentence capitalisation.
+
+	* sol.scm: Do the scheme end of the undo/redo sensitivity code.
+
+	* sol.c (new_game): Set the undo/redo buttons to
+	insensitive at the beginning of a game.
+
+	* cscmi.c: The C <-> scheme interface for settings the undo and
+	redo button sensitivity.
+
+	* menu.h:
+	* menu.c: The C end of the undo/redo sensitivity code.
+
+	* sol.c: Take advantage of the gconf support routines in
+	libgames-support.
+
+	* .cvsignore: Ignore the schemas file.
+
+	* dialog.c
+	* sol.c
+	* menu.c
+	* aisleriot.schemas.in: - -> _ because the spec says we can't use
+	it.
+
+2003-06-05  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c (property_apply): 
+	* sol.h: 
+	* Makefile.am: 
+	* aisleriot.schemas.in: Aisleriot now uses gconf.
+
+	* sol.c (quit_app): Don't ask if quit has been selected. Trust the
+	user.
+
+	* menu.h: 
+	* sol.c:
+	* menu.c: Reorganised the menu and the toolbar so that they match
+	each other in terms of order and tooltips. Also give the hint
+	toolbar button the "help" lifesaver that all the other games do.
+	Added an option to toggle the toolbar on and off.
+	
+2003-06-04  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c (show_select_game_dialog): Updates to the select dialog
+	to avoid flickering and make resizing behave. Fixes bug #114327.
+
+2003-06-03  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.scm: Added a wrapper for eval so it runs on modern guiles
+	which actually do what R5RS says while still running on 1.3. Fixes
+	bug #114191.
+
+2003-05-30  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (scoredir): Removed since it was unused.
+
+2003-05-30  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* .cvsignore: Add freecell.desktop.
+
+2003-05-29  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* menu.c (help_about_callback): 
+	* dialog.c (show_preferences_dialog): Use gtk_window_present to
+	display dialogs.
+
+2003-05-23  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* plait.scm: 
+	* fortunes.scm: 
+	* eagle_wing.scm: 
+	* sol.scm (get-name): Rather than constructing cards from the suit
+	and value do them all individually. This is to help the
+	translators. The word "the" has also been moved to the beginning of
+	the descriptions rather than the format strings.
+
+2003-05-22  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* first_law.scm (removable?): More i18n fixes.
+
+	* plait.scm: 
+	* fortunes.scm: 
+	* eagle_wing.scm: Replaced the case 3 hint with an easier to
+	translate case 0 hint.
+
+	* dialog.c (show_hint_dialog): Deprecated case 3 hints since they
+	are too hard to translate.
+
+	* first_law.scm (removable?): 
+	* sol.scm: i18n fixes, removed the string concatenations.
+
+2003-05-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c (show_select_game_dialog): Select the current game as
+	the default. Fixes bug #113113.
+
+2003-05-21  Malcolm Tredinnick <malcolm@commsecure.com.au>
+
+	* Makefile.am: Now that SCHEME_GAMES.h has had its build rules
+	removed, it is better not to try and build it.
+
+2003-05-20  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* sol.c (new_game): Fixed a warning when trying to put
+	game-specific stuff in the help menu.
+
+	* Makefile.am: Removed the code to generate SCHEME_GAMES.h, we
+	don't need it anymore.
+
+	* cscmi.c (cscm_init): gettext -> _
+
+	* *.scm: Changed all the "gettext" calls to "_" so we don't have
+	to alter intltools.
+
+2003-05-18  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am: Arranged for the autogeneration of SCHEME_GAMES.h
+	since I don't understand how to get the strings automatically
+	extracted from the .scm files using intltool.
+
+2003-05-17  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* *.scm: Updated the scheme files to use the new gettext
+	call.
+
+	* sol.c: Changed the code so that using --variation to select a
+	game only works for that one session. This is an awful hack, but I
+	can't see a better way to do it.
+
+2003-05-16  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* klondike.scm (get-options): 
+	* poker.scm (get-hint): Added gettext calls in the scheme code.
+
+	* dialog.c (show_hint_dialog): 
+	* cscmi.c (scm_gettext): Added a scheme wrapper for gettext. Now
+	if only we could extract the strings from the schemes files ...
+
+	* Makefile.am: Created a freecell emulation desktop entry.
+
+	* menu.c: Removed reference to scroll-menu.h. I did remember to
+	test, I just didn't test properly :(.
+
+2003-05-15  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am: Removed scroll-menu.*, the code isn't used anymore.
+
+2003-05-13  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* Makefile.am (SUBDIRS): Removing the old pixmaps directory. 600k
+	of pixmaps that aren't used by anything.
+
+	* sol.h: 
+	* card.h: Remove pathnames in include directives. The correct path
+	to gdk-card-image.h is now handled in Makefile.am .
+
+	* Makefile.am: Updated to allow for the movement of the
+	gdk-card-image code.
+
+2003-05-10  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* events.c: Re-implemented the double-click code to ensure double
+	click events don't happen when the second click is on a different
+	card. Fixes #102449
+
+2003-05-10  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* dialog.c (show_select_game_dialog): More changes to try and
+	improve the "Select" dialog. As per bug #110730.
+
+	* menu.c: Renamed the "New game of..." item to "Select...", the
+	justification for this can be found in bug #110730.
+
+2003-05-09  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* yukon.scm (check-a-tableau): Finally applying my fix to bug
+	#64236.
+
+	* sol.c (eval_installed_file): HIG fixup as per bug #112244.
+
+2003-04-30  Abel Cheung  <maddog@linux.org.hk>
+
+	* ChangeLog: Convert to UTF-8.
+
+2003-04-06  Ross Burton  <ross@burtonini.com>
+
+	* agnes.scm: Fix hints, thanks to
+	kyamada@psg.cs.titech.ac.jp. Closing #90103.
+
+2003-01-15  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* freecell.scm: Updated undo/redo to new scheme. This may fix bug
+	#83517 (it certainly fixes a bug and the symptoms in #83517 fit
+	the profile).
+
+	* plait.scm:  Updated undo/redo to new scheme.
+
+	* labyrinth.scm: Updated undo/redo to new scheme.
+
+	* glenwood.scm: Updated undo/redo to new scheme. Fixes a
+	previously undiscovered bug.
+
+	* eight_off.scm: Updated undo/redo to new scheme. This fixes a
+	previously undetected bug.
+
+	* chessboard.scm: Updated undo/redo to new scheme.
+
+	* camelot.scm: Updated undo/redo to new scheme.
+
+	* bakers_game.scm: Updated undo/redo to new scheme. Refixes
+	#91101/#90905.
+
+	* seahaven.scm: Removed the old undo/redo code in favour of the
+	new transparent scheme. Should be a better fix for the
+	bugs #65242/#89540 (already closed).
+
+	* sol.scm: Added transparent support for undo/redo of variables in
+	individual games. The variables that were already being saved have
+	not been altered to use this method.
+
+2003-03-07  Ross Burton  <ross@burtonini.com>
+
+	* sol.c: Fix up compile warnings.
+
+2003-03-03  Ross Burton  <ross@burtonini.com>
+
+	* dialog.c: Remove the headers from the New Game dialog, and inset
+	the table.
+
+	* menu.c (help_about_callback): Set the About dialog as transient
+	for the main window.
+
+	* menu.c:(help_about_callback): Remove the evil "New game of..."
+	sub-menu, and use the "Select" dialog which nobody knew existed.
+
+2002-12-11  Ross Burton  <ross@burtonini.com>
+
+	* dialog.c: Allow the user to have a choice in the Game Won
+	dialog. Slightly edited patch from pborelli@katamail.com, closing
+	#100120.
+
+2002-11-18  Fernando Herrera <fherrera@onirica.com>
+
+	* sol.desktop.in: add X-GNOME-BUGZILLA stuff
+
+2002-11-18  Jeremy Browne  <jeremy@synonymous.ca>
+
+	* sol.c: Changes to quit dialog for consistency with other parts of
+	gnome-games package. (Bug #97321)
+
+2002-11-11  Ross Burton  <ross@burtonini.com>
+
+	* gnome-aisleriot.png: New icon contributed by Timothy Musson.
+
+2002-10-21  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* klondike.scm (get-hint): Fixed an off-by-one error in checking
+	FLIP-COUNT and also added a default "no hint available" message
+	for the extremely rare situation where you can't move anything off
+	the foundation decks. It's still a completely unsatisfactory
+	answer to the klondike hints problem, but my brain hurts too much
+	tonight to fix it. Mostly fixes #85712.
+
+2002-10-04  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* seahaven.scm: Added (record-move) and (undo-func) so that the
+	free-reserves variable is set correctly after an undo. This may be
+	the cause of bug #65242.
+
+2002-09-30  Ross Burton  <ross@burtonini.com>
+
+	* events.c (button_press_event): Fix very stupid code (== instead
+	of =), closing #89822. Thanks to Callum McKenzie for being such a
+	lisp star :)
+
+2002-09-27  Callum McKenzie  <callum@physics.otago.ac.nz>
+
+	* ten_across.scm: Removed give-status-message and all references
+	to it. This should fix bug #94078. It seems to be cut-and-paste
+	residue and is unnecessary in this particular game.
+
+2002-09-23  Ross Burton  <ross@burtonini.com>
+
+	* spider.scm (button-clicked): Fix #84498 with a patch from Callum
+	McKenzie <callum@physics.otago.ac.nz>
+
+2002-08-20  Gustavo Giraldez  <gustavo.giraldez@gmx.net>
+
+	* events.c (motion_notify_event): Fix the "dragging cards outside
+	the window".
+	* menu.c, sol.c: Fix some memory leaks. Closing #86775.
+
+2002-08-18  Ross Burton  <ross@burtonini.com>
+
+	* sol.c (quit_app): Fix the callbacks for the Quit handler, and
+	correct a typo.
+
+2002-07-12  Samuel Stringham <sams@e-sa.com>
+
+	* sol.c (quit_app): Display a comfirmation dialog when quitting.
+
+2002-07-04  Ross Burton  <ross@burtonini.com>
+
+	* canfield.scm: canfield didn't know when the game was over. Also
+	fix a off-by-one in "deal-possible?". Closes #74185.
+
+2002-06-17  Bastien Nocera  <hadess@hadess.net>
+
+	* Makefile.am: install the desktop file in $(datadir)/applications
+	(Closes: #85535)
+
+2002-06-06  Bastien Nocera  <hadess@hadess.net>
+
+	* card.c: (get_pixmap):
+	* sol.c: (eval_installed_file), (main):
+	* splash.c: (splash_new): fixes for when $(datadir) is not the same
+	as libgnome's
+
+2002-06-04  Fernando Herrera <fherrera@onirica.com>
+
+	* events.c: (button_press_event): Fix clicks problems. Removed unused
+	SINGLE_ACTION code (Closes: #84162)
+
+2002-06-03  Bastien Nocera  <hadess@hadess.net>
+
+	* menu.c: remove Quit toolbar item
+
+2002-05-07  Bastien Nocera  <hadess@hadess.net>
+
+	* Makefile.am: fixes
+
+2002-05-07  Bastien Nocera  <hadess@hadess.net>
+
+	* Makefile.am:
+	* card.c: (get_card_width), (get_card_height), (get_pixmap),
+	(free_pixmaps):
+	* dialog.c: (show_game_over_dialog), (select_rules), (select_game),
+	(show_select_game_dialog), (show_hint_dialog), (property_apply),
+	(show_preferences_dialog), (option_apply), (get_option_page),
+	(show_rules_options_dialog):
+	* draw.c: (draw_cards), (take_snapshot):
+	* events.c: (drop_moving_cards), (configure_event):
+	* menu.c: (help_about_callback), (create_menus):
+	* press_data.c: (generate_press_data):
+	* scroll-menu.c: (scroll_menu_get_type), (make_scroller):
+	* sol.c: (game_file_to_name), (eval_installed_file), (save_state),
+	(set_score), (create_sol_board), (create_main_window),
+	(create_press_data), (main_prog), (main):
+	* splash.c: (splash_update), (splash_new): big Gnome2 port patch by
+	Shahms E. King <shahms@shahms.com>
+
+2002-05-07  Jacob Berkman  <jacob@ximian.com>
+
+	* Makefile.am (SUBDIRS): remove docs, as help is already there
+
+2002-04-30  Abel Cheung  <maddog@linux.org.hk>
+
+	* chessboard.scm:
+	* sol.scm:
+	Use " " instead of "" as default statusbar message, to avoid
+	translation file header showing up in status bar.
+
+Sat Apr 13 09:56:29 2002  Jonathan Blandford  <jrb@gnome.org>
+
+	* sol.c (create_main_window): set_policy is no longer needed, #72217
+
+	* events.c: Return FALSE instead of TRUE.  This code predates GTK
+	1.0, #74002
+
+	* cscmi.c (scm_myrandom): use g_rand* functions, #60427
+
+2002-02-16  Chris Lyttle  <chris@wilddev.net>
+
+	* docs/C: removed sgml files from build and cvs
+
+2002-02-16  Kjartan Maraas  <kmaraas@gnome.org>
+
+	* *.[ch]: I18N fixes.
+	
+2002-02-14  Chris Lyttle  <chris@wilddev.net>
+
+	* Makefile.am: added help subdir
+
+2002-02-13  Gregory Leblanc  <gleblanc@linuxweasel.com>
+
+	* canfield.scm: Turn over three cards at a time, from the stock,
+	per rules.
+
+2002-02-02  Zbigniew Chyla  <cyba@gnome.pl>
+
+	* menu.c (help_about_callback): Don't try to translate empty string.
+
+2001-12-30  Juan Pablo Mendoza <jpablo@gnome.org>
+
+	* card.c:
+	* events.c:
+	* menu.c:
+	* scroll-menu.c:
+	* sol.c:
+	* splash.c:
+
+	Compile and run !
+
+2001-12-19  Seth Nickell  <snickell@stanford.edu>
+
+	* Makefile.am:
+	* sol.desktop:
+
+	Install into proper location, add a Categories field.
+	
+2001-12-04  Duarte Loreto <happyguy_pt@hotmail.com>
+
+        * sol.desktop: Updated Portuguese Translation
+
+2001-09-16  Carlos Perelló Marín <carlos@gnome-db.org>
+
+	* translatable_game_names.h: Updated.
+
+2001-08-12  Abel Cheung  <maddog@linux.org.hk>
+
+	* SCHEME_GAMES.h royal_east.scm: borp -> melborp. Reduce difficulty
+	  for translators. :)
+
+2001-07-27  Abel Cheung  <maddog@linux.org.hk>
+
+	* aisleriot.desktop: Added traditional Chinese translation.
+
+Thu Jul 19 01:50:53 2001  Jonathan Blandford  <jrb@redhat.com>>
+
+	* aisleriot.sgml: remove block-ten docs.
+	* Makefile.am: remove block-ten file from installation until it is
+	fixed.
+	* agnes.scm: add (theoretical) winning game to seed.
+
+2001-07-11  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	From James LewisMoss <jimdres@mindspring.com>.
+
+	* ten_across.scm: New game.
+
+2001-07-08  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	Patch from Don Beusee <dbeusee@us.oracle.com>
+
+	* events.c (button_press_event), (button_release_event): Middle
+	  click == double click.
+
+2001-07-07  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* sol.c:
+	* card.c: Kick imlib ass.
+
+2001-07-06  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* clock.scm, SCHEME_GAMES.h: Sunlight gives us vitamin D :-)
+	  (pointed out by Göran Uddeborg)
+
+2001-07-05  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* sol.c (eval_installed_file): Fix typo.
+
+2001-07-05  Christian Rose  <menthos@menthos.com>
+
+	sol.desktop: Added Swedish entries.
+
+Sat Jun 30 16:33:25 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* chessboard.scm: added a new game
+
+2001-06-10  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* sol.c (new_game): Save the most recently played game. Fix bug #18929
+
+	* Makefile.am: (EXTRA_DIST) Add translatable_game_names.h and
+	  template.scm.
+	  (types_DATA): Add plait.scm.
+
+2001-06-09  Juan Pablo Mendoza <pablo_juan@yahoo.com>
+
+	* sol.c (eval_installed_file): Show a error and exit if the file
+	  is not found. Fix bug #2532.
+
+2001-23-04  Kenneth Christiansen  <kenneth@gnu.org>
+
+	* get_names.pl: added script than makes header
+	file to add to POTFILES.in when run. Should be
+	run, everytime a scm file is added, or renamed.
+
+Thu Mar  8 19:08:45 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* fortress.scm: added a new game
+	* streets_and_alleys.scm: added a new game
+
+Thu Mar  8 12:20:44 2001  Jonathan Blandford  <jrb@redhat.com>
+
+	* sol.c (new_game): minor fixup.
+
+Wed Mar  7 23:56:52 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* king_albert.scm (button-double-clicked): fixed a random
+	procedure call so it now works
+
+Wed Mar  7 19:48:30 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* helsinki.scm: added a new game
+	* easthaven.scm: added a new game
+	* will_o_the_wisp.scm: added a new game
+	* spiderette.scm: added a new game
+
+Tue Mar  6 21:43:32 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* whitehead.scm: added a new game
+	* king_albert.scm: added a new game
+
+Mon Mar  5 21:27:48 2001 John Fleck <jfleck@inkstain.net>
+
+	* docs/C/definitions.sgml - adding id's to glossentries so Nautilus
+	can navigate the glossary
+
+Tue Mar  6 00:02:14 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* golf.scm: added a new game 
+	* thieves.scm: cleaned up some code; fixed it so undo no longer
+	spreads apart the cards.
+	* diamond_mine.scm: added a new game
+
+Fri Mar  2 23:37:18 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* agnes.scm: added a new game
+	* jumbo.scm: fixed hint function 
+	* treize.scm: fixed hint function
+	* yield.scm: fixed hint function
+
+Thu Mar  1 05:01:37 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* jumbo.scm: added a new game 
+	* gay_gordons.scm: added a new game
+	* block_ten.scm: added a new game
+	* yield.scm: added a new game
+
+Wed Feb 28 02:00:02 2001  Jonathan Blandford  <jrb@redhat.com>
+
+	* menu.c (create_menus): Bad Hack (TM).  Stole _v_'s
+	scroll_menu and used it here.
+
+	* scroll_menu.[ch]: added.
+
+Tue Feb 27 23:39:10 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* maze.scm (suit-next?): fixed some function calls
+
+Tue Feb 27 20:11:46 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* eight_off.scm: added a new game
+	* bakers_game.scm: added a new game
+	* jamestown.scm: added a new game 
+	* sir_tommy.scm: added a new game
+	* isabel.scm: added a new game
+	* seahaven.scm (new-game): removed debugging code
+
+Mon Feb 26 19:12:13 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* escalator.scm: added a new game 
+	* quatorze.scm: added a new game
+	* treize.scm: added a new game 
+	* peek.scm: added a new game
+	* scuffle.scm: added a new game
+
+Sun Feb 25 21:57:23 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* elevator.scm (new-game): fixed starting width of screen
+	* camelot.scm (new-game): fixed starting width of screen
+	* dialog.c (show_select_game_dialog): changed the dialog to
+	contain a clist
+
+Sun Feb 25 20:59:15 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* labyrinth.scm: added a new game.
+
+Sun Feb 25 04:33:12 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* poker.scm: added a new game.
+
+Sat Feb 24 21:30:05 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* cover.scm: added a new game.  that makes 40!
+
+Sat Feb 24 13:52:50 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* thieves.scm (button-clicked): fixed crash which occurred when
+	blank slot was clicked
+	* valentine.scm: added a new game
+
+Wed Feb 21 21:20:56 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* seahaven.scm: added a new game
+
+Wed Feb 21 02:34:09 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* bakers_dozen.scm: added a new game
+	* monte_carlo.scm: fixed a hint bug
+	
+Wed Feb 21 01:24:52 2001  Jonathan Blandford  <jrb@redhat.com>
+
+	* menu.c: Added Matthew Wilcox to about box.
+
+Tue Feb 20 19:21:12 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* monte_carlo.scm: added a new game
+	* neighbor.scm: fixed screen size problem
+
+Tue Feb 20 17:19:28 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* thirteen.scm (new-game): fixed screen size problem (bug 3087)
+
+Tue Feb 20 17:13:46 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* spider.scm (get-hint): got around the premature end-of-game call
+	by never letting the game end naturally.
+
+Tue Feb 20 16:17:37 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* gypsy.scm: added a new game
+
+Mon Feb 19 17:06:50 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* maze.scm: Matthew Wilcox's new maze version; fixes undo and
+	scoring.
+
+Mon Feb 19 03:53:39 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* lady_jane.scm (get-hint): implemented hints for this game.
+	about bloody time...
+
+Sun Feb 18 19:31:19 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* glenwood.scm: added a new game for gleblanc 
+
+Sat Feb 17 23:34:16 2001  Jonathan Blandford  <jrb@redhat.com>
+
+	* sol.c (new_game): Fixed bugs #7033 and #5324.
+
+Sat Feb 10 15:34:14 2001  Rosanna Yuen  <zana@webwynk.net>
+
+	* thieves.scm (button-clicked): Fixed bug #20352 which caused
+	crashing when empty slot was clicked.
+
+2001-02-09  Gregory Leblanc <gleblanc@cu-portland.edu>
+
+	* docs/aisleriot.sgml: Updated for and tested in nautilus (nope,
+	it doesn't work properly.)
+
+Tue Feb 06 20:26:42 2001  George Lebl <jirka@5z.com>
+
+	* dialog.c:  close old hint dialog when new dialog is made, and
+	  use printf style strings rather then appending strings together,
+	  and lastly, free allocated memory.
+
+Tue Feb 06 17:47:06 2001  George Lebl <jirka@5z.com>
+
+	* splash.c: fix further splash destroyed too early fun and fix
+	  multiple exposes causing quit fun, or destroyed before expose
+	  race hang fun.
+
+Tue Feb 06 16:49:12 2001  George Lebl <jirka@5z.com>
+
+	* card.c, dialog.c, draw.c, events.c, press_data.c, sol.c:  Make
+	  sure aisleriot works even with missing or currupted installed data,
+	  plus sprintf excorcism out of anality
+
+	* splash.c: fix a crash when splash is killed prematurely by the user
+
+	* docs/Makefile.am:  Fix makefile rule for db2html to work
+
+2000-05-22  Ian Peters  <itp@gnu.org>
+
+	* maze.scm: added to cvs (not distributed by default yet)
+
+2000-05-21  Rosanna Yuen  <rosanna_yuen@yahoo.com>
+
+	* hopscotch.scm (check-to-foundation): disallow putting cards on
+	top of kings.
+	* first_law.scm (button-released): removed movability of cards
+	so that only clicking works.  Simplifies code and fixes seg fault.
+
+2000-05-09  Martin Baulig  <baulig@suse.de>
+
+	* sol.c (main): Call gnome_score_init () to fix security
+	exploit to group games.
+
+2000-04-26  Valek Filippov  <frob@df.ru>
+
+	* menu.c: Changed jrb e-mail to jrb@redhat.com to reflect
+	          the AUTHORS file. (from kanikus)
+
+2000-04-22  Ian Peters  <itp@gnu.org>
+
+	* sol.c: main_prog: pop the visual and colormap when we're done setting
+	  stuff up, fixes black about dialog on multi-depth displays
+
+1999-09-22  Dave Camp  <campd@oit.edu>
+
+	* Makefile.am (INCLUDES): Use $(GUILE_INCS)
+
+1999-08-12  Rosanna Yuen  <rwsy@mit.edu>
+
+	* odessa.scm : fixed double clicking bug so that a) it doesn't
+	crash and b)the next card flips up if necessary. 
+
+1999-08-09  Robert Brady  <rwb197@ecs.soton.ac.uk
+
+	* sol.c : applied Irix compiling fix from David Kaelbling 
+	  <drk@sgi.com> : [bug #1781].
+	
+1999-08-03  Rosanna Yuen  <rwsy@mit.edu>
+
+	* straight_up.scm (game-continuable): makes sure the game knows
+	that its done.
+	(button-double-clicked): fixed it so double click function doesn't
+	get called unless 1) there's a card and 2) it is visible.
+
+1999-08-01  Rosanna Yuen  <rwsy@mit.edu>
+
+	* kansas.scm (check-a-tableau): made the hint function for this
+	game smarter than me.
+
+1999-07-25  Rosanna Yuen  <rwsy@mit.edu>
+
+	* eagle_wing.scm (complete-transaction): fixed the status bar
+	message discrepancy in this game.
+
+1999-07-23  Rosanna Yuen  <rwsy@mit.edu>
+
+	* kansas.scm (empty-tableau?): makes sure that no cards can be
+	moved down before game is officially over.
+
+1999-07-23  Robert Brady <rwb197@ecs.soton.ac.uk>
+
+	* events.c: Fixed bug #1192 (dragging a card to the toolbar and
+	releasing mouse button there caused odd things).
+
+1999-07-10  Rosanna Yuen  <rwsy@mit.edu>
+
+	* kansas.scm: fixed a bug in this game.
+
+1999-06-29  Robert Brady  <rwb197@ecs.soton.ac.uk>
+
+	* SCHEME_GAMES.h: Added more translatable strings. i18n in Aisleriot
+	(especially for Hints), is somewhat broken, it appears that only
+	languages with the same word order as English can be translated into.
+
+1999-06-15  Robert Brady  <rwb197@ecs.soton.ac.uk>
+
+	* card.h, cscmi.h, dialog.h, events.h, menu.h, press_data.h, sol.h, splash.h: Use
+	ANSI C prototypes for functions with no parameters.
+
+	* events.h, events.c: Moved STATUS_* things into the header.
+
+	* events.c (waiting_for_mouse_up): Added.
+
+	* menu.c, dialog.c: Inserted calls to waiting_for_mouse_up where needed.
+
+	* sol.c: (is_game) Fixed warning.
+
+	* clock.scm: Fix typo.
+
+1999-06-13  Robert Brady  <rwb197@ecs.soton.ac.uk>
+
+	* cscmi.c (scm_set_statusbar_message): Return a value.
+
+	* press.data.c (generate_press_data): Make definition agree with the prototype.
+
+	* sol.c (create_press_data): Initialise press_data->status.
+
+	* events.c (button_press_event): Ignore button 3 presses whilst a card is 
+	being dragged, fixing bug #1469.
+	(button_release_event):	Ignore buttons releases if the button that caused 
+	the current state is still down (i.e. no more button3 click, button1 click,
+	button1 release causing STATUS_SHOW to end.)
+	
+1999-05-24  Brandon S. Allbery" <allbery@ece.cmu.edu>
+
+	* cscmi.c (cscm_init): Renamed scm_random to scm_myrandom, since
+	scm_random is part of recent Guiles.
+
+1999-04-12  Rosanna Yuen  <rwsy@mit.edu>
+
+	* elevator.scm (check-for-flips): fixed bug to make sure last card
+	gets flipped if necessary.
+
+1999-04-10  Rosanna Yuen  <rwsy@mit.edu>
+
+	* lady_jane.scm (get-stock-no-string): fixed the number of cards
+	left in stock in statusbar
+
+1999-04-09  Rosanna Yuen  <rwsy@mit.edu>
+
+	* klondike.scm (give-status-message): added number of redeals left
+	to statusbar
+	* freecell.scm (button-double-clicked): fixed scoring for
+	double-clicking.
+	* osmosis.scm (game-over): fixed the game over function
+	(give-status-message): added number of redeals left to statusbar
+
+1999-04-08  Rosanna Yuen  <rwsy@mit.edu>
+
+	* doublets.scm (game-over): fixed to make sure game won pops up
+	even when you ahven't gone thru all the redeals
+
+1999-03-27  Rosanna Yuen  <rwsy@mit.edu>
+
+	* lady_jane.scm: added new game
+
+1999-03-25  Rosanna Yuen  <rwsy@mit.edu>
+
+	* zebra.scm: added new game
+	* thumb_and_pouch.scm (dealable?): fixed hints
+	(give-status-message): added redeals to statusbar
+
+1999-03-23  Rosanna Yuen  <rwsy@mit.edu>
+
+	* scorpion.scm (button-clicked): made sure dealing new cards will
+	adjust points.
+	(button-released): disallowed moving kings to stock.
+	* thumb_and_pouch.scm (new-game): removed reliance on unreliable
+	variable.
+	* canfield.scm (give-status-message): added number of redeals to
+	statusbar message.
+	* straight_up.scm: added new game
+
+1999-03-19  Rosanna Yuen  <rwsy@mit.edu>
+
+	* first_law.scm: added new game
+
+1999-03-17  Rosanna Yuen  <rwsy@mit.edu>
+
+	* thumb_and_pouch.scm: fixed hint function
+
+1999-03-14  Rosanna Yuen <rwsy@mit.edu>
+
+	* thumb_and_pouch.scm: added new game 
+	* klondike.scm (new-game): added (set-ace-low)
+	* bristol.scm (button-double-clicked): added double-click
+	* odessa.scm (button-double-clicked): added double-click
+	* sol.scm: fixed undo so it now works  (many game files changed to
+	allow undo to work)
+	* events.c: fixed event handling so that it makes sense.
+	* menu.c: fixed about box
+	* yukon.scm: finished hint
+
+1999-03-11  Ian Peters  <itp@gnu.org>
+
+	* menu.c: Killed the periods at the end of the tooltips.
+
+1999-03-10  Ian Peters  <itp@gnu.org>
+
+	* dialog.c: Calls to gnome_dialog_set_parent added for Game options,
+	Preferences, and game over dialog.
+
+1999-03-09  Rosanna Yuen  <rwsy@mit.edu>
+
+	* klondike.scm (button-double-clicked): moved the double clicking
+	code back to the double clicking function.
+	* clock.scm (button-double-clicked): fixed double clicking bug
+
+1999-03-06  Rosanna Yuen  <rwsy@mit.edu>
+
+	* scorpion.scm (button-released): finished scorpion.scm (minus hints)
+	* odessa.scm (begin-score): fixed scoring of dealt cards.
+
+1999-03-06  Rosanna Yuen  <rwsy@mit.edu>
+
+	* template.scm: added a template to facilitate faster creation of
+	games.
+	* scorpion.scm: added new (incomplete) game.
+
+1999-03-04  Rosanna Yuen  <rwsy@mit.edu>
+
+	* royal_east.scm: added new game.
+
+1999-03-03  Rosanna Yuen  <rwsy@mit.edu>
+
+	* westhaven.scm: added new game.
+
+1999-03-02  Rosanna Yuen  <rwsy@mit.edu>
+
+	* union_square.scm: added new game
+
+1999-02-24  Rosanna Yuen  <rwsy@mit.edu>
+
+	* added info to status bar for most games
+	* spider.scm: added checks for game over and game won, and added
+	hint support.
+	
+1999-02-23  Rosanna Yuen  <rwsy@mit.edu>
+
+	* bristol.scm: added new game
+
+1999-02-22  Rosanna Yuen  <rwsy@mit.edu>
+
+	* spider.scm: added scoring; fixed minor bugs
+	* hopscotch.scm: added new game
+	* beleaguered_castle.scm: moved deck making to sol.scm
+	* sol.scm (make-deck-list-ace-low): moved this from
+	beleaguered_castle.scm
+	* auld_lang_syne.scm: added new game
+	* eagle_wing.scm (button-double-clicked): fixed minor bug with
+	last Reserve card.
+	* klondike.scm (button-double-clicked): allows double clicking to
+	acutally work for those who prefer it.
+	(new-game): made the waste pile only 1 wide if only dealing 1 card
+	at a time.  (unfortunately, this only happens when game is
+	restarted.  perhaps force new game when options change?)
+	
+1999-02-22  Rosanna Yuen  <rwsy@mit.edu>
+
+	* fourteen.scm: added new game
+	* clock.scm (button-clicked): made clicking kings easier
+	(complete-transaction): added scoring support
+
+1999-02-21  Rosanna Yuen  <rwsy@mit.edu>
+
+	* splash.c, sol.c, menu.c: s/Aisleriot/AisleRiot
+
+1999-02-21  Rosanna Yuen  <rwsy@mit.edu>
+
+	* freecell.scm: added score support
+	* menu.c (help_about_callback): proofread the about box text
+
+1999-02-20  Rosanna Yuen  <rwsy@mit.edu>
+
+	* fortunes.scm (get-hint): made it so the hints don't tell you to
+	move something into an empty slot if there isn't anything to move.
+
+	* camelot.scm: (button-released) disallows matching with wastepile
+	(button-clicked): disallows more than one card in wastepile;
+	allows clicking on 10's to work better. 
+	(new-game): rearranged layout for more pleasant viewing.
+
+1999-02-20  Jonathan Blandford  <jrb@redhat.com>
+
+	* card.c (get_card_picture): this bug has been annoying me for a
+	while.  You can now set-ace high.
+
+1999-02-20  Rosanna Yuen  <rwsy@mit.edu>
+
+	* beleaguered_castle.scm (new-game): fixed spacing so that
+	hopefully cards will no longer overlap.
+	
+	* thirteen.scm (check-for-flips): fixed bug in flipping code
+
+1999-02-20  Rosanna Yuen  <rwsy@mit.edu>
+
+	* thirteen.scm: added another new game =)
+
+1999-02-19  Rosanna Yuen  <rwsy@mit.edu>
+
+	* elevator.scm: added new game
+
+1999-02-04  Jonathan Blandford  <jrb@redhat.com>
+
+	* slot.c: Based on code by <Seanster@BrainImplants.com>, we now
+	support pyramid-like games.
+
+1999-01-26  Miguel de Icaza  <miguel@nuclecu.unam.mx>
+
+	* menu.c: Remove the File menu.  This does not make sense. Put
+	only a Game menu.
+
+1999-01-16  Changwoo Ryu  <cwryu@adam.kaist.ac.kr>
+
+	* freecell.scm: Removed buggy double-click handler and cleaned up.
+	Still more work needed.
+
+	* menu.c (help_about_callback): Changed my Email address.
+
+1999-01-10  Nat Friedman  <nat@nat.org>
+
+	* sol.c (main_prog): Call install_menu_hints.
+
+	* menu.c: Standardized the menus.
+	(install_menu_hints): New function.
+
+1999-01-06  Miguel de Icaza  <miguel@nuclecu.unam.mx>
+
+	* sol.c (main): Fix the name
+
+1999-01-05  Miguel de Icaza  <miguel@nuclecu.unam.mx>
+
+	* sol.c (main): Use gnome_datadir_file_unconditional here. 
+
+1998-12-30  Carsten Schaar  <nhadcasc@fs-maphy.uni-hannover.de>
+
+	* sol.c (main): Now retrieves it's state from the master client,
+ 	because the cloned client is not working anymore.
+
+1998-12-28  Rosanna Yuen  <rwsy@mit.edu>
+
+	* neighbor.scm : added new game
+
+1998-12-28  Rosanna Yuen  <rwsy@mit.edu>
+
+	* beleaguered_castle.scm: added double-click and hint support to
+	this game.
+	* camelot.scm: fixed potential aces bug.
+
+1998-12-16  Rosanna Yuen  <rwsy@mit.edu>
+
+	* beleaguered_castle.scm: added new game; added scoring
+	
+1998-12-02  Sebastian Wilhelmi  <wilhelmi@ira.uka.de>
+
+	* sol.c (new_game): small bug fix for "gnome_app_fill_menu"
+	num-of-args.
+
+1998-11-29  Carsten Schaar  <nhadcasc@fs-maphy.uni-hannover.de>
+
+	* menu.c: Removed 'GNOMEUIINFO_JUSTIFY_RIGHT'.
+
+Wed Nov 25  Felix Bellaby  <felix@pooh.u-net.com>
+	
+	* camelot.scm, freecell.scm: minor fixes.
+	* cscmi.c, sol.c: minor fixes.
+	* events.c: ensure scheme only called twice on double click.
+	* press_data.h: simplified.	
+	* menu.c, press_data.c, sol.scm: added undo, redo - still inefficient.
+
+Sat Nov 21 Felix Bellaby <felix@pooh.u-net.com>
+	* Makefile.am: use png images.
+	* baize.png: use png images.
+	* TODO: updated.
+	* sol.h: synced with card library.
+	* card.h: synced with card library.
+	* card.c: synced with card library.
+	* dialog.c: added card prefs dialog.
+	* sol.c: saves card prefs. 
+	
+1998-11-19  Richard Hestilow  <hestgray@ionet.net>
+
+	* menu.c: Fixed underscore accelerator in "Exit" to be on the X.
+	
+1998-11-14  Changwoo Ryu  <cwryu@adam.kaist.ac.kr>
+
+	* freecell.scm: Added double-click handler.  Initial stuff for
+	"auto move".
+
+Wed Nov 11 Felix Bellaby <felix@pooh.u-net.com>
+	* sol.c: fixed up session management to match bugs in gnome-session.
+	
+1998-11-09  Jonathan Blandford  <jrb@redhat.com>
+
+	* sol.desktop (Name): Now the name of the game is Aisleriot, as it 
+	should be.
+	* splash.c (splash_new): Start the splash screen in the middle of
+	the screen
+
+Mon Nov 9 Felix Bellaby <felix@pooh.u-net.com>
+	* splash.h: splash screen pseudo-widget.
+	* splash.c: splash screen pseudo-widget.
+	* splash.png: splash image { will spell "Aisleriot" with casino chips }
+	* sol.c: added session management and splash screen.
+	* klondike.scm: fixed bug in scoring.
+	* Makefile.am: updated for splash screen.
+	* TODO: updated.
+
+Wed Nov 3 Felix Bellaby <felix@pooh.u-net.com>
+	* cscmi.c: (set_lambda) avoid guile limit on number of arguments.
+	* event.c: (button_release) check for end of game on button click.
+	do not unref card images.
+	* *.scm: made compatible with tighter scheme of guile-1.3 
+	* eagle_wing.scm: fixed bugs in drops on foundation slots.
+
+Mon Nov 02 Felix Bellaby <felix@pooh.u-net.com>
+	* dialog.c: added options dialogs for games.
+	* cscmi.h: added lambdas to pass options back and forth 
+	* cscmi.c: added lambdas to pass options back and forth 
+	* sol.h: added options dialog
+	* sol.c: added options dialog
+	* menu.c: reverted to "Variaation" menu.
+	* events.c: eliminated unused arguments from scm functions.
+	* *.scm: eliminated unused arguments from scm functions.
+	* klondike.scm: added "Three card deals" option.
+	
+Sat Oct 31 Felix Bellaby <felix@pooh.u-net.com>
+	* scheme_messages: added names of new games {for i18n}
+	* sol.c: (game_file_to_game_name) converts "-" to " ".
+	* sol.c: (game_file_to_help_entry) converts "_" to "-" {for DocBook}
+	* press_data.h: press_data redesigned for efficiency
+	* slot.h: hslot_type redesigned for efficiency
+	* press_data.c: updated for new press_data / hslot_type
+	* slot.c: updated for new press_data / hslot_type, fixed bugs in
+	expanding slots
+	* event.c: updated for new press_data / hslot_type,
+	tidied handling of button events.
+	* draw.c: updated for new press_data / hslot_type.
+	* cscm.c: updated for new press_data / hslot_type.
+	
+Thu Oct 29 Felix Bellaby <felix@pooh.u-net.com>
+	* event.c: (drop_moving_cards) fixed bug in expanding slots.
+	(button_press_event) delay decision on what event means so that clicks
+	can be recognised on any slot.
+	(motion_notify_event) now initiates drag as well.
+	(button_up_not_moved) removed.
+	(button_release_event) incorporates button_up_not_moved function.
+	* slot.c: (slot_pressed) speeded up detection on long slots.
+	* press_data.c: (generate_press_data) fixed bugs in expanding slots.
+	* press_data.h: generate_press_data prototype changed.
+	* fortunes.scm: corrected requested board size.
+	* klondike.scm: replaced hint support to avoid crashes,
+	changed double clicks to single clicks, reintroduced expanding slot. 
+
+Thu Oct 29 Felix Bellaby <felix@pooh.u-net.com>
+	* sol.c: (new_game) game_over set to false.
+	* sol.h: game_over and game_won globals added.
+	* menu.c: menu structure changed.
+	(game_hint_callback) moved to dialog.c
+	* menu.h: tidied the contents.
+	* dialog.c: (show_select_game_dialog) allows rules to be set as well.
+	(show_hint_dialog)  use g_string / gnome_app_message
+	(show_game_over_dialog) use gnome_message_box
+	* dialog.h: tidied the contents.
+	* event.c: prevent card moves when game over
+	
+Tue Oct 27 Felix Bellaby <felix@pooh.u-net.com>
+	* sol.c: (new_game) relocates new game creation into one place, 
+	updates help menu to reflect any change in game rules.
+	(game_file_to_help_entry) converts a game file to a help entry. 
+	* sol.h: new_game added.
+	* menu.c: game change callbacks replaced with calls to new_game.
+	* menu.h: random_seed added.
+	* dialog.c: updated to use new_game via random_seed.
+	
+1998-10-27  Jens Lautenbacher  <jens@tellux.de>
+
+	* menu.c (toolbar): GNOME_STOCK_PIXMAP_EXIT instead of
+ 	GNOME_STOCK_MENU_EXIT
+
+Mon Oct 26 Felix Bellaby <felix@pooh.u-net.com>
+	* Makefile.am: added docs subdirectory.
+	* card.c: updated API calls to libgdkcardimage
+	* card.c (free_pixmaps): tidies up X server storage.
+	* card.h: added free_pixmaps.
+	* sol.c (main_prog): calls free_pixmaps before exiting. 
+	* menu.c (help_menu): added gnome help.
+	
+1998-10-26    <jrb@redhat.com>
+
+	* spider.scm ((deal-initial-setup)): reset the flip counter to allow one to play multiple games
+
+1998-10-25  Rosanna Yuen  <rwsy@mit.edu>
+
+	* yukon.scm (button-double-clicked): fixed double-clicking bug
+
+1998-10-24  Rosanna Yuen  <rwsy@mit.edu>
+
+	* doublets.scm: added a new game
+	* sol.scm: moved flip-cards-back here.  generic move waste back to
+	stock provided that stock is at 0 and waste is at 1.
+	* menu.c: added another type of hint response for use in doublets.scm
+	
+1998-10-23  Rosanna Yuen  <rwsy@mit.edu>
+
+	* eagle_wing.scm (get-hint): added hint support (and use it to do
+	game-over)
+
+1998-10-23  Rosanna Yuen  <rwsy@mit.edu>
+
+	* eagle_wing.scm (button-double-clicked): added double click support
+
+1998-10-21  Rosanna Yuen  <rwsy@mit.edu>
+
+	* yukon.scm : added a new game 
+
+1998-10-21  Rosanna Yuen  <rwsy@mit.edu>
+
+	* eagle_wing.scm : added a new game
+
+1998-10-20  Rosanna Yuen  <rwsy@mit.edu>
+
+	* menu.c (game_hint_callback): added another type of hint response
+	in the  format of "Move the " + card name + " " + "off the board"
+	* fortunes.c (get-hint): added hint support
+	
+1998-10-20  Rosanna Yuen  <rwsy@mit.edu>
+
+	* osmosis.scm (button-double-clicked): added double-click support
+
+1998-10-19  Rosanna Yuen  <rwsy@mit.edu>
+
+	* clock.scm (get-hint): added hint support. 
+
+1998-10-19  Rosanna Yuen  <rwsy@mit.edu>
+
+	* klondike.scm : added hint support.
+
+1998-10-17  Rosanna Yuen  <rwsy@mit.edu>
+
+	* canfield.scm: added hint support.
+
+1998-10-16  Rosanna Yuen  <rwsy@mit.edu>
+
+	* odessa.scm: completed scoring.  now it scores placing in
+	foundations correctly.  also counts points that accrue when
+	dealing.
+	
+1998-10-16    <jrb@redhat.com>
+
+	* menu.c (file_new_game_callback): resets the timer.
+	(restart_callback): resets the timer.
+	* dialog.c (select_game_callback): resets the timer.
+
+1998-10-16  Rosanna Yuen  <rwsy@mit.edu>
+	
+	* klondike.scm (complete-transaction): added scoring functionality
+
+1998-10-16  Rosanna Yuen  <rwsy@mit.edu>
+
+	* canfield.scm: added a new game	
+
+1998-10-15  Rosanna Yuen  <rwsy@mit.edu>
+
+	* fortunes.scm: added a new game
+
+Wed Sep 23 Felix Bellaby <felix@pooh.u-net.com>
+	* scheme_messages: new file of gettext msgids for *.scm filenames
+	* sol.c: (main_prog) scans dir for installed games
+	(start_timer) (stop_timer) C level control over timer.
+	(timer_cb) updates time display, executes any scheme callback and 
+	checks for end of game.
+ 	(create_press_data) minor fix for show card
+	* menu.c: (create_menus) lists games found in dir with i18n.
+	(file_new_game_callback) starts timer.
+	* event.c: (end_of_game_test) stops timer.
+	* cscmi.c: (scm_get_timeout) (scm_set_timeout) Scheme level control
+	of when scheme timer callback will be invoked.
+	(scm_set_lambda) used to set scheme timer callback function.
+	(cscm_init) relocates scheme stuff from sol.c
+	* TODO ticked off scan dir, timer.
+	
+Wed Sep 23 Felix Bellaby <felix@pooh.u-net.com>
+	* sol.c: (create_press_data) relocated press_data creation.
+	* press_data.c: removed press_data window creation.
+	* event.c (button_press_event) starts show card with right button
+	(button_release_event) undoes show card
+	* draw.c (stop_show_card) removed as unused. 
+	* draw.h (stop_show_card) removed as unused.
+	* TODO ticked off show card.
+	* gnome-aisleriot.png an icon for aisleriot.
+	* Makefile.am added icon image.
+	* sol.desktop added icon image.
+	
+Fri Sep 18 Felix Bellaby <felix@pooh.u-net.com>
+	* sol.c: (game_file_to_name) i18n game file name converter.
+	(main_prog) added status bar, removed redundant vbox and hbox.
+	(make_title) replace hyphens with parentheses.
+	(create_main_window) auto shrink disabled.
+	* sol.h: game_file_to_name made available. 
+	* menu.c: (game_load_game_callback) i18n used on game filenames, 
+	board size now dictated by game.
+	* klondike.scm: (new_game) return size of board.
+	* camelot.scm: (new_game) return size of board.
+	* odessa.scm: (new_game) return size of board.
+	* osmosis.scm: (new_game) return size of board.
+	* spider.scm: (new_game) return size of board.
+	* freecell.scm: (new_game) return size of board.
+	* event.c (configure_event) do nothing unless size has changed.
+	
+Wed Sep  9 Felix Bellaby <felix@pooh.u-net.com>
+	* draw.c: substantially rewritten to use a single pixmap - surface -
+	for double buffering and rationalise the drawing code.
+	* draw.h: redundant function prototypes removed.
+	* sol.c: removed creation of blank_surface pixmap, added a - draw_gc -
+	so that a tiled fill could be used to paint the background.
+	* sol.h: new gc made available. 
+	* card.c: removed a commented out line.
+	* events.c: removed use of snapshot pixmap.
+	
+Tue Sep  8 Felix Bellaby <felix@pooh.u-net.com>
+	* draw.c: (draw_slot_placements) Whoops! fixed fix to slots!
+	* card.c: (load_pixmaps) Improved mask loading.
+	
+Tue Sep  8 Felix Bellaby <felix@pooh.u-net.com>
+	* draw.c: (draw_slot_placements) removed masking from slots images.
+	(draw_normal_slot) (draw_expanding_slot) removed redundancy.
+	
+Mon Sep  7 Felix Bellaby <felix@pooh.u-net.com>
+	* odessa.scm: fixed game over check, prevented cheap point scoring.
+	* camelot.scm: fixed minor bug in add_mode, added hints.
+	* osmosis.scm: fixed bug in flip counter, added hints.
+	
+Mon Sep  7 Felix Bellaby <felix@pooh.u-net.com>
+	* events.c (drop_moving_cards): new drop test checks dragged card is
+	above slot rather than checking mouse is above slot, dropped cards 
+	now snap into place before the tedious screen refresh.
+	* press_data.c: fixed the mask for moving cards. Horizontal slots 
+	will also work if we start using them.
+	
+Mon Sep  7 Felix Bellaby <felix@pooh.u-net.com>
+	* card.c: reimplemented card pixmaps using libgdkcardimage.so
+	* Baize.xpm: A new background for the card table.
+	* Makefile.am: added library dependency and Baize.xpm installation.
+	
+Sat Sep  5 Felix Bellaby <felix@pooh.u-net.com>
+	* pixmaps/splash2.jpg:  AN Other ugly splash screen.
+
+Fri Sep  4 12:06:55 1998 <jrb@redhat.com>
+	* pixmaps/splash.{png,xcf}:  Added a temporary (ugly) splash screen.
+
+1998-08-27    <jrb@aware-of-vacuity.labs.redhat.com>
+
+	* TODO: updated to reflect the current whims of the author.
+
+Mon Aug 17 14:15:58 1998  Jonathan Blandford <jrb@redhat.com>
+	* added toolbar, and preparing for a bigger change.
+	
+Tue Aug 11 01:30:54 1998  Jonathan Blandford <jrb@redhat.com>
+	* press_data.c: added transparencies for moving cards
+	* events.c, draw.c: changed the background handling to be much faster
+
+1998-08-10  Federico Mena Quintero  <federico@nuclecu.unam.mx>
+
+	* Makefile.am (SUBDIRS): Fixed to include the pixmaps subdirectory.
+
+	* pixmaps/Makefile.am: Fixed Makefile.am.
+
+1998-07-25  Nuno Ferreira  <nmrf@rnl.ist.utl.pt>
+
+	* sol.desktop: Added Portuguese translation.
+
+1998-06-25  Maciej Stachowiak  <maciej@localhost.localdomain>
+
+	* sol.scm: Remove dependency on (ice-9 slib) module; it's not
+	actually used, AFAIK and the game works fine without it.
+
+	* sol.c (main_prog): Use (defined? 'provide), not (procedure?
+	'provide) to test wether boot-9.scm has been loaded; uncomment the
+	test, as it should now work with both Guile 1.2 and recent
+	snapshots.
+
+Fri May  1 06:03:57 1998  Jonathan Blandford  <jrb@mit.edu>
+	* press_data.c (generate_press_data): removed masking for moving cards (added 4/24)
+	This is because stacks are moved occaisionally...
+	* klondike.scm: No longer seg_faults when double clicked.  Klondike now works fine
+	again
+
+1998-04-24  Federico Mena Quintero  <federico@nuclecu.unam.mx>
+
+	* press_data.c (generate_press_data): Doh.  Logical or is not the
+	same as bitwise or.  This is why the window attributes were not
+	being set correctly.
+
+	* press_data.c (generate_press_data): Set the window shape to the
+	mask bitmap to drag cards with rounded corners.
+
+	* card.c: Made it use imlib for loading pixmaps.
+
+Mon Apr 20 20:32:06 1998  Jonathan Blandford  <jrb@mit.edu>	
+	* klondike.scm: Now handles double clicks!!!
+	* odessa.scm, camelot.scm: minor bug fixes
+	* events.c: Double click support added
+	* sol.c: removed printf statements
+	
+Wed Apr  1 10:46:17 1998  Jonathan Blandford  <jrb@mit.edu>
+	* sol.c: Minor cosmetic changes...
+	* events.c, press_data.[ch]: Made moving cards a lot faster.  Now use a GdkWidget for it.
+	* *.xpm: renamed to allow inclusion in C files...
+	* FIXME: updated... (:
+	* pixmap/cards.h: allows easy inclusion of C files.
+	* card.c: Now compiles in the cards.
+
+Sat Mar 21 15:34:17 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* dialog.c: Use gnome_message_box_*, not gnome_messagebox_*.
+
+1998-03-1  Jonathan Blandford <jrb@mit.edu>
+	* sol.c: Removed changes to work with recent snapshots below.  They 
+	seemed to cause stack-overflows with guile 1.2
+	
+Sun Mar  8 16:15:03 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* Makefile.am (INCLUDES): Added GNOME_INCLUDEDIR.
+
+	* sol.c (main_prog): Use new gnome_init.
+
+1998-03-07  Jonathan Blandford <jrb@mit.edu>
+	* sol.c: Added support for loading a game by number
+	* dialog.c: ditto
+	* menu.c: ditto
+	* events.c: ditto
+	* freecell.scm: cosmetic changes
+	* odessa.scm: now scores completely, and has hints (that mostly work)
+	
+1998-03-03  Jonathan Blandford <jrb@mit.edu>
+
+	* sol.scm: 
+	* menu.scm: added hint support
+	* camelot.scm: New game file.
+	* dialog.scm: added dialog support
+
+1998-02-25  Raja R Harinath  <harinath@cs.umn.edu>
+
+	* sol.c (main_prog): Work with recent `guile' snapshots.
+
+Tue Feb 24 22:21:29 1998  Miguel de Icaza  <miguel@nuclecu.unam.mx>
+
+	* menu.c: Added about box.  24-bpp display. 
+
+1998-02-24  Carsten Schaar  <nhadcasc@fs-maphy.uni-hannover.de>
+
+	* Makefile.am (sol_LDADD): Added '$(INTLLIBS)'
+
+1998-02-19  Federico Mena Quintero  <federico@nuclecu.unam.mx>
+
+	* sol.c (main_prog): Added app_id "aisleriot".
+
+Sun Feb 15 05:51:02 KST 1998  Changwoo Ryu  <cwryu@adam.kaist.ac.kr>
+
+	* freecell.scm: New game file.
+	* menu.c: Added freecell to menu.
+	* Makefile.am: Added freecell.scm.
+
+Fri Feb 13 13:04:27 1998  Miguel de Icaza  <miguel@nuclecu.unam.mx>
+
+	* sol.c (main_prog): Use eval_installed_file() to load the rules
+	file.
+	(game_load_game_callback): Likewise.
+	
+	* cards.c (load_file_to_pixmap): Load pixmap files from the
+	installation directory.
+
+	* Makefile.am: integrate into build process.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	

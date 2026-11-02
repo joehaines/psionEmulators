@@ -904,7 +904,7 @@ static const DeviceProfile kProfiles[] = {
         nullptr,
         DeviceStatus::Supported,
         makePsionLX,
-        false,  // CompactFlash / PC-Card sockets not emulated yet
+        true,   // CompactFlash socket (the PC Card socket holds the Wi-Fi card)
         0, 0,
         -1, -1, // no Remote Link / IrDA host bridge
         0, 0,

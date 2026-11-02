@@ -30,7 +30,7 @@ echo "=== Compiling core C++ sources ==="
 ARM_JIT_OBJS=("$OBJ_DIR/wasm_emit.o" "$OBJ_DIR/arm_jit.o" "$OBJ_DIR/arm_jit_runtime.o")
 SOURCES=(arm710 wasm_emit arm_jit arm_jit_runtime rtc_seed emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
          sa1100 sa1100_cpu \
-         xscale pxa255 inflate netbookpro \
+         xscale pxa255 inflate netbookpro hermes_card virtnet \
          audio_codec \
          sibo_audio \
          v30 v30_ops_mov v30_ops_arith v30_ops_ctrl v30_ops_misc \
@@ -60,7 +60,7 @@ echo "=== Linking audio-harness ==="
 "$CXX" "${CXXFLAGS[@]}" "$HARNESS/audio-harness.cpp" "$OBJ_DIR"/*.o \
     -o "$HARNESS/audio-harness"
 
-for tgt in series5-audio-test clps7111-record-test windermere-audio-test netbook-audio-harness series7-audio-harness netpad-audio-harness sibo-audio-harness pacman-profile; do
+for tgt in series5-audio-test clps7111-record-test windermere-audio-test netbook-audio-harness series7-audio-harness netpad-audio-harness sibo-audio-harness pacman-profile lx-harness; do
     if [ -f "$HARNESS/$tgt.cpp" ]; then
         echo "=== Linking $tgt ==="
         "$CXX" "${CXXFLAGS[@]}" "$HARNESS/$tgt.cpp" "$OBJ_DIR"/*.o \

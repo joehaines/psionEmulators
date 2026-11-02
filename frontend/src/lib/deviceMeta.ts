@@ -42,6 +42,9 @@ export const DEVICE_LOGO_MAP: Record<string, string> = {
   netbook:     '7_netbook.png',
   series7:     '7_netbook.png',
   netpad:      'netpad_logo.png',
+  // The LX is a netBook Pro in all but its OS (the same case, keyboard
+  // and clamshell), so it shares the netBook's line drawing.
+  psionlx:     '7_netbook.png',
 };
 
 export const DEVICE_RELEASE_YEARS: Record<string, number> = {

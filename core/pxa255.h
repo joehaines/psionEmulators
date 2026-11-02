@@ -55,6 +55,11 @@ public:
 	// Next word of the AC97 modem-input FIFO (slot 5), read through MODR:
 	// what a touchscreen codec streams in continuous mode.
 	virtual uint16_t ac97ModemRead() { return 0; }
+	// PCM playback: the frame rate the codec's front DAC is running at, and
+	// each stereo frame as it leaves the PCM transmit FIFO (PCDR layout:
+	// left in bits 15:0, right in 31:16).
+	virtual uint32_t ac97PcmRate() { return 48000; }
+	virtual void ac97PcmOut(uint32_t frame) { (void)frame; }
 	// Board-side events: called with the current cycle; returns the cycle of
 	// the next board event (UINT64_MAX for none).
 	virtual uint64_t boardTick(uint64_t now) { (void)now; return UINT64_MAX; }
@@ -203,6 +208,7 @@ private:
 	uint32_t dint() const;
 	void dmaWriteDcsr(int ch, uint32_t v);
 	void dmaRun(int ch);
+	bool dmaAdvance(int ch);         // current descriptor done: next one, or stop
 	bool physRead32(uint32_t pa, uint32_t &v);
 	bool physCopy(uint32_t dst, uint32_t src, uint32_t len);
 
@@ -213,6 +219,13 @@ private:
 	uint64_t acDoneAt_ = UINT64_MAX; // pending codec access completes
 	uint32_t acDoneBits_ = 0;        // SDONE and/or CDONE to raise then
 	uint64_t acReadyAt_ = UINT64_MAX;// codec-ready after a reset
+	// PCM out: the DMA channel DRCMR12 maps drains into PCDR one frame per
+	// codec sample period, as the AC-link's slot 3/4 requests pace it.
+	uint64_t pcmLast_ = 0;           // cycle up to which frames were taken
+	uint64_t pcmFrac_ = 0;           // fractional frames, in units of 1/cpuHz
+	void pcmUpdate(uint64_t now);
+	uint64_t pcmNextEvent() const;
+	int pcmChannel() const;          // running channel feeding PCDR, or -1
 	uint32_t ac97Read(uint32_t off);
 	void ac97Write(uint32_t off, uint32_t v);
 	void ac97Update(uint64_t now);

@@ -16,7 +16,10 @@ its own core:
 |---|---|
 | Intel XScale CPU, ARMv5TE, ARM + Thumb, MMU, CP15/CP14/CP0 | `core/xscale.{h,cpp}` |
 | Intel PXA255 on-chip peripherals | `core/pxa255.{h,cpp}` |
-| netBook Pro board: display controller, NAND, power controller, keyboard, codec and touch panel, RTC, EEPROM; the boot handoff | `core/netbookpro.{h,cpp}` |
+| netBook Pro board: display controller, NAND, power controller, keyboard, codec and touch panel, RTC, EEPROM, the two card sockets, sound output; the boot handoff | `core/netbookpro.{h,cpp}` |
+| A PC Card / CF card as a socket sees it, and the CompactFlash storage card | `core/pccard.h` (over the shared `core/vcfcard.*`) |
+| Intersil PRISM 2.5 802.11b PC Card (the Hermes MAC orinoco_cs drives) | `core/hermes_card.{h,cpp}` |
+| The network behind its access point: DHCP, ARP, DNS and TCP/UDP to host sockets | `core/virtnet.{h,cpp}` |
 | zlib/gzip decoder for the OS image and the NAND image | `core/inflate.{h,cpp}` |
 | Builds the factory NAND image from the rootfs tree | `scripts/build-lx-nand.mts` |
 
@@ -135,9 +138,118 @@ combinations the kernel turns into Home, End, Page Up/Down, Caps Lock and
 F1. The frontend's `netbookpro` layout (`frontend/src/lib/keymap.ts`) sends
 those chords. The stylus is the host pointer.
 
+## Card sockets
+
+The netBook Pro has two: a CompactFlash slot (socket 0) and a PC Card slot
+(socket 1). `drivers/pcmcia/pxa2xx_netbookpro.c` gives each a card-detect,
+a READY / IREQ# and a RESET line on GPIOs (73/71/70 for the CF slot,
+75/77/74 for the PC Card), and the PXA255 decodes each socket's 256 MB:
+I/O at +0, attribute memory at +0x08000000, common memory at +0x0C000000,
+from 0x20000000 and 0x30000000. The kernel's soc_common layer maps the I/O
+space statically, so a card sees its own I/O address in the low bits.
+Detect is active low and both edges interrupt, so a card inserted or
+removed at run time reaches cardmgr as a real hot-plug event. READY is
+also the card's interrupt request once it is in I/O mode, and the socket
+driver sets it falling-edge — which matters below.
+
+### CompactFlash
+
+The CF card is the emulator's shared ATA model (`core/vcfcard.*`, the one
+the EPOC machines use) in contiguous I/O mode, wrapped in `CfAtaCard`
+(`core/pccard.h`) for what Linux's IDE driver needs on top of EPOC's: the
+device-control register's nIEN gating the interrupt and SRST resetting the
+drive, device 1 reading as absent (otherwise the probe finds a phantom
+`hdb`), and RECALIBRATE completing like the other no-data commands. The
+image's own cardmgr binds `ide-cs` and its `/etc/pcmcia/ide.opts` mounts
+the first partition at `/media/cf`, with a "My CF Card" link in the `lx`
+user's home. The frontend's card images (partitioned FAT16) are exactly
+what that expects; the card dialog is the same one every CF machine uses.
+
+### Wi-Fi
+
+The netBook Pro had no radio on the board — Wi-Fi was a PC Card — so the
+PC Card slot holds one: an Intersil PRISM 2.5 802.11b card running
+station firmware 1.4.9, which is what `orinoco_cs` (0.13e, a module in the
+initrd) drives. Its CIS carries manfid 0x0156/0x0002, which the image's
+`/etc/pcmcia/config` binds to orinoco_cs; the driver reads the station
+identity and treats it as Intersil firmware with WEP and IBSS support.
+
+`HermesCard` (`core/hermes_card.*`) is the MAC as the driver programs it:
+the command register with its parameters and responses, the event status /
+enable / acknowledge registers, two buffer access paths (select, offset
+and an auto-incrementing data port), frame buffers (FIDs) and
+configuration records (RIDs). Once the port is enabled the card associates
+with one access point, ESSID "PsionNet" on channel 6, and reports the link
+in a link-status information frame; `iwconfig` shows it with its rate,
+signal and quality. Frames go out as Ethernet frames and come back in the
+receive buffers' 802.11 + 802.3 + SNAP layout.
+
+Frames are paced at 11 Mb/s air time. That is realism, but also
+necessary: the socket's interrupt is falling-edge and the card's request
+is a level, and orinoco's handler gives up after ten passes. A card that
+refills its receive buffer the instant the last one is acknowledged keeps
+the request asserted across the handler's exit, and no edge ever comes
+again (the transmit watchdog then fires with `EVSTAT=000b`). With the air
+time between frames, a ~1 MB/s transfer runs without a lost interrupt.
+
+The image's network scripts then do the rest: cardmgr runs
+`/etc/pcmcia/network`, which DHCPs on `eth0`.
+
+### The network behind the access point
+
+`VirtualNetwork` (`core/virtnet.*`) is a user-mode router in the style of
+QEMU's slirp. The guest is 10.0.2.15, the router 10.0.2.2, the DNS server
+10.0.2.3; ARP, DHCP and ping of the router are answered in the core. TCP
+connections end in a small TCP endpoint per connection (in-order receive,
+the guest's window and MSS, go-back-N retransmission) and become plain
+byte streams to a `NetHost`; UDP datagrams go to it as they are. 10.0.2.2
+means the host machine itself, and DNS to 10.0.2.3 goes to the host's
+resolver.
+
+Who the `NetHost` is depends on where the emulator runs:
+
+- **Desktop app** — the emulator's worker drains the requests after every
+  frame and posts them up; the renderer hands them to
+  `window.psionHost.net`; the main process opens them with Node's `net`
+  and `dgram` (`desktop/src/main/netHost.ts`) and the events come back the
+  same way. The LX is on the internet, through this computer.
+- **Browser** — a web page cannot open sockets, so there is no host. The
+  card still associates and the guest still gets its lease; connections
+  past the router are refused at once and DNS answers SERVFAIL, so
+  applications report that there is no network rather than hanging.
+- **Native harness** — BSD sockets (`harness/lx-harness.cpp`), which is
+  how the tests reach a server on the runner.
+
+The Wi-Fi button on the toolbar (the Drives panel in the desktop app)
+takes the card out of its slot and puts it back.
+
+## Sound
+
+The OSS driver (`sound/oss/pxa-audio.c`) plays through a chain of DMA
+descriptors: one zero-length memory-to-memory marker per fragment, whose
+end interrupt tells the driver a fragment is done, then the fragment's
+data with flow control by the target, the AC97 PCM transmit FIFO. The
+PXA255 model paces the channel DRCMR12 maps at the codec's front-DAC rate
+(variable rate is enabled, so 44.1 kHz from the GPE sound server, 48 kHz
+by default), one stereo frame per sample period, raising the end
+interrupt when each descriptor drains. The board mixes the frames to mono
+and resamples them to the host's 48 kHz stream.
+
+The speaker amplifier is enabled by clearing GPIO 65, which the kernel
+never configures as an output — the bootloader did, so the emulated
+handoff does. Volume is the codec's master and PCM-out attenuators; the
+mixer's default level plays at full scale on the host, a quieter setting
+is attenuated from there, and either mute bit silences it.
+
+`tests/integration/test-lx-peripherals.sh` checks all three from inside
+the guest: it logs in on the serial console, reads, writes and hot-plugs a
+CF card, plays a tone from it into `/dev/dsp`, and fetches a file over
+Wi-Fi from a web server on the test machine.
+
 ## Not emulated (yet)
 
-The CompactFlash and PC-Card sockets (the image probes them and finds them
-empty), the SL811HS USB host, sound output (the codec answers, no samples
-leave it), Wi-Fi, the battery monitor stream the PCON sends over SSP (the
-driver logs that it times out and retries), and suspend.
+The SL811HS USB host, the microphone (the codec's ADC path), the battery
+monitor stream the PCON sends over SSP (the driver logs that it times out
+and retries), and suspend. The Wi-Fi card's WEP is accepted and ignored —
+the access point is open — and 0.13e's driver has no scanning, so the card
+only ever sees the one network.

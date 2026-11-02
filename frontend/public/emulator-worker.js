@@ -141,6 +141,74 @@ function drainSerial() {
     }
   }
 }
+// ── Wi-Fi network (the Psion LX) ──
+// The core's virtual network asks for sockets; only the desktop app's main
+// process can open them. The main thread says whether such a host exists
+// ('netHost'); if so the core is pointed at its JS socket queue, which this
+// worker drains after every tick and posts up as 'netCommands', and the
+// host's answers come back down as 'netEvents'. Flow control: a socket is
+// paused while the guest has more than NET_PAUSE_AT of its data unacknowledged.
+let netHostOn = false;
+let netScratch = 0;
+const NET_CAP = 256 * 1024;
+const NET_PAUSE_AT = 256 * 1024, NET_RESUME_AT = 64 * 1024;
+const netFlows = new Set();     // TCP ids open on the host
+const netPaused = new Set();
+function attachNetHost() {
+  netFlows.clear(); netPaused.clear();
+  if (!mod || !mod.netAttachHost) return;
+  mod.netAttachHost(netHostOn);
+  if (netHostOn) postMessage({ type: 'netCommands', cmds: [{ kind: 'reset' }] });
+}
+function drainNet() {
+  if (!netHostOn || !mod || !mod.netDrainCommands) return;
+  if (!mod.netPendingBytes() && netFlows.size === 0) return;
+  if (!netScratch) netScratch = mod._malloc(NET_CAP);
+  const cmds = [], transfer = [];
+  while (mod.netPendingBytes()) {
+    const n = mod.netDrainCommands(netScratch, NET_CAP);
+    if (n <= 0) break;
+    const v = new DataView(mod.HEAPU8.buffer, netScratch, n);
+    for (let off = 0; off + 15 <= n;) {
+      const kind = v.getUint8(off), id = v.getUint32(off + 1, true), ip = v.getUint32(off + 5, true);
+      const port = v.getUint16(off + 9, true), len = v.getUint32(off + 11, true);
+      const data = len ? mod.HEAPU8.slice(netScratch + off + 15, netScratch + off + 15 + len) : null;
+      off += 15 + len;
+      if (kind === 1) { netFlows.add(id); cmds.push({ kind: 'tcp-connect', id, ip, port }); }
+      else if (kind === 2) { cmds.push({ kind: 'tcp-send', id, data }); transfer.push(data.buffer); }
+      else if (kind === 3) cmds.push({ kind: 'tcp-shutdown', id });
+      else if (kind === 4) { netFlows.delete(id); netPaused.delete(id); cmds.push({ kind: 'tcp-close', id }); }
+      else if (kind === 5) { cmds.push({ kind: 'udp-send', id, ip, port, data: data || new Uint8Array(0) }); if (data) transfer.push(data.buffer); }
+    }
+    if (n < NET_CAP / 2) break;
+  }
+  for (const id of netFlows) {
+    const backlog = mod.netTcpBacklog(id);
+    if (!netPaused.has(id) && backlog > NET_PAUSE_AT) { netPaused.add(id); cmds.push({ kind: 'tcp-pause', id }); }
+    else if (netPaused.has(id) && backlog < NET_RESUME_AT) { netPaused.delete(id); cmds.push({ kind: 'tcp-resume', id }); }
+  }
+  if (cmds.length) postMessage({ type: 'netCommands', cmds }, transfer);
+}
+function deliverNetEvents(events) {
+  if (!mod || !mod.netTcpOpened) return;
+  for (const e of events) {
+    switch (e.kind) {
+      case 'tcp-opened': mod.netTcpOpened(e.id); break;
+      case 'tcp-failed': netFlows.delete(e.id); netPaused.delete(e.id); mod.netTcpFailed(e.id); break;
+      case 'tcp-eof': mod.netTcpEof(e.id); break;
+      case 'tcp-data': case 'udp-data': {
+        const d = e.data instanceof Uint8Array ? e.data : new Uint8Array(e.data);
+        const ptr = mod.netPrepareInput(d.length);
+        mod.HEAPU8.set(d, ptr);
+        if (e.kind === 'tcp-data') mod.netTcpData(e.id, d.length);
+        else mod.netUdpData(e.id, e.ip >>> 0, e.port, d.length);
+        break;
+      }
+    }
+  }
+  drainNet();                    // the guest's answers go straight back up
+}
+
 let micQueue = [];       // pending mic chunks {arr,off}; fed at the emulator's sim-rate
 let micQueued = 0;
 let micPerFrame = 125;   // mic samples consumed per sim-frame (audioSampleRate/64)
@@ -400,6 +468,7 @@ function invalidateHeapPointers() {
   audioScratch = 0;
   micScratch = 0; micScratchCap = 0;
   serialScratch = 0;
+  netScratch = 0;
 }
 
 // ── The render / step loop.
@@ -532,6 +601,7 @@ function tick() {
       // Serial: stream any UART output to the host (main thread), where the PLP/
       // IrDA client reads it via the sync serialReadBytes interface.
       if (rendered) drainSerial();
+      if (rendered) drainNet();
       // Throttle the LCD blit during an active transfer so the guest keeps the
       // CPU it needs to drain its serial FIFO (see TRANSFER_BLIT_INTERVAL_MS).
       const blitNow = rendered && (!serialPumpOn ||
@@ -602,6 +672,11 @@ function postStatus() {
     // Quarter-turns anticlockwise the panel image has to be shown at —
     // non-zero once the netpad's "Switch orientation" has been used.
     orientation: readOrientation(),
+    // The Psion LX's Wi-Fi card: in its slot, the guest holding a DHCP lease,
+    // and whether real sockets are behind the access point (desktop app).
+    wifi: (mod && mod.hasWifi && mod.hasWifi())
+      ? { inserted: mod.isWifiCardInserted(), online: mod.netGuestHasLease(), internet: netHostOn }
+      : null,
   });
 }
 
@@ -772,6 +847,14 @@ function applyLanguage(override) {
 
 // ── RPC handlers (return a value or throw) ──
 const rpc = {
+  // The Psion LX's Wi-Fi PC Card in or out of its slot (hot-plugged: the
+  // guest's cardmgr sees the insert or eject).
+  setWifiCardInserted({ on }) {
+    if (!mod || !mod.setWifiCardInserted) return false;
+    mod.setWifiCardInserted(!!on);
+    postStatus();
+    return true;
+  },
   getProfiles() { return JSON.parse(mod.getAllDeviceProfilesJSON()); },
   // `machineId` (null when unset) is the user's stored Unique-id override for
   // this device, as a hex string — see the helpers above. It rides along with
@@ -921,6 +1004,8 @@ const rpc = {
         postMessage({ type: 'log', text: 'CF re-attach on load failed: ' + (e && e.message || e), err: true });
       }
     }
+    // A fresh (or restored) machine's network starts with no flows.
+    attachNetHost();
     if (!restored) {
       try { await loadInternalFlash(deviceId, romUrl); }
       catch (e) {
@@ -1323,6 +1408,7 @@ const rpc = {
       invalidateHeapPointers();
       const info = mod.getDeviceInfo();
       ensureLcdBuffers(info);          // reallocate LCD ptr in the restored allocator
+      attachNetHost();                 // the snapshot's flows had other sockets
       nextFrameDue = 0;                // resync pacing after the time jump
       postStatus();
       return true;
@@ -1491,6 +1577,8 @@ onmessage = async (e) => {
       return;
     }
     if (m.type === 'setSerialPump') { serialPumpOn = !!m.on; return; }
+    if (m.type === 'netHost') { netHostOn = !!m.on; attachNetHost(); return; }
+    if (m.type === 'netEvents') { deliverNetEvents(m.events || []); return; }
     if (m.type === 'simKeepAlive') { simKeepAliveBytes = m.bytes ? new Uint8Array(m.bytes) : null; return; }
     if (m.type === 'setLoggingEnabled') {
       serialDebug = !!m.on;   // serial tracing follows the Show Logs toggle

@@ -6,6 +6,17 @@
 // protocol: request/reply RPC for cold calls, fire-and-forget input, and a
 // status push the UI polls without a round-trip.
 import type { DeviceInfo } from '../types/emulator';
+import type { NetCommand, NetEvent } from './desktop/host';
+
+/** The Psion LX's Wi-Fi card, as the worker last saw it. */
+export interface WifiStatus {
+  /** The PC Card is in its slot. */
+  inserted: boolean;
+  /** The guest has an address from the access point's DHCP server. */
+  online: boolean;
+  /** Real sockets are behind the access point (the desktop app). */
+  internet: boolean;
+}
 
 export interface WorkerStatus {
   paused: boolean;
@@ -17,6 +28,8 @@ export interface WorkerStatus {
   // Quarter-turns anticlockwise the panel image has to be shown at (the
   // netpad's "Switch orientation"; 0 on every other machine).
   orientation: number;
+  /** Null on every machine without Wi-Fi. */
+  wifi?: WifiStatus | null;
 }
 
 type RpcResolver = { resolve: (v: unknown) => void; reject: (e: Error) => void };
@@ -58,6 +71,8 @@ export class EmulatorWorkerClient {
   onAudio: ((samples: Int16Array) => void) | null = null;
   onLog: ((text: string, err: boolean) => void) | null = null;
   onSerialRx: ((uart: number, bytes: Uint8Array) => void) | null = null;
+  /** The emulated network's socket requests, for window.psionHost.net. */
+  onNetCommands: ((cmds: NetCommand[]) => void) | null = null;
 
   constructor(workerUrl: string) {
     this.worker = new Worker(workerUrl);
@@ -116,6 +131,9 @@ export class EmulatorWorkerClient {
       case 'serialRx':
         this.onSerialRx?.(m.uart as number, new Uint8Array(m.bytes as ArrayBuffer));
         break;
+      case 'netCommands':
+        this.onNetCommands?.(m.cmds as NetCommand[]);
+        break;
       case 'log':
         if (m.err) console.error('[emu]', m.text); else console.log('[emu]', m.text);
         this.onLog?.(String(m.text), !!m.err);
@@ -171,6 +189,13 @@ export class EmulatorWorkerClient {
   }
   saveState(): Promise<boolean> { return this.call('saveState'); }
   revertToSaved(): Promise<boolean> { return this.call('revertToSaved'); }
+  /** Whether real sockets are available to the emulated network. */
+  setNetHost(on: boolean): void { this.worker.postMessage({ type: 'netHost', on }); }
+  /** Socket events from window.psionHost.net, in order. */
+  netEvents(events: NetEvent[]): void { this.worker.postMessage({ type: 'netEvents', events }); }
+  /** Put the Psion LX's Wi-Fi card in its slot, or take it out. */
+  setWifiCardInserted(on: boolean): Promise<boolean> { return this.call('setWifiCardInserted', { on }); }
+
   async attachCard(bytes: Uint8Array): Promise<boolean> {
     const copy = bytes.slice();                              // transfer a copy
     return this.call('attachCard', { bytes: copy.buffer }, [copy.buffer]);

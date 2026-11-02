@@ -81,6 +81,7 @@ void Soc::reset(uint32_t rtcSeconds) {
 	gcr_ = gsr_ = car_ = 0;
 	for (auto &r : acRegs_) r = 0;
 	acDoneAt_ = acReadyAt_ = UINT64_MAX; acDoneBits_ = 0;
+	pcmLast_ = 0; pcmFrac_ = 0;
 	cccr_ = 0x121; cken_ = 0x17def; oscc_ = 0x3;
 	for (auto &p : pwr_) p = 0;
 	pwr_[0x30 / 4] = 1;               // RCSR: hardware reset
@@ -109,6 +110,7 @@ uint64_t Soc::nextEvent() const {
 	ev = std::min(ev, acDoneAt_);
 	ev = std::min(ev, acReadyAt_);
 	ev = std::min(ev, mmcDoneAt_);
+	ev = std::min(ev, pcmNextEvent());
 	for (const auto &s : uart_)
 		if (s.txPending) ev = std::min(ev, s.txDoneAt);
 	return ev;
@@ -119,6 +121,7 @@ void Soc::processEvents(uint64_t now) {
 	rtcUpdate(now);
 	i2cUpdate(now);
 	ac97Update(now);
+	pcmUpdate(now);
 	uartUpdate(now);
 	if (now >= mmcDoneAt_) {
 		mmcDoneAt_ = UINT64_MAX;
@@ -543,6 +546,7 @@ void Soc::ac97Write(uint32_t off, uint32_t v) {
 		gsr_ &= ~(v & (GSR_SDONE | GSR_CDONE | GSR_RDCS | GSR_GSCI | (1u << 10) | (1u << 11)));
 		break;
 	case 0x20: car_ = v & 1; break;
+	case 0x40: board_.ac97PcmOut(v); break;    // PCDR written by the CPU
 	default:
 		if (off / 4 < 0x48) acRegs_[off / 4] = v;
 		break;
@@ -591,9 +595,23 @@ bool Soc::physCopy(uint32_t dst, uint32_t src, uint32_t len) {
 	return true;
 }
 
+bool Soc::dmaAdvance(int ch) {
+	// The current descriptor has moved all its bytes: raise its end
+	// interrupt, then load the next descriptor or stop.
+	if (dcmd_[ch] & DCMD_ENDIRQEN) dcsr_[ch] |= DCSR_ENDINTR;
+	if ((dcsr_[ch] & DCSR_NODESC) || (ddadr_[ch] & 1)) { dcsr_[ch] &= ~DCSR_RUN; dcsr_[ch] |= DCSR_STOPSTATE; return false; }
+	uint32_t d = ddadr_[ch] & ~0xfu, w[4];
+	for (int i = 0; i < 4; i++)
+		if (!physRead32(d + 4 * i, w[i])) { dcsr_[ch] |= DCSR_BUSERR | DCSR_STOPSTATE; dcsr_[ch] &= ~DCSR_RUN; return false; }
+	ddadr_[ch] = w[0]; dsadr_[ch] = w[1]; dtadr_[ch] = w[2]; dcmd_[ch] = w[3];
+	if (dcmd_[ch] & DCMD_STARTIRQEN) dcsr_[ch] |= DCSR_STARTINTR;
+	return true;
+}
+
 void Soc::dmaRun(int ch) {
 	// Memory-to-memory descriptors complete at once; peripheral-paced ones
-	// (FLOWSRC / FLOWTRG) wait for requests no peripheral here raises.
+	// (FLOWSRC / FLOWTRG) wait for their peripheral's requests — the AC97
+	// PCM transmit FIFO is the only one that raises them (pcmUpdate).
 	for (int guard = 0; guard < 256 && (dcsr_[ch] & DCSR_RUN); guard++) {
 		if (dcmd_[ch] & (DCMD_FLOWSRC | DCMD_FLOWTRG)) return;
 		uint32_t len = dcmd_[ch] & 0x1fff;
@@ -603,14 +621,72 @@ void Soc::dmaRun(int ch) {
 			if (dcmd_[ch] & DCMD_INCTRG) dtadr_[ch] += len;
 			dcmd_[ch] &= ~0x1fffu;
 		}
-		if (dcmd_[ch] & DCMD_ENDIRQEN) dcsr_[ch] |= DCSR_ENDINTR;
-		if ((dcsr_[ch] & DCSR_NODESC) || (ddadr_[ch] & 1)) { dcsr_[ch] &= ~DCSR_RUN; break; }
-		uint32_t d = ddadr_[ch] & ~0xfu, w[4];
-		for (int i = 0; i < 4; i++) if (!physRead32(d + 4 * i, w[i])) { dcsr_[ch] |= DCSR_BUSERR; dcsr_[ch] &= ~DCSR_RUN; return; }
-		ddadr_[ch] = w[0]; dsadr_[ch] = w[1]; dtadr_[ch] = w[2]; dcmd_[ch] = w[3];
-		if (dcmd_[ch] & DCMD_STARTIRQEN) dcsr_[ch] |= DCSR_STARTINTR;
+		if (!dmaAdvance(ch)) break;
 	}
 	if (!(dcsr_[ch] & DCSR_RUN)) dcsr_[ch] |= DCSR_STOPSTATE;
+}
+
+// ── AC97 PCM out ────────────────────────────────────────────────────────
+
+namespace { constexpr uint32_t kPcdrPhys = 0x40500040u; }
+
+int Soc::pcmChannel() const {
+	uint32_t m = drcmr_[12];                          // DRCMRTXPCDR
+	if (!(m & 0x80)) return -1;                       // MAPVLD
+	int ch = (int)(m & 0xf);
+	return (dcsr_[ch] & DCSR_RUN) ? ch : -1;
+}
+
+void Soc::pcmUpdate(uint64_t now) {
+	if (now <= pcmLast_) return;
+	uint64_t elapsed = now - pcmLast_;
+	pcmLast_ = now;
+	int ch = pcmChannel();
+	if (ch < 0 || !(gsr_ & GSR_PCR)) { pcmFrac_ = 0; return; }
+	uint32_t rate = std::clamp<uint32_t>(board_.ac97PcmRate(), 4000, 48000);
+	// Frames due: elapsed * rate / cpuHz, carrying the remainder.
+	pcmFrac_ += elapsed * rate;
+	uint64_t frames = pcmFrac_ / cpuHz_;
+	pcmFrac_ %= cpuHz_;
+	if (frames > 48000) frames = 48000;               // a long idle gap: don't burst a second's worth
+	for (int guard = 0; frames && guard < 4096 && (dcsr_[ch] & DCSR_RUN); guard++) {
+		if (!(dcmd_[ch] & DCMD_FLOWTRG) || dtadr_[ch] != kPcdrPhys) {
+			// Fragment-marker descriptors and the like: memory-to-memory.
+			uint32_t before = ddadr_[ch];
+			dmaRun(ch);
+			if (ddadr_[ch] == before && !(dcmd_[ch] & DCMD_FLOWTRG)) break;
+			continue;
+		}
+		uint32_t len = dcmd_[ch] & 0x1fff;
+		while (len >= 4 && frames) {
+			uint32_t w;
+			if (!physRead32(dsadr_[ch], w)) { dcsr_[ch] |= DCSR_BUSERR | DCSR_STOPSTATE; dcsr_[ch] &= ~DCSR_RUN; break; }
+			board_.ac97PcmOut(w);
+			if (dcmd_[ch] & DCMD_INCSRC) dsadr_[ch] += 4;
+			len -= 4;
+			frames--;
+		}
+		dcmd_[ch] = (dcmd_[ch] & ~0x1fffu) | len;
+		if (len < 4 && (dcsr_[ch] & DCSR_RUN)) {
+			dcmd_[ch] &= ~0x1fffu;
+			if (!dmaAdvance(ch)) break;
+		}
+	}
+	if (ch >= 0 && !(dcsr_[ch] & DCSR_RUN)) pcmFrac_ = 0;
+}
+
+uint64_t Soc::pcmNextEvent() const {
+	int ch = pcmChannel();
+	if (ch < 0 || !(gsr_ & GSR_PCR)) return UINT64_MAX;
+	uint32_t rate = std::clamp<uint32_t>(board_.ac97PcmRate(), 4000, 48000);
+	// Wake when the current descriptor drains (its end interrupt is due), or
+	// after 64 frames at the latest, so the board's queue stays fed.
+	// A marker descriptor runs on the next frame.
+	uint32_t frames = (dcmd_[ch] & DCMD_FLOWTRG) && dtadr_[ch] == kPcdrPhys
+	                ? std::clamp<uint32_t>((dcmd_[ch] & 0x1fff) / 4, 1, 64) : 1;
+	uint64_t need = (uint64_t)frames * cpuHz_;
+	uint64_t wait = need > pcmFrac_ ? (need - pcmFrac_ + rate - 1) / rate : 1;
+	return pcmLast_ + std::max<uint64_t>(wait, 1);
 }
 
 void Soc::dmaWriteDcsr(int ch, uint32_t v) {
@@ -621,6 +697,7 @@ void Soc::dmaWriteDcsr(int ch, uint32_t v) {
 	dcsr_[ch] = c;
 	if (start) {
 		dcsr_[ch] &= ~DCSR_STOPSTATE;
+		if ((drcmr_[12] & 0x8f) == (0x80u | (uint32_t)ch)) { pcmLast_ = cycles(); pcmFrac_ = 0; }
 		if (!(c & DCSR_NODESC)) {
 			uint32_t d = ddadr_[ch] & ~0xfu, w[4];
 			for (int i = 0; i < 4; i++) if (!physRead32(d + 4 * i, w[i])) { dcsr_[ch] |= DCSR_BUSERR; return; }
@@ -628,6 +705,7 @@ void Soc::dmaWriteDcsr(int ch, uint32_t v) {
 			if (dcmd_[ch] & DCMD_STARTIRQEN) dcsr_[ch] |= DCSR_STARTINTR;
 		}
 		dmaRun(ch);
+		cpu_.stopRun();                               // a paced channel needs scheduling
 	} else if (!(v & DCSR_RUN)) {
 		dcsr_[ch] |= DCSR_STOPSTATE;
 	}

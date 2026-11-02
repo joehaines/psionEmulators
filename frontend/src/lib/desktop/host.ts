@@ -19,6 +19,7 @@ import type { PsionHost } from '../../../../desktop/src/ipc/contract.ts';
 export type {
   PsionHost, PsionHostInfo, MountId, MountInfo, HostDirent,
   SaveGeneration, HostCommand, DeviceMenuEntry, AspectExtra, WindowStateEvent,
+  NetCommand, NetEvent,
 } from '../../../../desktop/src/ipc/contract.ts';
 
 /**

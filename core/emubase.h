@@ -145,6 +145,8 @@ enum EpocKey {
 // for the ARM710 public surface. Calls in subclass code resolve to these
 // forwarders, which dispatch through getArmCpu(). The forwarders are
 // inline and zero-cost.
+class VirtualNetwork;   // core/virtnet.h
+
 class EmuBase
 {
 protected:
@@ -624,6 +626,14 @@ public:
 	// hundred ms rather than minutes. Default false for devices with no
 	// CF slot or while the card is idle.
 	virtual bool cfGapActive() const { return false; }
+
+	// Wi-Fi (the Psion LX's PC Card): whether the machine has one, whether it
+	// is in its slot, and the virtual network behind its access point, which
+	// the host environment connects to real sockets where it can.
+	virtual bool hasWifi() const { return false; }
+	virtual bool isWifiCardInserted() const { return false; }
+	virtual void setWifiCardInserted(bool on) { (void)on; }
+	virtual VirtualNetwork *virtualNetwork() { return nullptr; }
 
 	// Audio codec hooks. Default no-op so devices without a codec emulation
 	// path compile unchanged and the frontend suppresses the UI.

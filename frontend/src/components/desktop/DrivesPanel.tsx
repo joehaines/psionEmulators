@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PsionWebEmulator
 // Copyright (c) 2024-2026 Joe Haines <joehaines@gmail.com>. See LICENSE.
 
+import type { WifiStatus } from '../../lib/emulatorWorkerClient';
 import { useCallback, useEffect, useState } from 'react';
 import type { MountInfo } from '../../lib/desktop/host';
 import { requireHost } from '../../lib/desktop/host';
@@ -27,10 +28,13 @@ interface Props {
   /** Whether this machine's ROM speaks a link protocol the emulator can drive. */
   canLink: boolean;
   deviceName: string | null;
+  /** The Psion LX's Wi-Fi card; absent on every other machine. */
+  wifi?: WifiStatus | null;
+  onWifiInserted?(on: boolean): void;
 }
 
 export default function DrivesPanel({
-  open, onClose, family, status, syncStatus, canLink, deviceName,
+  open, onClose, family, status, syncStatus, canLink, deviceName, wifi, onWifiInserted,
 }: Props) {
   const host = requireHost();
   const [mount, setMount] = useState<MountInfo | null>(null);
@@ -258,6 +262,32 @@ export default function DrivesPanel({
                 {syncStatus.warnings.slice(0, 5).map((w) => <li key={w}>{w}</li>)}
               </ul>
             )}
+          </>
+        )}
+
+        {wifi && onWifiInserted && (
+          <>
+            <hr style={{ border: 0, borderTop: '1px solid rgba(255,255,255,0.15)', margin: 0 }} />
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Wi-Fi</h2>
+            <p style={{ margin: 0, opacity: 0.7, lineHeight: 1.5 }}>
+              An 802.11b PC Card in the LX&rsquo;s PC Card slot, joined to an
+              emulated access point, &ldquo;PsionNet&rdquo;. Its connections go
+              out through this computer, as if the LX were on your network:
+              10.0.2.2 is this computer itself.
+            </p>
+            <Row>
+              <span style={{ opacity: 0.6, marginRight: 8 }}>Status</span>
+              <span style={{ flex: 1 }}>
+                {!wifi.inserted ? 'Card out of its slot'
+                  : !wifi.online ? 'Joining PsionNet…'
+                  : 'Online (10.0.2.15)'}
+              </span>
+            </Row>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button onClick={() => onWifiInserted(!wifi.inserted)}>
+                {wifi.inserted ? 'Remove the card' : 'Insert the card'}
+              </Button>
+            </div>
           </>
         )}
 

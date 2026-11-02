@@ -20,9 +20,9 @@ constexpr uint32_t kVramSize = 0x140000u;     // 1.25 MB embedded SDRAM
 enum : int {
 	GPIO_BATT_WARN = 0, GPIO_SUSPEND_REQ = 1, GPIO_HEADPHONE = 3, GPIO_PEN = 4,
 	GPIO_MMC_DETECT = 9, GPIO_NAND_RB = 20, GPIO_NAND_CLE = 21, GPIO_NAND_ALE = 22,
-	GPIO_NAND_WP = 61, GPIO_NAND_NCE = 62,
-	GPIO_CF_READY = 71, GPIO_CF_STATUS = 72, GPIO_CF_DETECT = 73,
-	GPIO_PC_DETECT = 75, GPIO_PC_STATUS = 76, GPIO_PC_READY = 77,
+	GPIO_NAND_WP = 61, GPIO_NAND_NCE = 62, GPIO_AUDIO_AMP = 65,
+	GPIO_CF_RESET = 70, GPIO_CF_READY = 71, GPIO_CF_STATUS = 72, GPIO_CF_DETECT = 73,
+	GPIO_PC_RESET = 74, GPIO_PC_DETECT = 75, GPIO_PC_STATUS = 76, GPIO_PC_READY = 77,
 };
 
 // The power controller's register map, as nbp-pcon.c uses it.
@@ -72,6 +72,12 @@ Emulator::Emulator()
       nandBuf_(264, 0xffff) {
 	soc_.cpu().addRam(vram_.data(), kVramBase, kVramSize);
 	seedEeprom();
+	wifi_.tx = [this](const uint8_t *f, size_t n) { net_.fromGuest(f, n); };
+	net_.toGuest = [this](const uint8_t *f, size_t n) {
+		if (!wifiPresent_) return;
+		wifi_.receive(f, n);
+		soc_.kick();                                // the card has a frame to raise
+	};
 }
 
 Emulator::~Emulator() = default;
@@ -98,6 +104,12 @@ void Emulator::bootOs() {
 	keyAwaitReady_ = false;
 	powerEchoAt_ = UINT64_MAX;
 	penDown_ = false;
+	socketIreq_[0] = socketIreq_[1] = false;
+	ampOn_ = false;
+	lastFrame_ = 0; resamplePhase_ = 0; audioOut_.clear();
+	if (cfPresent_) cf_.reset();
+	wifi_.reset();
+	net_.reset();
 	cle_ = ale_ = false;
 	nandCmd_ = 0xff;
 
@@ -138,11 +150,13 @@ void Emulator::bootOs() {
 	uint32_t ramWord = kRamSize;
 	std::memcpy(soc_.ram() + 0xf4, &ramWord, 4);
 	// GPIOs the kernel drives without configuring them first: the NAND's
-	// CLE / ALE / nCE / WP lines, the SL811HS reset and the AC97 reset.
+	// CLE / ALE / nCE / WP lines, the speaker amplifier enable (high: off),
+	// the SL811HS reset and the AC97 reset.
 	soc_.presetGpio(GPIO_NAND_CLE, true, false);
 	soc_.presetGpio(GPIO_NAND_ALE, true, false);
 	soc_.presetGpio(GPIO_NAND_NCE, true, true);
 	soc_.presetGpio(GPIO_NAND_WP, true, false);
+	soc_.presetGpio(GPIO_AUDIO_AMP, true, true);
 	soc_.presetGpio(14, true, true);
 	soc_.presetGpio(63, true, true);
 	cpu.setCpsr(0xd3);                         // SVC, IRQ and FIQ masked
@@ -221,6 +235,106 @@ bool Emulator::csWrite(int cs, uint32_t off, int size, uint32_t v) {
 	}
 }
 
+// ── PCMCIA / CF sockets ─────────────────────────────────────────────────
+//
+// Each socket's 256 MB: I/O space at +0, attribute memory at +0x08000000,
+// common memory at +0x0C000000. The kernel's soc_common layer maps the
+// whole I/O space statically, so the card sees its own I/O address in the
+// low bits (ten address lines at most; the Wi-Fi card decodes six).
+
+PcCard *Emulator::socketCard(int s) {
+	if (s == 0) return cfPresent_ ? &cf_ : nullptr;
+	return wifiPresent_ ? &wifi_ : nullptr;
+}
+
+bool Emulator::pcmciaRead(uint32_t pa, int size, uint32_t &out) {
+	int s = (pa >> 28) & 1;
+	PcCard *c = socketCard(s);
+	if (!c) { out = size == 1 ? 0xff : size == 2 ? 0xffff : 0xffffffffu; return true; }
+	uint32_t off = pa & 0x03ffffffu;
+	switch ((pa >> 26) & 3) {
+	case 0: out = c->ioRead(off & 0x3ff, size); break;
+	case 2: out = c->attrRead(off, size); break;
+	case 3: out = c->memRead(off, size); break;
+	default: out = ~0u; break;
+	}
+	if (size == 1) out &= 0xff;
+	else if (size == 2) out &= 0xffff;
+	updateSocketPins();
+	return true;
+}
+
+bool Emulator::pcmciaWrite(uint32_t pa, int size, uint32_t v) {
+	int s = (pa >> 28) & 1;
+	PcCard *c = socketCard(s);
+	if (!c) return true;
+	uint32_t off = pa & 0x03ffffffu;
+	switch ((pa >> 26) & 3) {
+	case 0: c->ioWrite(off & 0x3ff, size, v); break;
+	case 2: c->attrWrite(off, size, v); break;
+	case 3: c->memWrite(off, size, v); break;
+	default: break;
+	}
+	updateSocketPins();
+	return true;
+}
+
+void Emulator::updateSocketPins() {
+	bool kick = false;
+	for (int s = 0; s < 2; s++) {
+		PcCard *c = socketCard(s);
+		if (c && c->nextEvent() != UINT64_MAX) kick = true;   // the card has something scheduled
+		bool irq = c && c->ireq();
+		if (irq != socketIreq_[s]) {
+			socketIreq_[s] = irq;
+			soc_.setGpioInput(s == 0 ? GPIO_CF_READY : GPIO_PC_READY, !irq);
+		}
+	}
+	if (kick) soc_.kick();
+}
+
+void Emulator::setSocketPresent(int s, bool present) {
+	// Card detect falls on insertion, rises on removal; soc_common watches
+	// both edges and cardmgr does the rest.
+	if (booted_) soc_.setGpioInput(s == 0 ? GPIO_CF_DETECT : GPIO_PC_DETECT, !present);
+	updateSocketPins();
+}
+
+bool Emulator::attachCard(const uint8_t *bytes, size_t size) {
+	if (!bytes || size < 512 * 64) return false;
+	if (cfPresent_) {
+		// A swap: the old card comes out first, so the guest sees the edge.
+		cfPresent_ = false;
+		setSocketPresent(0, false);
+	}
+	cf_.disk().attach(bytes, size);
+	cf_.reset();
+	cfPresent_ = true;
+	setSocketPresent(0, true);
+	return true;
+}
+
+bool Emulator::updateCardImageInPlace(const uint8_t *bytes, size_t size) {
+	if (!cfPresent_ || size != cf_.disk().imageSize()) return attachCard(bytes, size);
+	std::memcpy(cf_.disk().data(), bytes, size);
+	return true;
+}
+
+void Emulator::setWifiCardInserted(bool on) {
+	if (on == wifiPresent_) return;
+	wifiPresent_ = on;
+	if (on) wifi_.reset();
+	else net_.reset();
+	setSocketPresent(1, on);
+}
+
+void Emulator::detachCard() {
+	if (!cfPresent_) return;
+	cfPresent_ = false;
+	cf_.disk().detach();
+	setSocketPresent(0, false);
+}
+
 // ── GPIO ────────────────────────────────────────────────────────────────
 
 bool Emulator::gpioInput(int pin) {
@@ -229,8 +343,12 @@ bool Emulator::gpioInput(int pin) {
 	case GPIO_HEADPHONE: return true;           // no headphones (high = removed)
 	case GPIO_PEN: return penDown_;
 	case GPIO_MMC_DETECT: return true;
-	case GPIO_CF_READY: case GPIO_PC_READY: return true;
-	case GPIO_CF_DETECT: case GPIO_PC_DETECT: return true;   // high = no card
+	// READY doubles as IREQ# once a card is in I/O mode: high = ready / no
+	// interrupt request. Card detect is active low.
+	case GPIO_CF_READY: return !socketIreq_[0];
+	case GPIO_PC_READY: return !socketIreq_[1];
+	case GPIO_CF_DETECT: return socketCard(0) == nullptr;
+	case GPIO_PC_DETECT: return socketCard(1) == nullptr;
 	case GPIO_CF_STATUS: case GPIO_PC_STATUS: return true;
 	default: return false;
 	}
@@ -242,6 +360,10 @@ void Emulator::gpioOutputChanged(int pin, bool level) {
 	case GPIO_NAND_ALE: ale_ = level; break;
 	case GPIO_NAND_NCE: nce_ = level; break;
 	case GPIO_NAND_WP: wp_ = !level; break;     // GPCR(61) asserts write protect
+	case GPIO_AUDIO_AMP: ampOn_ = !level; break;   // low enables the speaker amplifier
+	// The socket driver clears these to put a card in reset (SS_RESET).
+	case GPIO_CF_RESET: if (!level) if (PcCard *c = socketCard(0)) { c->reset(); updateSocketPins(); } break;
+	case GPIO_PC_RESET: if (!level) if (PcCard *c = socketCard(1)) { c->reset(); updateSocketPins(); } break;
 	default: break;
 	}
 }
@@ -722,6 +844,10 @@ void Emulator::setKeyboardKey(EpocKey key, bool value) {
 
 uint64_t Emulator::boardTick(uint64_t now) {
 	uint64_t next = UINT64_MAX;
+	for (int s = 0; s < 2; s++)
+		if (PcCard *c = socketCard(s)) next = std::min(next, c->tick(now));
+	if (wifiPresent_) next = std::min(next, net_.tick(now));
+	updateSocketPins();
 	if (powerEchoAt_ != UINT64_MAX) {
 		if (now >= powerEchoAt_) {
 			if (!soc_.i2cSlaveBusy()) {
@@ -908,6 +1034,65 @@ uint16_t Emulator::ac97ModemRead() {
 	}
 	modemPhase_ = (modemPhase_ + 1) % 3;
 	return v;
+}
+
+// ── Sound output ────────────────────────────────────────────────────────
+
+uint32_t Emulator::ac97PcmRate() {
+	// Variable-rate audio (extended status 0x2A bit 0) runs the front DAC at
+	// the rate in 0x2C; otherwise the link's fixed 48 kHz.
+	if (codec_[0x2a >> 1] & 1) {
+		uint16_t r = codec_[0x2c >> 1];
+		return r ? r : 48000;
+	}
+	return 48000;
+}
+
+int32_t Emulator::attenuate(int32_t sample, int steps) {
+	// 1.5 dB per step: 6 dB halvings, then a quarter-step table (16.16).
+	static const int32_t kQuarter[4] = { 65536, 55142, 46396, 39037 };   // 0, 1.5, 3, 4.5 dB
+	if (steps <= 0) return sample;
+	if (steps >= 64) return 0;
+	int32_t v = sample;
+	for (int i = 0; i < steps / 4; i++) v = v * 16423 / 32768;
+	return (int32_t)((int64_t)v * kQuarter[steps & 3] >> 16);
+}
+
+void Emulator::ac97PcmOut(uint32_t frame) {
+	if (!speakerOn_) return;
+	int32_t l = (int16_t)(frame & 0xffff), r = (int16_t)(frame >> 16);
+	// The DAC's level is the master and PCM-out attenuators together (1.5 dB
+	// steps; left in bits 13:8, right in 5:0; bit 15 mutes). On the machine
+	// the speaker amplifier makes up the gain; here the level the mixer sits
+	// at by default plays at full scale, a quieter setting is attenuated from
+	// there, and the amplifier — off while GPIO 65 is high — silences it.
+	uint16_t master = codec_[0x02 >> 1], pcm = codec_[0x18 >> 1];
+	if ((master | pcm) & 0x8000 || !ampOn_) { l = r = 0; }
+	else {
+		constexpr int kDefaultSteps = 0x15 + 0x0a;   // master 0x1515 + PCM 0x0a0a
+		l = attenuate(l, ((master >> 8) & 0x3f) + ((pcm >> 8) & 0x1f) - kDefaultSteps);
+		r = attenuate(r, (master & 0x3f) + (pcm & 0x1f) - kDefaultSteps);
+	}
+	int32_t mono = (l + r) / 2;
+	// Linear interpolation from the guest rate to 48 kHz: host samples fall
+	// at phase / kAudioRate of the way from the previous guest frame to this
+	// one, the phase stepping by the guest rate per host sample.
+	uint64_t rate = std::clamp<uint32_t>(ac97PcmRate(), 4000, kAudioRate);
+	while (resamplePhase_ < (uint64_t)kAudioRate) {
+		int32_t v = lastFrame_ + (int32_t)((int64_t)(mono - lastFrame_) * (int64_t)resamplePhase_ / kAudioRate);
+		audioOut_.push_back((int16_t)std::clamp(v, -32768, 32767));
+		resamplePhase_ += rate;
+	}
+	resamplePhase_ -= kAudioRate;
+	lastFrame_ = mono;
+	if (audioOut_.size() > (size_t)kAudioRate) audioOut_.erase(audioOut_.begin(), audioOut_.begin() + (audioOut_.size() - kAudioRate));
+}
+
+size_t Emulator::readAudioOutput(int16_t *dst, size_t maxSamples) {
+	size_t n = std::min(maxSamples, audioOut_.size());
+	std::copy(audioOut_.begin(), audioOut_.begin() + (long)n, dst);
+	audioOut_.erase(audioOut_.begin(), audioOut_.begin() + (long)n);
+	return n;
 }
 
 void Emulator::setPen(bool down) {

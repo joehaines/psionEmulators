@@ -16,7 +16,8 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import type { DeviceInfo, DeviceProfile } from '../types/emulator';
 import { browserKeyToEpocChord, charToEpocChord, keyboardLayoutForDevice, isHostTextEntry } from '../lib/keymap';
-import { EmulatorWorkerClient, type WorkerStatus, type MachineIdReply,
+import { host } from '../lib/desktop/host';
+import { EmulatorWorkerClient, type WorkerStatus, type WifiStatus, type MachineIdReply,
          type LanguageReply } from '../lib/emulatorWorkerClient';
 import { createAudioEngine, type AudioEngine } from '../lib/audioEngine';
 import { createWorkerAudioShim, type WorkerAudioShim } from '../lib/workerAudioShim';
@@ -62,6 +63,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   const [speakerEnabled, setSpeakerEnabled] = useState(false);
   const [micEnabled, setMicEnabled] = useState(false);
   const [cardAttached, setCardAttached] = useState(false);
+  const [wifi, setWifi] = useState<WifiStatus | null>(null);
   const [osDownloading, setOsDownloading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [ssdAttached, setSsdAttached] = useState<boolean[]>([false, false, false, false]);
@@ -156,6 +158,11 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
       statusRef.current = s;
       setPaused(s.paused);
       setCardAttached(s.cardAttached);
+      setWifi(prev => {
+        const w = s.wifi ?? null;
+        if (prev === w || (prev && w && prev.inserted === w.inserted && prev.online === w.online && prev.internet === w.internet)) return prev;
+        return w;
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__psionWorkerStatus = s;   // test hook
     };
@@ -181,6 +188,15 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
         setLogs(l => [...l.slice(-499), `[serial] main onSerialRx uart=${uart} n=${bytes.length} head=${head}`]);
       }
     };
+    // The Psion LX's Wi-Fi: in the desktop app, the network behind the
+    // emulated access point gets the main process's real sockets.
+    let unsubscribeNet: (() => void) | null = null;
+    if (host?.net) {
+      const net = host.net;
+      client.onNetCommands = (cmds) => net.send(cmds);
+      unsubscribeNet = net.onEvents((events) => client.netEvents(events));
+      client.setNetHost(true);
+    }
     let cancelled = false;
     client.init(base).then(async () => {
       if (cancelled) return;
@@ -220,6 +236,8 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     });
     return () => {
       cancelled = true; setSerialPumpForward(null); setSimKeepAliveForward(null);
+      unsubscribeNet?.();
+      host?.net?.send([{ kind: 'reset' }]);   // this worker's flows are going away
       clientRef.current = null;
       // Flush the session's accumulated time before the worker goes away.
       // Unmount is a route change (app library, usage page) — a tab close is
@@ -658,6 +676,10 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
     return data.length;                              // optimistic: the worker performs the write
   }, []);
 
+  const setWifiCardInserted = useCallback(async (on: boolean) => {
+    await clientRef.current?.setWifiCardInserted(on);
+  }, []);
+
   const revertToSaved = useCallback(async (): Promise<boolean> => {
     return (await clientRef.current?.revertToSaved()) ?? false;
   }, []);
@@ -668,6 +690,7 @@ export function useEmulatorWorker(options: UseEmulatorOptions = {}): EmulatorCon
   return {
     state, loadProgress, loadStatus, error, deviceInfo, canvasRef, deviceModeRef,
     logs, paused, cardAttached, osCardConsumed: false,
+    wifi, setWifiCardInserted,
     osDownloading, osDownloadProgress: null,
     speakerEnabled, micEnabled, audioError,
     currentDeviceId, profiles,

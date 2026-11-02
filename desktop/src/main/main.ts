@@ -12,6 +12,7 @@ import { app, BrowserWindow, powerMonitor, session } from 'electron';
 import { CHANNELS } from '../ipc/contract';
 import { installHandler, registerScheme, resolveRoots } from './protocol';
 import * as ipc from './ipc';
+import { registerNet, resetNet } from './net';
 import * as menu from './menu';
 import * as mounts from './mounts';
 import * as saves from './saves';
@@ -112,6 +113,7 @@ if (!app.requestSingleInstanceLock()) {
 
     ipc.registerSaves();
     ipc.registerMounts();
+    registerNet(() => win.getWindow());
     // Clear temp files from an interrupted write and re-derive each manifest
     // from its directory, so a crashed session does not leave the store
     // offering a restore that cannot happen.
@@ -128,6 +130,9 @@ if (!app.requestSingleInstanceLock()) {
     ipc.forwardWindowState(w);
     menu.attach(w);
     holdOpenUntilSaved(w);
+    // A reload starts a fresh emulator, whose network has none of the old
+    // flows: drop their sockets.
+    w.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) resetNet(); });
 
     // Re-attach whatever folders the user chose last time, and route their
     // change events to whichever window is current.

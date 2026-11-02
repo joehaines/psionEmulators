@@ -46,7 +46,7 @@ WebAssembly via Emscripten and driven from a React + TypeScript + Vite frontend.
 | Series 5mx Pro | 2000 | ARM710 (Windermere) | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Revo (Conan) | 2001 | ARM710 (Windermere) | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ❌ |
 | netpad | 2001 | StrongARM SA-1110 | ✅ | ✅ MMC | — | ⚠️ | ✅ | ✅ | ✅ | ✅ |
-| Psion LX (prototype) | 2005 | Intel XScale (PXA255) | ✅ | ❌ | — | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Psion LX (prototype) | 2005 | Intel XScale (PXA255) | ✅ | ✅ | — | ✅ | ❌ | ✅ | ❌ | ❌ |
 
 ✅ Supported · ⚠️ Partial / not fully booted · ❌ Not yet emulated · — Hardware not present · ❓ Hardware present, not yet verified.
 **CF** = removable storage card (CompactFlash, or MMC on the netpad).
@@ -83,7 +83,15 @@ emulator's PsiWin client can't.
   the OpenEmbedded root filesystem from the NAND — through to the GPE
   desktop under its "PSION LX BETA" splash, where the stylus and keyboard
   work and the image's applications (AbiWord, Gnumeric, Calendar, Contacts…)
-  run. The NAND image is built from the rootfs tree in `roms/` by
+  run. Both card sockets are wired: a CompactFlash card mounts at
+  `/media/cf` ("My CF Card") through the image's own cardmgr and IDE
+  driver, and the PC Card slot holds an Intersil PRISM 2.5 802.11b card
+  that orinoco_cs drives and that joins an emulated access point,
+  "PsionNet", taking an address by DHCP. In the desktop app that network
+  reaches the internet through the host's own sockets; in a browser,
+  which cannot open sockets, the LAN is there but nothing past the router
+  answers. Sound plays through the WM9705 codec — the GPE desktop's event
+  sounds and anything written to `/dev/dsp`. The NAND image is built from the rootfs tree in `roms/` by
   `scripts/build-lx-nand.mts`; the first boot runs the image's own package
   configuration, as a freshly flashed LX did. See
   [docs/psion-lx.md](docs/psion-lx.md).

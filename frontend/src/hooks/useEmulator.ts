@@ -757,6 +757,10 @@ export interface EmulatorControls {
   logs: string[];
   paused: boolean;
   cardAttached: boolean;
+  // The Psion LX's Wi-Fi card (null on machines without one), and taking it
+  // in and out of its slot. Worker mode only.
+  wifi?: import('../lib/emulatorWorkerClient').WifiStatus | null;
+  setWifiCardInserted?: (on: boolean) => Promise<void>;
   // 5mx Pro-only flag: true after the bootloader has consumed the
   // synthesised SYS$ROM.BIN card and we've auto-detached. Used to
   // hide the "Insert CF card containing OS" button so the user

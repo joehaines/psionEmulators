@@ -510,6 +510,8 @@ function Shell({ controls }: { controls: EmulatorControls }) {
         canLink={(currentProfile?.remoteLinkUart ?? -1) >= 0
                  && (currentProfile?.linkProtocol ?? 0) > 0}
         deviceName={deviceName}
+        wifi={controls.wifi}
+        onWifiInserted={(on) => void controls.setWifiCardInserted?.(on)}
       />
     </>
   );

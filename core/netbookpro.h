@@ -4,6 +4,9 @@
 #pragma once
 #include "emubase.h"
 #include "pxa255.h"
+#include "pccard.h"
+#include "hermes_card.h"
+#include "virtnet.h"
 #include <algorithm>
 #include <deque>
 #include <string>
@@ -25,7 +28,12 @@
 //    serial/USB/MMC power switches, and the keyboard, whose key codes it
 //    writes into the PXA255's own I2C slave (address 0x70)
 //  - a Wolfson WM9705 AC97 codec with its resistive touch digitiser, pen
-//    down on GPIO 4 and continuous-mode samples in AC97 slot 5
+//    down on GPIO 4 and continuous-mode samples in AC97 slot 5, and its DAC
+//    feeding the speaker amplifier (enabled by GPIO 65 low)
+//  - two card sockets on the PXA255's PCMCIA interface: CompactFlash
+//    (socket 0) holding a storage card, and PC Card (socket 1) holding an
+//    Intersil PRISM 2.5 Wi-Fi card, whose access point leads to the
+//    virtual network in core/virtnet.h
 //
 // Boot follows the netBook Pro bootloader's handoff: the OS image
 // (nBkProOs.img: a 256-byte "nBk2" header, then a big-endian length and a
@@ -71,6 +79,22 @@ public:
 	bool isCpuCrashed() const override { return false; }
 	uint32_t otherCpuPc() const override { return soc_.cpu().pc(); }
 
+	// The CompactFlash socket (socket 0): a storage card image.
+	bool attachCard(const uint8_t *bytes, size_t size) override;
+	bool updateCardImageInPlace(const uint8_t *bytes, size_t size) override;
+	void detachCard() override;
+	bool isCardInserted() const override { return cfPresent_; }
+	size_t getCardImageSize() const override { return cfPresent_ ? cf_.disk().imageSize() : 0; }
+	const uint8_t *getCardImageData() const override { return cfPresent_ ? cf_.disk().data() : nullptr; }
+
+	// Sound: the WM9705's DAC, resampled to a fixed 48 kHz mono stream. The
+	// microphone input is not wired up.
+	bool hasAudio() const override { return true; }
+	bool hasMicrophone() const override { return false; }
+	int getAudioSampleRate() const override { return kAudioRate; }
+	size_t readAudioOutput(int16_t *dst, size_t maxSamples) override;
+	void setHostAudioEnabled(bool speaker, bool mic) override { (void)mic; speakerOn_ = speaker; if (!speaker) audioOut_.clear(); }
+
 	bool attachInternalFlash(const uint8_t *bytes, size_t size) override;
 	size_t getInternalFlashSize() const override { return nand_.size(); }
 	const uint8_t *getInternalFlashData() const override { return nand_.data(); }
@@ -84,6 +108,12 @@ public:
 	PXA255::Soc &soc() { return soc_; }
 	// Read the kernel's printk ring (log_buf) out of RAM, if it can be found.
 	std::string kernelLog() const;
+	// The Wi-Fi PC Card in socket 1, and the network behind its access point.
+	bool hasWifi() const override { return true; }
+	bool isWifiCardInserted() const override { return wifiPresent_; }
+	void setWifiCardInserted(bool on) override;
+	VirtualNetwork *virtualNetwork() override { return &net_; }
+	bool wifiAssociated() const { return wifiPresent_ && wifi_.associated(); }
 	// Send one netBook Pro key code (bit 7 = release) as the PCON would.
 	void sendScancode(uint8_t code);
 
@@ -105,6 +135,8 @@ private:
 	// ── PXA255::Board ───────────────────────────────────────────────────
 	bool csRead(int cs, uint32_t off, int size, uint32_t &out) override;
 	bool csWrite(int cs, uint32_t off, int size, uint32_t v) override;
+	bool pcmciaRead(uint32_t pa, int size, uint32_t &out) override;
+	bool pcmciaWrite(uint32_t pa, int size, uint32_t v) override;
 	bool gpioInput(int pin) override;
 	void gpioOutputChanged(int pin, bool level) override;
 	void uartTx(int uart, uint8_t byte) override;
@@ -113,9 +145,26 @@ private:
 	void ac97Write(uint8_t reg, uint16_t v) override;
 	void ac97ColdReset() override;
 	uint16_t ac97ModemRead() override;
+	uint32_t ac97PcmRate() override;
+	void ac97PcmOut(uint32_t frame) override;
 	uint64_t boardTick(uint64_t now) override;
 
 	std::string serialLog_;
+
+	// ── PCMCIA / CF sockets ─────────────────────────────────────────────
+	// Socket 0 is the CompactFlash slot, socket 1 the PC Card slot
+	// (drivers/pcmcia/pxa2xx_netbookpro.c). Each has card-detect, READY /
+	// IREQ# and RESET on GPIOs; the PXA255 decodes their I/O, attribute and
+	// common-memory spaces at 0x20000000 + socket * 0x10000000.
+	CfAtaCard cf_;
+	bool cfPresent_ = false;
+	HermesCard wifi_;
+	bool wifiPresent_ = true;
+	VirtualNetwork net_{ kCpuHz };
+	PcCard *socketCard(int s);
+	bool socketIreq_[2] = {};                   // last IREQ# level driven onto READY
+	void setSocketPresent(int s, bool present);
+	void updateSocketPins();
 
 	// ── Epson S1D13806 ──────────────────────────────────────────────────
 	uint8_t s1dRegs_[0x200] = {};
@@ -228,6 +277,15 @@ private:
 	static uint16_t touchAdcX(int x);
 	static uint16_t touchAdcY(int y);
 	void seedEeprom();
+
+	// ── Sound output ────────────────────────────────────────────────────
+	static constexpr int kAudioRate = 48000;
+	bool speakerOn_ = false;
+	std::deque<int16_t> audioOut_;              // host-rate mono samples
+	int32_t lastFrame_ = 0;                     // previous guest frame (mono), for interpolation
+	uint64_t resamplePhase_ = 0;                // position between guest frames, 1/guestRate units of host samples
+	bool ampOn_ = false;                        // speaker amplifier (GPIO 65 low)
+	static int32_t attenuate(int32_t sample, int steps);
 };
 
 } // namespace NetbookPro

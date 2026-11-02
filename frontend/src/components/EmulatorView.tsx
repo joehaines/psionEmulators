@@ -14,6 +14,7 @@ import PrinterDialog from './PrinterDialog';
 import MachineIdDialog from './MachineIdDialog';
 import PhotoKeys from './PhotoKeys';
 import { PHOTO_KEY_LAYOUTS } from '../lib/photoKeyLayouts';
+import { drawImageToQuad, invert, project, quadMatrix3d, squareToQuad, type Quad } from '../lib/perspective';
 import {
   normaliseQuadrant, isQuarterTurn, rotatedFootprint, rotationStyle, localPointerPos,
 } from '../lib/screenRotation';
@@ -150,6 +151,14 @@ interface SkinLayout {
   silkscreenTop?:    number;  // fraction of image height
   silkscreenWidth?:  number;  // fraction of image width
   silkscreenHeight?: number;  // fraction of image height
+  // A screen photographed at an angle: the panel's four corners —
+  // top-left, top-right, bottom-right, bottom-left — as fractions of the
+  // image's width and height. When given, screen* must be the bounding
+  // box of these corners; the LCD is warped from that box into the
+  // quadrilateral, and taps inside it are mapped back through the same
+  // perspective. The digitiser is assumed to be the panel itself
+  // (digitiserPad* = the bounding box), which is what the Psion LX has.
+  screenQuad?: Quad;
 }
 
 // One individually-placed hardware key, for a machine whose special keys
@@ -446,6 +455,27 @@ const GEOFOX_BUTTONS: readonly SpecialButton[] = [
   { label: 'System',    code: 0xAC, group: 'soft',   left: 332/530, top: 476/653, width: 33/530, height: 12/653 },
 ];
 
+// The Psion LX photo's screen corners in its own pixels (TL, TR, BR, BL),
+// scaled to fractions of the 884×895 image.
+const LX_SCREEN_QUAD = mapQuad(
+  [[143, 67.5], [720.5, 64.5], [686, 466.5], [180.5, 469.5]], (x, y) => [x / 884, y / 895]);
+
+// A quad with `f` applied to each corner.
+function mapQuad(q: Quad, f: (x: number, y: number) => readonly [number, number]): Quad {
+  return [f(...q[0]), f(...q[1]), f(...q[2]), f(...q[3])];
+}
+
+// The screen* box (and the matching digitiser pad) around a quad.
+function quadBounds(q: Quad) {
+  const xs = q.map(p => p[0]), ys = q.map(p => p[1]);
+  const left = Math.min(...xs), top = Math.min(...ys);
+  const width = Math.max(...xs) - left, height = Math.max(...ys) - top;
+  return {
+    screenLeft: left, screenTop: top, screenWidth: width, screenHeight: height,
+    digitiserPadLeft: left, digitiserPadTop: top, digitiserPadWidth: width, digitiserPadHeight: height,
+  };
+}
+
 // ── Photo-skin layouts for the `device-skins/` folder ───────────────────
 //
 // Each entry matches the aspect ratio of the corresponding PNG/JPEG in
@@ -601,6 +631,20 @@ const DEVICE_SKIN_LAYOUTS: Record<string, SkinLayout> = {
     digitiserPadWidth:  0.680, digitiserPadHeight: 0.453,
     digitiserWidth: 640, digitiserHeight: 480,
     lcdAnchoredTouchMapping: true,
+  },
+  // Psion LX (netbook_pro_lx.png, 884×895): the netBook Pro case with its
+  // lid tipped back, shot from in front and above, so the 800×600 panel is
+  // a trapezoid rather than a rectangle — 577 px across the top, 505 px
+  // across the bottom, its sides leaning in. Corners measured off the
+  // photo where the lit panel meets the black bezel (see LX_SCREEN_QUAD);
+  // the screen box is their bounding box. The touch panel covers exactly
+  // the LCD, so the pad is the same box and taps are un-warped through the
+  // same perspective.
+  'netbook_pro_lx.png': {
+    aspectRatio:  884 / 895,
+    ...quadBounds(LX_SCREEN_QUAD),
+    screenQuad:   LX_SCREEN_QUAD,
+    digitiserWidth: 800, digitiserHeight: 600,
   },
   // Revo: 480×160 LCD. Digitiser 527×208 includes left silkscreen column and
   // shortcut strip below LCD.
@@ -788,6 +832,7 @@ export function getDeviceSkinPhotoFilename(deviceId: string | null): string | nu
     case 'series7':
     case 'netbook':     return '7_netbook.png';
     case 'netpad':      return 'netpad.png';
+    case 'psionlx':     return 'netbook_pro_lx.png';
     case 'mc218':       return 'MC218.png';
     case 'hc120':       return 'hc120.png';
     case 'mc200':       return 'MC200.png';
@@ -1371,6 +1416,17 @@ export default function EmulatorView({
   const canvasWidth  = skinLayout.screenWidth  * cw;
   const canvasHeight = skinLayout.screenHeight * ch;
 
+  // A screen photographed at an angle (the Psion LX): the panel's corners
+  // in CSS pixels relative to the canvas box, the transform that warps the
+  // box onto them, and the inverse map a tap is sent back through.
+  const screenQuadCss: Quad | null = skinLayout.screenQuad && canvasWidth > 0 && canvasHeight > 0
+    ? mapQuad(skinLayout.screenQuad, (x, y) => [x * cw - canvasLeft, y * ch - canvasTop])
+    : null;
+  const screenWarp = screenQuadCss
+    ? { transform: quadMatrix3d(screenQuadCss, canvasWidth, canvasHeight), transformOrigin: '0 0' }
+    : undefined;
+  const screenUnwarp = screenQuadCss ? invert(squareToQuad(screenQuadCss)) : null;
+
   // The touch overlay covers exactly the digitiser pad — the area a user
   // can physically tap on the real device, including bezel/silkscreen zones
   // around the LCD. A skin can position the pad anywhere within the SVG
@@ -1443,16 +1499,17 @@ export default function EmulatorView({
   const screenHeightFrac = skinLayout.screenHeight
     ?? skinLayout.digitiserPadHeight ?? padHeightFrac;
   const useLcdAnchoredMapping = skinLayout.lcdAnchoredTouchMapping === true;
-  const toDigitiserCoords = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Pointer position in the overlay's OWN box. While the device is
-    // turned, that is not `clientX - rect.left`: the bounding rect of a
-    // rotated element is the box around it, so the offset has to be
-    // un-rotated first (see localPointerPos). The digitiser itself never
-    // turns — the guest's pen driver reports panel coordinates whichever
-    // way up EPOC is drawing — so everything below is unchanged.
-    const { x: cssX, y: cssY } = localPointerPos(
-      orientation, e.currentTarget.getBoundingClientRect(),
-      e.clientX, e.clientY, overlayWidth, overlayHeight);
+  // A position in the overlay's own box (CSS pixels) → digitiser coords.
+  const overlayToDigitiser = (cssX: number, cssY: number) => {
+    if (screenUnwarp) {
+      // Perspective screen: un-warp back onto the panel. The pad is the
+      // panel's bounding box, so the corners of the box lie outside the
+      // panel; clamp them onto its edge rather than send the digitiser
+      // readings past the ends of its range.
+      const [u, v] = project(screenUnwarp, cssX + overlayLeft - canvasLeft, cssY + overlayTop - canvasTop);
+      const clamp = (n: number, max: number) => Math.min(max - 1, Math.max(0, Math.round(n * max)));
+      return { x: clamp(u, digitiserWidth), y: clamp(v, digitiserHeight) };
+    }
     if (useLcdAnchoredMapping) {
       // LCD-anchored: figure out the LCD's position WITHIN the pad
       // in CSS pixels, then map cssX (which is relative to the pad
@@ -1466,9 +1523,21 @@ export default function EmulatorView({
       const dy = Math.round(((cssY - lcdTopCss)  / lcdHCss) * digitiserHeight);
       return { x: dx, y: dy };
     }
-    const dx = Math.round((cssX / overlayWidth)  * digitiserWidth);
-    const dy = Math.round((cssY / overlayHeight) * digitiserHeight);
+    const dx = overlayWidth  > 0 ? Math.round((cssX / overlayWidth)  * digitiserWidth)  : 0;
+    const dy = overlayHeight > 0 ? Math.round((cssY / overlayHeight) * digitiserHeight) : 0;
     return { x: dx, y: dy };
+  };
+  const toDigitiserCoords = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Pointer position in the overlay's OWN box. While the device is
+    // turned, that is not `clientX - rect.left`: the bounding rect of a
+    // rotated element is the box around it, so the offset has to be
+    // un-rotated first (see localPointerPos). The digitiser itself never
+    // turns — the guest's pen driver reports panel coordinates whichever
+    // way up EPOC is drawing — so the mapping is the same either way.
+    const { x: cssX, y: cssY } = localPointerPos(
+      orientation, e.currentTarget.getBoundingClientRect(),
+      e.clientX, e.clientY, overlayWidth, overlayHeight);
+    return overlayToDigitiser(cssX, cssY);
   };
 
   // Base button class — light Psion theme
@@ -1796,20 +1865,7 @@ export default function EmulatorView({
           const p = localPointerPos(orientation, r, e.clientX, e.clientY, cw, ch);
           const fx = p.x / cw;
           const fy = p.y / ch;
-          const cpx = fx * cw - overlayLeft;
-          const cpy = fy * ch - overlayTop;
-          let dx: number, dy: number;
-          if (useLcdAnchoredMapping && overlayWidth > 0 && overlayHeight > 0) {
-            const lx = ((screenLeftFrac  - padLeftFrac)  / padWidthFrac)  * overlayWidth;
-            const ly = ((screenTopFrac   - padTopFrac)   / padHeightFrac) * overlayHeight;
-            const lw = (screenWidthFrac  / padWidthFrac)  * overlayWidth;
-            const lh = (screenHeightFrac / padHeightFrac) * overlayHeight;
-            dx = Math.round(((cpx - lx) / lw) * digitiserWidth);
-            dy = Math.round(((cpy - ly) / lh) * digitiserHeight);
-          } else {
-            dx = overlayWidth  > 0 ? Math.round((cpx / overlayWidth)  * digitiserWidth)  : 0;
-            dy = overlayHeight > 0 ? Math.round((cpy / overlayHeight) * digitiserHeight) : 0;
-          }
+          const { x: dx, y: dy } = overlayToDigitiser(fx * cw - overlayLeft, fy * ch - overlayTop);
           setLastClick({ fx, fy, dx, dy });
         } : undefined}
       >
@@ -1871,6 +1927,7 @@ export default function EmulatorView({
               boxShadow: `0 0 ${canvasHeight * 0.35}px ${canvasHeight * 0.04}px ${backlightColor}b3`,
               opacity: backlightOn ? 1 : 0,
               zIndex: 5,
+              ...screenWarp,
             }}
           />
         )}
@@ -1901,6 +1958,8 @@ export default function EmulatorView({
             pointerEvents: 'none',
             zIndex: 10,
             display: lidIsClosed ? 'none' : undefined,
+            // A screen photographed at an angle: warp the panel into it.
+            ...screenWarp,
           }}
         />
 
@@ -2534,6 +2593,31 @@ export default function EmulatorView({
           {cardSlotLabel}{controls.cardAttached ? ' ●' : ''}
         </button>}
 
+        {/* Psion LX: the Wi-Fi PC Card. Click takes it out of its slot or
+            puts it back (cardmgr sees the hot-plug). The dot is the guest's
+            DHCP lease from the emulated access point; only the desktop app
+            has real sockets behind that, so in a browser the LAN works but
+            nothing past the router answers. */}
+        {controls.wifi && controls.setWifiCardInserted && (() => {
+          const w = controls.wifi;
+          const title = !w.inserted
+            ? 'Wi-Fi card out of its slot — click to insert it'
+            : !w.online
+              ? 'Wi-Fi card in, joining the "PsionNet" access point — click to remove it'
+              : w.internet
+                ? 'Online through "PsionNet": the LX reaches the internet through this computer — click to remove the card'
+                : 'Joined "PsionNet", but a browser cannot open network connections, so only the access point answers. The desktop app gives the LX real internet. Click to remove the card';
+          return (
+            <button
+              onClick={() => void controls.setWifiCardInserted?.(!w.inserted)}
+              className={w.inserted && w.online ? btnActive : btn}
+              title={title}
+            >
+              Wi-Fi{w.inserted ? (w.online ? (w.internet ? ' ●' : ' ◐') : ' ○') : ' ✕'}
+            </button>
+          );
+        })()}
+
         {/* netpad: "Install standard apps".
             Psion Teklogix shipped the netpad as a bare EPOC R5 machine —
             Word, Sheet, Agenda and the rest were SIS installers on the
@@ -2908,13 +2992,25 @@ export default function EmulatorView({
               // LCD rect above is a sizing device pointing at nothing. Skip
               // the paste rather than stamping the screen onto the lid.
               if (!lidIsClosed) {
+                // A screen photographed at an angle is pasted warped into
+                // its quad, as the page draws it; any other into its box.
+                const quad = skinLayout.screenQuad
+                  ? mapQuad(skinLayout.screenQuad, (x, y) => [x * outW, y * skinH])
+                  : null;
                 if (backlightOn && backlightColor) {
                   ctx.fillStyle = backlightColor;
-                  ctx.fillRect(lcdX, lcdY, lcdW, lcdH);
+                  if (quad) {
+                    ctx.beginPath();
+                    quad.forEach(([x, y]) => ctx.lineTo(x, y));
+                    ctx.fill();
+                  } else {
+                    ctx.fillRect(lcdX, lcdY, lcdW, lcdH);
+                  }
                 }
 
                 ctx.imageSmoothingEnabled = false;
-                ctx.drawImage(canvas, lcdX, lcdY, lcdW, lcdH);
+                if (quad) drawImageToQuad(ctx, canvas, canvas.width, canvas.height, quad);
+                else ctx.drawImage(canvas, lcdX, lcdY, lcdW, lcdH);
               }
 
               if (barImg && barImg.complete && barNaturalW > 0) {

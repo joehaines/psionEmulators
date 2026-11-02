@@ -78,6 +78,15 @@ jobs:
         if: ${{ inputs.run_harness_tests }}
         run: bash tests/integration/test-netpad-audio.sh
 
+      # Psion LX peripherals: none of the CompactFlash socket, the sound
+      # output or the Wi-Fi card shows in a boot screenshot, so log in on the
+      # serial console and use them as a user would — mount and write the
+      # card, play a tone into /dev/dsp, take a DHCP lease from the emulated
+      # access point and fetch a file from a server on this runner.
+      - name: Run Psion LX peripherals validation
+        if: ${{ inputs.run_harness_tests }}
+        run: bash tests/integration/test-lx-peripherals.sh
+
       # App-library 'epocdir' install: bundles that are an installed app
       # folder rather than a SIS are delivered by copying the folder onto
       # C: over the Remote Link, so nothing on the device confirms the

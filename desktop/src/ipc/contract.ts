@@ -94,6 +94,35 @@ export interface DeviceMenuEntry {
   hidden: boolean;
 }
 
+// ── Network (the Psion LX's Wi-Fi) ───────────────────────────────────────
+//
+// The emulated LX's Wi-Fi card is connected to a virtual LAN inside the
+// emulator core (core/virtnet.h), which terminates the guest's TCP
+// connections itself and asks the host for plain byte streams and
+// datagrams. Main opens them with Node's net and dgram. Flows are named by
+// ids the core chose; addresses are IPv4 as unsigned 32-bit numbers. The
+// core's 10.0.2.2 means this machine's loopback, and UDP to 10.0.2.3:53 goes
+// to the system's DNS resolver.
+
+export type NetCommand =
+  | { kind: 'tcp-connect'; id: number; ip: number; port: number }
+  | { kind: 'tcp-send'; id: number; data: Uint8Array }
+  | { kind: 'tcp-shutdown'; id: number }
+  | { kind: 'tcp-close'; id: number }
+  /** Flow control: stop / start reading a socket while the guest is behind. */
+  | { kind: 'tcp-pause'; id: number }
+  | { kind: 'tcp-resume'; id: number }
+  | { kind: 'udp-send'; id: number; ip: number; port: number; data: Uint8Array }
+  /** Drop every flow: the device was switched, reset or restored. */
+  | { kind: 'reset' };
+
+export type NetEvent =
+  | { kind: 'tcp-opened'; id: number }
+  | { kind: 'tcp-failed'; id: number }
+  | { kind: 'tcp-data'; id: number; data: Uint8Array }
+  | { kind: 'tcp-eof'; id: number }
+  | { kind: 'udp-data'; id: number; ip: number; port: number; data: Uint8Array };
+
 // ── The bridge ───────────────────────────────────────────────────────────
 
 export interface PsionHostInfo {
@@ -124,6 +153,15 @@ export interface PsionHost {
   readonly saves?: PsionHostSaves;
   /** Host folder mounts. */
   readonly mounts?: PsionHostMounts;
+  /** Real sockets for the emulated Wi-Fi network. */
+  readonly net?: PsionHostNet;
+}
+
+export interface PsionHostNet {
+  /** A batch of the virtual network's requests, in order. */
+  send(commands: NetCommand[]): void;
+  /** Batches of socket events, in order. */
+  onEvents(cb: (events: NetEvent[]) => void): () => void;
 }
 
 export interface PsionHostWindow {
@@ -245,12 +283,14 @@ export const CHANNELS = {
   setBusy:           'psion:app:set-busy',
   notify:            'psion:app:notify',
   quitReady:         'psion:quit:ready',
+  netSend:           'psion:net:send',
 
   // main → renderer
   command:           'psion:command',
   fsChanged:         'psion:fs:changed',
   windowState:       'psion:window:state',
   prepareQuit:       'psion:quit:prepare',
+  netEvents:         'psion:net:events',
 } as const;
 
 declare global {

@@ -28,7 +28,7 @@ echo "--- Compiling core C++ objects ---"
 SOURCES=(
     arm710 emubase etna eiger eiger_classifier vcfcard windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600
     sa1100 sa1100_cpu
-    xscale pxa255 inflate netbookpro
+    xscale pxa255 inflate netbookpro hermes_card virtnet
     audio_codec
     sibo_audio
     v30 v30_ops_mov v30_ops_arith v30_ops_ctrl v30_ops_misc

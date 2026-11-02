@@ -80,7 +80,7 @@ echo "=== Building WASM: core C++ objects ==="
 # failure seen in CI.
 SOURCES=(arm710 wasm_emit arm_jit arm_jit_runtime rtc_seed emubase etna eiger eiger_classifier vcfcard netpad_mmc windermere windermere_cpu revo clps7111 clps7111_serial_bridge clps7110 osaris series5 clps7600 \
          sa1100 sa1100_cpu \
-         xscale pxa255 inflate netbookpro \
+         xscale pxa255 inflate netbookpro hermes_card virtnet \
          audio_codec \
          sibo_audio \
          v30 v30_ops_mov v30_ops_arith v30_ops_ctrl v30_ops_misc \

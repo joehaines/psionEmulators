@@ -10,12 +10,39 @@
 #include "../core/series3c.h"
 #include "../core/sa1100.h"
 #include "../core/clps7111.h"
+#include "../core/virtnet.h"
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <cstring>
 #include <cstdlib>
 
 static EmuBase *g_emu = nullptr;
+
+// Socket requests from the Wi-Fi network; see "Wi-Fi network" below.
+namespace {
+class JsNetHost final : public NetHost {
+public:
+    std::vector<uint8_t> queue;
+    void record(uint8_t kind, uint32_t id, uint32_t ip, uint16_t port, const uint8_t *d, size_t n) {
+        if (queue.size() > (8u << 20)) return;      // the worker has stopped draining
+        auto put32 = [&](uint32_t v) { for (int i = 0; i < 4; i++) queue.push_back((uint8_t)(v >> (8 * i))); };
+        queue.push_back(kind);
+        put32(id); put32(ip);
+        queue.push_back((uint8_t)port); queue.push_back((uint8_t)(port >> 8));
+        put32((uint32_t)n);
+        if (n) queue.insert(queue.end(), d, d + n);
+    }
+    void tcpConnect(uint32_t id, uint32_t ip, uint16_t port) override { record(1, id, ip, port, nullptr, 0); }
+    void tcpSend(uint32_t id, const uint8_t *d, size_t n) override { record(2, id, 0, 0, d, n); }
+    void tcpShutdown(uint32_t id) override { record(3, id, 0, 0, nullptr, 0); }
+    void tcpClose(uint32_t id) override { record(4, id, 0, 0, nullptr, 0); }
+    void udpSend(uint32_t id, uint32_t ip, uint16_t port, const uint8_t *d, size_t n) override { record(5, id, ip, port, d, n); }
+};
+JsNetHost g_netHost;
+std::vector<uint8_t> g_netIn;
+VirtualNetwork *net() { return g_emu ? g_emu->virtualNetwork() : nullptr; }
+} // namespace
 static std::vector<uint8_t> g_romBuffer;
 static std::vector<uint8_t> g_cardBuffer;
 // Staging buffer for SSD image uploads (parallel to g_cardBuffer for CF).
@@ -61,6 +88,7 @@ std::string loadBufferedROM(unsigned len, std::string deviceId) {
 
     if (!profile || !profile->createEmulator) return "";
 
+    g_netHost.queue.clear();     // requests from the outgoing machine's network
     delete g_emu;
     g_emu = profile->createEmulator();
     g_emu->setLogger([](const char *s) {
@@ -918,6 +946,60 @@ std::string getAllDeviceProfilesJSON() {
     return out;
 }
 
+// ── Wi-Fi network (the Psion LX) ──
+// The core's virtual network (core/virtnet.h) asks its NetHost for sockets.
+// In the browser that host is this queue: requests are recorded here and
+// drained by the worker, which hands them to the desktop app's main process
+// (window.psionHost.net) — the only place that can open a socket — and feeds
+// the answers back through the net* entry points below. With no such host
+// (a plain browser tab) none is attached, and the core refuses connections
+// itself.
+
+bool hasWifi() { return g_emu && g_emu->hasWifi(); }
+bool isWifiCardInserted() { return g_emu && g_emu->isWifiCardInserted(); }
+void setWifiCardInserted(bool on) { if (g_emu) g_emu->setWifiCardInserted(on); }
+// Connect (or disconnect) the network to the JS socket host. Whatever flows
+// the guest had are dropped either way: their sockets belong to whichever
+// host existed before.
+bool netAttachHost(bool on) {
+    g_netHost.queue.clear();
+    VirtualNetwork *n = net();
+    if (!n) return false;
+    n->setHost(nullptr);
+    n->dropFlows();
+    n->setHost(on ? &g_netHost : nullptr);
+    return true;
+}
+// Copy queued requests (records of kind u8, id u32, ip u32, port u16,
+// length u32, data) into bufferPtr, whole records only; returns the bytes
+// written. Records larger than cap are left for a larger buffer.
+unsigned netDrainCommands(uintptr_t bufferPtr, unsigned cap) {
+    std::vector<uint8_t> &q = g_netHost.queue;
+    size_t off = 0;
+    while (off + 15 <= q.size()) {
+        uint32_t len = q[off + 11] | (q[off + 12] << 8) | (q[off + 13] << 16) | ((uint32_t)q[off + 14] << 24);
+        if (off + 15 + len > cap) break;
+        off += 15 + len;
+    }
+    if (off) {
+        std::memcpy(reinterpret_cast<uint8_t *>(bufferPtr), q.data(), off);
+        q.erase(q.begin(), q.begin() + (long)off);
+    }
+    return (unsigned)off;
+}
+unsigned netPendingBytes() { return (unsigned)g_netHost.queue.size(); }
+// Staging buffer for data the host hands in.
+uintptr_t netPrepareInput(unsigned size) { g_netIn.resize(size ? size : 1); return reinterpret_cast<uintptr_t>(g_netIn.data()); }
+void netTcpOpened(unsigned id) { if (auto *n = net()) n->tcpOpened(id); }
+void netTcpFailed(unsigned id) { if (auto *n = net()) n->tcpFailed(id); }
+void netTcpData(unsigned id, unsigned len) { if (auto *n = net()) n->tcpData(id, g_netIn.data(), std::min<size_t>(len, g_netIn.size())); }
+void netTcpEof(unsigned id) { if (auto *n = net()) n->tcpEof(id); }
+unsigned netTcpBacklog(unsigned id) { auto *n = net(); return n ? (unsigned)n->tcpBacklog(id) : 0u; }
+void netUdpData(unsigned id, unsigned ip, unsigned port, unsigned len) {
+    if (auto *n = net()) n->udpData(id, ip, (uint16_t)port, g_netIn.data(), std::min<size_t>(len, g_netIn.size()));
+}
+bool netGuestHasLease() { auto *n = net(); return n && n->guestHasLease(); }
+
 EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("prepareROMUpload",         &prepareROMUpload);
     emscripten::function("loadBufferedROM",          &loadBufferedROM);
@@ -1013,6 +1095,20 @@ EMSCRIPTEN_BINDINGS(psion_emu) {
     emscripten::function("readInternalFlash",        &readInternalFlash);
     emscripten::function("getInternalFlashGeneration", &getInternalFlashGeneration);
     emscripten::function("readAudioOutput",          &readAudioOutput);
+    emscripten::function("hasWifi",                  &hasWifi);
+    emscripten::function("isWifiCardInserted",       &isWifiCardInserted);
+    emscripten::function("setWifiCardInserted",      &setWifiCardInserted);
+    emscripten::function("netAttachHost",            &netAttachHost);
+    emscripten::function("netDrainCommands",         &netDrainCommands);
+    emscripten::function("netPendingBytes",          &netPendingBytes);
+    emscripten::function("netPrepareInput",          &netPrepareInput);
+    emscripten::function("netTcpOpened",             &netTcpOpened);
+    emscripten::function("netTcpFailed",             &netTcpFailed);
+    emscripten::function("netTcpData",               &netTcpData);
+    emscripten::function("netTcpEof",                &netTcpEof);
+    emscripten::function("netTcpBacklog",            &netTcpBacklog);
+    emscripten::function("netUdpData",               &netUdpData);
+    emscripten::function("netGuestHasLease",         &netGuestHasLease);
     emscripten::function("writeAudioInput",          &writeAudioInput);
     emscripten::function("setHostAudioEnabled",      &setHostAudioEnabled);
     emscripten::function("getAudioDiag",             &getAudioDiag);

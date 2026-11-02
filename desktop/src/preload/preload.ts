@@ -18,7 +18,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
   CHANNELS,
   type AspectExtra, type DeviceMenuEntry, type HostCommand,
-  type HostDirent, type MountId, type MountInfo,
+  type HostDirent, type MountId, type MountInfo, type NetCommand, type NetEvent,
   type PsionHost, type PsionHostInfo, type SaveGeneration, type WindowStateEvent,
 } from '../ipc/contract';
 
@@ -163,6 +163,11 @@ const host: PsionHost = {
     remove: (id: MountId, rel: string) => ipcRenderer.invoke(CHANNELS.fsDelete, id, rel),
     mkdirp: (id: MountId, rel: string) => ipcRenderer.invoke(CHANNELS.fsMkdirp, id, rel),
     onChange: (cb: (id: MountId) => void) => subscribe<[MountId]>(CHANNELS.fsChanged, cb),
+  },
+
+  net: {
+    send: (commands: NetCommand[]) => ipcRenderer.send(CHANNELS.netSend, commands),
+    onEvents: (cb: (events: NetEvent[]) => void) => subscribe<[NetEvent[]]>(CHANNELS.netEvents, cb),
   },
 };
 

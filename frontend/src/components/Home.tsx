@@ -68,18 +68,24 @@ const GALLERY: { id: string; name: string; year: string }[] = [
   // prototype is not that — the leaderboard reorders by real load counts as
   // soon as it arrives, and a new device starts on none.
   { id: 'conan',       name: 'Revo (Conan)',         year: '2001' },
+  // The other late prototype: a netBook Pro running Linux. Like the Conan
+  // it has no launch to date it by, so it takes the year its OS image was
+  // built (2005-01-04), as its DEVICE_RELEASE_YEARS entry does, and sits
+  // at the end of the fallback order for the same reason.
+  { id: 'psionlx',     name: 'Psion LX',             year: '2005' },
 ];
 
 // Intro shots are JPEGs apart from the netPad's and the Conan's (flat
 // rendered case art — JPEG ringing shows badly on it) and the HC120's, the
-// MC200's and the Organiser I's, which are photos cut out against
-// transparency rather than a background, so they ship as PNGs too.
+// MC200's, the Organiser I's and the Psion LX's, which are photos cut out
+// against transparency rather than a background, so they ship as PNGs too.
 const INTRO_IMAGE_EXT: Record<string, string> = {
   netpad: 'png',
   conan: 'png',
   hc120: 'png',
   mc200: 'png',
   organiser1: 'png',
+  psionlx: 'png',
 };
 
 // Succinct capability list (kept broad on purpose — see home-page copy

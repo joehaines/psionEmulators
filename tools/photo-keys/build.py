@@ -211,6 +211,36 @@ _s7 = rows(
 )
 PHOTOS['7_netbook.png'] = keyset(*_s7, grow=True)
 
+# ── Psion LX / netBook Pro (photo) ──────────────────────────────────────
+# Dark keys on a dark deck, lit unevenly from the right, so the edges were
+# read off a contrast-stretched crop like the Series 7's. The photo looks
+# down on the keyboard, so each row is a little wider than the one above
+# it and the columns don't line up from row to row — every row is measured
+# on its own. The codes are what core/netbookpro.cpp kKeys takes: Alt is
+# EStdKeyLeftAlt, the key the netBook Pro's own Alt sits on in its matrix.
+# The Fn legends (Home / PgUp / PgDn / End on the arrows, Help on /) are the
+# Fn layer of the same keys, so they are not zones of their own.
+_lx = rows(
+    row(588, 625, [('Esc', 80, 137), ('1', 140, 188), ('2', 192, 238), ('3', 242, 289),
+                   ('4', 293, 339), ('5', 343, 389), ('6', 393, 441), ('7', 445, 490),
+                   ('8', 493, 540), ('9', 543, 590), ('0', 593, 640), ('Minus', 643, 692),
+                   ('Delete=Bksp', 695, 780)]),
+    row(627, 670, [('Tab', 77, 118), ('Q', 120, 172), ('W', 182, 233), ('E', 237, 288),
+                   ('R', 293, 345), ('T', 348, 400), ('Y', 405, 452), ('U', 455, 503),
+                   ('I', 507, 560), ('O', 563, 617), ('P', 620, 673), ('Equals', 680, 730),
+                   ('Enter', 733, 800)]),
+    row(672, 717, [('Backslash', 68, 118), ('A', 128, 178), ('S', 183, 235), ('D', 240, 292),
+                   ('F', 300, 353), ('G', 360, 413), ('H', 417, 468), ('J', 472, 527),
+                   ('K', 530, 586), ('L', 589, 646), ('Semi', 649, 707), ('Quote', 710, 758),
+                   ('Enter#2', 761, 813)]),
+    row(720, 768, [('ShiftL', 63, 140), ('Z', 147, 197), ('X', 205, 257), ('C', 263, 317),
+                   ('V', 323, 380), ('B', 385, 440), ('N', 445, 504), ('M', 508, 567),
+                   ('Comma', 571, 629), ('Stop', 633, 687), ('Up', 690, 743), ('ShiftR', 747, 810)]),
+    row(770, 826, [('Ctrl', 53, 122), ('Alt=Psion', 128, 190), ('Fn', 193, 257), ('Space', 260, 573),
+                   ('Slash', 577, 637), ('Left', 640, 700), ('Down', 703, 760), ('Right', 763, 837)]),
+)
+PHOTOS['netbook_pro_lx.png'] = keyset(*_lx, grow=True)
+
 # ── Geofox One (photo) ──────────────────────────────────────────────────
 # The QWERTY board and the calculator pad beside the trackpad. The deck's
 # etched application keys and soft keys are already zones of their own
